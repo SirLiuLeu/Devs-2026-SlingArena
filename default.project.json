@@ -4,7 +4,10 @@
     "$className": "DataModel",
     "ReplicatedStorage": {
       "Shared": {
-        "$path": "src/ReplicatedStorage"
+        "$path": "src/ReplicatedStorage/Shared"
+      },
+      "Remotes": {
+        "$path": "src/ReplicatedStorage/Remotes"
       }
     },
     "ServerScriptService": {
@@ -18,6 +21,9 @@
           "$path": "src/StarterPlayer"
         }
       }
+    },
+    "StarterGui": {
+      "$path": "src/StarterGui"
     },
     "Workspace": {
       "$properties": {
