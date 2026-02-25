@@ -4,21 +4,14 @@
 Xây dựng hệ thống PvP vật lý nơi:
 
 Player charge → launch
-
 Collision → damage + knockback
-
 Grow by consuming entities
-
 Self-damage risk system
-
 Diamond monetization
 
 Game phải:
-
-Server authoritative
-
+Server authoritativ
 Anti-exploit
-
 Modular service-based
 
 1️. SYSTEM ARCHITECTURE (Roblox Service Pattern)
@@ -230,98 +223,56 @@ Effects stack limited
 Effects duration capped
 
 7️.MONETIZATION RULES
-Respawn
-
+- Respawn
 Cost progression:
-
-[10, 20, 40, 80, 150]
-
-Max 5 per match.
-
+[10, 15, 20]
+Max 3 per match.
 Respawn keeps:
-
-Size
-
-Level
-
-Respawn resets:
-
-Buffs
-
-Temporary effects
-
-Match Buff (1 Life Only)
-
-Cost: 50 diamonds
-
-Reset on death.
-
-Buff caps:
-
-EXP boost max 20%
-
-HP boost max 15%
-
-Damage boost max 15%
-
-Global Skill
-
-Requires server cooldown 3 minutes.
-
-Cannot:
-
-Kill player under 30% HP
-
-Stack
-
+	50% Size và Level
+- buffs:
+	Match Buff, Cost: 20 diamonds.
+	EXP boost max 10%
+	HP boost max 10%
+	Damage boost max 10%
+	Charge speed 10%
+- Nếu không hồi sinh bằng diamons thì reset free ( còn 30% level, size)
+- Slingshot trail đẹp, kill effects, Size aura effect
 8. MAP RULES
 
 MapService must:
-
 Track Anti-Giant Zones
-
 Track Safe Spawn Zones
-
 Track Size-Restricted Corridors
-
 If Size > CorridorLimit:
 
 Cannot enter
 
 9. ANTI-EXPLOIT RULES
-
 All damage server calculated
-
 Client never sets velocity directly
-
 All diamond changes server-only
-
 Clamp all values
 
 10. BUILD PRIORITY ORDER FOR CODEX
-
 PlayerStateService
-
 SlingshotService
-
 CollisionService
-
 CombatService
-
 GrowthService
-
 SkillService
-
 MonetizationService
-
 MapService
 
 📌 FINAL NOTE FOR CODEX
 
 System must be modular
-
 No hard-coded values
-
 All balance inside Config folder
-
 Services communicate via events, not direct mutation
+11. 
+ - Mỗi khi lên level thì sẽ có được 1 điểm thuộc tính
+ - Dùng điểm này để tăng thêm: speed, hp, Lực bắn (bắn xa hơn), charge speed, phản damage
+ - Anti up size bằng cách lên level cần lượng lớn exp! 
+ - Up size tăng thêm 2-10 damage / level, max tăng 1000 damage
+ - Reset level về 0 để nhận kim cương ( người chơi muốn thoát giữa chừng cũng có kim cương)
+ - Kim cương được bán bằng robux với giá rất ghẻ, tránh P2W
