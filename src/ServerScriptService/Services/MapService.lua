@@ -1,84 +1,91 @@
 --!strict
 
-local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
+local Config = require(ReplicatedStorage.Shared.Config.Config)
 
 local MapService = {}
 MapService.__index = MapService
 
-type Context = {
-	Services: any,
-	EventBus: any,
-}
-
-function MapService.new(context: Context)
+function MapService.new(context)
 	local self = setmetatable({}, MapService)
 	self._context = context
-	self._zonesFolder = Workspace:FindFirstChild("ArenaZones") :: Folder
-	if not self._zonesFolder then
-		self._zonesFolder = Instance.new("Folder")
-		self._zonesFolder.Name = "ArenaZones"
-		self._zonesFolder.Parent = Workspace
+	self._arenaFolder = Workspace:FindFirstChild("Arena")
+	if not self._arenaFolder then
+		self._arenaFolder = Instance.new("Folder")
+		self._arenaFolder.Name = "Arena"
+		self._arenaFolder.Parent = Workspace
 	end
+	self._gates = {}
 	return self
 end
 
-local function ensureZone(folder: Folder, name: string, position: Vector3, size: Vector3, color: Color3): BasePart
-	local zone = folder:FindFirstChild(name) :: BasePart
-	if not zone then
-		zone = Instance.new("Part")
-		zone.Name = name
-		zone.Anchored = true
-		zone.Transparency = 0.7
-		zone.Color = color
-		zone.CanCollide = false
-		zone.Parent = folder
-	end
-	zone.Position = position
-	zone.Size = size
-	return zone
+local function makePart(name, size, position, color, parent)
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Size = size
+	part.Position = position
+	part.Anchored = true
+	part.Color = color
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.CollisionGroup = "Environment"
+	part.Parent = parent
+	return part
 end
 
 function MapService:Init()
-	local safeZone = ensureZone(self._zonesFolder, "SafeZone", Vector3.new(0, 4, 0), Vector3.new(30, 8, 30), Color3.fromRGB(64, 196, 255))
-	local antiGiantZone = ensureZone(self._zonesFolder, "AntiGiantZone", Vector3.new(60, 4, 0), Vector3.new(24, 8, 24), Color3.fromRGB(255, 163, 64))
-	local corridor = ensureZone(self._zonesFolder, "SizeRestrictedCorridor", Vector3.new(-60, 4, 0), Vector3.new(20, 8, 80), Color3.fromRGB(218, 64, 255))
+	self:Generate(os.time())
+end
 
-	safeZone.Touched:Connect(function(hit)
-		local character = hit:FindFirstAncestorOfClass("Model")
-		local player = character and Players:GetPlayerFromCharacter(character)
-		if player then
-			self._context.Services.PlayerStateService:MarkInvulnerable(player, 0.2)
-		end
-	end)
+function MapService:Generate(seed)
+	self._arenaFolder:ClearAllChildren()
+	self._gates = {}
 
-	antiGiantZone.Touched:Connect(function(hit)
-		local character = hit:FindFirstAncestorOfClass("Model")
-		local player = character and Players:GetPlayerFromCharacter(character)
-		if not player then
-			return
-		end
-		local state = self._context.Services.PlayerStateService:GetState(player)
-		if state and state.Size > BalanceConfig.AntiGiantSizeLimit then
-			self._context.Services.PlayerStateService:ApplyDamage(player, 4)
-		end
-	end)
+	local random = Random.new(seed)
+	makePart("ArenaFloor", Vector3.new(Config.MaxArenaRadius * 2, 4, Config.MaxArenaRadius * 2), Vector3.new(0, -2, 0), Color3.fromRGB(50, 50, 55), self._arenaFolder)
 
-	corridor.Touched:Connect(function(hit)
-		local character = hit:FindFirstAncestorOfClass("Model")
-		local player = character and Players:GetPlayerFromCharacter(character)
-		if not player then
-			return
-		end
-		local state = self._context.Services.PlayerStateService:GetState(player)
-		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart
-		if state and root and state.Size > BalanceConfig.CorridorSizeLimit then
-			root.AssemblyLinearVelocity = -root.CFrame.LookVector * 35
-		end
-	end)
+	local wallsFolder = Instance.new("Folder")
+	wallsFolder.Name = "Walls"
+	wallsFolder.Parent = self._arenaFolder
+
+	local wallHeight = 24
+	local radius = Config.MaxArenaRadius
+	makePart("NorthWall", Vector3.new(radius * 2, wallHeight, 8), Vector3.new(0, wallHeight / 2, -radius), Color3.fromRGB(83, 84, 92), wallsFolder)
+	makePart("SouthWall", Vector3.new(radius * 2, wallHeight, 8), Vector3.new(0, wallHeight / 2, radius), Color3.fromRGB(83, 84, 92), wallsFolder)
+	makePart("EastWall", Vector3.new(8, wallHeight, radius * 2), Vector3.new(radius, wallHeight / 2, 0), Color3.fromRGB(83, 84, 92), wallsFolder)
+	makePart("WestWall", Vector3.new(8, wallHeight, radius * 2), Vector3.new(-radius, wallHeight / 2, 0), Color3.fromRGB(83, 84, 92), wallsFolder)
+
+	local obstacles = Instance.new("Folder")
+	obstacles.Name = "Obstacles"
+	obstacles.Parent = self._arenaFolder
+	for i = 1, 20 do
+		local size = Vector3.new(random:NextNumber(10, 24), random:NextNumber(8, 20), random:NextNumber(10, 24))
+		local pos = Vector3.new(random:NextNumber(-radius + 30, radius - 30), size.Y / 2, random:NextNumber(-radius + 30, radius - 30))
+		makePart(`Obstacle{i}`, size, pos, Color3.fromRGB(108, 108, 118), obstacles)
+	end
+
+	local gatesFolder = Instance.new("Folder")
+	gatesFolder.Name = "Gates"
+	gatesFolder.Parent = self._arenaFolder
+	for i = 1, 6 do
+		local gate = makePart(`Gate{i}`, Vector3.new(20, 18, 4), Vector3.new(random:NextNumber(-radius + 40, radius - 40), 9, random:NextNumber(-radius + 40, radius - 40)), Color3.fromRGB(142, 94, 196), gatesFolder)
+		gate:SetAttribute("MaxSize", random:NextNumber(1.5, 5))
+		table.insert(self._gates, gate)
+	end
+end
+
+function MapService:IsGateBlocking(gate, playerSize)
+	local maxSize = gate:GetAttribute("MaxSize")
+	if typeof(maxSize) ~= "number" then
+		return false
+	end
+	return playerSize > maxSize
+end
+
+function MapService:GetGates()
+	return self._gates
 end
 
 return MapService

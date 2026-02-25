@@ -1,28 +1,41 @@
 --!strict
 
+local PhysicsService = game:GetService("PhysicsService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ServicesFolder = script.Parent:WaitForChild("Services")
 
-local EventBus = require(ServicesFolder.EventBus)
-local PlayerStateService = require(ServicesFolder.PlayerStateService)
-local GrowthService = require(ServicesFolder.GrowthService)
-local SlingshotService = require(ServicesFolder.SlingshotService)
-local CollisionService = require(ServicesFolder.CollisionService)
-local CombatService = require(ServicesFolder.CombatService)
-local SkillService = require(ServicesFolder.SkillService)
-local MonetizationService = require(ServicesFolder.MonetizationService)
+local PlayerService = require(ServicesFolder.PlayerService)
+local SlingService = require(ServicesFolder.SlingService)
 local MapService = require(ServicesFolder.MapService)
+local FoodService = require(ServicesFolder.FoodService)
+local CollisionService = require(ServicesFolder.CollisionService)
+local ChargeService = require(ServicesFolder.ChargeService)
+local RoundService = require(ServicesFolder.RoundService)
 
-local remotesFolder = ReplicatedStorage:FindFirstChild("SlingArenaRemotes") :: Folder
+local function ensureCollisionGroup(name)
+	local ok = pcall(function()
+		PhysicsService:CreateCollisionGroup(name)
+	end)
+	if not ok then
+		-- already exists
+	end
+end
+
+ensureCollisionGroup("Players")
+ensureCollisionGroup("Environment")
+PhysicsService:CollisionGroupSetCollidable("Players", "Players", true)
+PhysicsService:CollisionGroupSetCollidable("Players", "Environment", true)
+
+local remotesFolder = ReplicatedStorage:FindFirstChild("SlingArenaRemotes")
 if not remotesFolder then
 	remotesFolder = Instance.new("Folder")
 	remotesFolder.Name = "SlingArenaRemotes"
 	remotesFolder.Parent = ReplicatedStorage
 end
 
-local function ensureRemote(name: string): RemoteEvent
-	local remote = remotesFolder:FindFirstChild(name) :: RemoteEvent
+local function ensureRemote(name)
+	local remote = remotesFolder:FindFirstChild(name)
 	if not remote then
 		remote = Instance.new("RemoteEvent")
 		remote.Name = name
@@ -31,43 +44,26 @@ local function ensureRemote(name: string): RemoteEvent
 	return remote
 end
 
-ensureRemote("StartCharge")
-ensureRemote("ReleaseCharge")
-ensureRemote("SpendAttribute")
-ensureRemote("PurchaseRespawn")
-ensureRemote("PurchaseMatchBuff")
-ensureRemote("PrestigeReset")
-ensureRemote("ToggleSpecialUpgrade")
-ensureRemote("StateUpdate")
-
-local eventBus = EventBus.new()
+ensureRemote("SlingAimRemote")
+ensureRemote("SlingReleaseRemote")
 
 local context = {
-	EventBus = eventBus,
 	Remotes = remotesFolder,
 	Services = {},
 }
 
-context.Services.PlayerStateService = PlayerStateService.new(context)
-context.Services.GrowthService = GrowthService.new(context)
-context.Services.SlingshotService = SlingshotService.new(context)
-context.Services.CollisionService = CollisionService.new(context)
-context.Services.CombatService = CombatService.new(context)
-context.Services.SkillService = SkillService.new(context)
-context.Services.MonetizationService = MonetizationService.new(context)
+context.Services.PlayerService = PlayerService.new(context)
+context.Services.SlingService = SlingService.new(context)
 context.Services.MapService = MapService.new(context)
+context.Services.FoodService = FoodService.new(context)
+context.Services.CollisionService = CollisionService.new(context)
+context.Services.ChargeService = ChargeService.new(context)
+context.Services.RoundService = RoundService.new(context)
 
-context.Services.PlayerStateService:Init()
-context.Services.GrowthService:Init()
-context.Services.SlingshotService:Init()
-context.Services.CollisionService:Init()
-context.Services.CombatService:Init()
-context.Services.SkillService:Init()
-context.Services.MonetizationService:Init()
+context.Services.PlayerService:Init()
+context.Services.SlingService:Init()
 context.Services.MapService:Init()
-
-eventBus:On("PlayerDied", function(player: Player)
-	task.delay(3, function()
-		context.Services.MonetizationService:HandleFreeRespawn(player)
-	end)
-end)
+context.Services.FoodService:Init()
+context.Services.CollisionService:Init()
+context.Services.ChargeService:Init()
+context.Services.RoundService:Init()
