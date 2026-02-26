@@ -8,6 +8,14 @@ local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 
 type PlayerState = require(ReplicatedStorage.Shared.Types.PlayerState).PlayerState
 
+type BuffState = {
+	DamageBoost: number,
+	HpBoost: number,
+	ExpBoost: number,
+	ChargeBoost: number,
+	Active: boolean,
+}
+
 type Context = {
 	EventBus: any,
 	Remotes: Folder,
@@ -20,17 +28,18 @@ function PlayerStateService.new(context: Context)
 	local self = setmetatable({}, PlayerStateService)
 	self._context = context
 	self._states = {} :: { [Player]: PlayerState }
-	self._buffs = {} :: { [Player]: { DamageBoost: number, HpBoost: number, ExpBoost: number, ChargeBoost: number, Active: boolean } }
+	self._buffs = {} :: { [Player]: BuffState }
 	self._stateUpdateRemote = context.Remotes:FindFirstChild("StateUpdate") :: RemoteEvent
 	return self
 end
 
-local function computeSize(level: number): number
-	local base = BalanceConfig.BaseSize * (1 + math.sqrt(math.max(level, 1)) * BalanceConfig.SizeSqrtMultiplier)
-	if level > 30 then
-		return BalanceConfig.BaseSize + (base - BalanceConfig.BaseSize) * BalanceConfig.PostLevel30SizeScalar
-	end
-	return base
+-- Domain ownership: all level/exp/size math is centralized in PlayerStateService.
+function PlayerStateService:ComputeSize(level: number): number
+	return BalanceConfig.BaseSize + (math.max(level, 1) * BalanceConfig.LevelGrowthMultiplier)
+end
+
+function PlayerStateService:GetRequiredExp(level: number): number
+	return LevelConfig.RequiredExp(level)
 end
 
 local function computeMaxHp(state: PlayerState, hpBuff: number): number
@@ -67,9 +76,6 @@ local function buildDefaultState(player: Player): PlayerState
 		IsAlive = true,
 		IsCharging = false,
 	}
-	state.Size = computeSize(state.Level)
-	state.MaxHP = computeMaxHp(state, 0)
-	state.CurrentHP = state.MaxHP
 	return state
 end
 
@@ -77,7 +83,7 @@ function PlayerStateService:Init()
 	Players.PlayerAdded:Connect(function(player)
 		self._states[player] = buildDefaultState(player)
 		self._buffs[player] = { DamageBoost = 0, HpBoost = 0, ExpBoost = 0, ChargeBoost = 0, Active = false }
-		self:PublishState(player)
+		self:RecalculateDerivedStats(player, true)
 	end)
 
 	Players.PlayerRemoving:Connect(function(player)
@@ -88,12 +94,8 @@ function PlayerStateService:Init()
 	for _, player in ipairs(Players:GetPlayers()) do
 		self._states[player] = buildDefaultState(player)
 		self._buffs[player] = { DamageBoost = 0, HpBoost = 0, ExpBoost = 0, ChargeBoost = 0, Active = false }
-		self:PublishState(player)
+		self:RecalculateDerivedStats(player, true)
 	end
-
-	self._context.EventBus:On("CharacterSpawned", function(player: Player, character: Model)
-		self:ApplyCharacterScale(player, character)
-	end)
 end
 
 function PlayerStateService:GetState(player: Player): PlayerState?
@@ -104,26 +106,32 @@ function PlayerStateService:GetAllStates(): { [Player]: PlayerState }
 	return self._states
 end
 
-function PlayerStateService:UpdateVelocity(player: Player, velocity: Vector3)
+function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth: boolean?)
 	local state = self._states[player]
 	if not state then
 		return
 	end
-	local clamped = velocity
-	if velocity.Magnitude > BalanceConfig.MaxVelocity then
-		clamped = velocity.Unit * BalanceConfig.MaxVelocity
+	state.Size = self:ComputeSize(state.Level)
+	local buff = self._buffs[player]
+	local hpBuff = buff and buff.HpBoost or 0
+	local newMax = computeMaxHp(state, hpBuff)
+	state.MaxHP = newMax
+	if refillHealth then
+		state.CurrentHP = newMax
+	else
+		state.CurrentHP = math.clamp(state.CurrentHP, 0, newMax)
 	end
-	state.CurrentVelocity = clamped
+	self:PublishState(player)
 end
 
-function PlayerStateService:SetCharging(player: Player, isCharging: boolean, chargeValue: number?)
+function PlayerStateService:SetAlive(player: Player, alive: boolean)
 	local state = self._states[player]
 	if not state then
 		return
 	end
-	state.IsCharging = isCharging
-	if chargeValue then
-		state.ChargeValue = math.clamp(chargeValue, 0, 1)
+	state.IsAlive = alive
+	if alive then
+		state.CurrentHP = math.max(1, state.CurrentHP)
 	end
 	self:PublishState(player)
 end
@@ -134,10 +142,6 @@ function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
 		return false
 	end
 	state.CurrentHP = math.max(0, state.CurrentHP - math.max(0, amount))
-	if state.CurrentHP <= 0 then
-		state.IsAlive = false
-		self._context.EventBus:Fire("PlayerDied", player)
-	end
 	self:PublishState(player)
 	return true
 end
@@ -168,42 +172,20 @@ function PlayerStateService:IsInvulnerable(player: Player): boolean
 	return state.InvulnerableUntil > os.clock()
 end
 
-function PlayerStateService:AddDiamonds(player: Player, amount: number)
-	local state = self._states[player]
-	if not state then
-		return
-	end
-	state.Diamonds = math.max(0, state.Diamonds + amount)
-	self:PublishState(player)
-end
-
-function PlayerStateService:SpendDiamonds(player: Player, amount: number): boolean
-	local state = self._states[player]
-	if not state or amount < 0 then
-		return false
-	end
-	if state.Diamonds < amount then
-		return false
-	end
-	state.Diamonds -= amount
-	self:PublishState(player)
-	return true
-end
-
 function PlayerStateService:GrantExp(player: Player, amount: number)
 	local state = self._states[player]
 	if not state then
 		return
 	end
 	local buff = self._buffs[player]
-	local adjusted = amount
+	local adjusted = math.max(0, amount)
 	if buff then
-		adjusted = adjusted * (1 + buff.ExpBoost)
+		adjusted *= (1 + buff.ExpBoost)
 	end
-	state.Exp += math.max(0, adjusted)
+	state.Exp += adjusted
 	local leveled = false
 	while state.Level < LevelConfig.MaxLevel do
-		local requiredExp = BalanceConfig.BaseExp * (state.Level ^ BalanceConfig.ExpExponent)
+		local requiredExp = self:GetRequiredExp(state.Level)
 		if state.Exp < requiredExp then
 			break
 		end
@@ -212,156 +194,63 @@ function PlayerStateService:GrantExp(player: Player, amount: number)
 		state.AttributePoints += 1
 		leveled = true
 	end
-
 	if leveled then
-		state.Size = computeSize(state.Level)
-		local hpBuff = buff and buff.HpBoost or 0
-		state.MaxHP = computeMaxHp(state, hpBuff)
-		state.CurrentHP = math.min(state.CurrentHP + 20, state.MaxHP)
+		self:RecalculateDerivedStats(player, false)
 		self._context.EventBus:Fire("LevelUp", player, state.Level)
-		local character = player.Character
-		if character then
-			self:ApplyCharacterScale(player, character)
-		end
+	else
+		self:PublishState(player)
 	end
-	self:PublishState(player)
 end
 
-function PlayerStateService:ApplyCharacterScale(player: Player, character: Model)
+function PlayerStateService:TryApplyExpPenalty(player: Player, penalty: number): boolean
+	local state = self._states[player]
+	if not state then
+		return false
+	end
+	state.Exp -= math.max(0, penalty)
+	local didLevelDown = false
+	while state.Exp <= 0 do
+		if state.Level <= 1 then
+			state.Level = 1
+			state.Exp = 0
+			break
+		end
+		state.Level -= 1
+		state.Exp = self:GetRequiredExp(state.Level)
+		didLevelDown = true
+	end
+	if didLevelDown then
+		self:RecalculateDerivedStats(player, false)
+	else
+		self:PublishState(player)
+	end
+	return didLevelDown
+end
+
+function PlayerStateService:UpdateVelocity(player: Player, velocity: Vector3)
 	local state = self._states[player]
 	if not state then
 		return
 	end
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if not humanoid then
-		return
-	end
-	humanoid.WalkSpeed = BalanceConfig.DefaultWalkSpeed * (1 + math.min(state.Attributes.Speed * 0.01, 0.2))
-	if humanoid:FindFirstChild("BodyHeightScale") then
-		(humanoid.BodyHeightScale :: NumberValue).Value = state.Size
-	end
-	if humanoid:FindFirstChild("BodyWidthScale") then
-		(humanoid.BodyWidthScale :: NumberValue).Value = state.Size
-	end
-	if humanoid:FindFirstChild("BodyDepthScale") then
-		(humanoid.BodyDepthScale :: NumberValue).Value = state.Size
-	end
-	if humanoid:FindFirstChild("HeadScale") then
-		(humanoid.HeadScale :: NumberValue).Value = state.Size
+	if velocity.Magnitude > BalanceConfig.MaxVelocity then
+		state.CurrentVelocity = velocity.Unit * BalanceConfig.MaxVelocity
+	else
+		state.CurrentVelocity = velocity
 	end
 end
 
-function PlayerStateService:ResetForRespawn(player: Player, paid: boolean)
+function PlayerStateService:ResetForRespawn(player: Player)
 	local state = self._states[player]
 	if not state then
 		return
 	end
 	state.RespawnCountThisMatch += 1
-	if paid then
-		state.Size *= BalanceConfig.RespawnRetainSizePaid
-	else
-		state.Level = math.max(1, math.floor(state.Level * BalanceConfig.RespawnRetainLevelFree))
-		state.Size = computeSize(state.Level)
-	end
 	state.IsAlive = true
 	state.IsCharging = false
 	state.CurrentVelocity = Vector3.zero
 	state.ChargeValue = 0
-	self:ClearMatchBuff(player)
-	state.MaxHP = computeMaxHp(state, 0)
-	state.CurrentHP = state.MaxHP
 	state.InvulnerableUntil = os.clock() + BalanceConfig.DefaultInvulnerableSeconds
-	self:PublishState(player)
-end
-
-function PlayerStateService:PrestigeReset(player: Player)
-	local state = self._states[player]
-	if not state then
-		return
-	end
-	local diamondGain = math.floor(state.Level / BalanceConfig.DiamondsPerPrestigeLevelDivisor)
-	state.Diamonds += diamondGain
-	state.Level = 1
-	state.Exp = 0
-	state.AttributePoints = 0
-	state.Attributes.Speed = 0
-	state.Attributes.HPBonus = 0
-	state.Attributes.LaunchPower = 0
-	state.Attributes.ChargeSpeed = 0
-	state.Attributes.ReflectDamage = 0
-	state.Size = computeSize(state.Level)
-	state.MaxHP = computeMaxHp(state, 0)
-	state.CurrentHP = state.MaxHP
-	self:PublishState(player)
-end
-
-function PlayerStateService:TrySpendAttribute(player: Player, attributeName: string): boolean
-	local state = self._states[player]
-	if not state then
-		return false
-	end
-	if state.AttributePoints <= 0 then
-		return false
-	end
-	local current = state.Attributes[attributeName]
-	if current == nil then
-		return false
-	end
-	if current >= BalanceConfig.AttributeCapPerStat then
-		return false
-	end
-
-	if attributeName == "ReflectDamage" then
-		local reflectNext = math.min((current + 1) * 0.0075, BalanceConfig.ReflectDamageCap)
-		if reflectNext > BalanceConfig.ReflectDamageCap then
-			return false
-		end
-	end
-
-	state.Attributes[attributeName] = current + 1
-	state.AttributePoints -= 1
-	local buff = self._buffs[player]
-	local hpBuff = buff and buff.HpBoost or 0
-	state.MaxHP = computeMaxHp(state, hpBuff)
-	state.CurrentHP = math.min(state.CurrentHP, state.MaxHP)
-	self:PublishState(player)
-	return true
-end
-
-function PlayerStateService:ApplyMatchBuff(player: Player): boolean
-	local state = self._states[player]
-	local buff = self._buffs[player]
-	if not state or not buff or buff.Active then
-		return false
-	end
-	buff.Active = true
-	buff.DamageBoost = BalanceConfig.MatchBuffMaxBoost
-	buff.HpBoost = BalanceConfig.MatchBuffMaxBoost
-	buff.ExpBoost = BalanceConfig.MatchBuffMaxBoost
-	buff.ChargeBoost = BalanceConfig.MatchBuffMaxBoost
-	state.MaxHP = computeMaxHp(state, buff.HpBoost)
-	state.CurrentHP = math.min(state.CurrentHP + 25, state.MaxHP)
-	self:PublishState(player)
-	return true
-end
-
-function PlayerStateService:GetBuff(player: Player)
-	return self._buffs[player]
-end
-
-function PlayerStateService:ClearMatchBuff(player: Player)
-	local buff = self._buffs[player]
-	local state = self._states[player]
-	if not buff or not state then
-		return
-	end
-	buff.Active = false
-	buff.DamageBoost = 0
-	buff.HpBoost = 0
-	buff.ExpBoost = 0
-	buff.ChargeBoost = 0
-	state.MaxHP = computeMaxHp(state, 0)
-	state.CurrentHP = math.min(state.CurrentHP, state.MaxHP)
+	self:RecalculateDerivedStats(player, true)
 end
 
 function PlayerStateService:PublishState(player: Player)

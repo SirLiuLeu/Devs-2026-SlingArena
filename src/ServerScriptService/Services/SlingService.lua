@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config.Config)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local SlingService = {}
 SlingService.__index = SlingService
@@ -14,14 +15,14 @@ function SlingService.new(context)
 end
 
 function SlingService:Init()
-	local aimRemote = self._context.Remotes:WaitForChild("SlingAimRemote")
+	local aimRemote = self._context.Remotes:WaitForChild(RemoteContracts.Names.SlingAim)
 	aimRemote.OnServerEvent:Connect(function(player, direction)
 		self:UpdateAim(player, direction)
 	end)
 end
 
 function SlingService:UpdateAim(player, direction)
-	if typeof(direction) ~= "Vector3" then
+	if not RemoteContracts.Validate(RemoteContracts.Names.SlingAim, direction) then
 		return
 	end
 	if direction.Magnitude < 0.001 then
@@ -47,8 +48,7 @@ function SlingService:Launch(player, direction, chargeRatio)
 
 	local planarDirection = Vector3.new(direction.X, 0, direction.Z)
 	if planarDirection.Magnitude < 0.001 then
-		local state = playerService:GetState(player)
-		planarDirection = state and state.LastAim or Vector3.new(0, 0, -1)
+		planarDirection = playerService:GetAim(player)
 	end
 
 	local force = planarDirection.Unit * (Config.BaseForce + chargeRatio * Config.MaxBonusForce)

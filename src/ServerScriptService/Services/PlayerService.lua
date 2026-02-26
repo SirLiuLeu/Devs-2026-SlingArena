@@ -14,8 +14,8 @@ PlayerService.__index = PlayerService
 function PlayerService.new(context)
 	local self = setmetatable({}, PlayerService)
 	self._context = context
-	self._states = {}
 	self._deathConnections = {}
+	self._lastAim = {}
 	self._pawnsFolder = Workspace:FindFirstChild("SlingPawns")
 	if not self._pawnsFolder then
 		self._pawnsFolder = Instance.new("Folder")
@@ -30,28 +30,26 @@ function PlayerService:Init()
 	self:_ensureSlingTemplate()
 
 	Players.PlayerAdded:Connect(function(player)
-		self:_onPlayerAdded(player)
+		self._lastAim[player] = Vector3.new(0, 0, -1)
+		self:SpawnPawn(player)
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		self:_disconnectDeathSignal(player)
 		self:_destroyPawn(player)
-		self._states[player] = nil
+		self._lastAim[player] = nil
 	end)
 
 	for _, player in Players:GetPlayers() do
-		self:_onPlayerAdded(player)
+		self._lastAim[player] = Vector3.new(0, 0, -1)
+		self:SpawnPawn(player)
 	end
 end
 
 function PlayerService:_ensureSlingTemplate(): Model
 	local existing = ReplicatedStorage:FindFirstChild("Sling")
 	if existing and existing:IsA("Model") then
-		if self:_validateSlingTemplate(existing) then
-			return existing
-		end
-		existing:Destroy()
+		return existing
 	end
-
 	local sling = Instance.new("Model")
 	sling.Name = "Sling"
 
@@ -110,95 +108,21 @@ function PlayerService:_ensureSlingTemplate(): Model
 	return sling
 end
 
-function PlayerService:_validateSlingTemplate(template: Model): boolean
-	local root = template:FindFirstChild("HumanoidRootPart")
-	local body = template:FindFirstChild("Body")
-	local humanoid = template:FindFirstChildOfClass("Humanoid")
-
-	if not (root and root:IsA("BasePart")) then
-		return false
-	end
-	if not (body and body:IsA("Part")) then
-		return false
-	end
-	if not humanoid then
-		return false
-	end
-
-	template.PrimaryPart = root
-
-	local weld = root:FindFirstChild("BodyWeld")
-	if not (weld and weld:IsA("WeldConstraint")) then
-		local newWeld = Instance.new("WeldConstraint")
-		newWeld.Name = "BodyWeld"
-		newWeld.Part0 = root
-		newWeld.Part1 = body
-		newWeld.Parent = root
-	elseif weld.Part0 ~= root or weld.Part1 ~= body then
-		weld.Part0 = root
-		weld.Part1 = body
-	end
-
-	if not root:FindFirstChild("Attachment") then
-		local attachment = Instance.new("Attachment")
-		attachment.Name = "Attachment"
-		attachment.Parent = root
-	end
-
-	local attachment = root:FindFirstChild("Attachment") :: Attachment
-	if not root:FindFirstChild("LinearVelocity") then
-		local linearVelocity = Instance.new("LinearVelocity")
-		linearVelocity.Name = "LinearVelocity"
-		linearVelocity.Attachment0 = attachment
-		linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
-		linearVelocity.VectorVelocity = Vector3.zero
-		linearVelocity.MaxForce = math.huge
-		linearVelocity.Enabled = false
-		linearVelocity.Parent = root
-	end
-
-	if not root:FindFirstChild("AlignOrientation") then
-		local align = Instance.new("AlignOrientation")
-		align.Name = "AlignOrientation"
-		align.Mode = Enum.OrientationAlignmentMode.OneAttachment
-		align.Attachment0 = attachment
-		align.RigidityEnabled = true
-		align.Enabled = true
-		align.Parent = root
-	end
-
-	return true
-end
-
-function PlayerService:_onPlayerAdded(player)
-	self._states[player] = {
-		HP = Config.BasePlayerHP,
-		Size = Config.BasePlayerSize,
-		EXP = 0,
-		Alive = true,
-		LastAim = Vector3.new(0, 0, -1),
-	}
-	self:SpawnPawn(player)
-end
-
-function PlayerService:GetState(player)
-	return self._states[player]
-end
-
 function PlayerService:GetPawn(player)
 	return self._pawnsFolder:FindFirstChild(player.Name)
 end
 
 function PlayerService:IsAlive(player)
-	local state = self:GetState(player)
-	return state ~= nil and state.Alive
+	local state = self._context.Services.PlayerStateService:GetState(player)
+	return state ~= nil and state.IsAlive
 end
 
 function PlayerService:SetAim(player, direction)
-	local state = self:GetState(player)
-	if state then
-		state.LastAim = direction
-	end
+	self._lastAim[player] = direction
+end
+
+function PlayerService:GetAim(player)
+	return self._lastAim[player] or Vector3.new(0, 0, -1)
 end
 
 function PlayerService:_disconnectDeathSignal(player)
@@ -212,10 +136,6 @@ end
 function PlayerService:SpawnPawn(player)
 	self:_disconnectDeathSignal(player)
 	self:_destroyPawn(player)
-	local state = self:GetState(player)
-	if not state then
-		return
-	end
 
 	local template = self:_ensureSlingTemplate()
 	local pawn = template:Clone()
@@ -224,20 +144,14 @@ function PlayerService:SpawnPawn(player)
 	pawn.Parent = self._pawnsFolder
 
 	player.Character = pawn
-	state.Alive = true
-	state.HP = Config.BasePlayerHP
+	self._context.Services.PlayerStateService:ResetForRespawn(player)
 
 	local humanoid = pawn:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		self._deathConnections[player] = humanoid.Died:Connect(function()
-			if player.Parent ~= Players then
-				return
+			if player.Parent == Players then
+				self._context.Services.DamagePipelineService:HandlePlayerDeath(player)
 			end
-			if not state.Alive then
-				return
-			end
-			state.Alive = false
-			self._context.Services.RoundService:OnPlayerEliminated(player)
 		end)
 	end
 end
@@ -246,40 +160,6 @@ function PlayerService:_destroyPawn(player)
 	local pawn = self:GetPawn(player)
 	if pawn then
 		pawn:Destroy()
-	end
-end
-
-function PlayerService:ApplyDamage(player, amount)
-	local state = self:GetState(player)
-	if not state or not state.Alive then
-		return
-	end
-	state.HP = math.max(0, state.HP - amount)
-	if state.HP <= 0 then
-		state.Alive = false
-		local pawn = self:GetPawn(player)
-		local humanoid = pawn and pawn:FindFirstChildOfClass("Humanoid")
-		if humanoid then
-			humanoid.Health = 0
-		else
-			self:_destroyPawn(player)
-			self._context.Services.RoundService:OnPlayerEliminated(player)
-		end
-	end
-end
-
-function PlayerService:AddGrowth(player, amount, exp)
-	local state = self:GetState(player)
-	if not state then
-		return
-	end
-	state.Size += amount
-	state.EXP += exp
-
-	local pawn = self:GetPawn(player)
-	local body = pawn and pawn:FindFirstChild("Body")
-	if body and body:IsA("BasePart") then
-		body.Size = Vector3.new(4, 4, 4) * state.Size
 	end
 end
 

@@ -5,6 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
 
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+
 local HUD = require(script.Components.HUD)
 local AttributePanel = require(script.Components.AttributePanel)
 local RespawnPanel = require(script.Components.RespawnPanel)
@@ -58,21 +60,17 @@ local DEFAULT_UI_STATE: UIState = {
 local UIController = {}
 UIController.__index = UIController
 
-local function findRemote(remotes: Folder, preferredName: string, fallbackName: string): RemoteEvent
-	return (remotes:FindFirstChild(preferredName) or remotes:FindFirstChild(fallbackName)) :: RemoteEvent
-end
-
 function UIController.new(screenGui: ScreenGui)
-	local remotes = (ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage:WaitForChild("SlingArenaRemotes")) :: Folder
+	local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes") :: Folder
 
 	local self = setmetatable({
 		ScreenGui = screenGui,
 		Remotes = {
-			UIStateUpdate = findRemote(remotes, "UIStateUpdate", "StateUpdate"),
-			AttributeUpgrade = findRemote(remotes, "AttributeUpgrade", "SpendAttribute"),
-			ActivateSkill = findRemote(remotes, "ActivateSkill", "ToggleSpecialUpgrade"),
-			RequestRespawn = findRemote(remotes, "RequestRespawn", "PurchaseRespawn"),
-			RequestMatchBuff = findRemote(remotes, "RequestMatchBuff", "PurchaseMatchBuff"),
+			UIStateUpdate = remotes:WaitForChild(RemoteContracts.Names.StateUpdate) :: RemoteEvent,
+			AttributeUpgrade = remotes:WaitForChild(RemoteContracts.Names.AttributeUpgrade) :: RemoteEvent,
+			ActivateSkill = remotes:WaitForChild(RemoteContracts.Names.ActivateSkill) :: RemoteEvent,
+			RequestRespawn = remotes:WaitForChild(RemoteContracts.Names.RequestRespawn) :: RemoteEvent,
+			RequestMatchBuff = remotes:WaitForChild(RemoteContracts.Names.RequestMatchBuff) :: RemoteEvent,
 		},
 		State = table.clone(DEFAULT_UI_STATE),
 		Connections = {},

@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config.Config)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local ChargeService = {}
 ChargeService.__index = ChargeService
@@ -25,14 +26,14 @@ local function clampDirection(current, previous)
 end
 
 function ChargeService:Init()
-	local releaseRemote = self._context.Remotes:WaitForChild("SlingReleaseRemote")
+	local releaseRemote = self._context.Remotes:WaitForChild(RemoteContracts.Names.SlingRelease)
 	releaseRemote.OnServerEvent:Connect(function(player, direction, chargeRatio)
 		self:HandleRelease(player, direction, chargeRatio)
 	end)
 end
 
 function ChargeService:HandleRelease(player, direction, chargeRatio)
-	if typeof(direction) ~= "Vector3" or typeof(chargeRatio) ~= "number" then
+	if not RemoteContracts.Validate(RemoteContracts.Names.SlingRelease, direction, chargeRatio) then
 		return
 	end
 	if not self._context.Services.PlayerService:IsAlive(player) then
@@ -50,11 +51,7 @@ function ChargeService:HandleRelease(player, direction, chargeRatio)
 		return
 	end
 
-	local state = self._context.Services.PlayerService:GetState(player)
-	local trustedDirection = planarDirection.Unit
-	if state then
-		trustedDirection = clampDirection(trustedDirection, state.LastAim)
-	end
+	local trustedDirection = clampDirection(planarDirection.Unit, self._context.Services.PlayerService:GetAim(player))
 
 	local trustedCharge = math.clamp(chargeRatio, 0, 1)
 	local didLaunch = self._context.Services.SlingService:Launch(player, trustedDirection, trustedCharge)

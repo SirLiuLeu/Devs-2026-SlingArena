@@ -4,6 +4,7 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config.Config)
+local TrapConfig = require(ReplicatedStorage.Shared.Config.TrapConfig)
 
 local MapService = {}
 MapService.__index = MapService
@@ -18,6 +19,7 @@ function MapService.new(context)
 		self._arenaFolder.Parent = Workspace
 	end
 	self._gates = {}
+	self._traps = {}
 	return self
 end
 
@@ -42,6 +44,7 @@ end
 function MapService:Generate(seed)
 	self._arenaFolder:ClearAllChildren()
 	self._gates = {}
+	self._traps = {}
 
 	local random = Random.new(seed)
 	makePart("ArenaFloor", Vector3.new(Config.MaxArenaRadius * 2, 4, Config.MaxArenaRadius * 2), Vector3.new(0, -2, 0), Color3.fromRGB(50, 50, 55), self._arenaFolder)
@@ -69,6 +72,16 @@ function MapService:Generate(seed)
 	local gatesFolder = Instance.new("Folder")
 	gatesFolder.Name = "Gates"
 	gatesFolder.Parent = self._arenaFolder
+
+	local trapsFolder = Instance.new("Folder")
+	trapsFolder.Name = "Traps"
+	trapsFolder.Parent = self._arenaFolder
+	for i = 1, TrapConfig.TrapCount do
+		local trap = makePart(`Trap{i}`, Vector3.new(10, 6, 10), Vector3.new(random:NextNumber(-radius + 30, radius - 30), 3, random:NextNumber(-radius + 30, radius - 30)), TrapConfig.TrapColor, trapsFolder)
+		trap.Material = Enum.Material.Neon
+		table.insert(self._traps, trap)
+	end
+
 	for i = 1, 6 do
 		local gate = makePart(`Gate{i}`, Vector3.new(20, 18, 4), Vector3.new(random:NextNumber(-radius + 40, radius - 40), 9, random:NextNumber(-radius + 40, radius - 40)), Color3.fromRGB(142, 94, 196), gatesFolder)
 		gate:SetAttribute("MaxSize", random:NextNumber(1.5, 5))
@@ -86,6 +99,10 @@ end
 
 function MapService:GetGates()
 	return self._gates
+end
+
+function MapService:GetTrapBlocks()
+	return self._traps
 end
 
 return MapService

@@ -88,7 +88,8 @@ function FoodService:_onFoodTouched(food, hit)
 
 	food:SetAttribute("Consumed", true)
 	local growth = (food:FindFirstChild("SizeScaleValue") :: NumberValue).Value
-	self._context.Services.PlayerService:AddGrowth(player, growth, math.floor(growth * 100))
+	self._context.Services.PlayerStateService:GrantExp(player, math.floor(growth * 100))
+	self._context.Services.PlayerStateService:Heal(player, Config.BasePlayerHP * 0.05)
 
 	local key = self:_cellKey(food.Position)
 	if self._spatialHash[key] then

@@ -22,6 +22,7 @@ local BalanceConfig = {
 	HitInvulSeconds = 0.25,
 	DefaultWalkSpeed = 16,
 	BaseSize = 1,
+	LevelGrowthMultiplier = 0.08,
 	BaseHP = 100,
 	BaseDamage = 20,
 	BaseExp = 100,

@@ -5,21 +5,24 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ServicesFolder = script.Parent:WaitForChild("Services")
 
+local EventBus = require(ServicesFolder.EventBus)
+local PlayerStateService = require(ServicesFolder.PlayerStateService)
 local PlayerService = require(ServicesFolder.PlayerService)
 local SlingService = require(ServicesFolder.SlingService)
 local MapService = require(ServicesFolder.MapService)
 local FoodService = require(ServicesFolder.FoodService)
 local CollisionService = require(ServicesFolder.CollisionService)
 local ChargeService = require(ServicesFolder.ChargeService)
-local RoundService = require(ServicesFolder.RoundService)
+local MatchService = require(ServicesFolder.MatchService)
+local DamagePipelineService = require(ServicesFolder.DamagePipelineService)
+local TrapService = require(ServicesFolder.TrapService)
+
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local function ensureCollisionGroup(name)
-	local ok = pcall(function()
+	pcall(function()
 		PhysicsService:CreateCollisionGroup(name)
 	end)
-	if not ok then
-		-- already exists
-	end
 end
 
 ensureCollisionGroup("Players")
@@ -44,26 +47,34 @@ local function ensureRemote(name)
 	return remote
 end
 
-ensureRemote("SlingAimRemote")
-ensureRemote("SlingReleaseRemote")
+for _, remoteName in pairs(RemoteContracts.Names) do
+	ensureRemote(remoteName)
+end
 
 local context = {
 	Remotes = remotesFolder,
 	Services = {},
+	EventBus = EventBus.new(),
 }
 
+context.Services.PlayerStateService = PlayerStateService.new(context)
 context.Services.PlayerService = PlayerService.new(context)
 context.Services.SlingService = SlingService.new(context)
 context.Services.MapService = MapService.new(context)
 context.Services.FoodService = FoodService.new(context)
 context.Services.CollisionService = CollisionService.new(context)
 context.Services.ChargeService = ChargeService.new(context)
-context.Services.RoundService = RoundService.new(context)
+context.Services.DamagePipelineService = DamagePipelineService.new(context)
+context.Services.TrapService = TrapService.new(context)
+context.Services.MatchService = MatchService.new(context)
 
+context.Services.PlayerStateService:Init()
 context.Services.PlayerService:Init()
 context.Services.SlingService:Init()
 context.Services.MapService:Init()
 context.Services.FoodService:Init()
 context.Services.CollisionService:Init()
 context.Services.ChargeService:Init()
-context.Services.RoundService:Init()
+context.Services.DamagePipelineService:Init()
+context.Services.TrapService:Init()
+context.Services.MatchService:Init()
