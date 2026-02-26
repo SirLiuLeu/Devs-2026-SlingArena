@@ -30,7 +30,7 @@ end
 function CollisionService:_applyDragAndBounce(dt)
 	for _, player in Players:GetPlayers() do
 		local root = self._context.Services.PlayerService:GetRoot(player)
-		if root then
+		if root and self._context.Services.PlayerService:IsAlive(player) then
 			local velocity = root.AssemblyLinearVelocity
 			local horizontal = Vector3.new(velocity.X, 0, velocity.Z)
 			local dragFactor = math.max(0, 1 - Config.AirDrag * dt)
@@ -60,7 +60,7 @@ function CollisionService:_detectPlayerCollisions()
 			local playerB = list[j]
 			local rootA = self._context.Services.PlayerService:GetRoot(playerA)
 			local rootB = self._context.Services.PlayerService:GetRoot(playerB)
-			if rootA and rootB then
+			if rootA and rootB and self._context.Services.PlayerService:IsAlive(playerA) and self._context.Services.PlayerService:IsAlive(playerB) then
 				local distance = (rootA.Position - rootB.Position).Magnitude
 				local hitDistance = (rootA.Size.X + rootB.Size.X) * 0.25
 				if distance <= hitDistance then
@@ -124,7 +124,7 @@ function CollisionService:_resolveTrapCollisions()
 	for _, trap in self._context.Services.MapService:GetTrapBlocks() do
 		for _, player in Players:GetPlayers() do
 			local root = self._context.Services.PlayerService:GetRoot(player)
-			if root then
+			if root and self._context.Services.PlayerService:IsAlive(player) then
 				local localPos = trap.CFrame:PointToObjectSpace(root.Position)
 				local half = trap.Size * 0.5
 				if math.abs(localPos.X) <= half.X and math.abs(localPos.Y) <= half.Y and math.abs(localPos.Z) <= half.Z then

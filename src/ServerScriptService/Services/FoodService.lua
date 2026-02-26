@@ -85,6 +85,9 @@ function FoodService:_onFoodTouched(food, hit)
 	if model ~= self._context.Services.PlayerService:GetPawn(player) then
 		return
 	end
+	if not self._context.Services.PlayerService:IsAlive(player) then
+		return
+	end
 
 	food:SetAttribute("Consumed", true)
 	local growth = (food:FindFirstChild("SizeScaleValue") :: NumberValue).Value

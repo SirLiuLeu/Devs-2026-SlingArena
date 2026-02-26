@@ -10,6 +10,9 @@ RemoteContracts.Names = {
 	ActivateSkill = "ActivateSkill",
 	RequestRespawn = "RequestRespawn",
 	RequestMatchBuff = "RequestMatchBuff",
+	MatchStateUpdate = "MatchStateUpdate",
+	RoundResult = "RoundResult",
+	PopupMessage = "PopupMessage",
 }
 
 RemoteContracts.Validators = {

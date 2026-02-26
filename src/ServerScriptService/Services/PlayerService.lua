@@ -6,8 +6,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config.Config)
 
-local SPAWN_POSITION = Vector3.new(0, 10, 0)
-
 local PlayerService = {}
 PlayerService.__index = PlayerService
 
@@ -133,14 +131,16 @@ function PlayerService:_disconnectDeathSignal(player)
 	end
 end
 
-function PlayerService:SpawnPawn(player)
+function PlayerService:SpawnPawn(player, spawnIndex: number?)
 	self:_disconnectDeathSignal(player)
 	self:_destroyPawn(player)
 
 	local template = self:_ensureSlingTemplate()
 	local pawn = template:Clone()
 	pawn.Name = player.Name
-	pawn:PivotTo(CFrame.new(SPAWN_POSITION))
+	local index = spawnIndex or (player.UserId % 8) + 1
+	local spawnPosition = self._context.Services.MapService:GetSpawnPoint(index)
+	pawn:PivotTo(CFrame.new(spawnPosition))
 	pawn.Parent = self._pawnsFolder
 
 	player.Character = pawn

@@ -1,6 +1,5 @@
 --!strict
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
@@ -72,11 +71,10 @@ function DamagePipelineService:HandlePlayerDeath(player: Player)
 	playerStateService:SetAlive(player, false)
 	self._context.EventBus:Fire("PlayerDied", player)
 
-	task.delay(3, function()
-		if player.Parent == Players then
-			self._context.Services.PlayerService:SpawnPawn(player)
-		end
-	end)
+	if self._context.Services.MatchService and self._context.Services.MatchService:IsRoundActive() then
+		return
+	end
+	self._context.Services.PlayerService:SpawnPawn(player)
 end
 
 return DamagePipelineService

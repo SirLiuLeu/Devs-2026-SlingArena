@@ -35,7 +35,7 @@ local function getRoot()
 	if not character then
 		return nil
 	end
-	local root = character:FindFirstChild("Root")
+	local root = character:FindFirstChild("HumanoidRootPart")
 	if root and root:IsA("BasePart") then
 		return root
 	end

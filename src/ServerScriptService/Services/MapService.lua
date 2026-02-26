@@ -20,6 +20,7 @@ function MapService.new(context)
 	end
 	self._gates = {}
 	self._traps = {}
+	self._spawnPoints = {}
 	return self
 end
 
@@ -45,6 +46,7 @@ function MapService:Generate(seed)
 	self._arenaFolder:ClearAllChildren()
 	self._gates = {}
 	self._traps = {}
+	self._spawnPoints = {}
 
 	local random = Random.new(seed)
 	makePart("ArenaFloor", Vector3.new(Config.MaxArenaRadius * 2, 4, Config.MaxArenaRadius * 2), Vector3.new(0, -2, 0), Color3.fromRGB(50, 50, 55), self._arenaFolder)
@@ -82,6 +84,17 @@ function MapService:Generate(seed)
 		table.insert(self._traps, trap)
 	end
 
+
+	local spawnFolder = Instance.new("Folder")
+	spawnFolder.Name = "SpawnPoints"
+	spawnFolder.Parent = self._arenaFolder
+	local spawnRadius = radius - 32
+	for i = 1, 8 do
+		local angle = ((i - 1) / 8) * math.pi * 2
+		local spawnPoint = makePart(`SpawnPoint{i}`, Vector3.new(8, 1, 8), Vector3.new(math.cos(angle) * spawnRadius, 0.5, math.sin(angle) * spawnRadius), Color3.fromRGB(89, 145, 255), spawnFolder)
+		spawnPoint.Transparency = 0.35
+		table.insert(self._spawnPoints, spawnPoint)
+	end
 	for i = 1, 6 do
 		local gate = makePart(`Gate{i}`, Vector3.new(20, 18, 4), Vector3.new(random:NextNumber(-radius + 40, radius - 40), 9, random:NextNumber(-radius + 40, radius - 40)), Color3.fromRGB(142, 94, 196), gatesFolder)
 		gate:SetAttribute("MaxSize", random:NextNumber(1.5, 5))
@@ -95,6 +108,15 @@ function MapService:IsGateBlocking(gate, playerSize)
 		return false
 	end
 	return playerSize > maxSize
+end
+
+
+function MapService:GetSpawnPoint(index: number): Vector3
+	if #self._spawnPoints == 0 then
+		return Vector3.new(0, 8, 0)
+	end
+	local clampedIndex = ((index - 1) % #self._spawnPoints) + 1
+	return self._spawnPoints[clampedIndex].Position + Vector3.new(0, 6, 0)
 end
 
 function MapService:GetGates()

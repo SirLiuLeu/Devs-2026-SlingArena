@@ -221,10 +221,35 @@ function PlayerStateService:TryApplyExpPenalty(player: Player, penalty: number):
 	end
 	if didLevelDown then
 		self:RecalculateDerivedStats(player, false)
+		self._context.EventBus:Fire("LevelDown", player, state.Level)
 	else
 		self:PublishState(player)
 	end
 	return didLevelDown
+end
+
+function PlayerStateService:ResetForNewRound(player: Player)
+	local state = self._states[player]
+	if not state then
+		return
+	end
+	state.Level = LevelConfig.StartingLevel
+	state.Exp = LevelConfig.StartingExp
+	state.AttributePoints = LevelConfig.StartingAttributePoints
+	state.Attributes = {
+		Speed = 0,
+		HPBonus = 0,
+		LaunchPower = 0,
+		ChargeSpeed = 0,
+		ReflectDamage = 0,
+	}
+	state.RespawnCountThisMatch = 0
+	state.IsAlive = true
+	state.IsCharging = false
+	state.CurrentVelocity = Vector3.zero
+	state.ChargeValue = 0
+	state.InvulnerableUntil = os.clock() + BalanceConfig.DefaultInvulnerableSeconds
+	self:RecalculateDerivedStats(player, true)
 end
 
 function PlayerStateService:UpdateVelocity(player: Player, velocity: Vector3)
