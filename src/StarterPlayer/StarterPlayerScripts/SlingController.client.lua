@@ -20,6 +20,23 @@ local currentCharge = 0
 local lastAimSent = 0
 local aimDirection = Vector3.new(0, 0, -1)
 
+
+local function bindCameraToCharacter(character: Model)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		humanoid = character:WaitForChild("Humanoid", 5)
+	end
+	if camera and humanoid then
+		camera.CameraType = Enum.CameraType.Scriptable
+		camera.CameraSubject = humanoid
+	end
+end
+
+player.CharacterAdded:Connect(bindCameraToCharacter)
+if player.Character then
+	bindCameraToCharacter(player.Character)
+end
+
 local previewPart = Instance.new("Part")
 previewPart.Name = "AimPreview"
 previewPart.Anchored = true

@@ -28,7 +28,8 @@
     "Workspace": {
       "$properties": {
         "FilteringEnabled": true
-      }
+      },
+      "$path": "src/Workspace"
     },
     "Lighting": {
       "$properties": {

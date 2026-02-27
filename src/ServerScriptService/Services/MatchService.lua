@@ -24,6 +24,7 @@ function MatchService.new(context)
 	self._state = STATES.Boot
 	self._connections = {}
 	self._roundId = 0
+	self._mapEndTime = 0
 	self._matchStateRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.MatchStateUpdate) :: RemoteEvent
 	self._roundResultRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.RoundResult) :: RemoteEvent
 	self._popupRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.PopupMessage) :: RemoteEvent
@@ -88,11 +89,12 @@ end
 function MatchService:RunRound()
 	self._roundId += 1
 	self:SetState(STATES.PreRound)
-	self._context.Services.MapService:Generate(os.time())
+	self._context.Services.MapService:Generate()
 	self:_resetPlayersForRound()
 	self:SetState(STATES.Countdown)
 	task.wait(2)
 	self:SetState(STATES.ActiveRound)
+	self._mapEndTime = os.clock() + self._context.Services.MapService:GetMapDuration()
 
 	while self._state == STATES.ActiveRound do
 		self:_checkRoundEnd()
@@ -124,6 +126,18 @@ function MatchService:_checkRoundEnd()
 	if self._state ~= STATES.ActiveRound then
 		return
 	end
+	if os.clock() >= self._mapEndTime then
+		self:SetState(STATES.RoundEnd)
+		if self._roundResultRemote then
+			self._roundResultRemote:FireAllClients({
+				Winner = "Time Limit",
+				RoundId = self._roundId,
+			})
+		end
+		task.wait(3)
+		return
+	end
+
 	local alive = self:_alivePlayers()
 	if #alive <= 1 then
 		self:SetState(STATES.RoundEnd)

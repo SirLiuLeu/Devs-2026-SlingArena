@@ -2,6 +2,8 @@
 
 local MapLoader = require(script.Parent.MapLoader)
 
+local DEFAULT_MAP_DURATION = 120
+
 local MapService = {}
 MapService.__index = MapService
 
@@ -9,33 +11,45 @@ function MapService.new(context)
 	local self = setmetatable({}, MapService)
 	self._context = context
 	self._loader = MapLoader.new()
-	self._mapRoot = MapLoader.EnsureWorkspaceMapFolder()
+	self._mapRoot = nil
 	self._gates = {}
 	self._traps = {}
 	self._spawnPoints = {}
+	self._mapDuration = DEFAULT_MAP_DURATION
 	return self
 end
 
 function MapService:Init()
 	self:Generate()
-	self._loader:LoadUi()
 end
 
 function MapService:Generate()
 	self._gates = {}
 	self._traps = {}
 	self._spawnPoints = {}
+	self._mapRoot = self._loader:GetMapRoot()
+	self._mapDuration = self._loader:GetMapDuration(DEFAULT_MAP_DURATION)
 
-	local parts = self._loader:LoadMap(self._mapRoot)
-	for _, part in ipairs(parts) do
-		if part.Name == "Gate" then
-			table.insert(self._gates, part)
-		elseif part.Name == "Trap" then
-			table.insert(self._traps, part)
-		elseif part.Name == "SpawnPoint" then
-			table.insert(self._spawnPoints, part)
+	if not self._mapRoot then
+		warn("Workspace.MapDefinitions folder is missing")
+		return
+	end
+
+	for _, descendant in ipairs(self._mapRoot:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			if descendant.Name == "Gate" then
+				table.insert(self._gates, descendant)
+			elseif descendant.Name == "Trap" then
+				table.insert(self._traps, descendant)
+			elseif descendant.Name == "SpawnPoint" then
+				table.insert(self._spawnPoints, descendant)
+			end
 		end
 	end
+end
+
+function MapService:GetMapDuration(): number
+	return self._mapDuration
 end
 
 function MapService:IsGateBlocking(gate, playerSize)

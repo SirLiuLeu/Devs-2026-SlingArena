@@ -1,0 +1,132 @@
+{
+  "className": "Folder",
+  "children": [
+    {
+      "name": "Blocks",
+      "className": "Model",
+      "children": [
+        {
+          "name": "Block",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "CollisionGroup": "Environment",
+            "Material": "Concrete",
+            "Color": [0.3058823645, 0.3058823645, 0.3450980484],
+            "Position": [0, -2, 0],
+            "Size": [96, 4, 96],
+            "TopSurface": "Smooth",
+            "BottomSurface": "Smooth"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Walls",
+      "className": "Model",
+      "children": [
+        {
+          "name": "Wall",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "CollisionGroup": "Environment",
+            "Material": "Concrete",
+            "Color": [0.2784313858, 0.2784313858, 0.3137255013],
+            "Position": [0, 8, -48],
+            "Size": [96, 20, 2]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sling",
+      "className": "Model",
+      "children": [
+        {
+          "name": "Sling",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "Material": "Neon",
+            "Color": [0.9843137264, 0.7725490332, 0.2823529541],
+            "Position": [0, 4, 0],
+            "Size": [2, 2, 2]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trap",
+      "className": "Model",
+      "children": [
+        {
+          "name": "Trap",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "CollisionGroup": "Environment",
+            "Material": "Neon",
+            "Color": [0.8627451062, 0.250980407, 0.250980407],
+            "Position": [18, 0.5, 18],
+            "Size": [8, 1, 8]
+          }
+        }
+      ]
+    },
+    {
+      "name": "SpawnPoint",
+      "className": "Model",
+      "children": [
+        {
+          "name": "SpawnPoint",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "Transparency": 1,
+            "Position": [0, 2, 24],
+            "Size": [4, 1, 4]
+          }
+        },
+        {
+          "name": "SpawnPoint",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "Transparency": 1,
+            "Position": [24, 2, 0],
+            "Size": [4, 1, 4]
+          }
+        },
+        {
+          "name": "SpawnPoint",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "Transparency": 1,
+            "Position": [0, 2, -24],
+            "Size": [4, 1, 4]
+          }
+        },
+        {
+          "name": "SpawnPoint",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "Transparency": 1,
+            "Position": [-24, 2, 0],
+            "Size": [4, 1, 4]
+          }
+        }
+      ]
+    }
+  ]
+}
