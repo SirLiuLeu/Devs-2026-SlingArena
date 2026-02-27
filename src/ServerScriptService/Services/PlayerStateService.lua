@@ -5,8 +5,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
+local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 
-type PlayerState = require(ReplicatedStorage.Shared.Types.PlayerState).PlayerState
+type PlayerState = PlayerStateTypes.PlayerState
 
 type BuffState = {
 	DamageBoost: number,
