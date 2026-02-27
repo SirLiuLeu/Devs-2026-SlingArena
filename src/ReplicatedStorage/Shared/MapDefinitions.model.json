@@ -1,18 +1,19 @@
 {
   "className": "Folder",
-  "name": "MapDefinitions",
-  "children": {
-    "meta.json": {
+  "children": [
+    {
       "className": "StringValue",
+      "name": "meta.json",
       "properties": {
-        "Value": "{\n  \"map\": {\n    \"name\": \"TestMap01\",\n    \"parts\": [\n      {\n        \"type\": \"Block\",\n        \"size\": [64, 4, 64],\n        \"position\": [0, -2, 0],\n        \"material\": \"Concrete\",\n        \"color\": [78, 78, 88]\n      },\n      {\n        \"type\": \"SpawnPoint\",\n        \"size\": [8, 1, 8],\n        \"position\": [0, 0.5, 0],\n        \"material\": \"SmoothPlastic\",\n        \"color\": [89, 145, 255]\n      },\n      {\n        \"type\": \"Sling\",\n        \"size\": [4, 4, 4],\n        \"position\": [5, 2, 0],\n        \"material\": \"Plastic\",\n        \"color\": [255, 0, 0]\n      },\n      {\n        \"type\": \"Gate\",\n        \"size\": [16, 10, 4],\n        \"position\": [20, 5, 0],\n        \"material\": \"Neon\",\n        \"color\": [142, 94, 196]\n      },\n      {\n        \"type\": \"Trap\",\n        \"size\": [10, 2, 10],\n        \"position\": [-20, 1, 0],\n        \"material\": \"Neon\",\n        \"color\": [255, 80, 80]\n      }\n    ]\n  }\n}"
+        "Value": "{\n  \"map\": {\n    \"name\": \"TestMap01\",\n    \"parts\": [\n      {\n        \"type\": \"Block\",\n        \"size\": [64, 4, 64],\n        \"position\": [0, -2, 0],\n        \"material\": \"Concrete\",\n        \"color\": [78, 78, 88]\n      }\n    ]\n  }\n}"
       }
     },
-    "model.json": {
+    {
       "className": "StringValue",
+      "name": "model.json",
       "properties": {
         "Value": "{\n  \"ui\": [\n    {\n      \"type\": \"TextLabel\",\n      \"name\": \"ChargeLabel\",\n      \"text\": \"Charge\",\n      \"size\": [0.2, 0, 0.05, 0],\n      \"position\": [0.4, 0, 0.9, 0]\n    }\n  ]\n}"
       }
     }
-  }
+  ]
 }
