@@ -1,0 +1,10 @@
+{
+  "ui": [
+    {
+      "type": "TextLabel",
+      "text": "Charge",
+      "size": [0.2, 0, 0.05, 0],
+      "position": [0.4, 0, 0.9, 0]
+    }
+  ]
+}

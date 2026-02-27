@@ -2,7 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ContextActionService = game:GetService("ContextActionService")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config.Config)
@@ -16,7 +16,7 @@ local releaseRemote = remotes:WaitForChild("SlingReleaseRemote") :: RemoteEvent
 
 local charging = false
 local aiming = false
-local chargeStartedAt = 0
+local currentCharge = 0
 local lastAimSent = 0
 local aimDirection = Vector3.new(0, 0, -1)
 
@@ -75,34 +75,46 @@ local function updateAimFromMouse()
 	end
 end
 
-local function fireAction(_, inputState)
-	if inputState == Enum.UserInputState.Begin then
-		if not isClickingPawn() then
-			return Enum.ContextActionResult.Pass
-		end
-		aiming = true
-		charging = true
-		chargeStartedAt = os.clock()
-		return Enum.ContextActionResult.Sink
+UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+	if gameProcessed then
+		return
+	end
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then
+		return
+	end
+	if not isClickingPawn() then
+		return
 	end
 
-	if inputState == Enum.UserInputState.End and charging then
-		charging = false
-		aiming = false
-		previewPart.Transparency = 1
-		local chargeRatio = math.clamp((os.clock() - chargeStartedAt) / Config.MaxChargeTime, 0, 1)
-		releaseRemote:FireServer(aimDirection, chargeRatio)
-		return Enum.ContextActionResult.Sink
+	aiming = true
+	charging = true
+	currentCharge = 0
+end)
+
+UserInputService.InputEnded:Connect(function(input: InputObject, gameProcessed: boolean)
+	if gameProcessed then
+		return
+	end
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then
+		return
+	end
+	if not charging then
+		return
 	end
 
-	return Enum.ContextActionResult.Pass
-end
-
-ContextActionService:BindAction("SlingCharge", fireAction, false, Enum.UserInputType.MouseButton1)
+	charging = false
+	aiming = false
+	previewPart.Transparency = 1
+	releaseRemote:FireServer(aimDirection, currentCharge)
+end)
 
 RunService.RenderStepped:Connect(function(dt)
 	if aiming then
 		updateAimFromMouse()
+	end
+
+	if charging then
+		currentCharge = math.clamp(currentCharge + (Config.ChargeRatePerSecond * dt), 0, Config.MaxCharge)
 	end
 
 	local root = getRoot()

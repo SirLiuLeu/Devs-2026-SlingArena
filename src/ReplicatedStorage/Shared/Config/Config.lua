@@ -2,8 +2,9 @@
 
 return {
 	BaseForce = 80,
-	MaxBonusForce = 150,
-	MaxChargeTime = 2.5,
+	MaxExtraForce = 150,
+	MaxCharge = 100,
+	ChargeRatePerSecond = 40,
 	BounceLoss = 0.2,
 	MaxArenaRadius = 300,
 	AirDrag = 1.8,

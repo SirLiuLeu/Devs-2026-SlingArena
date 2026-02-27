@@ -1,0 +1,18 @@
+{
+  "map": {
+    "name": "TestMap01",
+    "parts": [
+      {
+        "type": "Block",
+        "size": [4, 1, 4],
+        "position": [0, 0, 0],
+        "material": "Plastic",
+        "color": [255, 0, 0]
+      },
+      {
+        "type": "Sling",
+        "position": [5, 0, 0]
+      }
+    ]
+  }
+}
