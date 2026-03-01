@@ -1,4 +1,4 @@
 --!strict
 
--- Sling server gameplay is implemented via Services/SlingService.lua and initialized in Main.server.lua.
--- This file exists to satisfy the explicit deliverable naming requirement.
+-- Pipeline A projectile SlingService is intentionally disabled.
+-- Canonical gameplay uses Services/ChargeService.lua + Services/SlingshotService.lua.

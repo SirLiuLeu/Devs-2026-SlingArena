@@ -35,6 +35,9 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, _a
 	end
 
 	local amount = math.clamp(rawDamage, 0, BalanceConfig.MaxDamagePerHit)
+	if _attacker then
+		playerStateService:SetLastAttacker(victim, _attacker)
+	end
 	local didDamage = playerStateService:ApplyDamage(victim, amount)
 	if not didDamage then
 		return false
@@ -45,6 +48,10 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, _a
 		if root and knockbackDirection.Magnitude > 0 then
 			root.AssemblyLinearVelocity += knockbackDirection.Unit * 45
 		end
+	end
+
+	if _attacker then
+		self._context.EventBus:Fire("DamageDealt", _attacker, victim, amount)
 	end
 
 	local state = playerStateService:GetState(victim)
@@ -71,7 +78,13 @@ function DamagePipelineService:HandlePlayerDeath(player: Player)
 	playerStateService:SetAlive(player, false)
 	self._context.EventBus:Fire("PlayerDied", player)
 
-	if self._context.Services.MatchService and self._context.Services.MatchService:IsRoundActive() then
+	local killer = playerStateService:GetLastAttacker(player)
+	if killer then
+		self._context.EventBus:Fire("PlayerKilled", killer, player)
+		playerStateService:ClearLastAttacker(player)
+	end
+
+	if self._context.Services.RoundService and self._context.Services.RoundService:IsRoundActive() then
 		return
 	end
 	self._context.Services.PlayerService:SpawnPawn(player)

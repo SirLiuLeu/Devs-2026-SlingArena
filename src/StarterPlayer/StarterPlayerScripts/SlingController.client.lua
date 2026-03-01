@@ -5,21 +5,18 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
-local Config = require(ReplicatedStorage.Shared.Config.Config)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
 local camera = workspace.CurrentCamera
 local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
-local aimRemote = remotes:WaitForChild("SlingAimRemote") :: RemoteEvent
-local releaseRemote = remotes:WaitForChild("SlingReleaseRemote") :: RemoteEvent
+local chargeStartRemote = remotes:WaitForChild(RemoteContracts.Names.ChargeStart) :: RemoteEvent
+local chargeReleaseRemote = remotes:WaitForChild(RemoteContracts.Names.ChargeRelease) :: RemoteEvent
 
 local charging = false
 local aiming = false
-local currentCharge = 0
-local lastAimSent = 0
 local aimDirection = Vector3.new(0, 0, -1)
-
 
 local function bindCameraToCharacter(character: Model)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -85,11 +82,6 @@ local function updateAimFromMouse()
 
 	previewPart.Transparency = 0.1
 	previewPart.CFrame = CFrame.lookAt(root.Position + Vector3.new(0, 2, 0), root.Position + Vector3.new(0, 2, 0) + aimDirection) * CFrame.new(0, 0, -5)
-
-	if os.clock() - lastAimSent >= 0.05 then
-		lastAimSent = os.clock()
-		aimRemote:FireServer(aimDirection)
-	end
 end
 
 UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
@@ -105,7 +97,7 @@ UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: 
 
 	aiming = true
 	charging = true
-	currentCharge = 0
+	chargeStartRemote:FireServer(aimDirection)
 end)
 
 UserInputService.InputEnded:Connect(function(input: InputObject, gameProcessed: boolean)
@@ -122,16 +114,12 @@ UserInputService.InputEnded:Connect(function(input: InputObject, gameProcessed: 
 	charging = false
 	aiming = false
 	previewPart.Transparency = 1
-	releaseRemote:FireServer(aimDirection, currentCharge)
+	chargeReleaseRemote:FireServer(aimDirection)
 end)
 
 RunService.RenderStepped:Connect(function(dt)
 	if aiming then
 		updateAimFromMouse()
-	end
-
-	if charging then
-		currentCharge = math.clamp(currentCharge + (Config.ChargeRatePerSecond * dt), 0, Config.MaxCharge)
 	end
 
 	local root = getRoot()

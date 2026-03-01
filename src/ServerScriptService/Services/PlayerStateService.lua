@@ -30,6 +30,7 @@ function PlayerStateService.new(context: Context)
 	self._context = context
 	self._states = {} :: { [Player]: PlayerState }
 	self._buffs = {} :: { [Player]: BuffState }
+	self._lastAttacker = {} :: { [Player]: Player }
 	self._stateUpdateRemote = context.Remotes:FindFirstChild("StateUpdate") :: RemoteEvent
 	return self
 end
@@ -90,6 +91,7 @@ function PlayerStateService:Init()
 	Players.PlayerRemoving:Connect(function(player)
 		self._states[player] = nil
 		self._buffs[player] = nil
+		self._lastAttacker[player] = nil
 	end)
 
 	for _, player in ipairs(Players:GetPlayers()) do
@@ -286,6 +288,92 @@ function PlayerStateService:PublishState(player: Player)
 			self._stateUpdateRemote:FireClient(player, state)
 		end
 	end
+end
+
+
+function PlayerStateService:SetCharging(player: Player, isCharging: boolean, chargeValue: number)
+	local state = self._states[player]
+	if not state then
+		return
+	end
+	state.IsCharging = isCharging
+	state.ChargeValue = math.clamp(chargeValue, 0, 1)
+	self:PublishState(player)
+end
+
+function PlayerStateService:GetBuff(player: Player): BuffState?
+	return self._buffs[player]
+end
+
+function PlayerStateService:TrySpendAttribute(player: Player, attributeName: string): boolean
+	local state = self._states[player]
+	if not state or state.AttributePoints <= 0 then
+		return false
+	end
+	if state.Attributes[attributeName] == nil then
+		return false
+	end
+	state.AttributePoints -= 1
+	state.Attributes[attributeName] += 1
+	self:RecalculateDerivedStats(player, false)
+	return true
+end
+
+function PlayerStateService:SpendDiamonds(player: Player, amount: number): boolean
+	local state = self._states[player]
+	if not state then
+		return false
+	end
+	local cost = math.max(0, amount)
+	if state.Diamonds < cost then
+		return false
+	end
+	state.Diamonds -= cost
+	self:PublishState(player)
+	return true
+end
+
+function PlayerStateService:ApplyMatchBuff(player: Player)
+	local buff = self._buffs[player]
+	if not buff then
+		return
+	end
+	buff.Active = true
+	buff.DamageBoost = 0.15
+	buff.HpBoost = 0.15
+	buff.ExpBoost = 0.15
+	buff.ChargeBoost = 0.1
+	self:RecalculateDerivedStats(player, false)
+end
+
+function PlayerStateService:PrestigeReset(player: Player)
+	local state = self._states[player]
+	if not state then
+		return
+	end
+	state.Level = LevelConfig.StartingLevel
+	state.Exp = LevelConfig.StartingExp
+	state.AttributePoints = LevelConfig.StartingAttributePoints
+	state.Attributes = {
+		Speed = 0,
+		HPBonus = 0,
+		LaunchPower = 0,
+		ChargeSpeed = 0,
+		ReflectDamage = 0,
+	}
+	self:RecalculateDerivedStats(player, true)
+end
+
+function PlayerStateService:SetLastAttacker(victim: Player, attacker: Player)
+	self._lastAttacker[victim] = attacker
+end
+
+function PlayerStateService:GetLastAttacker(victim: Player): Player?
+	return self._lastAttacker[victim]
+end
+
+function PlayerStateService:ClearLastAttacker(victim: Player)
+	self._lastAttacker[victim] = nil
 end
 
 return PlayerStateService

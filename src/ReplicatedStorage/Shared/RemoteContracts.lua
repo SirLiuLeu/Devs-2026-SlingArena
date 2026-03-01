@@ -3,8 +3,8 @@
 local RemoteContracts = {}
 
 RemoteContracts.Names = {
-	SlingAim = "SlingAimRemote",
-	SlingRelease = "SlingReleaseRemote",
+	ChargeStart = "ChargeStartRemote",
+	ChargeRelease = "ChargeReleaseRemote",
 	StateUpdate = "StateUpdate",
 	AttributeUpgrade = "AttributeUpgrade",
 	ActivateSkill = "ActivateSkill",
@@ -13,14 +13,18 @@ RemoteContracts.Names = {
 	MatchStateUpdate = "MatchStateUpdate",
 	RoundResult = "RoundResult",
 	PopupMessage = "PopupMessage",
+	PurchaseRespawn = "PurchaseRespawn",
+	PurchaseMatchBuff = "PurchaseMatchBuff",
+	PrestigeReset = "PrestigeReset",
+	ToggleSpecialUpgrade = "ToggleSpecialUpgrade",
 }
 
 RemoteContracts.Validators = {
-	[RemoteContracts.Names.SlingAim] = function(direction: any): boolean
+	[RemoteContracts.Names.ChargeStart] = function(direction: any): boolean
 		return typeof(direction) == "Vector3"
 	end,
-	[RemoteContracts.Names.SlingRelease] = function(direction: any, chargeRatio: any): boolean
-		return typeof(direction) == "Vector3" and typeof(chargeRatio) == "number"
+	[RemoteContracts.Names.ChargeRelease] = function(direction: any): boolean
+		return typeof(direction) == "Vector3"
 	end,
 	[RemoteContracts.Names.AttributeUpgrade] = function(attributeName: any): boolean
 		return typeof(attributeName) == "string"

@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local MonetizationService = {}
 MonetizationService.__index = MonetizationService
@@ -20,21 +21,27 @@ function MonetizationService.new(context: Context)
 end
 
 function MonetizationService:Init()
-	local purchaseRespawn = self._context.Remotes:FindFirstChild("PurchaseRespawn") :: RemoteEvent
-	local purchaseMatchBuff = self._context.Remotes:FindFirstChild("PurchaseMatchBuff") :: RemoteEvent
-	local prestigeReset = self._context.Remotes:FindFirstChild("PrestigeReset") :: RemoteEvent
+	local purchaseRespawn = self._context.Remotes:FindFirstChild(RemoteContracts.Names.PurchaseRespawn) :: RemoteEvent?
+	local purchaseMatchBuff = self._context.Remotes:FindFirstChild(RemoteContracts.Names.PurchaseMatchBuff) :: RemoteEvent?
+	local prestigeReset = self._context.Remotes:FindFirstChild(RemoteContracts.Names.PrestigeReset) :: RemoteEvent?
 
-	purchaseRespawn.OnServerEvent:Connect(function(player)
-		self:HandleRespawnPurchase(player)
-	end)
+	if purchaseRespawn then
+		purchaseRespawn.OnServerEvent:Connect(function(player)
+			self:HandleRespawnPurchase(player)
+		end)
+	end
 
-	purchaseMatchBuff.OnServerEvent:Connect(function(player)
-		self:HandleMatchBuffPurchase(player)
-	end)
+	if purchaseMatchBuff then
+		purchaseMatchBuff.OnServerEvent:Connect(function(player)
+			self:HandleMatchBuffPurchase(player)
+		end)
+	end
 
-	prestigeReset.OnServerEvent:Connect(function(player)
-		self._context.Services.PlayerStateService:PrestigeReset(player)
-	end)
+	if prestigeReset then
+		prestigeReset.OnServerEvent:Connect(function(player)
+			self._context.Services.PlayerStateService:PrestigeReset(player)
+		end)
+	end
 end
 
 function MonetizationService:HandleRespawnPurchase(player: Player)
@@ -49,13 +56,7 @@ function MonetizationService:HandleRespawnPurchase(player: Player)
 	if not self._context.Services.PlayerStateService:SpendDiamonds(player, cost) then
 		return
 	end
-	self._context.Services.PlayerStateService:ResetForRespawn(player, true)
-	player:LoadCharacter()
-end
-
-function MonetizationService:HandleFreeRespawn(player: Player)
-	self._context.Services.PlayerStateService:ResetForRespawn(player, false)
-	player:LoadCharacter()
+	self._context.Services.PlayerService:SpawnPawn(player)
 end
 
 function MonetizationService:HandleMatchBuffPurchase(player: Player)

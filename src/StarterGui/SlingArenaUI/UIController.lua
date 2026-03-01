@@ -19,6 +19,9 @@ function UIController.new(screenGui: ScreenGui)
 			CurrentHP = 100,
 			MaxHP = 100,
 			MatchState = "Boot",
+			ChargeValue = 0,
+			IsCharging = false,
+			Size = 1,
 		},
 		Remotes = {
 			StateUpdate = remotes:WaitForChild(RemoteContracts.Names.StateUpdate) :: RemoteEvent,
@@ -80,6 +83,15 @@ function UIController:_buildUI()
 	self.MatchStateText.TextScaled = true
 	self.MatchStateText.Parent = hud
 
+	self.ChargeText = Instance.new("TextLabel")
+	self.ChargeText.BackgroundTransparency = 1
+	self.ChargeText.Size = UDim2.fromScale(1, 0.2)
+	self.ChargeText.Position = UDim2.fromScale(0, 0.98)
+	self.ChargeText.Font = Enum.Font.Gotham
+	self.ChargeText.TextColor3 = Color3.fromRGB(155, 235, 255)
+	self.ChargeText.TextScaled = true
+	self.ChargeText.Parent = hud
+
 	self.Popup = Instance.new("TextLabel")
 	self.Popup.Visible = false
 	self.Popup.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -121,6 +133,8 @@ function UIController:_renderState()
 
 	self.LevelText.Text = `Level: {self.State.Level}`
 	self.MatchStateText.Text = `Match: {self.State.MatchState}`
+	local chargePct = math.floor(math.clamp(self.State.ChargeValue, 0, 1) * 100)
+	self.ChargeText.Text = `Charge: {chargePct}% | Size: {string.format("%.2f", self.State.Size)}`
 end
 
 function UIController:_showPopup(message: string, duration: number)
@@ -140,6 +154,9 @@ function UIController:Start()
 		self.State.Exp = state.Exp or self.State.Exp
 		self.State.CurrentHP = state.CurrentHP or self.State.CurrentHP
 		self.State.MaxHP = state.MaxHP or self.State.MaxHP
+		self.State.ChargeValue = state.ChargeValue or self.State.ChargeValue
+		self.State.IsCharging = state.IsCharging or false
+		self.State.Size = state.Size or self.State.Size
 		self:_renderState()
 	end))
 

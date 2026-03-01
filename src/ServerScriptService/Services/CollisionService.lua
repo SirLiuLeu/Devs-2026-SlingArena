@@ -93,14 +93,18 @@ function CollisionService:_resolvePlayerCollisions(hits)
 		local loser = if winner == hit.playerA then hit.playerB else hit.playerA
 		local loserRoot = if loser == hit.playerA then hit.rootA else hit.rootB
 		local winnerRoot = if winner == hit.playerA then hit.rootA else hit.rootB
-		local damage = loserRoot.AssemblyLinearVelocity.Magnitude * 0.15
-		local knockbackDirection = loserRoot.Position - winnerRoot.Position
-		if knockbackDirection.Magnitude < 0.01 then
-			knockbackDirection = Vector3.new(1, 0, 0)
+		local attackerState = if winner == hit.playerA then stateA else stateB
+		local defenderState = if loser == hit.playerA then stateA else stateB
+		if attackerState and defenderState then
+			local velocityMagnitude = winnerRoot.AssemblyLinearVelocity.Magnitude
+			local impactDirection = loserRoot.Position - winnerRoot.Position
+			local damage = self._context.Services.CombatService:ComputeImpactDamage(attackerState, velocityMagnitude)
+			local knockback = self._context.Services.CombatService:ComputeKnockback(attackerState, defenderState, impactDirection)
+			self._context.EventBus:Fire("CollisionPlayerHit", loser, winner, damage, knockback)
 		end
-		self._context.EventBus:Fire("CollisionPlayerHit", loser, winner, damage, knockbackDirection)
 	end
 end
+
 
 function CollisionService:_resolveGateCollisions()
 	for _, gate in self._context.Services.MapService:GetGates() do
