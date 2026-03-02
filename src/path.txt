@@ -13,7 +13,7 @@ Existing Models:
 
 3. Workspace.Maps.Arena
    - Folder
-   - Contains: SpawnPoints, Walls
+   - Contains: SpawnPoints, Walls, Gates teleporting players to Lobby
 
 4. Workspace.Maps.Lobby
    - Folder
