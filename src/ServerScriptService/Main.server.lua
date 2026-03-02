@@ -24,7 +24,7 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local function ensureCollisionGroup(name)
 	pcall(function()
-		PhysicsService:CreateCollisionGroup(name)
+		PhysicsService:RegisterCollisionGroup(name)
 	end)
 end
 
