@@ -29,6 +29,7 @@ function PlayerService:Init()
 
 	Players.PlayerAdded:Connect(function(player)
 		self._lastAim[player] = Vector3.new(0, 0, -1)
+		self:SpawnPawn(player)
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		self:_disconnectDeathSignal(player)
@@ -38,6 +39,7 @@ function PlayerService:Init()
 
 	for _, player in Players:GetPlayers() do
 		self._lastAim[player] = Vector3.new(0, 0, -1)
+		self:SpawnPawn(player)
 	end
 end
 
@@ -52,10 +54,11 @@ function PlayerService:_ensureSlingTemplate(): Model
 	local root = Instance.new("Part")
 	root.Name = "HumanoidRootPart"
 	root.Size = Vector3.new(2, 2, 1)
-	root.Transparency = 1
-	root.CanCollide = false
+	root.Transparency = 0.95
+	root.CanCollide = true
 	root.CanQuery = false
 	root.CollisionGroup = "Players"
+	root.Anchored = false
 	root.Parent = sling
 
 	local body = Instance.new("Part")
@@ -65,6 +68,8 @@ function PlayerService:_ensureSlingTemplate(): Model
 	body.TopSurface = Enum.SurfaceType.Smooth
 	body.BottomSurface = Enum.SurfaceType.Smooth
 	body.CollisionGroup = "Players"
+	body.Anchored = false
+	body.CanCollide = true
 	body.CustomPhysicalProperties = PhysicalProperties.new(Config.Mass, 0.4, 0.5, 1, 1)
 	body.Parent = sling
 
@@ -140,6 +145,12 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?)
 	local spawnPosition = self._context.Services.MapService:GetSpawnPoint(index)
 	pawn:PivotTo(CFrame.new(spawnPosition))
 	pawn.Parent = self._pawnsFolder
+	for _, descendant in pawn:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = false
+			descendant:SetNetworkOwner(player)
+		end
+	end
 
 	player.Character = pawn
 	self._context.Services.PlayerStateService:ResetForRespawn(player)
@@ -152,6 +163,8 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?)
 			end
 		end)
 	end
+
+	return pawn
 end
 
 function PlayerService:DespawnPawn(player)

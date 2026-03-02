@@ -42,14 +42,15 @@ end)
 
 uiStateUpdate.OnClientEvent:Connect(function(payload)
 	statusLabel.Text = string.format("Status: %s", payload.State or "Lobby")
-	match.TimerLabel.Text = string.format("Time: %d", math.floor(payload.TimeLeft or 0))
-	match.AlivePlayersLabel.Text = string.format("Alive: %d", payload.AlivePlayers or 0)
+	match.Frame.StatusLabel.Text = string.format("Status: %s", payload.State or "Lobby")
+	match.Frame.TimerLabel.Text = string.format("Time: %d", math.floor(payload.TimeLeft or 0))
+	match.Frame.AlivePlayersLabel.Text = string.format("Alive: %d", payload.AlivePlayers or 0)
 	if payload.State ~= "RoundEnd" then
-		match.WinnerPopup.Visible = false
+		match.Frame.WinnerPopup.Visible = false
 	end
 end)
 
 roundResult.OnClientEvent:Connect(function(payload)
-	match.WinnerPopup.Text = "Winner: " .. tostring(payload.Winner)
-	match.WinnerPopup.Visible = true
+	match.Frame.WinnerPopup.Text = "Winner: " .. tostring(payload.Winner)
+	match.Frame.WinnerPopup.Visible = true
 end)

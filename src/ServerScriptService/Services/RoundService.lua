@@ -99,6 +99,11 @@ function RoundService:RunRound()
 		self:_publishUiState()
 		return
 	end
+	if not self:_ensureParticipantsHavePawns() then
+		self:SetState(STATES.Lobby)
+		self:_publishUiState()
+		return
+	end
 	self._roundId += 1
 	self:SetState(STATES.PreRound)
 	self._context.Services.MapService:Generate()
@@ -113,6 +118,21 @@ function RoundService:RunRound()
 		task.wait(0.25)
 	end
 	self:SetState(STATES.PostRound)
+end
+
+function RoundService:_ensureParticipantsHavePawns(): boolean
+	for player in pairs(self._participants) do
+		if player.Parent == Players then
+			local pawn = self._context.Services.PlayerService:GetPawn(player)
+			if not pawn then
+				pawn = self._context.Services.PlayerService:SpawnPawn(player)
+			end
+			if not pawn then
+				return false
+			end
+		end
+	end
+	return true
 end
 
 function RoundService:_participantCount(): number

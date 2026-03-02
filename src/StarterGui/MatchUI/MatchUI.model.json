@@ -1,30 +1,304 @@
 {
   "className": "ScreenGui",
   "properties": {
-    "ResetOnSpawn": false
+    "ResetOnSpawn": false,
+    "IgnoreGuiInset": true
   },
   "children": [
     {
-      "name": "TimerLabel",
-      "className": "TextLabel",
+      "name": "Frame",
+      "className": "Frame",
       "properties": {
-        "Text": "Time: 0"
-      }
-    },
-    {
-      "name": "AlivePlayersLabel",
-      "className": "TextLabel",
-      "properties": {
-        "Text": "Alive: 0"
-      }
-    },
-    {
-      "name": "WinnerPopup",
-      "className": "TextLabel",
-      "properties": {
-        "Visible": false,
-        "Text": "Winner"
-      }
+        "Size": {
+          "UDim2": [
+            [
+              0.36,
+              0
+            ],
+            [
+              0.34,
+              0
+            ]
+          ]
+        },
+        "Position": {
+          "UDim2": [
+            [
+              0.5,
+              0
+            ],
+            [
+              0.5,
+              0
+            ]
+          ]
+        },
+        "AnchorPoint": {
+          "Vector2": [
+            0.5,
+            0.5
+          ]
+        },
+        "BackgroundColor3": {
+          "Color3": [
+            24,
+            24,
+            30
+          ]
+        },
+        "BorderSizePixel": 0
+      },
+      "children": [
+        {
+          "name": "StatusLabel",
+          "className": "TextLabel",
+          "properties": {
+            "Size": {
+              "UDim2": [
+                [
+                  0.9,
+                  0
+                ],
+                [
+                  0.2,
+                  0
+                ]
+              ]
+            },
+            "Position": {
+              "UDim2": [
+                [
+                  0.5,
+                  0
+                ],
+                [
+                  0.14,
+                  0
+                ]
+              ]
+            },
+            "AnchorPoint": {
+              "Vector2": [
+                0.5,
+                0.5
+              ]
+            },
+            "BackgroundTransparency": 1,
+            "Text": "Status: Lobby",
+            "TextScaled": true,
+            "TextWrapped": true,
+            "TextColor3": {
+              "Color3": [
+                255,
+                255,
+                255
+              ]
+            }
+          }
+        },
+        {
+          "name": "TimerLabel",
+          "className": "TextLabel",
+          "properties": {
+            "Size": {
+              "UDim2": [
+                [
+                  0.8,
+                  0
+                ],
+                [
+                  0.22,
+                  0
+                ]
+              ]
+            },
+            "Position": {
+              "UDim2": [
+                [
+                  0.5,
+                  0
+                ],
+                [
+                  0.4,
+                  0
+                ]
+              ]
+            },
+            "AnchorPoint": {
+              "Vector2": [
+                0.5,
+                0.5
+              ]
+            },
+            "BackgroundColor3": {
+              "Color3": [
+                42,
+                124,
+                208
+              ]
+            },
+            "BorderSizePixel": 0,
+            "Text": "Time: 0",
+            "TextScaled": true,
+            "TextColor3": {
+              "Color3": [
+                255,
+                255,
+                255
+              ]
+            }
+          },
+          "children": [
+            {
+              "name": "UICorner",
+              "className": "UICorner",
+              "properties": {
+                "CornerRadius": {
+                  "UDim": [
+                    0,
+                    8
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "AlivePlayersLabel",
+          "className": "TextLabel",
+          "properties": {
+            "Size": {
+              "UDim2": [
+                [
+                  0.8,
+                  0
+                ],
+                [
+                  0.22,
+                  0
+                ]
+              ]
+            },
+            "Position": {
+              "UDim2": [
+                [
+                  0.5,
+                  0
+                ],
+                [
+                  0.65,
+                  0
+                ]
+              ]
+            },
+            "AnchorPoint": {
+              "Vector2": [
+                0.5,
+                0.5
+              ]
+            },
+            "BackgroundColor3": {
+              "Color3": [
+                47,
+                160,
+                96
+              ]
+            },
+            "BorderSizePixel": 0,
+            "Text": "Alive: 0",
+            "TextScaled": true,
+            "TextColor3": {
+              "Color3": [
+                255,
+                255,
+                255
+              ]
+            }
+          },
+          "children": [
+            {
+              "name": "UICorner",
+              "className": "UICorner",
+              "properties": {
+                "CornerRadius": {
+                  "UDim": [
+                    0,
+                    8
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "WinnerPopup",
+          "className": "TextLabel",
+          "properties": {
+            "Size": {
+              "UDim2": [
+                [
+                  0.8,
+                  0
+                ],
+                [
+                  0.22,
+                  0
+                ]
+              ]
+            },
+            "Position": {
+              "UDim2": [
+                [
+                  0.5,
+                  0
+                ],
+                [
+                  0.9,
+                  0
+                ]
+              ]
+            },
+            "AnchorPoint": {
+              "Vector2": [
+                0.5,
+                0.5
+              ]
+            },
+            "Visible": false,
+            "BackgroundColor3": {
+              "Color3": [
+                196,
+                134,
+                60
+              ]
+            },
+            "BorderSizePixel": 0,
+            "Text": "Winner",
+            "TextScaled": true,
+            "TextColor3": {
+              "Color3": [
+                255,
+                255,
+                255
+              ]
+            }
+          },
+          "children": [
+            {
+              "name": "UICorner",
+              "className": "UICorner",
+              "properties": {
+                "CornerRadius": {
+                  "UDim": [
+                    0,
+                    8
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }
