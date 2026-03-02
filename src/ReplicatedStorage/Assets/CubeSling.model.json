@@ -1,61 +1,73 @@
 {
-  "name": "CubeSling",
-  "className": "Model",
-  "children": [
+  "ClassName": "Model",
+  "Name": "CubeSling",
+  "PrimaryPart": {
+    "Ref": "HumanoidRootPart"
+  },
+  "Children": [
     {
-      "name": "HumanoidRootPart",
-      "className": "Part",
-      "properties": {
-        "Size": [2, 2, 2],
-        "Anchored": false,
-        "CanCollide": true,
-        "CanQuery": false,
-        "CollisionGroup": "Players",
-        "Transparency": 0.95
-      },
-      "children": [
+      "ClassName": "Part",
+      "Name": "HumanoidRootPart",
+      "Size": [
+        2,
+        2,
+        2
+      ],
+      "Anchored": false,
+      "CanCollide": true,
+      "CanQuery": false,
+      "Transparency": 0.95,
+      "CollisionGroup": "Players",
+      "Children": [
         {
-          "name": "Attachment",
-          "className": "Attachment"
+          "ClassName": "Attachment",
+          "Name": "Attachment"
         },
         {
-          "name": "LinearVelocity",
-          "className": "LinearVelocity",
-          "properties": {
-            "RelativeTo": "World",
-            "VectorVelocity": [0, 0, 0],
-            "MaxForce": 1000000000,
-            "Enabled": false
-          }
+          "ClassName": "LinearVelocity",
+          "Name": "LinearVelocity",
+          "RelativeTo": "World",
+          "VectorVelocity": [
+            0,
+            0,
+            0
+          ],
+          "MaxForce": 1000000000,
+          "Enabled": false
         },
         {
-          "name": "AlignOrientation",
-          "className": "AlignOrientation",
-          "properties": {
-            "Mode": "OneAttachment",
-            "RigidityEnabled": true,
-            "Enabled": true
-          }
+          "ClassName": "AlignOrientation",
+          "Name": "AlignOrientation",
+          "Mode": "OneAttachment",
+          "RigidityEnabled": true,
+          "Enabled": true
         }
       ]
     },
     {
-      "name": "Body",
-      "className": "Part",
-      "properties": {
-        "Shape": "Block",
-        "Size": [4, 4, 4],
-        "Anchored": false,
-        "CanCollide": true,
-        "CollisionGroup": "Players",
-        "TopSurface": "Smooth",
-        "BottomSurface": "Smooth",
-        "CustomPhysicalProperties": [5, 0.4, 0.5, 1, 1]
-      }
+      "ClassName": "Part",
+      "Name": "Body",
+      "Shape": "Block",
+      "Size": [
+        4,
+        4,
+        4
+      ],
+      "Anchored": false,
+      "CanCollide": true,
+      "CollisionGroup": "Players",
+      "TopSurface": "Smooth",
+      "BottomSurface": "Smooth"
     },
     {
-      "name": "BodyWeld",
-      "className": "WeldConstraint"
+      "ClassName": "WeldConstraint",
+      "Name": "BodyWeld",
+      "Part0": {
+        "Ref": "HumanoidRootPart"
+      },
+      "Part1": {
+        "Ref": "Body"
+      }
     }
   ]
 }
