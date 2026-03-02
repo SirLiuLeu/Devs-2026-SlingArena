@@ -83,7 +83,7 @@ function RoundService:JoinArena(player: Player)
 	if self._context.Services.MapService:GetActiveMap() ~= "ArenaMap" and self._state == STATES.Lobby then
 		self._context.Services.MapService:ActivateMap("ArenaMap")
 	end
-	self._context.Services.PlayerService:SpawnPawn(player)
+	self._context.Services.PlayerService:SpawnPawn(player, nil, "ArenaMap")
 	self:_publishUiState()
 end
 
@@ -92,7 +92,7 @@ function RoundService:LeaveArena(player: Player)
 	if self:_participantCount() == 0 then
 		self._context.Services.MapService:ActivateMap("LobbyMap")
 	end
-	self._context.Services.PlayerService:SpawnPawn(player)
+	self._context.Services.PlayerService:SpawnPawn(player, 1, "LobbyMap")
 	self:_publishUiState()
 end
 
@@ -136,7 +136,7 @@ function RoundService:RunRound()
 	self._context.Services.MapService:ActivateMap("LobbyMap")
 	for player in pairs(self._participants) do
 		if player.Parent == Players then
-			self._context.Services.PlayerService:SpawnPawn(player, 1)
+			self._context.Services.PlayerService:SpawnPawn(player, 1, "LobbyMap")
 		end
 	end
 end
@@ -146,7 +146,7 @@ function RoundService:_ensureParticipantsHavePawns(): boolean
 		if player.Parent == Players then
 			local pawn = self._context.Services.PlayerService:GetPawn(player)
 			if not pawn then
-				pawn = self._context.Services.PlayerService:SpawnPawn(player)
+				pawn = self._context.Services.PlayerService:SpawnPawn(player, nil, "ArenaMap")
 			end
 			if not pawn then
 				return false
@@ -169,7 +169,7 @@ function RoundService:_resetPlayersForRound()
 	for player in pairs(self._participants) do
 		if player.Parent == Players then
 			self._context.Services.PlayerStateService:ResetForNewRound(player)
-			self._context.Services.PlayerService:SpawnPawn(player, i)
+			self._context.Services.PlayerService:SpawnPawn(player, i, "ArenaMap")
 			i += 1
 		end
 	end

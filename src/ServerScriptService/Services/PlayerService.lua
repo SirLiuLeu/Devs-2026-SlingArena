@@ -28,7 +28,7 @@ function PlayerService:Init()
 	self:_loadSlingTemplate()
 
 	Players.PlayerAdded:Connect(function(player)
-		self:SpawnPawn(player)
+		self:SpawnPawn(player, 1, "LobbyMap")
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		self:_disconnectDeathSignal(player)
@@ -36,7 +36,7 @@ function PlayerService:Init()
 	end)
 
 	for _, player in Players:GetPlayers() do
-		self:SpawnPawn(player)
+		self:SpawnPawn(player, 1, "LobbyMap")
 	end
 end
 
@@ -46,19 +46,22 @@ function PlayerService:_loadSlingTemplate(): Model
 	end
 
 	local assets = ReplicatedStorage:WaitForChild("Assets")
-	local cubeSling = assets:WaitForChild("CubeSling")
-	assert(cubeSling:IsA("Model"), "ReplicatedStorage.Assets.CubeSling must be a Model")
+	local slingModel = assets:WaitForChild("SlingModel")
+	assert(slingModel:IsA("Model"), "ReplicatedStorage.Assets.SlingModel must be a Model")
 
-	local template = cubeSling:Clone()
-	template.Name = "CubeSlingTemplate"
+	local template = slingModel:Clone()
+	template.Name = "SlingModelTemplate"
 	template.Parent = nil
 
 	if Config.SlingScale ~= 1 then
 		template:ScaleTo(Config.SlingScale)
 	end
 
-	local root = template:FindFirstChild("HumanoidRootPart")
-	assert(root and root:IsA("BasePart"), "CubeSling must contain HumanoidRootPart")
+	local root = template.PrimaryPart
+	if not root then
+		root = template:FindFirstChild("HumanoidRootPart") :: BasePart?
+	end
+	assert(root and root:IsA("BasePart"), "SlingModel must contain a valid PrimaryPart")
 	template.PrimaryPart = root
 
 	local attachment = root:FindFirstChild("Attachment")
@@ -109,7 +112,7 @@ function PlayerService:_disconnectDeathSignal(player)
 	end
 end
 
-function PlayerService:SpawnPawn(player, spawnIndex: number?)
+function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	self:_disconnectDeathSignal(player)
 	self:_destroyPawn(player)
 
@@ -117,9 +120,10 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?)
 	local pawn = template:Clone()
 	pawn.Name = player.Name
 	local index = spawnIndex or (player.UserId % 8) + 1
-	local spawnPosition = self._context.Services.MapService:GetSpawnPoint(index)
+	local spawnPosition = self._context.Services.MapService:GetSpawnPoint(index, mapName)
 	pawn:PivotTo(CFrame.new(spawnPosition, spawnPosition + Vector3.new(0, 0, -1)))
 	pawn.Parent = self._pawnsFolder
+	pawn:SetAttribute("ScaleValue", Config.SlingScale)
 	for _, descendant in pawn:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = false
@@ -161,11 +165,28 @@ end
 
 function PlayerService:GetRoot(player)
 	local pawn = self:GetPawn(player)
-	local root = pawn and pawn:FindFirstChild("HumanoidRootPart")
+	if not pawn then
+		return nil
+	end
+	local root = pawn.PrimaryPart or pawn:FindFirstChild("HumanoidRootPart")
 	if root and root:IsA("BasePart") then
 		return root
 	end
 	return nil
+end
+
+function PlayerService:GrowPawn(player: Player, growthDelta: number)
+	local pawn = self:GetPawn(player)
+	if not pawn then
+		return
+	end
+	local currentScale = pawn:GetAttribute("ScaleValue")
+	if typeof(currentScale) ~= "number" then
+		currentScale = pawn:GetScale()
+	end
+	local newScale = math.max(0.5, currentScale + math.max(0, growthDelta))
+	pawn:SetAttribute("ScaleValue", newScale)
+	pawn:ScaleTo(newScale)
 end
 
 return PlayerService

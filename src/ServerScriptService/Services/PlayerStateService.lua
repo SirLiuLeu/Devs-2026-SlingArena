@@ -202,6 +202,13 @@ function PlayerStateService:GrantExp(player: Player, amount: number)
 	self:PublishState(player)
 end
 
+function PlayerStateService:AddGrowth(player: Player, amount: number)
+	local state = self._states[player]
+	if not state then return end
+	state.Size = math.max(0.5, state.Size + math.max(0, amount))
+	self:PublishState(player)
+end
+
 function PlayerStateService:TryApplyExpPenalty(player: Player, penalty: number): boolean
 	local state = self._states[player]
 	if not state then return false end
