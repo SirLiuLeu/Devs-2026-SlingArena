@@ -6,6 +6,7 @@ RemoteContracts.Names = {
 	ChargeStart = "ChargeStartRemote",
 	ChargeRelease = "ChargeReleaseRemote",
 	StateUpdate = "StateUpdate",
+	UIStateUpdate = "UIStateUpdate",
 	AttributeUpgrade = "AttributeUpgrade",
 	ActivateSkill = "ActivateSkill",
 	RequestRespawn = "RequestRespawn",
@@ -17,14 +18,16 @@ RemoteContracts.Names = {
 	PurchaseMatchBuff = "PurchaseMatchBuff",
 	PrestigeReset = "PrestigeReset",
 	ToggleSpecialUpgrade = "ToggleSpecialUpgrade",
+	JoinArena = "JoinArena",
+	LeaveArena = "LeaveArena",
 }
 
 RemoteContracts.Validators = {
 	[RemoteContracts.Names.ChargeStart] = function(direction: any): boolean
 		return typeof(direction) == "Vector3"
 	end,
-	[RemoteContracts.Names.ChargeRelease] = function(direction: any): boolean
-		return typeof(direction) == "Vector3"
+	[RemoteContracts.Names.ChargeRelease] = function(pullVector: any): boolean
+		return typeof(pullVector) == "Vector3"
 	end,
 	[RemoteContracts.Names.AttributeUpgrade] = function(attributeName: any): boolean
 		return typeof(attributeName) == "string"

@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
+local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
 local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 
 type PlayerState = PlayerStateTypes.PlayerState
@@ -31,11 +32,11 @@ function PlayerStateService.new(context: Context)
 	self._states = {} :: { [Player]: PlayerState }
 	self._buffs = {} :: { [Player]: BuffState }
 	self._lastAttacker = {} :: { [Player]: Player }
+	self._damageDealt = {} :: { [Player]: number }
 	self._stateUpdateRemote = context.Remotes:FindFirstChild("StateUpdate") :: RemoteEvent
 	return self
 end
 
--- Domain ownership: all level/exp/size math is centralized in PlayerStateService.
 function PlayerStateService:ComputeSize(level: number): number
 	return BalanceConfig.BaseSize + (math.max(level, 1) * BalanceConfig.LevelGrowthMultiplier)
 end
@@ -44,20 +45,16 @@ function PlayerStateService:GetRequiredExp(level: number): number
 	return LevelConfig.RequiredExp(level)
 end
 
-local function computeMaxHp(state: PlayerState, hpBuff: number): number
-	local hpFromAttr = math.min(state.Attributes.HPBonus * 0.015, BalanceConfig.MaxHpBonusFromAttributes)
-	return BalanceConfig.BaseHP * state.Size * (1 + hpFromAttr + hpBuff)
-end
-
 local function buildDefaultState(player: Player): PlayerState
+	local sling = SlingshotConfig.SlingConfig
 	local state: PlayerState = {
 		UserId = player.UserId,
 		Level = LevelConfig.StartingLevel,
 		Exp = LevelConfig.StartingExp,
-		Size = LevelConfig.StartingSize,
-		MaxHP = BalanceConfig.BaseHP,
-		CurrentHP = BalanceConfig.BaseHP,
-		BaseDamage = BalanceConfig.BaseDamage,
+		Size = sling.Size,
+		MaxHP = sling.MaxHP,
+		CurrentHP = sling.MaxHP,
+		BaseDamage = sling.BaseDamage,
 		DamageMultiplier = 1,
 		KnockbackResistance = 0,
 		SlingshotType = "Default",
@@ -68,12 +65,13 @@ local function buildDefaultState(player: Player): PlayerState
 		Diamonds = LevelConfig.StartingDiamonds,
 		RespawnCountThisMatch = 0,
 		AttributePoints = LevelConfig.StartingAttributePoints,
+		DamageDealt = 0,
 		Attributes = {
-			Speed = 0,
-			HPBonus = 0,
-			LaunchPower = 0,
-			ChargeSpeed = 0,
-			ReflectDamage = 0,
+			Damage = 0,
+			MaxHP = 0,
+			Regen = 0,
+			Range = 0,
+			Reflect = 0,
 		},
 		IsAlive = true,
 		IsCharging = false,
@@ -85,18 +83,19 @@ function PlayerStateService:Init()
 	Players.PlayerAdded:Connect(function(player)
 		self._states[player] = buildDefaultState(player)
 		self._buffs[player] = { DamageBoost = 0, HpBoost = 0, ExpBoost = 0, ChargeBoost = 0, Active = false }
+		self._damageDealt[player] = 0
 		self:RecalculateDerivedStats(player, true)
 	end)
-
 	Players.PlayerRemoving:Connect(function(player)
 		self._states[player] = nil
 		self._buffs[player] = nil
 		self._lastAttacker[player] = nil
+		self._damageDealt[player] = nil
 	end)
-
 	for _, player in ipairs(Players:GetPlayers()) do
 		self._states[player] = buildDefaultState(player)
 		self._buffs[player] = { DamageBoost = 0, HpBoost = 0, ExpBoost = 0, ChargeBoost = 0, Active = false }
+		self._damageDealt[player] = 0
 		self:RecalculateDerivedStats(player, true)
 	end
 end
@@ -114,36 +113,57 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	if not state then
 		return
 	end
-	state.Size = self:ComputeSize(state.Level)
-	local buff = self._buffs[player]
-	local hpBuff = buff and buff.HpBoost or 0
-	local newMax = computeMaxHp(state, hpBuff)
-	state.MaxHP = newMax
+	local sling = SlingshotConfig.SlingConfig
+	state.Size = sling.Size + (state.Attributes.Range * 0.02)
+	state.BaseDamage = sling.BaseDamage + (state.Attributes.Damage * 3)
+	local hp = sling.MaxHP + (state.Attributes.MaxHP * 20)
+	state.MaxHP = hp
 	if refillHealth then
-		state.CurrentHP = newMax
+		state.CurrentHP = hp
 	else
-		state.CurrentHP = math.clamp(state.CurrentHP, 0, newMax)
+		state.CurrentHP = math.clamp(state.CurrentHP, 0, hp)
 	end
 	self:PublishState(player)
 end
 
-function PlayerStateService:SetAlive(player: Player, alive: boolean)
+function PlayerStateService:GetFinalStats(player: Player)
 	local state = self._states[player]
 	if not state then
-		return
+		return nil
 	end
+	local sling = SlingshotConfig.SlingConfig
+	return {
+		Damage = state.BaseDamage,
+		HP = state.MaxHP,
+		Regen = sling.RegenPerSecond + state.Attributes.Regen,
+		Range = sling.MaxShootRange + (state.Attributes.Range * 10),
+		Reflect = sling.ReflectDamagePercent + (state.Attributes.Reflect * 0.01),
+	}
+end
+
+function PlayerStateService:AddDamageDealt(player: Player, amount: number)
+	self._damageDealt[player] = (self._damageDealt[player] or 0) + math.max(amount, 0)
+	local state = self._states[player]
+	if state then
+		state.DamageDealt = self._damageDealt[player]
+		self:PublishState(player)
+	end
+end
+
+function PlayerStateService:GetDamageDealt(player: Player): number
+	return self._damageDealt[player] or 0
+end
+
+function PlayerStateService:SetAlive(player: Player, alive: boolean)
+	local state = self._states[player]
+	if not state then return end
 	state.IsAlive = alive
-	if alive then
-		state.CurrentHP = math.max(1, state.CurrentHP)
-	end
 	self:PublishState(player)
 end
 
 function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
 	local state = self._states[player]
-	if not state or not state.IsAlive then
-		return false
-	end
+	if not state or not state.IsAlive then return false end
 	state.CurrentHP = math.max(0, state.CurrentHP - math.max(0, amount))
 	self:PublishState(player)
 	return true
@@ -151,151 +171,77 @@ end
 
 function PlayerStateService:Heal(player: Player, amount: number)
 	local state = self._states[player]
-	if not state then
-		return
-	end
+	if not state then return end
 	state.CurrentHP = math.min(state.MaxHP, state.CurrentHP + math.max(0, amount))
 	self:PublishState(player)
 end
 
 function PlayerStateService:MarkInvulnerable(player: Player, duration: number)
 	local state = self._states[player]
-	if not state then
-		return
-	end
+	if not state then return end
 	state.InvulnerableUntil = os.clock() + duration
-	self:PublishState(player)
 end
 
 function PlayerStateService:IsInvulnerable(player: Player): boolean
 	local state = self._states[player]
-	if not state then
-		return false
-	end
-	return state.InvulnerableUntil > os.clock()
+	return state ~= nil and state.InvulnerableUntil > os.clock()
 end
 
 function PlayerStateService:GrantExp(player: Player, amount: number)
 	local state = self._states[player]
-	if not state then
-		return
-	end
-	local buff = self._buffs[player]
-	local adjusted = math.max(0, amount)
-	if buff then
-		adjusted *= (1 + buff.ExpBoost)
-	end
-	state.Exp += adjusted
-	local leveled = false
+	if not state then return end
+	state.Exp += math.max(0, amount)
 	while state.Level < LevelConfig.MaxLevel do
 		local requiredExp = self:GetRequiredExp(state.Level)
-		if state.Exp < requiredExp then
-			break
-		end
+		if state.Exp < requiredExp then break end
 		state.Exp -= requiredExp
 		state.Level += 1
 		state.AttributePoints += 1
-		leveled = true
-	end
-	if leveled then
-		self:RecalculateDerivedStats(player, false)
 		self._context.EventBus:Fire("LevelUp", player, state.Level)
-	else
-		self:PublishState(player)
 	end
+	self:PublishState(player)
 end
 
 function PlayerStateService:TryApplyExpPenalty(player: Player, penalty: number): boolean
 	local state = self._states[player]
-	if not state then
-		return false
-	end
-	state.Exp -= math.max(0, penalty)
-	local didLevelDown = false
-	while state.Exp <= 0 do
-		if state.Level <= 1 then
-			state.Level = 1
-			state.Exp = 0
-			break
-		end
-		state.Level -= 1
-		state.Exp = self:GetRequiredExp(state.Level)
-		didLevelDown = true
-	end
-	if didLevelDown then
-		self:RecalculateDerivedStats(player, false)
-		self._context.EventBus:Fire("LevelDown", player, state.Level)
-	else
-		self:PublishState(player)
-	end
-	return didLevelDown
+	if not state then return false end
+	state.Exp = math.max(0, state.Exp - math.max(0, penalty))
+	self:PublishState(player)
+	return true
 end
 
 function PlayerStateService:ResetForNewRound(player: Player)
 	local state = self._states[player]
-	if not state then
-		return
-	end
-	state.Level = LevelConfig.StartingLevel
-	state.Exp = LevelConfig.StartingExp
-	state.AttributePoints = LevelConfig.StartingAttributePoints
-	state.Attributes = {
-		Speed = 0,
-		HPBonus = 0,
-		LaunchPower = 0,
-		ChargeSpeed = 0,
-		ReflectDamage = 0,
-	}
-	state.RespawnCountThisMatch = 0
+	if not state then return end
 	state.IsAlive = true
 	state.IsCharging = false
 	state.CurrentVelocity = Vector3.zero
 	state.ChargeValue = 0
-	state.InvulnerableUntil = os.clock() + BalanceConfig.DefaultInvulnerableSeconds
+	self._damageDealt[player] = 0
+	state.DamageDealt = 0
 	self:RecalculateDerivedStats(player, true)
-end
-
-function PlayerStateService:UpdateVelocity(player: Player, velocity: Vector3)
-	local state = self._states[player]
-	if not state then
-		return
-	end
-	if velocity.Magnitude > BalanceConfig.MaxVelocity then
-		state.CurrentVelocity = velocity.Unit * BalanceConfig.MaxVelocity
-	else
-		state.CurrentVelocity = velocity
-	end
 end
 
 function PlayerStateService:ResetForRespawn(player: Player)
 	local state = self._states[player]
-	if not state then
-		return
-	end
-	state.RespawnCountThisMatch += 1
+	if not state then return end
 	state.IsAlive = true
 	state.IsCharging = false
 	state.CurrentVelocity = Vector3.zero
 	state.ChargeValue = 0
-	state.InvulnerableUntil = os.clock() + BalanceConfig.DefaultInvulnerableSeconds
 	self:RecalculateDerivedStats(player, true)
 end
 
 function PlayerStateService:PublishState(player: Player)
-	if self._stateUpdateRemote then
-		local state = self._states[player]
-		if state then
-			self._stateUpdateRemote:FireClient(player, state)
-		end
+	local state = self._states[player]
+	if self._stateUpdateRemote and state then
+		self._stateUpdateRemote:FireClient(player, state)
 	end
 end
 
-
 function PlayerStateService:SetCharging(player: Player, isCharging: boolean, chargeValue: number)
 	local state = self._states[player]
-	if not state then
-		return
-	end
+	if not state then return end
 	state.IsCharging = isCharging
 	state.ChargeValue = math.clamp(chargeValue, 0, 1)
 	self:PublishState(player)
@@ -307,12 +253,8 @@ end
 
 function PlayerStateService:TrySpendAttribute(player: Player, attributeName: string): boolean
 	local state = self._states[player]
-	if not state or state.AttributePoints <= 0 then
-		return false
-	end
-	if state.Attributes[attributeName] == nil then
-		return false
-	end
+	if not state or state.AttributePoints <= 0 then return false end
+	if state.Attributes[attributeName] == nil then return false end
 	state.AttributePoints -= 1
 	state.Attributes[attributeName] += 1
 	self:RecalculateDerivedStats(player, false)
@@ -321,57 +263,23 @@ end
 
 function PlayerStateService:SpendDiamonds(player: Player, amount: number): boolean
 	local state = self._states[player]
-	if not state then
-		return false
-	end
+	if not state then return false end
 	local cost = math.max(0, amount)
-	if state.Diamonds < cost then
-		return false
-	end
+	if state.Diamonds < cost then return false end
 	state.Diamonds -= cost
 	self:PublishState(player)
 	return true
 end
 
-function PlayerStateService:ApplyMatchBuff(player: Player)
-	local buff = self._buffs[player]
-	if not buff then
-		return
-	end
-	buff.Active = true
-	buff.DamageBoost = 0.15
-	buff.HpBoost = 0.15
-	buff.ExpBoost = 0.15
-	buff.ChargeBoost = 0.1
-	self:RecalculateDerivedStats(player, false)
-end
-
-function PlayerStateService:PrestigeReset(player: Player)
-	local state = self._states[player]
-	if not state then
-		return
-	end
-	state.Level = LevelConfig.StartingLevel
-	state.Exp = LevelConfig.StartingExp
-	state.AttributePoints = LevelConfig.StartingAttributePoints
-	state.Attributes = {
-		Speed = 0,
-		HPBonus = 0,
-		LaunchPower = 0,
-		ChargeSpeed = 0,
-		ReflectDamage = 0,
-	}
-	self:RecalculateDerivedStats(player, true)
-end
+function PlayerStateService:ApplyMatchBuff(_player: Player) end
+function PlayerStateService:PrestigeReset(_player: Player) end
 
 function PlayerStateService:SetLastAttacker(victim: Player, attacker: Player)
 	self._lastAttacker[victim] = attacker
 end
-
 function PlayerStateService:GetLastAttacker(victim: Player): Player?
 	return self._lastAttacker[victim]
 end
-
 function PlayerStateService:ClearLastAttacker(victim: Player)
 	self._lastAttacker[victim] = nil
 end

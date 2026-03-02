@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
+local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
 
 type Context = {
 	Services: any,
@@ -25,22 +26,51 @@ function DamagePipelineService:Init()
 	self._context.EventBus:On("TrapCollision", function(player: Player, penalty: number)
 		self:ApplyExpPenalty(player, penalty)
 	end)
+	task.spawn(function()
+		while true do
+			self:_runRegenTick()
+			task.wait(1)
+		end
+	end)
 end
 
--- Domain ownership: all mutation for HP/EXP/level-down/death flows through this pipeline.
-function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, _attacker: Player?, knockbackDirection: Vector3?): boolean
+function DamagePipelineService:_runRegenTick()
+	for player, state in pairs(self._context.Services.PlayerStateService:GetAllStates()) do
+		if state.IsAlive and state.CurrentHP > 0 then
+			local regen = SlingshotConfig.SlingConfig.RegenPerSecond + state.Attributes.Regen
+			if regen > 0 then
+				self._context.Services.PlayerStateService:Heal(player, regen)
+			end
+		end
+	end
+end
+
+function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?): boolean
 	local playerStateService = self._context.Services.PlayerStateService
 	if playerStateService:IsInvulnerable(victim) then
 		return false
 	end
 
 	local amount = math.clamp(rawDamage, 0, BalanceConfig.MaxDamagePerHit)
-	if _attacker then
-		playerStateService:SetLastAttacker(victim, _attacker)
+	if attacker then
+		playerStateService:SetLastAttacker(victim, attacker)
 	end
 	local didDamage = playerStateService:ApplyDamage(victim, amount)
 	if not didDamage then
 		return false
+	end
+
+	if attacker then
+		playerStateService:AddDamageDealt(attacker, amount)
+		local victimStats = playerStateService:GetFinalStats(victim)
+		if victimStats then
+			local reflectPct = math.clamp(victimStats.Reflect, 0, 0.5)
+			if reflectPct > 0 then
+				local reflected = amount * reflectPct
+				playerStateService:ApplyDamage(attacker, reflected)
+			end
+		end
+		self._context.EventBus:Fire("DamageDealt", attacker, victim, amount)
 	end
 
 	if knockbackDirection then
@@ -48,10 +78,6 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, _a
 		if root and knockbackDirection.Magnitude > 0 then
 			root.AssemblyLinearVelocity += knockbackDirection.Unit * 45
 		end
-	end
-
-	if _attacker then
-		self._context.EventBus:Fire("DamageDealt", _attacker, victim, amount)
 	end
 
 	local state = playerStateService:GetState(victim)
@@ -83,11 +109,6 @@ function DamagePipelineService:HandlePlayerDeath(player: Player)
 		self._context.EventBus:Fire("PlayerKilled", killer, player)
 		playerStateService:ClearLastAttacker(player)
 	end
-
-	if self._context.Services.RoundService and self._context.Services.RoundService:IsRoundActive() then
-		return
-	end
-	self._context.Services.PlayerService:SpawnPawn(player)
 end
 
 return DamagePipelineService

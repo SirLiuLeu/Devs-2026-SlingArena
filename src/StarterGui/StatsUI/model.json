@@ -1,0 +1,66 @@
+{
+  "className": "ScreenGui",
+  "properties": {
+    "ResetOnSpawn": false
+  },
+  "children": [
+    {
+      "name": "ToggleButton",
+      "className": "TextButton",
+      "properties": {
+        "Text": "Stats"
+      }
+    },
+    {
+      "name": "StatsPanel",
+      "className": "Frame",
+      "properties": {
+        "Visible": false
+      },
+      "children": [
+        {
+          "name": "DamageRow",
+          "className": "TextButton",
+          "properties": {
+            "Text": "Damage +"
+          }
+        },
+        {
+          "name": "HPRow",
+          "className": "TextButton",
+          "properties": {
+            "Text": "HP +"
+          }
+        },
+        {
+          "name": "RegenRow",
+          "className": "TextButton",
+          "properties": {
+            "Text": "Regen +"
+          }
+        },
+        {
+          "name": "RangeRow",
+          "className": "TextButton",
+          "properties": {
+            "Text": "Range +"
+          }
+        },
+        {
+          "name": "ReflectRow",
+          "className": "TextButton",
+          "properties": {
+            "Text": "Reflect +"
+          }
+        },
+        {
+          "name": "CloseButton",
+          "className": "TextButton",
+          "properties": {
+            "Text": "Close"
+          }
+        }
+      ]
+    }
+  ]
+}

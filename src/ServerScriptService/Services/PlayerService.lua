@@ -29,7 +29,6 @@ function PlayerService:Init()
 
 	Players.PlayerAdded:Connect(function(player)
 		self._lastAim[player] = Vector3.new(0, 0, -1)
-		self:SpawnPawn(player)
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		self:_disconnectDeathSignal(player)
@@ -39,7 +38,6 @@ function PlayerService:Init()
 
 	for _, player in Players:GetPlayers() do
 		self._lastAim[player] = Vector3.new(0, 0, -1)
-		self:SpawnPawn(player)
 	end
 end
 
@@ -156,11 +154,27 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?)
 	end
 end
 
+function PlayerService:DespawnPawn(player)
+	self:_disconnectDeathSignal(player)
+	self:_destroyPawn(player)
+	self._context.Services.PlayerStateService:SetAlive(player, false)
+end
+
 function PlayerService:_destroyPawn(player)
 	local pawn = self:GetPawn(player)
 	if pawn then
 		pawn:Destroy()
 	end
+end
+
+
+function PlayerService:IsGrounded(player): boolean
+	local root = self:GetRoot(player)
+	if not root then
+		return false
+	end
+	local result = Workspace:Raycast(root.Position, Vector3.new(0, -4, 0))
+	return result ~= nil
 end
 
 function PlayerService:GetRoot(player)

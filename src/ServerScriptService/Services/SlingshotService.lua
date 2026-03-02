@@ -16,6 +16,7 @@ SlingshotService.__index = SlingshotService
 function SlingshotService.new(context: Context)
 	local self = setmetatable({}, SlingshotService)
 	self._context = context
+	self._origin = {}
 	return self
 end
 
@@ -24,42 +25,29 @@ function SlingshotService:Init() end
 function SlingshotService:Launch(player: Player, direction: Vector3, chargeRatio: number): boolean
 	local playerStateService = self._context.Services.PlayerStateService
 	local state = playerStateService:GetState(player)
-	if not state or not state.IsAlive then
-		return false
-	end
+	if not state or not state.IsAlive then return false end
+	local root = self._context.Services.PlayerService:GetRoot(player)
+	if not root then return false end
 
-	local character = player.Character
-	if not character then
-		return false
-	end
-	local root = character:FindFirstChild("HumanoidRootPart") :: BasePart
-	if not root then
-		return false
-	end
-
-	local safeDirection = direction
-	if safeDirection.Magnitude < 0.01 then
-		safeDirection = root.CFrame.LookVector
-	else
-		safeDirection = safeDirection.Unit
-	end
-
-	local clampedCharge = math.clamp(chargeRatio, 0, 1)
-	local buff = playerStateService:GetBuff(player)
-	local launchPowerBonus = 1 + math.min(state.Attributes.LaunchPower * SlingshotConfig.LaunchPowerPerPoint, BalanceConfig.MaxDamageBonusFromAttributes)
-	local chargeBoost = 1 + (buff and buff.ChargeBoost or 0)
-	local sizeModifier = math.max(0.6, math.log(state.Size + 1))
-	local launchForce = SlingshotConfig.BaseLaunchForce * clampedCharge * chargeBoost * sizeModifier * launchPowerBonus
-
-	local velocity = safeDirection * launchForce
+	local safeDirection = if direction.Magnitude < 0.01 then root.CFrame.LookVector else direction.Unit
+	local pullDistance = math.clamp(chargeRatio, 0, 1) * SlingshotConfig.SlingConfig.MaxPullDistance
+	local force = pullDistance * SlingshotConfig.SlingConfig.ForceMultiplier
+	local velocity = safeDirection * force
 	if velocity.Magnitude > BalanceConfig.MaxVelocity then
 		velocity = velocity.Unit * BalanceConfig.MaxVelocity
 	end
 
-	root.AssemblyLinearVelocity = velocity
+	if not self._origin[player] then
+		self._origin[player] = root.Position
+	end
+	local range = SlingshotConfig.SlingConfig.MaxShootRange + (state.Attributes.Range * 10)
+	if (root.Position - self._origin[player]).Magnitude >= range then
+		velocity *= 0.4
+	end
+
+	root:ApplyImpulse(velocity * root.AssemblyMass)
 	playerStateService:UpdateVelocity(player, velocity)
-	playerStateService:SetCharging(player, false, clampedCharge)
-	self._context.EventBus:Fire("PlayerLaunched", player, clampedCharge, velocity)
+	self._context.EventBus:Fire("PlayerLaunched", player, chargeRatio, velocity)
 	return true
 end
 

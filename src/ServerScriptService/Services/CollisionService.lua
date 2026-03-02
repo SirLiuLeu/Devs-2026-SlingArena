@@ -24,6 +24,7 @@ function CollisionService:Init()
 		self:_resolvePlayerCollisions(playerHits)
 		self:_resolveGateCollisions()
 		self:_resolveTrapCollisions()
+		self:_resolveExitZones()
 	end)
 end
 
@@ -138,6 +139,22 @@ function CollisionService:_resolveTrapCollisions()
 						self._lastTrapCollision[key] = now
 						self._context.EventBus:Fire("TrapCollisionCandidate", player, trap)
 					end
+				end
+			end
+		end
+	end
+end
+
+
+function CollisionService:_resolveExitZones()
+	for _, zone in self._context.Services.MapService:GetExitZones() do
+		for _, player in Players:GetPlayers() do
+			local root = self._context.Services.PlayerService:GetRoot(player)
+			if root and self._context.Services.PlayerService:IsAlive(player) then
+				local localPos = zone.CFrame:PointToObjectSpace(root.Position)
+				local half = zone.Size * 0.5
+				if math.abs(localPos.X) <= half.X and math.abs(localPos.Y) <= half.Y and math.abs(localPos.Z) <= half.Z then
+					self._context.EventBus:Fire("ExitZoneTouched", player, zone)
 				end
 			end
 		end

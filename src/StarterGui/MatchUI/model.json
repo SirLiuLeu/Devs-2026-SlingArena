@@ -1,0 +1,30 @@
+{
+  "className": "ScreenGui",
+  "properties": {
+    "ResetOnSpawn": false
+  },
+  "children": [
+    {
+      "name": "TimerLabel",
+      "className": "TextLabel",
+      "properties": {
+        "Text": "Time: 0"
+      }
+    },
+    {
+      "name": "AlivePlayersLabel",
+      "className": "TextLabel",
+      "properties": {
+        "Text": "Alive: 0"
+      }
+    },
+    {
+      "name": "WinnerPopup",
+      "className": "TextLabel",
+      "properties": {
+        "Visible": false,
+        "Text": "Winner"
+      }
+    }
+  ]
+}

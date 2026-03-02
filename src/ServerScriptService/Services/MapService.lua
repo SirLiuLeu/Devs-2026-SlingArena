@@ -15,6 +15,7 @@ function MapService.new(context)
 	self._gates = {}
 	self._traps = {}
 	self._spawnPoints = {}
+	self._exitZones = {}
 	self._mapDuration = DEFAULT_MAP_DURATION
 	return self
 end
@@ -27,6 +28,7 @@ function MapService:Generate()
 	self._gates = {}
 	self._traps = {}
 	self._spawnPoints = {}
+	self._exitZones = {}
 	self._mapRoot = self._loader:GetMapRoot()
 	self._mapDuration = self._loader:GetMapDuration(DEFAULT_MAP_DURATION)
 
@@ -43,6 +45,8 @@ function MapService:Generate()
 				table.insert(self._traps, descendant)
 			elseif descendant.Name == "SpawnPoint" then
 				table.insert(self._spawnPoints, descendant)
+			elseif descendant.Name == "ExitZone" then
+				table.insert(self._exitZones, descendant)
 			end
 		end
 	end
@@ -74,6 +78,10 @@ end
 
 function MapService:GetTrapBlocks()
 	return self._traps
+end
+
+function MapService:GetExitZones()
+	return self._exitZones
 end
 
 return MapService
