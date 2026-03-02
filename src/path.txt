@@ -1,0 +1,20 @@
+Existing Models:
+
+1. ReplicatedStorage.Assets.SlingModel
+   - Model
+   - Has PrimaryPart: "Root"
+   - Contains: MeshPart "Body", Attachment "LaunchPoint"
+   - Used by SlingService to spawn player Sling
+
+2. ReplicatedStorage.Assets.FoodBlock
+   - Model
+   - Has PrimaryPart
+   - Used as collectible
+
+3. Workspace.Maps.Arena
+   - Folder
+   - Contains: SpawnPoints, Walls
+
+4. Workspace.Maps.Lobby
+   - Folder
+   - Contains: SpawnPoints, Walls, Gates teleporting players to Arena
