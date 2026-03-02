@@ -3,8 +3,7 @@
 local RemoteContracts = {}
 
 RemoteContracts.Names = {
-	ChargeStart = "ChargeStartRemote",
-	ChargeRelease = "ChargeReleaseRemote",
+	MoveRequest = "MoveRequest",
 	StateUpdate = "StateUpdate",
 	UIStateUpdate = "UIStateUpdate",
 	AttributeUpgrade = "AttributeUpgrade",
@@ -23,11 +22,8 @@ RemoteContracts.Names = {
 }
 
 RemoteContracts.Validators = {
-	[RemoteContracts.Names.ChargeStart] = function(direction: any): boolean
-		return typeof(direction) == "Vector3"
-	end,
-	[RemoteContracts.Names.ChargeRelease] = function(pullVector: any): boolean
-		return typeof(pullVector) == "Vector3"
+	[RemoteContracts.Names.MoveRequest] = function(directionInput: any): boolean
+		return typeof(directionInput) == "Vector3"
 	end,
 	[RemoteContracts.Names.AttributeUpgrade] = function(attributeName: any): boolean
 		return typeof(attributeName) == "string"

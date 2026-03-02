@@ -15,4 +15,6 @@ return {
 	BasePlayerHP = 100,
 	BasePlayerSize = 1,
 	Mass = 5,
+	MoveSpeed = 30,
+	SlingScale = 1,
 }

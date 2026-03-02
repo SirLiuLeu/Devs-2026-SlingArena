@@ -1,0 +1,61 @@
+{
+  "name": "CubeSling",
+  "className": "Model",
+  "children": [
+    {
+      "name": "HumanoidRootPart",
+      "className": "Part",
+      "properties": {
+        "Size": [2, 2, 2],
+        "Anchored": false,
+        "CanCollide": true,
+        "CanQuery": false,
+        "CollisionGroup": "Players",
+        "Transparency": 0.95
+      },
+      "children": [
+        {
+          "name": "Attachment",
+          "className": "Attachment"
+        },
+        {
+          "name": "LinearVelocity",
+          "className": "LinearVelocity",
+          "properties": {
+            "RelativeTo": "World",
+            "VectorVelocity": [0, 0, 0],
+            "MaxForce": 1000000000,
+            "Enabled": false
+          }
+        },
+        {
+          "name": "AlignOrientation",
+          "className": "AlignOrientation",
+          "properties": {
+            "Mode": "OneAttachment",
+            "RigidityEnabled": true,
+            "Enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Body",
+      "className": "Part",
+      "properties": {
+        "Shape": "Block",
+        "Size": [4, 4, 4],
+        "Anchored": false,
+        "CanCollide": true,
+        "CollisionGroup": "Players",
+        "TopSurface": "Smooth",
+        "BottomSurface": "Smooth",
+        "CustomPhysicalProperties": [5, 0.4, 0.5, 1, 1]
+      }
+    },
+    {
+      "name": "BodyWeld",
+      "className": "WeldConstraint"
+    }
+  ]
+}
