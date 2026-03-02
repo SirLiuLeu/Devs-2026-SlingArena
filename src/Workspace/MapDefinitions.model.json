@@ -2,42 +2,137 @@
   "className": "Folder",
   "children": [
     {
-      "name": "Blocks",
+      "name": "LobbyMap",
       "className": "Model",
       "children": [
-        { "name": "Ground", "className": "Part", "properties": { "Anchored": true, "CanCollide": true, "CollisionGroup": "Environment", "Position": [0,-2,0], "Size": [140,4,140], "Material": "Concrete" } },
-        { "name": "LargeBlock", "className": "Part", "properties": { "Anchored": true, "CanCollide": true, "CollisionGroup": "Environment", "Position": [22,4,0], "Size": [14,8,14] } },
-        { "name": "SmallBlock", "className": "Part", "properties": { "Anchored": true, "CanCollide": true, "CollisionGroup": "Environment", "Position": [-20,1.5,8], "Size": [4,3,4] } }
+        {
+          "name": "Ground",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "Position": [0, -2, 0],
+            "Size": [140, 4, 140],
+            "Color": [0.18, 0.2, 0.24]
+          }
+        },
+        {
+          "name": "SpawnPoint",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "Transparency": 1,
+            "Position": [0, 2, 24],
+            "Size": [6, 1, 6]
+          }
+        },
+        {
+          "name": "Gate",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "Position": [0, 5, -20],
+            "Size": [20, 10, 2],
+            "Transparency": 0.35,
+            "Color": [0.3, 0.8, 0.4]
+          },
+          "attributes": {
+            "MaxSize": 999
+          }
+        }
       ]
     },
     {
-      "name": "Walls",
+      "name": "ArenaMap",
       "className": "Model",
       "children": [
-        { "name": "WallNorth", "className": "Part", "properties": { "Anchored": true, "CanCollide": true, "CollisionGroup": "Environment", "Position": [0,8,-60], "Size": [140,20,2] } },
-        { "name": "WallSouth", "className": "Part", "properties": { "Anchored": true, "CanCollide": true, "CollisionGroup": "Environment", "Position": [0,8,60], "Size": [140,20,2] } },
-        { "name": "WallWest", "className": "Part", "properties": { "Anchored": true, "CanCollide": true, "CollisionGroup": "Environment", "Position": [-60,8,0], "Size": [2,20,140] } },
-        { "name": "WallEastTop", "className": "Part", "properties": { "Anchored": true, "CanCollide": true, "CollisionGroup": "Environment", "Position": [60,8,24], "Size": [2,20,72] } },
-        { "name": "WallEastBottom", "className": "Part", "properties": { "Anchored": true, "CanCollide": true, "CollisionGroup": "Environment", "Position": [60,8,-24], "Size": [2,20,72] } },
-        { "name": "Gate", "className": "Part", "properties": { "Anchored": true, "CanCollide": false, "CollisionGroup": "Environment", "Position": [60,5,0], "Size": [2,8,16], "Transparency": 0.5 }, "attributes": { "MaxSize": 1.2 } }
-      ]
-    },
-    {
-      "name": "ExitZone", "className": "Part", "properties": { "Anchored": true, "CanCollide": false, "CollisionGroup": "Environment", "Position": [0,1,-45], "Size": [14,2,14], "Transparency": 0.5, "Color": [0.2,0.8,0.3] }, "attributes": { "EndsRound": false, "ScoreValue": 20 } },
-    {
-      "name": "Trap", "className": "Model", "children": [
-        { "name": "Trap", "className": "Part", "properties": { "Anchored": true, "CanCollide": true, "CollisionGroup": "Environment", "Material": "Neon", "Color": [0.86,0.25,0.25], "Position": [18,0.5,18], "Size": [8,1,8] } },
-        { "name": "Trap", "className": "Part", "properties": { "Anchored": true, "CanCollide": true, "CollisionGroup": "Environment", "Material": "Neon", "Color": [0.86,0.25,0.25], "Position": [-18,0.5,-12], "Size": [8,1,8] } }
-      ]
-    },
-    {
-      "name": "SpawnPoint",
-      "className": "Model",
-      "children": [
-        { "name": "SpawnPoint", "className": "Part", "properties": { "Anchored": true, "CanCollide": false, "Transparency": 1, "Position": [0,2,24], "Size": [4,1,4] } },
-        { "name": "SpawnPoint", "className": "Part", "properties": { "Anchored": true, "CanCollide": false, "Transparency": 1, "Position": [24,2,0], "Size": [4,1,4] } },
-        { "name": "SpawnPoint", "className": "Part", "properties": { "Anchored": true, "CanCollide": false, "Transparency": 1, "Position": [0,2,-24], "Size": [4,1,4] } },
-        { "name": "SpawnPoint", "className": "Part", "properties": { "Anchored": true, "CanCollide": false, "Transparency": 1, "Position": [-24,2,0], "Size": [4,1,4] } }
+        {
+          "name": "Ground",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "Position": [0, -2, 0],
+            "Size": [160, 4, 160],
+            "Color": [0.15, 0.15, 0.18]
+          }
+        },
+        {
+          "name": "WallNorth",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "Position": [0, 8, -70],
+            "Size": [160, 20, 2]
+          }
+        },
+        {
+          "name": "WallSouth",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "Position": [0, 8, 70],
+            "Size": [160, 20, 2]
+          }
+        },
+        {
+          "name": "WallWest",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "Position": [-70, 8, 0],
+            "Size": [2, 20, 160]
+          }
+        },
+        {
+          "name": "WallEast",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "Position": [70, 8, 0],
+            "Size": [2, 20, 160]
+          }
+        },
+        {
+          "name": "SpawnPoints",
+          "className": "Model",
+          "children": [
+            { "name": "SpawnPoint", "className": "Part", "properties": { "Anchored": true, "CanCollide": false, "Transparency": 1, "Position": [0, 2, 30], "Size": [4, 1, 4] } },
+            { "name": "SpawnPoint", "className": "Part", "properties": { "Anchored": true, "CanCollide": false, "Transparency": 1, "Position": [30, 2, 0], "Size": [4, 1, 4] } },
+            { "name": "SpawnPoint", "className": "Part", "properties": { "Anchored": true, "CanCollide": false, "Transparency": 1, "Position": [0, 2, -30], "Size": [4, 1, 4] } },
+            { "name": "SpawnPoint", "className": "Part", "properties": { "Anchored": true, "CanCollide": false, "Transparency": 1, "Position": [-30, 2, 0], "Size": [4, 1, 4] } }
+          ]
+        },
+        {
+          "name": "Traps",
+          "className": "Model",
+          "children": [
+            { "name": "Trap", "className": "Part", "properties": { "Anchored": true, "CanCollide": true, "Material": "Neon", "Color": [0.86, 0.25, 0.25], "Position": [18, 0.5, 18], "Size": [8, 1, 8] } },
+            { "name": "Trap", "className": "Part", "properties": { "Anchored": true, "CanCollide": true, "Material": "Neon", "Color": [0.86, 0.25, 0.25], "Position": [-18, 0.5, -12], "Size": [8, 1, 8] } }
+          ]
+        },
+        {
+          "name": "ExitZone",
+          "className": "Part",
+          "properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "Position": [0, 1, -48],
+            "Size": [14, 2, 14],
+            "Transparency": 0.5,
+            "Color": [0.2, 0.8, 0.3]
+          },
+          "attributes": {
+            "EndsRound": false,
+            "ScoreValue": 20
+          }
+        }
       ]
     }
   ]

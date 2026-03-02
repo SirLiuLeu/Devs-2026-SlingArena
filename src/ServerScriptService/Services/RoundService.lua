@@ -40,6 +40,9 @@ function RoundService:Init()
 	if self._leaveRemote then
 		self._leaveRemote.OnServerEvent:Connect(function(player) self:LeaveArena(player) end)
 	end
+	self._context.EventBus:On("LobbyGateTouched", function(player: Player)
+		self:JoinArena(player)
+	end)
 	self._context.EventBus:On("PlayerDied", function() self:_checkRoundEnd() end)
 	self._context.EventBus:On("ExitZoneTouched", function(player: Player, zone: BasePart)
 		local score = zone:GetAttribute("ScoreValue")
@@ -52,6 +55,8 @@ function RoundService:Init()
 		end
 	end)
 	Players.PlayerRemoving:Connect(function(player) self._participants[player] = nil end)
+
+	self._context.Services.MapService:ActivateMap("LobbyMap")
 	self:SetState(STATES.Lobby)
 	task.defer(function()
 		while true do
@@ -75,13 +80,19 @@ end
 
 function RoundService:JoinArena(player: Player)
 	self._participants[player] = true
+	if self._context.Services.MapService:GetActiveMap() ~= "ArenaMap" and self._state == STATES.Lobby then
+		self._context.Services.MapService:ActivateMap("ArenaMap")
+	end
 	self._context.Services.PlayerService:SpawnPawn(player)
 	self:_publishUiState()
 end
 
 function RoundService:LeaveArena(player: Player)
 	self._participants[player] = nil
-	self._context.Services.PlayerService:DespawnPawn(player)
+	if self:_participantCount() == 0 then
+		self._context.Services.MapService:ActivateMap("LobbyMap")
+	end
+	self._context.Services.PlayerService:SpawnPawn(player)
 	self:_publishUiState()
 end
 
@@ -95,6 +106,7 @@ end
 
 function RoundService:RunRound()
 	if self:_participantCount() <= 0 then
+		self._context.Services.MapService:ActivateMap("LobbyMap")
 		self:SetState(STATES.Lobby)
 		self:_publishUiState()
 		return
@@ -104,20 +116,29 @@ function RoundService:RunRound()
 		self:_publishUiState()
 		return
 	end
+
 	self._roundId += 1
 	self:SetState(STATES.PreRound)
-	self._context.Services.MapService:Generate()
+	self._context.Services.MapService:ActivateMap("ArenaMap")
 	self:_resetPlayersForRound()
 	self:SetState(STATES.Countdown)
 	task.wait(2)
 	self:SetState(STATES.ActiveRound)
 	self._mapEndTime = os.clock() + self._context.Services.MapService:GetMapDuration()
+
 	while self._state == STATES.ActiveRound do
 		self:_checkRoundEnd()
 		self:_publishUiState()
 		task.wait(0.25)
 	end
+
 	self:SetState(STATES.PostRound)
+	self._context.Services.MapService:ActivateMap("LobbyMap")
+	for player in pairs(self._participants) do
+		if player.Parent == Players then
+			self._context.Services.PlayerService:SpawnPawn(player, 1)
+		end
+	end
 end
 
 function RoundService:_ensureParticipantsHavePawns(): boolean

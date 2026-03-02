@@ -143,12 +143,16 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?)
 	pawn.Name = player.Name
 	local index = spawnIndex or (player.UserId % 8) + 1
 	local spawnPosition = self._context.Services.MapService:GetSpawnPoint(index)
-	pawn:PivotTo(CFrame.new(spawnPosition))
+	pawn:PivotTo(CFrame.new(spawnPosition, spawnPosition + Vector3.new(0, 0, -1)))
 	pawn.Parent = self._pawnsFolder
 	for _, descendant in pawn:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = false
+			descendant.AssemblyLinearVelocity = Vector3.zero
+			descendant.AssemblyAngularVelocity = Vector3.zero
 			descendant:SetNetworkOwner(player)
+		elseif descendant:IsA("BodyMover") then
+			descendant:Destroy()
 		end
 	end
 

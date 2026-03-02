@@ -1,63 +1,269 @@
 {
   "className": "ScreenGui",
   "properties": {
-    "ResetOnSpawn": false
+    "ResetOnSpawn": false,
+    "IgnoreGuiInset": true
   },
   "children": [
     {
-      "name": "ToggleButton",
-      "className": "TextButton",
-      "properties": {
-        "Text": "Stats"
-      }
-    },
-    {
-      "name": "StatsPanel",
+      "name": "RootFrame",
       "className": "Frame",
       "properties": {
-        "Visible": false
+        "Size": {
+          "UDim2": [
+            [
+              0.36,
+              0
+            ],
+            [
+              0.4,
+              0
+            ]
+          ]
+        },
+        "Position": {
+          "UDim2": [
+            [
+              0.5,
+              0
+            ],
+            [
+              0.5,
+              0
+            ]
+          ]
+        },
+        "AnchorPoint": {
+          "Vector2": [
+            0.5,
+            0.5
+          ]
+        },
+        "BackgroundColor3": {
+          "Color3": [
+            24,
+            28,
+            36
+          ]
+        },
+        "BorderSizePixel": 0
       },
       "children": [
         {
-          "name": "DamageRow",
-          "className": "TextButton",
+          "name": "UICorner",
+          "className": "UICorner",
           "properties": {
-            "Text": "Damage +"
+            "CornerRadius": {
+              "UDim": [
+                0,
+                10
+              ]
+            }
           }
         },
         {
-          "name": "HPRow",
-          "className": "TextButton",
+          "name": "TitleLabel",
+          "className": "TextLabel",
           "properties": {
-            "Text": "HP +"
+            "Size": {
+              "UDim2": [
+                [
+                  0.9,
+                  0
+                ],
+                [
+                  0.16,
+                  0
+                ]
+              ]
+            },
+            "Position": {
+              "UDim2": [
+                [
+                  0.5,
+                  0
+                ],
+                [
+                  0.12,
+                  0
+                ]
+              ]
+            },
+            "AnchorPoint": {
+              "Vector2": [
+                0.5,
+                0.5
+              ]
+            },
+            "BackgroundTransparency": 1,
+            "Text": "Player Stats",
+            "TextScaled": true,
+            "TextColor3": {
+              "Color3": [
+                255,
+                255,
+                255
+              ]
+            }
           }
         },
         {
-          "name": "RegenRow",
-          "className": "TextButton",
+          "name": "ScoreLabel",
+          "className": "TextLabel",
           "properties": {
-            "Text": "Regen +"
+            "Size": {
+              "UDim2": [
+                [
+                  0.8,
+                  0
+                ],
+                [
+                  0.2,
+                  0
+                ]
+              ]
+            },
+            "Position": {
+              "UDim2": [
+                [
+                  0.5,
+                  0
+                ],
+                [
+                  0.34,
+                  0
+                ]
+              ]
+            },
+            "AnchorPoint": {
+              "Vector2": [
+                0.5,
+                0.5
+              ]
+            },
+            "BackgroundColor3": {
+              "Color3": [
+                55,
+                92,
+                140
+              ]
+            },
+            "BorderSizePixel": 0,
+            "Text": "Score: 0",
+            "TextScaled": true,
+            "TextColor3": {
+              "Color3": [
+                255,
+                255,
+                255
+              ]
+            }
           }
         },
         {
-          "name": "RangeRow",
-          "className": "TextButton",
+          "name": "WinsLabel",
+          "className": "TextLabel",
           "properties": {
-            "Text": "Range +"
+            "Size": {
+              "UDim2": [
+                [
+                  0.8,
+                  0
+                ],
+                [
+                  0.2,
+                  0
+                ]
+              ]
+            },
+            "Position": {
+              "UDim2": [
+                [
+                  0.5,
+                  0
+                ],
+                [
+                  0.56,
+                  0
+                ]
+              ]
+            },
+            "AnchorPoint": {
+              "Vector2": [
+                0.5,
+                0.5
+              ]
+            },
+            "BackgroundColor3": {
+              "Color3": [
+                86,
+                126,
+                70
+              ]
+            },
+            "BorderSizePixel": 0,
+            "Text": "Wins: 0",
+            "TextScaled": true,
+            "TextColor3": {
+              "Color3": [
+                255,
+                255,
+                255
+              ]
+            }
           }
         },
         {
-          "name": "ReflectRow",
-          "className": "TextButton",
+          "name": "GoldLabel",
+          "className": "TextLabel",
           "properties": {
-            "Text": "Reflect +"
-          }
-        },
-        {
-          "name": "CloseButton",
-          "className": "TextButton",
-          "properties": {
-            "Text": "Close"
+            "Size": {
+              "UDim2": [
+                [
+                  0.8,
+                  0
+                ],
+                [
+                  0.2,
+                  0
+                ]
+              ]
+            },
+            "Position": {
+              "UDim2": [
+                [
+                  0.5,
+                  0
+                ],
+                [
+                  0.78,
+                  0
+                ]
+              ]
+            },
+            "AnchorPoint": {
+              "Vector2": [
+                0.5,
+                0.5
+              ]
+            },
+            "BackgroundColor3": {
+              "Color3": [
+                176,
+                134,
+                58
+              ]
+            },
+            "BorderSizePixel": 0,
+            "Text": "Gold: 0",
+            "TextScaled": true,
+            "TextColor3": {
+              "Color3": [
+                255,
+                255,
+                255
+              ]
+            }
           }
         }
       ]
