@@ -8,6 +8,9 @@
       },
       "Remotes": {
         "$path": "src/ReplicatedStorage/Remotes"
+      },
+      "Client": {
+        "$path": "src/ReplicatedStorage/Client"
       }
     },
     "ServerScriptService": {
