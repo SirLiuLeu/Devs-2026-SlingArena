@@ -11,10 +11,10 @@ Existing Models:
    - Has PrimaryPart
    - Used as collectible
 
-3. Workspace.Maps.Arena
+3. Workspace.Maps.ArenaMap
    - Folder
    - Contains: SpawnPoints, Walls, Gates teleporting players to Lobby
 
-4. Workspace.Maps.Lobby
+4. Workspace.Maps.LobbyMap
    - Folder
    - Contains: SpawnPoints, Walls, Gates teleporting players to Arena
