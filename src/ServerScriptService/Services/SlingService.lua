@@ -49,6 +49,11 @@ function SlingService:HandleMoveRequest(player: Player, directionInput: Vector3)
 		self._input[player] = Vector3.zero
 		return
 	end
+	local state = self._context.Services.PlayerStateService:GetState(player)
+	if state and state.IsTeleporting then
+		self._input[player] = Vector3.zero
+		return
+	end
 
 	local planar = Vector3.new(directionInput.X, 0, directionInput.Z)
 	self._input[player] = if planar.Magnitude > 1 then planar.Unit else planar
@@ -73,6 +78,7 @@ function SlingService:_applyRootVelocity(root: BasePart, input: Vector3)
 	if input.Magnitude < 0.001 then
 		linearVelocity.VectorVelocity = Vector3.zero
 		linearVelocity.Enabled = false
+		root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
 		return
 	end
 

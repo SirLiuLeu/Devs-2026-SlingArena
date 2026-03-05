@@ -19,6 +19,9 @@ RemoteContracts.Names = {
 	ToggleSpecialUpgrade = "ToggleSpecialUpgrade",
 	JoinArena = "JoinArena",
 	LeaveArena = "LeaveArena",
+	TeleportRequest = "TeleportRequest",
+	DebugSpawnFood = "DebugSpawnFood",
+	DebugResetSling = "DebugResetSling",
 }
 
 RemoteContracts.Validators = {
@@ -30,6 +33,9 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.RequestRespawn] = function(respawnType: any): boolean
 		return typeof(respawnType) == "string"
+	end,
+	[RemoteContracts.Names.TeleportRequest] = function(mapName: any, spawnName: any): boolean
+		return typeof(mapName) == "string" and typeof(spawnName) == "string"
 	end,
 }
 

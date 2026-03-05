@@ -10,6 +10,8 @@ export type AttributesState = {
 
 export type PlayerState = {
 	UserId: number,
+	MapName: string,
+	ArenaStatus: string,
 	Level: number,
 	Exp: number,
 	Size: number,
@@ -27,6 +29,7 @@ export type PlayerState = {
 	RespawnCountThisMatch: number,
 	AttributePoints: number,
 	DamageDealt: number,
+	IsTeleporting: boolean,
 	Attributes: AttributesState,
 	IsAlive: boolean,
 	IsCharging: boolean,

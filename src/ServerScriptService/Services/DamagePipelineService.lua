@@ -103,6 +103,14 @@ function DamagePipelineService:HandlePlayerDeath(player: Player)
 	end
 	playerStateService:SetAlive(player, false)
 	self._context.EventBus:Fire("PlayerDied", player)
+	task.delay(2, function()
+		if player.Parent then
+			local mapName = self._context.Services.MapService:GetActiveMap() or "LobbyMap"
+			self._context.Services.PlayerService:SpawnPawn(player, nil, mapName)
+			playerStateService:SetMapName(player, mapName)
+			playerStateService:SetArenaStatus(player, "Respawned")
+		end
+	end)
 
 	local killer = playerStateService:GetLastAttacker(player)
 	if killer then

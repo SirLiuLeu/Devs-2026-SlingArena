@@ -5,6 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config.Config)
+local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local DEFAULT_MAP_DURATION = 120
 
@@ -22,10 +24,51 @@ function MapService.new(context)
 	self._spawnPoints = {}
 	self._exitZones = {}
 	self._lobbyTouchedDebounce = {}
-	self._foodFolder = nil
-	self._foodTemplate = nil
 	self._foodTouchedDebounce = {}
+	self._customTrapDebounce = {}
+	self._teleportRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.TeleportRequest) :: RemoteEvent
+	self._debugSpawnFoodRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.DebugSpawnFood) :: RemoteEvent
 	return self
+end
+
+local function getStudioMapsRoot(): Folder?
+	local maps = Workspace:FindFirstChild("Maps")
+	if maps and maps:IsA("Folder") then
+		return maps
+	end
+	return nil
+end
+
+local function getFoodTemplate(): Model?
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	if not assets then
+		return nil
+	end
+	local foodFolder = assets:FindFirstChild("Food")
+	if not foodFolder or not foodFolder:IsA("Folder") then
+		return nil
+	end
+	local basicFood = foodFolder:FindFirstChild("BasicFood")
+	if basicFood and basicFood:IsA("Model") then
+		return basicFood
+	end
+	return nil
+end
+
+local function getTrapTemplate(): Model?
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	if not assets then
+		return nil
+	end
+	local trapFolder = assets:FindFirstChild("Trap")
+	if not trapFolder or not trapFolder:IsA("Folder") then
+		return nil
+	end
+	local basicTrap = trapFolder:FindFirstChild("BasicTrap")
+	if basicTrap and basicTrap:IsA("Model") then
+		return basicTrap
+	end
+	return nil
 end
 
 function MapService:Init()
@@ -34,19 +77,19 @@ function MapService:Init()
 		warn("Workspace.MapDefinitions folder is missing")
 		return
 	end
-	local assets = ReplicatedStorage:WaitForChild("Assets")
-	local foodTemplate = assets:WaitForChild("FoodBlock")
-	if foodTemplate and foodTemplate:IsA("Model") then
-		self._foodTemplate = foodTemplate
+	if self._teleportRemote then
+		self._teleportRemote.OnServerEvent:Connect(function(player: Player, mapName: string, spawnName: string)
+			self:RequestTeleport(player, mapName, spawnName)
+		end)
 	end
-	self._foodFolder = Workspace:FindFirstChild("ArenaFood")
-	if not self._foodFolder then
-		self._foodFolder = Instance.new("Folder")
-		self._foodFolder.Name = "ArenaFood"
-		self._foodFolder.Parent = Workspace
+	if self._debugSpawnFoodRemote then
+		self._debugSpawnFoodRemote.OnServerEvent:Connect(function(player: Player, mapName: string)
+			self:DebugSpawnFood(player, mapName)
+		end)
 	end
 	self:ActivateMap("LobbyMap")
 	self:_hookLobbyGates()
+	self:_ensureArenaObstacles()
 end
 
 function MapService:_hookLobbyGates()
@@ -84,11 +127,8 @@ function MapService:ActivateMap(mapName: string)
 	end
 	self._activeMap = mapName
 	self:Generate()
-	if mapName == "ArenaMap" then
-		self:SpawnArenaFood(Config.FoodCount)
-	else
-		self:ClearArenaFood()
-	end
+	self:_spawnMapFoodAndTraps(mapName)
+	self:_ensureArenaObstacles()
 end
 
 function MapService:Generate()
@@ -110,6 +150,22 @@ function MapService:Generate()
 				table.insert(self._spawnPoints, descendant)
 			elseif descendant.Name == "ExitZone" then
 				table.insert(self._exitZones, descendant)
+			end
+		end
+	end
+
+	local mapsRoot = getStudioMapsRoot()
+	if mapsRoot then
+		for _, map in ipairs(mapsRoot:GetChildren()) do
+			if map:IsA("Model") then
+				local trapContainer = map:FindFirstChild("TrapContainer")
+				if trapContainer and trapContainer:IsA("Folder") then
+					for _, trapPart in ipairs(trapContainer:GetDescendants()) do
+						if trapPart:IsA("BasePart") then
+							table.insert(self._traps, trapPart)
+						end
+					end
+				end
 			end
 		end
 	end
@@ -176,62 +232,93 @@ function MapService:GetExitZones()
 	return self._exitZones
 end
 
-function MapService:_randomArenaPosition(): Vector3
-	local radius = Config.MaxArenaRadius - 20
-	return Vector3.new(math.random(-radius, radius), 4, math.random(-radius, radius))
-end
-
-function MapService:ClearArenaFood()
-	self._foodTouchedDebounce = {}
-	if not self._foodFolder then
+function MapService:_spawnMapFoodAndTraps(mapName: string)
+	local mapsRoot = getStudioMapsRoot()
+	if not mapsRoot then
+		-- CREATE MANUALLY IN STUDIO: Workspace.Maps
 		return
 	end
-	for _, child in ipairs(self._foodFolder:GetChildren()) do
-		child:Destroy()
-	end
-end
-
-function MapService:_spawnSingleFood()
-	if not self._foodTemplate or not self._foodFolder then
+	local mapModel = mapsRoot:FindFirstChild(mapName)
+	if not mapModel or not mapModel:IsA("Model") then
 		return
 	end
-	local food = self._foodTemplate:Clone()
-	food.Parent = self._foodFolder
-	local root = food.PrimaryPart
-	if not root then
-		root = food:FindFirstChildWhichIsA("BasePart")
-		if root then
-			food.PrimaryPart = root
+	self:ClearMapFood(mapModel)
+	self:SpawnFoodForMap(mapModel, 8)
+	self:SpawnTrapForMap(mapModel, 4)
+end
+
+function MapService:ClearMapFood(mapModel: Model)
+	local foodContainer = mapModel:FindFirstChild("FoodContainer")
+	if not foodContainer or not foodContainer:IsA("Folder") then
+		-- CREATE MANUALLY IN STUDIO: Workspace.Maps.[MapName].FoodContainer
+		return
+	end
+	for _, child in ipairs(foodContainer:GetChildren()) do
+		if child:GetAttribute("SpawnedByServer") == true then
+			child:Destroy()
 		end
 	end
-	if root then
-		food:PivotTo(CFrame.new(self:_randomArenaPosition()))
-		root.CanCollide = false
-		root.Anchored = true
-		root.Touched:Connect(function(hit)
-			self:_onFoodTouched(food, hit)
-		end)
+end
+
+function MapService:SpawnFoodForMap(mapModel: Model, count: number)
+	local foodContainer = mapModel:FindFirstChild("FoodContainer")
+	if not foodContainer or not foodContainer:IsA("Folder") then
+		-- CREATE MANUALLY IN STUDIO: Workspace.Maps.[MapName].FoodContainer
+		return
+	end
+	local foodTemplate = getFoodTemplate()
+	if not foodTemplate then
+		-- CREATE MANUALLY IN STUDIO: ReplicatedStorage.Assets.Food.BasicFood
+		return
+	end
+
+	for i = 1, count do
+		local clone = foodTemplate:Clone()
+		clone:SetAttribute("SpawnedByServer", true)
+		clone.Name = `Food_{i}`
+		clone.Parent = foodContainer
+		local root = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
+		if root then
+			clone.PrimaryPart = root
+			local px = math.random(-50, 50)
+			local pz = math.random(-50, 50)
+			clone:PivotTo(mapModel:GetPivot() * CFrame.new(px, 4, pz))
+			root.Touched:Connect(function(hit)
+				self:_onFoodTouched(clone, hit)
+			end)
+		end
 	end
 end
 
-function MapService:SpawnArenaFood(count: number)
-	if not self._foodTemplate or not self._foodFolder then
+function MapService:SpawnTrapForMap(mapModel: Model, count: number)
+	local trapContainer = mapModel:FindFirstChild("TrapContainer")
+	if not trapContainer or not trapContainer:IsA("Folder") then
 		return
 	end
-	self:ClearArenaFood()
-	for _ = 1, count do
-		self:_spawnSingleFood()
+	local trapTemplate = getTrapTemplate()
+	if not trapTemplate then
+		-- CREATE MANUALLY IN STUDIO: ReplicatedStorage.Assets.Trap.BasicTrap
+		return
+	end
+	for i = 1, count do
+		local trap = trapTemplate:Clone()
+		trap:SetAttribute("SpawnedByServer", true)
+		trap.Name = `Trap_{i}`
+		trap.Parent = trapContainer
+		local root = trap.PrimaryPart or trap:FindFirstChildWhichIsA("BasePart")
+		if root then
+			trap.PrimaryPart = root
+			root.Anchored = true
+			root.CanCollide = true
+			local px = math.random(-45, 45)
+			local pz = math.random(-45, 45)
+			trap:PivotTo(mapModel:GetPivot() * CFrame.new(px, 3, pz))
+		end
 	end
 end
 
 function MapService:_onFoodTouched(food: Model, hit: BasePart)
-	if self._activeMap ~= "ArenaMap" then
-		return
-	end
-	if not food.Parent then
-		return
-	end
-	if food:GetAttribute("Consumed") then
+	if not food.Parent or food:GetAttribute("Consumed") then
 		return
 	end
 	local model = hit:FindFirstAncestorOfClass("Model")
@@ -250,17 +337,84 @@ function MapService:_onFoodTouched(food: Model, hit: BasePart)
 	end
 	self._foodTouchedDebounce[player] = true
 	food:SetAttribute("Consumed", true)
-	self._context.Services.PlayerService:GrowPawn(player, 0.03)
-	self._context.Services.PlayerStateService:AddGrowth(player, 0.03)
 	food:Destroy()
-	task.delay(0.05, function()
+	self._context.Services.PlayerStateService:GrantExp(player, BalanceConfig.FoodExp)
+	self._context.Services.PlayerStateService:Heal(player, BalanceConfig.FoodHealth)
+	self._context.Services.PlayerStateService:PublishState(player)
+	task.delay(0.1, function()
 		self._foodTouchedDebounce[player] = nil
 	end)
-	task.delay(0.2, function()
-		if self._activeMap == "ArenaMap" then
-			self:_spawnSingleFood()
+end
+
+function MapService:_ensureArenaObstacles()
+	local mapsRoot = getStudioMapsRoot()
+	if not mapsRoot then
+		return
+	end
+	for _, map in ipairs(mapsRoot:GetChildren()) do
+		if map:IsA("Model") then
+			local walls = map:FindFirstChild("WallContainer")
+			if walls and walls:IsA("Folder") then
+				for _, wall in ipairs(walls:GetDescendants()) do
+					if wall:IsA("BasePart") then
+						wall.Anchored = true
+						wall.CanCollide = true
+					end
+				end
+			end
 		end
-	end)
+	end
+end
+
+function MapService:RequestTeleport(player: Player, mapName: string, spawnName: string)
+	if not RemoteContracts.Validate(RemoteContracts.Names.TeleportRequest, mapName, spawnName) then
+		return
+	end
+	local roundState = self._context.Services.RoundService:GetState()
+	if roundState == "ActiveRound" or roundState == "Countdown" then
+		return
+	end
+	local mapsRoot = getStudioMapsRoot()
+	if not mapsRoot then
+		-- CREATE MANUALLY IN STUDIO: Workspace.Maps.ForestArena.SpawnPoints.Spawn1
+		return
+	end
+	local mapModel = mapsRoot:FindFirstChild(mapName)
+	if not mapModel or not mapModel:IsA("Model") then
+		return
+	end
+	local spawnPoints = mapModel:FindFirstChild("SpawnPoints")
+	if not spawnPoints then
+		return
+	end
+	local spawnPart = spawnPoints:FindFirstChild(spawnName)
+	if not spawnPart or not spawnPart:IsA("BasePart") then
+		return
+	end
+	local pawn = self._context.Services.PlayerService:GetPawn(player)
+	if not pawn then
+		pawn = self._context.Services.PlayerService:SpawnPawn(player, nil, self._activeMap)
+	end
+	if not pawn then
+		return
+	end
+	self._context.Services.PlayerStateService:SetTeleporting(player, true)
+	task.wait(0.1)
+	pawn:PivotTo(spawnPart.CFrame + Vector3.new(0, 3, 0))
+	self._context.Services.PlayerStateService:SetMapName(player, mapName)
+	self._context.Services.PlayerStateService:SetArenaStatus(player, `Teleported:{mapName}`)
+	self._context.Services.PlayerStateService:SetTeleporting(player, false)
+end
+
+function MapService:DebugSpawnFood(_player: Player, mapName: string)
+	local mapsRoot = getStudioMapsRoot()
+	if not mapsRoot then
+		return
+	end
+	local mapModel = mapsRoot:FindFirstChild(mapName)
+	if mapModel and mapModel:IsA("Model") then
+		self:SpawnFoodForMap(mapModel, 4)
+	end
 end
 
 return MapService

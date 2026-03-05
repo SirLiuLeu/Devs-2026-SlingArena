@@ -5,6 +5,7 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config.Config)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local PlayerService = {}
 PlayerService.__index = PlayerService
@@ -37,6 +38,13 @@ function PlayerService:Init()
 
 	for _, player in Players:GetPlayers() do
 		self:SpawnPawn(player, 1, "LobbyMap")
+	end
+
+	local debugResetRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.DebugResetSling)
+	if debugResetRemote and debugResetRemote:IsA("RemoteEvent") then
+		debugResetRemote.OnServerEvent:Connect(function(player)
+			self:SpawnPawn(player, nil, self._context.Services.MapService:GetActiveMap() or "LobbyMap")
+		end)
 	end
 end
 
@@ -129,13 +137,19 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 			descendant.Anchored = false
 			descendant.AssemblyLinearVelocity = Vector3.zero
 			descendant.AssemblyAngularVelocity = Vector3.zero
-			descendant:SetNetworkOwner(player)
+			descendant:SetNetworkOwner(nil)
 		elseif descendant:IsA("BodyMover") then
 			descendant:Destroy()
 		end
 	end
 
 	player.Character = pawn
+	local humanoid = pawn:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.JumpPower = 0
+		humanoid.JumpHeight = 0
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+	end
 	self._context.Services.PlayerStateService:ResetForRespawn(player)
 
 	return pawn

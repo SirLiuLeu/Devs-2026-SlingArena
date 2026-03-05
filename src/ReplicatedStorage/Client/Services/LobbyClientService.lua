@@ -16,8 +16,14 @@ export type LobbyClientService = {
 	StateUpdateRemote: RemoteEvent?,
 	UIStateUpdateRemote: RemoteEvent?,
 	RoundResultRemote: RemoteEvent?,
+	TeleportRemote: RemoteEvent?,
+	DebugSpawnFoodRemote: RemoteEvent?,
+	DebugResetSlingRemote: RemoteEvent?,
 	RequestJoinArena: (self: LobbyClientService) -> (),
 	RequestLeaveArena: (self: LobbyClientService) -> (),
+	RequestTeleport: (self: LobbyClientService, mapName: string, spawnName: string) -> (),
+	RequestDebugSpawnFood: (self: LobbyClientService, mapName: string) -> (),
+	RequestDebugResetSling: (self: LobbyClientService) -> (),
 	BindStateUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 	BindUIStateUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 	BindRoundResult: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
@@ -27,9 +33,6 @@ local function resolveRemote(path: string): RemoteEvent?
 	local resolved = PathResolver.resolvePath(ReplicatedStorage, path)
 	if resolved and resolved:IsA("RemoteEvent") then
 		return resolved
-	end
-	if resolved ~= nil then
-		warn("[ProjectTreeSpec] Missing:", path)
 	end
 	return nil
 end
@@ -42,55 +45,75 @@ function LobbyClientService.new(): LobbyClientService
 	self.StateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.StateUpdate)
 	self.UIStateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.UIStateUpdate)
 	self.RoundResultRemote = resolveRemote(ProjectTreeSpec.Remotes.RoundResult)
+	if self.RemotesRoot then
+		local teleport = self.RemotesRoot:FindFirstChild(RemoteContracts.Names.TeleportRequest)
+		if teleport and teleport:IsA("RemoteEvent") then
+			self.TeleportRemote = teleport
+		end
+		local spawnFood = self.RemotesRoot:FindFirstChild(RemoteContracts.Names.DebugSpawnFood)
+		if spawnFood and spawnFood:IsA("RemoteEvent") then
+			self.DebugSpawnFoodRemote = spawnFood
+		end
+		local resetSling = self.RemotesRoot:FindFirstChild(RemoteContracts.Names.DebugResetSling)
+		if resetSling and resetSling:IsA("RemoteEvent") then
+			self.DebugResetSlingRemote = resetSling
+		end
+	end
 	return self
 end
 
 function LobbyClientService:RequestJoinArena()
-	local remote = self.JoinArenaRemote
-	if remote == nil then
-		return
+	if self.JoinArenaRemote then
+		self.JoinArenaRemote:FireServer()
 	end
-	if not RemoteContracts.Validate(RemoteContracts.Names.JoinArena) then
-		warn("[RemoteContracts] Validation failed for JoinArena")
-		return
-	end
-	remote:FireServer()
 end
 
 function LobbyClientService:RequestLeaveArena()
-	local remote = self.LeaveArenaRemote
-	if remote == nil then
+	if self.LeaveArenaRemote then
+		self.LeaveArenaRemote:FireServer()
+	end
+end
+
+function LobbyClientService:RequestTeleport(mapName: string, spawnName: string)
+	if not RemoteContracts.Validate(RemoteContracts.Names.TeleportRequest, mapName, spawnName) then
 		return
 	end
-	if not RemoteContracts.Validate(RemoteContracts.Names.LeaveArena) then
-		warn("[RemoteContracts] Validation failed for LeaveArena")
-		return
+	if self.TeleportRemote then
+		self.TeleportRemote:FireServer(mapName, spawnName)
 	end
-	remote:FireServer()
+end
+
+function LobbyClientService:RequestDebugSpawnFood(mapName: string)
+	if self.DebugSpawnFoodRemote then
+		self.DebugSpawnFoodRemote:FireServer(mapName)
+	end
+end
+
+function LobbyClientService:RequestDebugResetSling()
+	if self.DebugResetSlingRemote then
+		self.DebugResetSlingRemote:FireServer()
+	end
 end
 
 function LobbyClientService:BindStateUpdate(handler: (any) -> ()): RBXScriptConnection?
-	local remote = self.StateUpdateRemote
-	if remote == nil then
+	if self.StateUpdateRemote == nil then
 		return nil
 	end
-	return remote.OnClientEvent:Connect(handler)
+	return self.StateUpdateRemote.OnClientEvent:Connect(handler)
 end
 
 function LobbyClientService:BindUIStateUpdate(handler: (any) -> ()): RBXScriptConnection?
-	local remote = self.UIStateUpdateRemote
-	if remote == nil then
+	if self.UIStateUpdateRemote == nil then
 		return nil
 	end
-	return remote.OnClientEvent:Connect(handler)
+	return self.UIStateUpdateRemote.OnClientEvent:Connect(handler)
 end
 
 function LobbyClientService:BindRoundResult(handler: (any) -> ()): RBXScriptConnection?
-	local remote = self.RoundResultRemote
-	if remote == nil then
+	if self.RoundResultRemote == nil then
 		return nil
 	end
-	return remote.OnClientEvent:Connect(handler)
+	return self.RoundResultRemote.OnClientEvent:Connect(handler)
 end
 
 return LobbyClientService

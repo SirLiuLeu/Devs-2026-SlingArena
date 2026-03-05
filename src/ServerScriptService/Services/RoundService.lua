@@ -84,6 +84,8 @@ function RoundService:JoinArena(player: Player)
 		self._context.Services.MapService:ActivateMap("ArenaMap")
 	end
 	self._context.Services.PlayerService:SpawnPawn(player, nil, "ArenaMap")
+	self._context.Services.PlayerStateService:SetMapName(player, "ArenaMap")
+	self._context.Services.PlayerStateService:SetArenaStatus(player, self._state)
 	self:_publishUiState()
 end
 
@@ -93,12 +95,19 @@ function RoundService:LeaveArena(player: Player)
 		self._context.Services.MapService:ActivateMap("LobbyMap")
 	end
 	self._context.Services.PlayerService:SpawnPawn(player, 1, "LobbyMap")
+	self._context.Services.PlayerStateService:SetMapName(player, "LobbyMap")
+	self._context.Services.PlayerStateService:SetArenaStatus(player, self._state)
 	self:_publishUiState()
 end
 
 function RoundService:SetState(nextState: string)
 	if self._state == nextState then return end
 	self._state = nextState
+	for player in pairs(self._participants) do
+		if player.Parent == Players then
+			self._context.Services.PlayerStateService:SetArenaStatus(player, nextState)
+		end
+	end
 	if self._matchStateRemote then
 		self._matchStateRemote:FireAllClients({ State = nextState, RoundId = self._roundId })
 	end
@@ -229,8 +238,12 @@ function RoundService:_publishUiState()
 	local timeLeft = math.max(0, self._mapEndTime - os.clock())
 	self._uiStateRemote:FireAllClients({
 		State = self._state,
+		ArenaStatus = self._state,
 		AlivePlayers = #alive,
+		PlayerCount = self:_participantCount(),
+		MapName = self._context.Services.MapService:GetActiveMap() or "Unknown",
 		TimeLeft = timeLeft,
+		CountdownTimer = timeLeft,
 	})
 end
 

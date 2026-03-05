@@ -49,6 +49,8 @@ local function buildDefaultState(player: Player): PlayerState
 	local sling = SlingshotConfig.SlingConfig
 	local state: PlayerState = {
 		UserId = player.UserId,
+		MapName = "LobbyMap",
+		ArenaStatus = "Lobby",
 		Level = LevelConfig.StartingLevel,
 		Exp = LevelConfig.StartingExp,
 		Size = sling.Size,
@@ -66,6 +68,7 @@ local function buildDefaultState(player: Player): PlayerState
 		RespawnCountThisMatch = 0,
 		AttributePoints = LevelConfig.StartingAttributePoints,
 		DamageDealt = 0,
+		IsTeleporting = false,
 		Attributes = {
 			Damage = 0,
 			MaxHP = 0,
@@ -158,6 +161,27 @@ function PlayerStateService:SetAlive(player: Player, alive: boolean)
 	local state = self._states[player]
 	if not state then return end
 	state.IsAlive = alive
+	self:PublishState(player)
+end
+
+function PlayerStateService:SetMapName(player: Player, mapName: string)
+	local state = self._states[player]
+	if not state then return end
+	state.MapName = mapName
+	self:PublishState(player)
+end
+
+function PlayerStateService:SetArenaStatus(player: Player, arenaStatus: string)
+	local state = self._states[player]
+	if not state then return end
+	state.ArenaStatus = arenaStatus
+	self:PublishState(player)
+end
+
+function PlayerStateService:SetTeleporting(player: Player, isTeleporting: boolean)
+	local state = self._states[player]
+	if not state then return end
+	state.IsTeleporting = isTeleporting
 	self:PublishState(player)
 end
 
