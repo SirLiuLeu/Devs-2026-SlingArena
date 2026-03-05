@@ -5,7 +5,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
-local CombatService = require(ServerScriptService.Services.CombatService)
+local CombatService = require(ServerScriptService.Server.Services.CombatService)
 
 local function assertAlmostEqual(actual: number, expected: number, epsilon: number, message: string)
 	if math.abs(actual - expected) > epsilon then
