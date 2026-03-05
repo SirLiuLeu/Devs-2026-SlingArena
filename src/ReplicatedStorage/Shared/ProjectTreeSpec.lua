@@ -26,12 +26,12 @@ local ProjectTreeSpec = {
 		},
 	},
 	Remotes = {
-		Folder = "SlingArenaRemotes", -- [REVIEW_REQUIRED]
-		JoinArena = "SlingArenaRemotes.JoinArena", -- [REVIEW_REQUIRED]
-		LeaveArena = "SlingArenaRemotes.LeaveArena", -- [REVIEW_REQUIRED]
-		StateUpdate = "SlingArenaRemotes.StateUpdate", -- [REVIEW_REQUIRED]
-		UIStateUpdate = "SlingArenaRemotes.UIStateUpdate", -- [REVIEW_REQUIRED]
-		RoundResult = "SlingArenaRemotes.RoundResult", -- [REVIEW_REQUIRED]
+		Folder = "Remotes", -- [REVIEW_REQUIRED]
+		JoinArena = "Remotes.JoinArena", -- [REVIEW_REQUIRED]
+		LeaveArena = "Remotes.LeaveArena", -- [REVIEW_REQUIRED]
+		StateUpdate = "Remotes.StateUpdate", -- [REVIEW_REQUIRED]
+		UIStateUpdate = "Remotes.UIStateUpdate", -- [REVIEW_REQUIRED]
+		RoundResult = "Remotes.RoundResult", -- [REVIEW_REQUIRED]
 	},
 	Services = {
 		Client = {
