@@ -7,6 +7,80 @@ local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
 local CombatService = require(ServerScriptService.Server.Services.CombatService)
 
+local MapServiceModule = require(ServerScriptService.Server.Services.MapService)
+
+local function testArenaSpawnAndPrefabApisExist()
+	if type(MapServiceModule.GetArenaSpawn) ~= "function" then
+		error("MapService.GetArenaSpawn must exist")
+	end
+	if type(MapServiceModule.SpawnFood) ~= "function" then
+		error("MapService.SpawnFood must exist")
+	end
+	if type(MapServiceModule.SpawnTrap) ~= "function" then
+		error("MapService.SpawnTrap must exist")
+	end
+end
+
+local function testTeleportPlayerJoinLeaveFlow()
+	local joinTeleported = false
+	local leaveTeleported = false
+	local state = { map = nil, arena = nil }
+	local fakePlayer = { Name = "Tester", UserId = 1001, Parent = game:GetService("Players") }
+
+	local fakeRoundContext = {
+		Remotes = Instance.new("Folder"),
+		EventBus = { On = function() end },
+		Services = {
+			MapService = {
+				GetActiveMap = function() return "LobbyMap" end,
+				ActivateMap = function() end,
+				GetArenaSpawn = function()
+					local p = Instance.new("Part")
+					p.CFrame = CFrame.new(10, 5, 10)
+					return p
+				end,
+				GetLobbySpawn = function()
+					local p = Instance.new("Part")
+					p.CFrame = CFrame.new(0, 5, 0)
+					return p
+				end,
+				GetMapDuration = function() return 1 end,
+			},
+			PlayerService = {
+				GetPawn = function() return {} end,
+				SpawnPawn = function() return {} end,
+				TeleportCharacterToSpawn = function(_, __, spawnPart)
+					if spawnPart.Position.X == 10 then
+						joinTeleported = true
+					else
+						leaveTeleported = true
+					end
+					return true
+				end,
+				IsAlive = function() return true end,
+			},
+			PlayerStateService = {
+				SetMapName = function(_, __, value) state.map = value end,
+				SetArenaStatus = function(_, __, value) state.arena = value end,
+				SetTeleporting = function() end,
+				GetDamageDealt = function() return 0 end,
+			},
+		},
+	}
+
+	local RoundService = require(ServerScriptService.Server.Services.RoundService)
+	local service = RoundService.new(fakeRoundContext)
+	service:JoinArena(fakePlayer)
+	if not joinTeleported or state.map ~= "ArenaMap" or state.arena ~= "InArena" then
+		error("JoinArena should teleport and set ArenaMap/InArena")
+	end
+	service:LeaveArena(fakePlayer)
+	if not leaveTeleported or state.map ~= "LobbyMap" or state.arena ~= "Lobby" then
+		error("LeaveArena should teleport back to lobby and set Lobby status")
+	end
+end
+
+
 local function assertAlmostEqual(actual: number, expected: number, epsilon: number, message: string)
 	if math.abs(actual - expected) > epsilon then
 		error(string.format("%s | actual=%.4f expected=%.4f", message, actual, expected))
@@ -52,5 +126,7 @@ testChargeToLaunchForce()
 testCollisionTriggersDamageFormula()
 testExpLevelUpThreshold()
 testSelfDamageClampOnMaxCharge()
+testArenaSpawnAndPrefabApisExist()
+testTeleportPlayerJoinLeaveFlow()
 
 print("[CoreLoopTests] all checks passed")

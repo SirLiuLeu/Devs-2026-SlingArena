@@ -40,6 +40,14 @@ local function getStudioMapsRoot(): Folder?
 end
 
 local function getFoodTemplate(): Model?
+	local prefabs = ReplicatedStorage:FindFirstChild("Prefabs")
+	if prefabs then
+		local prefabFood = prefabs:FindFirstChild("Food")
+		if prefabFood and prefabFood:IsA("Model") then
+			return prefabFood
+		end
+	end
+
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
 	if not assets then
 		return nil
@@ -56,6 +64,14 @@ local function getFoodTemplate(): Model?
 end
 
 local function getTrapTemplate(): Model?
+	local prefabs = ReplicatedStorage:FindFirstChild("Prefabs")
+	if prefabs then
+		local prefabTrap = prefabs:FindFirstChild("Trap")
+		if prefabTrap and prefabTrap:IsA("Model") then
+			return prefabTrap
+		end
+	end
+
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
 	if not assets then
 		return nil
@@ -69,6 +85,127 @@ local function getTrapTemplate(): Model?
 		return basicTrap
 	end
 	return nil
+end
+
+local function ensureFolder(parent: Instance, folderName: string): Folder
+	local existing = parent:FindFirstChild(folderName)
+	if existing and existing:IsA("Folder") then
+		return existing
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = folderName
+	folder.Parent = parent
+	return folder
+end
+
+function MapService:GetArenaModel(): Instance?
+	local arena = Workspace:FindFirstChild("Arena")
+	if arena then
+		return arena
+	end
+
+	if self._mapRoot then
+		local arenaMap = self._mapRoot:FindFirstChild("ArenaMap")
+		if arenaMap then
+			return arenaMap
+		end
+	end
+
+	local mapsRoot = getStudioMapsRoot()
+	if mapsRoot then
+		local map = mapsRoot:FindFirstChild("ArenaMap")
+		if map then
+			return map
+		end
+	end
+
+	return nil
+end
+
+function MapService:GetArenaSpawn(): BasePart?
+	local arena = self:GetArenaModel()
+	if not arena then
+		return nil
+	end
+
+	local points = {}
+	for _, descendant in ipairs(arena:GetDescendants()) do
+		if descendant:IsA("BasePart") and descendant.Name == "SpawnPoint" then
+			table.insert(points, descendant)
+		end
+	end
+
+	if #points == 0 then
+		return nil
+	end
+
+	local index = math.random(1, #points)
+	return points[index]
+end
+
+function MapService:GetLobbySpawn(): BasePart?
+	if self._mapRoot then
+		local lobbyMap = self._mapRoot:FindFirstChild("LobbyMap")
+		if lobbyMap then
+			for _, descendant in ipairs(lobbyMap:GetDescendants()) do
+				if descendant:IsA("BasePart") and descendant.Name == "SpawnPoint" then
+					return descendant
+				end
+			end
+		end
+	end
+
+	local lobbySpawn = Workspace:FindFirstChild("LobbySpawn")
+	if lobbySpawn and lobbySpawn:IsA("BasePart") then
+		return lobbySpawn
+	end
+
+	return nil
+end
+
+function MapService:_getArenaSpawnPosition(): Vector3
+	local spawn = self:GetArenaSpawn()
+	if spawn then
+		return spawn.Position + Vector3.new(0, 4, 0)
+	end
+	return Vector3.new(0, 8, 0)
+end
+
+function MapService:_getArenaSpawnCFrame(): CFrame
+	local spawn = self:GetArenaSpawn()
+	if spawn then
+		return spawn.CFrame
+	end
+	return CFrame.new(0, 8, 0)
+end
+
+function MapService:GetRandomArenaPoint(): Vector3
+	local arena = self:GetArenaModel()
+	if not arena then
+		return Vector3.new(math.random(-50, 50), 6, math.random(-50, 50))
+	end
+
+	local bounds: BasePart? = nil
+	for _, descendant in ipairs(arena:GetDescendants()) do
+		if descendant:IsA("BasePart") and (descendant.Name == "ArenaBounds" or descendant.Name == "Bounds") then
+			bounds = descendant
+			break
+		end
+	end
+
+	if not bounds and arena:IsA("Model") then
+		bounds = arena.PrimaryPart
+	end
+
+	if not bounds then
+		return arena:GetPivot().Position + Vector3.new(math.random(-30, 30), 4, math.random(-30, 30))
+	end
+
+	local sx = bounds.Size.X * 0.5
+	local sz = bounds.Size.Z * 0.5
+	local localPoint = Vector3.new(math.random() * 2 * sx - sx, 4, math.random() * 2 * sz - sz)
+	local worldPoint = bounds.CFrame:PointToWorldSpace(localPoint)
+	return Vector3.new(worldPoint.X, bounds.Position.Y + 4, worldPoint.Z)
 end
 
 function MapService:Init()
@@ -209,6 +346,9 @@ function MapService:GetActiveMap(): string?
 end
 
 function MapService:GetSpawnPoint(index: number, mapName: string?): Vector3
+	if mapName == "ArenaMap" then
+		return self:_getArenaSpawnPosition()
+	end
 	local points = self._spawnPoints
 	if mapName and mapName ~= self._activeMap then
 		points = self:_getSpawnPointsForMap(mapName)
@@ -233,6 +373,11 @@ function MapService:GetExitZones()
 end
 
 function MapService:_spawnMapFoodAndTraps(mapName: string)
+	if mapName == "ArenaMap" then
+		self:SpawnFood(8)
+		self:SpawnTrap(4)
+	end
+
 	local mapsRoot = getStudioMapsRoot()
 	if not mapsRoot then
 		-- CREATE MANUALLY IN STUDIO: Workspace.Maps
@@ -245,6 +390,73 @@ function MapService:_spawnMapFoodAndTraps(mapName: string)
 	self:ClearMapFood(mapModel)
 	self:SpawnFoodForMap(mapModel, 8)
 	self:SpawnTrapForMap(mapModel, 4)
+end
+
+function MapService:SpawnFood(count: number?)
+	local arena = self:GetArenaModel()
+	if not arena then
+		return
+	end
+
+	local template = getFoodTemplate()
+	if not template then
+		return
+	end
+
+	local foodFolder = ensureFolder(arena, "Food")
+	for _, child in ipairs(foodFolder:GetChildren()) do
+		if child:GetAttribute("SpawnedByServer") == true then
+			child:Destroy()
+		end
+	end
+
+	for i = 1, (count or 8) do
+		local clone = template:Clone()
+		clone.Name = `Food_{i}`
+		clone:SetAttribute("SpawnedByServer", true)
+		clone.Parent = foodFolder
+		local root = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
+		if root then
+			clone.PrimaryPart = root
+			clone:PivotTo(CFrame.new(self:GetRandomArenaPoint()))
+			root.Touched:Connect(function(hit)
+				self:_onFoodTouched(clone, hit)
+			end)
+		end
+	end
+end
+
+function MapService:SpawnTrap(count: number?)
+	local arena = self:GetArenaModel()
+	if not arena then
+		return
+	end
+
+	local template = getTrapTemplate()
+	if not template then
+		return
+	end
+
+	local trapFolder = ensureFolder(arena, "Traps")
+	for _, child in ipairs(trapFolder:GetChildren()) do
+		if child:GetAttribute("SpawnedByServer") == true then
+			child:Destroy()
+		end
+	end
+
+	for i = 1, (count or 4) do
+		local clone = template:Clone()
+		clone.Name = `Trap_{i}`
+		clone:SetAttribute("SpawnedByServer", true)
+		clone.Parent = trapFolder
+		local root = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
+		if root then
+			clone.PrimaryPart = root
+			root.Anchored = true
+			root.CanCollide = true
+			clone:PivotTo(CFrame.new(self:GetRandomArenaPoint()))
+		end
+	end
 end
 
 function MapService:ClearMapFood(mapModel: Model)

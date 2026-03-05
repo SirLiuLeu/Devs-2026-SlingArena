@@ -87,20 +87,43 @@ function RoundService:JoinArena(player: Player)
 	if self._context.Services.MapService:GetActiveMap() ~= "ArenaMap" and self._state == STATES.Lobby then
 		self._context.Services.MapService:ActivateMap("ArenaMap")
 	end
-	self._context.Services.PlayerService:SpawnPawn(player, nil, "ArenaMap")
+
+	local pawn = self._context.Services.PlayerService:GetPawn(player)
+	if not pawn then
+		pawn = self._context.Services.PlayerService:SpawnPawn(player, nil, "ArenaMap")
+	end
+
+	local arenaSpawn = self._context.Services.MapService:GetArenaSpawn()
+	if arenaSpawn then
+		self._context.Services.PlayerService:TeleportCharacterToSpawn(player, arenaSpawn)
+	end
+
 	self._context.Services.PlayerStateService:SetMapName(player, "ArenaMap")
-	self._context.Services.PlayerStateService:SetArenaStatus(player, self._state)
+	self._context.Services.PlayerStateService:SetArenaStatus(player, "InArena")
+	self._context.Services.PlayerStateService:SetTeleporting(player, false)
 	self:_publishUiState()
 end
 
 function RoundService:LeaveArena(player: Player)
+	if not self._participants[player] then
+		return
+	end
+
 	self._participants[player] = nil
 	if self:_participantCount() == 0 then
 		self._context.Services.MapService:ActivateMap("LobbyMap")
 	end
-	self._context.Services.PlayerService:SpawnPawn(player, 1, "LobbyMap")
+
+	local lobbySpawn = self._context.Services.MapService:GetLobbySpawn()
+	if lobbySpawn then
+		self._context.Services.PlayerService:TeleportCharacterToSpawn(player, lobbySpawn)
+	else
+		self._context.Services.PlayerService:SpawnPawn(player, 1, "LobbyMap")
+	end
+
 	self._context.Services.PlayerStateService:SetMapName(player, "LobbyMap")
-	self._context.Services.PlayerStateService:SetArenaStatus(player, self._state)
+	self._context.Services.PlayerStateService:SetArenaStatus(player, "Lobby")
+	self._context.Services.PlayerStateService:SetTeleporting(player, false)
 	self:_publishUiState()
 end
 

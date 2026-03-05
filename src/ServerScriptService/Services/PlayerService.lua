@@ -203,4 +203,19 @@ function PlayerService:GrowPawn(player: Player, growthDelta: number)
 	pawn:ScaleTo(newScale)
 end
 
+function PlayerService:TeleportCharacterToSpawn(player: Player, spawn: BasePart?): boolean
+	if not spawn then
+		return false
+	end
+	local character = player.Character
+	if not character or not character:IsA("Model") then
+		character = self:GetPawn(player)
+	end
+	if not character or not character:IsA("Model") then
+		return false
+	end
+	character:PivotTo(spawn.CFrame)
+	return true
+end
+
 return PlayerService
