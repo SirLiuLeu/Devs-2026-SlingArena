@@ -2,8 +2,7 @@
 1) Never skip any requested functionality.
 2) Runtime must never crash due to missing instances.
 3) If UI instances cannot be created programmatically, 
-   still write full logic and leave path comments:
-
+   still write full logic and leave path comments in file ProjectTreeSpec:
    -- [REVIEW_REQUIRED] Path: PlayerGui.XYZ...
 
 4) Do NOT remove logic just because instance is missing.
