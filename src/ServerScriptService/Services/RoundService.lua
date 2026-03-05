@@ -70,6 +70,10 @@ function RoundService:IsRoundActive(): boolean
 	return self._state == STATES.ActiveRound
 end
 
+function RoundService:IsPlayingState(): boolean
+	return self._state == STATES.ActiveRound
+end
+
 function RoundService:IsPlayerQueued(player: Player): boolean
 	return self._participants[player] == true
 end

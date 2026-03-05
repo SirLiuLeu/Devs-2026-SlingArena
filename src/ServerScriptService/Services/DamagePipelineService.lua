@@ -4,10 +4,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 type Context = {
 	Services: any,
 	EventBus: any,
+	Remotes: Folder,
 }
 
 local DamagePipelineService = {}
@@ -16,6 +18,7 @@ DamagePipelineService.__index = DamagePipelineService
 function DamagePipelineService.new(context: Context)
 	local self = setmetatable({}, DamagePipelineService)
 	self._context = context
+	self._feedbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent
 	return self
 end
 
@@ -26,12 +29,28 @@ function DamagePipelineService:Init()
 	self._context.EventBus:On("TrapCollision", function(player: Player, penalty: number)
 		self:ApplyExpPenalty(player, penalty)
 	end)
+	self._context.EventBus:On("MaxChargeReleased", function(player: Player, selfDamage: number)
+		self:ApplySelfDamage(player, selfDamage)
+	end)
+	self._context.EventBus:On("LevelUp", function(player: Player)
+		self._context.Services.PlayerStateService:ApplyLevelGrowth(player)
+		self:_sendFeedback(player, "LevelUp", {})
+	end)
 	task.spawn(function()
 		while true do
 			self:_runRegenTick()
 			task.wait(1)
 		end
 	end)
+end
+
+function DamagePipelineService:_sendFeedback(player: Player, eventType: string, payload: any)
+	if self._feedbackRemote then
+		self._feedbackRemote:FireClient(player, {
+			EventType = eventType,
+			Payload = payload,
+		})
+	end
 end
 
 function DamagePipelineService:_runRegenTick()
@@ -60,8 +79,11 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 		return false
 	end
 
+	self:_sendFeedback(victim, "DamageTaken", { Amount = amount })
+
 	if attacker then
 		playerStateService:AddDamageDealt(attacker, amount)
+		self:_sendFeedback(attacker, "DamageDealt", { Amount = amount })
 		local victimStats = playerStateService:GetFinalStats(victim)
 		if victimStats then
 			local reflectPct = math.clamp(victimStats.Reflect, 0, 0.5)
@@ -76,7 +98,13 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 	if knockbackDirection then
 		local root = self._context.Services.PlayerService:GetRoot(victim)
 		if root and knockbackDirection.Magnitude > 0 then
-			root.AssemblyLinearVelocity += knockbackDirection.Unit * 45
+			local nextVelocity = root.AssemblyLinearVelocity + knockbackDirection
+			root.AssemblyLinearVelocity = Vector3.new(
+				math.clamp(nextVelocity.X, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity),
+				nextVelocity.Y,
+				math.clamp(nextVelocity.Z, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity)
+			)
+			self:_sendFeedback(victim, "Impact", { Direction = knockbackDirection })
 		end
 	end
 
@@ -85,6 +113,15 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 		self:HandlePlayerDeath(victim)
 	end
 	return true
+end
+
+function DamagePipelineService:ApplySelfDamage(player: Player, amount: number)
+	local clamped = math.clamp(amount, 0, BalanceConfig.MaxChargeSelfDamage)
+	if clamped <= 0 then
+		return
+	end
+	self:ApplyDamage(player, clamped, nil, nil)
+	self:_sendFeedback(player, "SelfDamage", { Amount = clamped })
 end
 
 function DamagePipelineService:ApplyExpPenalty(player: Player, amount: number)

@@ -33,6 +33,10 @@ export type PlayerState = {
 	Attributes: AttributesState,
 	IsAlive: boolean,
 	IsCharging: boolean,
+	MovementState: string,
+	ScaleMultiplier: number,
+	BonusMaxHP: number,
+	BonusDamageMultiplier: number,
 }
 
 return {}

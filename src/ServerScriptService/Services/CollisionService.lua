@@ -14,6 +14,7 @@ function CollisionService.new(context)
 	self._context = context
 	self._lastCollision = {}
 	self._lastTrapCollision = {}
+	self._lastWallCollision = {}
 	return self
 end
 
@@ -40,11 +41,21 @@ function CollisionService:_applyDragAndBounce(dt)
 				horizontal = Vector3.zero
 			end
 			local pos = root.Position
+			local hitWall = false
 			if math.abs(pos.X) > Config.MaxArenaRadius - 6 then
 				horizontal = Vector3.new(-horizontal.X * (1 - Config.BounceLoss), 0, horizontal.Z)
+				hitWall = true
 			end
 			if math.abs(pos.Z) > Config.MaxArenaRadius - 6 then
 				horizontal = Vector3.new(horizontal.X, 0, -horizontal.Z * (1 - Config.BounceLoss))
+				hitWall = true
+			end
+			if hitWall then
+				local now = os.clock()
+				if not self._lastWallCollision[player] or now - self._lastWallCollision[player] >= 0.2 then
+					self._lastWallCollision[player] = now
+					self._context.EventBus:Fire("CollisionDetected", "Wall", player, nil, { Speed = velocity.Magnitude })
+				end
 			end
 			root.AssemblyLinearVelocity = Vector3.new(horizontal.X, velocity.Y, horizontal.Z)
 		end
@@ -99,8 +110,9 @@ function CollisionService:_resolvePlayerCollisions(hits)
 		if attackerState and defenderState then
 			local velocityMagnitude = winnerRoot.AssemblyLinearVelocity.Magnitude
 			local impactDirection = loserRoot.Position - winnerRoot.Position
-			local damage = self._context.Services.CombatService:ComputeImpactDamage(attackerState, velocityMagnitude)
-			local knockback = self._context.Services.CombatService:ComputeKnockback(attackerState, defenderState, impactDirection)
+			local damage = self._context.Services.CombatService:ComputeImpactDamage(attackerState, velocityMagnitude, attackerState.ChargeValue)
+			local knockback = self._context.Services.CombatService:ComputeKnockback(attackerState, defenderState, impactDirection, velocityMagnitude)
+			self._context.EventBus:Fire("CollisionDetected", "Sling", winner, loser, { Speed = velocityMagnitude, ChargeRatio = attackerState.ChargeValue })
 			self._context.EventBus:Fire("CollisionPlayerHit", loser, winner, damage, knockback)
 		end
 	end
@@ -137,6 +149,7 @@ function CollisionService:_resolveTrapCollisions()
 					local now = os.clock()
 					if not self._lastTrapCollision[key] or now - self._lastTrapCollision[key] > 0.25 then
 						self._lastTrapCollision[key] = now
+						self._context.EventBus:Fire("CollisionDetected", "Trap", player, trap, {})
 						self._context.EventBus:Fire("TrapCollisionCandidate", player, trap)
 					end
 				end

@@ -13,39 +13,28 @@ type Context = {
 local CombatService = {}
 CombatService.__index = CombatService
 
-function CombatService.new(context: Context)
+function CombatService.new(_context: Context)
 	local self = setmetatable({}, CombatService)
 	return self
 end
 
-local function computeLevelDamageBonus(level: number): number
-	local perLevel = BalanceConfig.DamageLevelBonusMin + (BalanceConfig.DamageLevelBonusMax - BalanceConfig.DamageLevelBonusMin) * 0.5
-	local total = math.max(0, level - 1) * perLevel
-	return math.min(total, BalanceConfig.DamageLevelBonusCap)
-end
-
 function CombatService:Init() end
 
-function CombatService:ComputeImpactDamage(attackerState, velocityMagnitude: number): number
+function CombatService:ComputeImpactDamage(attackerState, velocityMagnitude: number, chargeRatio: number?): number
+	local speedMultiplier = math.max(1, velocityMagnitude * BalanceConfig.SpeedDamageFactor)
+	local sizeMultiplier = math.max(0.6, attackerState.Size * BalanceConfig.SizeDamageFactor)
+	local chargeMultiplier = 1 + (math.clamp(chargeRatio or attackerState.ChargeValue or 0, 0, 1) * BalanceConfig.ChargeDamageFactor)
 	local slingMod = SlingshotConfig.SlingshotModifiers[attackerState.SlingshotType] or 1
-	local base = velocityMagnitude * math.log(attackerState.Size + 1) * slingMod * attackerState.DamageMultiplier
-	local withFlat = base + attackerState.BaseDamage + computeLevelDamageBonus(attackerState.Level)
-	return math.clamp(withFlat, 0, BalanceConfig.MaxDamagePerHit)
+	local damage = attackerState.BaseDamage * speedMultiplier * sizeMultiplier * chargeMultiplier * slingMod * attackerState.DamageMultiplier
+	return math.clamp(damage, 0, BalanceConfig.MaxDamagePerHit)
 end
 
-function CombatService:ComputeKnockback(attackerState, defenderState, direction: Vector3): Vector3
+function CombatService:ComputeKnockback(_attackerState, _defenderState, direction: Vector3, velocityMagnitude: number): Vector3
 	if direction.Magnitude < 0.01 then
 		direction = Vector3.new(1, 0, 0)
 	end
-	local sizeRatio = attackerState.Size / math.max(defenderState.Size, 0.01)
-	local dir = direction.Unit
-	if sizeRatio < 1 then
-		dir = -dir
-	end
-	local forceMag = math.clamp(BalanceConfig.BaseImpactForce * sizeRatio, 0, BalanceConfig.MaxKnockback)
-	local resistance = math.clamp(defenderState.KnockbackResistance, 0, 0.75)
-	forceMag *= (1 - resistance)
-	return dir * forceMag
+	local forceMag = math.clamp(velocityMagnitude * BalanceConfig.KnockbackFactor, 0, BalanceConfig.MaxKnockback)
+	return direction.Unit * forceMag
 end
 
 return CombatService

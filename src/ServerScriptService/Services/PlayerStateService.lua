@@ -10,6 +10,14 @@ local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 
 type PlayerState = PlayerStateTypes.PlayerState
 
+local MOVEMENT_STATE = {
+	Idle = "Idle",
+	Moving = "Moving",
+	Charging = "Charging",
+	Launched = "Launched",
+	Recovering = "Recovering",
+}
+
 type BuffState = {
 	DamageBoost: number,
 	HpBoost: number,
@@ -78,6 +86,10 @@ local function buildDefaultState(player: Player): PlayerState
 		},
 		IsAlive = true,
 		IsCharging = false,
+		MovementState = MOVEMENT_STATE.Idle,
+		ScaleMultiplier = 1,
+		BonusMaxHP = 0,
+		BonusDamageMultiplier = 0,
 	}
 	return state
 end
@@ -117,9 +129,9 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 		return
 	end
 	local sling = SlingshotConfig.SlingConfig
-	state.Size = sling.Size + (state.Attributes.Range * 0.02)
+	state.Size = (sling.Size + (state.Attributes.Range * 0.02)) * state.ScaleMultiplier
 	state.BaseDamage = sling.BaseDamage + (state.Attributes.Damage * 3)
-	local hp = sling.MaxHP + (state.Attributes.MaxHP * 20)
+	local hp = sling.MaxHP + (state.Attributes.MaxHP * 20) + state.BonusMaxHP
 	state.MaxHP = hp
 	if refillHealth then
 		state.CurrentHP = hp
@@ -246,6 +258,7 @@ function PlayerStateService:ResetForNewRound(player: Player)
 	if not state then return end
 	state.IsAlive = true
 	state.IsCharging = false
+	state.MovementState = MOVEMENT_STATE.Idle
 	state.CurrentVelocity = Vector3.zero
 	state.ChargeValue = 0
 	self._damageDealt[player] = 0
@@ -258,6 +271,7 @@ function PlayerStateService:ResetForRespawn(player: Player)
 	if not state then return end
 	state.IsAlive = true
 	state.IsCharging = false
+	state.MovementState = MOVEMENT_STATE.Idle
 	state.CurrentVelocity = Vector3.zero
 	state.ChargeValue = 0
 	self:RecalculateDerivedStats(player, true)
@@ -276,6 +290,24 @@ function PlayerStateService:SetCharging(player: Player, isCharging: boolean, cha
 	state.IsCharging = isCharging
 	state.ChargeValue = math.clamp(chargeValue, 0, 1)
 	self:PublishState(player)
+end
+
+
+function PlayerStateService:SetMovementState(player: Player, movementState: string)
+	local state = self._states[player]
+	if not state then return end
+	state.MovementState = movementState
+	self:PublishState(player)
+end
+
+function PlayerStateService:ApplyLevelGrowth(player: Player)
+	local state = self._states[player]
+	if not state then return end
+	state.ScaleMultiplier += 0.05
+	state.BonusMaxHP += 10
+	state.BonusDamageMultiplier += 0.03
+	state.DamageMultiplier = 1 + state.BonusDamageMultiplier
+	self:RecalculateDerivedStats(player, true)
 end
 
 function PlayerStateService:GetBuff(player: Player): BuffState?

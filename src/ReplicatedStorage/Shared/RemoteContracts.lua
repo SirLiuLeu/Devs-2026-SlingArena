@@ -4,6 +4,9 @@ local RemoteContracts = {}
 
 RemoteContracts.Names = {
 	MoveRequest = "MoveRequest",
+	StartCharge = "StartCharge",
+	ReleaseCharge = "ReleaseCharge",
+	GameplayFeedback = "GameplayFeedback",
 	StateUpdate = "StateUpdate",
 	UIStateUpdate = "UIStateUpdate",
 	AttributeUpgrade = "AttributeUpgrade",
@@ -27,6 +30,12 @@ RemoteContracts.Names = {
 RemoteContracts.Validators = {
 	[RemoteContracts.Names.MoveRequest] = function(directionInput: any): boolean
 		return typeof(directionInput) == "Vector3"
+	end,
+	[RemoteContracts.Names.StartCharge] = function(aimTarget: any): boolean
+		return typeof(aimTarget) == "Vector3"
+	end,
+	[RemoteContracts.Names.ReleaseCharge] = function(aimTarget: any): boolean
+		return typeof(aimTarget) == "Vector3"
 	end,
 	[RemoteContracts.Names.AttributeUpgrade] = function(attributeName: any): boolean
 		return typeof(attributeName) == "string"

@@ -32,6 +32,9 @@ local ProjectTreeSpec = {
 		StateUpdate = "SlingArenaRemotes.StateUpdate", -- [REVIEW_REQUIRED]
 		UIStateUpdate = "SlingArenaRemotes.UIStateUpdate", -- [REVIEW_REQUIRED]
 		RoundResult = "SlingArenaRemotes.RoundResult", -- [REVIEW_REQUIRED]
+		StartCharge = "SlingArenaRemotes.StartCharge", -- [REVIEW_REQUIRED]
+		ReleaseCharge = "SlingArenaRemotes.ReleaseCharge", -- [REVIEW_REQUIRED]
+		GameplayFeedback = "SlingArenaRemotes.GameplayFeedback", -- [REVIEW_REQUIRED]
 	},
 	Services = {
 		Client = {
