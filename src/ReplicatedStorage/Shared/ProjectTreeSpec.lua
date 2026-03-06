@@ -62,6 +62,88 @@ local ProjectTreeSpec = {
 			ServerScriptService = "ServerScriptService",
 		},
 	},
+	GameplayInstances = {
+		-- [PROJECT_TREE_SPEC]
+		-- Workspace
+		--   SlingPawns (Folder)
+		--   Maps (Folder)
+		--     LobbyMap (Model)
+		--       SpawnPoints (Folder)
+		--         LobbySpawn (Part)
+		--       Gate (Part)
+		--       SafeSpawnZone (Part)
+		--     ArenaMap (Model)
+		--       SpawnPoints (Folder)
+		--         SpawnPoint_01..N (Part)
+		--       Food (Folder)
+		--       Traps (Folder)
+		--       ArenaBounds (Part)
+		--       AntiGiantZone (Part)
+		--       SizeRestrictedCorridor (Part)
+		--     ForestMap / DesertMap (Model)
+		--       SpawnPoints (Folder)
+		--         SpawnPoint_01..N (Part)
+		--       FoodContainer (Folder)
+		--       TrapContainer (Folder)
+		--       FoodSpawns (Folder)
+		--         FoodSpawn_01..N (Part)
+		--       TrapSpawns (Folder)
+		--         TrapSpawn_01..N (Part)
+		--       WallContainer (Folder)
+		--
+		-- Alternative map root used by legacy flow:
+		-- Workspace
+		--   MapDefinitions (Folder)
+		--     LobbyMap / ArenaMap / ForestMap / DesertMap (Model)
+		--       SpawnPoint (Part descendants)
+		--
+		-- ServerStorage
+		--   FoodTemplates (Folder)
+		--     AppleFood (Model)
+		--     MeatFood (Model)
+		--     BerryFood (Model)
+		--   TrapTemplates (Folder)
+		--     SpikeTrap (Model)
+		--     MineTrap (Model)
+		--
+		-- ReplicatedStorage
+		--   Assets (Folder)
+		--     SlingModel (Model)
+		--     Food (Folder)
+		--       BasicFood (Model) [fallback]
+		--     Trap (Folder)
+		--       BasicTrap (Model) [fallback]
+		--   Prefabs (Folder)
+		--     Food (Model) [fallback]
+		--     Trap (Model) [fallback]
+		Workspace = {
+			SlingPawns = "SlingPawns",
+			FoodBlocks = "FoodBlocks",
+			LobbySpawn = "LobbySpawn",
+			Arena = "Arena",
+			Maps = {
+				Root = "Maps",
+				LobbyMap = "Maps.LobbyMap",
+				ArenaMap = "Maps.ArenaMap",
+			},
+			MapDefinitions = "MapDefinitions",
+		},
+		ServerStorage = {
+			FoodTemplates = "FoodTemplates",
+			TrapTemplates = "TrapTemplates",
+		},
+		ReplicatedStorage = {
+			Assets = {
+				SlingModel = "Assets.SlingModel",
+				BasicFood = "Assets.Food.BasicFood",
+				BasicTrap = "Assets.Trap.BasicTrap",
+			},
+			Prefabs = {
+				Food = "Prefabs.Food",
+				Trap = "Prefabs.Trap",
+			},
+		},
+	},
 }
 
 return ProjectTreeSpec

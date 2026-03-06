@@ -90,10 +90,21 @@ local function getFoodTemplate(): Model?
 end
 
 local function getTrapTemplate(): Model?
+	local serverTemplates = ServerStorage:FindFirstChild("TrapTemplates")
+	if serverTemplates and serverTemplates:IsA("Folder") then
+		for _, child in ipairs(serverTemplates:GetChildren()) do
+			if child:IsA("Model") then
+				print(string.format("[TrapService] Found template: %s (ServerStorage.TrapTemplates)", child.Name))
+				return child
+			end
+		end
+	end
+
 	local prefabs = ReplicatedStorage:FindFirstChild("Prefabs")
 	if prefabs then
 		local prefabTrap = prefabs:FindFirstChild("Trap")
 		if prefabTrap and prefabTrap:IsA("Model") then
+			print(string.format("[TrapService] Found template: %s", prefabTrap:GetFullName()))
 			return prefabTrap
 		end
 	end
@@ -108,8 +119,10 @@ local function getTrapTemplate(): Model?
 	end
 	local basicTrap = trapFolder:FindFirstChild("BasicTrap")
 	if basicTrap and basicTrap:IsA("Model") then
+		print(string.format("[TrapService] Found template: %s", basicTrap:GetFullName()))
 		return basicTrap
 	end
+	warn("[TrapService] Trap template missing. Expected one of: ServerStorage.TrapTemplates.* (Model), ReplicatedStorage.Prefabs.Trap (Model), ReplicatedStorage.Assets.Trap.BasicTrap (Model).")
 	return nil
 end
 
@@ -186,6 +199,18 @@ function MapService:GetLobbySpawn(): BasePart?
 		return lobbySpawn
 	end
 
+	local mapsRoot = getStudioMapsRoot()
+	if mapsRoot then
+		local lobbyMap = mapsRoot:FindFirstChild("LobbyMap")
+		if lobbyMap and lobbyMap:IsA("Model") then
+			for _, descendant in ipairs(lobbyMap:GetDescendants()) do
+				if descendant:IsA("BasePart") and descendant.Name == "SpawnPoint" then
+					return descendant
+				end
+			end
+		end
+	end
+
 	return nil
 end
 
@@ -237,8 +262,7 @@ end
 function MapService:Init()
 	self._mapRoot = Workspace:FindFirstChild("MapDefinitions")
 	if not self._mapRoot then
-		warn("Workspace.MapDefinitions folder is missing")
-		return
+		warn("Workspace.MapDefinitions folder is missing. Falling back to Workspace.Maps for map assets.")
 	end
 	if self._teleportRemote then
 		self._teleportRemote.OnServerEvent:Connect(function(player: Player, mapName: string, spawnName: string)
@@ -253,6 +277,19 @@ function MapService:Init()
 	self:ActivateMap("LobbyMap")
 	self:_hookLobbyGates()
 	self:_ensureArenaObstacles()
+end
+
+local function listSpawnAnchors(container: Instance?, expectedName: string): { BasePart }
+	local anchors = {}
+	if not container then
+		return anchors
+	end
+	for _, descendant in ipairs(container:GetDescendants()) do
+		if descendant:IsA("BasePart") and descendant.Name == expectedName then
+			table.insert(anchors, descendant)
+		end
+	end
+	return anchors
 end
 
 function MapService:_hookLobbyGates()
@@ -573,6 +610,8 @@ function MapService:SpawnFoodForMap(mapModel: Model, count: number)
 		return
 	end
 
+	local spawnAnchors = listSpawnAnchors(mapModel:FindFirstChild("FoodSpawns"), "FoodSpawn")
+
 	for i = 1, count do
 		local template = foodTemplates[((i - 1) % #foodTemplates) + 1]
 		local clone = template:Clone()
@@ -583,9 +622,14 @@ function MapService:SpawnFoodForMap(mapModel: Model, count: number)
 		local root = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
 		if root then
 			clone.PrimaryPart = root
-			local px = math.random(-50, 50)
-			local pz = math.random(-50, 50)
-			clone:PivotTo(mapModel:GetPivot() * CFrame.new(px, 4, pz))
+			if #spawnAnchors > 0 then
+				local anchor = spawnAnchors[((i - 1) % #spawnAnchors) + 1]
+				clone:PivotTo(anchor.CFrame)
+			else
+				local px = math.random(-50, 50)
+				local pz = math.random(-50, 50)
+				clone:PivotTo(mapModel:GetPivot() * CFrame.new(px, 4, pz))
+			end
 			root.Touched:Connect(function(hit)
 				self:_onFoodTouched(clone, hit)
 			end)
@@ -604,6 +648,8 @@ function MapService:SpawnTrapForMap(mapModel: Model, count: number)
 		-- CREATE MANUALLY IN STUDIO: ReplicatedStorage.Assets.Trap.BasicTrap
 		return
 	end
+	local spawnAnchors = listSpawnAnchors(mapModel:FindFirstChild("TrapSpawns"), "TrapSpawn")
+
 	for i = 1, count do
 		local trap = trapTemplate:Clone()
 		trap:SetAttribute("SpawnedByServer", true)
@@ -615,9 +661,14 @@ function MapService:SpawnTrapForMap(mapModel: Model, count: number)
 			trap.PrimaryPart = root
 			root.Anchored = true
 			root.CanCollide = true
-			local px = math.random(-45, 45)
-			local pz = math.random(-45, 45)
-			trap:PivotTo(mapModel:GetPivot() * CFrame.new(px, 3, pz))
+			if #spawnAnchors > 0 then
+				local anchor = spawnAnchors[((i - 1) % #spawnAnchors) + 1]
+				trap:PivotTo(anchor.CFrame)
+			else
+				local px = math.random(-45, 45)
+				local pz = math.random(-45, 45)
+				trap:PivotTo(mapModel:GetPivot() * CFrame.new(px, 3, pz))
+			end
 		end
 	end
 end
