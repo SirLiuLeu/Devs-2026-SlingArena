@@ -55,10 +55,10 @@ Create in **StarterGui**:
     - `ImpactFeedback` (`TextLabel`)
 
 Paths:
-- `StarterGui.SlingArenaDynamicUI.Root.ChargeBarBg`
-- `StarterGui.SlingArenaDynamicUI.Root.ChargeBarBg.Fill`
-- `StarterGui.SlingArenaDynamicUI.Root.AimDirection`
-- `StarterGui.SlingArenaDynamicUI.Root.ImpactFeedback`
+- `StarterGui.SlingArenaDynamicUI.SlingArenaDynamicUI.Root.ChargeBarBg`
+- `StarterGui.SlingArenaDynamicUI.SlingArenaDynamicUI.Root.ChargeBarBg.Fill`
+- `StarterGui.SlingArenaDynamicUI.SlingArenaDynamicUI.Root.AimDirection`
+- `StarterGui.SlingArenaDynamicUI.SlingArenaDynamicUI.Root.ImpactFeedback`
 
 ---
 

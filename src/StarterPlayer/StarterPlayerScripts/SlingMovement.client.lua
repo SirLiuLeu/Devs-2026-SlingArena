@@ -40,7 +40,8 @@ local function ensureChargeUI()
 	-- Create in Studio:
 	-- StarterGui
 	--   SlingArenaDynamicUI (ScreenGui)
-	--     Root (Frame)
+	--     SlingArenaDynamicUI (Frame)
+	--       Root (Frame)
 	--       ChargeBarBg (Frame)
 	--         Fill (Frame)
 	--       AimDirection (TextLabel)
@@ -55,10 +56,19 @@ local function ensureChargeUI()
 		end
 		return nil, nil, nil, nil
 	end
-	local root = dynamic:FindFirstChild("Root")
+	local container = dynamic:FindFirstChild("SlingArenaDynamicUI")
+	if not container or not container:IsA("Frame") then
+		if not warnedMissingChargeUI then
+			warn("[UI_MISSING] StarterGui.SlingArenaDynamicUI.SlingArenaDynamicUI (Frame) is missing. Create it manually in Studio.")
+			warnedMissingChargeUI = true
+		end
+		return nil, nil, nil, nil
+	end
+
+	local root = container:FindFirstChild("Root")
 	if not root or not root:IsA("Frame") then
 		if not warnedMissingChargeUI then
-			warn("[UI_MISSING] StarterGui.SlingArenaDynamicUI.Root (Frame) is missing. Create it manually in Studio.")
+			warn("[UI_MISSING] StarterGui.SlingArenaDynamicUI.SlingArenaDynamicUI.Root (Frame) is missing. Create it manually in Studio.")
 			warnedMissingChargeUI = true
 		end
 		return nil, nil, nil, nil
@@ -71,7 +81,7 @@ local function ensureChargeUI()
 
 	if (not barBg) or (not bar) or (not aimLabel) or (not feedback) then
 		if not warnedMissingChargeUI then
-			warn("[UI_MISSING] Charge UI children are incomplete under StarterGui.SlingArenaDynamicUI.Root. See [UI_CREATION_GUIDE] comments.")
+			warn("[UI_MISSING] Charge UI children are incomplete under StarterGui.SlingArenaDynamicUI.SlingArenaDynamicUI.Root. See [UI_CREATION_GUIDE] comments.")
 			warnedMissingChargeUI = true
 		end
 	end
