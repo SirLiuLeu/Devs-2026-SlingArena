@@ -37,38 +37,41 @@ end
 
 local function ensureChargeUI()
 	-- [UI_CREATION_GUIDE]
-	-- Create in Studio:
+	-- Correct hierarchy:
+	--
 	-- StarterGui
-	--   SlingArenaDynamicUI (ScreenGui)
-	--     SlingArenaDynamicUI (Frame)
+	--   SlingArenaDynamicUI (Folder)
+	--     SlingArenaDynamicUI (ScreenGui)
 	--       Root (Frame)
-	--       ChargeBarBg (Frame)
-	--         Fill (Frame)
-	--       AimDirection (TextLabel)
-	--       ImpactFeedback (TextLabel)
-	-- Do not create these via script; this runtime only binds and warns when missing.
+	--         ChargeBarBg (Frame)
+	--           Fill (Frame)
+	--         AimDirection (TextLabel)
+	--         ImpactFeedback (TextLabel)
+
 	local playerGui = player:WaitForChild("PlayerGui")
-	local dynamic = playerGui:FindFirstChild("SlingArenaDynamicUI")
-	if not dynamic then
+
+	local uiFolder = playerGui:FindFirstChild("SlingArenaDynamicUI")
+	if not uiFolder then
 		if not warnedMissingChargeUI then
-			warn("[UI_MISSING] StarterGui.SlingArenaDynamicUI (ScreenGui) is missing. Create it manually in Studio.")
-			warnedMissingChargeUI = true
-		end
-		return nil, nil, nil, nil
-	end
-	local container = dynamic:FindFirstChild("SlingArenaDynamicUI")
-	if not container or not container:IsA("Frame") then
-		if not warnedMissingChargeUI then
-			warn("[UI_MISSING] StarterGui.SlingArenaDynamicUI.SlingArenaDynamicUI (Frame) is missing. Create it manually in Studio.")
+			warn("[UI_MISSING] PlayerGui.SlingArenaDynamicUI (Folder) missing.")
 			warnedMissingChargeUI = true
 		end
 		return nil, nil, nil, nil
 	end
 
-	local root = container:FindFirstChild("Root")
+	local screenGui = uiFolder:FindFirstChild("SlingArenaDynamicUI")
+	if not screenGui or not screenGui:IsA("ScreenGui") then
+		if not warnedMissingChargeUI then
+			warn("[UI_MISSING] PlayerGui.SlingArenaDynamicUI.SlingArenaDynamicUI (ScreenGui) missing.")
+			warnedMissingChargeUI = true
+		end
+		return nil, nil, nil, nil
+	end
+
+	local root = screenGui:FindFirstChild("Root")
 	if not root or not root:IsA("Frame") then
 		if not warnedMissingChargeUI then
-			warn("[UI_MISSING] StarterGui.SlingArenaDynamicUI.SlingArenaDynamicUI.Root (Frame) is missing. Create it manually in Studio.")
+			warn("[UI_MISSING] PlayerGui.SlingArenaDynamicUI.SlingArenaDynamicUI.Root missing.")
 			warnedMissingChargeUI = true
 		end
 		return nil, nil, nil, nil
@@ -81,7 +84,7 @@ local function ensureChargeUI()
 
 	if (not barBg) or (not bar) or (not aimLabel) or (not feedback) then
 		if not warnedMissingChargeUI then
-			warn("[UI_MISSING] Charge UI children are incomplete under StarterGui.SlingArenaDynamicUI.SlingArenaDynamicUI.Root. See [UI_CREATION_GUIDE] comments.")
+			warn("[UI_MISSING] Charge UI children incomplete under SlingArenaDynamicUI.Root.")
 			warnedMissingChargeUI = true
 		end
 	end
@@ -103,9 +106,11 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then
 		return
 	end
+
 	if keyStates[input.KeyCode] ~= nil then
 		keyStates[input.KeyCode] = true
 	end
+
 	if input.UserInputType == Enum.UserInputType.MouseButton1 and not charging then
 		charging = true
 		chargeStartTime = os.clock()
@@ -114,9 +119,11 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 UserInputService.InputEnded:Connect(function(input)
+
 	if keyStates[input.KeyCode] ~= nil then
 		keyStates[input.KeyCode] = false
 	end
+
 	if input.UserInputType == Enum.UserInputType.MouseButton1 and charging then
 		charging = false
 		releaseChargeRemote:FireServer(getMouseWorld())
@@ -130,10 +137,13 @@ stateUpdateRemote.OnClientEvent:Connect(function(state)
 end)
 
 gameplayFeedbackRemote.OnClientEvent:Connect(function(payload)
+
 	local _, _, feedbackLabel = ensureChargeUI()
+
 	if not feedbackLabel or typeof(payload) ~= "table" then
 		return
 	end
+
 	if payload.EventType == "Impact" then
 		feedbackLabel.Text = "Impact!"
 	elseif payload.EventType == "LevelUp" then
@@ -146,32 +156,45 @@ gameplayFeedbackRemote.OnClientEvent:Connect(function(payload)
 end)
 
 player.CharacterAdded:Connect(function()
+
 	for keyCode in pairs(keyStates) do
 		keyStates[keyCode] = false
 	end
+
 	charging = false
 end)
 
 RunService.RenderStepped:Connect(function()
+
 	local inputVector = computeInputVector()
+
 	if inputVector.Magnitude > 1 then
 		inputVector = inputVector.Unit
 	end
+
 	moveRequestRemote:FireServer(inputVector)
 
 	local bar, aimLabel, _, bg = ensureChargeUI()
+
 	if bar and aimLabel and bg then
+
 		bg.Visible = true
+
 		local chargeRatio = 0
+
 		if charging then
 			chargeRatio = math.clamp((os.clock() - chargeStartTime) / maxChargeTime, 0, 1)
 		end
+
 		bar.Size = UDim2.fromScale(chargeRatio, 1)
+
 		local origin = workspace.CurrentCamera and workspace.CurrentCamera.CFrame.Position or Vector3.zero
 		local dir = (getMouseWorld() - origin)
+
 		if dir.Magnitude > 0.001 then
 			dir = dir.Unit
 		end
+
 		aimLabel.Text = string.format("Aim: (%.2f, %.2f)", dir.X, dir.Z)
 	end
 end)
