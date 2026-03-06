@@ -29,54 +29,8 @@ local function resolveTextLabel(root: Instance, path: string): TextLabel?
 	return nil
 end
 
-local function ensureFallbackUI(playerGui: PlayerGui): Frame
-	local screen = playerGui:FindFirstChild("SlingArenaDynamicUI") :: ScreenGui?
-	if not screen then
-		screen = Instance.new("ScreenGui")
-		screen.Name = "SlingArenaDynamicUI"
-		screen.ResetOnSpawn = false
-		screen.Parent = playerGui
-	end
-	local root = screen:FindFirstChild("Root") :: Frame?
-	if not root then
-		root = Instance.new("Frame")
-		root.Name = "Root"
-		root.Size = UDim2.fromOffset(360, 380)
-		root.Position = UDim2.fromOffset(16, 16)
-		root.BackgroundColor3 = Color3.fromRGB(26, 30, 38)
-		root.Parent = screen
-	end
-	return root
-end
-
-local function ensureLabel(parent: Instance, name: string, y: number): TextLabel
-	local label = parent:FindFirstChild(name) :: TextLabel?
-	if not label then
-		label = Instance.new("TextLabel")
-		label.Name = name
-		label.Size = UDim2.fromOffset(340, 24)
-		label.Position = UDim2.fromOffset(10, y)
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.BackgroundTransparency = 1
-		label.TextColor3 = Color3.fromRGB(240, 240, 240)
-		label.Parent = parent
-	end
-	return label
-end
-
-local function ensureButton(parent: Instance, name: string, text: string, x: number, y: number): TextButton
-	local btn = parent:FindFirstChild(name) :: TextButton?
-	if not btn then
-		btn = Instance.new("TextButton")
-		btn.Name = name
-		btn.Size = UDim2.fromOffset(160, 28)
-		btn.Position = UDim2.fromOffset(x, y)
-		btn.BackgroundColor3 = Color3.fromRGB(60, 88, 142)
-		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		btn.Parent = parent
-	end
-	btn.Text = text
-	return btn
+local function warnMissingUiPath(path: string, className: string)
+	warn(string.format("[UI_MISSING] %s (%s) is missing. Create it manually in Studio.", path, className))
 end
 
 function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
@@ -85,6 +39,37 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.PlayerGui = playerGui
 	self.Connections = {}
 	self.LocalWins = 0
+
+	-- [UI_CREATION_GUIDE]
+	-- Create in Studio:
+	-- StarterGui
+	--   LobbyUI (ScreenGui)
+	--     LobbyUI (Frame)
+	--       RootFrame (Frame)
+	--         StatusLabel (TextLabel)
+	--         JoinButton (TextButton)
+	--         LeaveButton (TextButton)
+	--         TeleportForest (TextButton)
+	--         TeleportDesert (TextButton)
+	--         DebugFood (TextButton)
+	--         DebugReset (TextButton)
+	--         MapName (TextLabel)
+	--         LevelLabel (TextLabel)
+	--         HpLabel (TextLabel)
+	--         RespawnLabel (TextLabel)
+	--   MatchUI (ScreenGui)
+	--     MatchUI (Frame)
+	--       RootFrame (Frame)
+	--         StatusLabel (TextLabel)
+	--         TimerLabel (TextLabel)
+	--         AlivePlayersLabel (TextLabel)
+	--         WinnerPopup (TextLabel)
+	--   StatsUI (ScreenGui)
+	--     StatsUI (Frame)
+	--       RootFrame (Frame)
+	--         ScoreLabel (TextLabel)
+	--         GoldLabel (TextLabel)
+	--         WinsLabel (TextLabel)
 
 	self.JoinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.JoinButton)
 	self.LeaveButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton)
@@ -96,58 +81,80 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.ScoreLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Stats.ScoreLabel)
 	self.GoldLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Stats.GoldLabel)
 	self.WinsLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Stats.WinsLabel)
+	self.MapLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Lobby.MapName)
+	self.LevelLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Lobby.LevelLabel)
+	self.HpLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Lobby.HpLabel)
+	self.RespawnLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Lobby.RespawnLabel)
+	self.TeleportForestButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.TeleportForestButton)
+	self.TeleportDesertButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.TeleportDesertButton)
+	self.DebugFoodButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugFoodButton)
+	self.DebugResetButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugResetButton)
 
-	local root = ensureFallbackUI(playerGui)
-	self.LobbyStatusLabel = self.LobbyStatusLabel or ensureLabel(root, "ArenaStatus", 8)
-	self.MatchStatusLabel = self.MatchStatusLabel or ensureLabel(root, "MatchStatus", 36)
-	self.TimerLabel = self.TimerLabel or ensureLabel(root, "CountdownTimer", 64)
-	self.AlivePlayersLabel = self.AlivePlayersLabel or ensureLabel(root, "PlayerCount", 92)
-	self.MapLabel = ensureLabel(root, "MapName", 120)
-	self.ScoreLabel = self.ScoreLabel or ensureLabel(root, "ExpLabel", 148)
-	self.LevelLabel = ensureLabel(root, "LevelLabel", 176)
-	self.HpLabel = ensureLabel(root, "HpLabel", 204)
-	self.WinnerPopup = self.WinnerPopup or ensureLabel(root, "WinnerPopup", 232)
-	self.RespawnLabel = ensureLabel(root, "RespawnLabel", 260)
-
-	self.JoinButton = self.JoinButton or ensureButton(root, "JoinButton", "Join Arena", 10, 290)
-	self.LeaveButton = self.LeaveButton or ensureButton(root, "LeaveButton", "Leave Arena", 180, 290)
-	self.TeleportForestButton = ensureButton(root, "TeleportForest", "Teleport Forest", 10, 324)
-	self.TeleportDesertButton = ensureButton(root, "TeleportDesert", "Teleport Desert", 180, 324)
-	self.DebugFoodButton = ensureButton(root, "DebugFood", "Debug Spawn Food", 10, 356)
-	self.DebugResetButton = ensureButton(root, "DebugReset", "Debug Reset Sling", 180, 356)
+	if not self.JoinButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.JoinButton, "TextButton") end
+	if not self.LeaveButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.LeaveButton, "TextButton") end
+	if not self.LobbyStatusLabel then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.StatusLabel, "TextLabel") end
+	if not self.MatchStatusLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.StatusLabel, "TextLabel") end
+	if not self.TimerLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.TimerLabel, "TextLabel") end
+	if not self.AlivePlayersLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.AlivePlayersLabel, "TextLabel") end
+	if not self.WinnerPopup then warnMissingUiPath(ProjectTreeSpec.UI.Match.WinnerPopup, "TextLabel") end
+	if not self.ScoreLabel then warnMissingUiPath(ProjectTreeSpec.UI.Stats.ScoreLabel, "TextLabel") end
+	if not self.GoldLabel then warnMissingUiPath(ProjectTreeSpec.UI.Stats.GoldLabel, "TextLabel") end
+	if not self.WinsLabel then warnMissingUiPath(ProjectTreeSpec.UI.Stats.WinsLabel, "TextLabel") end
+	if not self.MapLabel then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.MapName, "TextLabel") end
+	if not self.LevelLabel then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.LevelLabel, "TextLabel") end
+	if not self.HpLabel then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.HpLabel, "TextLabel") end
+	if not self.RespawnLabel then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.RespawnLabel, "TextLabel") end
+	if not self.TeleportForestButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.TeleportForestButton, "TextButton") end
+	if not self.TeleportDesertButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.TeleportDesertButton, "TextButton") end
+	if not self.DebugFoodButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.DebugFoodButton, "TextButton") end
+	if not self.DebugResetButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.DebugResetButton, "TextButton") end
 
 	return self
 end
 
 function UIController:Start()
-	table.insert(self.Connections, self.JoinButton.MouseButton1Click:Connect(function()
-		self.ClientService:RequestJoinArena()
-	end))
-	table.insert(self.Connections, self.LeaveButton.MouseButton1Click:Connect(function()
-		self.ClientService:RequestLeaveArena()
-	end))
-	table.insert(self.Connections, self.TeleportForestButton.MouseButton1Click:Connect(function()
-		self.ClientService:RequestTeleport("ForestArena", "Spawn1")
-	end))
-	table.insert(self.Connections, self.TeleportDesertButton.MouseButton1Click:Connect(function()
-		self.ClientService:RequestTeleport("DesertArena", "SpawnA")
-	end))
-	table.insert(self.Connections, self.DebugFoodButton.MouseButton1Click:Connect(function()
-		self.ClientService:RequestDebugSpawnFood("ForestArena")
-	end))
-	table.insert(self.Connections, self.DebugResetButton.MouseButton1Click:Connect(function()
-		self.ClientService:RequestDebugResetSling()
-	end))
+	if self.JoinButton then
+		table.insert(self.Connections, self.JoinButton.MouseButton1Click:Connect(function()
+			self.ClientService:RequestJoinArena()
+		end))
+	end
+	if self.LeaveButton then
+		table.insert(self.Connections, self.LeaveButton.MouseButton1Click:Connect(function()
+			self.ClientService:RequestLeaveArena()
+		end))
+	end
+	if self.TeleportForestButton then
+		table.insert(self.Connections, self.TeleportForestButton.MouseButton1Click:Connect(function()
+			self.ClientService:RequestTeleport("ForestArena", "Spawn1")
+		end))
+	end
+	if self.TeleportDesertButton then
+		table.insert(self.Connections, self.TeleportDesertButton.MouseButton1Click:Connect(function()
+			self.ClientService:RequestTeleport("DesertArena", "SpawnA")
+		end))
+	end
+	if self.DebugFoodButton then
+		table.insert(self.Connections, self.DebugFoodButton.MouseButton1Click:Connect(function()
+			self.ClientService:RequestDebugSpawnFood("ForestArena")
+		end))
+	end
+	if self.DebugResetButton then
+		table.insert(self.Connections, self.DebugResetButton.MouseButton1Click:Connect(function()
+			self.ClientService:RequestDebugResetSling()
+		end))
+	end
 
 	local stateConnection = self.ClientService:BindStateUpdate(function(state)
-		self.ScoreLabel.Text = string.format("EXP: %d", math.floor(state.Exp or 0))
-		self.LevelLabel.Text = string.format("Level: %d", math.floor(state.Level or 1))
-		self.HpLabel.Text = string.format("HP: %d/%d", math.floor(state.CurrentHP or 0), math.floor(state.MaxHP or 100))
-		self.MapLabel.Text = string.format("Map: %s", tostring(state.MapName or "LobbyMap"))
-		if (state.CurrentHP or 0) <= 0 then
-			self.RespawnLabel.Text = "Respawn screen: waiting to respawn..."
-		else
-			self.RespawnLabel.Text = "Respawn screen: hidden"
+		if self.ScoreLabel then self.ScoreLabel.Text = string.format("EXP: %d", math.floor(state.Exp or 0)) end
+		if self.LevelLabel then self.LevelLabel.Text = string.format("Level: %d", math.floor(state.Level or 1)) end
+		if self.HpLabel then self.HpLabel.Text = string.format("HP: %d/%d", math.floor(state.CurrentHP or 0), math.floor(state.MaxHP or 100)) end
+		if self.MapLabel then self.MapLabel.Text = string.format("Map: %s", tostring(state.MapName or "LobbyMap")) end
+		if self.RespawnLabel then
+			if (state.CurrentHP or 0) <= 0 then
+				self.RespawnLabel.Text = "Respawn screen: waiting to respawn..."
+			else
+				self.RespawnLabel.Text = "Respawn screen: hidden"
+			end
 		end
 	end)
 	if stateConnection then
@@ -155,10 +162,10 @@ function UIController:Start()
 	end
 
 	local uiStateConnection = self.ClientService:BindUIStateUpdate(function(payload)
-		self.LobbyStatusLabel.Text = string.format("ArenaStatus: %s", tostring(payload.ArenaStatus or payload.State or "Lobby"))
-		self.MatchStatusLabel.Text = string.format("Match: %s", tostring(payload.State or "Lobby"))
-		self.TimerLabel.Text = string.format("CountdownTimer: %d", math.floor(payload.CountdownTimer or payload.TimeLeft or 0))
-		self.AlivePlayersLabel.Text = string.format("PlayerCount: %d (alive %d)", payload.PlayerCount or 0, payload.AlivePlayers or 0)
+		if self.LobbyStatusLabel then self.LobbyStatusLabel.Text = string.format("ArenaStatus: %s", tostring(payload.ArenaStatus or payload.State or "Lobby")) end
+		if self.MatchStatusLabel then self.MatchStatusLabel.Text = string.format("Match: %s", tostring(payload.State or "Lobby")) end
+		if self.TimerLabel then self.TimerLabel.Text = string.format("CountdownTimer: %d", math.floor(payload.CountdownTimer or payload.TimeLeft or 0)) end
+		if self.AlivePlayersLabel then self.AlivePlayersLabel.Text = string.format("PlayerCount: %d (alive %d)", payload.PlayerCount or 0, payload.AlivePlayers or 0) end
 		if self.WinnerPopup and (payload.State or "") ~= "RoundEnd" then
 			self.WinnerPopup.Visible = true
 			self.WinnerPopup.Text = "Match result screen: pending"
@@ -169,10 +176,15 @@ function UIController:Start()
 	end
 
 	local resultConnection = self.ClientService:BindRoundResult(function(payload)
-		self.WinnerPopup.Visible = true
-		self.WinnerPopup.Text = "Match result screen: Winner: " .. tostring(payload.Winner)
+		if self.WinnerPopup then
+			self.WinnerPopup.Visible = true
+			self.WinnerPopup.Text = "Match result screen: Winner: " .. tostring(payload.Winner)
+		end
 		if payload.Winner == Players.LocalPlayer.Name then
 			self.LocalWins += 1
+			if self.WinsLabel then
+				self.WinsLabel.Text = string.format("Wins: %d", self.LocalWins)
+			end
 		end
 	end)
 	if resultConnection then

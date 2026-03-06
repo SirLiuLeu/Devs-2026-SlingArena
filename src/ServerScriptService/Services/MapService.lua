@@ -23,9 +23,15 @@ function MapService.new(context)
 	self._traps = {}
 	self._spawnPoints = {}
 	self._exitZones = {}
+	self._antiGiantZones = {}
+	self._safeSpawnZones = {}
+	self._sizeRestrictedCorridors = {}
 	self._lobbyTouchedDebounce = {}
 	self._foodTouchedDebounce = {}
 	self._customTrapDebounce = {}
+	self._antiGiantZones = {}
+	self._safeSpawnZones = {}
+	self._sizeRestrictedCorridors = {}
 	self._teleportRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.TeleportRequest) :: RemoteEvent
 	self._debugSpawnFoodRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.DebugSpawnFood) :: RemoteEvent
 	return self
@@ -273,6 +279,9 @@ function MapService:Generate()
 	self._traps = {}
 	self._spawnPoints = {}
 	self._exitZones = {}
+	self._antiGiantZones = {}
+	self._safeSpawnZones = {}
+	self._sizeRestrictedCorridors = {}
 	if not self._mapRoot or not self._activeMap then return end
 	local active = self._mapRoot:FindFirstChild(self._activeMap)
 	if not active then return end
@@ -287,6 +296,12 @@ function MapService:Generate()
 				table.insert(self._spawnPoints, descendant)
 			elseif descendant.Name == "ExitZone" then
 				table.insert(self._exitZones, descendant)
+			elseif descendant.Name == "AntiGiantZone" then
+				table.insert(self._antiGiantZones, descendant)
+			elseif descendant.Name == "SafeSpawnZone" then
+				table.insert(self._safeSpawnZones, descendant)
+			elseif descendant.Name == "SizeRestrictedCorridor" then
+				table.insert(self._sizeRestrictedCorridors, descendant)
 			end
 		end
 	end
@@ -337,6 +352,29 @@ function MapService:IsGateBlocking(gate, playerSize)
 	return playerSize > maxSize
 end
 
+
+
+function MapService:GetAntiGiantZones(): { BasePart }
+	return self._antiGiantZones
+end
+
+function MapService:GetSafeSpawnZones(): { BasePart }
+	return self._safeSpawnZones
+end
+
+function MapService:GetSizeRestrictedCorridors(): { BasePart }
+	return self._sizeRestrictedCorridors
+end
+
+function MapService:CanPlayerUseCorridors(player: Player): boolean
+	local state = self._context.Services.PlayerStateService:GetState(player)
+	if not state then
+		return true
+	end
+	local limit = BalanceConfig.CorridorSizeLimit
+	return state.Size <= limit
+end
+
 function MapService:GetMapDuration(): number
 	return self._mapDuration
 end
@@ -385,6 +423,7 @@ function MapService:_spawnMapFoodAndTraps(mapName: string)
 	end
 	local mapModel = mapsRoot:FindFirstChild(mapName)
 	if not mapModel or not mapModel:IsA("Model") then
+		warn(string.format("[INSTANCE_MISSING] Workspace.Maps.%s (Model) is missing.", mapName))
 		return
 	end
 	self:ClearMapFood(mapModel)
@@ -589,19 +628,26 @@ function MapService:RequestTeleport(player: Player, mapName: string, spawnName: 
 	end
 	local mapsRoot = getStudioMapsRoot()
 	if not mapsRoot then
-		-- CREATE MANUALLY IN STUDIO: Workspace.Maps.ForestArena.SpawnPoints.Spawn1
+		warn("[INSTANCE_MISSING] Workspace.Maps is missing. Create Workspace.Maps.[MapName].SpawnPoints.[SpawnName] manually in Studio.")
 		return
 	end
 	local mapModel = mapsRoot:FindFirstChild(mapName)
 	if not mapModel or not mapModel:IsA("Model") then
+		warn(string.format("[INSTANCE_MISSING] Workspace.Maps.%s (Model) is missing.", mapName))
 		return
 	end
 	local spawnPoints = mapModel:FindFirstChild("SpawnPoints")
 	if not spawnPoints then
+		warn(string.format("[INSTANCE_MISSING] Workspace.Maps.%s.SpawnPoints (Folder) is missing.", mapName))
 		return
 	end
 	local spawnPart = spawnPoints:FindFirstChild(spawnName)
 	if not spawnPart or not spawnPart:IsA("BasePart") then
+		warn(string.format("[INSTANCE_MISSING] Workspace.Maps.%s.SpawnPoints.%s (BasePart) is missing.", mapName, spawnName))
+		return
+	end
+	if not self:CanPlayerUseCorridors(player) then
+		warn(string.format("[MAP_RULE] %s cannot enter corridor while size exceeds limit %.2f", player.Name, BalanceConfig.CorridorSizeLimit))
 		return
 	end
 	local pawn = self._context.Services.PlayerService:GetPawn(player)

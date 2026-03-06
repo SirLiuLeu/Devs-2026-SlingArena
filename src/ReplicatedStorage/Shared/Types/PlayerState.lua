@@ -37,6 +37,7 @@ export type PlayerState = {
 	ScaleMultiplier: number,
 	BonusMaxHP: number,
 	BonusDamageMultiplier: number,
+	LevelDamageBonus: number,
 }
 
 return {}

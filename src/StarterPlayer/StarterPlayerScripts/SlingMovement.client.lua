@@ -25,6 +25,7 @@ local keyStates = {
 local charging = false
 local chargeStartTime = 0
 local maxChargeTime = 2
+local warnedMissingChargeUI = false
 
 local function getMouseWorld(): Vector3
 	local mouse = player:GetMouse()
@@ -35,58 +36,44 @@ local function getMouseWorld(): Vector3
 end
 
 local function ensureChargeUI()
+	-- [UI_CREATION_GUIDE]
+	-- Create in Studio:
+	-- StarterGui
+	--   SlingArenaDynamicUI (ScreenGui)
+	--     Root (Frame)
+	--       ChargeBarBg (Frame)
+	--         Fill (Frame)
+	--       AimDirection (TextLabel)
+	--       ImpactFeedback (TextLabel)
+	-- Do not create these via script; this runtime only binds and warns when missing.
 	local playerGui = player:WaitForChild("PlayerGui")
 	local dynamic = playerGui:FindFirstChild("SlingArenaDynamicUI")
 	if not dynamic then
+		if not warnedMissingChargeUI then
+			warn("[UI_MISSING] StarterGui.SlingArenaDynamicUI (ScreenGui) is missing. Create it manually in Studio.")
+			warnedMissingChargeUI = true
+		end
 		return nil, nil, nil, nil
 	end
 	local root = dynamic:FindFirstChild("Root")
 	if not root or not root:IsA("Frame") then
+		if not warnedMissingChargeUI then
+			warn("[UI_MISSING] StarterGui.SlingArenaDynamicUI.Root (Frame) is missing. Create it manually in Studio.")
+			warnedMissingChargeUI = true
+		end
 		return nil, nil, nil, nil
 	end
 
 	local barBg = root:FindFirstChild("ChargeBarBg") :: Frame?
-	if not barBg then
-		barBg = Instance.new("Frame")
-		barBg.Name = "ChargeBarBg"
-		barBg.Size = UDim2.fromOffset(320, 14)
-		barBg.Position = UDim2.fromOffset(10, 244)
-		barBg.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
-		barBg.Parent = root
-	end
-
-	local bar = barBg:FindFirstChild("Fill") :: Frame?
-	if not bar then
-		bar = Instance.new("Frame")
-		bar.Name = "Fill"
-		bar.Size = UDim2.fromScale(0, 1)
-		bar.BackgroundColor3 = Color3.fromRGB(255, 178, 44)
-		bar.BorderSizePixel = 0
-		bar.Parent = barBg
-	end
-
+	local bar = barBg and (barBg:FindFirstChild("Fill") :: Frame?) or nil
 	local aimLabel = root:FindFirstChild("AimDirection") :: TextLabel?
-	if not aimLabel then
-		aimLabel = Instance.new("TextLabel")
-		aimLabel.Name = "AimDirection"
-		aimLabel.Size = UDim2.fromOffset(340, 24)
-		aimLabel.Position = UDim2.fromOffset(10, 264)
-		aimLabel.TextXAlignment = Enum.TextXAlignment.Left
-		aimLabel.BackgroundTransparency = 1
-		aimLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
-		aimLabel.Parent = root
-	end
-
 	local feedback = root:FindFirstChild("ImpactFeedback") :: TextLabel?
-	if not feedback then
-		feedback = Instance.new("TextLabel")
-		feedback.Name = "ImpactFeedback"
-		feedback.Size = UDim2.fromOffset(340, 24)
-		feedback.Position = UDim2.fromOffset(10, 284)
-		feedback.TextXAlignment = Enum.TextXAlignment.Left
-		feedback.BackgroundTransparency = 1
-		feedback.TextColor3 = Color3.fromRGB(255, 120, 120)
-		feedback.Parent = root
+
+	if (not barBg) or (not bar) or (not aimLabel) or (not feedback) then
+		if not warnedMissingChargeUI then
+			warn("[UI_MISSING] Charge UI children are incomplete under StarterGui.SlingArenaDynamicUI.Root. See [UI_CREATION_GUIDE] comments.")
+			warnedMissingChargeUI = true
+		end
 	end
 
 	return bar, aimLabel, feedback, barBg
