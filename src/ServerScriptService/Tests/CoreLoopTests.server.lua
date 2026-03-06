@@ -5,8 +5,8 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
+local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local CombatService = require(ServerScriptService.Server.Services.CombatService)
-
 local MapServiceModule = require(ServerScriptService.Server.Services.MapService)
 
 local function testArenaSpawnAndPrefabApisExist()
@@ -80,7 +80,6 @@ local function testTeleportPlayerJoinLeaveFlow()
 	end
 end
 
-
 local function assertAlmostEqual(actual: number, expected: number, epsilon: number, message: string)
 	if math.abs(actual - expected) > epsilon then
 		error(string.format("%s | actual=%.4f expected=%.4f", message, actual, expected))
@@ -104,26 +103,38 @@ local function testCollisionTriggersDamageFormula()
 		SlingshotType = "Default",
 		DamageMultiplier = 1,
 	}
-	local damage = service:ComputeImpactDamage(attacker, 80, 1)
-	if damage <= 0 then
-		error("Damage should be positive for valid collision")
+	local speed = 80
+	local expected = math.clamp(speed * math.log(attacker.Size + 1) * (SlingshotConfig.SlingshotModifiers.Default or 1) * attacker.DamageMultiplier * (1 + BalanceConfig.ChargeDamageFactor), 0, BalanceConfig.MaxDamagePerHit)
+	local damage = service:ComputeImpactDamage(attacker, speed, 1)
+	assertAlmostEqual(damage, expected, 0.0001, "Damage formula should follow speed*log(size+1)*mods")
+end
+
+local function testKnockbackDirectionForSmallerAttacker()
+	local service = CombatService.new({})
+	local knockback = service:ComputeKnockback({ Size = 1 }, { Size = 3 }, Vector3.new(1, 0, 0), 50)
+	if knockback.X >= 0 then
+		error("Smaller attacker must receive reversed knockback direction")
 	end
 end
 
 local function testExpLevelUpThreshold()
-	local required = require(ReplicatedStorage.Shared.Config.LevelConfig).RequiredExp(1)
+	local required = LevelConfig.RequiredExp(1)
 	if required <= 0 then
 		error("Required EXP must be greater than 0")
 	end
 end
 
 local function testSelfDamageClampOnMaxCharge()
-	local selfDamage = math.clamp(BalanceConfig.MaxChargeSelfDamage, 0, BalanceConfig.MaxChargeSelfDamage)
-	assertAlmostEqual(selfDamage, BalanceConfig.MaxChargeSelfDamage, 0, "Max charge self damage should clamp correctly")
+	local maxSelfHp = 100
+	local impactDamage = 200
+	local cappedImpact = math.min(impactDamage, maxSelfHp * BalanceConfig.MaxSelfDamageToCurrentHpRatio)
+	local selfDamage = cappedImpact * BalanceConfig.SelfDamageRatio
+	assertAlmostEqual(selfDamage, 75, 0.0001, "Max-charge self-damage should clamp to 1.5x hp then *0.5")
 end
 
 testChargeToLaunchForce()
 testCollisionTriggersDamageFormula()
+testKnockbackDirectionForSmallerAttacker()
 testExpLevelUpThreshold()
 testSelfDamageClampOnMaxCharge()
 testArenaSpawnAndPrefabApisExist()

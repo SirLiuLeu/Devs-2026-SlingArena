@@ -5,6 +5,7 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config.Config)
+local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 
 local CollisionService = {}
 CollisionService.__index = CollisionService
@@ -113,7 +114,9 @@ function CollisionService:_resolvePlayerCollisions(hits)
 			local damage = self._context.Services.CombatService:ComputeImpactDamage(attackerState, velocityMagnitude, attackerState.ChargeValue)
 			local knockback = self._context.Services.CombatService:ComputeKnockback(attackerState, defenderState, impactDirection, velocityMagnitude)
 			self._context.EventBus:Fire("CollisionDetected", "Sling", winner, loser, { Speed = velocityMagnitude, ChargeRatio = attackerState.ChargeValue })
-			self._context.EventBus:Fire("CollisionPlayerHit", loser, winner, damage, knockback)
+			self._context.EventBus:Fire("CollisionPlayerHit", loser, winner, damage, knockback, { ChargeRatio = attackerState.ChargeValue, VelocityMagnitude = velocityMagnitude })
+			local decay = math.clamp(BalanceConfig.VelocityDecayFactor, 0, 1)
+			winnerRoot.AssemblyLinearVelocity *= decay
 		end
 	end
 end
