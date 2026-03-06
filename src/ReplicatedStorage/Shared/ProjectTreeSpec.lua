@@ -1,5 +1,43 @@
 --!strict
 
+-- [UI_CREATION_GUIDE]
+-- Manual setup required in Studio (runtime will warn and continue if missing).
+--
+-- StarterGui
+--   LobbyUI (ScreenGui)
+--     LobbyUI (Frame)
+--       RootFrame (Frame)
+--         StatusLabel (TextLabel)
+--         JoinButton (TextButton)
+--         LeaveButton (TextButton)
+--         TeleportForest (TextButton)
+--         TeleportDesert (TextButton)
+--         DebugFood (TextButton)
+--         DebugReset (TextButton)
+--         MapName (TextLabel)
+--         LevelLabel (TextLabel)
+--         HpLabel (TextLabel)
+--         RespawnLabel (TextLabel)
+--   StatsUI (ScreenGui)
+--     StatsUI (Frame)
+--       RootFrame (Frame)
+--         ScoreLabel (TextLabel)
+--         GoldLabel (TextLabel)
+--         WinsLabel (TextLabel)
+--   MatchUI (ScreenGui)
+--     MatchUI (Frame)
+--       RootFrame (Frame)
+--         StatusLabel (TextLabel)
+--         TimerLabel (TextLabel)
+--         AlivePlayersLabel (TextLabel)
+--         WinnerPopup (TextLabel)
+--   SlingArenaDynamicUI (ScreenGui)
+--     Root (Frame)
+--       ChargeBarBg (Frame)
+--         Fill (Frame)
+--       AimDirection (TextLabel)
+--       ImpactFeedback (TextLabel)
+
 local ProjectTreeSpec = {
 	UI = {
 		Lobby = {
