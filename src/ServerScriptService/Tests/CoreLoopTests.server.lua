@@ -9,6 +9,16 @@ local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local CombatService = require(ServerScriptService.Server.Services.CombatService)
 local MapServiceModule = require(ServerScriptService.Server.Services.MapService)
 
+local function runTest(name: string, testFn)
+	local ok, err = pcall(testFn)
+	if ok then
+		print(string.format("[CoreLoopTests] PASS %s", name))
+	else
+		warn(string.format("[CoreLoopTests] FAIL %s :: %s", name, tostring(err)))
+		error(err)
+	end
+end
+
 local function testArenaSpawnAndPrefabApisExist()
 	if type(MapServiceModule.GetArenaSpawn) ~= "function" then
 		error("MapService.GetArenaSpawn must exist")
@@ -132,12 +142,12 @@ local function testSelfDamageClampOnMaxCharge()
 	assertAlmostEqual(selfDamage, 75, 0.0001, "Max-charge self-damage should clamp to 1.5x hp then *0.5")
 end
 
-testChargeToLaunchForce()
-testCollisionTriggersDamageFormula()
-testKnockbackDirectionForSmallerAttacker()
-testExpLevelUpThreshold()
-testSelfDamageClampOnMaxCharge()
-testArenaSpawnAndPrefabApisExist()
-testTeleportPlayerJoinLeaveFlow()
+runTest("ChargeToLaunchForce", testChargeToLaunchForce)
+runTest("CollisionTriggersDamageFormula", testCollisionTriggersDamageFormula)
+runTest("KnockbackDirectionForSmallerAttacker", testKnockbackDirectionForSmallerAttacker)
+runTest("ExpLevelUpThreshold", testExpLevelUpThreshold)
+runTest("SelfDamageClampOnMaxCharge", testSelfDamageClampOnMaxCharge)
+runTest("MapLoading_ArenaSpawnAndPrefabApisExist", testArenaSpawnAndPrefabApisExist)
+runTest("TeleportLogic_JoinLeaveFlow", testTeleportPlayerJoinLeaveFlow)
 
 print("[CoreLoopTests] all checks passed")

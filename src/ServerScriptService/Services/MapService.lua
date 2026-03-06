@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config.Config)
@@ -46,10 +47,27 @@ local function getStudioMapsRoot(): Folder?
 end
 
 local function getFoodTemplate(): Model?
+	local serverFood = ServerStorage:FindFirstChild("Food")
+	if serverFood and serverFood:IsA("Model") then
+		print(string.format("[FoodService] Found template: %s (ServerStorage)", serverFood:GetFullName()))
+		return serverFood
+	end
+
+	local serverTemplates = ServerStorage:FindFirstChild("FoodTemplates")
+	if serverTemplates and serverTemplates:IsA("Folder") then
+		for _, child in ipairs(serverTemplates:GetChildren()) do
+			if child:IsA("Model") then
+				print(string.format("[FoodService] Found template: %s (ServerStorage.FoodTemplates)", child.Name))
+				return child
+			end
+		end
+	end
+
 	local prefabs = ReplicatedStorage:FindFirstChild("Prefabs")
 	if prefabs then
 		local prefabFood = prefabs:FindFirstChild("Food")
 		if prefabFood and prefabFood:IsA("Model") then
+			print(string.format("[FoodService] Found template: %s", prefabFood:GetFullName()))
 			return prefabFood
 		end
 	end
@@ -64,8 +82,10 @@ local function getFoodTemplate(): Model?
 	end
 	local basicFood = foodFolder:FindFirstChild("BasicFood")
 	if basicFood and basicFood:IsA("Model") then
+		print(string.format("[FoodService] Found template: %s", basicFood:GetFullName()))
 		return basicFood
 	end
+	warn("[FoodService] Food template missing. Expected one of: ServerStorage.Food (Model), ServerStorage.FoodTemplates.* (Model), ReplicatedStorage.Prefabs.Food (Model), ReplicatedStorage.Assets.Food.BasicFood (Model).")
 	return nil
 end
 
@@ -255,15 +275,17 @@ function MapService:_hookLobbyGates()
 end
 
 function MapService:ActivateMap(mapName: string)
-	if not self._mapRoot then return end
-	for _, child in ipairs(self._mapRoot:GetChildren()) do
-		if child:IsA("Model") then
-			local enabled = child.Name == mapName
-			for _, descendant in ipairs(child:GetDescendants()) do
-				if descendant:IsA("BasePart") then
-					descendant.Transparency = enabled and (descendant:GetAttribute("DefaultTransparency") or descendant.Transparency) or 1
-					descendant.CanCollide = enabled
-					descendant.CanTouch = enabled
+	print(string.format("[MapService] Map selected: %s", mapName))
+	if self._mapRoot then
+		for _, child in ipairs(self._mapRoot:GetChildren()) do
+			if child:IsA("Model") then
+				local enabled = child.Name == mapName
+				for _, descendant in ipairs(child:GetDescendants()) do
+					if descendant:IsA("BasePart") then
+						descendant.Transparency = enabled and (descendant:GetAttribute("DefaultTransparency") or descendant.Transparency) or 1
+						descendant.CanCollide = enabled
+						descendant.CanTouch = enabled
+					end
 				end
 			end
 		end
@@ -334,11 +356,21 @@ local function listSpawnPoints(mapModel: Model): { BasePart }
 end
 
 function MapService:_getSpawnPointsForMap(mapName: string): { BasePart }
-	if not self._mapRoot then
+	if self._mapRoot then
+		local mapModel = self._mapRoot:FindFirstChild(mapName)
+		if mapModel and mapModel:IsA("Model") then
+			return listSpawnPoints(mapModel)
+		end
+	end
+
+	local mapsRoot = getStudioMapsRoot()
+	if not mapsRoot then
+		warn(string.format("[MapService] Spawn point detection failed: Workspace.Maps missing for map %s", mapName))
 		return {}
 	end
-	local mapModel = self._mapRoot:FindFirstChild(mapName)
+	local mapModel = mapsRoot:FindFirstChild(mapName)
 	if not mapModel or not mapModel:IsA("Model") then
+		warn(string.format("[MapService] Spawn point detection failed: Workspace.Maps.%s missing", mapName))
 		return {}
 	end
 	return listSpawnPoints(mapModel)
@@ -392,9 +424,11 @@ function MapService:GetSpawnPoint(index: number, mapName: string?): Vector3
 		points = self:_getSpawnPointsForMap(mapName)
 	end
 	if #points == 0 then
+		warn(string.format("[MapService] Spawn point detection failed: no SpawnPoint found for map=%s activeMap=%s", tostring(mapName), tostring(self._activeMap)))
 		return Vector3.new(0, 8, 0)
 	end
 	local clampedIndex = ((index - 1) % #points) + 1
+	print(string.format("[MapService] Spawn found: %s (index %d/%d)", points[clampedIndex].Name, clampedIndex, #points))
 	return points[clampedIndex].Position + Vector3.new(0, 4, 0)
 end
 
@@ -514,20 +548,38 @@ end
 function MapService:SpawnFoodForMap(mapModel: Model, count: number)
 	local foodContainer = mapModel:FindFirstChild("FoodContainer")
 	if not foodContainer or not foodContainer:IsA("Folder") then
+		warn(string.format("[FoodService] Missing food container: %s.FoodContainer", mapModel:GetFullName()))
 		-- CREATE MANUALLY IN STUDIO: Workspace.Maps.[MapName].FoodContainer
 		return
 	end
-	local foodTemplate = getFoodTemplate()
-	if not foodTemplate then
+
+	local foodTemplates = {}
+	local serverTemplates = ServerStorage:FindFirstChild("FoodTemplates")
+	if serverTemplates and serverTemplates:IsA("Folder") then
+		for _, item in ipairs(serverTemplates:GetChildren()) do
+			if item:IsA("Model") then
+				table.insert(foodTemplates, item)
+				print(string.format("[FoodService] Found template: %s", item:GetFullName()))
+			end
+		end
+	end
+	local fallbackTemplate = getFoodTemplate()
+	if #foodTemplates == 0 and fallbackTemplate then
+		table.insert(foodTemplates, fallbackTemplate)
+	end
+	if #foodTemplates == 0 then
+		warn("[FoodService] Food spawning aborted: no template models were found.")
 		-- CREATE MANUALLY IN STUDIO: ReplicatedStorage.Assets.Food.BasicFood
 		return
 	end
 
 	for i = 1, count do
-		local clone = foodTemplate:Clone()
+		local template = foodTemplates[((i - 1) % #foodTemplates) + 1]
+		local clone = template:Clone()
 		clone:SetAttribute("SpawnedByServer", true)
-		clone.Name = `Food_{i}`
+		clone.Name = `{template.Name}_Food_{i}`
 		clone.Parent = foodContainer
+		print(string.format("[FoodService] Cloned food: %s -> %s", clone.Name, foodContainer:GetFullName()))
 		local root = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
 		if root then
 			clone.PrimaryPart = root
@@ -544,6 +596,7 @@ end
 function MapService:SpawnTrapForMap(mapModel: Model, count: number)
 	local trapContainer = mapModel:FindFirstChild("TrapContainer")
 	if not trapContainer or not trapContainer:IsA("Folder") then
+		warn(string.format("[FoodService] Missing trap container: %s.TrapContainer", mapModel:GetFullName()))
 		return
 	end
 	local trapTemplate = getTrapTemplate()
@@ -556,6 +609,7 @@ function MapService:SpawnTrapForMap(mapModel: Model, count: number)
 		trap:SetAttribute("SpawnedByServer", true)
 		trap.Name = `Trap_{i}`
 		trap.Parent = trapContainer
+		print(string.format("[FoodService] Cloned trap: %s -> %s", trap.Name, trapContainer:GetFullName()))
 		local root = trap.PrimaryPart or trap:FindFirstChildWhichIsA("BasePart")
 		if root then
 			trap.PrimaryPart = root

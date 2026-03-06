@@ -83,6 +83,7 @@ function RoundService:GetState()
 end
 
 function RoundService:JoinArena(player: Player)
+	print(string.format("[MapService] JoinArena requested by %s", player.Name))
 	self._participants[player] = true
 	if self._context.Services.MapService:GetActiveMap() ~= "ArenaMap" and self._state == STATES.Lobby then
 		self._context.Services.MapService:ActivateMap("ArenaMap")
@@ -95,7 +96,14 @@ function RoundService:JoinArena(player: Player)
 
 	local arenaSpawn = self._context.Services.MapService:GetArenaSpawn()
 	if arenaSpawn then
-		self._context.Services.PlayerService:TeleportCharacterToSpawn(player, arenaSpawn)
+		print(string.format("[MapService] Spawn found: %s", arenaSpawn:GetFullName()))
+		print(string.format("[MapService] Teleporting player: %s", player.Name))
+		local teleported = self._context.Services.PlayerService:TeleportCharacterToSpawn(player, arenaSpawn)
+		if not teleported then
+			warn(string.format("[MapService] Teleport failed during JoinArena for %s", player.Name))
+		end
+	else
+		warn(string.format("[MapService] Spawn point detection failed for JoinArena player=%s", player.Name))
 	end
 
 	self._context.Services.PlayerStateService:SetMapName(player, "ArenaMap")
@@ -106,8 +114,10 @@ end
 
 function RoundService:LeaveArena(player: Player)
 	if not self._participants[player] then
+		warn(string.format("[MapService] LeaveArena ignored because player is not participating: %s", player.Name))
 		return
 	end
+	print(string.format("[MapService] LeaveArena requested by %s", player.Name))
 
 	self._participants[player] = nil
 	if self:_participantCount() == 0 then
@@ -116,8 +126,15 @@ function RoundService:LeaveArena(player: Player)
 
 	local lobbySpawn = self._context.Services.MapService:GetLobbySpawn()
 	if lobbySpawn then
-		self._context.Services.PlayerService:TeleportCharacterToSpawn(player, lobbySpawn)
+		print(string.format("[MapService] Spawn found: %s", lobbySpawn:GetFullName()))
+		print(string.format("[MapService] Teleporting player to lobby: %s", player.Name))
+		local teleported = self._context.Services.PlayerService:TeleportCharacterToSpawn(player, lobbySpawn)
+		if not teleported then
+			warn(string.format("[MapService] LeaveArena teleport failed for %s", player.Name))
+			self._context.Services.PlayerService:SpawnPawn(player, 1, "LobbyMap")
+		end
 	else
+		warn("[MapService] Lobby spawn missing during LeaveArena; respawning pawn in LobbyMap")
 		self._context.Services.PlayerService:SpawnPawn(player, 1, "LobbyMap")
 	end
 
@@ -206,6 +223,17 @@ function RoundService:_resetPlayersForRound()
 		if player.Parent == Players then
 			self._context.Services.PlayerStateService:ResetForNewRound(player)
 			self._context.Services.PlayerService:SpawnPawn(player, i, "ArenaMap")
+			local arenaSpawn = self._context.Services.MapService:GetArenaSpawn()
+			if arenaSpawn then
+				print(string.format("[MapService] Spawn found: %s", arenaSpawn:GetFullName()))
+				print(string.format("[MapService] Teleporting player: %s", player.Name))
+				local teleported = self._context.Services.PlayerService:TeleportCharacterToSpawn(player, arenaSpawn)
+				if not teleported then
+					warn(string.format("[MapService] Round start teleport failed for %s", player.Name))
+				end
+			else
+				warn(string.format("[MapService] Round start spawn missing for %s", player.Name))
+			end
 			i += 1
 		end
 	end
