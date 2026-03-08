@@ -1,20 +1,14 @@
 1. Never skip any requested functionality.
-
 2. Runtime must never crash due to missing Instances or UI.
-
 3. Do NOT remove logic just because an Instance or UI is missing.
-
 4. UI must NEVER be created using code (forbidden: Instance.new("ScreenGui"), Instance.new("TextButton"), etc.).
-
 5. If a required UI or Instance is missing:
    - keep the full logic
    - use warn() to notify
    - allow runtime to continue safely.
 
 6. Whenever a feature requires a UI or Instance, write a manual creation guide in comments.
-
 7. Every required UI or Instance must be documented in ProjectTreeSpec.lua with its full hierarchy path.
-
 8. The UI creation guide must include:
    - instance type
    - instance name
