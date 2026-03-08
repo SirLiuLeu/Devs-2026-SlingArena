@@ -6,8 +6,8 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
-local CombatService = require(ServerScriptService.Server.Services.CombatService)
-local MapServiceModule = require(ServerScriptService.Server.Services.MapService)
+local CombatService = require(ServerScriptService.Services.CombatService)
+local MapServiceModule = require(ServerScriptService.Services.MapService)
 
 local function runTest(name: string, testFn)
 	local ok, err = pcall(testFn)
@@ -78,7 +78,7 @@ local function testTeleportPlayerJoinLeaveFlow()
 		},
 	}
 
-	local RoundService = require(ServerScriptService.Server.Services.RoundService)
+	local RoundService = require(ServerScriptService.Services.RoundService)
 	local service = RoundService.new(fakeRoundContext)
 	service:JoinArena(fakePlayer)
 	if not joinTeleported or state.map ~= "ArenaMap" or state.arena ~= "InArena" then

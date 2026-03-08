@@ -75,7 +75,7 @@ function MonetizationService:HandleRespawnPurchase(player: Player)
 		return
 	end
 	self._context.Services.PlayerService:SpawnPawn(player)
-	self:_applyRespawnRetention(player, BalanceConfig.RespawnRetainSizePaid, BalanceConfig.RespawnRetainSizePaid)
+	self:_applyRespawnRetention(player, BalanceConfig.RespawnRetainLevelPaid, BalanceConfig.RespawnRetainSizePaid)
 end
 
 function MonetizationService:HandleFreeRespawn(player: Player)

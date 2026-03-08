@@ -65,12 +65,22 @@ local function buildDefaultState(player: Player): PlayerState
 		MaxHP = sling.MaxHP,
 		CurrentHP = sling.MaxHP,
 		BaseDamage = sling.BaseDamage,
+		RegenRate = sling.RegenPerSecond,
+		ReflectDamage = sling.ReflectDamagePercent,
+		LaunchSpeed = SlingshotConfig.BaseLaunchForce,
+		LaunchRange = sling.MaxShootRange,
+		ChargeSpeed = 1,
+		MoveSpeed = BalanceConfig.DefaultWalkSpeed,
 		DamageMultiplier = 1,
+		HPBonus = 0,
+		LaunchSpeedBonus = 0,
+		RegenBonus = 0,
 		KnockbackResistance = 0,
 		SlingshotType = "Default",
 		ChargeValue = 0,
 		CurrentVelocity = Vector3.zero,
 		InvulnerableUntil = 0,
+		LastDamageTime = 0,
 		InvulCooldownUntil = 0,
 		Diamonds = LevelConfig.StartingDiamonds,
 		RespawnCountThisMatch = 0,
@@ -83,6 +93,9 @@ local function buildDefaultState(player: Player): PlayerState
 			Regen = 0,
 			Range = 0,
 			Reflect = 0,
+			LaunchSpeed = 0,
+			ChargeSpeed = 0,
+			MoveSpeed = 0,
 		},
 		IsAlive = true,
 		IsCharging = false,
@@ -135,9 +148,27 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 		local extraFromPost30 = baseSizeFromLevel - (BalanceConfig.BaseSize * (1 + (math.sqrt(30) * BalanceConfig.SizeSqrtMultiplier)))
 		baseSizeFromLevel = (BalanceConfig.BaseSize * (1 + (math.sqrt(30) * BalanceConfig.SizeSqrtMultiplier))) + (extraFromPost30 * BalanceConfig.PostLevel30SizeScalar)
 	end
+
+	local hpBonus = math.clamp(state.Attributes.MaxHP * 0.05, 0, 1)
+	local damageBonus = math.clamp(state.Attributes.Damage * 0.04, 0, 0.8)
+	local regenBonus = math.clamp(state.Attributes.Regen * 0.03, 0, 0.6)
+	local launchSpeedBonus = math.clamp(state.Attributes.LaunchSpeed * 0.03, 0, 0.5)
+
+	state.HPBonus = hpBonus
+	state.RegenBonus = regenBonus
+	state.LaunchSpeedBonus = launchSpeedBonus
+
 	state.Size = (baseSizeFromLevel + (state.Attributes.Range * 0.02)) * state.ScaleMultiplier
-	state.BaseDamage = sling.BaseDamage + state.LevelDamageBonus + (state.Attributes.Damage * 3)
-	local hp = sling.MaxHP + (state.Attributes.MaxHP * 20) + state.BonusMaxHP
+	state.BaseDamage = sling.BaseDamage + state.LevelDamageBonus
+	state.DamageMultiplier = 1 + damageBonus + state.BonusDamageMultiplier
+	state.RegenRate = sling.RegenPerSecond * (1 + regenBonus)
+	state.ReflectDamage = math.clamp(sling.ReflectDamagePercent + (state.Attributes.Reflect * 0.01), 0, 0.5)
+	state.LaunchSpeed = SlingshotConfig.BaseLaunchForce * (1 + launchSpeedBonus)
+	state.LaunchRange = sling.MaxShootRange + (state.Attributes.Range * 10)
+	state.ChargeSpeed = 1 + (state.Attributes.ChargeSpeed * 0.02)
+	state.MoveSpeed = BalanceConfig.DefaultWalkSpeed * (1 + (state.Attributes.MoveSpeed * 0.02))
+
+	local hp = (sling.MaxHP * (1 + hpBonus)) + state.BonusMaxHP
 	state.MaxHP = hp
 	if refillHealth then
 		state.CurrentHP = hp
@@ -156,9 +187,9 @@ function PlayerStateService:GetFinalStats(player: Player)
 	return {
 		Damage = state.BaseDamage,
 		HP = state.MaxHP,
-		Regen = sling.RegenPerSecond + state.Attributes.Regen,
-		Range = sling.MaxShootRange + (state.Attributes.Range * 10),
-		Reflect = sling.ReflectDamagePercent + (state.Attributes.Reflect * 0.01),
+		Regen = state.RegenRate,
+		Range = state.LaunchRange,
+		Reflect = state.ReflectDamage,
 	}
 end
 
@@ -207,6 +238,7 @@ function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
 	local state = self._states[player]
 	if not state or not state.IsAlive then return false end
 	state.CurrentHP = math.max(0, state.CurrentHP - math.max(0, amount))
+	state.LastDamageTime = os.clock()
 	self:PublishState(player)
 	return true
 end
@@ -314,7 +346,6 @@ function PlayerStateService:ApplyLevelGrowth(player: Player)
 	local perLevelDamage = math.random(BalanceConfig.DamageLevelBonusMin, BalanceConfig.DamageLevelBonusMax)
 	state.LevelDamageBonus = math.clamp((state.LevelDamageBonus or 0) + perLevelDamage, 0, BalanceConfig.DamageLevelBonusCap)
 	state.BonusDamageMultiplier += 0.01
-	state.DamageMultiplier = 1 + state.BonusDamageMultiplier
 	self:RecalculateDerivedStats(player, true)
 end
 
@@ -368,6 +399,9 @@ function PlayerStateService:PrestigeReset(player: Player)
 		Regen = 0,
 		Range = 0,
 		Reflect = 0,
+		LaunchSpeed = 0,
+		ChargeSpeed = 0,
+		MoveSpeed = 0,
 	}
 	self:RecalculateDerivedStats(player, true)
 end

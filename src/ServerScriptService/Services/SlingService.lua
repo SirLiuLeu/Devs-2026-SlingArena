@@ -155,7 +155,8 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 		return
 	end
 
-	local maxChargeTime = SlingshotConfig.MAX_CHARGE_TIME or SlingshotConfig.MaxChargeTime
+	local chargeSpeed = math.max(state.ChargeSpeed or 1, 0.1)
+	local maxChargeTime = (SlingshotConfig.MAX_CHARGE_TIME or SlingshotConfig.MaxChargeTime) / chargeSpeed
 	local chargeTime = math.clamp(os.clock() - chargeState.chargeStartTime, 0, maxChargeTime)
 	local chargeRatio = math.clamp(chargeTime / maxChargeTime, 0, 1)
 
@@ -166,7 +167,8 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 
 	local minForce = SlingshotConfig.MIN_LAUNCH_FORCE or SlingshotConfig.BaseLaunchForce
 	local maxForce = SlingshotConfig.MAX_LAUNCH_FORCE or (SlingshotConfig.BaseLaunchForce + Config.MaxExtraForce)
-	local launchForce = minForce + ((maxForce - minForce) * chargeRatio)
+	local baseForce = minForce + ((maxForce - minForce) * chargeRatio)
+	local launchForce = baseForce * math.max((state.LaunchSpeed or SlingshotConfig.BaseLaunchForce) / SlingshotConfig.BaseLaunchForce, 0.2)
 	local launchVector = chargeState.aimDirection * launchForce
 
 	root.AssemblyLinearVelocity = Vector3.new(
@@ -185,7 +187,7 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	end
 
 	self._chargeState[player] = nil
-	self._releaseCooldown[player] = os.clock() + (SlingshotConfig.RECOVER_TIME or 0.35)
+	self._releaseCooldown[player] = os.clock() + (SlingshotConfig.RECOVER_TIME or 3)
 end
 
 function SlingService:_stepMovement()
@@ -237,7 +239,7 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		return
 	end
 
-	local velocity = direction.Unit * Config.MoveSpeed
+	local velocity = direction.Unit * math.max(state.MoveSpeed or Config.MoveSpeed, 0)
 	linearVelocity.VectorVelocity = velocity
 	linearVelocity.Enabled = true
 	if state.MovementState ~= MOVEMENT_STATE.Moving then
@@ -253,7 +255,7 @@ function SlingService:_stepMovementStates()
 			local horizontal = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude
 			if state.MovementState == MOVEMENT_STATE.Launched and horizontal <= BalanceConfig.VelocityStopThreshold then
 				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Recovering)
-				self._releaseCooldown[player] = math.max(self._releaseCooldown[player] or 0, os.clock() + (SlingshotConfig.RECOVER_TIME or 0.35))
+				self._releaseCooldown[player] = math.max(self._releaseCooldown[player] or 0, os.clock() + (SlingshotConfig.RECOVER_TIME or 3))
 			elseif state.MovementState == MOVEMENT_STATE.Recovering and os.clock() >= (self._releaseCooldown[player] or 0) then
 				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
 			end
