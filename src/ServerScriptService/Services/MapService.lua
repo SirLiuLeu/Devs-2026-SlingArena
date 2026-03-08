@@ -5,11 +5,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 
-local Config = require(ReplicatedStorage.Shared.Config.Config)
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local DEFAULT_MAP_DURATION = 120
+local DEFAULT_FOOD_GRID_CELL_SIZE = 24
+local DEFAULT_FOOD_RESPAWN_DELAY = 1.5
 
 local MapService = {}
 MapService.__index = MapService
@@ -29,6 +30,7 @@ function MapService.new(context)
 	self._sizeRestrictedCorridors = {}
 	self._lobbyTouchedDebounce = {}
 	self._foodTouchedDebounce = {}
+	self._foodSpawnByInstance = {}
 	self._customTrapDebounce = {}
 	self._antiGiantZones = {}
 	self._safeSpawnZones = {}
@@ -36,6 +38,54 @@ function MapService.new(context)
 	self._teleportRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.TeleportRequest) :: RemoteEvent
 	self._debugSpawnFoodRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.DebugSpawnFood) :: RemoteEvent
 	return self
+end
+
+
+local function getFoodGridCellSize(): number
+	local configuredCellSize = BalanceConfig.FoodGridCellSize
+	if type(configuredCellSize) ~= "number" or configuredCellSize <= 0 then
+		return DEFAULT_FOOD_GRID_CELL_SIZE
+	end
+	return configuredCellSize
+end
+
+local function getFoodRespawnDelay(): number
+	local configuredRespawnDelay = BalanceConfig.FoodRespawnDelay
+	if type(configuredRespawnDelay) ~= "number" or configuredRespawnDelay < 0 then
+		return DEFAULT_FOOD_RESPAWN_DELAY
+	end
+	return configuredRespawnDelay
+end
+
+local function getFoodSpawnCountPerMap(): number
+	local configuredCount = BalanceConfig.FoodSpawnCountPerMap
+	if type(configuredCount) ~= "number" or configuredCount <= 0 then
+		return 8
+	end
+	return math.floor(configuredCount)
+end
+
+function MapService.BuildGridCellPositions(boundsCFrame: CFrame, boundsSize: Vector3, cellSize: number): { Vector3 }
+	local positions = {}
+	if cellSize <= 0 then
+		return positions
+	end
+
+	local xCellCount = math.max(1, math.floor(boundsSize.X / cellSize))
+	local zCellCount = math.max(1, math.floor(boundsSize.Z / cellSize))
+	local xStart = -boundsSize.X * 0.5 + (boundsSize.X / xCellCount) * 0.5
+	local zStart = -boundsSize.Z * 0.5 + (boundsSize.Z / zCellCount) * 0.5
+
+	for xIndex = 1, xCellCount do
+		for zIndex = 1, zCellCount do
+			local localX = xStart + (xIndex - 1) * (boundsSize.X / xCellCount)
+			local localZ = zStart + (zIndex - 1) * (boundsSize.Z / zCellCount)
+			local localPosition = Vector3.new(localX, 0, localZ)
+			table.insert(positions, boundsCFrame:PointToWorldSpace(localPosition))
+		end
+	end
+
+	return positions
 end
 
 local function getStudioMapsRoot(): Folder?
@@ -292,6 +342,117 @@ local function listSpawnAnchors(container: Instance?, expectedName: string): { B
 	return anchors
 end
 
+local function pickEvenGridCells(cells: { any }, requestedCount: number): { any }
+	if #cells == 0 or requestedCount <= 0 then
+		return {}
+	end
+
+	if requestedCount >= #cells then
+		return cells
+	end
+
+	local selected = {}
+	local step = #cells / requestedCount
+	for i = 1, requestedCount do
+		local sourceIndex = math.floor((i - 1) * step) + 1
+		table.insert(selected, cells[sourceIndex])
+	end
+
+	return selected
+end
+
+function MapService:_resolveFoodFloorPosition(mapModel: Model, wantedPosition: Vector3, halfHeight: number): Vector3
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Include
+	raycastParams.FilterDescendantsInstances = { mapModel }
+
+	local rayOrigin = wantedPosition + Vector3.new(0, 128, 0)
+	local rayDirection = Vector3.new(0, -512, 0)
+	local result = Workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+	if result then
+		return Vector3.new(wantedPosition.X, result.Position.Y + halfHeight, wantedPosition.Z)
+	end
+
+	local fallbackY = mapModel:GetPivot().Position.Y + halfHeight
+	return Vector3.new(wantedPosition.X, fallbackY, wantedPosition.Z)
+end
+
+function MapService:_buildFoodCells(mapModel: Model, requestedCount: number): { any }
+	local spawnAnchors = listSpawnAnchors(mapModel:FindFirstChild("FoodSpawns"), "FoodSpawn")
+	local cells = {}
+
+	if #spawnAnchors > 0 then
+		table.sort(spawnAnchors, function(a: BasePart, b: BasePart)
+			return a.Name < b.Name
+		end)
+		for index, anchor in ipairs(spawnAnchors) do
+			table.insert(cells, {
+				CellKey = string.format("Anchor:%d", index),
+				Position = anchor.Position,
+			})
+		end
+		return pickEvenGridCells(cells, requestedCount)
+	end
+
+	local bounds = mapModel:FindFirstChild("ArenaBounds") or mapModel:FindFirstChild("Bounds")
+	if not bounds or not bounds:IsA("BasePart") then
+		local center = mapModel:GetPivot().Position
+		return {
+			{
+				CellKey = "Fallback:1",
+				Position = center,
+			},
+		}
+	end
+
+	local cellSize = getFoodGridCellSize()
+	local gridPositions = MapService.BuildGridCellPositions(bounds.CFrame, bounds.Size, cellSize)
+	for index, position in ipairs(gridPositions) do
+		table.insert(cells, {
+			CellKey = string.format("Grid:%d", index),
+			Position = position,
+		})
+	end
+
+	return pickEvenGridCells(cells, requestedCount)
+end
+
+function MapService:_spawnFoodInCell(mapModel: Model, foodContainer: Folder, template: Model, cell: any, foodName: string)
+	local clone = template:Clone()
+	clone.Name = foodName
+	clone:SetAttribute("SpawnedByServer", true)
+	clone.Parent = foodContainer
+
+	local root = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
+	if not root then
+		return
+	end
+
+	clone.PrimaryPart = root
+	local alignedPosition = self:_resolveFoodFloorPosition(mapModel, cell.Position, root.Size.Y * 0.5)
+	clone:PivotTo(CFrame.new(alignedPosition))
+
+	self._foodSpawnByInstance[clone] = {
+		MapModel = mapModel,
+		FoodContainer = foodContainer,
+		Template = template,
+		Cell = cell,
+	}
+
+	root.Touched:Connect(function(hit)
+		self:_onFoodTouched(clone, hit)
+	end)
+end
+
+function MapService:_spawnFoodGridForMap(mapModel: Model, foodContainer: Folder, foodTemplates: { Model }, requestedCount: number)
+	local cells = self:_buildFoodCells(mapModel, requestedCount)
+
+	for i, cell in ipairs(cells) do
+		local template = foodTemplates[((i - 1) % #foodTemplates) + 1]
+		self:_spawnFoodInCell(mapModel, foodContainer, template, cell, `{template.Name}_Food_{i}`)
+	end
+end
+
 function MapService:_hookLobbyGates()
 	local lobby = self._mapRoot and self._mapRoot:FindFirstChild("LobbyMap")
 	if not lobby then return end
@@ -482,8 +643,9 @@ function MapService:GetExitZones()
 end
 
 function MapService:_spawnMapFoodAndTraps(mapName: string)
+	local foodCount = getFoodSpawnCountPerMap()
 	if mapName == "ArenaMap" then
-		self:SpawnFood(8)
+		self:SpawnFood(foodCount)
 		self:SpawnTrap(4)
 	end
 
@@ -498,7 +660,7 @@ function MapService:_spawnMapFoodAndTraps(mapName: string)
 		return
 	end
 	self:ClearMapFood(mapModel)
-	self:SpawnFoodForMap(mapModel, 8)
+	self:SpawnFoodForMap(mapModel, foodCount)
 	self:SpawnTrapForMap(mapModel, 4)
 end
 
@@ -516,24 +678,12 @@ function MapService:SpawnFood(count: number?)
 	local foodFolder = ensureFolder(arena, "Food")
 	for _, child in ipairs(foodFolder:GetChildren()) do
 		if child:GetAttribute("SpawnedByServer") == true then
+			self._foodSpawnByInstance[child] = nil
 			child:Destroy()
 		end
 	end
 
-	for i = 1, (count or 8) do
-		local clone = template:Clone()
-		clone.Name = `Food_{i}`
-		clone:SetAttribute("SpawnedByServer", true)
-		clone.Parent = foodFolder
-		local root = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
-		if root then
-			clone.PrimaryPart = root
-			clone:PivotTo(CFrame.new(self:GetRandomArenaPoint()))
-			root.Touched:Connect(function(hit)
-				self:_onFoodTouched(clone, hit)
-			end)
-		end
-	end
+	self:_spawnFoodGridForMap(arena :: Model, foodFolder, { template }, count or 8)
 end
 
 function MapService:SpawnTrap(count: number?)
@@ -577,6 +727,7 @@ function MapService:ClearMapFood(mapModel: Model)
 	end
 	for _, child in ipairs(foodContainer:GetChildren()) do
 		if child:GetAttribute("SpawnedByServer") == true then
+			self._foodSpawnByInstance[child] = nil
 			child:Destroy()
 		end
 	end
@@ -610,31 +761,7 @@ function MapService:SpawnFoodForMap(mapModel: Model, count: number)
 		return
 	end
 
-	local spawnAnchors = listSpawnAnchors(mapModel:FindFirstChild("FoodSpawns"), "FoodSpawn")
-
-	for i = 1, count do
-		local template = foodTemplates[((i - 1) % #foodTemplates) + 1]
-		local clone = template:Clone()
-		clone:SetAttribute("SpawnedByServer", true)
-		clone.Name = `{template.Name}_Food_{i}`
-		clone.Parent = foodContainer
-		print(string.format("[FoodService] Cloned food: %s -> %s", clone.Name, foodContainer:GetFullName()))
-		local root = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
-		if root then
-			clone.PrimaryPart = root
-			if #spawnAnchors > 0 then
-				local anchor = spawnAnchors[((i - 1) % #spawnAnchors) + 1]
-				clone:PivotTo(anchor.CFrame)
-			else
-				local px = math.random(-50, 50)
-				local pz = math.random(-50, 50)
-				clone:PivotTo(mapModel:GetPivot() * CFrame.new(px, 4, pz))
-			end
-			root.Touched:Connect(function(hit)
-				self:_onFoodTouched(clone, hit)
-			end)
-		end
-	end
+	self:_spawnFoodGridForMap(mapModel, foodContainer, foodTemplates, count)
 end
 
 function MapService:SpawnTrapForMap(mapModel: Model, count: number)
@@ -693,7 +820,28 @@ function MapService:_onFoodTouched(food: Model, hit: BasePart)
 	end
 	self._foodTouchedDebounce[player] = true
 	food:SetAttribute("Consumed", true)
+	local spawnInfo = self._foodSpawnByInstance[food]
+	self._foodSpawnByInstance[food] = nil
 	food:Destroy()
+
+	if spawnInfo then
+		task.delay(getFoodRespawnDelay(), function()
+			if not spawnInfo.MapModel.Parent then
+				return
+			end
+			if not spawnInfo.FoodContainer.Parent then
+				return
+			end
+			self:_spawnFoodInCell(
+				spawnInfo.MapModel,
+				spawnInfo.FoodContainer,
+				spawnInfo.Template,
+				spawnInfo.Cell,
+				string.format("%s_Food_%s", spawnInfo.Template.Name, spawnInfo.Cell.CellKey)
+			)
+		end)
+	end
+
 	self._context.EventBus:Fire("CollisionDetected", "Food", player, food, {})
 	self._context.EventBus:Fire("FoodConsumed", player, BalanceConfig.FoodExp)
 	self._context.Services.PlayerStateService:Heal(player, BalanceConfig.FoodHealth)

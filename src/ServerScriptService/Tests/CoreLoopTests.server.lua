@@ -134,6 +134,35 @@ local function testExpLevelUpThreshold()
 	end
 end
 
+
+local function testFoodGridCellBuilderEvenCoverage()
+	local boundsCFrame = CFrame.new(0, 0, 0)
+	local boundsSize = Vector3.new(48, 10, 48)
+	local cells = MapServiceModule.BuildGridCellPositions(boundsCFrame, boundsSize, 24)
+	if #cells ~= 4 then
+		error(string.format("Expected 4 grid cells for 48x48 with size 24, got %d", #cells))
+	end
+	local hasNegativeX = false
+	local hasPositiveX = false
+	local hasNegativeZ = false
+	local hasPositiveZ = false
+	for _, cell in ipairs(cells) do
+		if cell.X < 0 then
+			hasNegativeX = true
+		else
+			hasPositiveX = true
+		end
+		if cell.Z < 0 then
+			hasNegativeZ = true
+		else
+			hasPositiveZ = true
+		end
+	end
+	if not (hasNegativeX and hasPositiveX and hasNegativeZ and hasPositiveZ) then
+		error("Grid cells must cover both sides of map axes for even distribution")
+	end
+end
+
 local function testSelfDamageClampOnMaxCharge()
 	local maxSelfHp = 100
 	local impactDamage = 200
@@ -147,6 +176,7 @@ runTest("CollisionTriggersDamageFormula", testCollisionTriggersDamageFormula)
 runTest("KnockbackDirectionForSmallerAttacker", testKnockbackDirectionForSmallerAttacker)
 runTest("ExpLevelUpThreshold", testExpLevelUpThreshold)
 runTest("SelfDamageClampOnMaxCharge", testSelfDamageClampOnMaxCharge)
+runTest("FoodGridCellBuilderEvenCoverage", testFoodGridCellBuilderEvenCoverage)
 runTest("MapLoading_ArenaSpawnAndPrefabApisExist", testArenaSpawnAndPrefabApisExist)
 runTest("TeleportLogic_JoinLeaveFlow", testTeleportPlayerJoinLeaveFlow)
 
