@@ -128,8 +128,12 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	local pawn = template:Clone()
 	pawn.Name = player.Name
 	local index = spawnIndex or (player.UserId % 8) + 1
-	local spawnPosition = self._context.Services.MapService:GetSpawnPoint(index, mapName)
-	pawn:PivotTo(CFrame.new(spawnPosition, spawnPosition + Vector3.new(0, 0, -1)))
+	local mapService = self._context.Services.MapService
+	local spawnCFrame = CFrame.new(mapService:GetSpawnPoint(index, mapName))
+	if type(mapService.GetSpawnCFrame) == "function" then
+		spawnCFrame = mapService:GetSpawnCFrame(index, mapName)
+	end
+	pawn:PivotTo(spawnCFrame)
 	pawn.Parent = self._pawnsFolder
 	pawn:SetAttribute("ScaleValue", Config.SlingScale)
 	for _, descendant in pawn:GetDescendants() do

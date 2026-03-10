@@ -234,18 +234,60 @@ function MapService:GetArenaModel(): Instance?
 	return nil
 end
 
-function MapService:GetArenaSpawn(): BasePart?
-	local arena = self:GetArenaModel()
-	if not arena then
-		return nil
+local function cacheMapPartDefaults(mapModel: Model)
+	for _, descendant in ipairs(mapModel:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			if descendant:GetAttribute("DefaultTransparency") == nil then
+				descendant:SetAttribute("DefaultTransparency", descendant.Transparency)
+			end
+			if descendant:GetAttribute("DefaultCanCollide") == nil then
+				descendant:SetAttribute("DefaultCanCollide", descendant.CanCollide)
+			end
+			if descendant:GetAttribute("DefaultCanTouch") == nil then
+				descendant:SetAttribute("DefaultCanTouch", descendant.CanTouch)
+			end
+		end
+	end
+end
+
+local function findSpawnPartsInMap(mapModel: Model): { BasePart }
+	local points = {}
+	local spawnFolder = mapModel:FindFirstChild("SpawnPoints")
+	if spawnFolder and spawnFolder:IsA("Folder") then
+		for _, descendant in ipairs(spawnFolder:GetDescendants()) do
+			if descendant:IsA("BasePart") then
+				table.insert(points, descendant)
+			end
+		end
+		if #points > 0 then
+			return points
+		end
 	end
 
-	local points = {}
-	for _, descendant in ipairs(arena:GetDescendants()) do
-		if descendant:IsA("BasePart") and descendant.Name == "SpawnPoint" then
+	for _, descendant in ipairs(mapModel:GetDescendants()) do
+		if descendant:IsA("BasePart") and string.find(descendant.Name, "SpawnPoint", 1, true) then
 			table.insert(points, descendant)
 		end
 	end
+	return points
+end
+
+function MapService:GetArenaSpawn(mapName: string?): BasePart?
+	local arena: Instance? = nil
+	if mapName and self._mapRoot then
+		arena = self._mapRoot:FindFirstChild(mapName)
+	end
+	if not arena then
+		arena = self:GetArenaModel()
+	end
+	if not arena then
+		return nil
+	end
+	if not arena:IsA("Model") then
+		return nil
+	end
+
+	local points = findSpawnPartsInMap(arena)
 
 	if #points == 0 then
 		return nil
@@ -287,16 +329,16 @@ function MapService:GetLobbySpawn(): BasePart?
 	return nil
 end
 
-function MapService:_getArenaSpawnPosition(): Vector3
-	local spawn = self:GetArenaSpawn()
+function MapService:_getArenaSpawnPosition(mapName: string?): Vector3
+	local spawn = self:GetArenaSpawn(mapName)
 	if spawn then
-		return spawn.Position + Vector3.new(0, 4, 0)
+		return spawn.Position
 	end
 	return Vector3.new(0, 8, 0)
 end
 
-function MapService:_getArenaSpawnCFrame(): CFrame
-	local spawn = self:GetArenaSpawn()
+function MapService:_getArenaSpawnCFrame(mapName: string?): CFrame
+	local spawn = self:GetArenaSpawn(mapName)
 	if spawn then
 		return spawn.CFrame
 	end
@@ -592,12 +634,12 @@ function MapService:ActivateMap(mapName: string)
 	if self._mapRoot then
 		for _, child in ipairs(self._mapRoot:GetChildren()) do
 			if child:IsA("Model") then
-				local enabled = child.Name == mapName
+				cacheMapPartDefaults(child)
 				for _, descendant in ipairs(child:GetDescendants()) do
 					if descendant:IsA("BasePart") then
-						descendant.Transparency = enabled and (descendant:GetAttribute("DefaultTransparency") or descendant.Transparency) or 1
-						descendant.CanCollide = enabled
-						descendant.CanTouch = enabled
+						descendant.Transparency = (descendant:GetAttribute("DefaultTransparency") :: number?) or descendant.Transparency
+						descendant.CanCollide = (descendant:GetAttribute("DefaultCanCollide") :: boolean?) ~= false
+						descendant.CanTouch = (descendant:GetAttribute("DefaultCanTouch") :: boolean?) ~= false
 					end
 				end
 			end
@@ -661,15 +703,7 @@ function MapService:Generate()
 	end
 end
 
-local function listSpawnPoints(mapModel: Model): { BasePart }
-	local points = {}
-	for _, descendant in ipairs(mapModel:GetDescendants()) do
-		if descendant:IsA("BasePart") and descendant.Name == "SpawnPoint" then
-			table.insert(points, descendant)
-		end
-	end
-	return points
-end
+local listSpawnPoints = findSpawnPartsInMap
 
 function MapService:_getSpawnPointsForMap(mapName: string): { BasePart }
 	if self._mapRoot then
@@ -733,7 +767,14 @@ end
 
 function MapService:GetSpawnPoint(index: number, mapName: string?): Vector3
 	if isArenaMapName(mapName) then
-		return self:_getArenaSpawnPosition()
+		return self:_getArenaSpawnPosition(mapName)
+	end
+	return self:GetSpawnCFrame(index, mapName).Position
+end
+
+function MapService:GetSpawnCFrame(index: number, mapName: string?): CFrame
+	if isArenaMapName(mapName) then
+		return self:_getArenaSpawnCFrame(mapName)
 	end
 	local points = self._spawnPoints
 	if mapName and mapName ~= self._activeMap then
@@ -741,11 +782,11 @@ function MapService:GetSpawnPoint(index: number, mapName: string?): Vector3
 	end
 	if #points == 0 then
 		warn(string.format("[MapService] Spawn point detection failed: no SpawnPoint found for map=%s activeMap=%s", tostring(mapName), tostring(self._activeMap)))
-		return Vector3.new(0, 8, 0)
+		return CFrame.new(0, 8, 0)
 	end
 	local clampedIndex = ((index - 1) % #points) + 1
 	print(string.format("[MapService] Spawn found: %s (index %d/%d)", points[clampedIndex].Name, clampedIndex, #points))
-	return points[clampedIndex].Position + Vector3.new(0, 4, 0)
+	return points[clampedIndex].CFrame
 end
 
 function MapService:GetGates()

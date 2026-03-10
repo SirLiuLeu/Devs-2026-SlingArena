@@ -216,6 +216,90 @@ local function testFoodZonePoolsFollowDesignRules()
 	end
 end
 
+local function testArenaSpawnLookupUsesRequestedMap()
+	local mapsFolder = Instance.new("Folder")
+	mapsFolder.Name = "Maps"
+	mapsFolder.Parent = workspace
+
+	local function createArena(name: string, markerPosition: Vector3): Model
+		local arena = Instance.new("Model")
+		arena.Name = name
+		arena.Parent = mapsFolder
+		local spawnFolder = Instance.new("Folder")
+		spawnFolder.Name = "SpawnPoints"
+		spawnFolder.Parent = arena
+		local spawn = Instance.new("Part")
+		spawn.Name = "SpawnPoint_Main"
+		spawn.Position = markerPosition
+		spawn.Parent = spawnFolder
+		return arena
+	end
+
+	createArena("Arena_01", Vector3.new(10, 4, 10))
+	createArena("Arena_02", Vector3.new(120, 4, 120))
+
+	local service = MapServiceModule.new({
+		Remotes = Instance.new("Folder"),
+		Services = {},
+		EventBus = { Fire = function() end },
+	})
+	service._mapRoot = mapsFolder
+
+	local spawn = service:GetArenaSpawn("Arena_02")
+	if not spawn then
+		mapsFolder:Destroy()
+		error("Expected arena spawn for Arena_02")
+	end
+	if not spawn:IsDescendantOf(mapsFolder:FindFirstChild("Arena_02") :: Model) then
+		mapsFolder:Destroy()
+		error("GetArenaSpawn(mapName) must use the requested map")
+	end
+
+	mapsFolder:Destroy()
+end
+
+local function testActivateMapDoesNotHideInactiveMaps()
+	local mapsFolder = Instance.new("Folder")
+	mapsFolder.Name = "Maps"
+	mapsFolder.Parent = workspace
+
+	local function createMap(name: string, transparency: number): Part
+		local map = Instance.new("Model")
+		map.Name = name
+		map.Parent = mapsFolder
+		local part = Instance.new("Part")
+		part.Name = "Ground"
+		part.Transparency = transparency
+		part.CanCollide = true
+		part.Parent = map
+		return part
+	end
+
+	local lobbyPart = createMap("LobbyMap", 0.1)
+	local arenaPart = createMap("Arena_01", 0.2)
+
+	local service = MapServiceModule.new({
+		Remotes = Instance.new("Folder"),
+		Services = {},
+		EventBus = { Fire = function() end },
+	})
+	service._mapRoot = mapsFolder
+
+	service:ActivateMap("LobbyMap")
+	service:ActivateMap("Arena_01")
+
+	if math.abs(lobbyPart.Transparency - 0.1) > 0.001 then
+		mapsFolder:Destroy()
+		error("Lobby map part transparency should stay at its authored value")
+	end
+	if math.abs(arenaPart.Transparency - 0.2) > 0.001 then
+		mapsFolder:Destroy()
+		error("Arena map part transparency should stay at its authored value")
+	end
+
+	mapsFolder:Destroy()
+end
+
 runTest("ChargeToLaunchForce", testChargeToLaunchForce)
 runTest("CollisionTriggersDamageFormula", testCollisionTriggersDamageFormula)
 runTest("KnockbackDirectionForSmallerAttacker", testKnockbackDirectionForSmallerAttacker)
@@ -226,5 +310,7 @@ runTest("FoodZonePoolsFollowDesignRules", testFoodZonePoolsFollowDesignRules)
 runTest("MapLoader_UsesWorkspaceMapsRoot", testMapLoaderUsesWorkspaceMapsRoot)
 runTest("MapLoading_ArenaSpawnAndPrefabApisExist", testArenaSpawnAndPrefabApisExist)
 runTest("TeleportLogic_JoinLeaveFlow", testTeleportPlayerJoinLeaveFlow)
+runTest("MapSpawn_UsesRequestedArenaMap", testArenaSpawnLookupUsesRequestedMap)
+runTest("MapActivation_DoesNotHideInactiveMaps", testActivateMapDoesNotHideInactiveMaps)
 
 print("[CoreLoopTests] all checks passed")

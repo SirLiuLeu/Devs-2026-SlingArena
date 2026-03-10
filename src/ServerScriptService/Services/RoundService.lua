@@ -115,7 +115,7 @@ function RoundService:JoinArena(player: Player)
 		pawn = self._context.Services.PlayerService:SpawnPawn(player, nil, arenaMapName)
 	end
 
-	local arenaSpawn = self._context.Services.MapService:GetArenaSpawn()
+	local arenaSpawn = self._context.Services.MapService:GetArenaSpawn(arenaMapName)
 	if arenaSpawn then
 		print(string.format("[MapService] Spawn found: %s", arenaSpawn:GetFullName()))
 		print(string.format("[MapService] Teleporting player: %s", player.Name))
@@ -247,7 +247,7 @@ function RoundService:_resetPlayersForRound()
 		if player.Parent == Players then
 			self._context.Services.PlayerStateService:ResetForNewRound(player)
 			self._context.Services.PlayerService:SpawnPawn(player, i, self:_getTargetArenaMapName())
-			local arenaSpawn = self._context.Services.MapService:GetArenaSpawn()
+			local arenaSpawn = self._context.Services.MapService:GetArenaSpawn(self:_getTargetArenaMapName())
 			if arenaSpawn then
 				print(string.format("[MapService] Spawn found: %s", arenaSpawn:GetFullName()))
 				print(string.format("[MapService] Teleporting player: %s", player.Name))
