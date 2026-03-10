@@ -25,6 +25,7 @@ function RoundService.new(context)
 	self._roundId = 0
 	self._mapEndTime = 0
 	self._participants = {}
+	self._currentArenaMapName = nil
 	self._matchStateRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.MatchStateUpdate) :: RemoteEvent
 	self._roundResultRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.RoundResult) :: RemoteEvent
 	self._uiStateRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.UIStateUpdate) :: RemoteEvent
@@ -82,16 +83,36 @@ function RoundService:GetState()
 	return self._state
 end
 
+
+function RoundService:_getTargetArenaMapName(): string
+	if self._currentArenaMapName then
+		return self._currentArenaMapName
+	end
+	local mapService = self._context.Services.MapService
+	local activeMap = mapService:GetActiveMap()
+	if type(activeMap) == "string" and string.find(activeMap, "Arena", 1, true) then
+		self._currentArenaMapName = activeMap
+		return activeMap
+	end
+	if type(mapService.GetDefaultArenaMapName) == "function" then
+		self._currentArenaMapName = mapService:GetDefaultArenaMapName()
+		return self._currentArenaMapName
+	end
+	self._currentArenaMapName = "ArenaMap"
+	return self._currentArenaMapName
+end
+
 function RoundService:JoinArena(player: Player)
 	print(string.format("[MapService] JoinArena requested by %s", player.Name))
 	self._participants[player] = true
-	if self._context.Services.MapService:GetActiveMap() ~= "ArenaMap" and self._state == STATES.Lobby then
-		self._context.Services.MapService:ActivateMap("ArenaMap")
+	local arenaMapName = self:_getTargetArenaMapName()
+	if self._context.Services.MapService:GetActiveMap() ~= arenaMapName and self._state == STATES.Lobby then
+		self._context.Services.MapService:ActivateMap(arenaMapName)
 	end
 
 	local pawn = self._context.Services.PlayerService:GetPawn(player)
 	if not pawn then
-		pawn = self._context.Services.PlayerService:SpawnPawn(player, nil, "ArenaMap")
+		pawn = self._context.Services.PlayerService:SpawnPawn(player, nil, arenaMapName)
 	end
 
 	local arenaSpawn = self._context.Services.MapService:GetArenaSpawn()
@@ -106,7 +127,7 @@ function RoundService:JoinArena(player: Player)
 		warn(string.format("[MapService] Spawn point detection failed for JoinArena player=%s", player.Name))
 	end
 
-	self._context.Services.PlayerStateService:SetMapName(player, "ArenaMap")
+	self._context.Services.PlayerStateService:SetMapName(player, arenaMapName)
 	self._context.Services.PlayerStateService:SetArenaStatus(player, "InArena")
 	self._context.Services.PlayerStateService:SetTeleporting(player, false)
 	self:_publishUiState()
@@ -122,6 +143,7 @@ function RoundService:LeaveArena(player: Player)
 	self._participants[player] = nil
 	if self:_participantCount() == 0 then
 		self._context.Services.MapService:ActivateMap("LobbyMap")
+		self._currentArenaMapName = nil
 	end
 
 	local lobbySpawn = self._context.Services.MapService:GetLobbySpawn()
@@ -160,6 +182,7 @@ end
 function RoundService:RunRound()
 	if self:_participantCount() <= 0 then
 		self._context.Services.MapService:ActivateMap("LobbyMap")
+		self._currentArenaMapName = nil
 		self:SetState(STATES.Lobby)
 		self:_publishUiState()
 		return
@@ -172,7 +195,7 @@ function RoundService:RunRound()
 
 	self._roundId += 1
 	self:SetState(STATES.PreRound)
-	self._context.Services.MapService:ActivateMap("ArenaMap")
+	self._context.Services.MapService:ActivateMap(self:_getTargetArenaMapName())
 	self:_resetPlayersForRound()
 	self:SetState(STATES.Countdown)
 	task.wait(2)
@@ -187,6 +210,7 @@ function RoundService:RunRound()
 
 	self:SetState(STATES.PostRound)
 	self._context.Services.MapService:ActivateMap("LobbyMap")
+	self._currentArenaMapName = nil
 	for player in pairs(self._participants) do
 		if player.Parent == Players then
 			self._context.Services.PlayerService:SpawnPawn(player, 1, "LobbyMap")
@@ -199,7 +223,7 @@ function RoundService:_ensureParticipantsHavePawns(): boolean
 		if player.Parent == Players then
 			local pawn = self._context.Services.PlayerService:GetPawn(player)
 			if not pawn then
-				pawn = self._context.Services.PlayerService:SpawnPawn(player, nil, "ArenaMap")
+				pawn = self._context.Services.PlayerService:SpawnPawn(player, nil, self:_getTargetArenaMapName())
 			end
 			if not pawn then
 				return false
@@ -222,7 +246,7 @@ function RoundService:_resetPlayersForRound()
 	for player in pairs(self._participants) do
 		if player.Parent == Players then
 			self._context.Services.PlayerStateService:ResetForNewRound(player)
-			self._context.Services.PlayerService:SpawnPawn(player, i, "ArenaMap")
+			self._context.Services.PlayerService:SpawnPawn(player, i, self:_getTargetArenaMapName())
 			local arenaSpawn = self._context.Services.MapService:GetArenaSpawn()
 			if arenaSpawn then
 				print(string.format("[MapService] Spawn found: %s", arenaSpawn:GetFullName()))

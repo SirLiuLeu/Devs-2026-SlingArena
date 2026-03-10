@@ -12,18 +12,8 @@ Create all playable maps under:
 Required map models:
 
 - `Workspace/Maps/LobbyMap` *(Model)*
-- `Workspace/Maps/ArenaMap` *(Model)*
-- `Workspace/Maps/ForestMap` *(Model)*
-- `Workspace/Maps/DesertMap` *(Model)*
-
-### Legacy/alternative root supported by MapService
-`MapService` can also read maps from:
-
-- `Workspace/MapDefinitions` *(Folder)*
-
-If you use `MapDefinitions`, each map model must still contain `SpawnPoint` parts in descendants.
-
----
+- `Workspace/Maps/Arena_01` *(Model)*
+- `Workspace/Maps/Arena_02` *(Model)*
 
 ## 2) Where food templates must be stored
 
@@ -63,8 +53,8 @@ If you use `MapDefinitions`, each map model must still contain `SpawnPoint` part
 3. `MapService:_spawnMapFoodAndTraps(mapName)` performs spawn operations.
 
 ### Food clone flow
-- Arena map (`ArenaMap`): cloned into `ArenaMap/Food` folder.
-- Other maps: cloned into `[MapModel]/FoodContainer`.
+- Arena maps (`Arena_01`, `Arena_02`, or any map name containing `Arena`): cloned into `[MapModel]/FoodContainer`.
+- Lobby map (`LobbyMap`): no food or trap spawning is executed.
 - Source templates:
   1. `ServerStorage/FoodTemplates/*`
   2. fallback chain listed above.
@@ -73,8 +63,8 @@ If you use `MapDefinitions`, each map model must still contain `SpawnPoint` part
   - Otherwise random map-relative positions are used.
 
 ### Trap clone flow
-- Arena map (`ArenaMap`): cloned into `ArenaMap/Traps` folder.
-- Other maps: cloned into `[MapModel]/TrapContainer`.
+- Arena maps (`Arena_01`, `Arena_02`, or any map name containing `Arena`): cloned into `[MapModel]/TrapContainer`.
+- Lobby map (`LobbyMap`): no trap spawning is executed.
 - Source templates:
   1. `ServerStorage/TrapTemplates/*`
   2. fallback chain listed above.

@@ -55,6 +55,7 @@ local function testTeleportPlayerJoinLeaveFlow()
 					return p
 				end,
 				GetMapDuration = function() return 1 end,
+				GetDefaultArenaMapName = function() return "Arena_01" end,
 			},
 			PlayerService = {
 				GetPawn = function() return {} end,
@@ -81,8 +82,8 @@ local function testTeleportPlayerJoinLeaveFlow()
 	local RoundService = require(ServerScriptService.Services.RoundService)
 	local service = RoundService.new(fakeRoundContext)
 	service:JoinArena(fakePlayer)
-	if not joinTeleported or state.map ~= "ArenaMap" or state.arena ~= "InArena" then
-		error("JoinArena should teleport and set ArenaMap/InArena")
+	if not joinTeleported or state.map ~= "Arena_01" or state.arena ~= "InArena" then
+		error("JoinArena should teleport and set Arena_01/InArena")
 	end
 	service:LeaveArena(fakePlayer)
 	if not leaveTeleported or state.map ~= "LobbyMap" or state.arena ~= "Lobby" then
@@ -171,12 +172,58 @@ local function testSelfDamageClampOnMaxCharge()
 	assertAlmostEqual(selfDamage, 75, 0.0001, "Max-charge self-damage should clamp to 1.5x hp then *0.5")
 end
 
+
+
+local function testMapLoaderUsesWorkspaceMapsRoot()
+	local MapLoader = require(ServerScriptService.Services.MapLoader)
+	local loader = MapLoader.new()
+	if loader:GetMapDuration(123) ~= 123 then
+		error("MapLoader must use direct default map duration without metadata")
+	end
+end
+
+local function testFoodZonePoolsFollowDesignRules()
+	local service = MapServiceModule.new({
+		Remotes = Instance.new("Folder"),
+		Services = {},
+		EventBus = { Fire = function() end },
+	})
+	local edge = service:GetFoodTypePoolForZone("Edge")
+	local middle = service:GetFoodTypePoolForZone("Middle")
+	local center = service:GetFoodTypePoolForZone("Center")
+
+	local function toSet(list)
+		local set = {}
+		for _, value in ipairs(list) do
+			set[value] = true
+		end
+		return set
+	end
+
+	local edgeSet = toSet(edge)
+	if not (edgeSet.Food5 and edgeSet.Food6 and edgeSet.Food7 and #edge == 3) then
+		error("Edge zone must allow only Food5, Food6, Food7")
+	end
+
+	local middleSet = toSet(middle)
+	if not (middleSet.Food2 and middleSet.Food3 and middleSet.Food4 and middleSet.Food5 and middleSet.Food6 and middleSet.Food7 and #middle == 6) then
+		error("Middle zone must allow Food2..Food7")
+	end
+
+	local centerSet = toSet(center)
+	if not (centerSet.Food1 and centerSet.Food2 and centerSet.Food3 and centerSet.Food4 and #center == 4) then
+		error("Center zone must allow Food1..Food4")
+	end
+end
+
 runTest("ChargeToLaunchForce", testChargeToLaunchForce)
 runTest("CollisionTriggersDamageFormula", testCollisionTriggersDamageFormula)
 runTest("KnockbackDirectionForSmallerAttacker", testKnockbackDirectionForSmallerAttacker)
 runTest("ExpLevelUpThreshold", testExpLevelUpThreshold)
 runTest("SelfDamageClampOnMaxCharge", testSelfDamageClampOnMaxCharge)
 runTest("FoodGridCellBuilderEvenCoverage", testFoodGridCellBuilderEvenCoverage)
+runTest("FoodZonePoolsFollowDesignRules", testFoodZonePoolsFollowDesignRules)
+runTest("MapLoader_UsesWorkspaceMapsRoot", testMapLoaderUsesWorkspaceMapsRoot)
 runTest("MapLoading_ArenaSpawnAndPrefabApisExist", testArenaSpawnAndPrefabApisExist)
 runTest("TeleportLogic_JoinLeaveFlow", testTeleportPlayerJoinLeaveFlow)
 

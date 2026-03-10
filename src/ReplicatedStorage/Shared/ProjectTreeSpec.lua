@@ -68,24 +68,25 @@ local ProjectTreeSpec = {
 		--   Maps (Folder)
 		--     LobbyMap (Model)
 		--       SpawnPoints (Folder)
-		--         LobbySpawn (Part)
+		--         SpawnPoint (Part)
 		--       Gate (Part)
-		--       SafeSpawnZone (Part)
-		--     ForestMap / DesertMap (Model)
+		--     Arena_01 (Model)
 		--       SpawnPoints (Folder)
 		--         SpawnPoint_01..N (Part)
 		--       FoodContainer (Folder)
 		--       TrapContainer (Folder)
 		--       FoodSpawns (Folder)
-		--			EdgeZones (Folder)
-		--          	FoodSpawn_01..N (Part)
-		--			MidZones (Folder)
-		--				FoodSpawn_01..N (Part)
-		--			CenterZones (Folder)
-		--				FoodSpawn_01..N (Part)
+		--         EdgeZones (Folder)
+		--           FoodSpawn_01..N (Part)
+		--         MidZones (Folder)
+		--           FoodSpawn_01..N (Part)
+		--         CenterZones (Folder)
+		--           FoodSpawn_01..N (Part)
 		--       TrapSpawns (Folder)
 		--         TrapSpawn_01..N (Part)
 		--       WallContainer (Folder)
+		--     Arena_02 (Model)
+		--       (same structure as Arena_01)
 
 		-- ServerStorage
 		--   FoodTemplates (Folder)
@@ -106,17 +107,12 @@ local ProjectTreeSpec = {
 		--       BasicTrap (Model) [fallback]
 		Workspace = {
 			SlingPawns = "SlingPawns",
-			FoodBlocks = "FoodBlocks",
-			LobbySpawn = "LobbySpawn",
-			Arena = "Arena",
 			Maps = {
 				Root = "Maps",
 				LobbyMap = "Maps.LobbyMap",
-				ArenaMap = "Maps.ArenaMap",
-				ForestMap = "Maps.ForestMap",
-				DesertMap = "Maps.DesertMap",
+				Arena01 = "Maps.Arena_01",
+				Arena02 = "Maps.Arena_02",
 			},
-			MapDefinitions = "MapDefinitions",
 		},
 		ServerStorage = {
 			FoodTemplates = "FoodTemplates",

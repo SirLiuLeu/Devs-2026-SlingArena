@@ -33,6 +33,20 @@ local FOOD_TYPE_STATS = {
 local MapService = {}
 MapService.__index = MapService
 
+local function isLobbyMapName(mapName: string?): boolean
+	return mapName == "LobbyMap" or mapName == "Lobby"
+end
+
+local function isArenaMapName(mapName: string?): boolean
+	if type(mapName) ~= "string" then
+		return false
+	end
+	if isLobbyMapName(mapName) then
+		return false
+	end
+	return string.find(mapName, "Arena", 1, true) ~= nil
+end
+
 function MapService.new(context)
 	local self = setmetatable({}, MapService)
 	self._context = context
@@ -51,9 +65,7 @@ function MapService.new(context)
 	self._foodSpawnByInstance = {}
 	self._foodSpawnStateByCenter = {}
 	self._customTrapDebounce = {}
-	self._antiGiantZones = {}
-	self._safeSpawnZones = {}
-	self._sizeRestrictedCorridors = {}
+	self._activeArenaMapName = nil
 	self._teleportRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.TeleportRequest) :: RemoteEvent
 	self._debugSpawnFoodRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.DebugSpawnFood) :: RemoteEvent
 	return self
@@ -191,24 +203,32 @@ local function ensureFolder(parent: Instance, folderName: string): Folder
 end
 
 function MapService:GetArenaModel(): Instance?
-	local arena = Workspace:FindFirstChild("Arena")
-	if arena then
-		return arena
-	end
-
 	if self._mapRoot then
-		local arenaMap = self._mapRoot:FindFirstChild("ArenaMap")
-		if arenaMap then
-			return arenaMap
+		if self._activeArenaMapName then
+			local arenaMap = self._mapRoot:FindFirstChild(self._activeArenaMapName)
+			if arenaMap then
+				return arenaMap
+			end
+		end
+		for _, child in ipairs(self._mapRoot:GetChildren()) do
+			if child:IsA("Model") and isArenaMapName(child.Name) then
+				return child
+			end
 		end
 	end
 
 	local mapsRoot = getStudioMapsRoot()
 	if mapsRoot then
-		local map = mapsRoot:FindFirstChild("ArenaMap")
-		if map then
-			return map
+		for _, map in ipairs(mapsRoot:GetChildren()) do
+			if map:IsA("Model") and isArenaMapName(map.Name) then
+				return map
+			end
 		end
+	end
+
+	local arena = Workspace:FindFirstChild("Arena")
+	if arena then
+		return arena
 	end
 
 	return nil
@@ -313,9 +333,9 @@ function MapService:GetRandomArenaPoint(): Vector3
 end
 
 function MapService:Init()
-	self._mapRoot = Workspace:FindFirstChild("MapDefinitions")
+	self._mapRoot = getStudioMapsRoot()
 	if not self._mapRoot then
-		warn("Workspace.MapDefinitions folder is missing. Falling back to Workspace.Maps for map assets.")
+		warn("Workspace.Maps folder is missing. MapService requires Workspace.Maps.LobbyMap and arena models.")
 	end
 	if self._teleportRemote then
 		self._teleportRemote.OnServerEvent:Connect(function(player: Player, mapName: string, spawnName: string)
@@ -358,6 +378,15 @@ local function getMapCenter(positionAnchors: { BasePart }, mapModel: Model): Vec
 end
 
 local function getZoneForAnchor(anchor: BasePart, mapCenter: Vector3): string
+	local parentName = anchor.Parent and anchor.Parent.Name or ""
+	if parentName == "EdgeZones" then
+		return "Edge"
+	elseif parentName == "MidZones" or parentName == "MiddleZones" then
+		return "Middle"
+	elseif parentName == "CenterZones" then
+		return "Center"
+	end
+
 	local configuredZone = anchor:GetAttribute("Zone")
 	if type(configuredZone) == "string" and FOOD_ZONE_TYPES[configuredZone] then
 		return configuredZone
@@ -372,6 +401,29 @@ local function getZoneForAnchor(anchor: BasePart, mapCenter: Vector3): string
 		return "Middle"
 	end
 	return "Edge"
+end
+
+function MapService:GetArenaMapNames(): { string }
+	local names = {}
+	local root = self._mapRoot or getStudioMapsRoot()
+	if not root then
+		return names
+	end
+	for _, child in ipairs(root:GetChildren()) do
+		if child:IsA("Model") and isArenaMapName(child.Name) then
+			table.insert(names, child.Name)
+		end
+	end
+	table.sort(names)
+	return names
+end
+
+function MapService:GetDefaultArenaMapName(): string
+	local arenaNames = self:GetArenaMapNames()
+	if #arenaNames > 0 then
+		return arenaNames[math.random(1, #arenaNames)]
+	end
+	return "ArenaMap"
 end
 
 function MapService:_resolveFoodFloorPosition(mapModel: Model, wantedPosition: Vector3, halfHeight: number): Vector3
@@ -390,7 +442,13 @@ function MapService:_resolveFoodFloorPosition(mapModel: Model, wantedPosition: V
 	return Vector3.new(wantedPosition.X, fallbackY, wantedPosition.Z)
 end
 
-local function pickRandomFoodTypeForZone(zoneName: string): string
+function MapService:GetFoodTypePoolForZone(zoneName: string): { string }
+	local allowedTypes = FOOD_ZONE_TYPES[zoneName] or FOOD_ZONE_TYPES.Middle
+	local copy = table.clone(allowedTypes)
+	return copy
+end
+
+function MapService:PickRandomFoodTypeForZone(zoneName: string): string
 	local allowedTypes = FOOD_ZONE_TYPES[zoneName] or FOOD_ZONE_TYPES.Middle
 	return allowedTypes[math.random(1, #allowedTypes)]
 end
@@ -439,7 +497,7 @@ function MapService:_spawnFoodFromCenterState(centerState: any): boolean
 		return false
 	end
 
-	local foodType = pickRandomFoodTypeForZone(centerState.Zone)
+	local foodType = self:PickRandomFoodTypeForZone(centerState.Zone)
 	local template = centerState.TemplatesByName[foodType] or centerState.FallbackTemplate
 	if not template then
 		return false
@@ -546,6 +604,9 @@ function MapService:ActivateMap(mapName: string)
 		end
 	end
 	self._activeMap = mapName
+	if isArenaMapName(mapName) then
+		self._activeArenaMapName = mapName
+	end
 	self:Generate()
 	self:_spawnMapFoodAndTraps(mapName)
 	self:_ensureArenaObstacles()
@@ -671,7 +732,7 @@ function MapService:GetActiveMap(): string?
 end
 
 function MapService:GetSpawnPoint(index: number, mapName: string?): Vector3
-	if mapName == "ArenaMap" then
+	if isArenaMapName(mapName) then
 		return self:_getArenaSpawnPosition()
 	end
 	local points = self._spawnPoints
@@ -700,11 +761,6 @@ function MapService:GetExitZones()
 end
 
 function MapService:_spawnMapFoodAndTraps(mapName: string)
-	if mapName == "ArenaMap" then
-		self:SpawnFood()
-		self:SpawnTrap(4)
-	end
-
 	local mapsRoot = getStudioMapsRoot()
 	if not mapsRoot then
 		-- CREATE MANUALLY IN STUDIO: Workspace.Maps
@@ -716,6 +772,10 @@ function MapService:_spawnMapFoodAndTraps(mapName: string)
 		return
 	end
 	self:ClearMapFood(mapModel)
+	self:ClearMapTraps(mapModel)
+	if not isArenaMapName(mapName) then
+		return
+	end
 	self:SpawnFoodForMap(mapModel)
 	self:SpawnTrapForMap(mapModel, 4)
 end
@@ -725,7 +785,22 @@ function MapService:SpawnFood(_count: number?)
 	if not arena or not arena:IsA("Model") then
 		return
 	end
+	if not isArenaMapName(arena.Name) then
+		return
+	end
 	self:SpawnFoodForMap(arena)
+end
+
+function MapService:ClearMapTraps(mapModel: Model)
+	local trapContainer = mapModel:FindFirstChild("TrapContainer")
+	if not trapContainer or not trapContainer:IsA("Folder") then
+		return
+	end
+	for _, child in ipairs(trapContainer:GetChildren()) do
+		if child:GetAttribute("SpawnedByServer") == true then
+			child:Destroy()
+		end
+	end
 end
 
 function MapService:SpawnTrap(count: number?)
