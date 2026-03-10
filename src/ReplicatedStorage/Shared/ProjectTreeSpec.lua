@@ -65,38 +65,28 @@ local ProjectTreeSpec = {
 	GameplayInstances = {
 		-- [PROJECT_TREE_SPEC]
 		-- Workspace
-		--   SlingPawns (Folder)
 		--   Maps (Folder)
 		--     LobbyMap (Model)
 		--       SpawnPoints (Folder)
 		--         LobbySpawn (Part)
 		--       Gate (Part)
 		--       SafeSpawnZone (Part)
-		--     ArenaMap (Model)
-		--       SpawnPoints (Folder)
-		--         SpawnPoint_01..N (Part)
-		--       Food (Folder)
-		--       Traps (Folder)
-		--       ArenaBounds (Part)
-		--       AntiGiantZone (Part)
-		--       SizeRestrictedCorridor (Part)
 		--     ForestMap / DesertMap (Model)
 		--       SpawnPoints (Folder)
 		--         SpawnPoint_01..N (Part)
 		--       FoodContainer (Folder)
 		--       TrapContainer (Folder)
 		--       FoodSpawns (Folder)
-		--         FoodSpawn_01..N (Part)
+		--			EdgeZones (Folder)
+		--          	FoodSpawn_01..N (Part)
+		--			MidZones (Folder)
+		--				FoodSpawn_01..N (Part)
+		--			CenterZones (Folder)
+		--				FoodSpawn_01..N (Part)
 		--       TrapSpawns (Folder)
 		--         TrapSpawn_01..N (Part)
 		--       WallContainer (Folder)
-		--
-		-- Alternative map root used by legacy flow:
-		-- Workspace
-		--   MapDefinitions (Folder)
-		--     LobbyMap / ArenaMap / ForestMap / DesertMap (Model)
-		--       SpawnPoint (Part descendants)
-		--
+
 		-- ServerStorage
 		--   FoodTemplates (Folder)
 		--     AppleFood (Model)
@@ -111,11 +101,9 @@ local ProjectTreeSpec = {
 		--     SlingModel (Model)
 		--     Food (Folder)
 		--       BasicFood (Model) [fallback]
+		--		 Food1, Food2, Food3, ...Food7 (Model)
 		--     Trap (Folder)
 		--       BasicTrap (Model) [fallback]
-		--   Prefabs (Folder)
-		--     Food (Model) [fallback]
-		--     Trap (Model) [fallback]
 		Workspace = {
 			SlingPawns = "SlingPawns",
 			FoodBlocks = "FoodBlocks",
@@ -125,6 +113,8 @@ local ProjectTreeSpec = {
 				Root = "Maps",
 				LobbyMap = "Maps.LobbyMap",
 				ArenaMap = "Maps.ArenaMap",
+				ForestMap = "Maps.ForestMap",
+				DesertMap = "Maps.DesertMap",
 			},
 			MapDefinitions = "MapDefinitions",
 		},
@@ -135,13 +125,15 @@ local ProjectTreeSpec = {
 		ReplicatedStorage = {
 			Assets = {
 				SlingModel = "Assets.SlingModel",
-				BasicFood = "Assets.Food.BasicFood",
+				Food1 = "Assets.Food.Food1",
+				Food2 = "Assets.Food.Food2",
+				Food3 = "Assets.Food.Food3",
+				Food4 = "Assets.Food.Food4",
+				Food5 = "Assets.Food.Food5",
+				Food6 = "Assets.Food.Food6",
+				Food7 = "Assets.Food.Food7",
 				BasicTrap = "Assets.Trap.BasicTrap",
-			},
-			Prefabs = {
-				Food = "Prefabs.Food",
-				Trap = "Prefabs.Trap",
-			},
+			}
 		},
 	},
 }
