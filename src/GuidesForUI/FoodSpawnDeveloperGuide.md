@@ -1,67 +1,33 @@
-# Food Spawn Developer Guide
+# Food Spawn Placement Guide (Level Designers)
 
-## 1) How food spawn works
+## Required structure
+For each map, place spawn centers at:
 
-Food spawning is **event-driven**:
+- `Workspace/Maps/<MapName>/FoodSpawns/`
+- Each center must be a `BasePart` named **`FoodSpawn`**.
 
-1. Map loads -> server builds a fixed set of spawn cells and spawns one food per selected cell.
-2. Food stays in place until a valid player pawn touches it.
-3. On consume, the food instance is destroyed.
-4. A delayed respawn spawns a replacement **only for that consumed cell**.
+The runtime system uses every `FoodSpawn` as a food center and maintains **5 active foods per center**.
 
-This prevents continuous cloning loops and keeps total food stable.
+## Placement rules
+- Place each `FoodSpawn` part on the ground.
+- Keep at least **15 studs** between `FoodSpawn` parts.
+- Avoid placing `FoodSpawn` parts near walls or map boundaries.
+- Distribute `FoodSpawn` parts evenly across the arena.
 
-## 2) How grid cells are calculated
+## Zone setup (recommended)
+Each `FoodSpawn` can define an attribute:
 
-When `FoodSpawns/FoodSpawn` anchors are not provided, the server generates a grid from map bounds:
+- `Zone = "Center" | "Middle" | "Edge"`
 
-- Uses `ArenaBounds` (or `Bounds`) part of the map.
-- Cell count by axis:
-  - `xCellCount = floor(boundsSize.X / FoodGridCellSize)`
-  - `zCellCount = floor(boundsSize.Z / FoodGridCellSize)`
-  - each axis is clamped to at least 1
-- Cell centers are distributed uniformly across bounds and converted to world positions.
+Allowed food types by zone:
+- Center: `Food1`, `Food2`, `Food3`, `Food4`
+- Middle: `Food2`, `Food3`, `Food4`, `Food5`, `Food6`, `Food7`
+- Edge: `Food5`, `Food6`, `Food7`
 
-If map creators provide `FoodSpawns/FoodSpawn` parts, those anchors are used as cell positions.
+If no `Zone` attribute is provided, the server auto-assigns zone by distance from map center.
 
-## 3) How to configure spawn density
-
-Use `ReplicatedStorage/Shared/Config/BalanceConfig.lua`:
-
-- `FoodSpawnCountPerMap`: target number of spawned food instances per map.
-- `FoodGridCellSize`: smaller value = denser candidate grid.
-- `FoodRespawnDelay`: delay before respawning consumed food.
-
-Notes:
-
-- If `FoodSpawnCountPerMap` is less than available cells, the system picks evenly spaced cells.
-- If it is greater than available cells, all available cells are used.
-
-## 4) How floor alignment works
-
-Food floor placement uses downward raycast:
-
-- Ray origin: spawn position + Y offset.
-- Ray direction: straight downward.
-- Filter: current map model only.
-- Spawn Y = `rayHitY + foodHalfHeight`.
-
-Fallback behavior when raycast misses:
-
-- Spawn Y uses map pivot height + food half-height.
-
-This ensures food rests on floor surfaces instead of floating.
-
-## 5) How map creators should position food spawn zones
-
-Recommended setup per map model:
-
-- `FoodContainer` (Folder): runtime food instances parent here.
-- `FoodSpawns` (Folder) with `FoodSpawn` parts for handcrafted placement (optional but recommended).
-- `ArenaBounds` or `Bounds` (Part): required for automatic grid generation fallback.
-
-Best practices:
-
-- Spread `FoodSpawn` anchors across full playable area.
-- Keep anchors above visible floor so raycast can resolve correct floor height.
-- Avoid placing anchors in blocked geometry or inaccessible regions.
+## Spawn behavior summary
+- Foods spawn randomly around the center within **±5 studs (X/Z)**.
+- Spawn positions are randomized and attempt to avoid overlap.
+- When one food is consumed, only that food respawns after **10 seconds**.
+- Respawns always stay within the same `FoodSpawn` center radius.

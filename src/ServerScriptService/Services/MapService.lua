@@ -9,8 +9,26 @@ local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local DEFAULT_MAP_DURATION = 120
-local DEFAULT_FOOD_GRID_CELL_SIZE = 24
-local DEFAULT_FOOD_RESPAWN_DELAY = 1.5
+local DEFAULT_FOOD_RESPAWN_DELAY = 10
+local FOODS_PER_SPAWN = 5
+local FOOD_SPAWN_RADIUS = 5
+local FOOD_MIN_SEPARATION = 2
+
+local FOOD_ZONE_TYPES = {
+	Edge = { "Food5", "Food6", "Food7" },
+	Middle = { "Food2", "Food3", "Food4", "Food5", "Food6", "Food7" },
+	Center = { "Food1", "Food2", "Food3", "Food4" },
+}
+
+local FOOD_TYPE_STATS = {
+	Food1 = { Exp = 12, HP = 4 },
+	Food2 = { Exp = 18, HP = 6 },
+	Food3 = { Exp = 24, HP = 8 },
+	Food4 = { Exp = 30, HP = 10 },
+	Food5 = { Exp = 36, HP = 12 },
+	Food6 = { Exp = 44, HP = 14 },
+	Food7 = { Exp = 52, HP = 16 },
+}
 
 local MapService = {}
 MapService.__index = MapService
@@ -31,6 +49,7 @@ function MapService.new(context)
 	self._lobbyTouchedDebounce = {}
 	self._foodTouchedDebounce = {}
 	self._foodSpawnByInstance = {}
+	self._foodSpawnStateByCenter = {}
 	self._customTrapDebounce = {}
 	self._antiGiantZones = {}
 	self._safeSpawnZones = {}
@@ -41,28 +60,12 @@ function MapService.new(context)
 end
 
 
-local function getFoodGridCellSize(): number
-	local configuredCellSize = BalanceConfig.FoodGridCellSize
-	if type(configuredCellSize) ~= "number" or configuredCellSize <= 0 then
-		return DEFAULT_FOOD_GRID_CELL_SIZE
-	end
-	return configuredCellSize
-end
-
 local function getFoodRespawnDelay(): number
 	local configuredRespawnDelay = BalanceConfig.FoodRespawnDelay
 	if type(configuredRespawnDelay) ~= "number" or configuredRespawnDelay < 0 then
 		return DEFAULT_FOOD_RESPAWN_DELAY
 	end
 	return configuredRespawnDelay
-end
-
-local function getFoodSpawnCountPerMap(): number
-	local configuredCount = BalanceConfig.FoodSpawnCountPerMap
-	if type(configuredCount) ~= "number" or configuredCount <= 0 then
-		return 8
-	end
-	return math.floor(configuredCount)
 end
 
 function MapService.BuildGridCellPositions(boundsCFrame: CFrame, boundsSize: Vector3, cellSize: number): { Vector3 }
@@ -342,23 +345,33 @@ local function listSpawnAnchors(container: Instance?, expectedName: string): { B
 	return anchors
 end
 
-local function pickEvenGridCells(cells: { any }, requestedCount: number): { any }
-	if #cells == 0 or requestedCount <= 0 then
-		return {}
+local function getMapCenter(positionAnchors: { BasePart }, mapModel: Model): Vector3
+	if #positionAnchors == 0 then
+		return mapModel:GetPivot().Position
 	end
 
-	if requestedCount >= #cells then
-		return cells
+	local sum = Vector3.zero
+	for _, anchor in ipairs(positionAnchors) do
+		sum += anchor.Position
+	end
+	return sum / #positionAnchors
+end
+
+local function getZoneForAnchor(anchor: BasePart, mapCenter: Vector3): string
+	local configuredZone = anchor:GetAttribute("Zone")
+	if type(configuredZone) == "string" and FOOD_ZONE_TYPES[configuredZone] then
+		return configuredZone
 	end
 
-	local selected = {}
-	local step = #cells / requestedCount
-	for i = 1, requestedCount do
-		local sourceIndex = math.floor((i - 1) * step) + 1
-		table.insert(selected, cells[sourceIndex])
+	local offset = anchor.Position - mapCenter
+	local distance = math.sqrt(offset.X * offset.X + offset.Z * offset.Z)
+	if distance <= 40 then
+		return "Center"
 	end
-
-	return selected
+	if distance <= 85 then
+		return "Middle"
+	end
+	return "Edge"
 end
 
 function MapService:_resolveFoodFloorPosition(mapModel: Model, wantedPosition: Vector3, halfHeight: number): Vector3
@@ -377,79 +390,123 @@ function MapService:_resolveFoodFloorPosition(mapModel: Model, wantedPosition: V
 	return Vector3.new(wantedPosition.X, fallbackY, wantedPosition.Z)
 end
 
-function MapService:_buildFoodCells(mapModel: Model, requestedCount: number): { any }
-	local spawnAnchors = listSpawnAnchors(mapModel:FindFirstChild("FoodSpawns"), "FoodSpawn")
-	local cells = {}
-
-	if #spawnAnchors > 0 then
-		table.sort(spawnAnchors, function(a: BasePart, b: BasePart)
-			return a.Name < b.Name
-		end)
-		for index, anchor in ipairs(spawnAnchors) do
-			table.insert(cells, {
-				CellKey = string.format("Anchor:%d", index),
-				Position = anchor.Position,
-			})
-		end
-		return pickEvenGridCells(cells, requestedCount)
-	end
-
-	local bounds = mapModel:FindFirstChild("ArenaBounds") or mapModel:FindFirstChild("Bounds")
-	if not bounds or not bounds:IsA("BasePart") then
-		local center = mapModel:GetPivot().Position
-		return {
-			{
-				CellKey = "Fallback:1",
-				Position = center,
-			},
-		}
-	end
-
-	local cellSize = getFoodGridCellSize()
-	local gridPositions = MapService.BuildGridCellPositions(bounds.CFrame, bounds.Size, cellSize)
-	for index, position in ipairs(gridPositions) do
-		table.insert(cells, {
-			CellKey = string.format("Grid:%d", index),
-			Position = position,
-		})
-	end
-
-	return pickEvenGridCells(cells, requestedCount)
+local function pickRandomFoodTypeForZone(zoneName: string): string
+	local allowedTypes = FOOD_ZONE_TYPES[zoneName] or FOOD_ZONE_TYPES.Middle
+	return allowedTypes[math.random(1, #allowedTypes)]
 end
 
-function MapService:_spawnFoodInCell(mapModel: Model, foodContainer: Folder, template: Model, cell: any, foodName: string)
+function MapService:_buildFoodSpawnCenters(mapModel: Model): { any }
+	local anchors = listSpawnAnchors(mapModel:FindFirstChild("FoodSpawns"), "FoodSpawn")
+	if #anchors == 0 then
+		return {}
+	end
+
+	table.sort(anchors, function(a: BasePart, b: BasePart)
+		return a:GetFullName() < b:GetFullName()
+	end)
+
+	local mapCenter = getMapCenter(anchors, mapModel)
+	local centers = {}
+	for index, anchor in ipairs(anchors) do
+		table.insert(centers, {
+			CenterKey = string.format("%s:%d", mapModel.Name, index),
+			Anchor = anchor,
+			Zone = getZoneForAnchor(anchor, mapCenter),
+		})
+	end
+	return centers
+end
+
+function MapService:_chooseSpawnPosition(mapModel: Model, centerPosition: Vector3, occupied: { Vector3 }): Vector3
+	for _ = 1, 12 do
+		local candidate = centerPosition + Vector3.new(math.random(-FOOD_SPAWN_RADIUS, FOOD_SPAWN_RADIUS), 0, math.random(-FOOD_SPAWN_RADIUS, FOOD_SPAWN_RADIUS))
+		local valid = true
+		for _, pos in ipairs(occupied) do
+			if (Vector3.new(candidate.X, 0, candidate.Z) - Vector3.new(pos.X, 0, pos.Z)).Magnitude < FOOD_MIN_SEPARATION then
+				valid = false
+				break
+			end
+		end
+		if valid then
+			return candidate
+		end
+	end
+	return centerPosition
+end
+
+function MapService:_spawnFoodFromCenterState(centerState: any): boolean
+	if not centerState.MapModel.Parent or not centerState.FoodContainer.Parent then
+		return false
+	end
+
+	local foodType = pickRandomFoodTypeForZone(centerState.Zone)
+	local template = centerState.TemplatesByName[foodType] or centerState.FallbackTemplate
+	if not template then
+		return false
+	end
+
 	local clone = template:Clone()
-	clone.Name = foodName
+	clone.Name = string.format("%s_%s", foodType, centerState.CenterKey)
 	clone:SetAttribute("SpawnedByServer", true)
-	clone.Parent = foodContainer
+	clone:SetAttribute("FoodType", foodType)
+	clone.Parent = centerState.FoodContainer
 
 	local root = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
 	if not root then
-		return
+		clone:Destroy()
+		return false
 	end
 
 	clone.PrimaryPart = root
-	local alignedPosition = self:_resolveFoodFloorPosition(mapModel, cell.Position, root.Size.Y * 0.5)
+	local spawnPosition2D = self:_chooseSpawnPosition(centerState.MapModel, centerState.Anchor.Position, centerState.OccupiedPositions)
+	local alignedPosition = self:_resolveFoodFloorPosition(centerState.MapModel, spawnPosition2D, root.Size.Y * 0.5)
+	table.insert(centerState.OccupiedPositions, alignedPosition)
 	clone:PivotTo(CFrame.new(alignedPosition))
 
 	self._foodSpawnByInstance[clone] = {
-		MapModel = mapModel,
-		FoodContainer = foodContainer,
-		Template = template,
-		Cell = cell,
+		CenterKey = centerState.CenterKey,
+		MapModel = centerState.MapModel,
+		FoodContainer = centerState.FoodContainer,
 	}
 
 	root.Touched:Connect(function(hit)
 		self:_onFoodTouched(clone, hit)
 	end)
+
+	return true
 end
 
-function MapService:_spawnFoodGridForMap(mapModel: Model, foodContainer: Folder, foodTemplates: { Model }, requestedCount: number)
-	local cells = self:_buildFoodCells(mapModel, requestedCount)
+function MapService:_spawnMissingFoodsForCenter(centerState: any)
+	while centerState.ActiveCount < FOODS_PER_SPAWN do
+		local spawned = self:_spawnFoodFromCenterState(centerState)
+		if not spawned then
+			break
+		end
+		centerState.ActiveCount += 1
+	end
+end
 
-	for i, cell in ipairs(cells) do
-		local template = foodTemplates[((i - 1) % #foodTemplates) + 1]
-		self:_spawnFoodInCell(mapModel, foodContainer, template, cell, `{template.Name}_Food_{i}`)
+function MapService:_spawnFoodForCenters(mapModel: Model, foodContainer: Folder, templatesByName: { [string]: Model }, fallbackTemplate: Model?)
+	local centers = self:_buildFoodSpawnCenters(mapModel)
+	if #centers == 0 then
+		warn(string.format("[FoodService] Missing FoodSpawns/FoodSpawn in map: %s", mapModel:GetFullName()))
+		return
+	end
+
+	for _, center in ipairs(centers) do
+		local state = {
+			CenterKey = center.CenterKey,
+			MapModel = mapModel,
+			FoodContainer = foodContainer,
+			Anchor = center.Anchor,
+			Zone = center.Zone,
+			TemplatesByName = templatesByName,
+			FallbackTemplate = fallbackTemplate,
+			ActiveCount = 0,
+			OccupiedPositions = {},
+		}
+		self._foodSpawnStateByCenter[center.CenterKey] = state
+		self:_spawnMissingFoodsForCenter(state)
 	end
 end
 
@@ -643,9 +700,8 @@ function MapService:GetExitZones()
 end
 
 function MapService:_spawnMapFoodAndTraps(mapName: string)
-	local foodCount = getFoodSpawnCountPerMap()
 	if mapName == "ArenaMap" then
-		self:SpawnFood(foodCount)
+		self:SpawnFood()
 		self:SpawnTrap(4)
 	end
 
@@ -660,30 +716,16 @@ function MapService:_spawnMapFoodAndTraps(mapName: string)
 		return
 	end
 	self:ClearMapFood(mapModel)
-	self:SpawnFoodForMap(mapModel, foodCount)
+	self:SpawnFoodForMap(mapModel)
 	self:SpawnTrapForMap(mapModel, 4)
 end
 
-function MapService:SpawnFood(count: number?)
+function MapService:SpawnFood(_count: number?)
 	local arena = self:GetArenaModel()
-	if not arena then
+	if not arena or not arena:IsA("Model") then
 		return
 	end
-
-	local template = getFoodTemplate()
-	if not template then
-		return
-	end
-
-	local foodFolder = ensureFolder(arena, "Food")
-	for _, child in ipairs(foodFolder:GetChildren()) do
-		if child:GetAttribute("SpawnedByServer") == true then
-			self._foodSpawnByInstance[child] = nil
-			child:Destroy()
-		end
-	end
-
-	self:_spawnFoodGridForMap(arena :: Model, foodFolder, { template }, count or 8)
+	self:SpawnFoodForMap(arena)
 end
 
 function MapService:SpawnTrap(count: number?)
@@ -694,7 +736,7 @@ function MapService:SpawnTrap(count: number?)
 
 	local template = getTrapTemplate()
 	if not template then
-		return
+		return false
 	end
 
 	local trapFolder = ensureFolder(arena, "Traps")
@@ -720,6 +762,18 @@ function MapService:SpawnTrap(count: number?)
 end
 
 function MapService:ClearMapFood(mapModel: Model)
+	for instance, info in pairs(self._foodSpawnByInstance) do
+		if info.MapModel == mapModel then
+			self._foodSpawnByInstance[instance] = nil
+		end
+	end
+
+	for centerKey, state in pairs(self._foodSpawnStateByCenter) do
+		if state.MapModel == mapModel then
+			self._foodSpawnStateByCenter[centerKey] = nil
+		end
+	end
+
 	local foodContainer = mapModel:FindFirstChild("FoodContainer")
 	if not foodContainer or not foodContainer:IsA("Folder") then
 		-- CREATE MANUALLY IN STUDIO: Workspace.Maps.[MapName].FoodContainer
@@ -727,13 +781,12 @@ function MapService:ClearMapFood(mapModel: Model)
 	end
 	for _, child in ipairs(foodContainer:GetChildren()) do
 		if child:GetAttribute("SpawnedByServer") == true then
-			self._foodSpawnByInstance[child] = nil
 			child:Destroy()
 		end
 	end
 end
 
-function MapService:SpawnFoodForMap(mapModel: Model, count: number)
+function MapService:SpawnFoodForMap(mapModel: Model, _count: number?)
 	local foodContainer = mapModel:FindFirstChild("FoodContainer")
 	if not foodContainer or not foodContainer:IsA("Folder") then
 		warn(string.format("[FoodService] Missing food container: %s.FoodContainer", mapModel:GetFullName()))
@@ -741,27 +794,24 @@ function MapService:SpawnFoodForMap(mapModel: Model, count: number)
 		return
 	end
 
-	local foodTemplates = {}
+	local templatesByName = {}
 	local serverTemplates = ServerStorage:FindFirstChild("FoodTemplates")
 	if serverTemplates and serverTemplates:IsA("Folder") then
 		for _, item in ipairs(serverTemplates:GetChildren()) do
 			if item:IsA("Model") then
-				table.insert(foodTemplates, item)
-				print(string.format("[FoodService] Found template: %s", item:GetFullName()))
+				templatesByName[item.Name] = item
 			end
 		end
 	end
+
 	local fallbackTemplate = getFoodTemplate()
-	if #foodTemplates == 0 and fallbackTemplate then
-		table.insert(foodTemplates, fallbackTemplate)
-	end
-	if #foodTemplates == 0 then
+	if not fallbackTemplate and next(templatesByName) == nil then
 		warn("[FoodService] Food spawning aborted: no template models were found.")
 		-- CREATE MANUALLY IN STUDIO: ReplicatedStorage.Assets.Food.BasicFood
 		return
 	end
 
-	self:_spawnFoodGridForMap(mapModel, foodContainer, foodTemplates, count)
+	self:_spawnFoodForCenters(mapModel, foodContainer, templatesByName, fallbackTemplate)
 end
 
 function MapService:SpawnTrapForMap(mapModel: Model, count: number)
@@ -818,33 +868,35 @@ function MapService:_onFoodTouched(food: Model, hit: BasePart)
 	if self._foodTouchedDebounce[player] then
 		return
 	end
+
 	self._foodTouchedDebounce[player] = true
 	food:SetAttribute("Consumed", true)
 	local spawnInfo = self._foodSpawnByInstance[food]
 	self._foodSpawnByInstance[food] = nil
 	food:Destroy()
 
+	local foodType = food:GetAttribute("FoodType")
+	local stats = FOOD_TYPE_STATS[foodType] or { Exp = BalanceConfig.FoodExp, HP = BalanceConfig.FoodHealth }
+
 	if spawnInfo then
-		task.delay(getFoodRespawnDelay(), function()
-			if not spawnInfo.MapModel.Parent then
-				return
-			end
-			if not spawnInfo.FoodContainer.Parent then
-				return
-			end
-			self:_spawnFoodInCell(
-				spawnInfo.MapModel,
-				spawnInfo.FoodContainer,
-				spawnInfo.Template,
-				spawnInfo.Cell,
-				string.format("%s_Food_%s", spawnInfo.Template.Name, spawnInfo.Cell.CellKey)
-			)
-		end)
+		local centerState = self._foodSpawnStateByCenter[spawnInfo.CenterKey]
+		if centerState then
+			centerState.ActiveCount = math.max(0, centerState.ActiveCount - 1)
+			task.delay(getFoodRespawnDelay(), function()
+				if not centerState.MapModel.Parent then
+					return
+				end
+				if not centerState.FoodContainer.Parent then
+					return
+				end
+				self:_spawnMissingFoodsForCenter(centerState)
+			end)
+		end
 	end
 
 	self._context.EventBus:Fire("CollisionDetected", "Food", player, food, {})
-	self._context.EventBus:Fire("FoodConsumed", player, BalanceConfig.FoodExp)
-	self._context.Services.PlayerStateService:Heal(player, BalanceConfig.FoodHealth)
+	self._context.EventBus:Fire("FoodConsumed", player, stats.Exp)
+	self._context.Services.PlayerStateService:Heal(player, stats.HP)
 	self._context.Services.PlayerStateService:PublishState(player)
 	task.delay(0.1, function()
 		self._foodTouchedDebounce[player] = nil
@@ -925,7 +977,7 @@ function MapService:DebugSpawnFood(_player: Player, mapName: string)
 	end
 	local mapModel = mapsRoot:FindFirstChild(mapName)
 	if mapModel and mapModel:IsA("Model") then
-		self:SpawnFoodForMap(mapModel, 4)
+		self:SpawnFoodForMap(mapModel)
 	end
 end
 
