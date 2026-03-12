@@ -62,7 +62,7 @@ local function ensureChargeUI()
 	local screenGui = uiFolder:FindFirstChild("SlingArenaDynamicUI")
 	if not screenGui or not screenGui:IsA("ScreenGui") then
 		if not warnedMissingChargeUI then
-			warn("[UI_MISSING] PlayerGui.SlingArenaDynamicUI.SlingArenaDynamicUI (ScreenGui) missing.")
+			warn("[UI_MISSING] PlayerGui.SlingArenaDynamicUI (ScreenGui) missing.")
 			warnedMissingChargeUI = true
 		end
 		return nil, nil, nil, nil
@@ -71,7 +71,7 @@ local function ensureChargeUI()
 	local root = screenGui:FindFirstChild("Root")
 	if not root or not root:IsA("Frame") then
 		if not warnedMissingChargeUI then
-			warn("[UI_MISSING] PlayerGui.SlingArenaDynamicUI.SlingArenaDynamicUI.Root missing.")
+			warn("[UI_MISSING] PlayerGui.SlingArenaDynamicUI.Root missing.")
 			warnedMissingChargeUI = true
 		end
 		return nil, nil, nil, nil

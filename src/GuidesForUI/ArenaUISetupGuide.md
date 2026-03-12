@@ -14,32 +14,32 @@ Create in **StarterGui**:
 - `LobbyUI` (`ScreenGui`)
   - `LobbyUI` (`Frame`)
     - `RootFrame` (`Frame`)
-      - `StatusLabel` (`TextLabel`) — path: `StarterGui.LobbyUI.LobbyUI.RootFrame.StatusLabel`
-      - `JoinButton` (`TextButton`) — path: `StarterGui.LobbyUI.LobbyUI.RootFrame.JoinButton`
-      - `LeaveButton` (`TextButton`) — path: `StarterGui.LobbyUI.LobbyUI.RootFrame.LeaveButton`
-      - `TeleportForest` (`TextButton`) — path: `StarterGui.LobbyUI.LobbyUI.RootFrame.TeleportForest`
-      - `TeleportDesert` (`TextButton`) — path: `StarterGui.LobbyUI.LobbyUI.RootFrame.TeleportDesert`
-      - `DebugFood` (`TextButton`) — path: `StarterGui.LobbyUI.LobbyUI.RootFrame.DebugFood`
-      - `DebugReset` (`TextButton`) — path: `StarterGui.LobbyUI.LobbyUI.RootFrame.DebugReset`
-      - `MapName` (`TextLabel`) — path: `StarterGui.LobbyUI.LobbyUI.RootFrame.MapName`
-      - `LevelLabel` (`TextLabel`) — path: `StarterGui.LobbyUI.LobbyUI.RootFrame.LevelLabel`
-      - `HpLabel` (`TextLabel`) — path: `StarterGui.LobbyUI.LobbyUI.RootFrame.HpLabel`
-      - `RespawnLabel` (`TextLabel`) — path: `StarterGui.LobbyUI.LobbyUI.RootFrame.RespawnLabel`
+      - `StatusLabel` (`TextLabel`) — path: `StarterGui.LobbyUI.RootFrame.StatusLabel`
+      - `JoinButton` (`TextButton`) — path: `StarterGui.LobbyUI.RootFrame.JoinButton`
+      - `LeaveButton` (`TextButton`) — path: `StarterGui.LobbyUI.RootFrame.LeaveButton`
+      - `TeleportForest` (`TextButton`) — path: `StarterGui.LobbyUI.RootFrame.TeleportForest`
+      - `TeleportDesert` (`TextButton`) — path: `StarterGui.LobbyUI.RootFrame.TeleportDesert`
+      - `DebugFood` (`TextButton`) — path: `StarterGui.LobbyUI.RootFrame.DebugFood`
+      - `DebugReset` (`TextButton`) — path: `StarterGui.LobbyUI.RootFrame.DebugReset`
+      - `MapName` (`TextLabel`) — path: `StarterGui.LobbyUI.RootFrame.MapName`
+      - `LevelLabel` (`TextLabel`) — path: `StarterGui.LobbyUI.RootFrame.LevelLabel`
+      - `HpLabel` (`TextLabel`) — path: `StarterGui.LobbyUI.RootFrame.HpLabel`
+      - `RespawnLabel` (`TextLabel`) — path: `StarterGui.LobbyUI.RootFrame.RespawnLabel`
 
 - `StatsUI` (`ScreenGui`)
   - `StatsUI` (`Frame`)
     - `RootFrame` (`Frame`)
-      - `ScoreLabel` (`TextLabel`) — path: `StarterGui.StatsUI.StatsUI.RootFrame.ScoreLabel`
-      - `GoldLabel` (`TextLabel`) — path: `StarterGui.StatsUI.StatsUI.RootFrame.GoldLabel`
-      - `WinsLabel` (`TextLabel`) — path: `StarterGui.StatsUI.StatsUI.RootFrame.WinsLabel`
+      - `ScoreLabel` (`TextLabel`) — path: `StarterGui.StatsUI.RootFrame.ScoreLabel`
+      - `GoldLabel` (`TextLabel`) — path: `StarterGui.StatsUI.RootFrame.GoldLabel`
+      - `WinsLabel` (`TextLabel`) — path: `StarterGui.StatsUI.RootFrame.WinsLabel`
 
 - `MatchUI` (`ScreenGui`)
   - `MatchUI` (`Frame`)
     - `RootFrame` (`Frame`)
-      - `StatusLabel` (`TextLabel`) — path: `StarterGui.MatchUI.MatchUI.RootFrame.StatusLabel`
-      - `TimerLabel` (`TextLabel`) — path: `StarterGui.MatchUI.MatchUI.RootFrame.TimerLabel`
-      - `AlivePlayersLabel` (`TextLabel`) — path: `StarterGui.MatchUI.MatchUI.RootFrame.AlivePlayersLabel`
-      - `WinnerPopup` (`TextLabel`) — path: `StarterGui.MatchUI.MatchUI.RootFrame.WinnerPopup`
+      - `StatusLabel` (`TextLabel`) — path: `StarterGui.MatchUI.RootFrame.StatusLabel`
+      - `TimerLabel` (`TextLabel`) — path: `StarterGui.MatchUI.RootFrame.TimerLabel`
+      - `AlivePlayersLabel` (`TextLabel`) — path: `StarterGui.MatchUI.RootFrame.AlivePlayersLabel`
+      - `WinnerPopup` (`TextLabel`) — path: `StarterGui.MatchUI.RootFrame.WinnerPopup`
 
 ---
 
@@ -55,10 +55,10 @@ Create in **StarterGui**:
     - `ImpactFeedback` (`TextLabel`)
 
 Paths:
-- `StarterGui.SlingArenaDynamicUI.SlingArenaDynamicUI.Root.ChargeBarBg`
-- `StarterGui.SlingArenaDynamicUI.SlingArenaDynamicUI.Root.ChargeBarBg.Fill`
-- `StarterGui.SlingArenaDynamicUI.SlingArenaDynamicUI.Root.AimDirection`
-- `StarterGui.SlingArenaDynamicUI.SlingArenaDynamicUI.Root.ImpactFeedback`
+- `StarterGui.SlingArenaDynamicUI.Root.ChargeBarBg`
+- `StarterGui.SlingArenaDynamicUI.Root.ChargeBarBg.Fill`
+- `StarterGui.SlingArenaDynamicUI.Root.AimDirection`
+- `StarterGui.SlingArenaDynamicUI.Root.ImpactFeedback`
 
 ---
 
