@@ -1,145 +1,336 @@
-# AI_CONTEXT.md
+# Sling Arena - Project Context
 
-## Purpose
-This document captures the **current observed implementation context** for Sling Arena so AI-assisted changes can be grounded in existing architecture.
+## 1. Project Overview
 
-Legend used in this file:
-- **KNOWN**: explicitly confirmed in code/rules.
-- **INFERRED**: deduced from patterns in code/docs.
-- **UNKNOWN**: not clearly defined yet.
-- **ASSUMED**: working assumption used by current code but not guaranteed by rules.
+Sling Arena là một game PvP multiplayer đấu trường vật lý.
 
----
+Mỗi người chơi điều khiển một "Sling", là một vật thể có thể tự phóng (launch) bản thân qua bản đồ bằng cơ chế charge và release.
 
-## 1) Game Overview
-- **KNOWN**: The design target is a server-authoritative physics PvP arena with charge-and-launch combat, collisions, growth, and monetization systems. (Rule_DESIGN.md, Rule_BUILD_SPEC.md)
-- **KNOWN**: Runtime implementation is service-based under `ServerScriptService/Services` and initialized from `Main.server.lua`.
-- **INFERRED**: The shipped implementation currently mixes arena round flow + lobby flow + teleport flow + food/trap progression.
+Mục tiêu chính:
+- Thu thập Food để tăng EXP
+- Tăng level và kích thước
+- Hạ gục Sling nhỏ hơn
 
----
+Gameplay mang phong cách:
+- "cá lớn nuốt cá bé"
+- kết hợp vật lý va chạm và chiến thuật định hướng lực bắn.
 
-## 2) Core Gameplay Loop (Current)
-- **KNOWN**: `RoundService` drives a loop: `Lobby -> PreRound -> Countdown -> ActiveRound -> RoundEnd -> PostRound -> Lobby`.
-- **KNOWN**: Players join arena via `JoinArena` remote or `LobbyGateTouched` event.
-- **KNOWN**: During active rounds, player-vs-player collisions produce damage and knockback via `CollisionService -> DamagePipelineService`.
-- **KNOWN**: Food is consumed via touch and gives EXP + HP heal.
-- **KNOWN**: Death triggers delayed respawn, with killer tracking and kill events.
-- **INFERRED**: Map cycling across multiple arena maps is minimal; current default arena appears to be chosen from map names containing `Arena`.
+Không có điều kiện thắng tuyệt đối. Arena luôn active và người chơi có thể:
+- tham gia
+- rời đi
+- respawn
+- tiếp tục chiến đấu
 
----
-
-## 3) Main Entities
-
-### Player / Sling Pawn
-- **KNOWN**: Runtime pawn models are cloned into `Workspace/SlingPawns` by `PlayerService`.
-- **KNOWN**: Server owns velocity and network ownership (`SetNetworkOwner(nil)`).
-- **KNOWN**: Player state includes level, EXP, size, HP, damage multipliers, movement/charging flags, diamonds, and per-attribute points.
-
-### Food
-- **KNOWN**: Food spawn centers are read from `Workspace/Maps/<Arena>/FoodSpawns` parts named `FoodSpawn`.
-- **KNOWN**: Per center target is 5 active foods, radius ±5 studs, and per-food respawn delay 10s.
-- **KNOWN**: Zone pools Center/Middle/Edge map to Food1..Food7 subsets.
-
-### Trap
-- **KNOWN**: Trap instances are cloned into map `TrapContainer` from template locations (preferred `ServerStorage/TrapTemplates`).
-- **INFERRED**: Trap damage/penalty is event-driven (`TrapCollisionCandidate`, `TrapCollision`) and can apply EXP penalty.
-
-### Gate / Corridor / Zone
-- **KNOWN**: MapService tracks gates, exit zones, anti-giant zones, safe spawn zones, and size-restricted corridors.
-- **KNOWN**: Corridor access checks compare player size to `BalanceConfig.CorridorSizeLimit`.
+Leaderboard dựa trên:
+- level
+- size
+- EXP
 
 ---
 
-## 4) Server Services (Observed)
-- **PlayerStateService**: canonical state storage, stat recalculation, EXP/leveling, buffs, diamonds, prestige, publish state.
-- **PlayerService**: spawn/despawn pawn models, root lookup, teleport to spawn.
-- **SlingshotService** (wrapper) -> **SlingService**: movement input, charge/release launch, movement state transitions.
-- **CollisionService**: heartbeat collision detection (player-player, gate, trap, exit zones), emits events.
-- **CombatService**: impact damage and knockback formulas.
-- **DamagePipelineService**: applies damage, self-damage conditions, reflect, death handling, periodic regen.
-- **GrowthService**: applies EXP rewards from food/combat/kill hooks.
-- **TrapService**: trap collision outcomes (EXP penalties, etc.).
-- **MapService**: map activation, spawn point lookup, food/trap spawning, teleport rules.
-- **RoundService**: participant queue, round FSM, win conditions, UI-state publishing.
-- **SkillService**: passive heal tick + special upgrade toggling.
-- **MonetizationService**: paid/free respawn, match buff purchase, prestige reset.
-- **EventBus**: intra-server service event transport.
+# 2. Core Gameplay Loop
+
+Vòng lặp gameplay chính:
+
+1. Spawn  
+   Player xuất hiện ở Lobby → Join Arena.
+
+2. Collect Food  
+   Player di chuyển trong Arena để thu thập Food.
+
+3. Charge  
+   Player giữ phím để tích lực bắn.  
+   Trong trạng thái charge:
+   - Sling không thể di chuyển.
+
+4. Release  
+   Khi thả phím:
+   - server tính toán lực phóng
+   - áp dụng velocity cho Sling.
+
+5. Physics Movement  
+   Sling di chuyển theo vật lý.
+
+6. Collision  
+   Sling va chạm với:
+   - Sling khác
+   - Trap
+   - Map geometry.
+
+7. Result  
+   Tùy thuộc vào:
+   - size
+   - trạng thái release
+   - va chạm
+
+   Kết quả có thể:
+   - gây damage
+   - nhận phản damage
+   - knockback
+   - stun
+   - death.
+
+8. Respawn hoặc Lobby  
+   Sling chết có thể:
+   - chờ respawn
+   - quay về lobby.
+
+9. Loop continues.
 
 ---
 
-## 5) Client Controllers / Scripts
-- **KNOWN**: `SlingMovement.client.lua` sends movement + charge/remotes and updates charge UI/feedback labels.
-- **KNOWN**: `UIBinder.client.lua` boots `LobbyClientService` + shared `UIController` (lobby/match/stats UI flow).
-- **KNOWN**: `ClientController.client.lua` and `StarterGui/SlingArenaUI/MainUI.client.lua` are marked deprecated/inert.
-- **INFERRED**: There are two UI approaches in repo (legacy StarterGui component tree + current shared controller), causing onboarding ambiguity.
+# 3. Key Mechanics
+
+## 3.1 Charge / Release System
+
+Player giữ phím để charge năng lượng.
+
+Properties:
+
+- charge_time tăng theo thời gian giữ phím
+- release_velocity phụ thuộc vào charge_time
+
+Rules:
+
+- khi charge:
+  Sling không thể di chuyển
+
+- khi release:
+  server tính toán velocity
+
+Client không được phép tự tính physics.
 
 ---
 
-## 6) Remote Events (Current Contract Surface)
-Defined in `RemoteContracts.Names` and auto-created in `Main.server.lua` if missing.
+# 3.2 Size System
 
-### Gameplay control
-- MoveRequest, StartCharge, ReleaseCharge
+Khi ăn Food:
 
-### State/UI
-- StateUpdate, UIStateUpdate, MatchStateUpdate, RoundResult, GameplayFeedback, PopupMessage
+- Sling nhận EXP
+- Khi đủ EXP → level up
 
-### Progression / skill / economy
-- AttributeUpgrade, ActivateSkill, RequestRespawn, RequestMatchBuff, PurchaseRespawn, PurchaseMatchBuff, PrestigeReset, ToggleSpecialUpgrade
+Level up sẽ:
 
-### Arena / map / debug
-- JoinArena, LeaveArena, TeleportRequest, DebugSpawnFood, DebugResetSling
+- tăng size
+- tăng collision power
+- tăng khả năng knockback
 
-**UNKNOWN**: stable payload schemas/versioning for each remote beyond basic validator checks.
+Game có cơ chế anti power scaling:
 
----
+Level càng cao:
+- EXP cần thiết càng lớn
+- việc tăng level khó hơn
 
-## 7) Entity Lifecycle (Current)
-
-### Player lifecycle
-1. Player joins -> default state initialized.
-2. Pawn spawned from `ReplicatedStorage/Assets/SlingModel`.
-3. JoinArena places player in arena map spawn and marks state `InArena`.
-4. During collisions, damage pipeline mutates HP and may set dead.
-5. On death, delayed respawn occurs; monetization paths can alter retention.
-
-### Food lifecycle
-1. On map activation for arena maps, `FoodContainer` gets foods spawned from centers.
-2. Food touch by owning pawn fires food consumed flow.
-3. Food is destroyed; center active count decremented.
-4. Respawn timer replenishes only missing count for same center.
-
-### Trap lifecycle
-1. Trap templates cloned into `TrapContainer`.
-2. Collision emits trap candidate event.
-3. Trap service validates/debounces and emits penalty events.
+Mục đích:
+tránh sling quá OP.
 
 ---
 
-## 8) Map System (Current)
-- **KNOWN**: map root expected at `Workspace/Maps`.
-- **KNOWN**: lobby map name is `LobbyMap` (or `Lobby` in helper checks).
-- **KNOWN**: arena maps are inferred by map names containing `Arena`.
-- **KNOWN**: `ActivateMap(mapName)` toggles active map and repopulates map caches.
-- **UNKNOWN**: authoritative map authoring convention for multi-map production (naming, metadata, duration overrides).
+# 3.3 Collision Outcomes
+
+### Case 1: A release trúng B
+
+A gây damage lên B.
+
+A nhận phản damage từ B dựa trên stat của B.
+
+Kết quả:
+
+- nếu cả hai không chết:
+  cả hai bị knockback
+
+- nếu một Sling chết:
+  Sling đó vỡ ra và biến mất
+  chỉ gây knockback nhẹ cho đối thủ
+
+Trong thời gian knockback:
+
+- Sling bị stun
+- không thể move
+- charge bị reset
 
 ---
 
-## 9) Game State Flow (Current FSM)
-- Boot -> Lobby (idle, join allowed)
-- PreRound (initialization)
-- Countdown
-- ActiveRound (combat + timer)
-- RoundEnd (winner/no winner/timeout winner)
-- PostRound (reset/return lobby)
+### Case 2: A và B va chạm khi không release
 
-**ASSUMED**: single global round state for all players in the server.
+Cả hai Sling nhận:
+
+- phản damage từ đối phương
 
 ---
 
-## 10) Known Architectural Mismatches to Rules (for future cleanup)
-- **Rule conflict**: `Rule_Codex` forbids creating UI/instances in code, but `Main.server.lua` auto-creates remotes with `Instance.new`.
-- **Naming drift**: build spec requires `LaunchRecoverTime = 3s`; code uses `RECOVER_TIME` fallback and movement-state cooldown logic.
-- **Service drift**: build spec lists a smaller required service set, but code contains additional services (`RoundService`, `DamagePipelineService`, `PlayerService`, `TrapService`, etc.).
-- **Movement ambiguity**: repo still includes deprecated `MovementService` and `ChargeService` while active logic is in `SlingService`.
+### Collision parameters
 
+Các giá trị chi tiết như:
+
+- knockback force
+- stun duration
+- damage ratio
+
+được định nghĩa trong game design rules.
+
+---
+
+# 4. Food System
+
+Food là vật phẩm giúp tăng EXP.
+
+Food spawn tại:
+
+FoodSpawns trên map.
+
+Khi Sling ăn Food:
+
+- Food biến mất
+- Sling nhận EXP
+
+Sau một thời gian:
+
+Food respawn:
+
+- tại spawn point
+- hoặc gần spawn point.
+
+---
+
+# 5. Trap System
+
+Trap là bẫy đặt sẵn trên map.
+
+Trap spawn tại:
+
+TrapSpawns.
+
+Khi Sling chạm Trap:
+
+Trap có thể gây:
+
+- damage
+- stun
+- slow
+- hiệu ứng tiêu cực khác
+
+Chi tiết phụ thuộc loại trap.
+
+---
+
+# 6. Networking Model
+
+Game sử dụng server-authoritative architecture.
+
+Client chỉ gửi input.
+
+Server chịu trách nhiệm:
+
+- physics
+- movement
+- collision
+- gameplay logic
+
+Client không được:
+
+- tự thay đổi velocity
+- tự thay đổi position
+- tự thay đổi stats.
+
+---
+
+# 7. RemoteEvent Architecture
+
+Client gửi input thông qua RemoteEvents.
+
+RemoteEvents được đặt tại:
+
+ReplicatedStorage.SlingArenaRemotes
+
+Tất cả RemoteEvents phải:
+
+- được tạo sẵn trong Studio
+- không tạo runtime.
+
+---
+
+# 8. Client → Server Events
+
+JoinArena  
+ReplicatedStorage.SlingArenaRemotes.JoinArena
+
+LeaveArena  
+ReplicatedStorage.SlingArenaRemotes.LeaveArena
+
+MoveRequest  
+ReplicatedStorage.SlingArenaRemotes.MoveRequest
+
+StartCharge  
+ReplicatedStorage.SlingArenaRemotes.StartCharge
+
+ReleaseCharge  
+ReplicatedStorage.SlingArenaRemotes.ReleaseCharge
+
+TeleportRequest  
+ReplicatedStorage.SlingArenaRemotes.TeleportRequest
+
+ActivateSkill  
+ReplicatedStorage.SlingArenaRemotes.ActivateSkill
+
+AttributeUpgrade  
+ReplicatedStorage.SlingArenaRemotes.AttributeUpgrade
+
+RequestRespawn  
+ReplicatedStorage.SlingArenaRemotes.RequestRespawn
+
+RequestMatchBuff  
+ReplicatedStorage.SlingArenaRemotes.RequestMatchBuff
+
+UIStateUpdate  
+ReplicatedStorage.SlingArenaRemotes.UIStateUpdate
+
+PurchaseRespawn  
+ReplicatedStorage.SlingArenaRemotes.PurchaseRespawn
+
+PurchaseMatchBuff  
+ReplicatedStorage.SlingArenaRemotes.PurchaseMatchBuff
+
+PrestigeReset  
+ReplicatedStorage.SlingArenaRemotes.PrestigeReset
+
+ToggleSpecialUpgrade  
+ReplicatedStorage.SlingArenaRemotes.ToggleSpecialUpgrade
+
+DebugSpawnFood  
+ReplicatedStorage.SlingArenaRemotes.DebugSpawnFood
+
+DebugResetSling  
+ReplicatedStorage.SlingArenaRemotes.DebugResetSling
+
+---
+
+# 9. Server → Client Events
+
+StateUpdate  
+ReplicatedStorage.SlingArenaRemotes.StateUpdate
+
+GameplayFeedback  
+ReplicatedStorage.SlingArenaRemotes.GameplayFeedback
+
+MatchStateUpdate  
+ReplicatedStorage.SlingArenaRemotes.MatchStateUpdate
+
+RoundResult  
+ReplicatedStorage.SlingArenaRemotes.RoundResult
+
+PopupMessage  
+ReplicatedStorage.SlingArenaRemotes.PopupMessage
+
+---
+
+# 10. Important Notes for AI
+
+AI implementing code must follow rules:
+
+1. Server authoritative physics
+2. Client only sends input
+3. RemoteEvents must already exist
+4. Do not create new RemoteEvents at runtime
+5. Do not trust client physics
+6. Food and Trap spawn system must be deterministic

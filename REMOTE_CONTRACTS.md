@@ -1,0 +1,13 @@
+- **PlayerStateService**: canonical state storage, stat recalculation, EXP/leveling, buffs, diamonds, prestige, publish state.
+- **PlayerService**: spawn/despawn pawn models, root lookup, teleport to spawn.
+- **SlingshotService** (wrapper) -> **SlingService**: movement input, charge/release launch, movement state transitions.
+- **CollisionService**: heartbeat collision detection (player-player, gate, trap, exit zones), emits events.
+- **CombatService**: impact damage and knockback formulas.
+- **DamagePipelineService**: applies damage, self-damage conditions, reflect, death handling, periodic regen.
+- **GrowthService**: applies EXP rewards from food/combat/kill hooks.
+- **TrapService**: trap collision outcomes (EXP penalties, etc.).
+- **MapService**: map activation, spawn point lookup, food/trap spawning, teleport rules.
+- **RoundService**: participant queue, round FSM, win conditions, UI-state publishing.
+- **SkillService**: passive heal tick + special upgrade toggling.
+- **MonetizationService**: paid/free respawn, match buff purchase, prestige reset.
+- **EventBus**: intra-server service event transport.

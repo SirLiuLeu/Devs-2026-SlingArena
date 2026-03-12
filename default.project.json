@@ -18,37 +18,35 @@
     },
     "StarterPlayer": {
       "StarterPlayerScripts": {
-        "Client": {
-          "$path": "src/StarterPlayer"
-        }
+        "$path": "src/StarterPlayer"
       }
+    }
+  },
+  "StarterGui": {
+    "$path": "src/StarterGui"
+  },
+  "Workspace": {
+    "$properties": {
+      "FilteringEnabled": true
     },
-    "StarterGui": {
-      "$path": "src/StarterGui"
-    },
-    "Workspace": {
-      "$properties": {
-        "FilteringEnabled": true
-      },
-      "$path": "src/Workspace"
-    },
-    "Lighting": {
-      "$properties": {
-        "Ambient": [
-          0,
-          0,
-          0
-        ],
-        "Brightness": 2,
-        "GlobalShadows": true,
-        "Outlines": false,
-        "Technology": "Voxel"
-      }
-    },
-    "SoundService": {
-      "$properties": {
-        "RespectFilteringEnabled": true
-      }
+    "$path": "src/Workspace"
+  },
+  "Lighting": {
+    "$properties": {
+      "Ambient": [
+        0,
+        0,
+        0
+      ],
+      "Brightness": 2,
+      "GlobalShadows": true,
+      "Outlines": false,
+      "Technology": "Voxel"
+    }
+  },
+  "SoundService": {
+    "$properties": {
+      "RespectFilteringEnabled": true
     }
   }
 }

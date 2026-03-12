@@ -1,31 +1,36 @@
 # PROJECT_TREE.md
 
-This tree describes **current project organization and intended Roblox DataModel mapping** from `default.project.json` + source layout.
+This tree describes current project organization and intended Roblox DataModel mapping
+from `default.project.json` + source layout.
 
 Legend:
-- **[KNOWN]** exact from code/config.
-- **[INFERRED]** likely runtime structure from patterns.
-- **[UNKNOWN]** not confirmed in repository assets.
+- **** exact from code/config
+- [INFERRED] likely runtime structure from patterns
+- [UNKNOWN] not confirmed in repository assets
 
-```text
-DataModel [KNOWN]
-├─ ReplicatedStorage [KNOWN]
-│  ├─ Shared [KNOWN] -> src/ReplicatedStorage/Shared
-│  │  ├─ Config [KNOWN]
+
+DataModel
+├─ ReplicatedStorage
+│  ├─ Shared  -> src/ReplicatedStorage/Shared
+│  │  ├─ Config
 │  │  │  ├─ BalanceConfig.lua
 │  │  │  ├─ Config.lua
 │  │  │  ├─ LevelConfig.lua
 │  │  │  ├─ SlingshotConfig.lua
 │  │  │  └─ TrapConfig.lua
-│  │  ├─ Types [KNOWN]
+│  │  │
+│  │  ├─ Types
 │  │  │  ├─ PlayerState.lua
 │  │  │  └─ CombatTypes.lua
-│  │  ├─ Utils [KNOWN]
+│  │  │
+│  │  ├─ Utils
 │  │  │  └─ PathResolver.lua
-│  │  ├─ ProjectTreeSpec.lua [KNOWN]
-│  │  └─ RemoteContracts.lua [KNOWN]
-│  ├─ SlingArenaRemotes [KNOWN]
-│  │  ├─ (RemoteEvents from *.model.json) [KNOWN]
+│  │  │
+│  │  ├─ ProjectTreeSpec.lua
+│  │  └─ RemoteContracts.lua
+│  │
+│  ├─ SlingArenaRemotes
+│  │  ├─ (RemoteEvents from *.model.json)
 │  │  │  ├─ JoinArena
 │  │  │  ├─ LeaveArena
 │  │  │  ├─ MoveRequest
@@ -34,6 +39,7 @@ DataModel [KNOWN]
 │  │  │  ├─ RequestRespawn
 │  │  │  ├─ RequestMatchBuff
 │  │  │  └─ UIStateUpdate
+│  │  │
 │  │  └─ (Auto-created at runtime if missing) [INFERRED]
 │  │     ├─ StartCharge
 │  │     ├─ ReleaseCharge
@@ -49,19 +55,25 @@ DataModel [KNOWN]
 │  │     ├─ TeleportRequest
 │  │     ├─ DebugSpawnFood
 │  │     └─ DebugResetSling
-│  ├─ Client [KNOWN] -> src/ReplicatedStorage/Client
-│  │  ├─ Controllers/UIController.lua
-│  │  └─ Services/LobbyClientService.lua
-│  └─ Assets [KNOWN]
+│  │
+│  ├─ Client  -> src/ReplicatedStorage/Client
+│  │  ├─ Controllers
+│  │  │  └─ UIController.lua
+│  │  └─ Services
+│  │     └─ LobbyClientService.lua
+│  │
+│  └─ Assets
 │     └─ SlingModel.model.json
 │
-├─ ServerScriptService [KNOWN] -> src/ServerScriptService
-│  ├─ Main.server.lua [KNOWN]
-│  ├─ MapLoader.server.lua [KNOWN]
-│  ├─ SlingService.server.lua [KNOWN]
+├─ ServerScriptService  -> src/ServerScriptService
+│  ├─ Main.server.lua
+│  ├─ MapLoader.server.lua
+│  ├─ SlingService.server.lua
+│  │
 │  ├─ Tests
 │  │  └─ CoreLoopTests.server.lua
-│  └─ Services [KNOWN]
+│  │
+│  └─ Services
 │     ├─ EventBus.lua
 │     ├─ PlayerStateService.lua
 │     ├─ PlayerService.lua
@@ -77,51 +89,126 @@ DataModel [KNOWN]
 │     ├─ MapService.lua
 │     ├─ MapLoader.lua
 │     ├─ RoundService.lua
-│     ├─ FoodService.lua [INFERRED legacy/overlap]
-│     ├─ MovementService.lua [INFERRED deprecated/unused]
-│     └─ ChargeService.lua [KNOWN deprecated]
+│     ├─ FoodService.lua        [INFERRED legacy/overlap]
+│     ├─ MovementService.lua    [INFERRED deprecated/unused]
+│     └─ ChargeService.lua      [KNOWN deprecated]
 │
-├─ StarterPlayer [KNOWN]
+├─ StarterPlayer
 │  └─ StarterPlayerScripts
-│     └─ Client -> src/StarterPlayer [KNOWN by default.project.json]
-│        └─ StarterPlayerScripts [KNOWN]
-│           ├─ SlingMovement.client.lua (active input/charge script)
-│           ├─ UIBinder.client.lua (active UI bootstrap)
-│           ├─ SlingController.client.lua [UNKNOWN active status]
-│           └─ ClientController.client.lua (legacy inert)
+│     └─ Client  -> src/StarterPlayer
+│        └─ StarterPlayerScripts
+│           ├─ SlingMovement.client.lua      (active input / charge script)
+│           ├─ UIBinder.client.lua           (active UI bootstrap)
+│           ├─ SlingController.client.lua    [UNKNOWN active status]
+│           └─ ClientController.client.lua   (legacy inert)
 │
-├─ StarterGui [KNOWN] -> src/StarterGui
-│  ├─ LobbyUI [KNOWN]
-│  ├─ MatchUI [KNOWN]
-│  ├─ StatsUI [KNOWN]
-│  ├─ SlingArenaDynamicUI [KNOWN]
-│  └─ SlingArenaUI [INFERRED legacy/alternative UI stack]
-│     ├─ MainUI.client.lua (deprecated)
-│     ├─ UIController.lua
-│     └─ Components/*
+├─ StarterGui  -> src/StarterGui
+│  ├─ LobbyUI (ScreenGui)
+│  │  └─ RootFrame
+│  │     ├─ UICorner
+│  │     ├─ DebugFood
+│  │     ├─ DebugReset
+│  │     ├─ JoinButton
+│  │     ├─ LeaveButton
+│  │     ├─ TeleportDesert
+│  │     ├─ TeleportForest
+│  │     ├─ HpLabel
+│  │     ├─ LevelLabel
+│  │     ├─ MapName
+│  │     ├─ RespawnLabel
+│  │     └─ StatusLabel
+│  │
+│  ├─ MatchUI (ScreenGui)
+│  │  └─ RootFrame
+│  │     ├─ UICorner
+│  │     ├─ AlivePlayersLabel
+│  │     ├─ StatusLabel
+│  │     ├─ TimerLabel
+│  │     └─ WinnerPopup
+│  │
+│  ├─ SlingArenaDynamicUI (ScreenGui)
+│  │  └─ RootFrame
+│  │     ├─ ChargeBarBg
+│  │     ├─ AimDirection
+│  │     └─ ImpactFeedback
+│  │
+│  └─ StatsUI (ScreenGui)
+│     ├─ RootFrame
+│     │  ├─ UICorner
+│     │  ├─ GoldLabel
+│     │  ├─ ScoreLabel
+│     │  ├─ TitleLabel
+│     │  └─ WinsLabel
+│     │
+│     └─ SlingArenaUI [INFERRED legacy / alternative UI stack]
+│        ├─ MainUI.client.lua (deprecated)
+│        ├─ UIController.lua
+│        └─ Components/*
 │
-├─ Workspace [KNOWN] -> src/Workspace
-│  └─ Maps [UNKNOWN in repo files; required at runtime]
-│     ├─ LobbyMap [INFERRED required]
-│     │  ├─ SpawnPoints/LobbySpawn
+├─ Workspace  -> src/Workspace
+│  └─ Maps
+│     ├─ LobbyMap
+│     │  ├─ SpawnPoints
+│     │  │  └─ LobbySpawn
 │     │  └─ Gate (optional join trigger)
-│     ├─ Arena_01 [INFERRED required]
-│     │  ├─ SpawnPoints/*
-│     │  ├─ FoodSpawns/FoodSpawn* (Zone attrs optional)
-│     │  ├─ FoodContainer
-│     │  ├─ TrapSpawns/TrapSpawn* (optional)
-│     │  ├─ TrapContainer
-│     │  ├─ ExitZone / SafeSpawnZone / AntiGiantZone / SizeRestrictedCorridor (optional)
-│     │  └─ WallContainer (optional)
-│     └─ Arena_02 [INFERRED optional]
+│     │
+│     └─ ArenaMap
+│        ├─ SpawnPoints
+│        │
+│        ├─ FoodSpawns
+│        │  ├─ EdgeZones
+│        │  │  ├─ FoodSpawn_01
+│        │  │  ├─ FoodSpawn_02
+│        │  │  ├─ FoodSpawn_03
+│        │  │  ├─ FoodSpawn_04
+│        │  │  ├─ FoodSpawn_05
+│        │  │  └─ FoodSpawn_..N
+│        │  │
+│        │  ├─ MidZones
+│        │  │  ├─ FoodSpawn_01
+│        │  │  ├─ FoodSpawn_02
+│        │  │  ├─ FoodSpawn_03
+│        │  │  ├─ FoodSpawn_04
+│        │  │  ├─ FoodSpawn_05
+│        │  │  └─ FoodSpawn_..N
+│        │  │
+│        │  └─ CenterZones
+│        │     ├─ FoodSpawn_01
+│        │     ├─ FoodSpawn_02
+│        │     ├─ FoodSpawn_03
+│        │     ├─ FoodSpawn_04
+│        │     ├─ FoodSpawn_05
+│        │     └─ FoodSpawn_..N
+│        │
+│        ├─ FoodContainer
+│        ├─ TrapSpawns / TrapSpawn*
+│        ├─ TrapContainer
+│        ├─ ExitZone
+│        ├─ SafeSpawnZone
+│        ├─ AntiGiantZone
+│        ├─ SizeRestrictedCorridor
+│        └─ WallContainer
 │
 ├─ ServerStorage [INFERRED runtime dependency]
-│  ├─ FoodTemplates/*
-│  └─ TrapTemplates/*
+│  ├─ FoodTemplates
+│  │  ├─ Food1
+│  │  ├─ Food2
+│  │  ├─ Food3
+│  │  ├─ Food4
+│  │  ├─ Food5
+│  │  ├─ Food6
+│  │  └─ Food7
+│  │
+│  └─ TrapTemplates
+│     ├─ MineTrap
+│     └─ SpikeTrap
 │
-└─ Workspace/SlingPawns [INFERRED auto-created by PlayerService]
-```
+└─ Workspace
+   └─ Runtime
+      └─ SlingPawns
+         └─ SlingPawns  [INFERRED auto-created by PlayerService]
 
-## Notes
-- `default.project.json` maps `StarterPlayer/StarterPlayerScripts/Client` to `src/StarterPlayer`, then nested scripts exist under `src/StarterPlayer/StarterPlayerScripts`; this double nesting is intentional in current config but easy to misread.
-- Several runtime-critical instances (e.g., `Workspace/Maps`, `ServerStorage/FoodTemplates`) are not present as files in repo and must be created in Roblox Studio.
+
+Notes:
+- Several runtime-critical instances (e.g. `Workspace/Maps`, `ServerStorage/FoodTemplates`)
+  are not present as files in the repo and must be created manually in Roblox Studio.
