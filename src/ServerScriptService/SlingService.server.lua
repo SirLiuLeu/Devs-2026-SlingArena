@@ -1,4 +1,4 @@
 --!strict
 
--- Legacy SlingService remains disabled.
--- Canonical gameplay uses Services/MovementService.lua.
+-- Legacy entrypoint kept intentionally empty.
+-- The active runtime boot sequence is in Main.server.lua using Services/SlingService.lua.

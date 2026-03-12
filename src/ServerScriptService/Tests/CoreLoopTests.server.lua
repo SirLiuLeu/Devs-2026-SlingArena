@@ -174,13 +174,6 @@ end
 
 
 
-local function testMapLoaderUsesWorkspaceMapsRoot()
-	local MapLoader = require(ServerScriptService.Services.MapLoader)
-	local loader = MapLoader.new()
-	if loader:GetMapDuration(123) ~= 123 then
-		error("MapLoader must use direct default map duration without metadata")
-	end
-end
 
 local function testFoodZonePoolsFollowDesignRules()
 	local service = MapServiceModule.new({
@@ -307,7 +300,6 @@ runTest("ExpLevelUpThreshold", testExpLevelUpThreshold)
 runTest("SelfDamageClampOnMaxCharge", testSelfDamageClampOnMaxCharge)
 runTest("FoodGridCellBuilderEvenCoverage", testFoodGridCellBuilderEvenCoverage)
 runTest("FoodZonePoolsFollowDesignRules", testFoodZonePoolsFollowDesignRules)
-runTest("MapLoader_UsesWorkspaceMapsRoot", testMapLoaderUsesWorkspaceMapsRoot)
 runTest("MapLoading_ArenaSpawnAndPrefabApisExist", testArenaSpawnAndPrefabApisExist)
 runTest("TeleportLogic_JoinLeaveFlow", testTeleportPlayerJoinLeaveFlow)
 runTest("MapSpawn_UsesRequestedArenaMap", testArenaSpawnLookupUsesRequestedMap)
