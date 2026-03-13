@@ -110,8 +110,6 @@ DataModel
 │  │     ├─ DebugReset
 │  │     ├─ JoinButton
 │  │     ├─ LeaveButton
-│  │     ├─ TeleportDesert
-│  │     ├─ TeleportForest
 │  │     ├─ HpLabel
 │  │     ├─ LevelLabel
 │  │     ├─ MapName
