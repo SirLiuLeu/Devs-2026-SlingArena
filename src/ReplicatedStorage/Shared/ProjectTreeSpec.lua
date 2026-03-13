@@ -34,11 +34,11 @@ local ProjectTreeSpec = {
 		},
 		SlingMovement = {
 			ScreenGui = "SlingArenaDynamicUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI
-			Root = "SlingArenaDynamicUI.Root", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.Root
-			ChargeBarBg = "SlingArenaDynamicUI.Root.ChargeBarBg", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.Root.ChargeBarBg
-			ChargeFill = "SlingArenaDynamicUI.Root.ChargeBarBg.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.Root.ChargeBarBg.Fill
-			AimDirection = "SlingArenaDynamicUI.Root.AimDirection", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.Root.AimDirection
-			ImpactFeedback = "SlingArenaDynamicUI.Root.ImpactFeedback", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.Root.ImpactFeedback
+			Root = "SlingArenaDynamicUI.RootFrame", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.RootFrame
+			ChargeBarBg = "SlingArenaDynamicUI.RootFrame.ChargeBarBg", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.RootFrame.ChargeBarBg
+			ChargeFill = "SlingArenaDynamicUI.RootFrame.ChargeBarBg.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.RootFrame.ChargeBarBg.Fill
+			AimDirection = "SlingArenaDynamicUI.RootFrame.AimDirection", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.RootFrame.AimDirection
+			ImpactFeedback = "SlingArenaDynamicUI.RootFrame.ImpactFeedback", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.RootFrame.ImpactFeedback
 		},
 	},
 	Remotes = {

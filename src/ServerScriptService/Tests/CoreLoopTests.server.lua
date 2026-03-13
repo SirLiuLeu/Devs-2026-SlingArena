@@ -8,6 +8,7 @@ local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local CombatService = require(ServerScriptService.Services.CombatService)
 local MapServiceModule = require(ServerScriptService.Services.MapService)
+local FoodServiceModule = require(ServerScriptService.Services.FoodService)
 
 local function runTest(name: string, testFn)
 	local ok, err = pcall(testFn)
@@ -251,6 +252,94 @@ local function testArenaSpawnLookupUsesRequestedMap()
 	mapsFolder:Destroy()
 end
 
+
+local function testFoodServiceUsesFoodSpawnPartsExactly()
+	local map = Instance.new("Model")
+	map.Name = "Arena_Test"
+	map.Parent = workspace
+
+	local foodContainer = Instance.new("Folder")
+	foodContainer.Name = "FoodContainer"
+	foodContainer.Parent = map
+
+	local spawns = Instance.new("Folder")
+	spawns.Name = "FoodSpawns"
+	spawns.Parent = map
+
+	local edgeZones = Instance.new("Folder")
+	edgeZones.Name = "EdgeZones"
+	edgeZones.Parent = spawns
+
+	local spawn = Instance.new("Part")
+	spawn.Name = "FoodSpawn_01"
+	spawn.Anchored = true
+	spawn.Size = Vector3.new(4, 1, 4)
+	spawn.Position = Vector3.new(32, 6, -12)
+	spawn.Parent = edgeZones
+
+	local serverStorage = game:GetService("ServerStorage")
+	local templates = serverStorage:FindFirstChild("FoodTemplates")
+	local createdTemplates = false
+	if not templates then
+		templates = Instance.new("Folder")
+		templates.Name = "FoodTemplates"
+		templates.Parent = serverStorage
+		createdTemplates = true
+	end
+
+	local createdTemplateModel = false
+	if not templates:FindFirstChild("Food5") then
+		local template = Instance.new("Model")
+		template.Name = "Food5"
+		local root = Instance.new("Part")
+		root.Name = "Root"
+		root.Anchored = true
+		root.Size = Vector3.new(2, 2, 2)
+		root.Parent = template
+		template.PrimaryPart = root
+		template.Parent = templates
+		createdTemplateModel = true
+	end
+
+	local service = FoodServiceModule.new({
+		Services = {
+			PlayerService = { GetPawn = function() return nil end },
+			PlayerStateService = { Heal = function() end, PublishState = function() end },
+		},
+		EventBus = { Fire = function() end },
+	})
+
+	service:SpawnFoodForMap(map)
+	local foods = foodContainer:GetChildren()
+	if #foods ~= 1 then
+		map:Destroy()
+		if createdTemplateModel then
+			local model = templates:FindFirstChild("Food5")
+			if model then model:Destroy() end
+		end
+		if createdTemplates then templates:Destroy() end
+		error(string.format("Expected exactly 1 food spawned for one FoodSpawn_* part, got %d", #foods))
+	end
+
+	local spawned = foods[1]
+	local root = spawned.PrimaryPart or spawned:FindFirstChildWhichIsA("BasePart")
+	if not root then
+		map:Destroy()
+		error("Spawned food is missing root part")
+	end
+	if math.abs(root.Position.X - spawn.Position.X) > 0.001 or math.abs(root.Position.Z - spawn.Position.Z) > 0.001 then
+		map:Destroy()
+		error("Food must spawn exactly at FoodSpawn_* X/Z position")
+	end
+
+	map:Destroy()
+	if createdTemplateModel then
+		local model = templates:FindFirstChild("Food5")
+		if model then model:Destroy() end
+	end
+	if createdTemplates then templates:Destroy() end
+end
+
 local function testActivateMapDoesNotHideInactiveMaps()
 	local mapsFolder = Instance.new("Folder")
 	mapsFolder.Name = "Maps"
@@ -304,5 +393,6 @@ runTest("MapLoading_ArenaSpawnAndPrefabApisExist", testArenaSpawnAndPrefabApisEx
 runTest("TeleportLogic_JoinLeaveFlow", testTeleportPlayerJoinLeaveFlow)
 runTest("MapSpawn_UsesRequestedArenaMap", testArenaSpawnLookupUsesRequestedMap)
 runTest("MapActivation_DoesNotHideInactiveMaps", testActivateMapDoesNotHideInactiveMaps)
+runTest("FoodService_UsesFoodSpawnPartsExactly", testFoodServiceUsesFoodSpawnPartsExactly)
 
 print("[CoreLoopTests] all checks passed")

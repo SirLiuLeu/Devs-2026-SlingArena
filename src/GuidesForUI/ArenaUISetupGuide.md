@@ -48,17 +48,17 @@ Create in **StarterGui**:
 Create in **StarterGui**:
 
 - `SlingArenaDynamicUI` (`ScreenGui`)
-  - `Root` (`Frame`)
+  - `RootFrame` (`Frame`)
     - `ChargeBarBg` (`Frame`)
       - `Fill` (`Frame`)
     - `AimDirection` (`TextLabel`)
     - `ImpactFeedback` (`TextLabel`)
 
 Paths:
-- `StarterGui.SlingArenaDynamicUI.Root.ChargeBarBg`
-- `StarterGui.SlingArenaDynamicUI.Root.ChargeBarBg.Fill`
-- `StarterGui.SlingArenaDynamicUI.Root.AimDirection`
-- `StarterGui.SlingArenaDynamicUI.Root.ImpactFeedback`
+- `StarterGui.SlingArenaDynamicUI.RootFrame.ChargeBarBg`
+- `StarterGui.SlingArenaDynamicUI.RootFrame.ChargeBarBg.Fill`
+- `StarterGui.SlingArenaDynamicUI.RootFrame.AimDirection`
+- `StarterGui.SlingArenaDynamicUI.RootFrame.ImpactFeedback`
 
 ---
 

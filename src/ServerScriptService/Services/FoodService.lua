@@ -8,9 +8,7 @@ local Workspace = game:GetService("Workspace")
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 
 local DEFAULT_FOOD_RESPAWN_DELAY = 10
-local FOODS_PER_SPAWN = 5
-local FOOD_SPAWN_RADIUS = 5
-local FOOD_MIN_SEPARATION = 2
+local FOODS_PER_SPAWN = 1
 
 local FOOD_ZONE_TYPES = {
 	Edge = { "Food5", "Food6", "Food7" },
@@ -43,16 +41,19 @@ local function getFoodRespawnDelay(): number
 	return configuredRespawnDelay
 end
 
-local function listSpawnAnchors(container: Instance?, expectedName: string): { BasePart }
+local function listSpawnAnchors(container: Instance?): { BasePart }
 	local anchors = {}
 	if not container then
 		return anchors
 	end
 	for _, descendant in ipairs(container:GetDescendants()) do
-		if descendant:IsA("BasePart") and descendant.Name == expectedName then
+		if descendant:IsA("BasePart") and string.find(descendant.Name, "FoodSpawn", 1, true) == 1 then
 			table.insert(anchors, descendant)
 		end
 	end
+	table.sort(anchors, function(a, b)
+		return a:GetFullName() < b:GetFullName()
+	end)
 	return anchors
 end
 
@@ -120,23 +121,6 @@ function FoodService:_resolveFoodFloorPosition(mapModel: Model, wantedPosition: 
 	return Vector3.new(wantedPosition.X, mapModel:GetPivot().Position.Y + halfHeight, wantedPosition.Z)
 end
 
-function FoodService:_chooseSpawnPosition(centerPosition: Vector3, occupied: { Vector3 }): Vector3
-	for _ = 1, 12 do
-		local candidate = centerPosition + Vector3.new(math.random(-FOOD_SPAWN_RADIUS, FOOD_SPAWN_RADIUS), 0, math.random(-FOOD_SPAWN_RADIUS, FOOD_SPAWN_RADIUS))
-		local valid = true
-		for _, pos in ipairs(occupied) do
-			if (Vector3.new(candidate.X, 0, candidate.Z) - Vector3.new(pos.X, 0, pos.Z)).Magnitude < FOOD_MIN_SEPARATION then
-				valid = false
-				break
-			end
-		end
-		if valid then
-			return candidate
-		end
-	end
-	return centerPosition
-end
-
 function FoodService:_spawnFoodFromCenterState(centerState: any): boolean
 	local allowedTypes = FOOD_ZONE_TYPES[centerState.Zone] or FOOD_ZONE_TYPES.Middle
 	local foodType = allowedTypes[math.random(1, #allowedTypes)]
@@ -155,9 +139,7 @@ function FoodService:_spawnFoodFromCenterState(centerState: any): boolean
 		return false
 	end
 	clone.PrimaryPart = root
-	local spawnPosition = self:_chooseSpawnPosition(centerState.Anchor.Position, centerState.OccupiedPositions)
-	local alignedPosition = self:_resolveFoodFloorPosition(centerState.MapModel, spawnPosition, root.Size.Y * 0.5)
-	table.insert(centerState.OccupiedPositions, alignedPosition)
+	local alignedPosition = self:_resolveFoodFloorPosition(centerState.MapModel, centerState.Anchor.Position, root.Size.Y * 0.5)
 	clone:PivotTo(CFrame.new(alignedPosition))
 	self._foodSpawnByInstance[clone] = { CenterKey = centerState.CenterKey }
 	root.Touched:Connect(function(hit)
@@ -210,10 +192,14 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 		return
 	end
 
-	local anchors = listSpawnAnchors(mapModel:FindFirstChild("FoodSpawns"), "FoodSpawn")
+	local anchors = listSpawnAnchors(mapModel:FindFirstChild("FoodSpawns"))
 	local mapCenter = getMapCenter(anchors, mapModel)
+	if #anchors == 0 then
+		warn(string.format("[FoodService] No FoodSpawn* parts found under %s.FoodSpawns", mapModel:GetFullName()))
+		return
+	end
 	for index, anchor in ipairs(anchors) do
-		local centerKey = string.format("%s:%d", mapModel.Name, index)
+		local centerKey = string.format("%s:%s:%d", mapModel.Name, anchor.Name, index)
 		local state = {
 			CenterKey = centerKey,
 			MapModel = mapModel,
@@ -223,7 +209,6 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 			TemplatesByName = templatesByName,
 			FallbackTemplate = fallbackTemplate,
 			ActiveCount = 0,
-			OccupiedPositions = {},
 		}
 		self._foodSpawnStateByCenter[centerKey] = state
 		self:_spawnMissingFoodsForCenter(state)

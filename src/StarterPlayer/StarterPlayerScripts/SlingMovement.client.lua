@@ -42,7 +42,7 @@ local function ensureChargeUI()
 	-- StarterGui
 	--   SlingArenaDynamicUI (Folder)
 	--     SlingArenaDynamicUI (ScreenGui)
-	--       Root (Frame)
+	--       RootFrame (Frame)
 	--         ChargeBarBg (Frame)
 	--           Fill (Frame)
 	--         AimDirection (TextLabel)
@@ -68,10 +68,10 @@ local function ensureChargeUI()
 		return nil, nil, nil, nil
 	end
 
-	local root = screenGui:FindFirstChild("Root")
+	local root = screenGui:FindFirstChild("RootFrame")
 	if not root or not root:IsA("Frame") then
 		if not warnedMissingChargeUI then
-			warn("[UI_MISSING] PlayerGui.SlingArenaDynamicUI.Root missing.")
+			warn("[UI_MISSING] PlayerGui.SlingArenaDynamicUI.RootFrame missing.")
 			warnedMissingChargeUI = true
 		end
 		return nil, nil, nil, nil
@@ -84,7 +84,7 @@ local function ensureChargeUI()
 
 	if (not barBg) or (not bar) or (not aimLabel) or (not feedback) then
 		if not warnedMissingChargeUI then
-			warn("[UI_MISSING] Charge UI children incomplete under SlingArenaDynamicUI.Root.")
+			warn("[UI_MISSING] Charge UI children incomplete under SlingArenaDynamicUI.RootFrame.")
 			warnedMissingChargeUI = true
 		end
 	end
