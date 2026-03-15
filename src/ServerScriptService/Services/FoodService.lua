@@ -8,7 +8,9 @@ local Workspace = game:GetService("Workspace")
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 
 local DEFAULT_FOOD_RESPAWN_DELAY = 10
-local FOODS_PER_SPAWN = 1
+local FOODS_PER_SPAWN = 5
+local FOOD_SPAWN_RADIUS = 5
+local FOOD_MIN_DISTANCE = 1.75
 
 local FOOD_ZONE_TYPES = {
 	Edge = { "Food5", "Food6", "Food7" },
@@ -108,7 +110,51 @@ function FoodService.new(context)
 	return self
 end
 
-function FoodService:Init() end
+function FoodService:Init()
+	local mapsRoot = Workspace:FindFirstChild("Maps")
+	if not mapsRoot or not mapsRoot:IsA("Folder") then
+		return
+	end
+	for _, child in ipairs(mapsRoot:GetChildren()) do
+		if child:IsA("Model") and isArenaMapName(child.Name) then
+			self:ClearMapFood(child)
+			self:SpawnFoodForMap(child)
+		end
+	end
+end
+
+function FoodService:_buildSpawnPosition(centerState: any, root: BasePart): Vector3
+	local attempts = 0
+	local minDistanceSquared = FOOD_MIN_DISTANCE * FOOD_MIN_DISTANCE
+	while attempts < 12 do
+		attempts += 1
+		local offset = Vector3.new(
+			math.random(-FOOD_SPAWN_RADIUS * 100, FOOD_SPAWN_RADIUS * 100) / 100,
+			0,
+			math.random(-FOOD_SPAWN_RADIUS * 100, FOOD_SPAWN_RADIUS * 100) / 100
+		)
+		local candidate = centerState.Anchor.Position + offset
+		local canUse = true
+		for foodModel, info in pairs(self._foodSpawnByInstance) do
+			if info.CenterKey == centerState.CenterKey and foodModel and foodModel.Parent then
+				local existingRoot = foodModel.PrimaryPart or foodModel:FindFirstChildWhichIsA("BasePart")
+				if existingRoot then
+					local delta = existingRoot.Position - candidate
+					local horizontalDistanceSquared = (delta.X * delta.X) + (delta.Z * delta.Z)
+					if horizontalDistanceSquared < minDistanceSquared then
+						canUse = false
+						break
+					end
+				end
+			end
+		end
+		if canUse then
+			return self:_resolveFoodFloorPosition(centerState.MapModel, candidate, root.Size.Y * 0.5)
+		end
+	end
+
+	return self:_resolveFoodFloorPosition(centerState.MapModel, centerState.Anchor.Position, root.Size.Y * 0.5)
+end
 
 function FoodService:_resolveFoodFloorPosition(mapModel: Model, wantedPosition: Vector3, halfHeight: number): Vector3
 	local raycastParams = RaycastParams.new()
@@ -139,7 +185,7 @@ function FoodService:_spawnFoodFromCenterState(centerState: any): boolean
 		return false
 	end
 	clone.PrimaryPart = root
-	local alignedPosition = self:_resolveFoodFloorPosition(centerState.MapModel, centerState.Anchor.Position, root.Size.Y * 0.5)
+	local alignedPosition = self:_buildSpawnPosition(centerState, root)
 	clone:PivotTo(CFrame.new(alignedPosition))
 	self._foodSpawnByInstance[clone] = { CenterKey = centerState.CenterKey }
 	root.Touched:Connect(function(hit)

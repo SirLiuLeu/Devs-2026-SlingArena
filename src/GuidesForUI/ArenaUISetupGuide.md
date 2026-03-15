@@ -17,8 +17,6 @@ Create in **StarterGui**:
       - `StatusLabel` (`TextLabel`) — path: `StarterGui.LobbyUI.RootFrame.StatusLabel`
       - `JoinButton` (`TextButton`) — path: `StarterGui.LobbyUI.RootFrame.JoinButton`
       - `LeaveButton` (`TextButton`) — path: `StarterGui.LobbyUI.RootFrame.LeaveButton`
-      - `TeleportForest` (`TextButton`) — path: `StarterGui.LobbyUI.RootFrame.TeleportForest`
-      - `TeleportDesert` (`TextButton`) — path: `StarterGui.LobbyUI.RootFrame.TeleportDesert`
       - `DebugFood` (`TextButton`) — path: `StarterGui.LobbyUI.RootFrame.DebugFood`
       - `DebugReset` (`TextButton`) — path: `StarterGui.LobbyUI.RootFrame.DebugReset`
       - `MapName` (`TextLabel`) — path: `StarterGui.LobbyUI.RootFrame.MapName`
@@ -82,16 +80,20 @@ Common remote paths:
 
 ## 4) Teleport/Map instances (manual)
 
-If you use teleport/map debug flow, create:
+Current supported maps:
+- `LobbyMap`
+- `ArenaMap`
+
+Create:
 
 - `Workspace`
   - `Maps` (`Folder`)
-    - `ForestArena` (`Model`)
+    - `LobbyMap` (`Model`)
       - `SpawnPoints` (`Folder`)
-        - `Spawn1` (`BasePart`)
-    - `DesertArena` (`Model`)
+        - `SpawnPoint` (`BasePart`)
+    - `ArenaMap` (`Model`)
       - `SpawnPoints` (`Folder`)
-        - `SpawnA` (`BasePart`)
+        - `SpawnPoint_01..N` (`BasePart`)
 
 Optional map rule markers in active map models:
 - `AntiGiantZone` (`BasePart`)

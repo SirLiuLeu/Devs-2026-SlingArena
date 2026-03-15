@@ -9,6 +9,7 @@ local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local CombatService = require(ServerScriptService.Services.CombatService)
 local MapServiceModule = require(ServerScriptService.Services.MapService)
 local FoodServiceModule = require(ServerScriptService.Services.FoodService)
+local SlingServiceModule = require(ServerScriptService.Services.SlingService)
 
 local function runTest(name: string, testFn)
 	local ok, err = pcall(testFn)
@@ -101,10 +102,26 @@ end
 local function testChargeToLaunchForce()
 	local minForce = SlingshotConfig.MIN_LAUNCH_FORCE
 	local maxForce = SlingshotConfig.MAX_LAUNCH_FORCE
-	local ratio = 0.5
-	local launchForce = minForce + (maxForce - minForce) * ratio
-	assertAlmostEqual(launchForce, (minForce + maxForce) * 0.5, 0.0001, "Launch force lerp should match")
+
+	local halfForce = SlingServiceModule.CalculateLaunchForce(0.5, minForce, maxForce, 1)
+	assertAlmostEqual(halfForce, minForce + ((maxForce - minForce) * 0.5) * 0.5, 0.0001, "chargePercent=0.5 should scale force")
+
+	local maxForceResult = SlingServiceModule.CalculateLaunchForce(1, minForce, maxForce, 1)
+	assertAlmostEqual(maxForceResult, maxForce, 0.0001, "chargePercent=1 should reach max force")
+
+	local zeroForce = SlingServiceModule.CalculateLaunchForce(0, minForce, maxForce, 1)
+	assertAlmostEqual(zeroForce, 0, 0.0001, "chargePercent=0 should produce no launch force")
+
+	local clampedForce = SlingServiceModule.CalculateLaunchForce(5, minForce, maxForce, 2)
+	assertAlmostEqual(clampedForce, maxForce * 2, 0.0001, "force should clamp at max charge")
+
+	local nanForce = SlingServiceModule.CalculateLaunchForce(0/0, minForce, maxForce, 1)
+	if nanForce ~= nanForce then
+		error("launch force must never be NaN")
+	end
+	assertAlmostEqual(nanForce, 0, 0.0001, "NaN charge input should sanitize to 0 force")
 end
+
 
 local function testCollisionTriggersDamageFormula()
 	local service = CombatService.new({})
@@ -311,25 +328,28 @@ local function testFoodServiceUsesFoodSpawnPartsExactly()
 
 	service:SpawnFoodForMap(map)
 	local foods = foodContainer:GetChildren()
-	if #foods ~= 1 then
+	if #foods ~= 5 then
 		map:Destroy()
 		if createdTemplateModel then
 			local model = templates:FindFirstChild("Food5")
 			if model then model:Destroy() end
 		end
 		if createdTemplates then templates:Destroy() end
-		error(string.format("Expected exactly 1 food spawned for one FoodSpawn_* part, got %d", #foods))
+		error(string.format("Expected exactly 5 foods spawned for one FoodSpawn_* part, got %d", #foods))
 	end
 
-	local spawned = foods[1]
-	local root = spawned.PrimaryPart or spawned:FindFirstChildWhichIsA("BasePart")
-	if not root then
-		map:Destroy()
-		error("Spawned food is missing root part")
-	end
-	if math.abs(root.Position.X - spawn.Position.X) > 0.001 or math.abs(root.Position.Z - spawn.Position.Z) > 0.001 then
-		map:Destroy()
-		error("Food must spawn exactly at FoodSpawn_* X/Z position")
+	for _, spawned in ipairs(foods) do
+		local root = spawned.PrimaryPart or spawned:FindFirstChildWhichIsA("BasePart")
+		if not root then
+			map:Destroy()
+			error("Spawned food is missing root part")
+		end
+		local xDelta = math.abs(root.Position.X - spawn.Position.X)
+		local zDelta = math.abs(root.Position.Z - spawn.Position.Z)
+		if xDelta > 5.05 or zDelta > 5.05 then
+			map:Destroy()
+			error("Food must spawn within FoodSpawn radius ±5")
+		end
 	end
 
 	map:Destroy()

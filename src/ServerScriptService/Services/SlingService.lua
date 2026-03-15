@@ -12,6 +12,27 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local SlingService = {}
 SlingService.__index = SlingService
 
+
+local function sanitizeNumber(value: number, fallback: number): number
+	if value ~= value or value == math.huge or value == -math.huge then
+		return fallback
+	end
+	return value
+end
+
+function SlingService.CalculateLaunchForce(chargeRatio: number, minForce: number, maxForce: number, launchMultiplier: number): number
+	local safeCharge = math.clamp(sanitizeNumber(chargeRatio, 0), 0, 1)
+	local safeMin = math.max(0, sanitizeNumber(minForce, 0))
+	local safeMax = math.max(safeMin, sanitizeNumber(maxForce, safeMin))
+	local safeMultiplier = math.max(0, sanitizeNumber(launchMultiplier, 1))
+	local baseForce = safeMin + ((safeMax - safeMin) * safeCharge)
+	local launchForce = baseForce * safeCharge * safeMultiplier
+	if launchForce ~= launchForce then
+		return 0
+	end
+	return math.clamp(launchForce, 0, safeMax * math.max(safeMultiplier, 1))
+end
+
 local MOVEMENT_STATE = {
 	Idle = "Idle",
 	Moving = "Moving",
@@ -167,8 +188,8 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 
 	local minForce = SlingshotConfig.MIN_LAUNCH_FORCE or SlingshotConfig.BaseLaunchForce
 	local maxForce = SlingshotConfig.MAX_LAUNCH_FORCE or (SlingshotConfig.BaseLaunchForce + Config.MaxExtraForce)
-	local baseForce = minForce + ((maxForce - minForce) * chargeRatio)
-	local launchForce = baseForce * math.max((state.LaunchSpeed or SlingshotConfig.BaseLaunchForce) / SlingshotConfig.BaseLaunchForce, 0.2)
+	local launchMultiplier = math.max((state.LaunchSpeed or SlingshotConfig.BaseLaunchForce) / SlingshotConfig.BaseLaunchForce, 0.2)
+	local launchForce = SlingService.CalculateLaunchForce(chargeRatio, minForce, maxForce, launchMultiplier)
 	local launchVector = chargeState.aimDirection * launchForce
 
 	root.AssemblyLinearVelocity = Vector3.new(

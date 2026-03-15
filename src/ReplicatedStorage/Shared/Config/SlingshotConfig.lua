@@ -2,12 +2,12 @@
 
 local SlingshotConfig = {
 	MAX_CHARGE_TIME = 2.0,
-	MIN_LAUNCH_FORCE = 45,
-	MAX_LAUNCH_FORCE = 240,
+	MIN_LAUNCH_FORCE = 450,
+	MAX_LAUNCH_FORCE = 2400,
 	RECOVER_TIME = 3.0,
 	MAX_AIM_DISTANCE = 500,
 	MaxChargeTime = 2.0,
-	BaseLaunchForce = 90,
+	BaseLaunchForce = 900,
 	LaunchPowerPerPoint = 0.01,
 	ChargeSpeedPerPoint = 0.02,
 	SlingshotModifiers = {

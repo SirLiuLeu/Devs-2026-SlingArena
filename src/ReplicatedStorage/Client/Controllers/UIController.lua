@@ -49,8 +49,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	--         StatusLabel (TextLabel)
 	--         JoinButton (TextButton)
 	--         LeaveButton (TextButton)
-	--         TeleportForest (TextButton)
-	--         TeleportDesert (TextButton)
 	--         DebugFood (TextButton)
 	--         DebugReset (TextButton)
 	--         MapName (TextLabel)
@@ -85,8 +83,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.LevelLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Lobby.LevelLabel)
 	self.HpLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Lobby.HpLabel)
 	self.RespawnLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Lobby.RespawnLabel)
-	self.TeleportForestButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.TeleportForestButton)
-	self.TeleportDesertButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.TeleportDesertButton)
 	self.DebugFoodButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugFoodButton)
 	self.DebugResetButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugResetButton)
 
@@ -104,8 +100,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not self.LevelLabel then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.LevelLabel, "TextLabel") end
 	if not self.HpLabel then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.HpLabel, "TextLabel") end
 	if not self.RespawnLabel then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.RespawnLabel, "TextLabel") end
-	if not self.TeleportForestButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.TeleportForestButton, "TextButton") end
-	if not self.TeleportDesertButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.TeleportDesertButton, "TextButton") end
 	if not self.DebugFoodButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.DebugFoodButton, "TextButton") end
 	if not self.DebugResetButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.DebugResetButton, "TextButton") end
 
@@ -123,19 +117,9 @@ function UIController:Start()
 			self.ClientService:RequestLeaveArena()
 		end))
 	end
-	if self.TeleportForestButton then
-		table.insert(self.Connections, self.TeleportForestButton.MouseButton1Click:Connect(function()
-			self.ClientService:RequestTeleport("ForestArena", "Spawn1")
-		end))
-	end
-	if self.TeleportDesertButton then
-		table.insert(self.Connections, self.TeleportDesertButton.MouseButton1Click:Connect(function()
-			self.ClientService:RequestTeleport("DesertArena", "SpawnA")
-		end))
-	end
 	if self.DebugFoodButton then
 		table.insert(self.Connections, self.DebugFoodButton.MouseButton1Click:Connect(function()
-			self.ClientService:RequestDebugSpawnFood("ForestArena")
+			self.ClientService:RequestDebugSpawnFood("ArenaMap")
 		end))
 	end
 	if self.DebugResetButton then
