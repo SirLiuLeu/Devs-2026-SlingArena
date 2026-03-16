@@ -23,7 +23,6 @@ function RoundService.new(context)
 	self._context = context
 	self._state = STATES.Boot
 	self._roundId = 0
-	self._mapEndTime = 0
 	self._participants = {}
 	self._currentArenaMapName = nil
 	self._matchStateRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.MatchStateUpdate) :: RemoteEvent
@@ -57,7 +56,7 @@ function RoundService:Init()
 	end)
 	Players.PlayerRemoving:Connect(function(player) self._participants[player] = nil end)
 
-	self._context.Services.MapService:ActivateMap("LobbyMap")
+	self._context.Services.MapService:ActivateMap(self:_getTargetArenaMapName())
 	self:SetState(STATES.Lobby)
 	task.defer(function()
 		while true do
@@ -141,10 +140,6 @@ function RoundService:LeaveArena(player: Player)
 	print(string.format("[MapService] LeaveArena requested by %s", player.Name))
 
 	self._participants[player] = nil
-	if self:_participantCount() == 0 then
-		self._context.Services.MapService:ActivateMap("LobbyMap")
-		self._currentArenaMapName = nil
-	end
 
 	local lobbySpawn = self._context.Services.MapService:GetLobbySpawn()
 	if lobbySpawn then
@@ -181,8 +176,6 @@ end
 
 function RoundService:RunRound()
 	if self:_participantCount() <= 0 then
-		self._context.Services.MapService:ActivateMap("LobbyMap")
-		self._currentArenaMapName = nil
 		self:SetState(STATES.Lobby)
 		self:_publishUiState()
 		return
@@ -200,7 +193,6 @@ function RoundService:RunRound()
 	self:SetState(STATES.Countdown)
 	task.wait(2)
 	self:SetState(STATES.ActiveRound)
-	self._mapEndTime = os.clock() + self._context.Services.MapService:GetMapDuration()
 
 	while self._state == STATES.ActiveRound do
 		self:_checkRoundEnd()
@@ -209,11 +201,10 @@ function RoundService:RunRound()
 	end
 
 	self:SetState(STATES.PostRound)
-	self._context.Services.MapService:ActivateMap("LobbyMap")
-	self._currentArenaMapName = nil
+	self._context.Services.MapService:ActivateMap(self:_getTargetArenaMapName())
 	for player in pairs(self._participants) do
 		if player.Parent == Players then
-			self._context.Services.PlayerService:SpawnPawn(player, 1, "LobbyMap")
+			self._context.Services.PlayerService:SpawnPawn(player, 1, self:_getTargetArenaMapName())
 		end
 	end
 end
@@ -275,12 +266,6 @@ end
 
 function RoundService:_checkRoundEnd()
 	if self._state ~= STATES.ActiveRound then return end
-	if os.clock() >= self._mapEndTime then
-		self:SetState(STATES.RoundEnd)
-		self:_finishByTimeout()
-		task.wait(3)
-		return
-	end
 	local alive = self:_aliveParticipants()
 	if #alive == 0 then
 		self:SetState(STATES.RoundEnd)
@@ -314,7 +299,7 @@ end
 function RoundService:_publishUiState()
 	if not self._uiStateRemote then return end
 	local alive = self:_aliveParticipants()
-	local timeLeft = math.max(0, self._mapEndTime - os.clock())
+	local timeLeft = 0
 	self._uiStateRemote:FireAllClients({
 		State = self._state,
 		ArenaStatus = self._state,

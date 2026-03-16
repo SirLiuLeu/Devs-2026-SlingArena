@@ -62,15 +62,10 @@ Required map models:
   - If `[MapModel]/FoodSpawns/FoodSpawn_*` exists, food clones use these anchor points.
   - Otherwise random map-relative positions are used.
 
-### Trap clone flow
-- Arena maps (`Arena_01`, `Arena_02`, or any map name containing `Arena`): cloned into `[MapModel]/TrapContainer`.
-- Lobby map (`LobbyMap`): no trap spawning is executed.
-- Source templates:
-  1. `ServerStorage/TrapTemplates/*`
-  2. fallback chain listed above.
-- Positioning:
-  - If `[MapModel]/TrapSpawns/TrapSpawn_*` exists, trap clones use these anchor points.
-  - Otherwise random map-relative positions are used.
+### Trap runtime flow
+- Traps are fixed map content (not runtime-cloned).
+- Expected path: `Workspace/ArenaMap/Traps/*`.
+- TrapService iterates all children under `Traps` and treats every `BasePart` descendant as collidable trap geometry.
 
 ---
 
@@ -82,15 +77,14 @@ Required map models:
   - Contains one or more `Part` spawn positions.
 - `FoodContainer` *(Folder)*
   - Runtime parent for spawned food models.
-- `TrapContainer` *(Folder)*
-  - Runtime parent for spawned trap models.
+- `Traps` *(Folder)*
+  - Manual trap placement folder.
+  - Contains `Trap_01..N` as `Part` or `Model`.
 
 ## Recommended for deterministic placement
 
 - `FoodSpawns` *(Folder)*
   - `FoodSpawn_01..N` *(Part)*
-- `TrapSpawns` *(Folder)*
-  - `TrapSpawn_01..N` *(Part)*
 
 ## Optional but used by map/round logic
 
@@ -111,8 +105,6 @@ Required map models:
 ## Quick checklist
 
 - [ ] `Workspace/Maps` exists with required map models.
-- [ ] Each playable map has `SpawnPoints`, `FoodContainer`, `TrapContainer`.
+- [ ] Arena map has `SpawnPoints`, `FoodContainer`, and `Traps`.
 - [ ] `ServerStorage/FoodTemplates` has at least one food model.
-- [ ] `ServerStorage/TrapTemplates` has at least one trap model.
 - [ ] `ReplicatedStorage/Assets/SlingModel` exists and has valid root part.
-

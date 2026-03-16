@@ -72,7 +72,8 @@ local ProjectTreeSpec = {
 		--       SpawnPoints (Folder)
 		--         SpawnPoint_01..N (Part)
 		--       FoodContainer (Folder)
-		--       TrapContainer (Folder)
+		--       Traps (Folder)
+		--         Trap_01..N (Part | Model)
 		--       FoodSpawns (Folder)
 		--         EdgeZones (Folder)
 		--           FoodSpawn_01..N (Part)
@@ -80,8 +81,6 @@ local ProjectTreeSpec = {
 		--           FoodSpawn_01..N (Part)
 		--         CenterZones (Folder)
 		--           FoodSpawn_01..N (Part)
-		--       TrapSpawns (Folder)
-		--         TrapSpawn_01..N (Part)
 		--       WallContainer (Folder)
 		--     Arena_02 (Model)
 		--       (same structure as Arena_01)
@@ -110,6 +109,8 @@ local ProjectTreeSpec = {
 				LobbyMap = "Maps.LobbyMap",
 				Arena01 = "Maps.Arena_01",
 				Arena02 = "Maps.Arena_02",
+				ArenaMapDirect = "ArenaMap",
+				ArenaMapTraps = "ArenaMap.Traps",
 			},
 		},
 		ServerStorage = {

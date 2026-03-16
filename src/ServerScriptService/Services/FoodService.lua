@@ -111,6 +111,12 @@ function FoodService.new(context)
 end
 
 function FoodService:Init()
+	local directArena = Workspace:FindFirstChild("ArenaMap")
+	if directArena and directArena:IsA("Model") then
+		self:ClearMapFood(directArena)
+		self:SpawnFoodForMap(directArena)
+	end
+
 	local mapsRoot = Workspace:FindFirstChild("Maps")
 	if not mapsRoot or not mapsRoot:IsA("Folder") then
 		return
@@ -195,6 +201,12 @@ function FoodService:_spawnFoodFromCenterState(centerState: any): boolean
 end
 
 function FoodService:_spawnMissingFoodsForCenter(centerState: any)
+	centerState.ActiveCount = 0
+	for foodModel, info in pairs(self._foodSpawnByInstance) do
+		if info.CenterKey == centerState.CenterKey and foodModel and foodModel.Parent then
+			centerState.ActiveCount += 1
+		end
+	end
 	while centerState.ActiveCount < FOODS_PER_SPAWN do
 		if not self:_spawnFoodFromCenterState(centerState) then
 			break
@@ -246,7 +258,7 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 	end
 	for index, anchor in ipairs(anchors) do
 		local centerKey = string.format("%s:%s:%d", mapModel.Name, anchor.Name, index)
-		local state = {
+		local state = self._foodSpawnStateByCenter[centerKey] or {
 			CenterKey = centerKey,
 			MapModel = mapModel,
 			FoodContainer = foodContainer,
@@ -256,6 +268,12 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 			FallbackTemplate = fallbackTemplate,
 			ActiveCount = 0,
 		}
+		state.MapModel = mapModel
+		state.FoodContainer = foodContainer
+		state.Anchor = anchor
+		state.Zone = getZoneForAnchor(anchor, mapCenter)
+		state.TemplatesByName = templatesByName
+		state.FallbackTemplate = fallbackTemplate
 		self._foodSpawnStateByCenter[centerKey] = state
 		self:_spawnMissingFoodsForCenter(state)
 	end
@@ -309,15 +327,25 @@ function FoodService:_onFoodTouched(food: Model, hit: BasePart)
 end
 
 function FoodService:LoadMapResources(mapName: string)
-	local mapsRoot = Workspace:FindFirstChild("Maps")
-	if not mapsRoot then
+	local mapModel: Model? = nil
+	if mapName == "ArenaMap" then
+		local directArena = Workspace:FindFirstChild("ArenaMap")
+		if directArena and directArena:IsA("Model") then
+			mapModel = directArena
+		end
+	end
+	if not mapModel then
+		local mapsRoot = Workspace:FindFirstChild("Maps")
+		if mapsRoot and mapsRoot:IsA("Folder") then
+			local nested = mapsRoot:FindFirstChild(mapName)
+			if nested and nested:IsA("Model") then
+				mapModel = nested
+			end
+		end
+	end
+	if not mapModel then
 		return
 	end
-	local mapModel = mapsRoot:FindFirstChild(mapName)
-	if not mapModel or not mapModel:IsA("Model") then
-		return
-	end
-	self:ClearMapFood(mapModel)
 	if isArenaMapName(mapName) then
 		self:SpawnFoodForMap(mapModel)
 	end

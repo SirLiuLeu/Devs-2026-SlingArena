@@ -33,6 +33,41 @@ function SlingService.CalculateLaunchForce(chargeRatio: number, minForce: number
 	return math.clamp(launchForce, 0, safeMax * math.max(safeMultiplier, 1))
 end
 
+function SlingService.CalculateChargeRatio(chargeStartTime: number, nowTime: number, maxChargeTime: number): number
+	local safeDuration = math.max(0.001, sanitizeNumber(maxChargeTime, 0.001))
+	local elapsed = math.max(0, sanitizeNumber(nowTime, 0) - sanitizeNumber(chargeStartTime, 0))
+	return math.clamp(elapsed / safeDuration, 0, 1)
+end
+
+function SlingService.ResolveAimDirection(origin: Vector3, aimTarget: Vector3): Vector3
+	local rawDirection = aimTarget - origin
+	if rawDirection.Magnitude < 0.01 then
+		return Vector3.new(0, 0, -1)
+	end
+	return rawDirection.Unit
+end
+
+function SlingService.BuildLaunchVector(direction: Vector3, launchForce: number): Vector3
+	local safeDirection = if direction.Magnitude < 0.01 then Vector3.new(0, 0, -1) else direction.Unit
+	local safeForce = math.max(0, sanitizeNumber(launchForce, 0))
+	local launchVector = safeDirection * safeForce
+	if launchVector.X ~= launchVector.X or launchVector.Y ~= launchVector.Y or launchVector.Z ~= launchVector.Z then
+		return Vector3.zero
+	end
+	return launchVector
+end
+
+function SlingService.GetCooldownRemaining(cooldownEndTime: number, nowTime: number): number
+	local remaining = sanitizeNumber(cooldownEndTime, 0) - sanitizeNumber(nowTime, 0)
+	return math.max(0, remaining)
+end
+
+function SlingService.BuildCooldownUiState(cooldownEndTime: number, nowTime: number): { CooldownRemaining: number }
+	return {
+		CooldownRemaining = SlingService.GetCooldownRemaining(cooldownEndTime, nowTime),
+	}
+end
+
 local MOVEMENT_STATE = {
 	Idle = "Idle",
 	Moving = "Moving",
@@ -143,14 +178,11 @@ function SlingService:StartCharge(player: Player, aimTarget: Vector3)
 		return
 	end
 
-	local direction = aimTarget - root.Position
-	if direction.Magnitude < 0.01 then
-		direction = Vector3.new(0, 0, -1)
-	end
+	local direction = SlingService.ResolveAimDirection(root.Position, aimTarget)
 
 	self._chargeState[player] = {
 		chargeStartTime = now,
-		aimDirection = direction.Unit,
+		aimDirection = direction,
 	}
 	self._context.Services.PlayerStateService:SetCharging(player, true, 0)
 	self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Charging)
@@ -178,19 +210,15 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 
 	local chargeSpeed = math.max(state.ChargeSpeed or 1, 0.1)
 	local maxChargeTime = (SlingshotConfig.MAX_CHARGE_TIME or SlingshotConfig.MaxChargeTime) / chargeSpeed
-	local chargeTime = math.clamp(os.clock() - chargeState.chargeStartTime, 0, maxChargeTime)
-	local chargeRatio = math.clamp(chargeTime / maxChargeTime, 0, 1)
+	local chargeRatio = SlingService.CalculateChargeRatio(chargeState.chargeStartTime, os.clock(), maxChargeTime)
 
-	local updatedDirection = aimTarget - root.Position
-	if updatedDirection.Magnitude > 0.01 then
-		chargeState.aimDirection = updatedDirection.Unit
-	end
+	chargeState.aimDirection = SlingService.ResolveAimDirection(root.Position, aimTarget)
 
 	local minForce = SlingshotConfig.MIN_LAUNCH_FORCE or SlingshotConfig.BaseLaunchForce
 	local maxForce = SlingshotConfig.MAX_LAUNCH_FORCE or (SlingshotConfig.BaseLaunchForce + Config.MaxExtraForce)
 	local launchMultiplier = math.max((state.LaunchSpeed or SlingshotConfig.BaseLaunchForce) / SlingshotConfig.BaseLaunchForce, 0.2)
 	local launchForce = SlingService.CalculateLaunchForce(chargeRatio, minForce, maxForce, launchMultiplier)
-	local launchVector = chargeState.aimDirection * launchForce
+	local launchVector = SlingService.BuildLaunchVector(chargeState.aimDirection, launchForce)
 
 	root.AssemblyLinearVelocity = Vector3.new(
 		math.clamp(launchVector.X, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity),

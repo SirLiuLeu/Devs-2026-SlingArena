@@ -122,6 +122,109 @@ local function testChargeToLaunchForce()
 	assertAlmostEqual(nanForce, 0, 0.0001, "NaN charge input should sanitize to 0 force")
 end
 
+local function testChargeRatioProgressAndClamp()
+	local maxChargeTime = SlingshotConfig.MAX_CHARGE_TIME
+	local quarter = SlingServiceModule.CalculateChargeRatio(0, maxChargeTime * 0.25, maxChargeTime)
+	assertAlmostEqual(quarter, 0.25, 0.0001, "Charge ratio should increase over elapsed charge time")
+
+	local clamped = SlingServiceModule.CalculateChargeRatio(0, maxChargeTime * 2, maxChargeTime)
+	assertAlmostEqual(clamped, 1, 0.0001, "Charge ratio should clamp to max value")
+end
+
+local function buildFakeSlingContext(rootPart: BasePart, stateTable: any)
+	local chargeEvents = {}
+	return {
+		Remotes = Instance.new("Folder"),
+		EventBus = {
+			Fire = function(_, eventName, ...)
+				table.insert(chargeEvents, { Event = eventName, Args = { ... } })
+			end,
+		},
+		Services = {
+			RoundService = {
+				GetState = function() return "ActiveRound" end,
+				IsPlayerQueued = function() return true end,
+			},
+			PlayerService = {
+				GetRoot = function() return rootPart end,
+				IsAlive = function() return true end,
+			},
+			PlayerStateService = {
+				GetState = function() return stateTable end,
+				SetCharging = function(_, _, charging, ratio)
+					stateTable.IsCharging = charging
+					stateTable.ChargeValue = ratio
+				end,
+				SetMovementState = function(_, _, movement)
+					stateTable.MovementState = movement
+				end,
+			},
+		},
+	}, chargeEvents
+end
+
+local function testChargeResetAfterRelease()
+	local root = Instance.new("Part")
+	root.Anchored = true
+	root.Position = Vector3.new(0, 5, 0)
+	root.Parent = workspace
+
+	local state = {
+		ChargeSpeed = 1,
+		LaunchSpeed = SlingshotConfig.BaseLaunchForce,
+		MovementState = "Idle",
+	}
+	local context = buildFakeSlingContext(root, state)
+	local service = SlingServiceModule.new(context)
+	local player = { UserId = 777, Name = "ChargeResetTester", Parent = game:GetService("Players") }
+
+	service:StartCharge(player, Vector3.new(15, 5, 0))
+	local chargeState = service._chargeState[player]
+	if not chargeState then
+		root:Destroy()
+		error("StartCharge should create per-player charge state")
+	end
+	chargeState.chargeStartTime = os.clock() - SlingshotConfig.MAX_CHARGE_TIME
+
+	service:ReleaseCharge(player, Vector3.new(30, 5, 0))
+	if service._chargeState[player] ~= nil then
+		root:Destroy()
+		error("Charge state must reset to nil after release")
+	end
+
+	root:Destroy()
+end
+
+local function testLaunchDirectionNormalizedFromAim()
+	local origin = Vector3.new(0, 0, 0)
+	local aimTarget = Vector3.new(3, 0, 4)
+	local direction = SlingServiceModule.ResolveAimDirection(origin, aimTarget)
+	assertAlmostEqual(direction.Magnitude, 1, 0.0001, "Resolved launch direction must be normalized")
+	assertAlmostEqual(direction.X, 0.6, 0.0001, "Direction X should point toward player aim")
+	assertAlmostEqual(direction.Z, 0.8, 0.0001, "Direction Z should point toward player aim")
+end
+
+local function testChargeReleaseLaunchVectorIsFinite()
+	local direction = SlingServiceModule.ResolveAimDirection(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0))
+	local launchForce = SlingServiceModule.CalculateLaunchForce(0.8, SlingshotConfig.MIN_LAUNCH_FORCE, SlingshotConfig.MAX_LAUNCH_FORCE, 1)
+	local launchVector = SlingServiceModule.BuildLaunchVector(direction, launchForce)
+	if launchVector.X ~= launchVector.X or launchVector.Y ~= launchVector.Y or launchVector.Z ~= launchVector.Z then
+		error("Launch vector must not contain NaN values")
+	end
+	assertAlmostEqual(launchVector.Magnitude, launchForce, 0.0001, "Launch force should be applied to the normalized direction")
+end
+
+local function testCooldownDisplayStateDecreasesCorrectly()
+	local cooldownEnd = 15
+	local uiStateAt10 = SlingServiceModule.BuildCooldownUiState(cooldownEnd, 10)
+	local uiStateAt14 = SlingServiceModule.BuildCooldownUiState(cooldownEnd, 14)
+	assertAlmostEqual(uiStateAt10.CooldownRemaining, 5, 0.0001, "Cooldown remaining should reflect current timestamp")
+	assertAlmostEqual(uiStateAt14.CooldownRemaining, 1, 0.0001, "Cooldown remaining should decrease over time")
+	if uiStateAt14.CooldownRemaining >= uiStateAt10.CooldownRemaining then
+		error("UI cooldown values must strictly decrease as time advances")
+	end
+end
+
 
 local function testCollisionTriggersDamageFormula()
 	local service = CombatService.new({})
@@ -403,6 +506,11 @@ local function testActivateMapDoesNotHideInactiveMaps()
 end
 
 runTest("ChargeToLaunchForce", testChargeToLaunchForce)
+runTest("ChargeRatio_ProgressAndClamp", testChargeRatioProgressAndClamp)
+runTest("ChargeRelease_ResetsChargeState", testChargeResetAfterRelease)
+runTest("LaunchDirection_NormalizedFromAim", testLaunchDirectionNormalizedFromAim)
+runTest("ChargeRelease_ForceVectorFinite", testChargeReleaseLaunchVectorIsFinite)
+runTest("CooldownDisplay_DecreasesOverTime", testCooldownDisplayStateDecreasesCorrectly)
 runTest("CollisionTriggersDamageFormula", testCollisionTriggersDamageFormula)
 runTest("KnockbackDirectionForSmallerAttacker", testKnockbackDirectionForSmallerAttacker)
 runTest("ExpLevelUpThreshold", testExpLevelUpThreshold)

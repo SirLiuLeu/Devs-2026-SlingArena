@@ -6,8 +6,6 @@ local Workspace = game:GetService("Workspace")
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
-local DEFAULT_MAP_DURATION = 120
-
 local FOOD_ZONE_TYPES = {
 	Edge = { "Food5", "Food6", "Food7" },
 	Middle = { "Food2", "Food3", "Food4", "Food5", "Food6", "Food7" },
@@ -86,7 +84,6 @@ function MapService.new(context)
 	self._mapRoot = nil
 	self._activeMap = nil
 	self._activeArenaMapName = nil
-	self._mapDuration = DEFAULT_MAP_DURATION
 	self._gates = {}
 	self._traps = {}
 	self._spawnPoints = {}
@@ -128,6 +125,11 @@ function MapService:GetDefaultArenaMapName(): string
 end
 
 function MapService:GetArenaModel(): Model?
+	local directArenaMap = Workspace:FindFirstChild("ArenaMap")
+	if directArenaMap and directArenaMap:IsA("Model") then
+		return directArenaMap
+	end
+
 	local root = self._mapRoot or getStudioMapsRoot()
 	if root then
 		if self._activeArenaMapName then
@@ -326,7 +328,7 @@ function MapService:CanPlayerUseCorridors(player: Player): boolean
 end
 
 function MapService:GetMapDuration(): number
-	return self._mapDuration
+	return 0
 end
 
 function MapService:GetActiveMap(): string?
@@ -368,9 +370,9 @@ function MapService:SpawnFood(_count: number?)
 	end
 end
 
-function MapService:SpawnTrap(count: number?)
+function MapService:SpawnTrap(_count: number?)
 	if self._context.Services.TrapService then
-		self._context.Services.TrapService:SpawnTrapForActiveMap(count or 4)
+		self._context.Services.TrapService:LoadMapResources("ArenaMap")
 		self:Generate()
 	end
 end
