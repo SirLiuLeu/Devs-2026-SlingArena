@@ -1,112 +1,208 @@
-local UIS = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
-local player = game.Players.LocalPlayer
-local gui = script.Parent
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
 
-local joystick = gui:WaitForChild("JoystickRoot")
-local base = joystick:WaitForChild("Base")
-local thumb = joystick:WaitForChild("Thumb")
+local player = Players.LocalPlayer
+local guiRoot = script.Parent
+local slingGui = guiRoot
+if not slingGui:FindFirstChild("JoystickRoot") then
+	slingGui = guiRoot:FindFirstChild("SlingUI") or guiRoot
+end
 
-local chargeBar = gui:WaitForChild("ChargeBar")
-local fill = chargeBar:WaitForChild("Fill")
+local joystick = slingGui:FindFirstChild("JoystickRoot")
+local base = joystick and joystick:FindFirstChild("Base")
+local thumb = joystick and joystick:FindFirstChild("Thumb")
+local chargeBar = slingGui:FindFirstChild("ChargeBar")
+local chargeFill = chargeBar and chargeBar:FindFirstChild("Fill")
+local directionArrow = slingGui:FindFirstChild("DirectionArrow")
+local cooldownBar = slingGui:FindFirstChild("CooldownBar")
+local cooldownFill = cooldownBar and cooldownBar:FindFirstChild("Fill")
 
-local arrow = gui:WaitForChild("DirectionArrow")
+local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
+local startChargeRemote = remotes:WaitForChild(RemoteContracts.Names.StartCharge)
+local releaseChargeRemote = remotes:WaitForChild(RemoteContracts.Names.ReleaseCharge)
 
--- state
+local MAX_CHARGE_TIME = SlingshotConfig.MAX_CHARGE_TIME or 2
+local COOLDOWN_DURATION = SlingshotConfig.RECOVER_TIME or 3
+local MAX_JOYSTICK_DRAG = 60
+local DEBUG_LOG = true
+local lastLoggedChargeBucket = -1
+
 local isHolding = false
-local startPos = nil
-local currentPos = nil
-
+local inputObject = nil
+local startPos = Vector2.zero
+local currentPos = Vector2.zero
 local charge = 0
-local maxChargeTime = 2 -- giây
+local cooldownEndTime = 0
 
-UIS.InputBegan:Connect(function(input, processed)
-	if processed then return end
+local function getMouseWorld(): Vector3
+	local mouse = player:GetMouse()
+	if mouse.Hit then
+		return mouse.Hit.Position
+	end
+	return Vector3.new(0, 0, -1)
+end
 
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
+local function getInputPosition(input): Vector2
+	if input and input.Position then
+		return Vector2.new(input.Position.X, input.Position.Y)
+	end
+	return Vector2.zero
+end
 
-		isHolding = true
-		startPos = input.Position
-		currentPos = startPos
-		charge = 0
+local function isSlingInputStart(input): boolean
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+		return false
+	end
+	local mouse = player:GetMouse()
+	local target = mouse and mouse.Target
+	if not target then
+		return false
+	end
+	local character = player.Character
+	if not character then
+		return false
+	end
+	return target:IsDescendantOf(character)
+end
 
-		-- show UI
-		joystick.Visible = true
-		arrow.Visible = true
+local function setVisibleSafe(instance, visible)
+	if instance and instance:IsA("GuiObject") then
+		instance.Visible = visible
+	end
+end
 
-		-- đặt joystick tại vị trí click
+local function updateChargeBar(percent)
+	if chargeFill and chargeFill:IsA("Frame") then
+		chargeFill.Size = UDim2.new(percent, 0, 1, 0)
+	end
+end
+
+local function updateCooldownBar(percent)
+	if cooldownFill and cooldownFill:IsA("Frame") then
+		cooldownFill.Size = UDim2.new(percent, 0, 1, 0)
+	end
+	if cooldownBar and cooldownBar:IsA("GuiObject") then
+		cooldownBar.Visible = percent > 0
+	end
+end
+
+local function startHold(input)
+	if os.clock() < cooldownEndTime then
+		return
+	end
+	isHolding = true
+	inputObject = input
+	startPos = getInputPosition(input)
+	currentPos = startPos
+	charge = 0
+
+	setVisibleSafe(joystick, true)
+	setVisibleSafe(directionArrow, true)
+
+	if joystick and joystick:IsA("GuiObject") then
 		joystick.Position = UDim2.new(0, startPos.X, 0, startPos.Y)
+		joystick.ZIndex = 20
+	end
+	if directionArrow and directionArrow:IsA("GuiObject") then
+		directionArrow.ZIndex = 21
+		directionArrow.Position = joystick and joystick.Position or UDim2.new(0, startPos.X, 0, startPos.Y)
+	end
+	if DEBUG_LOG then
+		print("[SlingUI] Input start detected")
+		print("[SlingUI] Charging started")
+	end
+	startChargeRemote:FireServer(getMouseWorld())
+end
+
+local function updateHold(input)
+	if not isHolding then
+		return
+	end
+	if input ~= inputObject and input.UserInputType ~= Enum.UserInputType.MouseMovement then
+		return
+	end
+	currentPos = getInputPosition(input)
+	local delta = currentPos - startPos
+	if delta.Magnitude > MAX_JOYSTICK_DRAG then
+		delta = delta.Unit * MAX_JOYSTICK_DRAG
+	end
+	if thumb and thumb:IsA("GuiObject") then
+		thumb.Position = UDim2.new(0.5, delta.X, 0.5, delta.Y)
+	end
+	if directionArrow and directionArrow:IsA("GuiObject") then
+		if delta.Magnitude > 0 then
+			directionArrow.Rotation = math.deg(math.atan2(delta.Y, delta.X))
+		end
+		directionArrow.Position = joystick and joystick.Position or directionArrow.Position
+	end
+end
+
+local function releaseHold(input)
+	if not isHolding then
+		return
+	end
+	if inputObject and input ~= inputObject and input.UserInputType ~= Enum.UserInputType.MouseButton1 then
+		return
+	end
+
+	isHolding = false
+	inputObject = nil
+
+	releaseChargeRemote:FireServer(getMouseWorld())
+	cooldownEndTime = os.clock() + COOLDOWN_DURATION
+
+	setVisibleSafe(joystick, false)
+	setVisibleSafe(directionArrow, false)
+	if thumb and thumb:IsA("GuiObject") then
+		thumb.Position = UDim2.new(0.5, 0, 0.5, 0)
+	end
+	updateChargeBar(0)
+end
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then
+		return
+	end
+	if isSlingInputStart(input) then
+		startHold(input)
 	end
 end)
 
-UIS.InputChanged:Connect(function(input)
-	if not isHolding then return end
+UserInputService.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		updateHold(input)
+	end
+end)
 
-	if input.UserInputType == Enum.UserInputType.MouseMovement
-		or input.UserInputType == Enum.UserInputType.Touch then
-
-		currentPos = input.Position
-
-		local delta = currentPos - startPos
-
-		-- giới hạn joystick
-		local maxDistance = 60
-		if delta.Magnitude > maxDistance then
-			delta = delta.Unit * maxDistance
-		end
-
-		-- di chuyển thumb
-		thumb.Position = UDim2.new(
-			0.5, delta.X,
-			0.5, delta.Y
-		)
-
-		-- rotate arrow
-		local angle = math.atan2(delta.Y, delta.X)
-		arrow.Rotation = math.deg(angle)
-
-		-- đặt arrow tại joystick
-		arrow.Position = joystick.Position
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		releaseHold(input)
 	end
 end)
 
 RunService.RenderStepped:Connect(function(dt)
 	if isHolding then
 		charge += dt
-
-		local percent = math.clamp(charge / maxChargeTime, 0, 1)
-
-		-- update UI
-		fill.Size = UDim2.new(percent, 0, 1, 0)
+		local chargeRatio = math.clamp(charge / MAX_CHARGE_TIME, 0, 1)
+		updateChargeBar(chargeRatio)
+		if DEBUG_LOG then
+			local bucket = math.floor(chargeRatio * 10)
+			if bucket ~= lastLoggedChargeBucket then
+				lastLoggedChargeBucket = bucket
+				print(string.format("[SlingUI] Charging value: %.2f", chargeRatio))
+			end
+		end
 	end
+	local remaining = math.max(0, cooldownEndTime - os.clock())
+	updateCooldownBar(math.clamp(remaining / COOLDOWN_DURATION, 0, 1))
 end)
 
-UIS.InputEnded:Connect(function(input)
-	if not isHolding then return end
-
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-
-		isHolding = false
-
-		local delta = currentPos - startPos
-		local direction = delta.Magnitude > 0 and delta.Unit or Vector2.new(0,0)
-
-		local power = math.clamp(charge / maxChargeTime, 0, 1)
-
-		print("Direction:", direction)
-		print("Power:", power)
-
-		-- TODO: gửi lên server
-		-- RemoteEvent:FireServer(direction, power)
-
-		-- reset UI
-		joystick.Visible = false
-		arrow.Visible = false
-
-		thumb.Position = UDim2.new(0.5, 0, 0.5, 0)
-		fill.Size = UDim2.new(0, 0, 1, 0)
-	end
-end)
+setVisibleSafe(joystick, false)
+setVisibleSafe(directionArrow, false)
+updateChargeBar(0)
+updateCooldownBar(0)

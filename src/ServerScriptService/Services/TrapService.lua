@@ -40,6 +40,7 @@ function TrapService.new(context)
 	local self = setmetatable({}, TrapService)
 	self._context = context
 	self._lastTriggeredAt = {}
+	self._trapTouchedConnections = {}
 	return self
 end
 
@@ -53,6 +54,7 @@ function TrapService:GetActiveTrapParts(): { BasePart }
 	local parts = {}
 	local arenaMap = getArenaMapModel()
 	local trapFolder = getTrapFolderFromArena(arenaMap)
+	self:_disconnectTrapTouched()
 	if not trapFolder then
 		return parts
 	end
@@ -69,15 +71,41 @@ function TrapService:GetActiveTrapParts(): { BasePart }
 	return parts
 end
 
+
+function TrapService:_disconnectTrapTouched()
+	for _, connection in ipairs(self._trapTouchedConnections) do
+		connection:Disconnect()
+	end
+	table.clear(self._trapTouchedConnections)
+end
+
+function TrapService:_bindTrapTouched(trapPart: BasePart)
+	table.insert(self._trapTouchedConnections, trapPart.Touched:Connect(function(hit)
+		local character = hit:FindFirstAncestorOfClass("Model")
+		if not character then
+			return
+		end
+		local player = game:GetService("Players"):GetPlayerFromCharacter(character)
+		if not player then
+			return
+		end
+		self:OnTrapCollision(player, trapPart)
+	end))
+end
+
 function TrapService:LoadMapResources(mapName: string)
 	if mapName ~= "ArenaMap" then
 		return
 	end
 	local arenaMap = getArenaMapModel()
 	local trapFolder = getTrapFolderFromArena(arenaMap)
+	self:_disconnectTrapTouched()
 	if not trapFolder then
 		warn("[TrapService] Missing Workspace.ArenaMap.Traps folder. Create traps manually in Studio.")
 		return
+	end
+	for _, trapPart in ipairs(self:GetActiveTrapParts()) do
+		self:_bindTrapTouched(trapPart)
 	end
 end
 
@@ -92,6 +120,7 @@ function TrapService:OnTrapCollision(player: Player, trap: BasePart)
 		return
 	end
 	self._lastTriggeredAt[player] = now
+	print(string.format("[TrapService] Trap damage trigger: %s hit %s", player.Name, trap.Name))
 	self._context.EventBus:Fire("TrapCollision", player, TrapConfig.ExpPenalty)
 
 	local root = self._context.Services.PlayerService:GetRoot(player)

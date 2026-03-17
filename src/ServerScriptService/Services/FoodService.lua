@@ -10,7 +10,7 @@ local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local DEFAULT_FOOD_RESPAWN_DELAY = 10
 local FOODS_PER_SPAWN = 5
 local FOOD_SPAWN_RADIUS = 5
-local FOOD_MIN_DISTANCE = 1.75
+local FOOD_MIN_DISTANCE = 2.5
 
 local FOOD_ZONE_TYPES = {
 	Edge = { "Food5", "Food6", "Food7" },
@@ -134,7 +134,7 @@ function FoodService:_buildSpawnPosition(centerState: any, root: BasePart): Vect
 	local minDistanceSquared = FOOD_MIN_DISTANCE * FOOD_MIN_DISTANCE
 	while attempts < 12 do
 		attempts += 1
-		local offset = Vector3.new(
+		local offset = if attempts == 1 then Vector3.zero else Vector3.new(
 			math.random(-FOOD_SPAWN_RADIUS * 100, FOOD_SPAWN_RADIUS * 100) / 100,
 			0,
 			math.random(-FOOD_SPAWN_RADIUS * 100, FOOD_SPAWN_RADIUS * 100) / 100
@@ -155,11 +155,11 @@ function FoodService:_buildSpawnPosition(centerState: any, root: BasePart): Vect
 			end
 		end
 		if canUse then
-			return self:_resolveFoodFloorPosition(centerState.MapModel, candidate, root.Size.Y * 0.5)
+			return Vector3.new(candidate.X, centerState.Anchor.Position.Y + (root.Size.Y * 0.5), candidate.Z)
 		end
 	end
 
-	return self:_resolveFoodFloorPosition(centerState.MapModel, centerState.Anchor.Position, root.Size.Y * 0.5)
+	return Vector3.new(centerState.Anchor.Position.X, centerState.Anchor.Position.Y + (root.Size.Y * 0.5), centerState.Anchor.Position.Z)
 end
 
 function FoodService:_resolveFoodFloorPosition(mapModel: Model, wantedPosition: Vector3, halfHeight: number): Vector3
@@ -193,6 +193,7 @@ function FoodService:_spawnFoodFromCenterState(centerState: any): boolean
 	clone.PrimaryPart = root
 	local alignedPosition = self:_buildSpawnPosition(centerState, root)
 	clone:PivotTo(CFrame.new(alignedPosition))
+	print(string.format("[FoodService] Spawned %s at (%.2f, %.2f, %.2f)", clone.Name, alignedPosition.X, alignedPosition.Y, alignedPosition.Z))
 	self._foodSpawnByInstance[clone] = { CenterKey = centerState.CenterKey }
 	root.Touched:Connect(function(hit)
 		self:_onFoodTouched(clone, hit)

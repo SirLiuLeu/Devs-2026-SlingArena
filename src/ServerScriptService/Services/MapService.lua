@@ -170,11 +170,28 @@ function MapService:GetArenaSpawn(mapName: string?): BasePart?
 end
 
 function MapService:GetLobbySpawn(): BasePart?
-	if self._mapRoot then
-		local lobbyMap = self._mapRoot:FindFirstChild("LobbyMap")
-		if lobbyMap then
+	local mapsRoot = self._mapRoot or getStudioMapsRoot()
+	if mapsRoot then
+		local lobbyModel = mapsRoot:FindFirstChild("Lobby")
+		if lobbyModel and lobbyModel:IsA("Model") then
+			local spawnPoints = lobbyModel:FindFirstChild("SpawnPoints")
+			local spawnPoint = spawnPoints and spawnPoints:FindFirstChild("SpawnPoint")
+			if spawnPoint and spawnPoint:IsA("BasePart") then
+				return spawnPoint
+			end
+		end
+
+		local lobbyMap = mapsRoot:FindFirstChild("LobbyMap")
+		if lobbyMap and lobbyMap:IsA("Model") then
+			local spawnPoints = lobbyMap:FindFirstChild("SpawnPoints")
+			if spawnPoints and spawnPoints:IsA("Folder") then
+				local preferred = spawnPoints:FindFirstChild("SpawnPoint") or spawnPoints:FindFirstChild("LobbySpawn")
+				if preferred and preferred:IsA("BasePart") then
+					return preferred
+				end
+			end
 			for _, descendant in ipairs(lobbyMap:GetDescendants()) do
-				if descendant:IsA("BasePart") and descendant.Name == "SpawnPoint" then
+				if descendant:IsA("BasePart") and (descendant.Name == "SpawnPoint" or descendant.Name == "LobbySpawn") then
 					return descendant
 				end
 			end
@@ -343,6 +360,12 @@ function MapService:GetSpawnCFrame(index: number, mapName: string?): CFrame
 	if isArenaMapName(mapName) then
 		local spawn = self:GetArenaSpawn(mapName)
 		return spawn and spawn.CFrame or CFrame.new(0, 8, 0)
+	end
+	if isLobbyMapName(mapName) then
+		local lobbySpawn = self:GetLobbySpawn()
+		if lobbySpawn then
+			return lobbySpawn.CFrame
+		end
 	end
 	local points = self._spawnPoints
 	if #points == 0 then

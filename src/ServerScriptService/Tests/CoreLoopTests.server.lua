@@ -463,6 +463,40 @@ local function testFoodServiceUsesFoodSpawnPartsExactly()
 	if createdTemplates then templates:Destroy() end
 end
 
+
+local function testLobbySpawnPrefersExplicitPath()
+	local maps = Instance.new("Folder")
+	maps.Name = "Maps"
+	maps.Parent = workspace
+
+	local lobby = Instance.new("Model")
+	lobby.Name = "Lobby"
+	lobby.Parent = maps
+
+	local spawnFolder = Instance.new("Folder")
+	spawnFolder.Name = "SpawnPoints"
+	spawnFolder.Parent = lobby
+
+	local spawn = Instance.new("Part")
+	spawn.Name = "SpawnPoint"
+	spawn.Position = Vector3.new(11, 4, -9)
+	spawn.Parent = spawnFolder
+
+	local service = MapServiceModule.new({
+		Remotes = Instance.new("Folder"),
+		Services = {},
+		EventBus = { Fire = function() end },
+	})
+	service._mapRoot = maps
+
+	local found = service:GetLobbySpawn()
+	if found ~= spawn then
+		maps:Destroy()
+		error("GetLobbySpawn should prefer Workspace.Maps.Lobby.SpawnPoints.SpawnPoint")
+	end
+	maps:Destroy()
+end
+
 local function testActivateMapDoesNotHideInactiveMaps()
 	local mapsFolder = Instance.new("Folder")
 	mapsFolder.Name = "Maps"
@@ -522,5 +556,6 @@ runTest("TeleportLogic_JoinLeaveFlow", testTeleportPlayerJoinLeaveFlow)
 runTest("MapSpawn_UsesRequestedArenaMap", testArenaSpawnLookupUsesRequestedMap)
 runTest("MapActivation_DoesNotHideInactiveMaps", testActivateMapDoesNotHideInactiveMaps)
 runTest("FoodService_UsesFoodSpawnPartsExactly", testFoodServiceUsesFoodSpawnPartsExactly)
+runTest("LobbySpawn_PrefersExplicitPath", testLobbySpawnPrefersExplicitPath)
 
 print("[CoreLoopTests] all checks passed")

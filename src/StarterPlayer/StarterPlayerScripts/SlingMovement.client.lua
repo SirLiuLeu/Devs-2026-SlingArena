@@ -10,8 +10,6 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
 local moveRequestRemote = remotes:WaitForChild(RemoteContracts.Names.MoveRequest) :: RemoteEvent
-local startChargeRemote = remotes:WaitForChild(RemoteContracts.Names.StartCharge) :: RemoteEvent
-local releaseChargeRemote = remotes:WaitForChild(RemoteContracts.Names.ReleaseCharge) :: RemoteEvent
 local stateUpdateRemote = remotes:WaitForChild(RemoteContracts.Names.StateUpdate) :: RemoteEvent
 local gameplayFeedbackRemote = remotes:WaitForChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent
 
@@ -111,11 +109,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		keyStates[input.KeyCode] = true
 	end
 
-	if input.UserInputType == Enum.UserInputType.MouseButton1 and not charging then
-		charging = true
-		chargeStartTime = os.clock()
-		startChargeRemote:FireServer(getMouseWorld())
-	end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
@@ -124,15 +117,19 @@ UserInputService.InputEnded:Connect(function(input)
 		keyStates[input.KeyCode] = false
 	end
 
-	if input.UserInputType == Enum.UserInputType.MouseButton1 and charging then
-		charging = false
-		releaseChargeRemote:FireServer(getMouseWorld())
-	end
 end)
 
 stateUpdateRemote.OnClientEvent:Connect(function(state)
-	if typeof(state) == "table" and typeof(state.ChargeValue) == "number" then
-		maxChargeTime = 2
+	if typeof(state) == "table" then
+		if typeof(state.ChargeValue) == "number" then
+			maxChargeTime = 2
+		end
+		if typeof(state.IsCharging) == "boolean" then
+			charging = state.IsCharging
+			if charging then
+				chargeStartTime = os.clock() - ((state.ChargeValue or 0) * maxChargeTime)
+			end
+		end
 	end
 end)
 
