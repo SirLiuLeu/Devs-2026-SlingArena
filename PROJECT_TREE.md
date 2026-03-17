@@ -130,15 +130,24 @@ DataModel
 │  │     ├─ AimDirection
 │  │     └─ ImpactFeedback
 │  │
-│  └─ StatsUI (ScreenGui)
-│     ├─ RootFrame
-│     │  ├─ UICorner
-│     │  ├─ GoldLabel
-│     │  ├─ ScoreLabel
-│     │  ├─ TitleLabel
-│     │  └─ WinsLabel
-│     │
-│     └─ SlingArenaUI [INFERRED legacy / alternative UI stack]
+│  ├─ StatsUI (ScreenGui)
+│  │   └─ RootFrame
+│  │     ├─ UICorner
+│  │     ├─ GoldLabel
+│  │     ├─ ScoreLabel
+│  │     ├─ TitleLabel
+│  │     └─ WinsLabel
+│  │   
+│  └─ SlingArenaUI [INFERRED legacy / alternative UI stack]
+│        ├─ SlingUI (ScreenGui)
+│        │   ├─ JoystickRoot (Frame)
+│        │   │  ├─ Base (Frame)
+│        │   │  └─ Thumb (Frame)
+│        │   │
+│        │   ├─ ChargeBar (Frame)
+│        │   │  └─ Fill (Frame)
+│        │   │
+│        │   └─ DirectionArrow (ImageLabel)
 │        ├─ MainUI.client.lua (deprecated)
 │        ├─ UIController.lua
 │        └─ Components/*
@@ -179,7 +188,10 @@ DataModel
 │        │     └─ FoodSpawn_..N
 │        │
 │        ├─ FoodContainer
-│        ├─ TrapSpawns / TrapSpawn*
+│        ├─ Traps
+│        │     ├─ Trap_01
+│        │     ├─ Trap_02
+│        │     └─ Trap_..N
 │        ├─ TrapContainer
 │        ├─ ExitZone
 │        ├─ SafeSpawnZone
