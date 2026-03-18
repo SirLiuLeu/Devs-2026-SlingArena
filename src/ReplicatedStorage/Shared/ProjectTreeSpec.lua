@@ -38,6 +38,17 @@ local ProjectTreeSpec = {
 			AimDirection = "SlingArenaDynamicUI.RootFrame.AimDirection", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.RootFrame.AimDirection
 			ImpactFeedback = "SlingArenaDynamicUI.RootFrame.ImpactFeedback", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.RootFrame.ImpactFeedback
 		},
+		SlingTouch = {
+			ScreenGui = "SlingUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI
+			JoystickRoot = "SlingUI.JoystickRoot", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.JoystickRoot
+			JoystickBase = "SlingUI.JoystickRoot.Base", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.JoystickRoot.Base
+			JoystickThumb = "SlingUI.JoystickRoot.Thumb", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.JoystickRoot.Thumb
+			ChargeBar = "SlingUI.ChargeBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.ChargeBar
+			ChargeFill = "SlingUI.ChargeBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.ChargeBar.Fill
+			DirectionArrow = "SlingUI.DirectionArrow", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.DirectionArrow
+			CooldownBar = "SlingUI.CooldownBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.CooldownBar
+			CooldownFill = "SlingUI.CooldownBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.CooldownBar.Fill
+		},
 	},
 	Remotes = {
 		Folder = "SlingArenaRemotes", -- [PROJECT_TREE_SPEC] ReplicatedStorage.SlingArenaRemotes

@@ -373,6 +373,88 @@ local function testArenaSpawnLookupUsesRequestedMap()
 end
 
 
+local function testFoodServiceAlignsFoodBottomToSpawnHeight()
+	local map = Instance.new("Model")
+	map.Name = "Arena_FoodHeight"
+	map.Parent = workspace
+
+	local foodContainer = Instance.new("Folder")
+	foodContainer.Name = "FoodContainer"
+	foodContainer.Parent = map
+
+	local spawns = Instance.new("Folder")
+	spawns.Name = "FoodSpawns"
+	spawns.Parent = map
+
+	local centerZones = Instance.new("Folder")
+	centerZones.Name = "CenterZones"
+	centerZones.Parent = spawns
+
+	local spawn = Instance.new("Part")
+	spawn.Name = "FoodSpawn_Height"
+	spawn.Anchored = true
+	spawn.Size = Vector3.new(4, 1, 4)
+	spawn.CFrame = CFrame.new(0, 10, 0)
+	spawn.Parent = centerZones
+
+	local serverStorage = game:GetService("ServerStorage")
+	local templates = serverStorage:FindFirstChild("FoodTemplates")
+	local createdTemplates = false
+	if not templates then
+		templates = Instance.new("Folder")
+		templates.Name = "FoodTemplates"
+		templates.Parent = serverStorage
+		createdTemplates = true
+	end
+
+	local existingFood1 = templates:FindFirstChild("Food1")
+	local createdTemplateModel = false
+	if not existingFood1 then
+		local template = Instance.new("Model")
+		template.Name = "Food1"
+		local root = Instance.new("Part")
+		root.Name = "Root"
+		root.Anchored = true
+		root.Size = Vector3.new(2, 2, 2)
+		root.CFrame = CFrame.new(0, 1, 0)
+		root.Parent = template
+		template.PrimaryPart = root
+		template.Parent = templates
+		createdTemplateModel = true
+	end
+
+	local service = FoodServiceModule.new({
+		Services = {
+			PlayerService = { GetPawn = function() return nil end },
+			PlayerStateService = { Heal = function() end, PublishState = function() end },
+		},
+		EventBus = { Fire = function() end },
+	})
+
+	service:SpawnFoodForMap(map)
+	local spawned = foodContainer:GetChildren()[1]
+	if not spawned or not spawned:IsA("Model") then
+		map:Destroy()
+		error("Expected spawned food model for height alignment test")
+	end
+
+	local root = spawned.PrimaryPart or spawned:FindFirstChildWhichIsA("BasePart")
+	if not root then
+		map:Destroy()
+		error("Spawned food height test model missing root")
+	end
+
+	local bottomY = root.Position.Y - (root.Size.Y * 0.5)
+	assertAlmostEqual(bottomY, spawn.Position.Y, 0.01, "Food bottom should sit exactly on FoodSpawn height")
+
+	map:Destroy()
+	if createdTemplateModel then
+		local model = templates:FindFirstChild("Food1")
+		if model then model:Destroy() end
+	end
+	if createdTemplates then templates:Destroy() end
+end
+
 local function testFoodServiceUsesFoodSpawnPartsExactly()
 	local map = Instance.new("Model")
 	map.Name = "Arena_Test"
@@ -556,6 +638,7 @@ runTest("TeleportLogic_JoinLeaveFlow", testTeleportPlayerJoinLeaveFlow)
 runTest("MapSpawn_UsesRequestedArenaMap", testArenaSpawnLookupUsesRequestedMap)
 runTest("MapActivation_DoesNotHideInactiveMaps", testActivateMapDoesNotHideInactiveMaps)
 runTest("FoodService_UsesFoodSpawnPartsExactly", testFoodServiceUsesFoodSpawnPartsExactly)
+runTest("FoodService_AlignsFoodBottomToSpawnHeight", testFoodServiceAlignsFoodBottomToSpawnHeight)
 runTest("LobbySpawn_PrefersExplicitPath", testLobbySpawnPrefersExplicitPath)
 
 print("[CoreLoopTests] all checks passed")

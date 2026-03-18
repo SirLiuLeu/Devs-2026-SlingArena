@@ -129,9 +129,31 @@ function FoodService:Init()
 	end
 end
 
-function FoodService:_buildSpawnPosition(centerState: any, root: BasePart): Vector3
+function FoodService.GetModelBottomOffset(model: Model): number
+	local pivotY = model:GetPivot().Position.Y
+	local minY = math.huge
+
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			local partMinY = descendant.Position.Y - (descendant.Size.Y * 0.5)
+			if partMinY < minY then
+				minY = partMinY
+			end
+		end
+	end
+
+	if minY == math.huge then
+		return 0
+	end
+
+	return pivotY - minY
+end
+
+function FoodService:_buildSpawnCFrame(centerState: any, model: Model): CFrame
 	local attempts = 0
 	local minDistanceSquared = FOOD_MIN_DISTANCE * FOOD_MIN_DISTANCE
+	local bottomOffset = FoodService.GetModelBottomOffset(model)
+
 	while attempts < 12 do
 		attempts += 1
 		local offset = if attempts == 1 then Vector3.zero else Vector3.new(
@@ -139,13 +161,13 @@ function FoodService:_buildSpawnPosition(centerState: any, root: BasePart): Vect
 			0,
 			math.random(-FOOD_SPAWN_RADIUS * 100, FOOD_SPAWN_RADIUS * 100) / 100
 		)
-		local candidate = centerState.Anchor.Position + offset
+		local candidatePosition = centerState.Anchor.Position + offset
 		local canUse = true
 		for foodModel, info in pairs(self._foodSpawnByInstance) do
 			if info.CenterKey == centerState.CenterKey and foodModel and foodModel.Parent then
 				local existingRoot = foodModel.PrimaryPart or foodModel:FindFirstChildWhichIsA("BasePart")
 				if existingRoot then
-					local delta = existingRoot.Position - candidate
+					local delta = existingRoot.Position - candidatePosition
 					local horizontalDistanceSquared = (delta.X * delta.X) + (delta.Z * delta.Z)
 					if horizontalDistanceSquared < minDistanceSquared then
 						canUse = false
@@ -154,23 +176,14 @@ function FoodService:_buildSpawnPosition(centerState: any, root: BasePart): Vect
 				end
 			end
 		end
+
 		if canUse then
-			return Vector3.new(candidate.X, centerState.Anchor.Position.Y + (root.Size.Y * 0.5), candidate.Z)
+			local targetCFrame = centerState.Anchor.CFrame + offset
+			return targetCFrame + Vector3.new(0, bottomOffset, 0)
 		end
 	end
 
-	return Vector3.new(centerState.Anchor.Position.X, centerState.Anchor.Position.Y + (root.Size.Y * 0.5), centerState.Anchor.Position.Z)
-end
-
-function FoodService:_resolveFoodFloorPosition(mapModel: Model, wantedPosition: Vector3, halfHeight: number): Vector3
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Include
-	raycastParams.FilterDescendantsInstances = { mapModel }
-	local result = Workspace:Raycast(wantedPosition + Vector3.new(0, 128, 0), Vector3.new(0, -512, 0), raycastParams)
-	if result then
-		return Vector3.new(wantedPosition.X, result.Position.Y + halfHeight, wantedPosition.Z)
-	end
-	return Vector3.new(wantedPosition.X, mapModel:GetPivot().Position.Y + halfHeight, wantedPosition.Z)
+	return centerState.Anchor.CFrame + Vector3.new(0, bottomOffset, 0)
 end
 
 function FoodService:_spawnFoodFromCenterState(centerState: any): boolean
@@ -191,9 +204,13 @@ function FoodService:_spawnFoodFromCenterState(centerState: any): boolean
 		return false
 	end
 	clone.PrimaryPart = root
-	local alignedPosition = self:_buildSpawnPosition(centerState, root)
-	clone:PivotTo(CFrame.new(alignedPosition))
-	print(string.format("[FoodService] Spawned %s at (%.2f, %.2f, %.2f)", clone.Name, alignedPosition.X, alignedPosition.Y, alignedPosition.Z))
+	local spawnCFrame = self:_buildSpawnCFrame(centerState, clone)
+	clone:PivotTo(spawnCFrame)
+	root = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
+	print(string.format("[FoodService] Spawn anchor for %s: (%.2f, %.2f, %.2f)", clone.Name, centerState.Anchor.Position.X, centerState.Anchor.Position.Y, centerState.Anchor.Position.Z))
+	if root then
+		print(string.format("[FoodService] Spawned %s root position: (%.2f, %.2f, %.2f)", clone.Name, root.Position.X, root.Position.Y, root.Position.Z))
+	end
 	self._foodSpawnByInstance[clone] = { CenterKey = centerState.CenterKey }
 	root.Touched:Connect(function(hit)
 		self:_onFoodTouched(clone, hit)
