@@ -129,30 +129,20 @@ function FoodService:Init()
 	end
 end
 
-function FoodService.GetModelBottomOffset(model: Model): number
-	local pivotY = model:GetPivot().Position.Y
-	local minY = math.huge
-
+local function anchorFoodModel(model: Model)
 	for _, descendant in ipairs(model:GetDescendants()) do
 		if descendant:IsA("BasePart") then
-			local partMinY = descendant.Position.Y - (descendant.Size.Y * 0.5)
-			if partMinY < minY then
-				minY = partMinY
-			end
+			descendant.Anchored = true
+			descendant.AssemblyLinearVelocity = Vector3.zero
+			descendant.AssemblyAngularVelocity = Vector3.zero
 		end
 	end
-
-	if minY == math.huge then
-		return 0
-	end
-
-	return pivotY - minY
 end
 
-function FoodService:_buildSpawnCFrame(centerState: any, model: Model): CFrame
+function FoodService:_buildSpawnPosition(centerState: any): Vector3
 	local attempts = 0
 	local minDistanceSquared = FOOD_MIN_DISTANCE * FOOD_MIN_DISTANCE
-	local bottomOffset = FoodService.GetModelBottomOffset(model)
+	local basePosition = centerState.Anchor.Position
 
 	while attempts < 12 do
 		attempts += 1
@@ -161,7 +151,7 @@ function FoodService:_buildSpawnCFrame(centerState: any, model: Model): CFrame
 			0,
 			math.random(-FOOD_SPAWN_RADIUS * 100, FOOD_SPAWN_RADIUS * 100) / 100
 		)
-		local candidatePosition = centerState.Anchor.Position + offset
+		local candidatePosition = basePosition + offset
 		local canUse = true
 		for foodModel, info in pairs(self._foodSpawnByInstance) do
 			if info.CenterKey == centerState.CenterKey and foodModel and foodModel.Parent then
@@ -178,12 +168,11 @@ function FoodService:_buildSpawnCFrame(centerState: any, model: Model): CFrame
 		end
 
 		if canUse then
-			local targetCFrame = centerState.Anchor.CFrame + offset
-			return targetCFrame + Vector3.new(0, bottomOffset, 0)
+			return candidatePosition
 		end
 	end
 
-	return centerState.Anchor.CFrame + Vector3.new(0, bottomOffset, 0)
+	return basePosition
 end
 
 function FoodService:_spawnFoodFromCenterState(centerState: any): boolean
@@ -204,13 +193,12 @@ function FoodService:_spawnFoodFromCenterState(centerState: any): boolean
 		return false
 	end
 	clone.PrimaryPart = root
-	local spawnCFrame = self:_buildSpawnCFrame(centerState, clone)
-	clone:PivotTo(spawnCFrame)
+	anchorFoodModel(clone)
+	local spawnPosition = self:_buildSpawnPosition(centerState)
+	local currentPivot = clone:GetPivot()
+	local translation = spawnPosition - root.Position
+	clone:PivotTo(currentPivot + translation)
 	root = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
-	print(string.format("[FoodService] Spawn anchor for %s: (%.2f, %.2f, %.2f)", clone.Name, centerState.Anchor.Position.X, centerState.Anchor.Position.Y, centerState.Anchor.Position.Z))
-	if root then
-		print(string.format("[FoodService] Spawned %s root position: (%.2f, %.2f, %.2f)", clone.Name, root.Position.X, root.Position.Y, root.Position.Z))
-	end
 	self._foodSpawnByInstance[clone] = { CenterKey = centerState.CenterKey }
 	root.Touched:Connect(function(hit)
 		self:_onFoodTouched(clone, hit)

@@ -373,7 +373,7 @@ local function testArenaSpawnLookupUsesRequestedMap()
 end
 
 
-local function testFoodServiceAlignsFoodBottomToSpawnHeight()
+local function testFoodServiceUsesExactFoodSpawnHeight()
 	local map = Instance.new("Model")
 	map.Name = "Arena_FoodHeight"
 	map.Parent = workspace
@@ -444,8 +444,11 @@ local function testFoodServiceAlignsFoodBottomToSpawnHeight()
 		error("Spawned food height test model missing root")
 	end
 
-	local bottomY = root.Position.Y - (root.Size.Y * 0.5)
-	assertAlmostEqual(bottomY, spawn.Position.Y, 0.01, "Food bottom should sit exactly on FoodSpawn height")
+	assertAlmostEqual(root.Position.Y, spawn.Position.Y, 0.01, "Food root position should use the exact FoodSpawn height")
+	if not root.Anchored then
+		map:Destroy()
+		error("Spawned food root should stay anchored to avoid physics drift")
+	end
 
 	map:Destroy()
 	if createdTemplateModel then
@@ -638,7 +641,7 @@ runTest("TeleportLogic_JoinLeaveFlow", testTeleportPlayerJoinLeaveFlow)
 runTest("MapSpawn_UsesRequestedArenaMap", testArenaSpawnLookupUsesRequestedMap)
 runTest("MapActivation_DoesNotHideInactiveMaps", testActivateMapDoesNotHideInactiveMaps)
 runTest("FoodService_UsesFoodSpawnPartsExactly", testFoodServiceUsesFoodSpawnPartsExactly)
-runTest("FoodService_AlignsFoodBottomToSpawnHeight", testFoodServiceAlignsFoodBottomToSpawnHeight)
+runTest("FoodService_UsesExactFoodSpawnHeight", testFoodServiceUsesExactFoodSpawnHeight)
 runTest("LobbySpawn_PrefersExplicitPath", testLobbySpawnPrefersExplicitPath)
 
 print("[CoreLoopTests] all checks passed")

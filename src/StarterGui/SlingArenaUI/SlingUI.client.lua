@@ -18,7 +18,7 @@ local MAX_CHARGE_TIME = SlingshotConfig.MAX_CHARGE_TIME or 2
 local COOLDOWN_DURATION = SlingshotConfig.RECOVER_TIME or 3
 local MAX_JOYSTICK_DRAG = 60
 local UI_WAIT_TIMEOUT = 2
-local DEBUG_LOG = true
+local DEBUG_LOG = false
 
 local warnedMissingUi = false
 local lastLoggedChargeBucket = -1
@@ -41,6 +41,7 @@ local cachedChargeFill: Frame? = nil
 local cachedDirectionArrow: GuiObject? = nil
 local cachedCooldownBar: GuiObject? = nil
 local cachedCooldownFill: Frame? = nil
+local hasWaitedForHierarchy = false
 
 local function debugLog(message: string)
 	if DEBUG_LOG then
@@ -89,34 +90,44 @@ local function warnMissingUiOnce(message: string)
 	end
 	warnedMissingUi = true
 	warn(message)
-	warn("[UI_CREATION_GUIDE] Create StarterGui > SlingUI (ScreenGui) > JoystickRoot(Base, Thumb), ChargeBar(Fill), DirectionArrow. Optional: CooldownBar(Fill).")
+	warn("[UI_CREATION_GUIDE] Create StarterGui > SlingArenaUI (Folder) > SlingUI (ScreenGui) > JoystickRoot(Base, Thumb), ChargeBar(Fill), DirectionArrow. Optional: CooldownBar(Fill).")
+end
+
+local function findPreferredScreenGui(waitForUi: boolean): ScreenGui?
+	local container = if waitForUi
+		then waitForChildIfNeeded(playerGui, "SlingArenaUI", UI_WAIT_TIMEOUT)
+		else findChild(playerGui, "SlingArenaUI")
+	local nestedScreen = if waitForUi
+		then waitForChildIfNeeded(container, "SlingUI", UI_WAIT_TIMEOUT)
+		else findChild(container, "SlingUI")
+	if nestedScreen and nestedScreen:IsA("ScreenGui") then
+		return nestedScreen
+	end
+
+	local directScreen = if waitForUi
+		then waitForChildIfNeeded(playerGui, "SlingUI", UI_WAIT_TIMEOUT)
+		else findChild(playerGui, "SlingUI")
+	if directScreen and directScreen:IsA("ScreenGui") then
+		return directScreen
+	end
+
+	local scriptParent = script.Parent
+	if scriptParent and scriptParent:IsA("ScreenGui") and scriptParent.Name == "SlingUI" then
+		return scriptParent
+	end
+
+	local childOfScriptParent = if waitForUi
+		then waitForChildIfNeeded(scriptParent, "SlingUI", UI_WAIT_TIMEOUT)
+		else findChild(scriptParent, "SlingUI")
+	if childOfScriptParent and childOfScriptParent:IsA("ScreenGui") then
+		return childOfScriptParent
+	end
+
+	return nil
 end
 
 local function primeUiCache()
-	local directScreen = waitForChildIfNeeded(playerGui, "SlingUI", UI_WAIT_TIMEOUT)
-	if directScreen and directScreen:IsA("ScreenGui") then
-		cachedScreenGui = directScreen
-	end
-
-	if not cachedScreenGui then
-		local legacyContainer = waitForChildIfNeeded(playerGui, "SlingArenaUI", UI_WAIT_TIMEOUT)
-		local nestedScreen = waitForChildIfNeeded(legacyContainer, "SlingUI", UI_WAIT_TIMEOUT)
-		if nestedScreen and nestedScreen:IsA("ScreenGui") then
-			cachedScreenGui = nestedScreen
-		end
-	end
-
-	if not cachedScreenGui then
-		local scriptParent = script.Parent
-		if scriptParent and scriptParent:IsA("ScreenGui") and scriptParent.Name == "SlingUI" then
-			cachedScreenGui = scriptParent
-		else
-			local childOfScriptParent = waitForChildIfNeeded(scriptParent, "SlingUI", UI_WAIT_TIMEOUT)
-			if childOfScriptParent and childOfScriptParent:IsA("ScreenGui") then
-				cachedScreenGui = childOfScriptParent
-			end
-		end
-	end
+	cachedScreenGui = findPreferredScreenGui(true)
 end
 
 local function resolveScreenGui(): ScreenGui?
@@ -124,32 +135,8 @@ local function resolveScreenGui(): ScreenGui?
 		return cachedScreenGui
 	end
 
-	local directScreen = findChild(playerGui, "SlingUI")
-	if directScreen and directScreen:IsA("ScreenGui") then
-		cachedScreenGui = directScreen
-		return cachedScreenGui
-	end
-
-	local legacyContainer = findChild(playerGui, "SlingArenaUI")
-	local nestedScreen = findChild(legacyContainer, "SlingUI")
-	if nestedScreen and nestedScreen:IsA("ScreenGui") then
-		cachedScreenGui = nestedScreen
-		return cachedScreenGui
-	end
-
-	local scriptParent = script.Parent
-	if scriptParent and scriptParent:IsA("ScreenGui") and scriptParent.Name == "SlingUI" then
-		cachedScreenGui = scriptParent
-		return cachedScreenGui
-	end
-
-	local childOfScriptParent = findChild(scriptParent, "SlingUI")
-	if childOfScriptParent and childOfScriptParent:IsA("ScreenGui") then
-		cachedScreenGui = childOfScriptParent
-		return cachedScreenGui
-	end
-
-	return nil
+	cachedScreenGui = findPreferredScreenGui(false)
+	return cachedScreenGui
 end
 
 local function resolveUi()
@@ -162,15 +149,33 @@ local function resolveUi()
 	screenGui.Enabled = true
 	cachedScreenGui = screenGui
 
-	local joystickRoot = findChild(screenGui, "JoystickRoot")
-	local chargeBar = findChild(screenGui, "ChargeBar")
-	local directionArrow = findChild(screenGui, "DirectionArrow")
-	local cooldownBar = findChild(screenGui, "CooldownBar")
+	local joystickRoot = if hasWaitedForHierarchy
+		then findChild(screenGui, "JoystickRoot")
+		else waitForChildIfNeeded(screenGui, "JoystickRoot", UI_WAIT_TIMEOUT)
+	local chargeBar = if hasWaitedForHierarchy
+		then findChild(screenGui, "ChargeBar")
+		else waitForChildIfNeeded(screenGui, "ChargeBar", UI_WAIT_TIMEOUT)
+	local directionArrow = if hasWaitedForHierarchy
+		then findChild(screenGui, "DirectionArrow")
+		else waitForChildIfNeeded(screenGui, "DirectionArrow", UI_WAIT_TIMEOUT)
+	local cooldownBar = if hasWaitedForHierarchy
+		then findChild(screenGui, "CooldownBar")
+		else waitForChildIfNeeded(screenGui, "CooldownBar", UI_WAIT_TIMEOUT)
 
-	local base = joystickRoot and findChild(joystickRoot, "Base") or nil
-	local thumb = joystickRoot and findChild(joystickRoot, "Thumb") or nil
-	local chargeFill = chargeBar and findChild(chargeBar, "Fill") or nil
-	local cooldownFill = cooldownBar and findChild(cooldownBar, "Fill") or nil
+	local base = if joystickRoot
+		then (if hasWaitedForHierarchy then findChild(joystickRoot, "Base") else waitForChildIfNeeded(joystickRoot, "Base", UI_WAIT_TIMEOUT))
+		else nil
+	local thumb = if joystickRoot
+		then (if hasWaitedForHierarchy then findChild(joystickRoot, "Thumb") else waitForChildIfNeeded(joystickRoot, "Thumb", UI_WAIT_TIMEOUT))
+		else nil
+	local chargeFill = if chargeBar
+		then (if hasWaitedForHierarchy then findChild(chargeBar, "Fill") else waitForChildIfNeeded(chargeBar, "Fill", UI_WAIT_TIMEOUT))
+		else nil
+	local cooldownFill = if cooldownBar
+		then (if hasWaitedForHierarchy then findChild(cooldownBar, "Fill") else waitForChildIfNeeded(cooldownBar, "Fill", UI_WAIT_TIMEOUT))
+		else nil
+
+	hasWaitedForHierarchy = true
 
 	if not joystickRoot or not base or not thumb or not chargeBar or not chargeFill or not directionArrow then
 		warnMissingUiOnce("[SlingUI] SlingUI hierarchy is incomplete. Expected SlingUI > JoystickRoot(Base, Thumb), ChargeBar(Fill), DirectionArrow.")
@@ -378,6 +383,7 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 player.CharacterAdded:Connect(function()
+	hasWaitedForHierarchy = false
 	primeUiCache()
 	isHolding = false
 	inputObject = nil

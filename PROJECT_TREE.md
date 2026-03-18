@@ -124,12 +124,6 @@ DataModel
 │  │     ├─ TimerLabel
 │  │     └─ WinnerPopup
 │  │
-│  ├─ SlingArenaDynamicUI (ScreenGui)
-│  │  └─ RootFrame
-│  │     ├─ ChargeBarBg
-│  │     ├─ AimDirection
-│  │     └─ ImpactFeedback
-│  │
 │  ├─ StatsUI (ScreenGui)
 │  │   └─ RootFrame
 │  │     ├─ UICorner

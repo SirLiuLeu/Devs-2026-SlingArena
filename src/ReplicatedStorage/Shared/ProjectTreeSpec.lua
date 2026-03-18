@@ -30,24 +30,17 @@ local ProjectTreeSpec = {
 			AlivePlayersLabel = "MatchUI.RootFrame.AlivePlayersLabel", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI.RootFrame.AlivePlayersLabel
 			WinnerPopup = "MatchUI.RootFrame.WinnerPopup", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI.RootFrame.WinnerPopup
 		},
-		SlingMovement = {
-			ScreenGui = "SlingArenaDynamicUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI
-			Root = "SlingArenaDynamicUI.RootFrame", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.RootFrame
-			ChargeBarBg = "SlingArenaDynamicUI.RootFrame.ChargeBarBg", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.RootFrame.ChargeBarBg
-			ChargeFill = "SlingArenaDynamicUI.RootFrame.ChargeBarBg.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.RootFrame.ChargeBarBg.Fill
-			AimDirection = "SlingArenaDynamicUI.RootFrame.AimDirection", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.RootFrame.AimDirection
-			ImpactFeedback = "SlingArenaDynamicUI.RootFrame.ImpactFeedback", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaDynamicUI.RootFrame.ImpactFeedback
-		},
 		SlingTouch = {
-			ScreenGui = "SlingUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI
-			JoystickRoot = "SlingUI.JoystickRoot", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.JoystickRoot
-			JoystickBase = "SlingUI.JoystickRoot.Base", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.JoystickRoot.Base
-			JoystickThumb = "SlingUI.JoystickRoot.Thumb", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.JoystickRoot.Thumb
-			ChargeBar = "SlingUI.ChargeBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.ChargeBar
-			ChargeFill = "SlingUI.ChargeBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.ChargeBar.Fill
-			DirectionArrow = "SlingUI.DirectionArrow", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.DirectionArrow
-			CooldownBar = "SlingUI.CooldownBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.CooldownBar
-			CooldownFill = "SlingUI.CooldownBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingUI.CooldownBar.Fill
+			Container = "SlingArenaUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI
+			ScreenGui = "SlingArenaUI.SlingUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI
+			JoystickRoot = "SlingArenaUI.SlingUI.JoystickRoot", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.JoystickRoot
+			JoystickBase = "SlingArenaUI.SlingUI.JoystickRoot.Base", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.JoystickRoot.Base
+			JoystickThumb = "SlingArenaUI.SlingUI.JoystickRoot.Thumb", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.JoystickRoot.Thumb
+			ChargeBar = "SlingArenaUI.SlingUI.ChargeBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.ChargeBar
+			ChargeFill = "SlingArenaUI.SlingUI.ChargeBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.ChargeBar.Fill
+			DirectionArrow = "SlingArenaUI.SlingUI.DirectionArrow", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.DirectionArrow
+			CooldownBar = "SlingArenaUI.SlingUI.CooldownBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.CooldownBar
+			CooldownFill = "SlingArenaUI.SlingUI.CooldownBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.CooldownBar.Fill
 		},
 	},
 	Remotes = {

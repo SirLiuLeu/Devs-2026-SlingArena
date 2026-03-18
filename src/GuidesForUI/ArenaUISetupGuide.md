@@ -41,22 +41,26 @@ Create in **StarterGui**:
 
 ---
 
-## 2) Charge/Aim Feedback UI (used by SlingMovement)
+## 2) Sling touch UI
 
 Create in **StarterGui**:
 
-- `SlingArenaDynamicUI` (`ScreenGui`)
-  - `RootFrame` (`Frame`)
-    - `ChargeBarBg` (`Frame`)
+- `SlingArenaUI` (`Folder`)
+  - `SlingUI` (`ScreenGui`)
+    - `JoystickRoot` (`Frame`)
+      - `Base` (`Frame`)
+      - `Thumb` (`Frame`)
+    - `ChargeBar` (`Frame`)
       - `Fill` (`Frame`)
-    - `AimDirection` (`TextLabel`)
-    - `ImpactFeedback` (`TextLabel`)
+    - `DirectionArrow` (`ImageLabel`)
+    - `CooldownBar` (`Frame`, optional)
+      - `Fill` (`Frame`, optional)
 
 Paths:
-- `StarterGui.SlingArenaDynamicUI.RootFrame.ChargeBarBg`
-- `StarterGui.SlingArenaDynamicUI.RootFrame.ChargeBarBg.Fill`
-- `StarterGui.SlingArenaDynamicUI.RootFrame.AimDirection`
-- `StarterGui.SlingArenaDynamicUI.RootFrame.ImpactFeedback`
+- `StarterGui.SlingArenaUI.SlingUI.JoystickRoot`
+- `StarterGui.SlingArenaUI.SlingUI.ChargeBar.Fill`
+- `StarterGui.SlingArenaUI.SlingUI.DirectionArrow`
+- `StarterGui.SlingArenaUI.SlingUI.CooldownBar.Fill`
 
 ---
 
@@ -106,6 +110,5 @@ Optional map rule markers in active map models:
 
 - Play test and confirm there are no `[UI_MISSING]` warnings for intended HUDs.
 - `JoinButton`/`LeaveButton` fire correctly.
-- Charge bar and aim text update while charging.
+- Sling joystick, charge bar, and direction arrow update while charging.
 - Round state labels (`StatusLabel`, `TimerLabel`, `AlivePlayersLabel`) update from server events.
-
