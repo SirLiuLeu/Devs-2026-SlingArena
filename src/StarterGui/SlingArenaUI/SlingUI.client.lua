@@ -23,6 +23,7 @@ local DEBUG_LOG = false
 local warnedMissingUi = false
 local lastLoggedChargeBucket = -1
 local loggedMaxCharge = false
+local lastLoggedUiBucket = -1
 
 local isHolding = false
 local inputObject: InputObject? = nil
@@ -47,19 +48,6 @@ local function debugLog(message: string)
 	if DEBUG_LOG then
 		print(message)
 	end
-end
-
-local function waitForChildIfNeeded(parent: Instance?, childName: string, timeout: number): Instance?
-	if not parent then
-		return nil
-	end
-
-	local existing = parent:FindFirstChild(childName)
-	if existing then
-		return existing
-	end
-
-	return parent:WaitForChild(childName, timeout)
 end
 
 local function findChild(parent: Instance?, childName: string): Instance?
@@ -90,6 +78,7 @@ local function warnMissingUiOnce(message: string)
 	end
 	warnedMissingUi = true
 	warn(message)
+<<<<<<< HEAD
 	warn("[UI_CREATION_GUIDE] Create StarterGui > SlingArenaUI (Folder) > SlingUI (ScreenGui) > JoystickRoot(Base, Thumb), ChargeBar(Fill), DirectionArrow. Optional: CooldownBar(Fill).")
 end
 
@@ -100,10 +89,24 @@ local function findPreferredScreenGui(waitForUi: boolean): ScreenGui?
 	local nestedScreen = if waitForUi
 		then waitForChildIfNeeded(container, "SlingUI", UI_WAIT_TIMEOUT)
 		else findChild(container, "SlingUI")
+=======
+	warn("[UI_CREATION_GUIDE] Create StarterGui > SlingArenaUI > SlingUI (ScreenGui) > JoystickRoot(Base, Thumb), ChargeBar(Fill), DirectionArrow. Optional: CooldownBar(Fill).")
+end
+
+local function waitForScreenGui(): ScreenGui?
+	local rootScreen = playerGui:WaitForChild("SlingUI", UI_WAIT_TIMEOUT)
+	if rootScreen and rootScreen:IsA("ScreenGui") then
+		return rootScreen
+	end
+
+	local container = playerGui:WaitForChild("SlingArenaUI", UI_WAIT_TIMEOUT)
+	local nestedScreen = container and container:WaitForChild("SlingUI", UI_WAIT_TIMEOUT) or nil
+>>>>>>> 5fcee85eb2df1800fa0d8fc054532c6f1e2a8a27
 	if nestedScreen and nestedScreen:IsA("ScreenGui") then
 		return nestedScreen
 	end
 
+<<<<<<< HEAD
 	local directScreen = if waitForUi
 		then waitForChildIfNeeded(playerGui, "SlingUI", UI_WAIT_TIMEOUT)
 		else findChild(playerGui, "SlingUI")
@@ -123,11 +126,17 @@ local function findPreferredScreenGui(waitForUi: boolean): ScreenGui?
 		return childOfScriptParent
 	end
 
+=======
+>>>>>>> 5fcee85eb2df1800fa0d8fc054532c6f1e2a8a27
 	return nil
 end
 
 local function primeUiCache()
+<<<<<<< HEAD
 	cachedScreenGui = findPreferredScreenGui(true)
+=======
+	cachedScreenGui = waitForScreenGui()
+>>>>>>> 5fcee85eb2df1800fa0d8fc054532c6f1e2a8a27
 end
 
 local function resolveScreenGui(): ScreenGui?
@@ -135,7 +144,24 @@ local function resolveScreenGui(): ScreenGui?
 		return cachedScreenGui
 	end
 
+<<<<<<< HEAD
 	cachedScreenGui = findPreferredScreenGui(false)
+=======
+	local directScreen = findChild(playerGui, "SlingUI")
+	if directScreen and directScreen:IsA("ScreenGui") then
+		cachedScreenGui = directScreen
+		return cachedScreenGui
+	end
+
+	local legacyContainer = findChild(playerGui, "SlingArenaUI")
+	local nestedScreen = findChild(legacyContainer, "SlingUI")
+	if nestedScreen and nestedScreen:IsA("ScreenGui") then
+		cachedScreenGui = nestedScreen
+		return cachedScreenGui
+	end
+
+	cachedScreenGui = waitForScreenGui()
+>>>>>>> 5fcee85eb2df1800fa0d8fc054532c6f1e2a8a27
 	return cachedScreenGui
 end
 
@@ -248,6 +274,11 @@ local function updateChargeBar(percent: number)
 	if chargeFill then
 		chargeFill.Size = UDim2.new(percent, 0, 1, 0)
 	end
+	local uiBucket = math.floor(percent * 10)
+	if uiBucket ~= lastLoggedUiBucket then
+		lastLoggedUiBucket = uiBucket
+		debugLog(string.format("[SlingUI] UI update chargePercent=%.2f", percent))
+	end
 end
 
 local function updateCooldownBar(percent: number)
@@ -299,6 +330,7 @@ local function startHold(input: InputObject)
 
 	debugLog(string.format("[SlingUI] Input start at (%.0f, %.0f)", startPos.X, startPos.Y))
 	debugLog("[SlingUI] Holding started")
+	debugLog("[SlingUI] StartCharge remote fired")
 	startChargeRemote:FireServer(getMouseWorld())
 end
 
@@ -358,6 +390,7 @@ local function releaseHold(input: InputObject)
 	updateChargeBar(0)
 
 	debugLog(string.format("[SlingUI] Holding released after %.2fs", charge))
+	debugLog("[SlingUI] ReleaseCharge remote fired")
 end
 
 UserInputService.InputBegan:Connect(function(input, processed)
@@ -391,6 +424,7 @@ player.CharacterAdded:Connect(function()
 	currentPos = Vector2.zero
 	currentDelta = Vector2.zero
 	charge = 0
+	lastLoggedUiBucket = -1
 	updateChargeBar(0)
 	updateCooldownBar(0)
 end)
