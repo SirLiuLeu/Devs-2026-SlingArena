@@ -104,7 +104,7 @@ local function testChargeToLaunchForce()
 	local maxForce = SlingshotConfig.MAX_LAUNCH_FORCE
 
 	local halfForce = SlingServiceModule.CalculateLaunchForce(0.5, minForce, maxForce, 1)
-	assertAlmostEqual(halfForce, minForce + ((maxForce - minForce) * 0.5) * 0.5, 0.0001, "chargePercent=0.5 should scale force")
+	assertAlmostEqual(halfForce, maxForce * 0.5, 0.0001, "chargePercent=0.5 should scale force")
 
 	local maxForceResult = SlingServiceModule.CalculateLaunchForce(1, minForce, maxForce, 1)
 	assertAlmostEqual(maxForceResult, maxForce, 0.0001, "chargePercent=1 should reach max force")
@@ -113,7 +113,7 @@ local function testChargeToLaunchForce()
 	assertAlmostEqual(zeroForce, 0, 0.0001, "chargePercent=0 should produce no launch force")
 
 	local clampedForce = SlingServiceModule.CalculateLaunchForce(5, minForce, maxForce, 2)
-	assertAlmostEqual(clampedForce, maxForce * 2, 0.0001, "force should clamp at max charge")
+	assertAlmostEqual(clampedForce, maxForce, 0.0001, "force should clamp at max charge")
 
 	local nanForce = SlingServiceModule.CalculateLaunchForce(0/0, minForce, maxForce, 1)
 	if nanForce ~= nanForce then

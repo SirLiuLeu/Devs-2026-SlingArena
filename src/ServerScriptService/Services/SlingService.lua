@@ -20,17 +20,14 @@ local function sanitizeNumber(value: number, fallback: number): number
 	return value
 end
 
-function SlingService.CalculateLaunchForce(chargeRatio: number, minForce: number, maxForce: number, launchMultiplier: number): number
+function SlingService.CalculateLaunchForce(chargeRatio: number, _minForce: number, maxForce: number, _launchMultiplier: number): number
 	local safeCharge = math.clamp(sanitizeNumber(chargeRatio, 0), 0, 1)
-	local safeMin = math.max(0, sanitizeNumber(minForce, 0))
-	local safeMax = math.max(safeMin, sanitizeNumber(maxForce, safeMin))
-	local safeMultiplier = math.max(0, sanitizeNumber(launchMultiplier, 1))
-	local baseForce = safeMin + ((safeMax - safeMin) * safeCharge)
-	local launchForce = baseForce * safeCharge * safeMultiplier
+	local safeMax = math.max(0, sanitizeNumber(maxForce, 0))
+	local launchForce = safeMax * safeCharge
 	if launchForce ~= launchForce then
 		return 0
 	end
-	return math.clamp(launchForce, 0, safeMax * math.max(safeMultiplier, 1))
+	return math.clamp(launchForce, 0, safeMax)
 end
 
 function SlingService.CalculateChargeRatio(chargeStartTime: number, nowTime: number, maxChargeTime: number): number
@@ -186,6 +183,7 @@ function SlingService:StartCharge(player: Player, aimTarget: Vector3)
 	}
 	self._context.Services.PlayerStateService:SetCharging(player, true, 0)
 	self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Charging)
+	print(string.format("[SlingService] StartCharge player=%s", player.Name))
 	self._context.EventBus:Fire("ChargeStarted", player)
 end
 
@@ -214,11 +212,11 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 
 	chargeState.aimDirection = SlingService.ResolveAimDirection(root.Position, aimTarget)
 
-	local minForce = SlingshotConfig.MIN_LAUNCH_FORCE or SlingshotConfig.BaseLaunchForce
 	local maxForce = SlingshotConfig.MAX_LAUNCH_FORCE or (SlingshotConfig.BaseLaunchForce + Config.MaxExtraForce)
-	local launchMultiplier = math.max((state.LaunchSpeed or SlingshotConfig.BaseLaunchForce) / SlingshotConfig.BaseLaunchForce, 0.2)
-	local launchForce = SlingService.CalculateLaunchForce(chargeRatio, minForce, maxForce, launchMultiplier)
+	local launchForce = SlingService.CalculateLaunchForce(chargeRatio, 0, maxForce, 1)
 	local launchVector = SlingService.BuildLaunchVector(chargeState.aimDirection, launchForce)
+
+	print(string.format("[SlingService] ReleaseCharge player=%s chargeRatio=%.3f launchForce=%.3f", player.Name, chargeRatio, launchForce))
 
 	root.AssemblyLinearVelocity = Vector3.new(
 		math.clamp(launchVector.X, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity),
