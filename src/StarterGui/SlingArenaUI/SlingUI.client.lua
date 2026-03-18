@@ -78,7 +78,6 @@ local function warnMissingUiOnce(message: string)
 	end
 	warnedMissingUi = true
 	warn(message)
-<<<<<<< HEAD
 	warn("[UI_CREATION_GUIDE] Create StarterGui > SlingArenaUI (Folder) > SlingUI (ScreenGui) > JoystickRoot(Base, Thumb), ChargeBar(Fill), DirectionArrow. Optional: CooldownBar(Fill).")
 end
 
@@ -89,24 +88,10 @@ local function findPreferredScreenGui(waitForUi: boolean): ScreenGui?
 	local nestedScreen = if waitForUi
 		then waitForChildIfNeeded(container, "SlingUI", UI_WAIT_TIMEOUT)
 		else findChild(container, "SlingUI")
-=======
-	warn("[UI_CREATION_GUIDE] Create StarterGui > SlingArenaUI > SlingUI (ScreenGui) > JoystickRoot(Base, Thumb), ChargeBar(Fill), DirectionArrow. Optional: CooldownBar(Fill).")
-end
-
-local function waitForScreenGui(): ScreenGui?
-	local rootScreen = playerGui:WaitForChild("SlingUI", UI_WAIT_TIMEOUT)
-	if rootScreen and rootScreen:IsA("ScreenGui") then
-		return rootScreen
-	end
-
-	local container = playerGui:WaitForChild("SlingArenaUI", UI_WAIT_TIMEOUT)
-	local nestedScreen = container and container:WaitForChild("SlingUI", UI_WAIT_TIMEOUT) or nil
->>>>>>> 5fcee85eb2df1800fa0d8fc054532c6f1e2a8a27
 	if nestedScreen and nestedScreen:IsA("ScreenGui") then
 		return nestedScreen
 	end
 
-<<<<<<< HEAD
 	local directScreen = if waitForUi
 		then waitForChildIfNeeded(playerGui, "SlingUI", UI_WAIT_TIMEOUT)
 		else findChild(playerGui, "SlingUI")
@@ -126,17 +111,11 @@ local function waitForScreenGui(): ScreenGui?
 		return childOfScriptParent
 	end
 
-=======
->>>>>>> 5fcee85eb2df1800fa0d8fc054532c6f1e2a8a27
 	return nil
 end
 
 local function primeUiCache()
-<<<<<<< HEAD
 	cachedScreenGui = findPreferredScreenGui(true)
-=======
-	cachedScreenGui = waitForScreenGui()
->>>>>>> 5fcee85eb2df1800fa0d8fc054532c6f1e2a8a27
 end
 
 local function resolveScreenGui(): ScreenGui?
@@ -144,24 +123,7 @@ local function resolveScreenGui(): ScreenGui?
 		return cachedScreenGui
 	end
 
-<<<<<<< HEAD
 	cachedScreenGui = findPreferredScreenGui(false)
-=======
-	local directScreen = findChild(playerGui, "SlingUI")
-	if directScreen and directScreen:IsA("ScreenGui") then
-		cachedScreenGui = directScreen
-		return cachedScreenGui
-	end
-
-	local legacyContainer = findChild(playerGui, "SlingArenaUI")
-	local nestedScreen = findChild(legacyContainer, "SlingUI")
-	if nestedScreen and nestedScreen:IsA("ScreenGui") then
-		cachedScreenGui = nestedScreen
-		return cachedScreenGui
-	end
-
-	cachedScreenGui = waitForScreenGui()
->>>>>>> 5fcee85eb2df1800fa0d8fc054532c6f1e2a8a27
 	return cachedScreenGui
 end
 
