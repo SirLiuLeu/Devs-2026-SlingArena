@@ -10,6 +10,7 @@ local CombatService = require(ServerScriptService.Services.CombatService)
 local MapServiceModule = require(ServerScriptService.Services.MapService)
 local FoodServiceModule = require(ServerScriptService.Services.FoodService)
 local SlingServiceModule = require(ServerScriptService.Services.SlingService)
+local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 
 local function runTest(name: string, testFn)
 	local ok, err = pcall(testFn)
@@ -222,6 +223,22 @@ local function testCooldownDisplayStateDecreasesCorrectly()
 	assertAlmostEqual(uiStateAt14.CooldownRemaining, 1, 0.0001, "Cooldown remaining should decrease over time")
 	if uiStateAt14.CooldownRemaining >= uiStateAt10.CooldownRemaining then
 		error("UI cooldown values must strictly decrease as time advances")
+	end
+end
+
+local function testSlingUiPathsStayExact()
+	local slingUiSpec = ProjectTreeSpec.UI.SlingTouch
+	if slingUiSpec.Container ~= "SlingArenaUI" then
+		error("Sling UI container path must stay PlayerGui.SlingArenaUI")
+	end
+	if slingUiSpec.ScreenGui ~= "SlingArenaUI.SlingUI" then
+		error("Sling UI screen path must stay PlayerGui.SlingArenaUI.SlingUI")
+	end
+	if slingUiSpec.ChargeFill ~= "SlingArenaUI.SlingUI.ChargeBar.Fill" then
+		error("Charge fill path must stay SlingArenaUI.SlingUI.ChargeBar.Fill")
+	end
+	if slingUiSpec.CooldownFill ~= "SlingArenaUI.SlingUI.CooldownBar.Fill" then
+		error("Cooldown fill path must stay SlingArenaUI.SlingUI.CooldownBar.Fill")
 	end
 end
 
@@ -630,6 +647,7 @@ runTest("ChargeRelease_ResetsChargeState", testChargeResetAfterRelease)
 runTest("LaunchDirection_NormalizedFromAim", testLaunchDirectionNormalizedFromAim)
 runTest("ChargeRelease_ForceVectorFinite", testChargeReleaseLaunchVectorIsFinite)
 runTest("CooldownDisplay_DecreasesOverTime", testCooldownDisplayStateDecreasesCorrectly)
+runTest("SlingUI_PathsStayExact", testSlingUiPathsStayExact)
 runTest("CollisionTriggersDamageFormula", testCollisionTriggersDamageFormula)
 runTest("KnockbackDirectionForSmallerAttacker", testKnockbackDirectionForSmallerAttacker)
 runTest("ExpLevelUpThreshold", testExpLevelUpThreshold)
