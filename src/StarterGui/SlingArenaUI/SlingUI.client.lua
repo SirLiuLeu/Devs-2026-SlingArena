@@ -23,16 +23,9 @@ local UI_WAIT_TIMEOUT = 2
 local DEBUG_LOG = true
 
 local warnedMissingUi = false
-<<<<<<< HEAD
-local lastLoggedChargeBucket = -1
-local loggedMaxCharge = false
-local lastLoggedUiBucket = -1
-local lastLoggedCooldownBucket = -1
-=======
 local loggedUiResolved = false
 local lastResolvedPath: string? = nil
 local hasWaitedForHierarchy = false
->>>>>>> 7f39797374ab21ac9f45d8c2a9b1d0ea4b232110
 
 local isHolding = false
 local inputObject: InputObject? = nil
@@ -103,11 +96,6 @@ local function findChild(parent: Instance?, childName: string): Instance?
 	return parent:FindFirstChild(childName)
 end
 
-<<<<<<< HEAD
-local function waitForChildIfNeeded(parent: Instance?, childName: string, timeout: number): Instance?
-	if not parent then
-		return nil
-=======
 local function logUiResolvedOnce(screenGui: ScreenGui)
 	if loggedUiResolved and lastResolvedPath == screenGui:GetFullName() then
 		return
@@ -132,7 +120,6 @@ local function getMouseWorld(): Vector3
 	local mouse = player:GetMouse()
 	if mouse.Hit then
 		return mouse.Hit.Position
->>>>>>> 7f39797374ab21ac9f45d8c2a9b1d0ea4b232110
 	end
 
 	local existing = parent:FindFirstChild(childName)
@@ -157,51 +144,6 @@ local function getInputPosition(input: InputObject?): Vector2
 	return Vector2.zero
 end
 
-<<<<<<< HEAD
-local function getAimTargetFromScreenPosition(screenPosition: Vector2): Vector3
-	local camera = workspace.CurrentCamera
-	if not camera then
-		return Vector3.new(0, 0, -1)
-	end
-
-	local ray = camera:ViewportPointToRay(screenPosition.X, screenPosition.Y)
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-	raycastParams.FilterDescendantsInstances = {}
-
-	local result = workspace:Raycast(ray.Origin, ray.Direction * 1024, raycastParams)
-	if result then
-		return result.Position
-	end
-
-	return ray.Origin + (ray.Direction * 256)
-end
-
-local function getAimTarget(input: InputObject?): Vector3
-	local inputPosition = getInputPosition(input)
-	if inputPosition.Magnitude > 0 then
-		return getAimTargetFromScreenPosition(inputPosition)
-	end
-
-	local mouse = player:GetMouse()
-	if mouse.Hit then
-		return mouse.Hit.Position
-	end
-
-	return Vector3.new(0, 0, -1)
-end
-
-local function warnMissingUiOnce(message: string)
-	if warnedMissingUi then
-		return
-	end
-	warnedMissingUi = true
-	warn(message)
-	warn("[UI_CREATION_GUIDE] Create StarterGui > SlingArenaUI (Folder) > SlingUI (ScreenGui) > JoystickRoot(Base, Thumb), ChargeBar(Fill), DirectionArrow. Optional: CooldownBar(Fill).")
-end
-
-=======
->>>>>>> 7f39797374ab21ac9f45d8c2a9b1d0ea4b232110
 local function findPreferredScreenGui(waitForUi: boolean): ScreenGui?
 	debugLog(string.format("[SlingUI] Resolving UI path wait=%s", tostring(waitForUi)))
 
@@ -383,16 +325,7 @@ local function updateChargeBar(percent: number)
 	local normalized = SlingUiState.ClampRatio(percent)
 	setVisibleSafe(chargeBar, isHolding or normalized > 0)
 	if chargeFill then
-<<<<<<< HEAD
-		chargeFill.Size = UDim2.new(percent, 0, 1, 0)
-	end
-	local uiBucket = math.floor(percent * 10)
-	if uiBucket ~= lastLoggedUiBucket then
-		lastLoggedUiBucket = uiBucket
-		debugLog(string.format("[Charge] Value = %.2f", percent))
-=======
 		chargeFill.Size = UDim2.new(normalized, 0, 1, 0)
->>>>>>> 7f39797374ab21ac9f45d8c2a9b1d0ea4b232110
 	end
 end
 
@@ -419,15 +352,6 @@ local function updateDirectionIndicator(position: UDim2, rotation: number?)
 			directionIndicator.Rotation = rotation
 		end
 	end
-<<<<<<< HEAD
-	setVisibleSafe(cooldownBar, percent > 0)
-	local cooldownBucket = math.floor(percent * 10)
-	if cooldownBucket ~= lastLoggedCooldownBucket then
-		lastLoggedCooldownBucket = cooldownBucket
-		debugLog(string.format("[Cooldown] Updating percent=%.2f", percent))
-	end
-=======
->>>>>>> 7f39797374ab21ac9f45d8c2a9b1d0ea4b232110
 end
 
 local function positionJoystick(inputPosition: Vector2)
@@ -534,12 +458,6 @@ local function startHold(input: InputObject)
 	updateChargeBar(0)
 	ensureUiLoopRunning()
 
-<<<<<<< HEAD
-	debugLog(string.format("[SlingUI] Input start at (%.0f, %.0f)", startPos.X, startPos.Y))
-	debugLog("[SlingUI] Holding started")
-	debugLog("[Joystick] Input detected")
-=======
->>>>>>> 7f39797374ab21ac9f45d8c2a9b1d0ea4b232110
 	debugLog("[SlingUI] StartCharge remote fired")
 	startChargeRemote:FireServer(getAimTarget(input))
 end
@@ -566,20 +484,9 @@ local function updateHold(input: InputObject)
 		thumb.Position = UDim2.new(0.5, delta.X, 0.5, delta.Y)
 	end
 
-<<<<<<< HEAD
-	if directionArrow then
-		directionArrow.Position = joystickRoot and joystickRoot.Position or UDim2.new(0, startPos.X, 0, startPos.Y)
-		if delta.Magnitude > 0.001 then
-			directionArrow.Rotation = math.deg(math.atan2(delta.Y, delta.X))
-		end
-	end
-
-	debugLog(string.format("[Joystick] Delta movement: (%.1f, %.1f)", delta.X, delta.Y))
-=======
 	local rotation = SlingUiState.ComputeDirectionRotation(delta)
 	local indicatorPosition = if joystickRoot then joystickRoot.Position else UDim2.new(0, startPos.X, 0, startPos.Y)
 	updateDirectionIndicator(indicatorPosition, rotation)
->>>>>>> 7f39797374ab21ac9f45d8c2a9b1d0ea4b232110
 end
 
 local function releaseHold(input: InputObject)
@@ -593,13 +500,8 @@ local function releaseHold(input: InputObject)
 	isHolding = false
 	inputObject = nil
 
-<<<<<<< HEAD
-	releaseChargeRemote:FireServer(getAimTarget(input))
-	cooldownEndTime = os.clock() + COOLDOWN_DURATION
-=======
 	releaseChargeRemote:FireServer(getMouseWorld())
 	beginCooldown(COOLDOWN_DURATION)
->>>>>>> 7f39797374ab21ac9f45d8c2a9b1d0ea4b232110
 
 	setVisibleSafe(cachedJoystickRoot, false)
 	setVisibleSafe(cachedDirectionIndicator, false)
@@ -666,48 +568,8 @@ end)
 player.CharacterAdded:Connect(function()
 	hasWaitedForHierarchy = false
 	primeUiCache()
-<<<<<<< HEAD
-	isHolding = false
-	inputObject = nil
-	startPos = Vector2.zero
-	currentPos = Vector2.zero
-	currentDelta = Vector2.zero
-	charge = 0
-	lastLoggedUiBucket = -1
-	lastLoggedCooldownBucket = -1
-	updateChargeBar(0)
-	updateCooldownBar(0)
-end)
-
-RunService.RenderStepped:Connect(function(dt)
-	local _, joystickRoot, _, _, _, _, directionArrow = resolveUi()
-
-	if isHolding then
-		charge += dt
-		local chargeRatio = math.clamp(charge / MAX_CHARGE_TIME, 0, 1)
-		updateChargeBar(chargeRatio)
-
-		local bucket = math.floor(chargeRatio * 10)
-		if bucket ~= lastLoggedChargeBucket then
-			lastLoggedChargeBucket = bucket
-			debugLog(string.format("[SlingUI] Charge percent: %.2f", chargeRatio))
-		end
-
-		if chargeRatio >= 1 and not loggedMaxCharge then
-			loggedMaxCharge = true
-			debugLog("[SlingUI] Charge reached max")
-		end
-
-		setVisibleSafe(joystickRoot, true)
-		setVisibleSafe(directionArrow, true)
-	end
-
-	local remaining = math.max(0, cooldownEndTime - os.clock())
-	updateCooldownBar(math.clamp(remaining / COOLDOWN_DURATION, 0, 1))
-=======
 	resolveUi()
 	resetVisualState()
->>>>>>> 7f39797374ab21ac9f45d8c2a9b1d0ea4b232110
 end)
 
 primeUiCache()
