@@ -10,6 +10,7 @@ local CombatService = require(ServerScriptService.Services.CombatService)
 local MapServiceModule = require(ServerScriptService.Services.MapService)
 local FoodServiceModule = require(ServerScriptService.Services.FoodService)
 local SlingServiceModule = require(ServerScriptService.Services.SlingService)
+local SlingUiState = require(ReplicatedStorage.Shared.Utils.SlingUiState)
 
 local function runTest(name: string, testFn)
 	local ok, err = pcall(testFn)
@@ -222,6 +223,31 @@ local function testCooldownDisplayStateDecreasesCorrectly()
 	assertAlmostEqual(uiStateAt14.CooldownRemaining, 1, 0.0001, "Cooldown remaining should decrease over time")
 	if uiStateAt14.CooldownRemaining >= uiStateAt10.CooldownRemaining then
 		error("UI cooldown values must strictly decrease as time advances")
+	end
+end
+
+local function testSlingUiChargeAndCooldownRatios()
+	assertAlmostEqual(SlingUiState.ComputeChargeRatio(1, 2), 0.5, 0.0001, "Charge ratio should fill from 0 to 1 over charge time")
+	assertAlmostEqual(SlingUiState.ComputeChargeRatio(4, 2), 1, 0.0001, "Charge ratio should clamp at 1")
+	assertAlmostEqual(SlingUiState.ComputeCooldownRatio(0.75, 3), 0.25, 0.0001, "Cooldown bar should fill from elapsed cooldown time")
+	assertAlmostEqual(SlingUiState.ComputeCooldownRatio(3, 3), 1, 0.0001, "Cooldown fill should complete at the recover duration")
+end
+
+local function testSlingUiDirectionRotation()
+	local rightRotation = SlingUiState.ComputeDirectionRotation(Vector2.new(10, 0))
+	if rightRotation == nil then
+		error("Direction rotation should exist for non-zero drag")
+	end
+	assertAlmostEqual(rightRotation, 0, 0.0001, "Right drag should rotate indicator to 0 degrees")
+
+	local downRotation = SlingUiState.ComputeDirectionRotation(Vector2.new(0, 10))
+	if downRotation == nil then
+		error("Direction rotation should exist for non-zero drag")
+	end
+	assertAlmostEqual(downRotation, 90, 0.0001, "Downward drag should rotate indicator to 90 degrees")
+
+	if SlingUiState.ComputeDirectionRotation(Vector2.zero) ~= nil then
+		error("Zero drag should not force a rotation update")
 	end
 end
 
@@ -630,6 +656,8 @@ runTest("ChargeRelease_ResetsChargeState", testChargeResetAfterRelease)
 runTest("LaunchDirection_NormalizedFromAim", testLaunchDirectionNormalizedFromAim)
 runTest("ChargeRelease_ForceVectorFinite", testChargeReleaseLaunchVectorIsFinite)
 runTest("CooldownDisplay_DecreasesOverTime", testCooldownDisplayStateDecreasesCorrectly)
+runTest("SlingUI_ChargeAndCooldownRatios", testSlingUiChargeAndCooldownRatios)
+runTest("SlingUI_DirectionRotation", testSlingUiDirectionRotation)
 runTest("CollisionTriggersDamageFormula", testCollisionTriggersDamageFormula)
 runTest("KnockbackDirectionForSmallerAttacker", testKnockbackDirectionForSmallerAttacker)
 runTest("ExpLevelUpThreshold", testExpLevelUpThreshold)

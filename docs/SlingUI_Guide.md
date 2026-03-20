@@ -1,39 +1,97 @@
 # SlingUI Developer Guide
 
-## 1. SlingUI flow
+## 1. SlingUI runtime flow
 
 1. Player presses on their Sling pawn in the world.
-2. `SlingUI.client.lua` detects the press, marks `isHolding = true`, and fires `StartCharge`.
-3. The `StarterGui.SlingArenaUI.SlingUI` ScreenGui becomes visible (`JoystickRoot`, `ChargeBar`, `DirectionArrow`).
-4. Dragging updates the joystick thumb delta and rotates the direction arrow.
-5. `RunService.RenderStepped` increases `charge` every frame and updates `ChargeBar.Fill.Size`.
-6. Releasing the same input fires `ReleaseCharge`, hides the joystick, and starts cooldown UI.
+2. `SlingUI.client.lua` validates the input hit, resolves `StarterGui.SlingArenaUI.SlingUI` once, marks the local state as charging, and fires `StartCharge`.
+3. A controlled `RenderStepped` loop starts **only while charging or cooldown is active**.
+4. While the player holds input:
+   - `ChargeBar.Fill.Size` grows from `0` to `1` on the X scale.
+   - `JoystickRoot.Thumb` follows the drag delta.
+   - `DirectionIndicator` rotates from the current drag vector.
+5. On release, the client fires `ReleaseCharge`, hides the joystick, and starts a local cooldown timer for the same recover duration used by the server.
+6. During cooldown, `CooldownBar.Fill.Size` grows from `0` to `1` on the X scale.
+7. When cooldown completes, the update loop disconnects itself and the player can charge again.
 
-## 2. Joystick system
+## 2. Anti-spam logging behavior
 
-- Required hierarchy: `SlingArenaUI (Folder) -> SlingUI (ScreenGui) -> JoystickRoot -> Base, Thumb`, plus `ChargeBar -> Fill` and `DirectionArrow`.
-- `JoystickRoot.AnchorPoint` must be `(0.5, 0.5)` so the joystick center lands exactly at the touch/click point. If the anchor point is left at `(0, 0)`, the whole joystick appears lệch khỏi vị trí input.
-- The root is positioned directly from screen input with `UDim2.new(0, input.X, 0, input.Y)`.
-- The drag delta is `currentPosition - startPosition`, clamped to the max joystick radius.
-- `Thumb.Position = UDim2.new(0.5, delta.X, 0.5, delta.Y)` keeps thumb motion relative to the joystick center instead of absolute screen coordinates.
+- The runtime no longer logs inside the per-frame update path.
+- UI resolution is cached and printed exactly once when the hierarchy is first resolved.
+- Missing UI hierarchy still produces a `warn()` exactly once so gameplay does not crash.
+- If the UI appears later, the script re-resolves it safely without re-spamming warnings.
 
-## 3. Charge system
+## 3. Required Studio hierarchy
 
-- The client charge loop runs in `RunService.RenderStepped`, which is the correct per-frame update for UI and local input response.
-- Each frame: `charge += deltaTime`, then percent is `math.clamp(charge / MAX_CHARGE_TIME, 0, 1)`.
-- `ChargeBar.Fill.Size = UDim2.new(percent, 0, 1, 0)` drives the visual bar.
-- The server still owns launch physics; the UI charge percent is only local feedback before `ReleaseCharge` is sent.
-- Force scales from charge time through the existing server-side sling pipeline in `SlingService`.
+- Required hierarchy:
+  - `StarterGui`
+    - `SlingArenaUI` (`Folder`)
+      - `SlingUI` (`ScreenGui`)
+        - `JoystickRoot` (`Frame`)
+          - `Base` (`Frame`)
+          - `Thumb` (`Frame`)
+        - `ChargeBar` (`Frame`)
+          - `Fill` (`Frame`)
+        - `CooldownBar` (`Frame`)
+          - `Fill` (`Frame`)
+        - `DirectionIndicator` (`ImageLabel`)
+- Compatibility fallback is supported for `DirectionArrow` if an older place file already uses that name.
 
-## 4. Common bugs
+## 4. Roblox Studio setup guide
 
-- **Joystick not appearing** → input start is not hitting the player Sling, or the `SlingArenaUI.SlingUI` hierarchy path is wrong.
-- **UI lệch / offset** → `JoystickRoot.AnchorPoint` is not `(0.5, 0.5)`, or root position is not set from the exact input position.
-- **Charge không chạy** → `isHolding` was never set/reset correctly, or the `RenderStepped` loop is not updating `charge`.
-- **ChargeBar.Fill not moving** → `ChargeBar.Fill` path is wrong, or the fill size is not updated with the computed percent.
-- **Food floating** → verify the food root stays anchored and that spawn logic only applies X/Z randomization while keeping `Y == FoodSpawn.Position.Y`.
+### ChargeBar
 
-## 5. Debug logging
+- Instance path: `StarterGui.SlingArenaUI.SlingUI.ChargeBar`
+- Type: `Frame`
+- Recommended properties:
+  - `AnchorPoint = Vector2.new(0, 0.5)`
+  - `Position = UDim2.new(0.5, 0, 0.85, 0)`
+  - `Size = UDim2.new(0.32, 0, 0.035, 0)`
+  - `ClipsDescendants = true`
+- Child fill path: `StarterGui.SlingArenaUI.SlingUI.ChargeBar.Fill`
+- Fill properties:
+  - `AnchorPoint = Vector2.new(0, 0.5)`
+  - `Position = UDim2.new(0, 0, 0.5, 0)`
+  - `Size = UDim2.new(0, 0, 1, 0)` at rest
+- Fill direction: **left → right** using `Fill.Size = UDim2.new(chargeRatio, 0, 1, 0)`.
 
-`SlingUI.client.lua` keeps its debug helper but leaves runtime logging disabled by default.
-If temporary logs are re-enabled for Studio debugging, remove or disable them again after confirmation.
+### CooldownBar
+
+- Instance path: `StarterGui.SlingArenaUI.SlingUI.CooldownBar`
+- Type: `Frame`
+- Recommended properties:
+  - `AnchorPoint = Vector2.new(0, 0.5)`
+  - `Position = UDim2.new(0.5, 0, 0.9, 0)`
+  - `Size = UDim2.new(0.32, 0, 0.025, 0)`
+  - `ClipsDescendants = true`
+- Child fill path: `StarterGui.SlingArenaUI.SlingUI.CooldownBar.Fill`
+- Fill properties:
+  - `AnchorPoint = Vector2.new(0, 0.5)`
+  - `Position = UDim2.new(0, 0, 0.5, 0)`
+  - `Size = UDim2.new(0, 0, 1, 0)` at rest
+- Fill direction: **left → right** using `Fill.Size = UDim2.new(cooldownRatio, 0, 1, 0)`.
+- Expected behavior: starts empty on release, then fills toward 100% until the cooldown ends.
+
+### DirectionIndicator
+
+- Instance path: `StarterGui.SlingArenaUI.SlingUI.DirectionIndicator`
+- Type: `ImageLabel`
+- Recommended properties:
+  - `AnchorPoint = Vector2.new(0.5, 0.5)`
+  - `Size = UDim2.new(0.06, 0, 0.06, 0)`
+  - `BackgroundTransparency = 1`
+  - center the image so rotation pivots naturally around the press point
+- The script rotates the image from the drag vector with `atan2`, so the art should visually point to the right by default. If your art points up, rotate the asset by `-90` degrees in Studio.
+
+## 5. Common bugs and fixes
+
+- **ChargeBar does not move** → verify `ChargeBar.Fill` exists and starts at `UDim2.new(0, 0, 1, 0)`.
+- **CooldownBar counts backward** → the correct behavior is `elapsed / duration`, not `remaining / duration`.
+- **Direction indicator does not rotate** → ensure the image is named `DirectionIndicator` or `DirectionArrow` and its anchor point is `(0.5, 0.5)`.
+- **Joystick appears offset** → verify `JoystickRoot.AnchorPoint` and `Thumb.AnchorPoint` are both `(0.5, 0.5)`.
+- **Player can start charge during cooldown** → the client gate checks `cooldownEndTime`, while the server remains authoritative and rejects invalid requests.
+
+## 6. Notes on authority
+
+- The server still owns `StartCharge`, `ReleaseCharge`, launch force, and physics.
+- The client only renders feedback for charge, drag direction, and cooldown.
+- `StateUpdate` is used as a safe reset hook so the UI clears itself if the player dies or if the server state changes unexpectedly.
