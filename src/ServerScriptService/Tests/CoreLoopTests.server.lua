@@ -11,6 +11,7 @@ local MapServiceModule = require(ServerScriptService.Services.MapService)
 local FoodServiceModule = require(ServerScriptService.Services.FoodService)
 local SlingServiceModule = require(ServerScriptService.Services.SlingService)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
+local SlingUiState = require(ReplicatedStorage.Shared.Utils.SlingUiState)
 
 local function runTest(name: string, testFn)
 	local ok, err = pcall(testFn)

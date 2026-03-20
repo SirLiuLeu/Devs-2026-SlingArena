@@ -10,10 +10,13 @@ local UIController = require(ReplicatedStorage.Client.Controllers.UIController)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+local UI_CLONE_WAIT_TIMEOUT = 2
 
 PathResolver.reportMissing(game, PathResolver.collectPaths(ProjectTreeSpec.Services.Client))
 PathResolver.reportMissing(ReplicatedStorage, PathResolver.collectPaths(ProjectTreeSpec.Remotes))
-PathResolver.reportMissing(playerGui, PathResolver.collectPaths(ProjectTreeSpec.UI))
+PathResolver.reportMissing(playerGui, PathResolver.collectPaths(ProjectTreeSpec.UI), {
+	waitTimeout = UI_CLONE_WAIT_TIMEOUT,
+})
 
 local clientService = LobbyClientService.new()
 local controller = UIController.new(playerGui, {

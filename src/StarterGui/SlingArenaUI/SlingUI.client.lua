@@ -5,8 +5,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
+local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local SlingUiState = require(ReplicatedStorage.Shared.Utils.SlingUiState)
 
 local player = Players.LocalPlayer
@@ -20,7 +22,7 @@ local MAX_CHARGE_TIME = SlingshotConfig.MAX_CHARGE_TIME or 2
 local COOLDOWN_DURATION = SlingshotConfig.RECOVER_TIME or 3
 local MAX_JOYSTICK_DRAG = 60
 local UI_WAIT_TIMEOUT = 2
-local DEBUG_LOG = true
+local DEBUG_LOG = false
 
 local warnedMissingUi = false
 local loggedUiResolved = false
@@ -65,7 +67,7 @@ local cachedCooldownFill: GuiObject? = nil
 
 local function debugLog(message: string)
 	if DEBUG_LOG then
-		-- print(message)
+		print(message)
 	end
 end
 
@@ -122,19 +124,13 @@ local function getMouseWorld(): Vector3
 		return mouse.Hit.Position
 	end
 
-	local existing = parent:FindFirstChild(childName)
-	if existing then
-		return existing
+	local character = player.Character
+	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+	if rootPart and rootPart:IsA("BasePart") then
+		return rootPart.Position + rootPart.CFrame.LookVector * 8
 	end
 
-	local ok, result = pcall(function()
-		return parent:WaitForChild(childName, timeout)
-	end)
-	if ok then
-		return result
-	end
-
-	return nil
+	return Vector3.zero
 end
 
 local function getInputPosition(input: InputObject?): Vector2
@@ -144,24 +140,28 @@ local function getInputPosition(input: InputObject?): Vector2
 	return Vector2.zero
 end
 
+local function getAimTarget(input: InputObject?): Vector3
+	if input and input.UserInputType == Enum.UserInputType.Touch then
+		local camera = workspace.CurrentCamera
+		if camera then
+			local position = input.Position
+			local ray = camera:ViewportPointToRay(position.X, position.Y)
+			return ray.Origin + ray.Direction * 256
+		end
+	end
+
+	return getMouseWorld()
+end
+
 local function findPreferredScreenGui(waitForUi: boolean): ScreenGui?
 	debugLog(string.format("[SlingUI] Resolving UI path wait=%s", tostring(waitForUi)))
 
-	local container = if waitForUi
-		then waitForChildIfNeeded(playerGui, "SlingArenaUI", UI_WAIT_TIMEOUT)
-		else findChild(playerGui, "SlingArenaUI")
-	if container then
-		debugLog("[SlingUI] Found PlayerGui.SlingArenaUI")
-	else
-		debugLog("[SlingUI] Waiting for PlayerGui.SlingArenaUI")
-	end
-
-	local nestedScreen = if waitForUi
-		then waitForChildIfNeeded(container, "SlingUI", UI_WAIT_TIMEOUT)
-		else findChild(container, "SlingUI")
-	if nestedScreen and nestedScreen:IsA("ScreenGui") then
-		debugLog("[SlingUI] Found PlayerGui.SlingArenaUI.SlingUI")
-		return nestedScreen
+	local screenGui = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.SlingTouch.ScreenGui, {
+		waitTimeout = if waitForUi then UI_WAIT_TIMEOUT else nil,
+		shouldWarn = false,
+	})
+	if screenGui and screenGui:IsA("ScreenGui") then
+		return screenGui
 	end
 
 	debugLog("[SlingUI] PlayerGui.SlingArenaUI.SlingUI not ready")
@@ -210,7 +210,6 @@ local function resolveUi(): (ScreenGui?, GuiObject?, GuiObject?, GuiObject?, Gui
 	end
 
 	screenGui.Enabled = true
-	debugLog("[SlingUI] Loaded successfully")
 	cachedScreenGui = screenGui
 
 	local shouldWait = not hasWaitedForHierarchy
@@ -260,13 +259,13 @@ local function resolveUi(): (ScreenGui?, GuiObject?, GuiObject?, GuiObject?, Gui
 	if cachedChargeBar then
 		cachedChargeBar.Active = true
 	end
-	cachedChargeFill = if chargeFill and chargeFill:IsA("Frame") then chargeFill else nil
-	cachedDirectionArrow = if directionArrow and directionArrow:IsA("GuiObject") then directionArrow else nil
+	cachedChargeFill = if chargeFill and chargeFill:IsA("GuiObject") then chargeFill else nil
+	cachedDirectionIndicator = if directionIndicator and directionIndicator:IsA("GuiObject") then directionIndicator else nil
 	cachedCooldownBar = if cooldownBar and cooldownBar:IsA("GuiObject") then cooldownBar else nil
 	if cachedCooldownBar then
 		cachedCooldownBar.Active = true
 	end
-	cachedCooldownFill = if cooldownFill and cooldownFill:IsA("Frame") then cooldownFill else nil
+	cachedCooldownFill = if cooldownFill and cooldownFill:IsA("GuiObject") then cooldownFill else nil
 
 	return cachedScreenGui, cachedJoystickRoot, cachedBase, cachedThumb, cachedChargeBar, cachedChargeFill, cachedDirectionIndicator, cachedCooldownBar, cachedCooldownFill
 end
@@ -500,7 +499,7 @@ local function releaseHold(input: InputObject)
 	isHolding = false
 	inputObject = nil
 
-	releaseChargeRemote:FireServer(getMouseWorld())
+	releaseChargeRemote:FireServer(getAimTarget(input))
 	beginCooldown(COOLDOWN_DURATION)
 
 	setVisibleSafe(cachedJoystickRoot, false)
