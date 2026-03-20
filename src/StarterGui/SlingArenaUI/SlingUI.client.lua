@@ -65,7 +65,7 @@ local cachedCooldownFill: GuiObject? = nil
 
 local function debugLog(message: string)
 	if DEBUG_LOG then
-		print(message)
+		-- print(message)
 	end
 end
 

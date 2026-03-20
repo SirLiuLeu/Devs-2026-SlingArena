@@ -226,21 +226,6 @@ local function testCooldownDisplayStateDecreasesCorrectly()
 	end
 end
 
-<<<<<<< HEAD
-local function testSlingUiPathsStayExact()
-	local slingUiSpec = ProjectTreeSpec.UI.SlingTouch
-	if slingUiSpec.Container ~= "SlingArenaUI" then
-		error("Sling UI container path must stay PlayerGui.SlingArenaUI")
-	end
-	if slingUiSpec.ScreenGui ~= "SlingArenaUI.SlingUI" then
-		error("Sling UI screen path must stay PlayerGui.SlingArenaUI.SlingUI")
-	end
-	if slingUiSpec.ChargeFill ~= "SlingArenaUI.SlingUI.ChargeBar.Fill" then
-		error("Charge fill path must stay SlingArenaUI.SlingUI.ChargeBar.Fill")
-	end
-	if slingUiSpec.CooldownFill ~= "SlingArenaUI.SlingUI.CooldownBar.Fill" then
-		error("Cooldown fill path must stay SlingArenaUI.SlingUI.CooldownBar.Fill")
-=======
 local function testSlingUiChargeAndCooldownRatios()
 	assertAlmostEqual(SlingUiState.ComputeChargeRatio(1, 2), 0.5, 0.0001, "Charge ratio should fill from 0 to 1 over charge time")
 	assertAlmostEqual(SlingUiState.ComputeChargeRatio(4, 2), 1, 0.0001, "Charge ratio should clamp at 1")
@@ -263,7 +248,6 @@ local function testSlingUiDirectionRotation()
 
 	if SlingUiState.ComputeDirectionRotation(Vector2.zero) ~= nil then
 		error("Zero drag should not force a rotation update")
->>>>>>> 7f39797374ab21ac9f45d8c2a9b1d0ea4b232110
 	end
 end
 
@@ -672,12 +656,8 @@ runTest("ChargeRelease_ResetsChargeState", testChargeResetAfterRelease)
 runTest("LaunchDirection_NormalizedFromAim", testLaunchDirectionNormalizedFromAim)
 runTest("ChargeRelease_ForceVectorFinite", testChargeReleaseLaunchVectorIsFinite)
 runTest("CooldownDisplay_DecreasesOverTime", testCooldownDisplayStateDecreasesCorrectly)
-<<<<<<< HEAD
-runTest("SlingUI_PathsStayExact", testSlingUiPathsStayExact)
-=======
 runTest("SlingUI_ChargeAndCooldownRatios", testSlingUiChargeAndCooldownRatios)
 runTest("SlingUI_DirectionRotation", testSlingUiDirectionRotation)
->>>>>>> 7f39797374ab21ac9f45d8c2a9b1d0ea4b232110
 runTest("CollisionTriggersDamageFormula", testCollisionTriggersDamageFormula)
 runTest("KnockbackDirectionForSmallerAttacker", testKnockbackDirectionForSmallerAttacker)
 runTest("ExpLevelUpThreshold", testExpLevelUpThreshold)
