@@ -226,6 +226,7 @@ local function testCooldownDisplayStateDecreasesCorrectly()
 	end
 end
 
+<<<<<<< HEAD
 local function testSlingUiPathsStayExact()
 	local slingUiSpec = ProjectTreeSpec.UI.SlingTouch
 	if slingUiSpec.Container ~= "SlingArenaUI" then
@@ -239,6 +240,30 @@ local function testSlingUiPathsStayExact()
 	end
 	if slingUiSpec.CooldownFill ~= "SlingArenaUI.SlingUI.CooldownBar.Fill" then
 		error("Cooldown fill path must stay SlingArenaUI.SlingUI.CooldownBar.Fill")
+=======
+local function testSlingUiChargeAndCooldownRatios()
+	assertAlmostEqual(SlingUiState.ComputeChargeRatio(1, 2), 0.5, 0.0001, "Charge ratio should fill from 0 to 1 over charge time")
+	assertAlmostEqual(SlingUiState.ComputeChargeRatio(4, 2), 1, 0.0001, "Charge ratio should clamp at 1")
+	assertAlmostEqual(SlingUiState.ComputeCooldownRatio(0.75, 3), 0.25, 0.0001, "Cooldown bar should fill from elapsed cooldown time")
+	assertAlmostEqual(SlingUiState.ComputeCooldownRatio(3, 3), 1, 0.0001, "Cooldown fill should complete at the recover duration")
+end
+
+local function testSlingUiDirectionRotation()
+	local rightRotation = SlingUiState.ComputeDirectionRotation(Vector2.new(10, 0))
+	if rightRotation == nil then
+		error("Direction rotation should exist for non-zero drag")
+	end
+	assertAlmostEqual(rightRotation, 0, 0.0001, "Right drag should rotate indicator to 0 degrees")
+
+	local downRotation = SlingUiState.ComputeDirectionRotation(Vector2.new(0, 10))
+	if downRotation == nil then
+		error("Direction rotation should exist for non-zero drag")
+	end
+	assertAlmostEqual(downRotation, 90, 0.0001, "Downward drag should rotate indicator to 90 degrees")
+
+	if SlingUiState.ComputeDirectionRotation(Vector2.zero) ~= nil then
+		error("Zero drag should not force a rotation update")
+>>>>>>> 7f39797374ab21ac9f45d8c2a9b1d0ea4b232110
 	end
 end
 
@@ -647,7 +672,12 @@ runTest("ChargeRelease_ResetsChargeState", testChargeResetAfterRelease)
 runTest("LaunchDirection_NormalizedFromAim", testLaunchDirectionNormalizedFromAim)
 runTest("ChargeRelease_ForceVectorFinite", testChargeReleaseLaunchVectorIsFinite)
 runTest("CooldownDisplay_DecreasesOverTime", testCooldownDisplayStateDecreasesCorrectly)
+<<<<<<< HEAD
 runTest("SlingUI_PathsStayExact", testSlingUiPathsStayExact)
+=======
+runTest("SlingUI_ChargeAndCooldownRatios", testSlingUiChargeAndCooldownRatios)
+runTest("SlingUI_DirectionRotation", testSlingUiDirectionRotation)
+>>>>>>> 7f39797374ab21ac9f45d8c2a9b1d0ea4b232110
 runTest("CollisionTriggersDamageFormula", testCollisionTriggersDamageFormula)
 runTest("KnockbackDirectionForSmallerAttacker", testKnockbackDirectionForSmallerAttacker)
 runTest("ExpLevelUpThreshold", testExpLevelUpThreshold)

@@ -38,7 +38,8 @@ local ProjectTreeSpec = {
 			JoystickThumb = "SlingArenaUI.SlingUI.JoystickRoot.Thumb", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.JoystickRoot.Thumb
 			ChargeBar = "SlingArenaUI.SlingUI.ChargeBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.ChargeBar
 			ChargeFill = "SlingArenaUI.SlingUI.ChargeBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.ChargeBar.Fill
-			DirectionArrow = "SlingArenaUI.SlingUI.DirectionArrow", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.DirectionArrow
+			DirectionIndicator = "SlingArenaUI.SlingUI.DirectionIndicator", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.DirectionIndicator
+			DirectionArrow = "SlingArenaUI.SlingUI.DirectionArrow", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.DirectionArrow (compatibility alias)
 			CooldownBar = "SlingArenaUI.SlingUI.CooldownBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.CooldownBar
 			CooldownFill = "SlingArenaUI.SlingUI.CooldownBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.CooldownBar.Fill
 		},
