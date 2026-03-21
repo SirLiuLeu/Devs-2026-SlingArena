@@ -141,7 +141,7 @@ DataModel
 │        │   ├─ ChargeBar (Frame)
 │        │   │  └─ Fill (Frame)
 │        │   │
-│        │   └─ DirectionArrow (ImageLabel)
+│        │   └─ DirectionIndicator (ImageLabel)
 │        ├─ MainUI.client.lua (deprecated)
 │        ├─ UIController.lua
 │        └─ Components/*
