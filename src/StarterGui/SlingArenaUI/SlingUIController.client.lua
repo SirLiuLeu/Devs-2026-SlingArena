@@ -19,23 +19,23 @@ local releaseChargeRemote = remotes:WaitForChild(RemoteContracts.Names.ReleaseCh
 local stateUpdateRemote = remotes:FindFirstChild(RemoteContracts.Names.StateUpdate) :: RemoteEvent?
 
 local MAX_CHARGE_TIME = SlingshotConfig.MAX_CHARGE_TIME or 2
-local COOLDOWN_DURATION = SlingshotConfig.RECOVER_TIME or 3
+local DEFAULT_COOLDOWN_DURATION = SlingshotConfig.RECOVER_TIME or 3
 local MAX_JOYSTICK_DRAG = 60
-local UI_WAIT_TIMEOUT = 2
 local DEBUG_LOG = false
 
 local warnedMissingUi = false
 local loggedUiResolved = false
 local lastResolvedPath: string? = nil
-local hasWaitedForHierarchy = false
 
 local isHolding = false
+local awaitingReleaseAck = false
 local inputObject: InputObject? = nil
 local startPos = Vector2.zero
 local currentDelta = Vector2.zero
 local chargeStartTime = 0
 local cooldownStartTime = 0
 local cooldownEndTime = 0
+local cooldownDuration = DEFAULT_COOLDOWN_DURATION
 local lastKnownServerState: { [string]: any }? = nil
 local uiUpdateConnection: RBXScriptConnection? = nil
 
@@ -69,26 +69,6 @@ local function debugLog(message: string)
 	if DEBUG_LOG then
 		print(message)
 	end
-end
-
-local function waitForChildIfNeeded(parent: Instance?, childName: string, timeout: number): Instance?
-	if not parent then
-		return nil
-	end
-
-	local existing = parent:FindFirstChild(childName)
-	if existing then
-		return existing
-	end
-
-	local ok, result = pcall(function()
-		return parent:WaitForChild(childName, timeout)
-	end)
-	if ok then
-		return result
-	end
-
-	return nil
 end
 
 local function findChild(parent: Instance?, childName: string): Instance?
@@ -153,11 +133,10 @@ local function getAimTarget(input: InputObject?): Vector3
 	return getMouseWorld()
 end
 
-local function findPreferredScreenGui(waitForUi: boolean): ScreenGui?
-	debugLog(string.format("[SlingUI] Resolving UI path wait=%s", tostring(waitForUi)))
+local function findPreferredScreenGui(): ScreenGui?
+	debugLog("[SlingUI] Resolving UI path without timeout")
 
 	local screenGui = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.SlingTouch.ScreenGui, {
-		waitTimeout = if waitForUi then UI_WAIT_TIMEOUT else nil,
 		shouldWarn = false,
 	})
 	if screenGui and screenGui:IsA("ScreenGui") then
@@ -168,20 +147,12 @@ local function findPreferredScreenGui(waitForUi: boolean): ScreenGui?
 	return nil
 end
 
-local function primeUiCache()
-	cachedScreenGui = findPreferredScreenGui(true)
-	if cachedScreenGui then
-		warnedMissingUi = false
-		logUiResolvedOnce(cachedScreenGui)
-	end
-end
-
 local function resolveScreenGui(): ScreenGui?
 	if cachedScreenGui and cachedScreenGui.Parent then
 		return cachedScreenGui
 	end
 
-	cachedScreenGui = findPreferredScreenGui(false)
+	cachedScreenGui = findPreferredScreenGui()
 	if cachedScreenGui then
 		warnedMissingUi = false
 		logUiResolvedOnce(cachedScreenGui)
@@ -189,17 +160,13 @@ local function resolveScreenGui(): ScreenGui?
 	return cachedScreenGui
 end
 
-local function resolveDirectionIndicator(screenGui: ScreenGui, waitForUi: boolean): Instance?
-	local indicator = if waitForUi
-		then waitForChildIfNeeded(screenGui, "DirectionIndicator", UI_WAIT_TIMEOUT)
-		else findChild(screenGui, "DirectionIndicator")
+local function resolveDirectionIndicator(screenGui: ScreenGui): Instance?
+	local indicator = findChild(screenGui, "DirectionIndicator")
 	if indicator then
 		return indicator
 	end
 
-	return if waitForUi
-		then waitForChildIfNeeded(screenGui, "DirectionArrow", UI_WAIT_TIMEOUT)
-		else findChild(screenGui, "DirectionArrow")
+	return findChild(screenGui, "DirectionArrow")
 end
 
 local function resolveUi(): (ScreenGui?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?)
@@ -212,32 +179,15 @@ local function resolveUi(): (ScreenGui?, GuiObject?, GuiObject?, GuiObject?, Gui
 	screenGui.Enabled = true
 	cachedScreenGui = screenGui
 
-	local shouldWait = not hasWaitedForHierarchy
-	local joystickRoot = if shouldWait
-		then waitForChildIfNeeded(screenGui, "JoystickRoot", UI_WAIT_TIMEOUT)
-		else findChild(screenGui, "JoystickRoot")
-	local chargeBar = if shouldWait
-		then waitForChildIfNeeded(screenGui, "ChargeBar", UI_WAIT_TIMEOUT)
-		else findChild(screenGui, "ChargeBar")
-	local cooldownBar = if shouldWait
-		then waitForChildIfNeeded(screenGui, "CooldownBar", UI_WAIT_TIMEOUT)
-		else findChild(screenGui, "CooldownBar")
-	local directionIndicator = resolveDirectionIndicator(screenGui, shouldWait)
+	local joystickRoot = findChild(screenGui, "JoystickRoot")
+	local chargeBar = findChild(screenGui, "ChargeBar")
+	local cooldownBar = findChild(screenGui, "CooldownBar")
+	local directionIndicator = resolveDirectionIndicator(screenGui)
 
-	local base = if joystickRoot
-		then (if shouldWait then waitForChildIfNeeded(joystickRoot, "Base", UI_WAIT_TIMEOUT) else findChild(joystickRoot, "Base"))
-		else nil
-	local thumb = if joystickRoot
-		then (if shouldWait then waitForChildIfNeeded(joystickRoot, "Thumb", UI_WAIT_TIMEOUT) else findChild(joystickRoot, "Thumb"))
-		else nil
-	local chargeFill = if chargeBar
-		then (if shouldWait then waitForChildIfNeeded(chargeBar, "Fill", UI_WAIT_TIMEOUT) else findChild(chargeBar, "Fill"))
-		else nil
-	local cooldownFill = if cooldownBar
-		then (if shouldWait then waitForChildIfNeeded(cooldownBar, "Fill", UI_WAIT_TIMEOUT) else findChild(cooldownBar, "Fill"))
-		else nil
-
-	hasWaitedForHierarchy = true
+	local base = if joystickRoot then findChild(joystickRoot, "Base") else nil
+	local thumb = if joystickRoot then findChild(joystickRoot, "Thumb") else nil
+	local chargeFill = if chargeBar then findChild(chargeBar, "Fill") else nil
+	local cooldownFill = if cooldownBar then findChild(cooldownBar, "Fill") else nil
 
 	if not joystickRoot or not base or not thumb or not chargeBar or not chargeFill or not cooldownBar or not cooldownFill or not directionIndicator then
 		warnMissingUiOnce("[SlingUI] SlingUI hierarchy is incomplete. Expected SlingUI > JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator or DirectionArrow.")
@@ -391,7 +341,7 @@ local function stepUi()
 
 	local cooldownRatio = 0
 	if cooldownEndTime > cooldownStartTime and os.clock() < cooldownEndTime then
-		cooldownRatio = SlingUiState.ComputeCooldownRatio(os.clock() - cooldownStartTime, cooldownEndTime - cooldownStartTime)
+		cooldownRatio = SlingUiState.ComputeCooldownRatio(os.clock() - cooldownStartTime, cooldownDuration)
 	end
 	updateCooldownBar(cooldownRatio)
 	stopUiLoopIfIdle()
@@ -407,9 +357,15 @@ local function ensureUiLoopRunning()
 	end)
 end
 
-local function beginCooldown(duration: number)
-	cooldownStartTime = os.clock()
-	cooldownEndTime = cooldownStartTime + math.max(duration, 0)
+local function beginCooldown(duration: number, endTime: number?)
+	cooldownDuration = math.max(duration, 0)
+	if endTime and endTime > 0 then
+		cooldownEndTime = endTime
+		cooldownStartTime = cooldownEndTime - cooldownDuration
+	else
+		cooldownStartTime = os.clock()
+		cooldownEndTime = cooldownStartTime + cooldownDuration
+	end
 	updateCooldownBar(0)
 	ensureUiLoopRunning()
 end
@@ -417,12 +373,14 @@ end
 local function clearCooldown()
 	cooldownStartTime = 0
 	cooldownEndTime = 0
+	cooldownDuration = DEFAULT_COOLDOWN_DURATION
 	updateCooldownBar(0)
 	stopUiLoopIfIdle()
 end
 
 local function resetVisualState()
 	isHolding = false
+	awaitingReleaseAck = false
 	inputObject = nil
 	startPos = Vector2.zero
 	currentDelta = Vector2.zero
@@ -435,6 +393,18 @@ local function resetVisualState()
 	clearCooldown()
 end
 
+local function syncCooldownFromServerState(state: { [string]: any })
+	local serverCooldownEnd = state.CooldownEndTime
+	if typeof(serverCooldownEnd) ~= "number" or serverCooldownEnd <= os.clock() then
+		if not isHolding then
+			clearCooldown()
+		end
+		return
+	end
+
+	beginCooldown(DEFAULT_COOLDOWN_DURATION, serverCooldownEnd)
+end
+
 local function startHold(input: InputObject)
 	if isHolding then
 		return
@@ -444,6 +414,7 @@ local function startHold(input: InputObject)
 	end
 
 	isHolding = true
+	awaitingReleaseAck = false
 	inputObject = input
 	startPos = getInputPosition(input)
 	currentDelta = Vector2.zero
@@ -497,10 +468,10 @@ local function releaseHold(input: InputObject)
 	end
 
 	isHolding = false
+	awaitingReleaseAck = true
 	inputObject = nil
 
 	releaseChargeRemote:FireServer(getAimTarget(input))
-	beginCooldown(COOLDOWN_DURATION)
 
 	setVisibleSafe(cachedJoystickRoot, false)
 	setVisibleSafe(cachedDirectionIndicator, false)
@@ -545,32 +516,37 @@ if stateUpdateRemote then
 			return
 		end
 
-		if state.IsCharging == false and isHolding == false and (state.MovementState == "Launched" or state.MovementState == "Recovering") then
-			if cooldownEndTime <= os.clock() then
-				beginCooldown(COOLDOWN_DURATION)
-			end
+		if state.IsCharging == false and isHolding == true then
+			isHolding = false
+			updateChargeBar(0)
+		end
+
+		if state.MovementState == "Launched" or state.MovementState == "Recovering" then
+			awaitingReleaseAck = false
+			syncCooldownFromServerState(state)
+		elseif state.MovementState == "Idle" and awaitingReleaseAck == false and state.IsCharging ~= true then
+			clearCooldown()
 		end
 	end)
 end
 
 playerGui.DescendantAdded:Connect(function(descendant)
-	if descendant.Name ~= "SlingUI" and descendant.Name ~= "DirectionIndicator" and descendant.Name ~= "DirectionArrow" and descendant.Name ~= "ChargeBar" and descendant.Name ~= "CooldownBar" then
+	if descendant.Name ~= "SlingUI" and descendant.Name ~= "DirectionIndicator" and descendant.Name ~= "DirectionArrow" and descendant.Name ~= "ChargeBar" and descendant.Name ~= "CooldownBar" and descendant.Name ~= "Fill" and descendant.Name ~= "JoystickRoot" and descendant.Name ~= "Base" and descendant.Name ~= "Thumb" then
 		return
 	end
 
 	resolveUi()
 	if lastKnownServerState and lastKnownServerState.IsAlive == false then
 		resetVisualState()
+	elseif lastKnownServerState and (lastKnownServerState.MovementState == "Launched" or lastKnownServerState.MovementState == "Recovering") then
+		syncCooldownFromServerState(lastKnownServerState)
 	end
 end)
 
 player.CharacterAdded:Connect(function()
-	hasWaitedForHierarchy = false
-	primeUiCache()
 	resolveUi()
 	resetVisualState()
 end)
 
-primeUiCache()
 resolveUi()
 resetVisualState()

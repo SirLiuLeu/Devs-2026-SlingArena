@@ -52,33 +52,47 @@ Create in **StarterGui**:
       - `Thumb` (`Frame`)
     - `ChargeBar` (`Frame`)
       - `Fill` (`Frame`)
-    - `DirectionArrow` (`ImageLabel`)
-    - `CooldownBar` (`Frame`, optional)
-      - `Fill` (`Frame`, optional)
+    - `DirectionIndicator` (`ImageLabel`) or compatibility alias `DirectionArrow`
+    - `CooldownBar` (`Frame`)
+      - `Fill` (`Frame`)
 
 Paths:
 - `StarterGui.SlingArenaUI.SlingUI.JoystickRoot`
 - `StarterGui.SlingArenaUI.SlingUI.ChargeBar.Fill`
-- `StarterGui.SlingArenaUI.SlingUI.DirectionArrow`
+- `StarterGui.SlingArenaUI.SlingUI.DirectionIndicator`
 - `StarterGui.SlingArenaUI.SlingUI.CooldownBar.Fill`
 
 ---
 
-## 3) Required Remotes (auto-created by server)
+## 3) Required Remotes (static, Rojo-managed)
 
-These are created from `RemoteContracts` in `Main.server.lua` if missing, under:
+These must already exist under:
 
 - `ReplicatedStorage.SlingArenaRemotes` (`Folder`)
 
-Common remote paths:
-- `ReplicatedStorage.SlingArenaRemotes.JoinArena`
-- `ReplicatedStorage.SlingArenaRemotes.LeaveArena`
-- `ReplicatedStorage.SlingArenaRemotes.StartCharge`
-- `ReplicatedStorage.SlingArenaRemotes.ReleaseCharge`
-- `ReplicatedStorage.SlingArenaRemotes.StateUpdate`
-- `ReplicatedStorage.SlingArenaRemotes.UIStateUpdate`
-- `ReplicatedStorage.SlingArenaRemotes.RoundResult`
-- `ReplicatedStorage.SlingArenaRemotes.GameplayFeedback`
+Required production remotes:
+- `MoveRequest`
+- `StartCharge`
+- `ReleaseCharge`
+- `JoinArena`
+- `LeaveArena`
+- `TeleportRequest`
+- `AttributeUpgrade`
+- `RequestRespawn`
+- `PurchaseRespawn`
+- `PurchaseMatchBuff`
+- `PrestigeReset`
+- `ToggleSpecialUpgrade`
+- `DebugSpawnFood`
+- `DebugResetSling`
+- `StateUpdate`
+- `UIStateUpdate`
+- `GameplayFeedback`
+- `MatchStateUpdate`
+- `RoundResult`
+- `PopupMessage`
+
+Do **not** rely on the server to create these at runtime.
 
 ---
 
@@ -110,5 +124,5 @@ Optional map rule markers in active map models:
 
 - Play test and confirm there are no `[UI_MISSING]` warnings for intended HUDs.
 - `JoinButton`/`LeaveButton` fire correctly.
-- Sling joystick, charge bar, and direction arrow update while charging.
+- Sling joystick, charge bar, cooldown bar, and direction indicator update while charging/recovering.
 - Round state labels (`StatusLabel`, `TimerLabel`, `AlivePlayersLabel`) update from server events.

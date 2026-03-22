@@ -2,96 +2,92 @@
 
 ## 1. SlingUI runtime flow
 
-1. Player presses on their Sling pawn in the world.
-2. `SlingUI.client.lua` validates the input hit, resolves `StarterGui.SlingArenaUI.SlingUI` once, marks the local state as charging, and fires `StartCharge`.
-3. A controlled `RenderStepped` loop starts **only while charging or cooldown is active**.
-4. While the player holds input:
+1. The player presses on their Sling pawn in the world.
+2. `SlingUIController.client.lua` validates that the input started on the local pawn, resolves `PlayerGui.SlingArenaUI.SlingUI`, marks the local interaction as charging, and fires `StartCharge`.
+3. While the press is still held:
    - `ChargeBar.Fill.Size` grows from `0` to `1` on the X scale.
    - `JoystickRoot.Thumb` follows the drag delta.
    - `DirectionIndicator` rotates from the current drag vector.
-5. On release, the client fires `ReleaseCharge`, hides the joystick, and starts a local cooldown timer for the same recover duration used by the server.
-6. During cooldown, `CooldownBar.Fill.Size` grows from `0` to `1` on the X scale.
-7. When cooldown completes, the update loop disconnects itself and the player can charge again.
+4. On release, the client fires `ReleaseCharge`, hides the joystick visuals immediately, and waits for authoritative `StateUpdate` confirmation from the server.
+5. `SlingService` validates the release, applies launch velocity on the server, and updates the player's authoritative `CooldownEndTime` in `StateUpdate`.
+6. Once the client receives `StateUpdate` with `MovementState = Launched|Recovering` and a future `CooldownEndTime`, `CooldownBar.Fill.Size` grows from `0` to `1` on the X scale.
+7. When the cooldown completes or the server returns the player to `Idle`, the update loop disconnects and the player can charge again.
 
-## 2. Anti-spam logging behavior
+## 2. Why the old implementation broke
 
-- The runtime no longer logs inside the per-frame update path.
-- UI resolution is cached and printed exactly once when the hierarchy is first resolved.
-- Missing UI hierarchy still produces a `warn()` exactly once so gameplay does not crash.
-- If the UI appears later, the script re-resolves it safely without re-spamming warnings.
+The old LocalScript was also named `SlingUI`, which collided with the required `SlingUI` `ScreenGui` name in `StarterGui.SlingArenaUI`. Because Roblox allows same-name siblings, path resolution could hit the LocalScript instead of the `ScreenGui`, leaving `ChargeBar.Fill` and `CooldownBar.Fill` unresolved. The UI bars then never updated even though `StartCharge` and `ReleaseCharge` were firing.
 
-## 3. Required Studio hierarchy
+The controller script is now named `SlingUIController.client.lua`, so the `SlingUI` path resolves to the intended `ScreenGui` only.
 
-- Required hierarchy:
-  - `StarterGui`
-    - `SlingArenaUI` (`Folder`)
-      - `SlingUI` (`ScreenGui`)
-        - `JoystickRoot` (`Frame`)
-          - `Base` (`Frame`)
-          - `Thumb` (`Frame`)
-        - `ChargeBar` (`Frame`)
-          - `Fill` (`Frame`)
-        - `CooldownBar` (`Frame`)
-          - `Fill` (`Frame`)
-        - `DirectionIndicator` (`ImageLabel`)
-- Compatibility fallback is supported for `DirectionArrow` if an older place file already uses that name.
+## 3. Deterministic UI initialization
 
-## 4. Roblox Studio setup guide
+The old implementation used a hardcoded 2-second timeout while waiting for cloned UI. That made startup nondeterministic:
+
+- fast clones still paid an unnecessary delay in some paths;
+- slow clones could miss the timeout and permanently fail to bind;
+- once the timeout elapsed, the code stayed in a partially bound state.
+
+The current implementation is event-driven instead:
+
+- `UIBinder.client.lua` creates the controller immediately;
+- it rebinds whenever `PlayerGui` children/descendants appear or disappear;
+- `SlingUIController.client.lua` resolves existing UI synchronously and re-resolves on `DescendantAdded`.
+
+This guarantees the UI binds as soon as the hierarchy exists, without guessing timing.
+
+## 4. Required Studio hierarchy
+
+- `StarterGui`
+  - `SlingArenaUI` (`Folder`)
+    - `SlingUI` (`ScreenGui`)
+      - `JoystickRoot` (`Frame`)
+        - `Base` (`Frame`)
+        - `Thumb` (`Frame`)
+      - `ChargeBar` (`Frame`)
+        - `Fill` (`Frame`)
+      - `CooldownBar` (`Frame`)
+        - `Fill` (`Frame`)
+      - `DirectionIndicator` (`ImageLabel`)
+
+Compatibility fallback is still supported for `DirectionArrow` if an older place file already uses that name.
+
+## 5. UI elements involved
+
+### JoystickRoot
+- World-space touch/mouse drag anchor.
+- `Base` is the visual ring.
+- `Thumb` follows the drag delta.
 
 ### ChargeBar
-
-- Instance path: `StarterGui.SlingArenaUI.SlingUI.ChargeBar`
-- Type: `Frame`
-- Recommended properties:
-  - `AnchorPoint = Vector2.new(0, 0.5)`
-  - `Position = UDim2.new(0.5, 0, 0.85, 0)`
-  - `Size = UDim2.new(0.32, 0, 0.035, 0)`
-  - `ClipsDescendants = true`
+- Path: `StarterGui.SlingArenaUI.SlingUI.ChargeBar`
 - Child fill path: `StarterGui.SlingArenaUI.SlingUI.ChargeBar.Fill`
-- Fill properties:
-  - `AnchorPoint = Vector2.new(0, 0.5)`
-  - `Position = UDim2.new(0, 0, 0.5, 0)`
-  - `Size = UDim2.new(0, 0, 1, 0)` at rest
-- Fill direction: **left → right** using `Fill.Size = UDim2.new(chargeRatio, 0, 1, 0)`.
+- Fills left-to-right with `Fill.Size = UDim2.new(chargeRatio, 0, 1, 0)`.
 
 ### CooldownBar
-
-- Instance path: `StarterGui.SlingArenaUI.SlingUI.CooldownBar`
-- Type: `Frame`
-- Recommended properties:
-  - `AnchorPoint = Vector2.new(0, 0.5)`
-  - `Position = UDim2.new(0.5, 0, 0.9, 0)`
-  - `Size = UDim2.new(0.32, 0, 0.025, 0)`
-  - `ClipsDescendants = true`
+- Path: `StarterGui.SlingArenaUI.SlingUI.CooldownBar`
 - Child fill path: `StarterGui.SlingArenaUI.SlingUI.CooldownBar.Fill`
-- Fill properties:
-  - `AnchorPoint = Vector2.new(0, 0.5)`
-  - `Position = UDim2.new(0, 0, 0.5, 0)`
-  - `Size = UDim2.new(0, 0, 1, 0)` at rest
-- Fill direction: **left → right** using `Fill.Size = UDim2.new(cooldownRatio, 0, 1, 0)`.
-- Expected behavior: starts empty on release, then fills toward 100% until the cooldown ends.
+- Fills left-to-right with `Fill.Size = UDim2.new(cooldownRatio, 0, 1, 0)`.
+- Driven by authoritative `StateUpdate.CooldownEndTime`.
 
 ### DirectionIndicator
+- Path: `StarterGui.SlingArenaUI.SlingUI.DirectionIndicator`
+- Rotates from the current drag vector using `atan2`.
 
-- Instance path: `StarterGui.SlingArenaUI.SlingUI.DirectionIndicator`
-- Type: `ImageLabel`
-- Recommended properties:
-  - `AnchorPoint = Vector2.new(0.5, 0.5)`
-  - `Size = UDim2.new(0.06, 0, 0.06, 0)`
-  - `BackgroundTransparency = 1`
-  - center the image so rotation pivots naturally around the press point
-- The script rotates the image from the drag vector with `atan2`, so the art should visually point to the right by default. If your art points up, rotate the asset by `-90` degrees in Studio.
+## 6. Remote/data flow summary
 
-## 5. Common bugs and fixes
+- Input start: client-only hit test on local pawn.
+- Charge begin: `StartCharge` (`Client -> Server`).
+- Server authority: `SlingService` sets `IsCharging = true` and movement state to `Charging`.
+- Charge bar animation: local client loop for immediate feedback while the input is held.
+- Release: `ReleaseCharge` (`Client -> Server`).
+- Launch + cooldown authority: server computes force, launches the pawn, sets `CooldownEndTime`, and publishes `StateUpdate`.
+- Cooldown animation: client reads `StateUpdate.CooldownEndTime` and animates `CooldownBar.Fill` until the authoritative end time.
+- Round overlays: `UIStateUpdate` remains dedicated to match/lobby status, not sling charge UI.
 
-- **ChargeBar does not move** → verify `ChargeBar.Fill` exists and starts at `UDim2.new(0, 0, 1, 0)`.
-- **CooldownBar counts backward** → the correct behavior is `elapsed / duration`, not `remaining / duration`.
-- **Direction indicator does not rotate** → ensure the image is named `DirectionIndicator` or `DirectionArrow` and its anchor point is `(0.5, 0.5)`.
-- **Joystick appears offset** → verify `JoystickRoot.AnchorPoint` and `Thumb.AnchorPoint` are both `(0.5, 0.5)`.
-- **Player can start charge during cooldown** → the client gate checks `cooldownEndTime`, while the server remains authoritative and rejects invalid requests.
+## 7. Common bugs and fixes
 
-## 6. Notes on authority
-
-- The server still owns `StartCharge`, `ReleaseCharge`, launch force, and physics.
-- The client only renders feedback for charge, drag direction, and cooldown.
-- `StateUpdate` is used as a safe reset hook so the UI clears itself if the player dies or if the server state changes unexpectedly.
+- **ChargeBar does not move** -> verify `ChargeBar.Fill` exists and starts at `UDim2.new(0, 0, 1, 0)`.
+- **CooldownBar never starts** -> verify the client receives `StateUpdate` with a future `CooldownEndTime`; `UIStateUpdate` is not the source for cooldown visuals.
+- **Direction indicator does not rotate** -> ensure the image is named `DirectionIndicator` or `DirectionArrow` and its anchor point is `(0.5, 0.5)`.
+- **Joystick appears offset** -> verify `JoystickRoot.AnchorPoint` and `Thumb.AnchorPoint` are both `(0.5, 0.5)`.
+- **Player can attempt charge during cooldown** -> the client gates against the last authoritative cooldown end time, and the server remains authoritative if the client mispredicts.

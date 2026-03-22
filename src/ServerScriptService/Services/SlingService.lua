@@ -235,6 +235,7 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 
 	self._chargeState[player] = nil
 	self._releaseCooldown[player] = os.clock() + (SlingshotConfig.RECOVER_TIME or 3)
+	self._context.Services.PlayerStateService:SetCooldownEndTime(player, self._releaseCooldown[player])
 end
 
 function SlingService:_stepMovement()
@@ -305,6 +306,7 @@ function SlingService:_stepMovementStates()
 				self._releaseCooldown[player] = math.max(self._releaseCooldown[player] or 0, os.clock() + (SlingshotConfig.RECOVER_TIME or 3))
 			elseif state.MovementState == MOVEMENT_STATE.Recovering and os.clock() >= (self._releaseCooldown[player] or 0) then
 				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
+				self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
 			end
 		end
 	end

@@ -46,14 +46,26 @@ local ProjectTreeSpec = {
 	},
 	Remotes = {
 		Folder = "SlingArenaRemotes", -- [PROJECT_TREE_SPEC] ReplicatedStorage.SlingArenaRemotes
-		JoinArena = "SlingArenaRemotes.JoinArena", -- [PROJECT_TREE_SPEC]
-		LeaveArena = "SlingArenaRemotes.LeaveArena", -- [PROJECT_TREE_SPEC]
-		StateUpdate = "SlingArenaRemotes.StateUpdate", -- [PROJECT_TREE_SPEC]
-		UIStateUpdate = "SlingArenaRemotes.UIStateUpdate", -- [PROJECT_TREE_SPEC]
-		RoundResult = "SlingArenaRemotes.RoundResult", -- [PROJECT_TREE_SPEC]
+		MoveRequest = "SlingArenaRemotes.MoveRequest", -- [PROJECT_TREE_SPEC]
 		StartCharge = "SlingArenaRemotes.StartCharge", -- [PROJECT_TREE_SPEC]
 		ReleaseCharge = "SlingArenaRemotes.ReleaseCharge", -- [PROJECT_TREE_SPEC]
+		JoinArena = "SlingArenaRemotes.JoinArena", -- [PROJECT_TREE_SPEC]
+		LeaveArena = "SlingArenaRemotes.LeaveArena", -- [PROJECT_TREE_SPEC]
+		TeleportRequest = "SlingArenaRemotes.TeleportRequest", -- [PROJECT_TREE_SPEC]
+		AttributeUpgrade = "SlingArenaRemotes.AttributeUpgrade", -- [PROJECT_TREE_SPEC]
+		RequestRespawn = "SlingArenaRemotes.RequestRespawn", -- [PROJECT_TREE_SPEC]
+		PurchaseRespawn = "SlingArenaRemotes.PurchaseRespawn", -- [PROJECT_TREE_SPEC]
+		PurchaseMatchBuff = "SlingArenaRemotes.PurchaseMatchBuff", -- [PROJECT_TREE_SPEC]
+		PrestigeReset = "SlingArenaRemotes.PrestigeReset", -- [PROJECT_TREE_SPEC]
+		ToggleSpecialUpgrade = "SlingArenaRemotes.ToggleSpecialUpgrade", -- [PROJECT_TREE_SPEC]
+		DebugSpawnFood = "SlingArenaRemotes.DebugSpawnFood", -- [PROJECT_TREE_SPEC]
+		DebugResetSling = "SlingArenaRemotes.DebugResetSling", -- [PROJECT_TREE_SPEC]
+		StateUpdate = "SlingArenaRemotes.StateUpdate", -- [PROJECT_TREE_SPEC]
+		UIStateUpdate = "SlingArenaRemotes.UIStateUpdate", -- [PROJECT_TREE_SPEC]
 		GameplayFeedback = "SlingArenaRemotes.GameplayFeedback", -- [PROJECT_TREE_SPEC]
+		MatchStateUpdate = "SlingArenaRemotes.MatchStateUpdate", -- [PROJECT_TREE_SPEC]
+		RoundResult = "SlingArenaRemotes.RoundResult", -- [PROJECT_TREE_SPEC]
+		PopupMessage = "SlingArenaRemotes.PopupMessage", -- [PROJECT_TREE_SPEC]
 	},
 	Services = {
 		Client = {
@@ -87,6 +99,9 @@ local ProjectTreeSpec = {
 		--         CenterZones (Folder)
 		--           FoodSpawn_01..N (Part)
 		--       WallContainer (Folder)
+		--       SafeSpawnZone (BasePart)
+		--       AntiGiantZone (BasePart)
+		--       SizeRestrictedCorridor (BasePart)
 		--     Arena_02 (Model)
 		--       (same structure as Arena_01)
 

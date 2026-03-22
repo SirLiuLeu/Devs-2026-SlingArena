@@ -43,6 +43,7 @@ export type PlayerState = {
 	AttributePoints: number,
 	DamageDealt: number,
 	IsTeleporting: boolean,
+	CooldownEndTime: number,
 	Attributes: AttributesState,
 	IsAlive: boolean,
 	IsCharging: boolean,

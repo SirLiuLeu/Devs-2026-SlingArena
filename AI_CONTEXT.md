@@ -32,32 +32,32 @@ Leaderboard dựa trên:
 
 Vòng lặp gameplay chính:
 
-1. Spawn  
+1. Spawn
    Player xuất hiện ở Lobby → Join Arena.
 
-2. Collect Food  
+2. Collect Food
    Player di chuyển trong Arena để thu thập Food.
 
-3. Charge  
-   Player giữ phím để tích lực bắn.  
+3. Charge
+   Player giữ phím để tích lực bắn.
    Trong trạng thái charge:
    - Sling không thể di chuyển.
 
-4. Release  
+4. Release
    Khi thả phím:
    - server tính toán lực phóng
    - áp dụng velocity cho Sling.
 
-5. Physics Movement  
+5. Physics Movement
    Sling di chuyển theo vật lý.
 
-6. Collision  
+6. Collision
    Sling va chạm với:
    - Sling khác
    - Trap
    - Map geometry.
 
-7. Result  
+7. Result
    Tùy thuộc vào:
    - size
    - trạng thái release
@@ -70,7 +70,7 @@ Vòng lặp gameplay chính:
    - stun
    - death.
 
-8. Respawn hoặc Lobby  
+8. Respawn hoặc Lobby
    Sling chết có thể:
    - chờ respawn
    - quay về lobby.
@@ -252,74 +252,68 @@ Tất cả RemoteEvents phải:
 
 # 8. Client → Server Events
 
-JoinArena  
+JoinArena
 ReplicatedStorage.SlingArenaRemotes.JoinArena
 
-LeaveArena  
+LeaveArena
 ReplicatedStorage.SlingArenaRemotes.LeaveArena
 
-MoveRequest  
+MoveRequest
 ReplicatedStorage.SlingArenaRemotes.MoveRequest
 
-StartCharge  
+StartCharge
 ReplicatedStorage.SlingArenaRemotes.StartCharge
 
-ReleaseCharge  
+ReleaseCharge
 ReplicatedStorage.SlingArenaRemotes.ReleaseCharge
 
-TeleportRequest  
+TeleportRequest
 ReplicatedStorage.SlingArenaRemotes.TeleportRequest
 
-ActivateSkill  
-ReplicatedStorage.SlingArenaRemotes.ActivateSkill
-
-AttributeUpgrade  
+AttributeUpgrade
 ReplicatedStorage.SlingArenaRemotes.AttributeUpgrade
 
-RequestRespawn  
+RequestRespawn
 ReplicatedStorage.SlingArenaRemotes.RequestRespawn
 
-RequestMatchBuff  
-ReplicatedStorage.SlingArenaRemotes.RequestMatchBuff
-
-UIStateUpdate  
-ReplicatedStorage.SlingArenaRemotes.UIStateUpdate
-
-PurchaseRespawn  
+PurchaseRespawn
 ReplicatedStorage.SlingArenaRemotes.PurchaseRespawn
 
-PurchaseMatchBuff  
+PurchaseMatchBuff
 ReplicatedStorage.SlingArenaRemotes.PurchaseMatchBuff
 
-PrestigeReset  
+PrestigeReset
 ReplicatedStorage.SlingArenaRemotes.PrestigeReset
 
-ToggleSpecialUpgrade  
+ToggleSpecialUpgrade
 ReplicatedStorage.SlingArenaRemotes.ToggleSpecialUpgrade
 
-DebugSpawnFood  
+DebugSpawnFood
 ReplicatedStorage.SlingArenaRemotes.DebugSpawnFood
 
-DebugResetSling  
+DebugResetSling
 ReplicatedStorage.SlingArenaRemotes.DebugResetSling
 
 ---
 
 # 9. Server → Client Events
 
-StateUpdate  
+StateUpdate
 ReplicatedStorage.SlingArenaRemotes.StateUpdate
 
-GameplayFeedback  
+UIStateUpdate
+ReplicatedStorage.SlingArenaRemotes.UIStateUpdate
+
+GameplayFeedback
 ReplicatedStorage.SlingArenaRemotes.GameplayFeedback
 
-MatchStateUpdate  
+MatchStateUpdate
 ReplicatedStorage.SlingArenaRemotes.MatchStateUpdate
 
-RoundResult  
+RoundResult
 ReplicatedStorage.SlingArenaRemotes.RoundResult
 
-PopupMessage  
+PopupMessage
 ReplicatedStorage.SlingArenaRemotes.PopupMessage
 
 ---

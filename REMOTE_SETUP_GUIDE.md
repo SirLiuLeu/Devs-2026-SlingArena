@@ -1,43 +1,52 @@
 # Remote Setup Guide (Studio)
 
-All remotes must be pre-created in Studio. `Main.server.lua` only reads them via `ReplicatedStorage:WaitForChild()`.
+All production remotes must be pre-created in Studio or provided through Rojo `*.model.json` files. `Main.server.lua` only reads them via `ReplicatedStorage:WaitForChild()` and warns if any required production remote is missing.
 
-## 1) Required hierarchy
-Create this exact structure:
+## Required hierarchy
 
 - `ReplicatedStorage`
-  - `SlingArenaRemotes` (Folder)
-    - `MoveRequest` (RemoteEvent)
-    - `StartCharge` (RemoteEvent)
-    - `ReleaseCharge` (RemoteEvent)
-    - `GameplayFeedback` (RemoteEvent)
-    - `StateUpdate` (RemoteEvent)
-    - `UIStateUpdate` (RemoteEvent)
-    - `AttributeUpgrade` (RemoteEvent)
-    - `ActivateSkill` (RemoteEvent)
-    - `RequestRespawn` (RemoteEvent)
-    - `RequestMatchBuff` (RemoteEvent)
-    - `MatchStateUpdate` (RemoteEvent)
-    - `RoundResult` (RemoteEvent)
-    - `PopupMessage` (RemoteEvent)
-    - `PurchaseRespawn` (RemoteEvent)
-    - `PurchaseMatchBuff` (RemoteEvent)
-    - `PrestigeReset` (RemoteEvent)
-    - `ToggleSpecialUpgrade` (RemoteEvent)
-    - `JoinArena` (RemoteEvent)
-    - `LeaveArena` (RemoteEvent)
-    - `TeleportRequest` (RemoteEvent)
-    - `DebugSpawnFood` (RemoteEvent)
-    - `DebugResetSling` (RemoteEvent)
+  - `SlingArenaRemotes` (`Folder`)
+    - `MoveRequest` (`RemoteEvent`)
+    - `StartCharge` (`RemoteEvent`)
+    - `ReleaseCharge` (`RemoteEvent`)
+    - `JoinArena` (`RemoteEvent`)
+    - `LeaveArena` (`RemoteEvent`)
+    - `TeleportRequest` (`RemoteEvent`)
+    - `AttributeUpgrade` (`RemoteEvent`)
+    - `RequestRespawn` (`RemoteEvent`)
+    - `PurchaseRespawn` (`RemoteEvent`)
+    - `PurchaseMatchBuff` (`RemoteEvent`)
+    - `PrestigeReset` (`RemoteEvent`)
+    - `ToggleSpecialUpgrade` (`RemoteEvent`)
+    - `DebugSpawnFood` (`RemoteEvent`)
+    - `DebugResetSling` (`RemoteEvent`)
+    - `StateUpdate` (`RemoteEvent`)
+    - `UIStateUpdate` (`RemoteEvent`)
+    - `GameplayFeedback` (`RemoteEvent`)
+    - `MatchStateUpdate` (`RemoteEvent`)
+    - `RoundResult` (`RemoteEvent`)
+    - `PopupMessage` (`RemoteEvent`)
 
-## 2) How to create in Studio
+## Removed production remotes
+
+Do **not** create these for the current production build:
+
+- `ActivateSkill`
+- `RequestMatchBuff`
+
+They were audited out because no production system currently binds or fires them.
+
+## How to create in Studio
+
 1. Open Explorer.
 2. Right-click `ReplicatedStorage` -> Insert Object -> `Folder` -> rename to `SlingArenaRemotes`.
-3. For each remote above: right-click `SlingArenaRemotes` -> Insert Object -> `RemoteEvent` and set exact name.
+3. For each remote above: right-click `SlingArenaRemotes` -> Insert Object -> `RemoteEvent` and set the exact name.
 
-## 3) Access pattern for services
+## Access pattern for services
+
 Use only:
+
 - `local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")`
 - `local move = remotes:WaitForChild("MoveRequest")`
 
-Do not create remotes at runtime with `Instance.new`.
+Do not create production remotes at runtime with `Instance.new`.

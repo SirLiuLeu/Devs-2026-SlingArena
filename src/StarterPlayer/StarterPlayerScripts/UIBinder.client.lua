@@ -10,22 +10,55 @@ local UIController = require(ReplicatedStorage.Client.Controllers.UIController)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-local UI_CLONE_WAIT_TIMEOUT = 2
 
 PathResolver.reportMissing(game, PathResolver.collectPaths(ProjectTreeSpec.Services.Client))
 PathResolver.reportMissing(ReplicatedStorage, PathResolver.collectPaths(ProjectTreeSpec.Remotes))
-PathResolver.reportMissing(playerGui, PathResolver.collectPaths(ProjectTreeSpec.UI), {
-	waitTimeout = UI_CLONE_WAIT_TIMEOUT,
-})
 
 local clientService = LobbyClientService.new()
-local controller = UIController.new(playerGui, {
-	ClientService = clientService,
-})
-controller:Start()
+local controller: any = nil
+local refreshScheduled = false
+
+local function buildController()
+	if controller then
+		controller:Destroy()
+	end
+
+	PathResolver.reportMissing(playerGui, PathResolver.collectPaths(ProjectTreeSpec.UI))
+	controller = UIController.new(playerGui, {
+		ClientService = clientService,
+	})
+	controller:Start()
+end
+
+local function scheduleControllerRefresh()
+	if refreshScheduled then
+		return
+	end
+
+	refreshScheduled = true
+	task.defer(function()
+		refreshScheduled = false
+		buildController()
+	end)
+end
+
+buildController()
+
+playerGui.ChildAdded:Connect(function()
+	scheduleControllerRefresh()
+end)
+
+playerGui.DescendantAdded:Connect(function()
+	scheduleControllerRefresh()
+end)
+
+playerGui.ChildRemoved:Connect(function()
+	scheduleControllerRefresh()
+end)
 
 player.AncestryChanged:Connect(function(_, parent)
-	if parent == nil then
+	if parent == nil and controller then
 		controller:Destroy()
+		controller = nil
 	end
 end)

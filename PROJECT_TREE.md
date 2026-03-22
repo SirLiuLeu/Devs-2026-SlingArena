@@ -30,31 +30,27 @@ DataModel
 │  │  └─ RemoteContracts.lua
 │  │
 │  ├─ SlingArenaRemotes
-│  │  ├─ (RemoteEvents from *.model.json)
-│  │  │  ├─ JoinArena
-│  │  │  ├─ LeaveArena
-│  │  │  ├─ MoveRequest
-│  │  │  ├─ ActivateSkill
-│  │  │  ├─ AttributeUpgrade
-│  │  │  ├─ RequestRespawn
-│  │  │  ├─ RequestMatchBuff
-│  │  │  └─ UIStateUpdate
-│  │  │
-│  │  └─ (Auto-created at runtime if missing) [INFERRED]
+│  │  └─ (RemoteEvents from *.model.json)
+│  │     ├─ MoveRequest
 │  │     ├─ StartCharge
 │  │     ├─ ReleaseCharge
-│  │     ├─ GameplayFeedback
-│  │     ├─ StateUpdate
-│  │     ├─ MatchStateUpdate
-│  │     ├─ RoundResult
-│  │     ├─ PopupMessage
+│  │     ├─ JoinArena
+│  │     ├─ LeaveArena
+│  │     ├─ TeleportRequest
+│  │     ├─ AttributeUpgrade
+│  │     ├─ RequestRespawn
 │  │     ├─ PurchaseRespawn
 │  │     ├─ PurchaseMatchBuff
 │  │     ├─ PrestigeReset
 │  │     ├─ ToggleSpecialUpgrade
-│  │     ├─ TeleportRequest
 │  │     ├─ DebugSpawnFood
-│  │     └─ DebugResetSling
+│  │     ├─ DebugResetSling
+│  │     ├─ StateUpdate
+│  │     ├─ UIStateUpdate
+│  │     ├─ GameplayFeedback
+│  │     ├─ MatchStateUpdate
+│  │     ├─ RoundResult
+│  │     └─ PopupMessage
 │  │
 │  ├─ Client  -> src/ReplicatedStorage/Client
 │  │  ├─ Controllers
@@ -98,7 +94,7 @@ DataModel
 │     └─ Client  -> src/StarterPlayer
 │        └─ StarterPlayerScripts
 │           ├─ SlingMovement.client.lua      (active input / charge script)
-│           ├─ UIBinder.client.lua           (active UI bootstrap)
+│           ├─ UIBinder.client.lua           (active UI bootstrap; event-driven rebinding)
 │           ├─ SlingController.client.lua    [UNKNOWN active status]
 │           └─ ClientController.client.lua   (legacy inert)
 │
@@ -133,7 +129,7 @@ DataModel
 │  │     └─ WinsLabel
 │  │   
 │  └─ SlingArenaUI [INFERRED legacy / alternative UI stack]
-│        ├─ SlingUI (ScreenGui)
+│        ├─ SlingUI (ScreenGui; created in Studio/manual UI asset)
 │        │   ├─ JoystickRoot (Frame)
 │        │   │  ├─ Base (Frame)
 │        │   │  └─ Thumb (Frame)
@@ -141,8 +137,12 @@ DataModel
 │        │   ├─ ChargeBar (Frame)
 │        │   │  └─ Fill (Frame)
 │        │   │
+│        │   ├─ CooldownBar (Frame)
+│        │   │  └─ Fill (Frame)
+│        │   │
 │        │   └─ DirectionIndicator (ImageLabel)
 │        ├─ MainUI.client.lua (deprecated)
+│        ├─ SlingUIController.client.lua (LocalScript; resolves SlingUI ScreenGui without name collision)
 │        ├─ UIController.lua
 │        └─ Components/*
 │
@@ -214,5 +214,6 @@ DataModel
 
 
 Notes:
-- Several runtime-critical instances (e.g. `Workspace/Maps`, `ServerStorage/FoodTemplates`)
+- All production `ReplicatedStorage.SlingArenaRemotes.*` instances are defined statically through `src/ReplicatedStorage/SlingArenaRemotes/*.model.json`.
+- Several runtime-critical map/template instances (e.g. `Workspace/Maps`, `ServerStorage/FoodTemplates`)
   are not present as files in the repo and must be created manually in Roblox Studio.
