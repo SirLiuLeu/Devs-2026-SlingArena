@@ -44,6 +44,8 @@ function SlingService.ResolveAimDirection(origin: Vector3, aimTarget: Vector3): 
 	return rawDirection.Unit
 end
 
+local RELEASE_DISTANCE_MULTIPLIER = 5
+
 function SlingService.BuildLaunchVector(direction: Vector3, launchForce: number): Vector3
 	local safeDirection = if direction.Magnitude < 0.01 then Vector3.new(0, 0, -1) else direction.Unit
 	local safeForce = math.max(0, sanitizeNumber(launchForce, 0))
@@ -79,6 +81,7 @@ function SlingService.new(context)
 	self._input = {}
 	self._chargeState = {}
 	self._releaseCooldown = {}
+	self._releaseState = {}
 	return self
 end
 
@@ -104,6 +107,7 @@ function SlingService:Init()
 		self._input[player] = nil
 		self._chargeState[player] = nil
 		self._releaseCooldown[player] = nil
+		self._releaseState[player] = nil
 	end)
 
 	RunService.Heartbeat:Connect(function()
@@ -171,6 +175,9 @@ function SlingService:StartCharge(player: Player, aimTarget: Vector3)
 	if not root or not state then
 		return
 	end
+	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == MOVEMENT_STATE.Launched or state.MovementState == MOVEMENT_STATE.Recovering then
+		return
+	end
 	if self._chargeState[player] then
 		return
 	end
@@ -183,7 +190,6 @@ function SlingService:StartCharge(player: Player, aimTarget: Vector3)
 	}
 	self._context.Services.PlayerStateService:SetCharging(player, true, 0)
 	self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Charging)
-	print(string.format("[SlingService] StartCharge player=%s", player.Name))
 	self._context.EventBus:Fire("ChargeStarted", player)
 end
 
@@ -213,15 +219,14 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	chargeState.aimDirection = SlingService.ResolveAimDirection(root.Position, aimTarget)
 
 	local maxForce = SlingshotConfig.MAX_LAUNCH_FORCE or (SlingshotConfig.BaseLaunchForce + Config.MaxExtraForce)
-	local launchForce = SlingService.CalculateLaunchForce(chargeRatio, 0, maxForce, 1)
+	local launchForce = SlingService.CalculateLaunchForce(chargeRatio, 0, maxForce * RELEASE_DISTANCE_MULTIPLIER, 1)
 	local launchVector = SlingService.BuildLaunchVector(chargeState.aimDirection, launchForce)
 
-	print(string.format("[SlingService] ReleaseCharge player=%s chargeRatio=%.3f launchForce=%.3f", player.Name, chargeRatio, launchForce))
-
+	local maxReleaseVelocity = BalanceConfig.MaxVelocity * RELEASE_DISTANCE_MULTIPLIER
 	root.AssemblyLinearVelocity = Vector3.new(
-		math.clamp(launchVector.X, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity),
+		math.clamp(launchVector.X, -maxReleaseVelocity, maxReleaseVelocity),
 		root.AssemblyLinearVelocity.Y,
-		math.clamp(launchVector.Z, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity)
+		math.clamp(launchVector.Z, -maxReleaseVelocity, maxReleaseVelocity)
 	)
 
 	state.CurrentVelocity = root.AssemblyLinearVelocity
@@ -234,8 +239,12 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	end
 
 	self._chargeState[player] = nil
-	self._releaseCooldown[player] = os.clock() + (SlingshotConfig.RECOVER_TIME or 3)
-	self._context.Services.PlayerStateService:SetCooldownEndTime(player, self._releaseCooldown[player])
+	self._releaseState[player] = {
+		releaseStartTime = os.clock(),
+	}
+	self._releaseCooldown[player] = 0
+	self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
+	self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
 end
 
 function SlingService:_stepMovement()
@@ -300,13 +309,23 @@ function SlingService:_stepMovementStates()
 		local state = self._context.Services.PlayerStateService:GetState(player)
 		local root = self._context.Services.PlayerService:GetRoot(player)
 		if state and root then
+			local now = os.clock()
 			local horizontal = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude
 			if state.MovementState == MOVEMENT_STATE.Launched and horizontal <= BalanceConfig.VelocityStopThreshold then
+				local releaseState = self._releaseState[player]
+				local releaseDuration = 0
+				if releaseState and typeof(releaseState.releaseStartTime) == "number" then
+					releaseDuration = math.max(0, now - releaseState.releaseStartTime)
+				end
+				self._releaseCooldown[player] = now + releaseDuration
+				self._context.Services.PlayerStateService:SetLastReleaseDuration(player, releaseDuration)
+				self._context.Services.PlayerStateService:SetCooldownEndTime(player, self._releaseCooldown[player])
 				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Recovering)
-				self._releaseCooldown[player] = math.max(self._releaseCooldown[player] or 0, os.clock() + (SlingshotConfig.RECOVER_TIME or 3))
-			elseif state.MovementState == MOVEMENT_STATE.Recovering and os.clock() >= (self._releaseCooldown[player] or 0) then
+			elseif state.MovementState == MOVEMENT_STATE.Recovering and now >= (self._releaseCooldown[player] or 0) then
+				self._releaseState[player] = nil
 				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
 				self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
+				self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
 			end
 		end
 	end

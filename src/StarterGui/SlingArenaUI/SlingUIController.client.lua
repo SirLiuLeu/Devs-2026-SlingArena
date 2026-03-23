@@ -5,14 +5,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
-local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
-local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local SlingUiState = require(ReplicatedStorage.Shared.Utils.SlingUiState)
+local WaitForUI = require(ReplicatedStorage.Shared.Utils.WaitForUI)
 
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
 local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
 local startChargeRemote = remotes:WaitForChild(RemoteContracts.Names.StartCharge) :: RemoteEvent
 local releaseChargeRemote = remotes:WaitForChild(RemoteContracts.Names.ReleaseCharge) :: RemoteEvent
@@ -20,24 +18,31 @@ local stateUpdateRemote = remotes:FindFirstChild(RemoteContracts.Names.StateUpda
 
 local MAX_CHARGE_TIME = SlingshotConfig.MAX_CHARGE_TIME or 2
 local DEFAULT_COOLDOWN_DURATION = SlingshotConfig.RECOVER_TIME or 3
-local MAX_JOYSTICK_DRAG = 60
+local DEFAULT_JOYSTICK_RADIUS = 60
 local DEBUG_LOG = false
 
 local warnedMissingUi = false
 local loggedUiResolved = false
 local lastResolvedPath: string? = nil
+local uiInputBound = false
+local boundJoystickRoot: GuiObject? = nil
 
 local isHolding = false
 local awaitingReleaseAck = false
 local inputObject: InputObject? = nil
-local startPos = Vector2.zero
-local currentDelta = Vector2.zero
+local currentDragVector = Vector2.zero
+local currentDragDistance = 0
+local currentDirection = Vector2.new(0, -1)
 local chargeStartTime = 0
 local cooldownStartTime = 0
 local cooldownEndTime = 0
 local cooldownDuration = DEFAULT_COOLDOWN_DURATION
 local lastKnownServerState: { [string]: any }? = nil
 local uiUpdateConnection: RBXScriptConnection? = nil
+
+local joystickInputBeganConnection: RBXScriptConnection? = nil
+local joystickInputChangedConnection: RBXScriptConnection? = nil
+local joystickInputEndedConnection: RBXScriptConnection? = nil
 
 local cachedScreenGui: ScreenGui? = nil
 local cachedJoystickRoot: GuiObject? = nil
@@ -85,7 +90,7 @@ local function logUiResolvedOnce(screenGui: ScreenGui)
 
 	loggedUiResolved = true
 	lastResolvedPath = screenGui:GetFullName()
-	print(string.format("[SlingUI] UI resolved: %s", lastResolvedPath))
+	debugLog(string.format("[SlingUI] UI resolved: %s", lastResolvedPath))
 end
 
 local function warnMissingUiOnce(message: string)
@@ -98,66 +103,23 @@ local function warnMissingUiOnce(message: string)
 	warn("[UI_CREATION_GUIDE] Required path: StarterGui.SlingArenaUI.SlingUI.JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator. Compatibility alias supported: DirectionArrow.")
 end
 
-local function getMouseWorld(): Vector3
-	local mouse = player:GetMouse()
-	if mouse.Hit then
-		return mouse.Hit.Position
+local function setVisibleSafe(instance: GuiObject?, visible: boolean)
+	if instance then
+		instance.Visible = visible
 	end
-
-	local character = player.Character
-	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-	if rootPart and rootPart:IsA("BasePart") then
-		return rootPart.Position + rootPart.CFrame.LookVector * 8
-	end
-
-	return Vector3.zero
 end
 
-local function getInputPosition(input: InputObject?): Vector2
-	if input and input.Position then
-		return Vector2.new(input.Position.X, input.Position.Y)
+local function ensureAnchors(joystickRoot: GuiObject?, base: GuiObject?, thumb: GuiObject?)
+	if joystickRoot then
+		joystickRoot.AnchorPoint = Vector2.new(0.5, 0.5)
 	end
-	return Vector2.zero
-end
-
-local function getAimTarget(input: InputObject?): Vector3
-	if input and input.UserInputType == Enum.UserInputType.Touch then
-		local camera = workspace.CurrentCamera
-		if camera then
-			local position = input.Position
-			local ray = camera:ViewportPointToRay(position.X, position.Y)
-			return ray.Origin + ray.Direction * 256
-		end
+	if base then
+		base.AnchorPoint = Vector2.new(0.5, 0.5)
+		base.Position = UDim2.new(0.5, 0, 0.5, 0)
 	end
-
-	return getMouseWorld()
-end
-
-local function findPreferredScreenGui(): ScreenGui?
-	debugLog("[SlingUI] Resolving UI path without timeout")
-
-	local screenGui = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.SlingTouch.ScreenGui, {
-		shouldWarn = false,
-	})
-	if screenGui and screenGui:IsA("ScreenGui") then
-		return screenGui
+	if thumb then
+		thumb.AnchorPoint = Vector2.new(0.5, 0.5)
 	end
-
-	debugLog("[SlingUI] PlayerGui.SlingArenaUI.SlingUI not ready")
-	return nil
-end
-
-local function resolveScreenGui(): ScreenGui?
-	if cachedScreenGui and cachedScreenGui.Parent then
-		return cachedScreenGui
-	end
-
-	cachedScreenGui = findPreferredScreenGui()
-	if cachedScreenGui then
-		warnedMissingUi = false
-		logUiResolvedOnce(cachedScreenGui)
-	end
-	return cachedScreenGui
 end
 
 local function resolveDirectionIndicator(screenGui: ScreenGui): Instance?
@@ -169,8 +131,62 @@ local function resolveDirectionIndicator(screenGui: ScreenGui): Instance?
 	return findChild(screenGui, "DirectionArrow")
 end
 
-local function resolveUi(): (ScreenGui?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?)
-	local screenGui = resolveScreenGui()
+local function disconnectUiInputConnections()
+	if joystickInputBeganConnection then
+		joystickInputBeganConnection:Disconnect()
+		joystickInputBeganConnection = nil
+	end
+	if joystickInputChangedConnection then
+		joystickInputChangedConnection:Disconnect()
+		joystickInputChangedConnection = nil
+	end
+	if joystickInputEndedConnection then
+		joystickInputEndedConnection:Disconnect()
+		joystickInputEndedConnection = nil
+	end
+	uiInputBound = false
+	boundJoystickRoot = nil
+end
+
+local function getJoystickRadius(): number
+	if cachedBase then
+		return math.max(8, math.min(cachedBase.AbsoluteSize.X, cachedBase.AbsoluteSize.Y) * 0.5)
+	end
+	return DEFAULT_JOYSTICK_RADIUS
+end
+
+local function getBaseCenter(): Vector2
+	if not cachedBase then
+		return Vector2.zero
+	end
+	return cachedBase.AbsolutePosition + (cachedBase.AbsoluteSize * 0.5)
+end
+
+local function resolveScreenGui(waitForUi: boolean): ScreenGui?
+	if cachedScreenGui and cachedScreenGui.Parent then
+		return cachedScreenGui
+	end
+
+	cachedScreenGui = WaitForUI.ResolveSlingUIWithRetry(player, {
+		wait = waitForUi,
+		timeout = if waitForUi then 5 else 0,
+		onResolved = function(screenGui)
+			cachedScreenGui = screenGui
+			warnedMissingUi = false
+			logUiResolvedOnce(screenGui)
+		end,
+	})
+
+	if cachedScreenGui then
+		warnedMissingUi = false
+		logUiResolvedOnce(cachedScreenGui)
+	end
+
+	return cachedScreenGui
+end
+
+local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?)
+	local screenGui = resolveScreenGui(if waitForUi == nil then false else waitForUi)
 	if not screenGui then
 		warnMissingUiOnce("[SlingUI] Missing SlingUI ScreenGui at PlayerGui.SlingArenaUI.SlingUI.")
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil
@@ -194,83 +210,31 @@ local function resolveUi(): (ScreenGui?, GuiObject?, GuiObject?, GuiObject?, Gui
 	end
 
 	cachedJoystickRoot = if joystickRoot and joystickRoot:IsA("GuiObject") then joystickRoot else nil
-	if cachedJoystickRoot then
-		cachedJoystickRoot.Active = true
-	end
 	cachedBase = if base and base:IsA("GuiObject") then base else nil
-	if cachedBase then
-		cachedBase.Active = true
-	end
 	cachedThumb = if thumb and thumb:IsA("GuiObject") then thumb else nil
-	if cachedThumb then
-		cachedThumb.Active = true
-	end
 	cachedChargeBar = if chargeBar and chargeBar:IsA("GuiObject") then chargeBar else nil
-	if cachedChargeBar then
-		cachedChargeBar.Active = true
-	end
 	cachedChargeFill = if chargeFill and chargeFill:IsA("GuiObject") then chargeFill else nil
 	cachedDirectionIndicator = if directionIndicator and directionIndicator:IsA("GuiObject") then directionIndicator else nil
 	cachedCooldownBar = if cooldownBar and cooldownBar:IsA("GuiObject") then cooldownBar else nil
-	if cachedCooldownBar then
-		cachedCooldownBar.Active = true
-	end
 	cachedCooldownFill = if cooldownFill and cooldownFill:IsA("GuiObject") then cooldownFill else nil
+
+	ensureAnchors(cachedJoystickRoot, cachedBase, cachedThumb)
+
+	if cachedJoystickRoot then
+		cachedJoystickRoot.Active = true
+	end
+	if cachedBase then
+		cachedBase.Active = true
+	end
+	if cachedThumb then
+		cachedThumb.Active = false
+	end
 
 	return cachedScreenGui, cachedJoystickRoot, cachedBase, cachedThumb, cachedChargeBar, cachedChargeFill, cachedDirectionIndicator, cachedCooldownBar, cachedCooldownFill
 end
 
-local function getScreenRayHit(input: InputObject): Instance?
-	local camera = workspace.CurrentCamera
-	if not camera then
-		return nil
-	end
-
-	local position = input.Position
-	local ray = camera:ViewportPointToRay(position.X, position.Y)
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-	raycastParams.FilterDescendantsInstances = {}
-
-	local result = workspace:Raycast(ray.Origin, ray.Direction * 1024, raycastParams)
-	return result and result.Instance or nil
-end
-
-local function isSlingInputStart(input: InputObject): boolean
-	if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-		return false
-	end
-
-	local character = player.Character
-	if not character then
-		return false
-	end
-
-	local hitInstance = getScreenRayHit(input)
-	if not hitInstance then
-		return false
-	end
-
-	return hitInstance:IsDescendantOf(character)
-end
-
-local function setVisibleSafe(instance: GuiObject?, visible: boolean)
-	if instance then
-		instance.Visible = visible
-	end
-end
-
-local function ensureAnchors(joystickRoot: GuiObject?, thumb: GuiObject?)
-	if joystickRoot then
-		joystickRoot.AnchorPoint = Vector2.new(0.5, 0.5)
-	end
-	if thumb then
-		thumb.AnchorPoint = Vector2.new(0.5, 0.5)
-	end
-end
-
 local function updateChargeBar(percent: number)
-	local _, _, _, _, chargeBar, chargeFill = resolveUi()
+	local _, _, _, _, chargeBar, chargeFill = resolveUi(false)
 	local normalized = SlingUiState.ClampRatio(percent)
 	setVisibleSafe(chargeBar, isHolding or normalized > 0)
 	if chargeFill then
@@ -279,7 +243,7 @@ local function updateChargeBar(percent: number)
 end
 
 local function updateCooldownBar(percent: number)
-	local _, _, _, _, _, _, _, cooldownBar, cooldownFill = resolveUi()
+	local _, _, _, _, _, _, _, cooldownBar, cooldownFill = resolveUi(false)
 	local normalized = SlingUiState.ClampRatio(percent)
 	if cooldownFill then
 		cooldownFill.Size = UDim2.new(normalized, 0, 1, 0)
@@ -293,27 +257,95 @@ local function resetThumbPosition()
 	end
 end
 
-local function updateDirectionIndicator(position: UDim2, rotation: number?)
-	local _, _, _, _, _, _, directionIndicator = resolveUi()
+local function updateDirectionIndicator(rotation: number?)
+	local _, _, _, _, _, _, directionIndicator = resolveUi(false)
 	if directionIndicator then
-		directionIndicator.Position = position
+		directionIndicator.Position = UDim2.new(0, getBaseCenter().X, 0, getBaseCenter().Y)
 		if rotation ~= nil then
 			directionIndicator.Rotation = rotation
 		end
 	end
 end
 
-local function positionJoystick(inputPosition: Vector2)
-	local _, joystickRoot, _, thumb = resolveUi()
-	ensureAnchors(joystickRoot, thumb)
-
-	if joystickRoot then
-		joystickRoot.Position = UDim2.new(0, inputPosition.X, 0, inputPosition.Y)
-		joystickRoot.ZIndex = 20
+local function clampDragToRadius(rawVector: Vector2): (Vector2, number, Vector2)
+	local radius = getJoystickRadius()
+	local distance = rawVector.Magnitude
+	if distance <= 0.001 then
+		return Vector2.zero, 0, currentDirection
 	end
 
-	updateDirectionIndicator(UDim2.new(0, inputPosition.X, 0, inputPosition.Y), nil)
-	resetThumbPosition()
+	local direction = rawVector.Unit
+	local clampedDistance = math.min(distance, radius)
+	return direction * clampedDistance, clampedDistance, direction
+end
+
+local function getCharacterRoot(): BasePart?
+	local character = player.Character
+	if not character then
+		return nil
+	end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if root and root:IsA("BasePart") then
+		return root
+	end
+
+	local primary = character.PrimaryPart
+	if primary and primary:IsA("BasePart") then
+		return primary
+	end
+
+	return nil
+end
+
+local function computeAimTargetFromJoystick(): Vector3
+	local root = getCharacterRoot()
+	if not root then
+		return Vector3.zero
+	end
+
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return root.Position + Vector3.new(0, 0, -1) * 32
+	end
+
+	local direction2D = currentDirection
+	local cameraForward = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
+	local cameraRight = Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z)
+	if cameraForward.Magnitude < 0.001 then
+		cameraForward = Vector3.new(0, 0, -1)
+	end
+	if cameraRight.Magnitude < 0.001 then
+		cameraRight = Vector3.new(1, 0, 0)
+	end
+
+	local worldDirection = ((cameraRight.Unit * direction2D.X) + (cameraForward.Unit * -direction2D.Y))
+	if worldDirection.Magnitude < 0.001 then
+		worldDirection = Vector3.new(0, 0, -1)
+	else
+		worldDirection = worldDirection.Unit
+	end
+
+	local normalizedDistance = math.clamp(currentDragDistance / math.max(getJoystickRadius(), 1), 0, 1)
+	local aimDistance = math.max(32, normalizedDistance * (SlingshotConfig.MAX_AIM_DISTANCE or 256))
+	return root.Position + worldDirection * aimDistance
+end
+
+local function updateJoystickFromInput(input: InputObject)
+	if not cachedBase or not cachedThumb then
+		resolveUi(false)
+	end
+	if not cachedBase or not cachedThumb then
+		return
+	end
+
+	local rawVector = Vector2.new(input.Position.X, input.Position.Y) - getBaseCenter()
+	local clampedVector, distance, direction = clampDragToRadius(rawVector)
+	currentDragVector = clampedVector
+	currentDragDistance = distance
+	currentDirection = direction
+	cachedThumb.Position = UDim2.new(0.5, clampedVector.X, 0.5, clampedVector.Y)
+	updateDirectionIndicator(SlingUiState.ComputeDirectionRotation(clampedVector))
 end
 
 local function stopUiLoopIfIdle()
@@ -382,8 +414,9 @@ local function resetVisualState()
 	isHolding = false
 	awaitingReleaseAck = false
 	inputObject = nil
-	startPos = Vector2.zero
-	currentDelta = Vector2.zero
+	currentDragVector = Vector2.zero
+	currentDragDistance = 0
+	currentDirection = Vector2.new(0, -1)
 	chargeStartTime = 0
 	setVisibleSafe(cachedJoystickRoot, false)
 	setVisibleSafe(cachedChargeBar, false)
@@ -402,7 +435,9 @@ local function syncCooldownFromServerState(state: { [string]: any })
 		return
 	end
 
-	beginCooldown(DEFAULT_COOLDOWN_DURATION, serverCooldownEnd)
+	local releaseDuration = state.LastReleaseDuration
+	local resolvedDuration = if typeof(releaseDuration) == "number" and releaseDuration > 0 then releaseDuration else DEFAULT_COOLDOWN_DURATION
+	beginCooldown(resolvedDuration, serverCooldownEnd)
 end
 
 local function startHold(input: InputObject)
@@ -413,23 +448,27 @@ local function startHold(input: InputObject)
 		return
 	end
 
+	local _, joystickRoot, _, _, chargeBar = resolveUi(false)
+	if not joystickRoot then
+		return
+	end
+
 	isHolding = true
 	awaitingReleaseAck = false
 	inputObject = input
-	startPos = getInputPosition(input)
-	currentDelta = Vector2.zero
+	currentDragVector = Vector2.zero
+	currentDragDistance = 0
 	chargeStartTime = os.clock()
 
-	resolveUi()
-	setVisibleSafe(cachedJoystickRoot, true)
-	setVisibleSafe(cachedChargeBar, true)
+	setVisibleSafe(joystickRoot, true)
+	setVisibleSafe(chargeBar, true)
 	setVisibleSafe(cachedDirectionIndicator, true)
-	positionJoystick(startPos)
-	updateChargeBar(0)
+	resetThumbPosition()
+	updateDirectionIndicator(nil)
 	ensureUiLoopRunning()
 
 	debugLog("[SlingUI] StartCharge remote fired")
-	startChargeRemote:FireServer(getAimTarget(input))
+	startChargeRemote:FireServer(computeAimTargetFromJoystick())
 end
 
 local function updateHold(input: InputObject)
@@ -440,23 +479,7 @@ local function updateHold(input: InputObject)
 		return
 	end
 
-	local currentPos = getInputPosition(input)
-	local delta = currentPos - startPos
-	if delta.Magnitude > MAX_JOYSTICK_DRAG then
-		delta = delta.Unit * MAX_JOYSTICK_DRAG
-	end
-	currentDelta = delta
-
-	local _, joystickRoot, _, thumb = resolveUi()
-	ensureAnchors(joystickRoot, thumb)
-
-	if thumb then
-		thumb.Position = UDim2.new(0.5, delta.X, 0.5, delta.Y)
-	end
-
-	local rotation = SlingUiState.ComputeDirectionRotation(delta)
-	local indicatorPosition = if joystickRoot then joystickRoot.Position else UDim2.new(0, startPos.X, 0, startPos.Y)
-	updateDirectionIndicator(indicatorPosition, rotation)
+	updateJoystickFromInput(input)
 end
 
 local function releaseHold(input: InputObject)
@@ -471,7 +494,7 @@ local function releaseHold(input: InputObject)
 	awaitingReleaseAck = true
 	inputObject = nil
 
-	releaseChargeRemote:FireServer(getAimTarget(input))
+	releaseChargeRemote:FireServer(computeAimTargetFromJoystick())
 
 	setVisibleSafe(cachedJoystickRoot, false)
 	setVisibleSafe(cachedDirectionIndicator, false)
@@ -482,15 +505,42 @@ local function releaseHold(input: InputObject)
 	debugLog("[SlingUI] ReleaseCharge remote fired")
 end
 
-UserInputService.InputBegan:Connect(function(input, processed)
-	if processed then
+local function bindJoystickInput()
+	local _, joystickRoot = resolveUi(false)
+	if not joystickRoot then
+		return
+	end
+	if uiInputBound and boundJoystickRoot == joystickRoot then
 		return
 	end
 
-	if isSlingInputStart(input) then
+	disconnectUiInputConnections()
+
+	joystickInputBeganConnection = joystickRoot.InputBegan:Connect(function(input)
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
 		startHold(input)
-	end
-end)
+		updateHold(input)
+	end)
+
+	joystickInputChangedConnection = joystickRoot.InputChanged:Connect(function(input)
+		if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		updateHold(input)
+	end)
+
+	joystickInputEndedConnection = joystickRoot.InputEnded:Connect(function(input)
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		releaseHold(input)
+	end)
+
+	uiInputBound = true
+	boundJoystickRoot = joystickRoot
+end
 
 UserInputService.InputChanged:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
@@ -521,7 +571,7 @@ if stateUpdateRemote then
 			updateChargeBar(0)
 		end
 
-		if state.MovementState == "Launched" or state.MovementState == "Recovering" then
+		if state.MovementState == "Recovering" then
 			awaitingReleaseAck = false
 			syncCooldownFromServerState(state)
 		elseif state.MovementState == "Idle" and awaitingReleaseAck == false and state.IsCharging ~= true then
@@ -530,23 +580,26 @@ if stateUpdateRemote then
 	end)
 end
 
-playerGui.DescendantAdded:Connect(function(descendant)
+player.CharacterAdded:Connect(function()
+	resolveUi(true)
+	bindJoystickInput()
+	resetVisualState()
+end)
+
+player.DescendantAdded:Connect(function(descendant)
 	if descendant.Name ~= "SlingUI" and descendant.Name ~= "DirectionIndicator" and descendant.Name ~= "DirectionArrow" and descendant.Name ~= "ChargeBar" and descendant.Name ~= "CooldownBar" and descendant.Name ~= "Fill" and descendant.Name ~= "JoystickRoot" and descendant.Name ~= "Base" and descendant.Name ~= "Thumb" then
 		return
 	end
 
-	resolveUi()
+	resolveUi(false)
+	bindJoystickInput()
 	if lastKnownServerState and lastKnownServerState.IsAlive == false then
 		resetVisualState()
-	elseif lastKnownServerState and (lastKnownServerState.MovementState == "Launched" or lastKnownServerState.MovementState == "Recovering") then
+	elseif lastKnownServerState and lastKnownServerState.MovementState == "Recovering" then
 		syncCooldownFromServerState(lastKnownServerState)
 	end
 end)
 
-player.CharacterAdded:Connect(function()
-	resolveUi()
-	resetVisualState()
-end)
-
-resolveUi()
+resolveUi(true)
+bindJoystickInput()
 resetVisualState()

@@ -44,6 +44,7 @@ export type PlayerState = {
 	DamageDealt: number,
 	IsTeleporting: boolean,
 	CooldownEndTime: number,
+	LastReleaseDuration: number,
 	Attributes: AttributesState,
 	IsAlive: boolean,
 	IsCharging: boolean,

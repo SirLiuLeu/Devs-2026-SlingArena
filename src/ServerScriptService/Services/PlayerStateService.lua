@@ -103,6 +103,7 @@ local function buildDefaultState(player: Player): PlayerState
 		DamageDealt = 0,
 		IsTeleporting = false,
 		CooldownEndTime = 0,
+		LastReleaseDuration = 0,
 		Attributes = {
 			Damage = 0,
 			MaxHP = 0,
@@ -320,6 +321,7 @@ function PlayerStateService:ResetForNewRound(player: Player)
 	state.CurrentVelocity = Vector3.zero
 	state.ChargeValue = 0
 	state.CooldownEndTime = 0
+	state.LastReleaseDuration = 0
 	self._damageDealt[player] = 0
 	state.DamageDealt = 0
 	self:RecalculateDerivedStats(player, true)
@@ -334,6 +336,7 @@ function PlayerStateService:ResetForRespawn(player: Player)
 	state.CurrentVelocity = Vector3.zero
 	state.ChargeValue = 0
 	state.CooldownEndTime = 0
+	state.LastReleaseDuration = 0
 	self:RecalculateDerivedStats(player, true)
 end
 
@@ -364,6 +367,13 @@ function PlayerStateService:SetCooldownEndTime(player: Player, cooldownEndTime: 
 	local state = self._states[player]
 	if not state then return end
 	state.CooldownEndTime = math.max(cooldownEndTime, 0)
+	self:PublishState(player)
+end
+
+function PlayerStateService:SetLastReleaseDuration(player: Player, duration: number)
+	local state = self._states[player]
+	if not state then return end
+	state.LastReleaseDuration = math.max(duration, 0)
 	self:PublishState(player)
 end
 

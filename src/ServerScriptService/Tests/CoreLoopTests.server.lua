@@ -124,6 +124,11 @@ local function testChargeToLaunchForce()
 	assertAlmostEqual(nanForce, 0, 0.0001, "NaN charge input should sanitize to 0 force")
 end
 
+local function testReleaseDistanceMultiplierApplied()
+	local boostedForce = SlingServiceModule.CalculateLaunchForce(1, SlingshotConfig.MIN_LAUNCH_FORCE, SlingshotConfig.MAX_LAUNCH_FORCE * 5, 1)
+	assertAlmostEqual(boostedForce, SlingshotConfig.MAX_LAUNCH_FORCE * 5, 0.0001, "Release force should scale to 5x the prior max range")
+end
+
 local function testChargeRatioProgressAndClamp()
 	local maxChargeTime = SlingshotConfig.MAX_CHARGE_TIME
 	local quarter = SlingServiceModule.CalculateChargeRatio(0, maxChargeTime * 0.25, maxChargeTime)
@@ -160,6 +165,12 @@ local function buildFakeSlingContext(rootPart: BasePart, stateTable: any)
 				SetMovementState = function(_, _, movement)
 					stateTable.MovementState = movement
 				end,
+				SetCooldownEndTime = function(_, _, cooldownEndTime)
+					stateTable.CooldownEndTime = cooldownEndTime
+				end,
+				SetLastReleaseDuration = function(_, _, duration)
+					stateTable.LastReleaseDuration = duration
+				end,
 			},
 		},
 	}, chargeEvents
@@ -192,6 +203,46 @@ local function testChargeResetAfterRelease()
 	if service._chargeState[player] ~= nil then
 		root:Destroy()
 		error("Charge state must reset to nil after release")
+	end
+
+	root:Destroy()
+end
+
+local function testRecoverCooldownMatchesReleaseDuration()
+	local root = Instance.new("Part")
+	root.Anchored = true
+	root.Position = Vector3.new(0, 5, 0)
+	root.Parent = workspace
+
+	local state = {
+		ChargeSpeed = 1,
+		LaunchSpeed = SlingshotConfig.BaseLaunchForce,
+		MovementState = "Launched",
+		CooldownEndTime = 0,
+		LastReleaseDuration = 0,
+	}
+	local context = buildFakeSlingContext(root, state)
+	local service = SlingServiceModule.new(context)
+	local player = { UserId = 778, Name = "RecoverDurationTester", Parent = game:GetService("Players") }
+
+	service._releaseState[player] = {
+		releaseStartTime = os.clock() - 1.25,
+	}
+	root.AssemblyLinearVelocity = Vector3.zero
+
+	service:_stepMovementStates()
+	if state.MovementState ~= "Recovering" then
+		root:Destroy()
+		error("Launched sling should transition into Recovering when velocity stops")
+	end
+	if state.LastReleaseDuration < 1.15 or state.LastReleaseDuration > 1.35 then
+		root:Destroy()
+		error(string.format("Recover cooldown should match the actual release duration, got %.3f", state.LastReleaseDuration))
+	end
+	local remaining = state.CooldownEndTime - os.clock()
+	if remaining < 1.1 or remaining > 1.4 then
+		root:Destroy()
+		error(string.format("Cooldown end time should be offset by the release duration, got %.3f", remaining))
 	end
 
 	root:Destroy()
@@ -653,7 +704,9 @@ end
 
 runTest("ChargeToLaunchForce", testChargeToLaunchForce)
 runTest("ChargeRatio_ProgressAndClamp", testChargeRatioProgressAndClamp)
+runTest("ReleaseDistanceMultiplier_Applied", testReleaseDistanceMultiplierApplied)
 runTest("ChargeRelease_ResetsChargeState", testChargeResetAfterRelease)
+runTest("RecoverCooldown_MatchesReleaseDuration", testRecoverCooldownMatchesReleaseDuration)
 runTest("LaunchDirection_NormalizedFromAim", testLaunchDirectionNormalizedFromAim)
 runTest("ChargeRelease_ForceVectorFinite", testChargeReleaseLaunchVectorIsFinite)
 runTest("CooldownDisplay_DecreasesOverTime", testCooldownDisplayStateDecreasesCorrectly)
