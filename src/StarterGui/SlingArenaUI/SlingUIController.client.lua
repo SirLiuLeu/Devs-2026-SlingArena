@@ -11,6 +11,7 @@ local SlingUiState = require(ReplicatedStorage.Shared.Utils.SlingUiState)
 local WaitForUI = require(ReplicatedStorage.Shared.Utils.WaitForUI)
 
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
 local startChargeRemote = remotes:WaitForChild(RemoteContracts.Names.StartCharge) :: RemoteEvent
 local releaseChargeRemote = remotes:WaitForChild(RemoteContracts.Names.ReleaseCharge) :: RemoteEvent
@@ -26,6 +27,7 @@ local loggedUiResolved = false
 local lastResolvedPath: string? = nil
 local uiInputBound = false
 local boundJoystickRoot: GuiObject? = nil
+local boundInputRegion: GuiObject? = nil
 
 local isHolding = false
 local awaitingReleaseAck = false
@@ -146,6 +148,7 @@ local function disconnectUiInputConnections()
 	end
 	uiInputBound = false
 	boundJoystickRoot = nil
+	boundInputRegion = nil
 end
 
 local function getJoystickRadius(): number
@@ -188,6 +191,9 @@ end
 local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?)
 	local screenGui = resolveScreenGui(if waitForUi == nil then false else waitForUi)
 	if not screenGui then
+		if WaitForUI.IsRetryPending(player) and waitForUi ~= true then
+			return nil, nil, nil, nil, nil, nil, nil, nil, nil
+		end
 		warnMissingUiOnce("[SlingUI] Missing SlingUI ScreenGui at PlayerGui.SlingArenaUI.SlingUI.")
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil
 	end
@@ -231,6 +237,13 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 	end
 
 	return cachedScreenGui, cachedJoystickRoot, cachedBase, cachedThumb, cachedChargeBar, cachedChargeFill, cachedDirectionIndicator, cachedCooldownBar, cachedCooldownFill
+end
+
+local function getBoundInputRegion(): GuiObject?
+	if cachedBase and cachedBase.Active then
+		return cachedBase
+	end
+	return cachedJoystickRoot
 end
 
 local function updateChargeBar(percent: number)
@@ -510,13 +523,17 @@ local function bindJoystickInput()
 	if not joystickRoot then
 		return
 	end
-	if uiInputBound and boundJoystickRoot == joystickRoot then
+	local inputRegion = getBoundInputRegion()
+	if not inputRegion then
+		return
+	end
+	if uiInputBound and boundJoystickRoot == joystickRoot and boundInputRegion == inputRegion then
 		return
 	end
 
 	disconnectUiInputConnections()
 
-	joystickInputBeganConnection = joystickRoot.InputBegan:Connect(function(input)
+	joystickInputBeganConnection = inputRegion.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
 			return
 		end
@@ -524,14 +541,14 @@ local function bindJoystickInput()
 		updateHold(input)
 	end)
 
-	joystickInputChangedConnection = joystickRoot.InputChanged:Connect(function(input)
+	joystickInputChangedConnection = inputRegion.InputChanged:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
 			return
 		end
 		updateHold(input)
 	end)
 
-	joystickInputEndedConnection = joystickRoot.InputEnded:Connect(function(input)
+	joystickInputEndedConnection = inputRegion.InputEnded:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
 			return
 		end
@@ -540,6 +557,7 @@ local function bindJoystickInput()
 
 	uiInputBound = true
 	boundJoystickRoot = joystickRoot
+	boundInputRegion = inputRegion
 end
 
 UserInputService.InputChanged:Connect(function(input)
@@ -581,12 +599,12 @@ if stateUpdateRemote then
 end
 
 player.CharacterAdded:Connect(function()
-	resolveUi(true)
+	resolveUi(false)
 	bindJoystickInput()
 	resetVisualState()
 end)
 
-player.DescendantAdded:Connect(function(descendant)
+playerGui.DescendantAdded:Connect(function(descendant)
 	if descendant.Name ~= "SlingUI" and descendant.Name ~= "DirectionIndicator" and descendant.Name ~= "DirectionArrow" and descendant.Name ~= "ChargeBar" and descendant.Name ~= "CooldownBar" and descendant.Name ~= "Fill" and descendant.Name ~= "JoystickRoot" and descendant.Name ~= "Base" and descendant.Name ~= "Thumb" then
 		return
 	end
@@ -600,6 +618,6 @@ player.DescendantAdded:Connect(function(descendant)
 	end
 end)
 
-resolveUi(true)
+resolveUi(false)
 bindJoystickInput()
 resetVisualState()

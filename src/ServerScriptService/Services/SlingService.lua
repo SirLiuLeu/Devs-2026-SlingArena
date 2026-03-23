@@ -85,6 +85,53 @@ function SlingService.new(context)
 	return self
 end
 
+function SlingService:_getTrackedPlayers(): { any }
+	local trackedPlayers = {}
+	local seen = {}
+
+	local stateService = self._context.Services.PlayerStateService
+	if stateService and typeof(stateService.GetAllStates) == "function" then
+		for player in pairs(stateService:GetAllStates()) do
+			if not seen[player] then
+				seen[player] = true
+				table.insert(trackedPlayers, player)
+			end
+		end
+	end
+
+	for player in pairs(self._input) do
+		if not seen[player] then
+			seen[player] = true
+			table.insert(trackedPlayers, player)
+		end
+	end
+
+	for player in pairs(self._chargeState) do
+		if not seen[player] then
+			seen[player] = true
+			table.insert(trackedPlayers, player)
+		end
+	end
+
+	for player in pairs(self._releaseState) do
+		if not seen[player] then
+			seen[player] = true
+			table.insert(trackedPlayers, player)
+		end
+	end
+
+	if #trackedPlayers == 0 then
+		for _, player in Players:GetPlayers() do
+			if not seen[player] then
+				seen[player] = true
+				table.insert(trackedPlayers, player)
+			end
+		end
+	end
+
+	return trackedPlayers
+end
+
 function SlingService:Init()
 	local remotes = self._context.Remotes
 	local moveRemote = remotes:WaitForChild(RemoteContracts.Names.MoveRequest)
@@ -248,7 +295,7 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 end
 
 function SlingService:_stepMovement()
-	for _, player in Players:GetPlayers() do
+	for _, player in self:_getTrackedPlayers() do
 		local root = self._context.Services.PlayerService:GetRoot(player)
 		local input = self._input[player] or Vector3.zero
 		if root then
@@ -305,7 +352,7 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 end
 
 function SlingService:_stepMovementStates()
-	for _, player in Players:GetPlayers() do
+	for _, player in self:_getTrackedPlayers() do
 		local state = self._context.Services.PlayerStateService:GetState(player)
 		local root = self._context.Services.PlayerService:GetRoot(player)
 		if state and root then

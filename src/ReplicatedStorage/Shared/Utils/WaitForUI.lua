@@ -110,6 +110,10 @@ function WaitForUI.ResolveSlingUIWithRetry(player: Player, options: ResolveOptio
 	return nil
 end
 
+function WaitForUI.IsRetryPending(player: Player): boolean
+	return pendingRetries[player] ~= nil
+end
+
 function WaitForUI.ClearRetry(player: Player)
 	local connection = pendingRetries[player]
 	if connection then
