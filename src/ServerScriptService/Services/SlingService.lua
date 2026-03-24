@@ -45,6 +45,7 @@ function SlingService.ResolveAimDirection(origin: Vector3, aimTarget: Vector3): 
 end
 
 local RELEASE_DISTANCE_MULTIPLIER = 5
+local RELEASE_SPEED_MULTIPLIER = 0.5
 
 function SlingService.BuildLaunchVector(direction: Vector3, launchForce: number): Vector3
 	local safeDirection = if direction.Magnitude < 0.01 then Vector3.new(0, 0, -1) else direction.Unit
@@ -266,10 +267,10 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	chargeState.aimDirection = SlingService.ResolveAimDirection(root.Position, aimTarget)
 
 	local maxForce = SlingshotConfig.MAX_LAUNCH_FORCE or (SlingshotConfig.BaseLaunchForce + Config.MaxExtraForce)
-	local launchForce = SlingService.CalculateLaunchForce(chargeRatio, 0, maxForce * RELEASE_DISTANCE_MULTIPLIER, 1)
+	local launchForce = SlingService.CalculateLaunchForce(chargeRatio, 0, maxForce * RELEASE_DISTANCE_MULTIPLIER, 1) * RELEASE_SPEED_MULTIPLIER
 	local launchVector = SlingService.BuildLaunchVector(chargeState.aimDirection, launchForce)
 
-	local maxReleaseVelocity = BalanceConfig.MaxVelocity * RELEASE_DISTANCE_MULTIPLIER
+	local maxReleaseVelocity = BalanceConfig.MaxVelocity * RELEASE_DISTANCE_MULTIPLIER * RELEASE_SPEED_MULTIPLIER
 	root.AssemblyLinearVelocity = Vector3.new(
 		math.clamp(launchVector.X, -maxReleaseVelocity, maxReleaseVelocity),
 		root.AssemblyLinearVelocity.Y,

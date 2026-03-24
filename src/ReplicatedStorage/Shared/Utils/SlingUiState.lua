@@ -26,4 +26,8 @@ function SlingUiState.ComputeDirectionRotation(delta: Vector2): number?
 	return math.deg(math.atan2(delta.Y, delta.X))
 end
 
+function SlingUiState.ComputeAimDistance(normalizedDistance: number, maxDistance: number): number
+	return SlingUiState.ClampRatio(normalizedDistance) * math.max(0, maxDistance)
+end
+
 return SlingUiState

@@ -129,6 +129,36 @@ local function testReleaseDistanceMultiplierApplied()
 	assertAlmostEqual(boostedForce, SlingshotConfig.MAX_LAUNCH_FORCE * 5, 0.0001, "Release force should scale to 5x the prior max range")
 end
 
+local function testReleaseSpeedMultiplierApplied()
+	local root = Instance.new("Part")
+	root.Anchored = true
+	root.Position = Vector3.new(0, 5, 0)
+	root.Parent = workspace
+
+	local state = {
+		ChargeSpeed = 1,
+		LaunchSpeed = SlingshotConfig.BaseLaunchForce,
+		MovementState = "Idle",
+	}
+	local context = buildFakeSlingContext(root, state)
+	local service = SlingServiceModule.new(context)
+	local player = { UserId = 787, Name = "ReleaseSpeedTester", Parent = game:GetService("Players") }
+
+	service:StartCharge(player, Vector3.new(40, 5, 0))
+	local chargeState = service._chargeState[player]
+	if not chargeState then
+		root:Destroy()
+		error("StartCharge should create per-player charge state for release speed test")
+	end
+	chargeState.chargeStartTime = os.clock() - SlingshotConfig.MAX_CHARGE_TIME
+
+	service:ReleaseCharge(player, Vector3.new(40, 5, 0))
+	local horizontalSpeed = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude
+	assertAlmostEqual(horizontalSpeed, 425, 0.0001, "Full charge release should apply the 0.5 speed multiplier before max velocity clamp")
+
+	root:Destroy()
+end
+
 local function testChargeRatioProgressAndClamp()
 	local maxChargeTime = SlingshotConfig.MAX_CHARGE_TIME
 	local quarter = SlingServiceModule.CalculateChargeRatio(0, maxChargeTime * 0.25, maxChargeTime)
@@ -283,6 +313,7 @@ local function testSlingUiChargeAndCooldownRatios()
 	assertAlmostEqual(SlingUiState.ComputeChargeRatio(4, 2), 1, 0.0001, "Charge ratio should clamp at 1")
 	assertAlmostEqual(SlingUiState.ComputeCooldownRatio(0.75, 3), 0.25, 0.0001, "Cooldown bar should fill from elapsed cooldown time")
 	assertAlmostEqual(SlingUiState.ComputeCooldownRatio(3, 3), 1, 0.0001, "Cooldown fill should complete at the recover duration")
+	assertAlmostEqual(SlingUiState.ComputeAimDistance(1.5, 20), 20, 0.0001, "Aim distance should clamp to max release distance")
 end
 
 local function testSlingUiDirectionRotation()
@@ -705,6 +736,7 @@ end
 runTest("ChargeToLaunchForce", testChargeToLaunchForce)
 runTest("ChargeRatio_ProgressAndClamp", testChargeRatioProgressAndClamp)
 runTest("ReleaseDistanceMultiplier_Applied", testReleaseDistanceMultiplierApplied)
+runTest("ReleaseSpeedMultiplier_Applied", testReleaseSpeedMultiplierApplied)
 runTest("ChargeRelease_ResetsChargeState", testChargeResetAfterRelease)
 runTest("RecoverCooldown_MatchesReleaseDuration", testRecoverCooldownMatchesReleaseDuration)
 runTest("LaunchDirection_NormalizedFromAim", testLaunchDirectionNormalizedFromAim)

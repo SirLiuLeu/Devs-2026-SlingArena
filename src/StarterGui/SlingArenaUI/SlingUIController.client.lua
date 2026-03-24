@@ -20,6 +20,7 @@ local stateUpdateRemote = remotes:FindFirstChild(RemoteContracts.Names.StateUpda
 local MAX_CHARGE_TIME = SlingshotConfig.MAX_CHARGE_TIME or 2
 local DEFAULT_COOLDOWN_DURATION = SlingshotConfig.RECOVER_TIME or 3
 local DEFAULT_JOYSTICK_RADIUS = 60
+local MAX_RELEASE_DISTANCE = 20
 local DEBUG_LOG = false
 
 local warnedMissingUi = false
@@ -109,6 +110,29 @@ local function setVisibleSafe(instance: GuiObject?, visible: boolean)
 	if instance then
 		instance.Visible = visible
 	end
+end
+
+local function shouldShowJoystickByState(state: { [string]: any }?): boolean
+	if state and state.IsAlive == false then
+		return false
+	end
+
+	local movementState = if state then state.MovementState else nil
+	if movementState == "Recovering" or movementState == "Launched" then
+		return false
+	end
+
+	if awaitingReleaseAck then
+		return false
+	end
+
+	return true
+end
+
+local function applyJoystickVisibilityFromState(state: { [string]: any }?)
+	local showJoystick = shouldShowJoystickByState(state)
+	setVisibleSafe(cachedJoystickRoot, showJoystick)
+	setVisibleSafe(cachedDirectionIndicator, showJoystick)
 end
 
 local function ensureAnchors(joystickRoot: GuiObject?, base: GuiObject?, thumb: GuiObject?)
@@ -340,7 +364,7 @@ local function computeAimTargetFromJoystick(): Vector3
 	end
 
 	local normalizedDistance = math.clamp(currentDragDistance / math.max(getJoystickRadius(), 1), 0, 1)
-	local aimDistance = math.max(32, normalizedDistance * (SlingshotConfig.MAX_AIM_DISTANCE or 256))
+	local aimDistance = SlingUiState.ComputeAimDistance(normalizedDistance, MAX_RELEASE_DISTANCE)
 	return root.Position + worldDirection * aimDistance
 end
 
@@ -378,11 +402,11 @@ local function stepUi()
 	if isHolding then
 		local chargeRatio = SlingUiState.ComputeChargeRatio(os.clock() - chargeStartTime, MAX_CHARGE_TIME)
 		updateChargeBar(chargeRatio)
-		setVisibleSafe(cachedJoystickRoot, true)
-		setVisibleSafe(cachedDirectionIndicator, true)
 	else
 		updateChargeBar(0)
 	end
+
+	applyJoystickVisibilityFromState(lastKnownServerState)
 
 	local cooldownRatio = 0
 	if cooldownEndTime > cooldownStartTime and os.clock() < cooldownEndTime then
@@ -431,12 +455,11 @@ local function resetVisualState()
 	currentDragDistance = 0
 	currentDirection = Vector2.new(0, -1)
 	chargeStartTime = 0
-	setVisibleSafe(cachedJoystickRoot, false)
 	setVisibleSafe(cachedChargeBar, false)
-	setVisibleSafe(cachedDirectionIndicator, false)
 	resetThumbPosition()
 	updateChargeBar(0)
 	clearCooldown()
+	applyJoystickVisibilityFromState(lastKnownServerState)
 end
 
 local function syncCooldownFromServerState(state: { [string]: any })
@@ -475,9 +498,9 @@ local function startHold(input: InputObject)
 
 	setVisibleSafe(joystickRoot, true)
 	setVisibleSafe(chargeBar, true)
-	setVisibleSafe(cachedDirectionIndicator, true)
 	resetThumbPosition()
 	updateDirectionIndicator(nil)
+	applyJoystickVisibilityFromState(lastKnownServerState)
 	ensureUiLoopRunning()
 
 	debugLog("[SlingUI] StartCharge remote fired")
@@ -509,11 +532,10 @@ local function releaseHold(input: InputObject)
 
 	releaseChargeRemote:FireServer(computeAimTargetFromJoystick())
 
-	setVisibleSafe(cachedJoystickRoot, false)
-	setVisibleSafe(cachedDirectionIndicator, false)
 	setVisibleSafe(cachedChargeBar, false)
 	resetThumbPosition()
 	updateChargeBar(0)
+	applyJoystickVisibilityFromState(lastKnownServerState)
 
 	debugLog("[SlingUI] ReleaseCharge remote fired")
 end
@@ -595,6 +617,8 @@ if stateUpdateRemote then
 		elseif state.MovementState == "Idle" and awaitingReleaseAck == false and state.IsCharging ~= true then
 			clearCooldown()
 		end
+
+		applyJoystickVisibilityFromState(state)
 	end)
 end
 
@@ -616,6 +640,7 @@ playerGui.DescendantAdded:Connect(function(descendant)
 	elseif lastKnownServerState and lastKnownServerState.MovementState == "Recovering" then
 		syncCooldownFromServerState(lastKnownServerState)
 	end
+	applyJoystickVisibilityFromState(lastKnownServerState)
 end)
 
 resolveUi(false)
