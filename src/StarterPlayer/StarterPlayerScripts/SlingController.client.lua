@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local player = Players.LocalPlayer
@@ -17,7 +18,7 @@ local CAMERA_LOOK_AHEAD = 18
 local CAMERA_ROTATION_SPEED = 8
 local MIN_RELEASE_SPEED = 6
 
-local lastMovementState = "Idle"
+local lastMovementState = GameStates.Movement.Idle
 local releaseCameraEnabled = false
 
 local function getCharacter(): Model?
@@ -85,7 +86,7 @@ local function disableReleaseCamera()
 end
 
 local function shouldFollowReleaseCamera(): boolean
-	return lastMovementState == "Launched"
+	return lastMovementState == GameStates.Movement.Launched
 end
 
 local function stepReleaseCamera(deltaTime: number)
@@ -118,8 +119,8 @@ if stateUpdateRemote then
 		if not state then
 			return
 		end
-		lastMovementState = tostring(state.MovementState or "Idle")
-		if lastMovementState ~= "Launched" then
+		lastMovementState = tostring(state.MovementState or GameStates.Movement.Idle)
+		if lastMovementState ~= GameStates.Movement.Launched then
 			disableReleaseCamera()
 		end
 	end)

@@ -7,6 +7,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.Shared.Config.Config)
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local SlingService = {}
@@ -44,8 +45,8 @@ function SlingService.ResolveAimDirection(origin: Vector3, aimTarget: Vector3): 
 	return rawDirection.Unit
 end
 
-local RELEASE_DISTANCE_MULTIPLIER = 5
-local RELEASE_SPEED_MULTIPLIER = 0.5
+local RELEASE_DISTANCE_MULTIPLIER = BalanceConfig.ReleaseDistanceMultiplier
+local RELEASE_SPEED_MULTIPLIER = BalanceConfig.ReleaseSpeedMultiplier
 
 function SlingService.BuildLaunchVector(direction: Vector3, launchForce: number): Vector3
 	local safeDirection = if direction.Magnitude < 0.01 then Vector3.new(0, 0, -1) else direction.Unit
@@ -68,13 +69,7 @@ function SlingService.BuildCooldownUiState(cooldownEndTime: number, nowTime: num
 	}
 end
 
-local MOVEMENT_STATE = {
-	Idle = "Idle",
-	Moving = "Moving",
-	Charging = "Charging",
-	Launched = "Launched",
-	Recovering = "Recovering",
-}
+local MOVEMENT_STATE = GameStates.Movement
 
 function SlingService.new(context)
 	local self = setmetatable({}, SlingService)
@@ -165,7 +160,7 @@ function SlingService:Init()
 end
 
 function SlingService:_isRoundPlaying(): boolean
-	return self._context.Services.RoundService:GetState() == "ActiveRound"
+	return self._context.Services.RoundService:GetState() == GameStates.Round.ActiveRound
 end
 
 function SlingService:_canControl(player: Player): boolean

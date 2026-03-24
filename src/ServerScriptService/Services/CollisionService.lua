@@ -43,17 +43,17 @@ function CollisionService:_applyDragAndBounce(dt)
 			end
 			local pos = root.Position
 			local hitWall = false
-			if math.abs(pos.X) > Config.MaxArenaRadius - 6 then
+			if math.abs(pos.X) > Config.MaxArenaRadius - BalanceConfig.ArenaWallPadding then
 				horizontal = Vector3.new(-horizontal.X * (1 - Config.BounceLoss), 0, horizontal.Z)
 				hitWall = true
 			end
-			if math.abs(pos.Z) > Config.MaxArenaRadius - 6 then
+			if math.abs(pos.Z) > Config.MaxArenaRadius - BalanceConfig.ArenaWallPadding then
 				horizontal = Vector3.new(horizontal.X, 0, -horizontal.Z * (1 - Config.BounceLoss))
 				hitWall = true
 			end
 			if hitWall then
 				local now = os.clock()
-				if not self._lastWallCollision[player] or now - self._lastWallCollision[player] >= 0.2 then
+				if not self._lastWallCollision[player] or now - self._lastWallCollision[player] >= BalanceConfig.WallCollisionCooldown then
 					self._lastWallCollision[player] = now
 					self._context.EventBus:Fire("CollisionDetected", "Wall", player, nil, { Speed = velocity.Magnitude })
 				end
@@ -75,11 +75,11 @@ function CollisionService:_detectPlayerCollisions()
 			local rootB = self._context.Services.PlayerService:GetRoot(playerB)
 			if rootA and rootB and self._context.Services.PlayerService:IsAlive(playerA) and self._context.Services.PlayerService:IsAlive(playerB) then
 				local distance = (rootA.Position - rootB.Position).Magnitude
-				local hitDistance = (rootA.Size.X + rootB.Size.X) * 0.25
+				local hitDistance = (rootA.Size.X + rootB.Size.X) * BalanceConfig.PlayerCollisionDistanceFactor
 				if distance <= hitDistance then
 					local key = if playerA.UserId < playerB.UserId then `{playerA.UserId}:{playerB.UserId}` else `{playerB.UserId}:{playerA.UserId}`
 					local now = os.clock()
-					if not self._lastCollision[key] or now - self._lastCollision[key] >= 0.2 then
+					if not self._lastCollision[key] or now - self._lastCollision[key] >= BalanceConfig.CollisionCooldown then
 						self._lastCollision[key] = now
 						table.insert(hits, { playerA = playerA, playerB = playerB, rootA = rootA, rootB = rootB })
 					end
@@ -150,7 +150,7 @@ function CollisionService:_resolveTrapCollisions()
 				if math.abs(localPos.X) <= half.X and math.abs(localPos.Y) <= half.Y and math.abs(localPos.Z) <= half.Z then
 					local key = `{player.UserId}:{trap:GetDebugId(0)}`
 					local now = os.clock()
-					if not self._lastTrapCollision[key] or now - self._lastTrapCollision[key] > 0.25 then
+					if not self._lastTrapCollision[key] or now - self._lastTrapCollision[key] > BalanceConfig.TrapCollisionCooldown then
 						self._lastTrapCollision[key] = now
 						self._context.EventBus:Fire("CollisionDetected", "Trap", player, trap, {})
 						self._context.EventBus:Fire("TrapCollisionCandidate", player, trap)

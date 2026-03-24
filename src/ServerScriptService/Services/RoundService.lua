@@ -3,20 +3,13 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local RoundService = {}
 RoundService.__index = RoundService
 
-local STATES = {
-	Boot = "Boot",
-	Lobby = "Lobby",
-	PreRound = "PreRound",
-	Countdown = "Countdown",
-	ActiveRound = "ActiveRound",
-	RoundEnd = "RoundEnd",
-	PostRound = "PostRound",
-}
+local STATES = GameStates.Round
 
 function RoundService.new(context)
 	local self = setmetatable({}, RoundService)
@@ -102,7 +95,6 @@ function RoundService:_getTargetArenaMapName(): string
 end
 
 function RoundService:JoinArena(player: Player)
-	print(string.format("[MapService] JoinArena requested by %s", player.Name))
 	self._participants[player] = true
 	local arenaMapName = self:_getTargetArenaMapName()
 	if self._context.Services.MapService:GetActiveMap() ~= arenaMapName and self._state == STATES.Lobby then
@@ -116,8 +108,6 @@ function RoundService:JoinArena(player: Player)
 
 	local arenaSpawn = self._context.Services.MapService:GetArenaSpawn(arenaMapName)
 	if arenaSpawn then
-		print(string.format("[MapService] Spawn found: %s", arenaSpawn:GetFullName()))
-		print(string.format("[MapService] Teleporting player: %s", player.Name))
 		local teleported = self._context.Services.PlayerService:TeleportCharacterToSpawn(player, arenaSpawn)
 		if not teleported then
 			warn(string.format("[MapService] Teleport failed during JoinArena for %s", player.Name))
@@ -127,7 +117,7 @@ function RoundService:JoinArena(player: Player)
 	end
 
 	self._context.Services.PlayerStateService:SetMapName(player, arenaMapName)
-	self._context.Services.PlayerStateService:SetArenaStatus(player, "InArena")
+	self._context.Services.PlayerStateService:SetArenaStatus(player, GameStates.ArenaStatus.InArena)
 	self._context.Services.PlayerStateService:SetTeleporting(player, false)
 	self:_publishUiState()
 end
@@ -137,14 +127,10 @@ function RoundService:LeaveArena(player: Player)
 		warn(string.format("[MapService] LeaveArena ignored because player is not participating: %s", player.Name))
 		return
 	end
-	print(string.format("[MapService] LeaveArena requested by %s", player.Name))
-
 	self._participants[player] = nil
 
 	local lobbySpawn = self._context.Services.MapService:GetLobbySpawn()
 	if lobbySpawn then
-		print(string.format("[MapService] Spawn found: %s", lobbySpawn:GetFullName()))
-		print(string.format("[MapService] Teleporting player to lobby: %s", player.Name))
 		local teleported = self._context.Services.PlayerService:TeleportCharacterToSpawn(player, lobbySpawn)
 		if not teleported then
 			warn(string.format("[MapService] LeaveArena teleport failed for %s", player.Name))
@@ -156,7 +142,7 @@ function RoundService:LeaveArena(player: Player)
 	end
 
 	self._context.Services.PlayerStateService:SetMapName(player, "LobbyMap")
-	self._context.Services.PlayerStateService:SetArenaStatus(player, "Lobby")
+	self._context.Services.PlayerStateService:SetArenaStatus(player, GameStates.ArenaStatus.Lobby)
 	self._context.Services.PlayerStateService:SetTeleporting(player, false)
 	self:_publishUiState()
 end
@@ -240,8 +226,6 @@ function RoundService:_resetPlayersForRound()
 			self._context.Services.PlayerService:SpawnPawn(player, i, self:_getTargetArenaMapName())
 			local arenaSpawn = self._context.Services.MapService:GetArenaSpawn(self:_getTargetArenaMapName())
 			if arenaSpawn then
-				print(string.format("[MapService] Spawn found: %s", arenaSpawn:GetFullName()))
-				print(string.format("[MapService] Teleporting player: %s", player.Name))
 				local teleported = self._context.Services.PlayerService:TeleportCharacterToSpawn(player, arenaSpawn)
 				if not teleported then
 					warn(string.format("[MapService] Round start teleport failed for %s", player.Name))

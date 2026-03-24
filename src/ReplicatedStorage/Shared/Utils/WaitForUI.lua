@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 
 local PathResolver = require(script.Parent.PathResolver)
+local SlingUiConstants = require(script.Parent.Parent.Constants.SlingUiConstants)
 local ProjectTreeSpec = require(script.Parent.Parent.ProjectTreeSpec)
 
 local WaitForUI = {}
@@ -30,7 +31,7 @@ local function resolveScreenGui(container: Instance?, shouldWait: boolean, timeo
 		return nil
 	end
 
-	local screenGuiPath = "SlingUI"
+	local screenGuiPath = SlingUiConstants.ScreenGuiName
 	local screenGui = if shouldWait then PathResolver.waitForPath(container, screenGuiPath, timeout) else PathResolver.resolvePath(container, screenGuiPath, {
 		shouldWarn = false,
 	})

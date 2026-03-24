@@ -5,7 +5,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local SlingUiConstants = require(ReplicatedStorage.Shared.Constants.SlingUiConstants)
 local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
 local SlingUiState = require(ReplicatedStorage.Shared.Utils.SlingUiState)
 local WaitForUI = require(ReplicatedStorage.Shared.Utils.WaitForUI)
@@ -20,7 +22,7 @@ local stateUpdateRemote = remotes:FindFirstChild(RemoteContracts.Names.StateUpda
 local MAX_CHARGE_TIME = SlingshotConfig.MAX_CHARGE_TIME or 2
 local DEFAULT_COOLDOWN_DURATION = SlingshotConfig.RECOVER_TIME or 3
 local DEFAULT_JOYSTICK_RADIUS = 60
-local MAX_RELEASE_DISTANCE = 20
+local MAX_RELEASE_DISTANCE = SlingshotConfig.SlingConfig.MaxShootRange or 20
 local DEBUG_LOG = false
 
 local warnedMissingUi = false
@@ -118,7 +120,7 @@ local function shouldShowJoystickByState(state: { [string]: any }?): boolean
 	end
 
 	local movementState = if state then state.MovementState else nil
-	if movementState == "Recovering" or movementState == "Launched" then
+	if movementState == GameStates.Movement.Recovering or movementState == GameStates.Movement.Launched then
 		return false
 	end
 
@@ -149,12 +151,12 @@ local function ensureAnchors(joystickRoot: GuiObject?, base: GuiObject?, thumb: 
 end
 
 local function resolveDirectionIndicator(screenGui: ScreenGui): Instance?
-	local indicator = findChild(screenGui, "DirectionIndicator")
+	local indicator = findChild(screenGui, SlingUiConstants.Elements.DirectionIndicator)
 	if indicator then
 		return indicator
 	end
 
-	return findChild(screenGui, "DirectionArrow")
+	return findChild(screenGui, SlingUiConstants.Elements.DirectionArrow)
 end
 
 local function disconnectUiInputConnections()
@@ -611,10 +613,10 @@ if stateUpdateRemote then
 			updateChargeBar(0)
 		end
 
-		if state.MovementState == "Recovering" then
+		if state.MovementState == GameStates.Movement.Recovering then
 			awaitingReleaseAck = false
 			syncCooldownFromServerState(state)
-		elseif state.MovementState == "Idle" and awaitingReleaseAck == false and state.IsCharging ~= true then
+		elseif state.MovementState == GameStates.Movement.Idle and awaitingReleaseAck == false and state.IsCharging ~= true then
 			clearCooldown()
 		end
 
@@ -629,7 +631,7 @@ player.CharacterAdded:Connect(function()
 end)
 
 playerGui.DescendantAdded:Connect(function(descendant)
-	if descendant.Name ~= "SlingUI" and descendant.Name ~= "DirectionIndicator" and descendant.Name ~= "DirectionArrow" and descendant.Name ~= "ChargeBar" and descendant.Name ~= "CooldownBar" and descendant.Name ~= "Fill" and descendant.Name ~= "JoystickRoot" and descendant.Name ~= "Base" and descendant.Name ~= "Thumb" then
+	if descendant.Name ~= SlingUiConstants.ScreenGuiName and descendant.Name ~= SlingUiConstants.Elements.DirectionIndicator and descendant.Name ~= SlingUiConstants.Elements.DirectionArrow and descendant.Name ~= SlingUiConstants.Elements.ChargeBar and descendant.Name ~= SlingUiConstants.Elements.CooldownBar and descendant.Name ~= SlingUiConstants.Elements.Fill and descendant.Name ~= SlingUiConstants.Elements.JoystickRoot and descendant.Name ~= SlingUiConstants.Elements.Base and descendant.Name ~= SlingUiConstants.Elements.Thumb then
 		return
 	end
 
@@ -637,7 +639,7 @@ playerGui.DescendantAdded:Connect(function(descendant)
 	bindJoystickInput()
 	if lastKnownServerState and lastKnownServerState.IsAlive == false then
 		resetVisualState()
-	elseif lastKnownServerState and lastKnownServerState.MovementState == "Recovering" then
+	elseif lastKnownServerState and lastKnownServerState.MovementState == GameStates.Movement.Recovering then
 		syncCooldownFromServerState(lastKnownServerState)
 	end
 	applyJoystickVisibilityFromState(lastKnownServerState)

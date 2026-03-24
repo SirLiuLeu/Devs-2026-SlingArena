@@ -6,17 +6,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 
 type PlayerState = PlayerStateTypes.PlayerState
 
-local MOVEMENT_STATE = {
-	Idle = "Idle",
-	Moving = "Moving",
-	Charging = "Charging",
-	Launched = "Launched",
-	Recovering = "Recovering",
-}
+local MOVEMENT_STATE = GameStates.Movement
 
 type BuffState = {
 	DamageBoost: number,
@@ -73,7 +68,7 @@ local function buildDefaultState(player: Player): PlayerState
 	local state: PlayerState = {
 		UserId = player.UserId,
 		MapName = "LobbyMap",
-		ArenaStatus = "Lobby",
+		ArenaStatus = GameStates.ArenaStatus.Lobby,
 		Level = LevelConfig.StartingLevel,
 		Exp = LevelConfig.StartingExp,
 		Size = sling.Size,

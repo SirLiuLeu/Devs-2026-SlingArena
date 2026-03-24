@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 
@@ -146,11 +147,11 @@ function UIController:Start()
 	end
 
 	local uiStateConnection = self.ClientService:BindUIStateUpdate(function(payload)
-		if self.LobbyStatusLabel then self.LobbyStatusLabel.Text = string.format("ArenaStatus: %s", tostring(payload.ArenaStatus or payload.State or "Lobby")) end
-		if self.MatchStatusLabel then self.MatchStatusLabel.Text = string.format("Match: %s", tostring(payload.State or "Lobby")) end
+		if self.LobbyStatusLabel then self.LobbyStatusLabel.Text = string.format("ArenaStatus: %s", tostring(payload.ArenaStatus or payload.State or GameStates.Round.Lobby)) end
+		if self.MatchStatusLabel then self.MatchStatusLabel.Text = string.format("Match: %s", tostring(payload.State or GameStates.Round.Lobby)) end
 		if self.TimerLabel then self.TimerLabel.Text = string.format("CountdownTimer: %d", math.floor(payload.CountdownTimer or payload.TimeLeft or 0)) end
 		if self.AlivePlayersLabel then self.AlivePlayersLabel.Text = string.format("PlayerCount: %d (alive %d)", payload.PlayerCount or 0, payload.AlivePlayers or 0) end
-		if self.WinnerPopup and (payload.State or "") ~= "RoundEnd" then
+		if self.WinnerPopup and (payload.State or "") ~= GameStates.Round.RoundEnd then
 			self.WinnerPopup.Visible = true
 			self.WinnerPopup.Text = "Match result screen: pending"
 		end

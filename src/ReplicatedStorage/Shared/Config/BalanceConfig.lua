@@ -2,6 +2,10 @@
 
 local BalanceConfig = {
 	CollisionCooldown = 0.3,
+	WallCollisionCooldown = 0.2,
+	TrapCollisionCooldown = 0.25,
+	PlayerCollisionDistanceFactor = 0.25,
+	ArenaWallPadding = 6,
 	MaxDamagePerHit = 350,
 	MinVelocityToCollide = 8,
 	VelocityDecayFactor = 0.6,
@@ -53,6 +57,8 @@ local BalanceConfig = {
 	MatchBuffCost = 20,
 	MatchBuffMaxBoost = 0.10,
 	DiamondsPerPrestigeLevelDivisor = 5,
+	ReleaseDistanceMultiplier = 5,
+	ReleaseSpeedMultiplier = 0.5,
 }
 
 return BalanceConfig
