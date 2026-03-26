@@ -1,0 +1,110 @@
+{
+  "ClassName": "BillboardGui",
+  "Name": "SlingBillboard",
+  "Children": [
+    {
+      "ClassName": "Frame",
+      "Name": "Root",
+      "Size": [
+        1,
+        0,
+        1,
+        0
+      ],
+      "BackgroundColor3": [
+        24,
+        24,
+        24
+      ],
+      "Children": [
+        {
+          "ClassName": "UIPadding",
+          "Name": "Padding"
+        },
+        {
+          "ClassName": "TextLabel",
+          "Name": "TitleLabel",
+          "BackgroundTransparency": 1,
+          "Size": [
+            1,
+            0,
+            0,
+            30
+          ],
+          "TextScaled": true,
+          "Font": "GothamBold"
+        },
+        {
+          "ClassName": "TextLabel",
+          "Name": "StatusLabel",
+          "BackgroundTransparency": 1,
+          "Size": [
+            1,
+            0,
+            0,
+            28
+          ],
+          "TextScaled": true,
+          "Font": "Gotham"
+        },
+        {
+          "ClassName": "Frame",
+          "Name": "ButtonRow",
+          "Size": [
+            1,
+            0,
+            0,
+            40
+          ],
+          "BackgroundTransparency": 1,
+          "Children": [
+            {
+              "ClassName": "UIListLayout",
+              "Name": "ListLayout",
+              "FillDirection": "Horizontal",
+              "HorizontalAlignment": "Center",
+              "Padding": {
+                "Scale": 0,
+                "Offset": 8
+              }
+            },
+            {
+              "ClassName": "TextButton",
+              "Name": "PrimaryButton",
+              "Size": [
+                0.5,
+                -4,
+                1,
+                0
+              ],
+              "BackgroundColor3": [
+                66,
+                135,
+                245
+              ],
+              "TextScaled": true,
+              "Font": "GothamBold"
+            },
+            {
+              "ClassName": "TextButton",
+              "Name": "SecondaryButton",
+              "Size": [
+                0.5,
+                -4,
+                1,
+                0
+              ],
+              "BackgroundColor3": [
+                90,
+                90,
+                90
+              ],
+              "TextScaled": true,
+              "Font": "Gotham"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
