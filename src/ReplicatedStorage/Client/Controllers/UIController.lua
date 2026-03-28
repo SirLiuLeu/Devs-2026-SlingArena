@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
+local MainStatsPopupController = require(ReplicatedStorage.Client.Controllers.MainStatsPopupController)
 
 local UIController = {}
 UIController.__index = UIController
@@ -40,6 +41,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.PlayerGui = playerGui
 	self.Connections = {}
 	self.LocalWins = 0
+	self.MainStatsPopupController = MainStatsPopupController.new(playerGui, dependencies)
 
 	-- [UI_CREATION_GUIDE]
 	-- Create in Studio:
@@ -141,6 +143,9 @@ function UIController:Start()
 				self.RespawnLabel.Text = "Respawn screen: hidden"
 			end
 		end
+		if self.MainStatsPopupController then
+			self.MainStatsPopupController:ApplyState(state)
+		end
 	end)
 	if stateConnection then
 		table.insert(self.Connections, stateConnection)
@@ -182,6 +187,9 @@ function UIController:Destroy()
 		connection:Disconnect()
 	end
 	table.clear(self.Connections)
+	if self.MainStatsPopupController then
+		self.MainStatsPopupController:Destroy()
+	end
 end
 
 return UIController

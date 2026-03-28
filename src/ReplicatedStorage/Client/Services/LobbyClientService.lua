@@ -19,11 +19,13 @@ export type LobbyClientService = {
 	TeleportRemote: RemoteEvent?,
 	DebugSpawnFoodRemote: RemoteEvent?,
 	DebugResetSlingRemote: RemoteEvent?,
+	AttributeUpgradeRemote: RemoteEvent?,
 	RequestJoinArena: (self: LobbyClientService) -> (),
 	RequestLeaveArena: (self: LobbyClientService) -> (),
 	RequestTeleport: (self: LobbyClientService, mapName: string, spawnName: string) -> (),
 	RequestDebugSpawnFood: (self: LobbyClientService, mapName: string) -> (),
 	RequestDebugResetSling: (self: LobbyClientService) -> (),
+	RequestAttributeUpgrade: (self: LobbyClientService, attributeName: string) -> (),
 	BindStateUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 	BindUIStateUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 	BindRoundResult: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
@@ -45,6 +47,7 @@ function LobbyClientService.new(): LobbyClientService
 	self.StateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.StateUpdate)
 	self.UIStateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.UIStateUpdate)
 	self.RoundResultRemote = resolveRemote(ProjectTreeSpec.Remotes.RoundResult)
+	self.AttributeUpgradeRemote = resolveRemote(ProjectTreeSpec.Remotes.AttributeUpgrade)
 	if self.RemotesRoot then
 		local teleport = self.RemotesRoot:FindFirstChild(RemoteContracts.Names.TeleportRequest)
 		if teleport and teleport:IsA("RemoteEvent") then
@@ -92,6 +95,15 @@ end
 function LobbyClientService:RequestDebugResetSling()
 	if self.DebugResetSlingRemote then
 		self.DebugResetSlingRemote:FireServer()
+	end
+end
+
+function LobbyClientService:RequestAttributeUpgrade(attributeName: string)
+	if not RemoteContracts.Validate(RemoteContracts.Names.AttributeUpgrade, attributeName) then
+		return
+	end
+	if self.AttributeUpgradeRemote then
+		self.AttributeUpgradeRemote:FireServer(attributeName)
 	end
 end
 

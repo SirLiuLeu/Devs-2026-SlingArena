@@ -22,6 +22,32 @@ local ProjectTreeSpec = {
 			GoldLabel = "StatsUI.RootFrame.GoldLabel", -- [PROJECT_TREE_SPEC] StarterGui.StatsUI.RootFrame.GoldLabel
 			WinsLabel = "StatsUI.RootFrame.WinsLabel", -- [PROJECT_TREE_SPEC] StarterGui.StatsUI.RootFrame.WinsLabel
 		},
+		SlingStats = {
+			ScreenGui = "SlingStatsUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI
+			StatsRoot = "SlingStatsUI.StatsRoot", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot
+			HeaderBar = "SlingStatsUI.StatsRoot.HeaderBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.HeaderBar
+			TitleLabel = "SlingStatsUI.StatsRoot.HeaderBar.TitleLabel", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.HeaderBar.TitleLabel
+			AvailablePointsLabel = "SlingStatsUI.StatsRoot.HeaderBar.AvailablePointsLabel", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.HeaderBar.AvailablePointsLabel
+			ToggleDropdownButton = "SlingStatsUI.StatsRoot.HeaderBar.ToggleDropdownButton", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.HeaderBar.ToggleDropdownButton
+			BodyContainer = "SlingStatsUI.StatsRoot.BodyContainer", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer
+			AttributeList = "SlingStatsUI.StatsRoot.BodyContainer.AttributeList", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.AttributeList
+			AttributeRows = {
+				HP = "SlingStatsUI.StatsRoot.BodyContainer.AttributeList.HPRow", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.AttributeList.HPRow
+				BaseDamage = "SlingStatsUI.StatsRoot.BodyContainer.AttributeList.BaseDamageRow", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.AttributeList.BaseDamageRow
+				RegenRate = "SlingStatsUI.StatsRoot.BodyContainer.AttributeList.RegenRateRow", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.AttributeList.RegenRateRow
+				ReflectDamage = "SlingStatsUI.StatsRoot.BodyContainer.AttributeList.ReflectDamageRow", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.AttributeList.ReflectDamageRow
+				LaunchSpeed = "SlingStatsUI.StatsRoot.BodyContainer.AttributeList.LaunchSpeedRow", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.AttributeList.LaunchSpeedRow
+				LaunchRange = "SlingStatsUI.StatsRoot.BodyContainer.AttributeList.LaunchRangeRow", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.AttributeList.LaunchRangeRow
+				ChargeSpeed = "SlingStatsUI.StatsRoot.BodyContainer.AttributeList.ChargeSpeedRow", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.AttributeList.ChargeSpeedRow
+				MoveSpeed = "SlingStatsUI.StatsRoot.BodyContainer.AttributeList.MoveSpeedRow", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.AttributeList.MoveSpeedRow
+			},
+			ResetButton = "SlingStatsUI.StatsRoot.BodyContainer.ActionButtonsRow.ResetButton", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.ActionButtonsRow.ResetButton
+			AcceptButton = "SlingStatsUI.StatsRoot.BodyContainer.ActionButtonsRow.AcceptButton", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.ActionButtonsRow.AcceptButton
+			FooterExpBar = "SlingStatsUI.StatsRoot.FooterExpBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.FooterExpBar
+			ExpBarFill = "SlingStatsUI.StatsRoot.FooterExpBar.ExpBarFill", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.FooterExpBar.ExpBarFill
+			ExpValueLabel = "SlingStatsUI.StatsRoot.FooterExpBar.ExpValueLabel", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.FooterExpBar.ExpValueLabel
+			LevelOnBarLabel = "SlingStatsUI.StatsRoot.FooterExpBar.LevelOnBarLabel", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.FooterExpBar.LevelOnBarLabel
+		},
 		Match = {
 			ScreenGui = "MatchUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI
 			Root = "MatchUI.RootFrame", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI.RootFrame
