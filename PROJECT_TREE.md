@@ -128,6 +128,83 @@ DataModel
 │  │     ├─ TitleLabel
 │  │     └─ WinsLabel
 │  │   
+│  ├─ SlingStatsUI (ScreenGui)
+│  │   └─ StatsRoot (Frame)
+│  │     ├─ HeaderBar (Frame)
+│  │     │   ├─ TitleLabel (TextLabel)
+│  │     │   ├─ AvailablePointsLabel (TextLabel)
+│  │     │   └─ ToggleDropdownButton (TextButton)
+│  │     │
+│  │     ├─ BodyContainer (Frame)
+│  │     │   ├─ AttributeList (Frame)
+│  │     │   │   ├─ UIListLayout
+│  │     │   │
+│  │     │   │   ├─ HPRow (Frame)
+│  │     │   │   │   ├─ AttributeNameLabel (TextLabel)
+│  │     │   │   │   ├─ CurrentValueLabel (TextLabel)
+│  │     │   │   │   ├─ AllocatedPointsLabel (TextLabel)
+│  │     │   │   │   ├─ DecreaseButton (TextButton)
+│  │     │   │   │   └─ IncreaseButton (TextButton)
+│  │     │   │
+│  │     │   │   ├─ BaseDamageRow (Frame)
+│  │     │   │   │   ├─ AttributeNameLabel
+│  │     │   │   │   ├─ CurrentValueLabel
+│  │     │   │   │   ├─ AllocatedPointsLabel
+│  │     │   │   │   ├─ DecreaseButton
+│  │     │   │   │   └─ IncreaseButton
+│  │     │   │
+│  │     │   │   ├─ RegenRateRow (Frame)
+│  │     │   │   │   ├─ AttributeNameLabel
+│  │     │   │   │   ├─ CurrentValueLabel
+│  │     │   │   │   ├─ AllocatedPointsLabel
+│  │     │   │   │   ├─ DecreaseButton
+│  │     │   │   │   └─ IncreaseButton
+│  │     │   │
+│  │     │   │   ├─ ReflectDamageRow (Frame)
+│  │     │   │   │   ├─ AttributeNameLabel
+│  │     │   │   │   ├─ CurrentValueLabel
+│  │     │   │   │   ├─ AllocatedPointsLabel
+│  │     │   │   │   ├─ DecreaseButton
+│  │     │   │   │   └─ IncreaseButton
+│  │     │   │
+│  │     │   │   ├─ LaunchSpeedRow (Frame)
+│  │     │   │   │   ├─ AttributeNameLabel
+│  │     │   │   │   ├─ CurrentValueLabel
+│  │     │   │   │   ├─ AllocatedPointsLabel
+│  │     │   │   │   ├─ DecreaseButton
+│  │     │   │   │   └─ IncreaseButton
+│  │     │   │
+│  │     │   │   ├─ LaunchRangeRow (Frame)
+│  │     │   │   │   ├─ AttributeNameLabel
+│  │     │   │   │   ├─ CurrentValueLabel
+│  │     │   │   │   ├─ AllocatedPointsLabel
+│  │     │   │   │   ├─ DecreaseButton
+│  │     │   │   │   └─ IncreaseButton
+│  │     │   │
+│  │     │   │   ├─ ChargeSpeedRow (Frame)
+│  │     │   │   │   ├─ AttributeNameLabel
+│  │     │   │   │   ├─ CurrentValueLabel
+│  │     │   │   │   ├─ AllocatedPointsLabel
+│  │     │   │   │   ├─ DecreaseButton
+│  │     │   │   │   └─ IncreaseButton
+│  │     │   │
+│  │     │   │   └─ MoveSpeedRow (Frame)
+│  │     │   │       ├─ AttributeNameLabel
+│  │     │   │       ├─ CurrentValueLabel
+│  │     │   │       ├─ AllocatedPointsLabel
+│  │     │   │       ├─ DecreaseButton
+│  │     │   │       └─ IncreaseButton
+│  │     │   │
+│  │     │   └─ ActionButtonsRow (Frame)
+│  │     │       ├─ ResetButton (TextButton)
+│  │     │       └─ AcceptButton (TextButton)
+│  │     │
+│  │     └─ FooterExpBar (Frame)
+│  │         ├─ ExpBarBackground (Frame)
+│  │         ├─ ExpBarFill (Frame)
+│  │         ├─ ExpValueLabel (TextLabel)
+│  │         └─ LevelOnBarLabel (TextLabel)
+│  │
 │  └─ SlingArenaUI [INFERRED legacy / alternative UI stack]
 │        ├─ SlingUI (ScreenGui; created in Studio/manual UI asset)
 │        │   ├─ JoystickRoot (Frame)

@@ -74,7 +74,7 @@ StarterGui
         │   ├── AvailablePointsLabel (TextLabel)
         │   └── ToggleDropdownButton (TextButton)
         ├── BodyContainer (Frame)
-        │   ├── AttributeList (ScrollingFrame)
+        │   ├── AttributeList (Frame)
         │   │   ├── UIListLayout
         │   │   ├── HPRow (Frame)
         │   │   ├── BaseDamageRow (Frame)
