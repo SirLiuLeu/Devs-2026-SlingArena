@@ -127,7 +127,37 @@ DataModel
 │  │     ├─ ScoreLabel
 │  │     ├─ TitleLabel
 │  │     └─ WinsLabel
-│  │   
+│  │
+│  ├─ MainHUD (ScreenGui)
+│  │  └─ Root (Frame)
+│  │     ├─ BuffContainer (Frame)
+│  │     │  ├─ UIListLayout
+│  │     │  ├─ Buff1 (Frame)
+│  │     │  └─ Buff2 (Frame)
+│  │     ├─ LeftMenu (Frame)
+│  │     │  ├─ UIGridLayout
+│  │     │  ├─ DailyButton (TextButton/ImageButton)
+│  │     │  ├─ InventoryButton (TextButton/ImageButton)
+│  │     │  ├─ OnlineRewardButton (TextButton/ImageButton)
+│  │     │  ├─ SettingButton (TextButton/ImageButton)
+│  │     │  └─ SpinButton (TextButton/ImageButton)
+│  │     ├─ RankFrame (Frame)
+│  │     │  ├─ UICorner
+│  │     │  ├─ UIPadding
+│  │     │  ├─ Title (TextLabel)
+│  │     │  └─ List (Frame)
+│  │     │     ├─ UIListLayout
+│  │     │     ├─ Player1 (Frame)
+│  │     │     │  ├─ UICorner
+│  │     │     │  ├─ Level (TextLabel)
+│  │     │     │  └─ Name (TextLabel)
+│  │     │     ├─ Player2 (Frame)
+│  │     │     ├─ Player3 (Frame)
+│  │     │     ├─ Player4 (Frame)
+│  │     │     └─ Player5 (Frame)
+│  │     ├─ QuickHP (TextButton/ImageButton)
+│  │     ├─ Home (TextButton/ImageButton)
+│  │     └─ SlingStatsButton (TextButton/ImageButton)   
 │  ├─ SlingStatsUI (ScreenGui)
 │  │   └─ StatsRoot (Frame)
 │  │     ├─ HeaderBar (Frame)
@@ -204,6 +234,26 @@ DataModel
 │  │         ├─ ExpBarFill (Frame)
 │  │         ├─ ExpValueLabel (TextLabel)
 │  │         └─ LevelOnBarLabel (TextLabel)
+│  │
+│  ├─ DailyLoginUI (ScreenGui) -- [REFINED FROM NEW IMAGE]
+│  │  ├─ MainPanel (Frame)
+│  │  │  ├─ UICorner
+│  │  │  ├─ UIPadding
+│  │  │  └─ Content (Frame)
+│  │  │     ├─ Day7Big (Frame)
+│  │  │     └─ LeftGrid (Frame)
+│  │  │        ├─ UIGridLayout
+│  │  │        ├─ Day1 (Frame)
+│  │  │        ├─ Day2 (Frame)
+│  │  │        ├─ Day3 (Frame)
+│  │  │        ├─ Day4 (Frame)
+│  │  │        ├─ Day5 (Frame)
+│  │  │        └─ Day6 (Frame)
+│  │  ├─ Header (Frame)
+│  │  │  ├─ CloseButton (TextButton/ImageButton)
+│  │  │  │  └─ UICorner
+│  │  │  └─ Title (TextLabel)
+│  │  └─ Overlay (Frame)
 │  │
 │  └─ SlingArenaUI [INFERRED legacy / alternative UI stack]
 │        ├─ SlingUI (ScreenGui; created in Studio/manual UI asset)

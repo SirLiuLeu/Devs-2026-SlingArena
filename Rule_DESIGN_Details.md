@@ -1,6 +1,6 @@
 1. World Spec
 Arena:
-- size: 300x300 studs
+- size: 1000x1000 studs
 - boundary: wall
 - Shape: square arena
 

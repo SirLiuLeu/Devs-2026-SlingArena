@@ -1,0 +1,162 @@
+ {
+  "ClassName": "ScreenGui",
+  "Name": "DailyLoginUI",
+  "Properties": {
+    "ResetOnSpawn": false,
+    "IgnoreGuiInset": true
+  },
+  "Children": [
+    {
+      "ClassName": "Frame",
+      "Name": "Overlay",
+      "Properties": {
+        "Size": { "UDim2": [[1, 0], [1, 0]] },
+        "BackgroundColor3": { "Color3": [0, 0, 0] },
+        "BackgroundTransparency": 0.4
+      }
+    },
+    {
+      "ClassName": "Frame",
+      "Name": "MainPanel",
+      "Properties": {
+        "AnchorPoint": [0.5, 0.5],
+        "Position": { "UDim2": [[0.5, 0], [0.5, 0]] },
+        "Size": { "UDim2": [[0.6, 0], [0.6, 0]] },
+        "BackgroundColor3": { "Color3": [0.12, 0.12, 0.15] }
+      },
+      "Children": [
+        { "ClassName": "UICorner" },
+        {
+          "ClassName": "UIPadding",
+          "Properties": {
+            "PaddingBottom": { "UDim": [0.02, 0] },
+            "PaddingLeft": { "UDim": [0.02, 0] },
+            "PaddingRight": { "UDim": [0.02, 0] },
+            "PaddingTop": { "UDim": [0.02, 0] }
+          }
+        },
+        {
+          "ClassName": "Frame",
+          "Name": "Header",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "Size": { "UDim2": [[1, 0], [0.12, 0]] }
+          },
+          "Children": [
+            {
+              "ClassName": "TextLabel",
+              "Name": "Title",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "Size": { "UDim2": [[1, -40], [1, 0]] },
+                "Text": "DAILY LOGIN",
+                "TextColor3": { "Color3": [1, 1, 1] },
+                "TextScaled": true,
+                "TextXAlignment": "Left"
+              }
+            },
+            {
+              "ClassName": "TextButton",
+              "Name": "CloseButton",
+              "Properties": {
+                "AnchorPoint": [1, 0],
+                "BackgroundColor3": { "Color3": [0.8, 0.2, 0.2] },
+                "Position": { "UDim2": [[1, 0], [0, 0]] },
+                "Size": { "UDim2": [[0, 40], [0, 40]] },
+                "Text": "X",
+                "TextScaled": true
+              },
+              "Children": [{ "ClassName": "UICorner" }]
+            }
+          ]
+        },
+        {
+          "ClassName": "Frame",
+          "Name": "Content",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "Size": { "UDim2": [[1, 0], [0.88, 0]] }
+          },
+          "Children": [
+            {
+              "ClassName": "Frame",
+              "Name": "LeftGrid",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "Size": { "UDim2": [[0.75, 0], [1, 0]] }
+              },
+              "Children": [
+                {
+                  "ClassName": "UIGridLayout",
+                  "Properties": {
+                    "CellPadding": { "UDim2": [[0.03, 0], [0.05, 0]] },
+                    "CellSize": { "UDim2": [[0.3, 0], [0.45, 0]] }
+                  }
+                },
+                {
+                  "ClassName": "Frame",
+                  "Name": "Day1",
+                  "Properties": { "BackgroundColor3": { "Color3": [0.2, 0.2, 0.2] } },
+                  "Children": [{ "ClassName": "UICorner" }]
+                },
+                {
+                  "ClassName": "Frame",
+                  "Name": "Day2",
+                  "Properties": { "BackgroundColor3": { "Color3": [0.2, 0.2, 0.2] } },
+                  "Children": [{ "ClassName": "UICorner" }]
+                },
+                {
+                  "ClassName": "Frame",
+                  "Name": "Day3",
+                  "Properties": { "BackgroundColor3": { "Color3": [0.2, 0.2, 0.2] } },
+                  "Children": [{ "ClassName": "UICorner" }]
+                },
+                {
+                  "ClassName": "Frame",
+                  "Name": "Day4",
+                  "Properties": { "BackgroundColor3": { "Color3": [0.2, 0.2, 0.2] } },
+                  "Children": [{ "ClassName": "UICorner" }]
+                },
+                {
+                  "ClassName": "Frame",
+                  "Name": "Day5",
+                  "Properties": { "BackgroundColor3": { "Color3": [0.2, 0.2, 0.2] } },
+                  "Children": [{ "ClassName": "UICorner" }]
+                },
+                {
+                  "ClassName": "Frame",
+                  "Name": "Day6",
+                  "Properties": { "BackgroundColor3": { "Color3": [0.2, 0.2, 0.2] } },
+                  "Children": [{ "ClassName": "UICorner" }]
+                }
+              ]
+            },
+            {
+              "ClassName": "Frame",
+              "Name": "Day7Big",
+              "Properties": {
+                "AnchorPoint": [1, 0],
+                "BackgroundColor3": { "Color3": [0.8, 0.5, 0.1] },
+                "Position": { "UDim2": [[1, 0], [0, 0]] },
+                "Size": { "UDim2": [[0.23, 0], [1, 0]] }
+              },
+              "Children": [
+                { "ClassName": "UICorner" },
+                {
+                  "ClassName": "TextLabel",
+                  "Name": "Day7Label",
+                  "Properties": {
+                    "BackgroundTransparency": 1,
+                    "Size": { "UDim2": [[1, 0], [0.2, 0]] },
+                    "Text": "DAY 7",
+                    "TextScaled": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
