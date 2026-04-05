@@ -48,6 +48,31 @@ local ProjectTreeSpec = {
 			ExpValueLabel = "SlingStatsUI.StatsRoot.FooterExpBar.ExpValueLabel", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.FooterExpBar.ExpValueLabel
 			LevelOnBarLabel = "SlingStatsUI.StatsRoot.FooterExpBar.LevelOnBarLabel", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.FooterExpBar.LevelOnBarLabel
 		},
+		MainHub = {
+			ScreenGui = "MainHUD", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD
+			Root = "MainHUD.Root", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root
+			SlingStatsButton = "MainHUD.Root.SlingStatsButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.SlingStatsButton
+			DailyButton = "MainHUD.Root.LeftMenu.DailyButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.DailyButton
+			InventoryButton = "MainHUD.Root.LeftMenu.InventoryButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.InventoryButton
+			OnlineRewardButton = "MainHUD.Root.LeftMenu.OnlineRewardButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.OnlineRewardButton
+			SettingButton = "MainHUD.Root.LeftMenu.SettingButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.SettingButton
+			SpinButton = "MainHUD.Root.LeftMenu.SpinButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.SpinButton
+			QuickHP = "MainHUD.Root.QuickHP", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuickHP
+			HomeButton = "MainHUD.Root.Home", -- [INFERRED from PROJECT_TREE.md] StarterGui.MainHUD.Root.Home
+			HpBarFill = "MainHUD.Root.HpBar.Fill", -- [UNKNOWN] optional hp fill path to support visual hp bar updates
+			Panels = {
+				SlingStats = "SlingStatsUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI
+				DailyLogin = "DailyLoginUI", -- [PROJECT_TREE_SPEC] StarterGui.DailyLoginUI
+				Inventory = "InventoryUI", -- [ASSUMED] expected inventory panel root ScreenGui name
+				OnlineReward = "OnlineRewardUI", -- [ASSUMED] expected online reward panel root ScreenGui name
+				Settings = "SettingsUI", -- [ASSUMED] expected settings panel root ScreenGui name
+				Spin = "SpinUI", -- [ASSUMED] expected spin panel root ScreenGui name
+			},
+			LobbyTeleport = {
+				MapName = "LobbyMap", -- [PROJECT_TREE_SPEC] Workspace.Maps.LobbyMap
+				SpawnName = "SpawnPoint", -- [PROJECT_TREE_SPEC] Workspace.Maps.LobbyMap.SpawnPoints.SpawnPoint
+			},
+		},
 		Match = {
 			ScreenGui = "MatchUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI
 			Root = "MatchUI.RootFrame", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI.RootFrame
@@ -86,6 +111,7 @@ local ProjectTreeSpec = {
 		ToggleSpecialUpgrade = "SlingArenaRemotes.ToggleSpecialUpgrade", -- [PROJECT_TREE_SPEC]
 		DebugSpawnFood = "SlingArenaRemotes.DebugSpawnFood", -- [PROJECT_TREE_SPEC]
 		DebugResetSling = "SlingArenaRemotes.DebugResetSling", -- [PROJECT_TREE_SPEC]
+		ConsumeHpPotion = "SlingArenaRemotes.ConsumeHpPotion", -- [PROJECT_TREE_SPEC]
 		StateUpdate = "SlingArenaRemotes.StateUpdate", -- [PROJECT_TREE_SPEC]
 		UIStateUpdate = "SlingArenaRemotes.UIStateUpdate", -- [PROJECT_TREE_SPEC]
 		GameplayFeedback = "SlingArenaRemotes.GameplayFeedback", -- [PROJECT_TREE_SPEC]

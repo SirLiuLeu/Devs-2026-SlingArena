@@ -23,6 +23,7 @@ RemoteContracts.Names = {
 	TeleportRequest = "TeleportRequest",
 	DebugSpawnFood = "DebugSpawnFood",
 	DebugResetSling = "DebugResetSling",
+	ConsumeHpPotion = "ConsumeHpPotion",
 }
 
 RemoteContracts.Validators = {
@@ -43,6 +44,9 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.TeleportRequest] = function(mapName: any, spawnName: any): boolean
 		return typeof(mapName) == "string" and typeof(spawnName) == "string"
+	end,
+	[RemoteContracts.Names.ConsumeHpPotion] = function(): boolean
+		return true
 	end,
 }
 

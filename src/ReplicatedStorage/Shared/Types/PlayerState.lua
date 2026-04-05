@@ -39,6 +39,8 @@ export type PlayerState = {
 	LastDamageTime: number,
 	InvulCooldownUntil: number,
 	Diamonds: number,
+	HpPotions: number,
+	NextHpPotionUseTime: number,
 	RespawnCountThisMatch: number,
 	AttributePoints: number,
 	DamageDealt: number,

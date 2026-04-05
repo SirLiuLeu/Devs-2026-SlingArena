@@ -20,12 +20,14 @@ export type LobbyClientService = {
 	DebugSpawnFoodRemote: RemoteEvent?,
 	DebugResetSlingRemote: RemoteEvent?,
 	AttributeUpgradeRemote: RemoteEvent?,
+	ConsumeHpPotionRemote: RemoteEvent?,
 	RequestJoinArena: (self: LobbyClientService) -> (),
 	RequestLeaveArena: (self: LobbyClientService) -> (),
 	RequestTeleport: (self: LobbyClientService, mapName: string, spawnName: string) -> (),
 	RequestDebugSpawnFood: (self: LobbyClientService, mapName: string) -> (),
 	RequestDebugResetSling: (self: LobbyClientService) -> (),
 	RequestAttributeUpgrade: (self: LobbyClientService, attributeName: string) -> (),
+	RequestConsumeHpPotion: (self: LobbyClientService) -> (),
 	BindStateUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 	BindUIStateUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 	BindRoundResult: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
@@ -48,6 +50,7 @@ function LobbyClientService.new(): LobbyClientService
 	self.UIStateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.UIStateUpdate)
 	self.RoundResultRemote = resolveRemote(ProjectTreeSpec.Remotes.RoundResult)
 	self.AttributeUpgradeRemote = resolveRemote(ProjectTreeSpec.Remotes.AttributeUpgrade)
+	self.ConsumeHpPotionRemote = resolveRemote(ProjectTreeSpec.Remotes.ConsumeHpPotion)
 	if self.RemotesRoot then
 		local teleport = self.RemotesRoot:FindFirstChild(RemoteContracts.Names.TeleportRequest)
 		if teleport and teleport:IsA("RemoteEvent") then
@@ -104,6 +107,15 @@ function LobbyClientService:RequestAttributeUpgrade(attributeName: string)
 	end
 	if self.AttributeUpgradeRemote then
 		self.AttributeUpgradeRemote:FireServer(attributeName)
+	end
+end
+
+function LobbyClientService:RequestConsumeHpPotion()
+	if not RemoteContracts.Validate(RemoteContracts.Names.ConsumeHpPotion) then
+		return
+	end
+	if self.ConsumeHpPotionRemote then
+		self.ConsumeHpPotionRemote:FireServer()
 	end
 end
 

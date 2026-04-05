@@ -10,8 +10,10 @@ local CombatService = require(ServerScriptService.Services.CombatService)
 local MapServiceModule = require(ServerScriptService.Services.MapService)
 local FoodServiceModule = require(ServerScriptService.Services.FoodService)
 local SlingServiceModule = require(ServerScriptService.Services.SlingService)
+local PlayerStateServiceModule = require(ServerScriptService.Services.PlayerStateService)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local SlingUiState = require(ReplicatedStorage.Shared.Utils.SlingUiState)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local function runTest(name: string, testFn)
 	local ok, err = pcall(testFn)
@@ -733,6 +735,91 @@ local function testActivateMapDoesNotHideInactiveMaps()
 	mapsFolder:Destroy()
 end
 
+local function testRemoteContractIncludesConsumeHpPotion()
+	if RemoteContracts.Names.ConsumeHpPotion ~= "ConsumeHpPotion" then
+		error("RemoteContracts must include ConsumeHpPotion name")
+	end
+	if not RemoteContracts.Validate(RemoteContracts.Names.ConsumeHpPotion) then
+		error("ConsumeHpPotion validator should accept empty payload")
+	end
+end
+
+local function testHpPotionConsumptionClampsAndConsumesOneItem()
+	local service = PlayerStateServiceModule.new({
+		EventBus = { Fire = function() end },
+		Remotes = Instance.new("Folder"),
+	})
+
+	local fakePlayer = { Name = "PotionTester", UserId = 2002, Character = nil }
+	service._states[fakePlayer] = {
+		UserId = 2002,
+		MapName = "LobbyMap",
+		ArenaStatus = "Lobby",
+		Level = 1,
+		Exp = 0,
+		Size = 1,
+		MaxHP = 100,
+		CurrentHP = 95,
+		BaseDamage = 10,
+		RegenRate = 1,
+		ReflectDamage = 0,
+		LaunchSpeed = 1,
+		LaunchRange = 1,
+		ChargeSpeed = 1,
+		MoveSpeed = 1,
+		DamageMultiplier = 1,
+		HPBonus = 0,
+		LaunchSpeedBonus = 0,
+		RegenBonus = 0,
+		KnockbackResistance = 0,
+		SlingshotType = "Default",
+		ChargeValue = 0,
+		CurrentVelocity = Vector3.zero,
+		InvulnerableUntil = 0,
+		LastDamageTime = 0,
+		InvulCooldownUntil = 0,
+		Diamonds = 0,
+		HpPotions = 2,
+		NextHpPotionUseTime = 0,
+		RespawnCountThisMatch = 0,
+		AttributePoints = 0,
+		DamageDealt = 0,
+		IsTeleporting = false,
+		CooldownEndTime = 0,
+		LastReleaseDuration = 0,
+		Attributes = {
+			Damage = 0,
+			MaxHP = 0,
+			Regen = 0,
+			Range = 0,
+			Reflect = 0,
+			LaunchSpeed = 0,
+			ChargeSpeed = 0,
+			MoveSpeed = 0,
+		},
+		IsAlive = true,
+		IsCharging = false,
+		MovementState = "Idle",
+		ScaleMultiplier = 1,
+		BonusMaxHP = 0,
+		BonusDamageMultiplier = 0,
+		LevelDamageBonus = 0,
+	}
+	service.PublishState = function() end
+
+	local ok = service:TryConsumeHpPotion(fakePlayer)
+	local state = service._states[fakePlayer]
+	if not ok then
+		error("TryConsumeHpPotion should succeed when player has potion and missing hp")
+	end
+	if state.HpPotions ~= 1 then
+		error("TryConsumeHpPotion should consume exactly one potion")
+	end
+	if state.CurrentHP ~= state.MaxHP then
+		error("TryConsumeHpPotion should clamp healed hp at MaxHP")
+	end
+end
+
 runTest("ChargeToLaunchForce", testChargeToLaunchForce)
 runTest("ChargeRatio_ProgressAndClamp", testChargeRatioProgressAndClamp)
 runTest("ReleaseDistanceMultiplier_Applied", testReleaseDistanceMultiplierApplied)
@@ -757,5 +844,7 @@ runTest("MapActivation_DoesNotHideInactiveMaps", testActivateMapDoesNotHideInact
 runTest("FoodService_UsesFoodSpawnPartsExactly", testFoodServiceUsesFoodSpawnPartsExactly)
 runTest("FoodService_UsesExactFoodSpawnHeight", testFoodServiceUsesExactFoodSpawnHeight)
 runTest("LobbySpawn_PrefersExplicitPath", testLobbySpawnPrefersExplicitPath)
+runTest("RemoteContract_ConsumeHpPotionExists", testRemoteContractIncludesConsumeHpPotion)
+runTest("HpPotion_ConsumptionAndClamp", testHpPotionConsumptionClampsAndConsumesOneItem)
 
 print("[CoreLoopTests] all checks passed")

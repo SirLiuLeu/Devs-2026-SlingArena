@@ -93,6 +93,8 @@ local function buildDefaultState(player: Player): PlayerState
 		LastDamageTime = 0,
 		InvulCooldownUntil = 0,
 		Diamonds = LevelConfig.StartingDiamonds,
+		HpPotions = BalanceConfig.DefaultHpPotions,
+		NextHpPotionUseTime = 0,
 		RespawnCountThisMatch = 0,
 		AttributePoints = LevelConfig.StartingAttributePoints,
 		DamageDealt = 0,
@@ -264,6 +266,29 @@ function PlayerStateService:Heal(player: Player, amount: number)
 	state.CurrentHP = math.min(state.MaxHP, state.CurrentHP + math.max(0, amount))
 	syncHumanoidHealth(player, state.CurrentHP, state.MaxHP)
 	self:PublishState(player)
+end
+
+function PlayerStateService:TryConsumeHpPotion(player: Player): (boolean, string?)
+	local state = self._states[player]
+	if not state then
+		return false, "MissingState"
+	end
+
+	local now = os.clock()
+	if (state.HpPotions or 0) <= 0 then
+		return false, "NoPotion"
+	end
+	if now < (state.NextHpPotionUseTime or 0) then
+		return false, "Cooldown"
+	end
+	if (state.CurrentHP or 0) >= (state.MaxHP or 0) then
+		return false, "AlreadyFull"
+	end
+
+	state.HpPotions = math.max(0, (state.HpPotions or 0) - 1)
+	state.NextHpPotionUseTime = now + BalanceConfig.HpPotionCooldown
+	self:Heal(player, BalanceConfig.HpPotionHealAmount)
+	return true, nil
 end
 
 function PlayerStateService:MarkInvulnerable(player: Player, duration: number)

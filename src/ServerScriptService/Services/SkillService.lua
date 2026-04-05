@@ -43,6 +43,13 @@ function SkillService:Init()
 		end)
 	end
 
+	local consumeHpPotion = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ConsumeHpPotion) :: RemoteEvent?
+	if consumeHpPotion then
+		consumeHpPotion.OnServerEvent:Connect(function(player: Player)
+			self._context.Services.PlayerStateService:TryConsumeHpPotion(player)
+		end)
+	end
+
 	self._context.EventBus:On("PlayerDied", function(player: Player)
 		self._specialUpgradePlayers[player] = false
 	end)
