@@ -73,6 +73,13 @@ local ProjectTreeSpec = {
 				SpawnName = "SpawnPoint", -- [PROJECT_TREE_SPEC] Workspace.Maps.LobbyMap.SpawnPoints.SpawnPoint
 			},
 		},
+		Inventory = {
+			ScreenGui = "InventoryUI", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI
+			MainHub = "InventoryUI.MainHub", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub
+			ItemsGridContainer = "InventoryUI.MainHub.BodyItems.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodyItems.GridContainer
+			SlingsGridContainer = "InventoryUI.MainHub.BodySling.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.GridContainer
+			SlingCapacityLabel = "InventoryUI.MainHub.BodySling.Footer.CapacityLabel", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.Footer.CapacityLabel
+		},
 		Match = {
 			ScreenGui = "MatchUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI
 			Root = "MatchUI.RootFrame", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI.RootFrame
@@ -167,8 +174,12 @@ local ProjectTreeSpec = {
 		--     MineTrap (Model)
 		--
 		-- ReplicatedStorage
-		--   Assets (Folder)
+		--   Slings (Folder)
 		--     SlingModel (Model)
+		--   Assets (Folder)
+		--     UI (Folder)
+		--       ItemSlotTemplate (Frame)
+		--       SlingsSlotTemplate (Frame)
 		--     Food (Folder)
 		--       BasicFood (Model) [fallback]
 		--		 Food1, Food2, Food3, ...Food7 (Model)
@@ -191,7 +202,8 @@ local ProjectTreeSpec = {
 		},
 		ReplicatedStorage = {
 			Assets = {
-				SlingModel = "Assets.SlingModel",
+				ItemSlotTemplate = "Assets.UI.ItemSlotTemplate",
+				SlingsSlotTemplate = "Assets.UI.SlingsSlotTemplate",
 				Food1 = "Assets.Food.Food1",
 				Food2 = "Assets.Food.Food2",
 				Food3 = "Assets.Food.Food3",
@@ -200,6 +212,9 @@ local ProjectTreeSpec = {
 				Food6 = "Assets.Food.Food6",
 				Food7 = "Assets.Food.Food7",
 				BasicTrap = "Assets.Trap.BasicTrap",
+			},
+			Slings = {
+				SlingModel = "Slings.SlingModel",
 			}
 		},
 	},

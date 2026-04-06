@@ -9,6 +9,7 @@ local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local SlingMovement = require(script.Parent.SlingMovement)
 
 local SlingService = {}
 SlingService.__index = SlingService
@@ -78,6 +79,7 @@ function SlingService.new(context)
 	self._chargeState = {}
 	self._releaseCooldown = {}
 	self._releaseState = {}
+	self._movementControllers = {}
 	return self
 end
 
@@ -151,10 +153,15 @@ function SlingService:Init()
 		self._chargeState[player] = nil
 		self._releaseCooldown[player] = nil
 		self._releaseState[player] = nil
+		local movementController = self._movementControllers[player]
+		if movementController then
+			movementController:Destroy()
+			self._movementControllers[player] = nil
+		end
 	end)
 
-	RunService.Heartbeat:Connect(function()
-		self:_stepMovement()
+	RunService.Heartbeat:Connect(function(dt)
+		self:_stepMovement(dt)
 		self:_stepMovementStates()
 	end)
 end
@@ -290,36 +297,54 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
 end
 
-function SlingService:_stepMovement()
+function SlingService:_stepMovement(dt: number)
 	for _, player in self:_getTrackedPlayers() do
 		local root = self._context.Services.PlayerService:GetRoot(player)
 		local input = self._input[player] or Vector3.zero
 		if root then
-			self:_applyRootVelocity(player, root, input)
+			self:_applyRootVelocity(player, root, input, dt)
+		else
+			local movementController = self._movementControllers[player]
+			if movementController then
+				movementController:Destroy()
+				self._movementControllers[player] = nil
+			end
 		end
 	end
 end
 
-function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: Vector3)
-	local linearVelocity = root:FindFirstChild("LinearVelocity")
-	if not linearVelocity or not linearVelocity:IsA("LinearVelocity") then
-		return
+function SlingService:_getMovementController(player: Player, root: BasePart)
+	local movementController = self._movementControllers[player]
+	if movementController and movementController._root ~= root then
+		movementController:Destroy()
+		movementController = nil
 	end
+	if not movementController then
+		movementController = SlingMovement.new(root, {
+			moveSpeed = Config.MoveSpeed,
+			acceleration = BalanceConfig.GroundAcceleration or 18,
+			deceleration = BalanceConfig.GroundDeceleration or 24,
+		})
+		self._movementControllers[player] = movementController
+	end
+	return movementController
+end
+
+function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: Vector3, dt: number)
 	local state = self._context.Services.PlayerStateService:GetState(player)
 	if not state then
 		return
 	end
+	local movementController = self:_getMovementController(player, root)
 
 	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == MOVEMENT_STATE.Launched or state.MovementState == MOVEMENT_STATE.Recovering then
-		linearVelocity.VectorVelocity = Vector3.zero
-		linearVelocity.Enabled = false
+		movementController:Stop()
 		return
 	end
 
 	if input.Magnitude < 0.001 then
-		linearVelocity.VectorVelocity = Vector3.zero
-		linearVelocity.Enabled = false
-		root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
+		movementController:SetSpeed(math.max(state.MoveSpeed or Config.MoveSpeed, 0))
+		movementController:Move(Vector3.zero, dt)
 		if state.MovementState ~= MOVEMENT_STATE.Idle then
 			self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
 		end
@@ -334,14 +359,12 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 
 	local direction = (forward.Unit * input.Z) + (right.Unit * input.X)
 	if direction.Magnitude < 0.001 then
-		linearVelocity.VectorVelocity = Vector3.zero
-		linearVelocity.Enabled = false
+		movementController:Move(Vector3.zero, dt)
 		return
 	end
 
-	local velocity = direction.Unit * math.max(state.MoveSpeed or Config.MoveSpeed, 0)
-	linearVelocity.VectorVelocity = velocity
-	linearVelocity.Enabled = true
+	movementController:SetSpeed(math.max(state.MoveSpeed or Config.MoveSpeed, 0))
+	movementController:Move(direction.Unit, dt)
 	if state.MovementState ~= MOVEMENT_STATE.Moving then
 		self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Moving)
 	end

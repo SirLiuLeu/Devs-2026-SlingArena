@@ -11,6 +11,12 @@
       },
       "Client": {
         "$path": "src/ReplicatedStorage/Client"
+      },
+      "Assets": {
+        "$path": "src/ReplicatedStorage/Assets"
+      },
+      "Slings": {
+        "$path": "src/ReplicatedStorage/Slings"
       }
     },
     "ServerScriptService": {

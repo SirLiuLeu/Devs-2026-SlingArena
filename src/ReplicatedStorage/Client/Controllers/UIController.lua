@@ -7,6 +7,7 @@ local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local MainStatsPopupController = require(ReplicatedStorage.Client.Controllers.MainStatsPopupController)
+local InventoryUIController = require(ReplicatedStorage.Client.Controllers.InventoryUIController)
 
 local UIController = {}
 UIController.__index = UIController
@@ -58,6 +59,8 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.Connections = {}
 	self.LocalWins = 0
 	self.MainStatsPopupController = MainStatsPopupController.new(playerGui, dependencies)
+	self.InventoryUIController = InventoryUIController.new(playerGui)
+	self.InventoryUiBootstrapDone = false
 
 	-- [UI_CREATION_GUIDE]
 	-- Create in Studio:
@@ -186,7 +189,37 @@ function UIController:ShowMainHubPanel(activeKey: string)
 	end
 end
 
+
+
+function UIController:_buildInventoryStatePayload(state)
+	local payload = {
+		ownedItems = state.OwnedItems,
+		ownedSlings = state.OwnedSlings,
+		slingCapacity = state.SlingCapacity or 40,
+	}
+
+	if type(payload.ownedItems) ~= "table" then
+		payload.ownedItems = {
+			hp_potion = math.max(1, math.floor((state.HpPotions or 0))),
+			exp_buff_x2 = 1,
+			gacha_ticket = 3,
+		}
+	end
+
+	if type(payload.ownedSlings) ~= "table" then
+		payload.ownedSlings = {
+			{ id = "SlingModel", level = math.max(1, math.floor(state.Level or 1)), equipped = true },
+			{ id = "FireSling", level = 1, equipped = false },
+		}
+	end
+
+	return payload
+end
+
 function UIController:Start()
+	if self.InventoryUIController then
+		self.InventoryUIController:Start()
+	end
 	if self.JoinButton then
 		table.insert(self.Connections, self.JoinButton.MouseButton1Click:Connect(function()
 			self.ClientService:RequestJoinArena()
@@ -220,6 +253,9 @@ function UIController:Start()
 	if self.InventoryButton then
 		table.insert(self.Connections, self.InventoryButton.MouseButton1Click:Connect(function()
 			self:ShowMainHubPanel("Inventory")
+			if self.InventoryUIController and self._lastState then
+				self.InventoryUIController:RefreshWithData(self:_buildInventoryStatePayload(self._lastState))
+			end
 		end))
 	end
 	if self.OnlineRewardButton then
@@ -257,6 +293,7 @@ function UIController:Start()
 	end
 
 	local stateConnection = self.ClientService:BindStateUpdate(function(state)
+		self._lastState = state
 		if self.ScoreLabel then self.ScoreLabel.Text = string.format("EXP: %d", math.floor(state.Exp or 0)) end
 		if self.LevelLabel then self.LevelLabel.Text = string.format("Level: %d", math.floor(state.Level or 1)) end
 		if self.HpLabel then self.HpLabel.Text = string.format("HP: %d/%d", math.floor(state.CurrentHP or 0), math.floor(state.MaxHP or 100)) end
@@ -274,6 +311,13 @@ function UIController:Start()
 				self.RespawnLabel.Text = "Respawn screen: waiting to respawn..."
 			else
 				self.RespawnLabel.Text = "Respawn screen: hidden"
+			end
+		end
+		if self.InventoryUIController then
+			local inventoryData = self:_buildInventoryStatePayload(state)
+			if not self.InventoryUiBootstrapDone then
+				self.InventoryUIController:RefreshWithData(inventoryData)
+				self.InventoryUiBootstrapDone = true
 			end
 		end
 		if self.MainStatsPopupController then
@@ -316,6 +360,9 @@ function UIController:Start()
 end
 
 function UIController:Destroy()
+	if self.InventoryUIController then
+		self.InventoryUIController:Destroy()
+	end
 	for _, connection in ipairs(self.Connections) do
 		connection:Disconnect()
 	end

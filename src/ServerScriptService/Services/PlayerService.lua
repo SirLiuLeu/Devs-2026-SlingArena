@@ -53,9 +53,25 @@ function PlayerService:_loadSlingTemplate(): Model
 		return self._slingTemplate
 	end
 
-	local assets = ReplicatedStorage:WaitForChild("Assets")
-	local slingModel = assets:WaitForChild("SlingModel")
-	assert(slingModel:IsA("Model"), "ReplicatedStorage.Assets.SlingModel must be a Model")
+	local slingsFolder = ReplicatedStorage:WaitForChild("Slings", 5)
+	local slingModel = nil
+	if slingsFolder then
+		slingModel = slingsFolder:FindFirstChild("SlingModel")
+	end
+	if not (slingModel and slingModel:IsA("Model")) then
+		warn("[PLAYER_SERVICE] ReplicatedStorage/Slings/SlingModel missing. Using fallback physics model.")
+		local fallback = Instance.new("Model")
+		fallback.Name = "SlingModel"
+		local rootPart = Instance.new("Part")
+		rootPart.Name = "HumanoidRootPart"
+		rootPart.Shape = Enum.PartType.Ball
+		rootPart.Size = Vector3.new(4, 4, 4)
+		rootPart.TopSurface = Enum.SurfaceType.Smooth
+		rootPart.BottomSurface = Enum.SurfaceType.Smooth
+		rootPart.Parent = fallback
+		fallback.PrimaryPart = rootPart
+		slingModel = fallback
+	end
 
 	local template = slingModel:Clone()
 	template.Name = "SlingModelTemplate"
@@ -69,7 +85,15 @@ function PlayerService:_loadSlingTemplate(): Model
 	if not root then
 		root = template:FindFirstChild("HumanoidRootPart") :: BasePart?
 	end
-	assert(root and root:IsA("BasePart"), "SlingModel must contain a valid PrimaryPart")
+	if not (root and root:IsA("BasePart")) then
+		warn("[PLAYER_SERVICE] SlingModel missing PrimaryPart/HumanoidRootPart. Injecting fallback root part.")
+		local fallbackRoot = Instance.new("Part")
+		fallbackRoot.Name = "HumanoidRootPart"
+		fallbackRoot.Shape = Enum.PartType.Ball
+		fallbackRoot.Size = Vector3.new(4, 4, 4)
+		fallbackRoot.Parent = template
+		root = fallbackRoot
+	end
 	template.PrimaryPart = root
 
 	local attachment = root:FindFirstChild("Attachment")
@@ -148,12 +172,6 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	end
 
 	player.Character = pawn
-	local humanoid = pawn:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		humanoid.JumpPower = 0
-		humanoid.JumpHeight = 0
-		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
-	end
 	self._context.Services.PlayerStateService:ResetForRespawn(player)
 
 	return pawn
