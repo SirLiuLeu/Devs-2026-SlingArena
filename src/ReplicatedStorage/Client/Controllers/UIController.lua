@@ -1,6 +1,5 @@
 --!strict
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
@@ -8,6 +7,7 @@ local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local MainStatsPopupController = require(ReplicatedStorage.Client.Controllers.MainStatsPopupController)
 local InventoryUIController = require(ReplicatedStorage.Client.Controllers.InventoryUIController)
+local InventoryDataProvider = require(ReplicatedStorage.Client.Services.InventoryDataProvider)
 
 local UIController = {}
 UIController.__index = UIController
@@ -32,14 +32,6 @@ local function resolveTextLabel(root: Instance, path: string): TextLabel?
 	return nil
 end
 
-local function resolveGuiObject(root: Instance, path: string): GuiObject?
-	local value = PathResolver.resolvePath(root, path)
-	if value and value:IsA("GuiObject") then
-		return value
-	end
-	return nil
-end
-
 local function resolveScreenGui(root: Instance, path: string): ScreenGui?
 	local value = PathResolver.resolvePath(root, path)
 	if value and value:IsA("ScreenGui") then
@@ -57,72 +49,16 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.ClientService = dependencies.ClientService
 	self.PlayerGui = playerGui
 	self.Connections = {}
-	self.LocalWins = 0
 	self.MainStatsPopupController = MainStatsPopupController.new(playerGui, dependencies)
 	self.InventoryUIController = InventoryUIController.new(playerGui)
-	self.InventoryUiBootstrapDone = false
-
-	-- [UI_CREATION_GUIDE]
-	-- Create in Studio:
-	-- StarterGui
-	--   LobbyUI (ScreenGui)
-	--     LobbyUI (Frame)
-	--       RootFrame (Frame)
-	--         StatusLabel (TextLabel)
-	--         JoinButton (TextButton)
-	--         LeaveButton (TextButton)
-	--         DebugFood (TextButton)
-	--         DebugReset (TextButton)
-	--         MapName (TextLabel)
-	--         LevelLabel (TextLabel)
-	--         HpLabel (TextLabel)
-	--         RespawnLabel (TextLabel)
-	--   MatchUI (ScreenGui)
-	--     MatchUI (Frame)
-	--       RootFrame (Frame)
-	--         StatusLabel (TextLabel)
-	--         TimerLabel (TextLabel)
-	--         AlivePlayersLabel (TextLabel)
-	--         WinnerPopup (TextLabel)
-	--   StatsUI (ScreenGui)
-	--     StatsUI (Frame)
-	--       RootFrame (Frame)
-	--         ScoreLabel (TextLabel)
-	--         GoldLabel (TextLabel)
-	--         WinsLabel (TextLabel)
-	--   MainHUD (ScreenGui)
-	--     Root (Frame)
-	--       SlingStatsButton (TextButton)
-	--       LeftMenu (Frame)
-	--         DailyButton (TextButton)
-	--         InventoryButton (TextButton)
-	--         OnlineRewardButton (TextButton)
-	--         SettingButton (TextButton)
-	--         SpinButton (TextButton)
-	--       QuickHP (TextButton)
-	--       Home (TextButton) [INFERRED from PROJECT_TREE.md]
-	--       HpBar (Frame) [UNKNOWN]
-	--         Fill (Frame) [UNKNOWN]
-	--   DailyLoginUI (ScreenGui)
-	--   InventoryUI (ScreenGui) [ASSUMED]
-	--   OnlineRewardUI (ScreenGui) [ASSUMED]
-	--   SettingsUI (ScreenGui) [ASSUMED]
-	--   SpinUI (ScreenGui) [ASSUMED]
+	self.InventoryDataProvider = InventoryDataProvider.GetDefault()
 
 	self.JoinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.JoinButton)
 	self.LeaveButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton)
-	self.LobbyStatusLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Lobby.StatusLabel)
 	self.MatchStatusLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel)
 	self.TimerLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel)
 	self.AlivePlayersLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.AlivePlayersLabel)
 	self.WinnerPopup = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.WinnerPopup)
-	self.ScoreLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Stats.ScoreLabel)
-	self.GoldLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Stats.GoldLabel)
-	self.WinsLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Stats.WinsLabel)
-	self.MapLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Lobby.MapName)
-	self.LevelLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Lobby.LevelLabel)
-	self.HpLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Lobby.HpLabel)
-	self.RespawnLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Lobby.RespawnLabel)
 	self.DebugFoodButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugFoodButton)
 	self.DebugResetButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugResetButton)
 	self.SlingStatsButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.SlingStatsButton)
@@ -133,7 +69,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.SpinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.SpinButton)
 	self.QuickHpButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP)
 	self.HomeButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.HomeButton)
-	self.HpBarFill = resolveGuiObject(playerGui, ProjectTreeSpec.UI.MainHub.HpBarFill)
 
 	self.PanelMap = {
 		SlingStats = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.SlingStats),
@@ -148,18 +83,10 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 
 	if not self.JoinButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.JoinButton, "TextButton") end
 	if not self.LeaveButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.LeaveButton, "TextButton") end
-	if not self.LobbyStatusLabel then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.StatusLabel, "TextLabel") end
 	if not self.MatchStatusLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.StatusLabel, "TextLabel") end
 	if not self.TimerLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.TimerLabel, "TextLabel") end
 	if not self.AlivePlayersLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.AlivePlayersLabel, "TextLabel") end
 	if not self.WinnerPopup then warnMissingUiPath(ProjectTreeSpec.UI.Match.WinnerPopup, "TextLabel") end
-	if not self.ScoreLabel then warnMissingUiPath(ProjectTreeSpec.UI.Stats.ScoreLabel, "TextLabel") end
-	if not self.GoldLabel then warnMissingUiPath(ProjectTreeSpec.UI.Stats.GoldLabel, "TextLabel") end
-	if not self.WinsLabel then warnMissingUiPath(ProjectTreeSpec.UI.Stats.WinsLabel, "TextLabel") end
-	if not self.MapLabel then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.MapName, "TextLabel") end
-	if not self.LevelLabel then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.LevelLabel, "TextLabel") end
-	if not self.HpLabel then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.HpLabel, "TextLabel") end
-	if not self.RespawnLabel then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.RespawnLabel, "TextLabel") end
 	if not self.DebugFoodButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.DebugFoodButton, "TextButton") end
 	if not self.DebugResetButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.DebugResetButton, "TextButton") end
 	if not self.SlingStatsButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SlingStatsButton, "TextButton") end
@@ -170,7 +97,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not self.SpinButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SpinButton, "TextButton") end
 	if not self.QuickHpButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHP, "TextButton") end
 	if not self.HomeButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.HomeButton, "TextButton") end
-	if not self.HpBarFill then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.HpBarFill, "GuiObject") end
 	if not self.PanelMap.SlingStats then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.SlingStats, "ScreenGui") end
 	if not self.PanelMap.DailyLogin then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.DailyLogin, "ScreenGui") end
 	if not self.PanelMap.Inventory then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Inventory, "ScreenGui") end
@@ -189,36 +115,25 @@ function UIController:ShowMainHubPanel(activeKey: string)
 	end
 end
 
-
-
-function UIController:_buildInventoryStatePayload(state)
-	local payload = {
-		ownedItems = state.OwnedItems,
-		ownedSlings = state.OwnedSlings,
-		slingCapacity = state.SlingCapacity or 40,
-	}
-
-	if type(payload.ownedItems) ~= "table" then
-		payload.ownedItems = {
-			hp_potion = math.max(1, math.floor((state.HpPotions or 0))),
-			exp_buff_x2 = 1,
-			gacha_ticket = 3,
-		}
+function UIController:ToggleMainHubPanel(panelKey: string)
+	local panelGui = self.PanelMap[panelKey]
+	if panelGui then
+		panelGui.Enabled = not panelGui.Enabled
 	end
-
-	if type(payload.ownedSlings) ~= "table" then
-		payload.ownedSlings = {
-			{ id = "SlingModel", level = math.max(1, math.floor(state.Level or 1)), equipped = true },
-			{ id = "FireSling", level = 1, equipped = false },
-		}
-	end
-
-	return payload
 end
 
 function UIController:Start()
 	if self.InventoryUIController then
 		self.InventoryUIController:Start()
+	end
+	if self.InventoryDataProvider then
+		table.insert(self.Connections, self.InventoryDataProvider:BindChanged(function(snapshot)
+			if self.InventoryUIController then
+				self.InventoryUIController:RefreshWithData(snapshot)
+			end
+		end))
+		self.InventoryDataProvider:GiveTestSling()
+		self.InventoryDataProvider:GiveTestItem()
 	end
 	if self.JoinButton then
 		table.insert(self.Connections, self.JoinButton.MouseButton1Click:Connect(function()
@@ -242,7 +157,7 @@ function UIController:Start()
 	end
 	if self.SlingStatsButton then
 		table.insert(self.Connections, self.SlingStatsButton.MouseButton1Click:Connect(function()
-			self:ShowMainHubPanel("SlingStats")
+			self:ToggleMainHubPanel("SlingStats")
 		end))
 	end
 	if self.DailyButton then
@@ -253,8 +168,11 @@ function UIController:Start()
 	if self.InventoryButton then
 		table.insert(self.Connections, self.InventoryButton.MouseButton1Click:Connect(function()
 			self:ShowMainHubPanel("Inventory")
-			if self.InventoryUIController and self._lastState then
-				self.InventoryUIController:RefreshWithData(self:_buildInventoryStatePayload(self._lastState))
+			if self.InventoryUIController then
+				self.InventoryUIController:SetVisible(true)
+			end
+			if self.InventoryDataProvider and self.InventoryUIController then
+				self.InventoryUIController:RefreshWithData(self.InventoryDataProvider:GetSnapshot())
 			end
 		end))
 	end
@@ -293,32 +211,11 @@ function UIController:Start()
 	end
 
 	local stateConnection = self.ClientService:BindStateUpdate(function(state)
-		self._lastState = state
-		if self.ScoreLabel then self.ScoreLabel.Text = string.format("EXP: %d", math.floor(state.Exp or 0)) end
-		if self.LevelLabel then self.LevelLabel.Text = string.format("Level: %d", math.floor(state.Level or 1)) end
-		if self.HpLabel then self.HpLabel.Text = string.format("HP: %d/%d", math.floor(state.CurrentHP or 0), math.floor(state.MaxHP or 100)) end
 		if self.QuickHpButton then
 			self.QuickHpButton.Text = string.format("HP x%d", math.max(0, math.floor(state.HpPotions or 0)))
 		end
-		if self.HpBarFill then
-			local maxHp = math.max(1, tonumber(state.MaxHP) or 1)
-			local currentHp = math.clamp(tonumber(state.CurrentHP) or 0, 0, maxHp)
-			self.HpBarFill.Size = UDim2.new(currentHp / maxHp, 0, 1, 0)
-		end
-		if self.MapLabel then self.MapLabel.Text = string.format("Map: %s", tostring(state.MapName or "LobbyMap")) end
-		if self.RespawnLabel then
-			if (state.CurrentHP or 0) <= 0 then
-				self.RespawnLabel.Text = "Respawn screen: waiting to respawn..."
-			else
-				self.RespawnLabel.Text = "Respawn screen: hidden"
-			end
-		end
-		if self.InventoryUIController then
-			local inventoryData = self:_buildInventoryStatePayload(state)
-			if not self.InventoryUiBootstrapDone then
-				self.InventoryUIController:RefreshWithData(inventoryData)
-				self.InventoryUiBootstrapDone = true
-			end
+		if self.InventoryDataProvider then
+			self.InventoryDataProvider:SetFromState(state)
 		end
 		if self.MainStatsPopupController then
 			self.MainStatsPopupController:ApplyState(state)
@@ -329,7 +226,6 @@ function UIController:Start()
 	end
 
 	local uiStateConnection = self.ClientService:BindUIStateUpdate(function(payload)
-		if self.LobbyStatusLabel then self.LobbyStatusLabel.Text = string.format("ArenaStatus: %s", tostring(payload.ArenaStatus or payload.State or GameStates.Round.Lobby)) end
 		if self.MatchStatusLabel then self.MatchStatusLabel.Text = string.format("Match: %s", tostring(payload.State or GameStates.Round.Lobby)) end
 		if self.TimerLabel then self.TimerLabel.Text = string.format("CountdownTimer: %d", math.floor(payload.CountdownTimer or payload.TimeLeft or 0)) end
 		if self.AlivePlayersLabel then self.AlivePlayersLabel.Text = string.format("PlayerCount: %d (alive %d)", payload.PlayerCount or 0, payload.AlivePlayers or 0) end
@@ -346,12 +242,6 @@ function UIController:Start()
 		if self.WinnerPopup then
 			self.WinnerPopup.Visible = true
 			self.WinnerPopup.Text = "Match result screen: Winner: " .. tostring(payload.Winner)
-		end
-		if payload.Winner == Players.LocalPlayer.Name then
-			self.LocalWins += 1
-			if self.WinsLabel then
-				self.WinsLabel.Text = string.format("Wins: %d", self.LocalWins)
-			end
 		end
 	end)
 	if resultConnection then
