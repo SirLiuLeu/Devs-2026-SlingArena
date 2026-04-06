@@ -29,6 +29,27 @@ DataModel
 │  │  ├─ ProjectTreeSpec.lua
 │  │  └─ RemoteContracts.lua
 │  │
+│  ├─ Assets
+│  │  ├─ Slings
+│  │  │  └─ SlingModel (Model)
+│  │  │
+│  │  └─ UI
+│  │     ├─ ItemSlotTemplate (Frame)
+│  │     │  ├─ UICorner
+│  │     │  ├─ Icon (ImageLabel)
+│  │     │  ├─ TypeIcon (ImageLabel)
+│  │     │  ├─ Name (TextLabel)
+│  │     │  └─ Quantity (TextLabel)
+│  │     │
+│  │     └─ SlingsSlotTemplate (Frame)
+│  │        ├─ RarityStroke (UIStroke)
+│  │        ├─ UICorner
+│  │        ├─ Stars (Frame/Folder)
+│  │        ├─ Icon (ImageLabel)
+│  │        ├─ EquippedTag (TextLabel)
+│  │        ├─ Level (TextLabel)
+│  │        └─ Name (TextLabel)
+│  │
 │  ├─ SlingArenaRemotes
 │  │  └─ (RemoteEvents from *.model.json)
 │  │     ├─ MoveRequest
@@ -111,6 +132,56 @@ DataModel
 │  │     ├─ MapName
 │  │     ├─ RespawnLabel
 │  │     └─ StatusLabel
+│  │
+│  ├─ InventoryUI (ScreenGui)
+│  │  ├── MainHub (Frame)
+│  │  │   ├── UICorner
+│  │  │   ├── Header (Frame)
+│  │  │   │   ├─ CloseButton (TextButton)
+│  │  │   │   └─ Title (TextLabel)
+│  │  │   ├── Tabs (Frame)
+│  │  │   │   ├─ UIListLayout
+│  │  │   │   ├─ ItemsTab (TextButton)
+│  │  │   │   └─ SlingTab (TextButton)
+│  │  │   ├── BodySling (Frame)
+│  │  │   │   ├── Footer (Frame)
+│  │  │   │   │   └─ CapacityLabel (TextLabel)
+│  │  │   │   ├── GridContainer (Frame)
+│  │  │   │   │   ├─ UIGridLayout
+│  │  │   │   │   └─ Slot1, Slot2, Slot3, Slot4 (Frames)
+│  │  │   │   └── RightPanel (Frame)
+│  │  │   │       ├─ UIListLayout
+│  │  │   │       ├─ ActionButtons (Frame)
+│  │  │   │       │   ├─ UIListLayout
+│  │  │   │       │   ├─ DeleteButton (TextButton)
+│  │  │   │       │   ├─ EquipButton (TextButton)
+│  │  │   │       │   └─ UpgradeButton (TextButton)
+│  │  │   │       ├─ Stats (Frame)
+│  │  │   │       │   ├─ UIListLayout
+│  │  │   │       │   └─ Damage, HP, Range, Regen (TextLabels)
+│  │  │   │       └─ SelectedName (TextLabel)
+│  │  │   └── BodyItems (Frame)
+│  │  │       ├── GridContainer (Frame)
+│  │  │       │   ├─ UIGridLayout
+│  │  │       │   └─ Slot1, Slot2, Slot3, Slot4 (Frames)
+│  │  │       └── RightPanel (Frame)
+│  │  │           ├─ UIListLayout
+│  │  │           ├─ ActionButtons (Frame)
+│  │  │           │   ├─ UIListLayout
+│  │  │           │   ├─ DeleteButton (TextButton)
+│  │  │           │   └─ UseButton (TextButton)
+│  │  │           ├─ Stats (Frame)
+│  │  │           │   ├─ UIListLayout
+│  │  │           │   └─ ItemStat1, ItemStat2, ItemStat3 (TextLabels)
+│  │  │           ├─ Description (TextLabel)
+│  │  │           └─ SelectedName (TextLabel)
+│  │  ├── Overlay (Frame)
+│  │  └── UpgradePopup (Frame)
+│  │      ├─ UICorner
+│  │      ├─ Cancel (TextButton)
+│  │      ├─ Confirm (TextButton)
+│  │      ├─ ConfirmText (TextLabel)
+│  │      └─ PopupTitle (TextLabel)
 │  │
 │  ├─ MatchUI (ScreenGui)
 │  │  └─ RootFrame
