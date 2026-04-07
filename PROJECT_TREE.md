@@ -37,6 +37,20 @@ DataModel
 │  │  │  ├─ Sling_04 (Model test template)
 │  │  │  └─ Sling_05 (Model test template)
 │  │  │
+│  │  │
+│  │  ├─ Icons
+│  │  │  ├─ Items
+│  │  │  │  ├─ HP_Potion (Image)
+│  │  │  │  ├─ Gacha_Ticket (Image)
+│  │  │  │  └─ EXP_Buff (Image)
+│  │  │  │
+│  │  │  └─ Slings
+│  │  │     ├─ Sling_01 (Image)
+│  │  │     ├─ Sling_02 (Image)
+│  │  │     ├─ Sling_03 (Image)
+│  │  │     ├─ Sling_04 (Image)
+│  │  │     └─ Sling_05 (Image)
+│  │  │
 │  │  └─ UI
 │  │     ├─ ItemSlotTemplate (Frame)
 │  │     │  ├─ UICorner
