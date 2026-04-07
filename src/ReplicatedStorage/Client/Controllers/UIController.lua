@@ -52,6 +52,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.MainStatsPopupController = MainStatsPopupController.new(playerGui, dependencies)
 	self.InventoryUIController = InventoryUIController.new(playerGui)
 	self.InventoryDataProvider = InventoryDataProvider.GetDefault()
+	self.InventoryUIController:SetDataProvider(self.InventoryDataProvider)
 
 	self.JoinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.JoinButton)
 	self.LeaveButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton)
