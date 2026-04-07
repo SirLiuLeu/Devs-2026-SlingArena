@@ -177,6 +177,8 @@ local ProjectTreeSpec = {
 		--     UI (Folder)
 		--       ItemSlotTemplate (Frame)
 		--       SlingsSlotTemplate (Frame)
+		--     Slings (Folder)
+		--       Sling_01..Sling_05 (Model test templates)
 		--     Food (Folder)
 		--       BasicFood (Model) [fallback]
 		--		 Food1, Food2, Food3, ...Food7 (Model)
@@ -212,6 +214,11 @@ local ProjectTreeSpec = {
 			},
 			Slings = {
 				SlingModel = "Slings.SlingModel",
+				Sling01 = "Assets.Slings.Sling_01",
+				Sling02 = "Assets.Slings.Sling_02",
+				Sling03 = "Assets.Slings.Sling_03",
+				Sling04 = "Assets.Slings.Sling_04",
+				Sling05 = "Assets.Slings.Sling_05",
 			}
 		},
 	},

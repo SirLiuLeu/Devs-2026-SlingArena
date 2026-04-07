@@ -49,18 +49,6 @@
         "Font": "GothamBold",
         "TextXAlignment": "Right"
       }
-    },
-
-    {
-      "ClassName": "ImageLabel",
-      "Name": "TypeIcon",
-      "Properties": {
-        "Visible": false,
-        "Size": { "UDim2": [[0, 20], [0, 20]] },
-        "Position": { "UDim2": [[0, 5], [1, -25]] },
-        "BackgroundTransparency": 1,
-        "Image": ""
-      }
     }
   ]
 }

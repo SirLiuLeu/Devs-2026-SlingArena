@@ -31,13 +31,16 @@ DataModel
 │  │
 │  ├─ Assets
 │  │  ├─ Slings
-│  │  │  └─ SlingModel (Model)
+│  │  │  ├─ Sling_01 (Model test template)
+│  │  │  ├─ Sling_02 (Model test template)
+│  │  │  ├─ Sling_03 (Model test template)
+│  │  │  ├─ Sling_04 (Model test template)
+│  │  │  └─ Sling_05 (Model test template)
 │  │  │
 │  │  └─ UI
 │  │     ├─ ItemSlotTemplate (Frame)
 │  │     │  ├─ UICorner
 │  │     │  ├─ Icon (ImageLabel)
-│  │     │  ├─ TypeIcon (ImageLabel)
 │  │     │  ├─ Name (TextLabel)
 │  │     │  └─ Quantity (TextLabel)
 │  │     │

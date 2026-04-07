@@ -1,15 +1,50 @@
 --!strict
 
 -- [SLING_MODEL_GUIDE]
--- 1) Create each sling as a Model under ReplicatedStorage/Slings.
+-- 1) Create each sling as a Model under ReplicatedStorage/Slings or ReplicatedStorage/Assets/Slings.
 -- 2) Model.Name MUST match config id exactly (case-sensitive).
 -- 3) Each model should have a PrimaryPart and physics-ready parts.
 -- 4) Register the same id below with stats/rarity/modelPath.
--- 5) modelPath format in this config: "ReplicatedStorage/Slings/<ModelName>".
+-- 5) modelPath format in this config: "ReplicatedStorage/<Folder>/<ModelName>".
 
 local SlingConfig = {}
 
 SlingConfig.Types = {
+	{
+		id = "Sling_01",
+		name = "Test Sling 01",
+		modelPath = "ReplicatedStorage/Assets/Slings/Sling_01",
+		rarity = "Common",
+		stats = { speed = 15.8, weight = 1.0, launchPower = 1.0, control = 1.0 },
+	},
+	{
+		id = "Sling_02",
+		name = "Test Sling 02",
+		modelPath = "ReplicatedStorage/Assets/Slings/Sling_02",
+		rarity = "Common",
+		stats = { speed = 16.4, weight = 0.96, launchPower = 1.04, control = 0.98 },
+	},
+	{
+		id = "Sling_03",
+		name = "Test Sling 03",
+		modelPath = "ReplicatedStorage/Assets/Slings/Sling_03",
+		rarity = "Uncommon",
+		stats = { speed = 15.2, weight = 1.06, launchPower = 1.08, control = 1.02 },
+	},
+	{
+		id = "Sling_04",
+		name = "Test Sling 04",
+		modelPath = "ReplicatedStorage/Assets/Slings/Sling_04",
+		rarity = "Rare",
+		stats = { speed = 17.0, weight = 0.92, launchPower = 1.1, control = 1.05 },
+	},
+	{
+		id = "Sling_05",
+		name = "Test Sling 05",
+		modelPath = "ReplicatedStorage/Assets/Slings/Sling_05",
+		rarity = "Rare",
+		stats = { speed = 14.8, weight = 1.1, launchPower = 1.15, control = 0.95 },
+	},
 	{
 		id = "SlingModel",
 		name = "Default Arena Sling",
