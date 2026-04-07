@@ -630,8 +630,8 @@ player.CharacterAdded:Connect(function()
 	resetVisualState()
 end)
 
-playerGui.DescendantAdded:Connect(function(descendant)
-	if descendant.Name ~= SlingUiConstants.ScreenGuiName and descendant.Name ~= SlingUiConstants.Elements.DirectionIndicator and descendant.Name ~= SlingUiConstants.Elements.DirectionArrow and descendant.Name ~= SlingUiConstants.Elements.ChargeBar and descendant.Name ~= SlingUiConstants.Elements.CooldownBar and descendant.Name ~= SlingUiConstants.Elements.Fill and descendant.Name ~= SlingUiConstants.Elements.JoystickRoot and descendant.Name ~= SlingUiConstants.Elements.Base and descendant.Name ~= SlingUiConstants.Elements.Thumb then
+playerGui.ChildAdded:Connect(function(child)
+	if child.Name ~= "SlingArenaUI" and child.Name ~= SlingUiConstants.ScreenGuiName then
 		return
 	end
 
