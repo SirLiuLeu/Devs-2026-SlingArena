@@ -170,8 +170,14 @@ local function testChargeRatioProgressAndClamp()
 	assertAlmostEqual(clamped, 1, 0.0001, "Charge ratio should clamp to max value")
 end
 
-local function buildFakeSlingContext(rootPart: BasePart, stateTable: any)
+local function buildFakeSlingContext(rootPart: BasePart, stateTable: any, options: any?)
 	local chargeEvents = {}
+	local opts = options or {}
+	local roundState = opts.roundState or "ActiveRound"
+	local isQueued = opts.isQueued
+	if isQueued == nil then
+		isQueued = true
+	end
 	return {
 		Remotes = Instance.new("Folder"),
 		EventBus = {
@@ -181,8 +187,8 @@ local function buildFakeSlingContext(rootPart: BasePart, stateTable: any)
 		},
 		Services = {
 			RoundService = {
-				GetState = function() return "ActiveRound" end,
-				IsPlayerQueued = function() return true end,
+				GetState = function() return roundState end,
+				IsPlayerQueued = function() return isQueued end,
 			},
 			PlayerService = {
 				GetRoot = function() return rootPart end,
@@ -206,6 +212,69 @@ local function buildFakeSlingContext(rootPart: BasePart, stateTable: any)
 			},
 		},
 	}, chargeEvents
+end
+
+local function testLobbyAllowsMoveAndRelease()
+	local root = Instance.new("Part")
+	root.Anchored = true
+	root.Position = Vector3.new(0, 5, 0)
+	root.Parent = workspace
+
+	local state = {
+		ChargeSpeed = 1,
+		MovementState = "Idle",
+		MoveSpeed = 22,
+	}
+	local context = buildFakeSlingContext(root, state, { roundState = "Lobby", isQueued = false })
+	local service = SlingServiceModule.new(context)
+	local player = { UserId = 901, Name = "LobbyControlTester", Parent = game:GetService("Players") }
+
+	service:HandleMoveRequest(player, Vector3.new(1, 0, 0))
+	if (service._input[player] :: Vector3).Magnitude <= 0 then
+		root:Destroy()
+		error("MoveRequest should be accepted in Lobby state")
+	end
+
+	service:StartCharge(player, Vector3.new(20, 5, 0))
+	if not service._chargeState[player] then
+		root:Destroy()
+		error("StartCharge should be accepted in Lobby state")
+	end
+
+	service._chargeState[player].chargeStartTime = os.clock() - SlingshotConfig.MAX_CHARGE_TIME
+	service:ReleaseCharge(player, Vector3.new(20, 5, 0))
+	if state.MovementState ~= "Launched" then
+		root:Destroy()
+		error("ReleaseCharge should transition to Launched in Lobby state")
+	end
+
+	root:Destroy()
+end
+
+local function testLaunchedStatePreservesMomentum()
+	local root = Instance.new("Part")
+	root.Anchored = true
+	root.Position = Vector3.new(0, 5, 0)
+	root.Parent = workspace
+	root.AssemblyLinearVelocity = Vector3.new(120, 0, 0)
+
+	local state = {
+		ChargeSpeed = 1,
+		MovementState = "Launched",
+		MoveSpeed = 30,
+	}
+	local context = buildFakeSlingContext(root, state)
+	local service = SlingServiceModule.new(context)
+	local player = { UserId = 902, Name = "LaunchMomentumTester", Parent = game:GetService("Players") }
+
+	service._input[player] = Vector3.new(1, 0, 0)
+	service:_applyRootVelocity(player, root, service._input[player], 1 / 60)
+	if root.AssemblyLinearVelocity.X < 119 then
+		root:Destroy()
+		error("Launched state should preserve horizontal release momentum")
+	end
+
+	root:Destroy()
 end
 
 local function testChargeResetAfterRelease()
@@ -824,6 +893,8 @@ runTest("ChargeToLaunchForce", testChargeToLaunchForce)
 runTest("ChargeRatio_ProgressAndClamp", testChargeRatioProgressAndClamp)
 runTest("ReleaseDistanceMultiplier_Applied", testReleaseDistanceMultiplierApplied)
 runTest("ReleaseSpeedMultiplier_Applied", testReleaseSpeedMultiplierApplied)
+runTest("Lobby_AllowsMoveAndRelease", testLobbyAllowsMoveAndRelease)
+runTest("LaunchedState_PreservesMomentum", testLaunchedStatePreservesMomentum)
 runTest("ChargeRelease_ResetsChargeState", testChargeResetAfterRelease)
 runTest("RecoverCooldown_MatchesReleaseDuration", testRecoverCooldownMatchesReleaseDuration)
 runTest("LaunchDirection_NormalizedFromAim", testLaunchDirectionNormalizedFromAim)

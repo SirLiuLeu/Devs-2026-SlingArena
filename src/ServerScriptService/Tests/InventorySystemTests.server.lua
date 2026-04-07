@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local InventoryDataProvider = require(ReplicatedStorage.Client.Services.InventoryDataProvider)
 local InventoryUIController = require(ReplicatedStorage.Client.Controllers.InventoryUIController)
+local MockData = require(ReplicatedStorage.Client.Services.MockData)
 
 local function runTest(name: string, testFn)
 	local ok, err = pcall(testFn)
@@ -143,4 +144,47 @@ local function testGiveSlingAddsAndRenders()
 	playerGui:Destroy()
 end
 
+local function testMockInventoryLoadsAndUsesTemplates()
+	ensureAssetTemplates()
+	local playerGui = Instance.new("Folder")
+	playerGui.Name = "PlayerGui"
+	local inventoryGui = buildInventoryGui()
+	inventoryGui.Parent = playerGui
+
+	local itemsGrid = inventoryGui.MainHub.BodyItems.GridContainer
+	local staticItemSlot = Instance.new("Frame")
+	staticItemSlot.Name = "Slot1"
+	staticItemSlot.Parent = itemsGrid
+	local slingsGrid = inventoryGui.MainHub.BodySling.GridContainer
+	local staticSlingSlot = Instance.new("Frame")
+	staticSlingSlot.Name = "Slot1"
+	staticSlingSlot.Parent = slingsGrid
+
+	local provider = InventoryDataProvider.new()
+	provider:LoadMockInventory()
+	local snapshot = provider:GetSnapshot()
+	local mockSnapshot = MockData.GetInventoryState()
+
+	if #snapshot.ownedSlings ~= #mockSnapshot.OwnedSlings then
+		error("Provider mock sling count must match mock data source")
+	end
+	if (snapshot.ownedItems.gacha_ticket or 0) ~= 100 then
+		error("Mock data must include 100 gacha tickets")
+	end
+
+	local controller = InventoryUIController.new(playerGui :: any)
+	controller:SetDataProvider(provider)
+	controller:Start()
+	controller:RefreshWithData(snapshot)
+
+	if itemsGrid:FindFirstChild("Slot1") or slingsGrid:FindFirstChild("Slot1") then
+		error("Inventory grids should clear pre-existing slots and use cloned templates only")
+	end
+
+	controller:Destroy()
+	provider:Destroy()
+	playerGui:Destroy()
+end
+
 runTest("GiveSling button behavior adds slings and renders slots", testGiveSlingAddsAndRenders)
+runTest("Mock inventory loads and replaces static slots", testMockInventoryLoadsAndUsesTemplates)

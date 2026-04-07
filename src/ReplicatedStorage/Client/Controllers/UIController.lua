@@ -133,8 +133,7 @@ function UIController:Start()
 				self.InventoryUIController:RefreshWithData(snapshot)
 			end
 		end))
-		self.InventoryDataProvider:GiveTestSling()
-		self.InventoryDataProvider:GiveTestItem()
+		self.InventoryDataProvider:LoadMockInventory()
 	end
 	if self.JoinButton then
 		table.insert(self.Connections, self.JoinButton.MouseButton1Click:Connect(function()

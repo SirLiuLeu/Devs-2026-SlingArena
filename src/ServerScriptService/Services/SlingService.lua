@@ -171,10 +171,14 @@ function SlingService:_isRoundPlaying(): boolean
 end
 
 function SlingService:_canControl(player: Player): boolean
-	if not self:_isRoundPlaying() then
-		return false
+	local roundState = self._context.Services.RoundService:GetState()
+	local canControlForRound = false
+	if roundState == GameStates.Round.ActiveRound then
+		canControlForRound = self._context.Services.RoundService:IsPlayerQueued(player)
+	elseif roundState == GameStates.Round.Lobby then
+		canControlForRound = true
 	end
-	if not self._context.Services.RoundService:IsPlayerQueued(player) then
+	if not canControlForRound then
 		return false
 	end
 	if not self._context.Services.PlayerService:IsAlive(player) then
@@ -337,8 +341,14 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 	end
 	local movementController = self:_getMovementController(player, root)
 
-	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == MOVEMENT_STATE.Launched or state.MovementState == MOVEMENT_STATE.Recovering then
-		movementController:Stop()
+	if state.MovementState == MOVEMENT_STATE.Launched then
+		-- Preserve launch momentum. We only disable the locomotion actuator so it does not
+		-- counteract release velocity and create an artificial "drag/stretch" feeling.
+		movementController:DisableLocomotion(true)
+		return
+	end
+	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == MOVEMENT_STATE.Recovering then
+		movementController:DisableLocomotion(false)
 		return
 	end
 
@@ -351,20 +361,8 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		return
 	end
 
-	local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
-	local right = Vector3.new(root.CFrame.RightVector.X, 0, root.CFrame.RightVector.Z)
-	if forward.Magnitude < 0.001 or right.Magnitude < 0.001 then
-		return
-	end
-
-	local direction = (forward.Unit * input.Z) + (right.Unit * input.X)
-	if direction.Magnitude < 0.001 then
-		movementController:Move(Vector3.zero, dt)
-		return
-	end
-
 	movementController:SetSpeed(math.max(state.MoveSpeed or Config.MoveSpeed, 0))
-	movementController:Move(direction.Unit, dt)
+	movementController:Move(input.Unit, dt)
 	if state.MovementState ~= MOVEMENT_STATE.Moving then
 		self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Moving)
 	end

@@ -97,6 +97,19 @@ function SlingMovement:Stop()
 	self._root.AssemblyLinearVelocity = Vector3.new(0, rootVelocity.Y, 0)
 end
 
+function SlingMovement:DisableLocomotion(preserveMomentum: boolean?)
+	self._planarVelocity = Vector3.zero
+	self._linearVelocity.VectorVelocity = Vector3.zero
+	self._linearVelocity.Enabled = false
+
+	if preserveMomentum then
+		return
+	end
+
+	local rootVelocity = self._root.AssemblyLinearVelocity
+	self._root.AssemblyLinearVelocity = Vector3.new(0, rootVelocity.Y, 0)
+end
+
 function SlingMovement:Destroy()
 	self:Stop()
 end

@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
+local MockData = require(ReplicatedStorage.Client.Services.MockData)
 
 local InventoryDataProvider = {}
 InventoryDataProvider.__index = InventoryDataProvider
@@ -78,6 +79,9 @@ function InventoryDataProvider:BindChanged(callback: (InventorySnapshot) -> ())
 end
 
 function InventoryDataProvider:SetFromState(state)
+	if type(state) ~= "table" then
+		return
+	end
 	local incomingItems = state.OwnedItems
 	if type(incomingItems) == "table" then
 		self._state.ownedItems = cloneItems(incomingItems)
@@ -93,6 +97,10 @@ function InventoryDataProvider:SetFromState(state)
 	end
 
 	self:_emitChanged()
+end
+
+function InventoryDataProvider:LoadMockInventory()
+	self:SetFromState(MockData.GetInventoryState())
 end
 
 function InventoryDataProvider:_findSlingIndex(slingId: string): number?

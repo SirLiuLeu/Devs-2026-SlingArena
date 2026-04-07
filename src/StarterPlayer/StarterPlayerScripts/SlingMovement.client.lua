@@ -25,7 +25,28 @@ local function computeInputVector(): Vector3
 	if keyStates[Enum.KeyCode.A] then x -= 1 end
 	if keyStates[Enum.KeyCode.W] then z += 1 end
 	if keyStates[Enum.KeyCode.S] then z -= 1 end
-	return Vector3.new(x, 0, z)
+
+	local input = Vector3.new(x, 0, z)
+	if input.Magnitude < 0.001 then
+		return Vector3.zero
+	end
+
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return input.Unit
+	end
+
+	local forward = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
+	local right = Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z)
+	if forward.Magnitude < 0.001 or right.Magnitude < 0.001 then
+		return input.Unit
+	end
+
+	local worldDirection = (right.Unit * input.X) + (forward.Unit * input.Z)
+	if worldDirection.Magnitude < 0.001 then
+		return Vector3.zero
+	end
+	return worldDirection.Unit
 end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
