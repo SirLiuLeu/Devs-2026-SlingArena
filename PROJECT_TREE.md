@@ -50,22 +50,23 @@ DataModel
 │  │  │     ├─ Sling_03 (Image)
 │  │  │     ├─ Sling_04 (Image)
 │  │  │     └─ Sling_05 (Image)
-│  │  │
 │  │  └─ UI
 │  │     ├─ ItemSlotTemplate (Frame)
-│  │     │  ├─ UICorner
-│  │     │  ├─ Icon (ImageLabel)
-│  │     │  ├─ Name (TextLabel)
-│  │     │  └─ Quantity (TextLabel)
+│  │     │  ├─ Root (Frame)
+│  │     │  │  ├─ UICorner
+│  │     │  │  ├─ Icon (ImageLabel)
+│  │     │  │  ├─ Name (TextLabel)
+│  │     │  │  └─ Quantity (TextLabel)
 │  │     │
 │  │     └─ SlingsSlotTemplate (Frame)
-│  │        ├─ RarityStroke (UIStroke)
-│  │        ├─ UICorner
-│  │        ├─ Stars (Frame/Folder)
-│  │        ├─ Icon (ImageLabel)
-│  │        ├─ EquippedTag (TextLabel)
-│  │        ├─ Level (TextLabel)
-│  │        └─ Name (TextLabel)
+│  │        ├─ Root (Frame)
+│  │        │  ├─ RarityStroke (UIStroke)
+│  │        │  ├─ UICorner
+│  │        │  ├─ Stars (Frame/Folder)
+│  │        │  ├─ Icon (ImageLabel)
+│  │        │  ├─ EquippedTag (TextLabel)
+│  │        │  ├─ Level (TextLabel)
+│  │        │  └─ Name (TextLabel)
 │  │
 │  ├─ SlingArenaRemotes
 │  │  └─ (RemoteEvents from *.model.json)
@@ -165,7 +166,7 @@ DataModel
 │  │  │   │   │   └─ CapacityLabel (TextLabel)
 │  │  │   │   ├── GridContainer (Frame)
 │  │  │   │   │   ├─ UIGridLayout
-│  │  │   │   │   └─ Slot1, Slot2, Slot3, Slot4 (Frames)
+│  │  │   │   │   └─ Slot1, Slot2, Slot3, Slot4 (Frames) -- Script Spawn in run time
 │  │  │   │   └── RightPanel (Frame)
 │  │  │   │       ├─ UIListLayout
 │  │  │   │       ├─ ActionButtons (Frame)
@@ -180,7 +181,7 @@ DataModel
 │  │  │   └── BodyItems (Frame)
 │  │  │       ├── GridContainer (Frame)
 │  │  │       │   ├─ UIGridLayout
-│  │  │       │   └─ Slot1, Slot2, Slot3, Slot4 (Frames)
+│  │  │       │   └─ Slot1, Slot2, Slot3, Slot4 (Frames) -- Script Spawn in run time
 │  │  │       └── RightPanel (Frame)
 │  │  │           ├─ UIListLayout
 │  │  │           ├─ ActionButtons (Frame)
