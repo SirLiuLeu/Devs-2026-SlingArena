@@ -1,0 +1,193 @@
+{
+"ClassName": "ScreenGui",
+"Name": "OnlineRewardUI",
+"Properties": {
+"ResetOnSpawn": false,
+"IgnoreGuiInset": true
+},
+"Children": [
+{
+"ClassName": "Frame",
+"Name": "Root",
+"Properties": {
+"AnchorPoint": [0.5, 0.5],
+"Position": { "UDim2": [[0.5, 0], [0.5, 0]] },
+"Size": { "UDim2": [[0, 460], [0, 420]] },
+"BackgroundColor3": { "Color3": [0.1, 0.1, 0.12] },
+"BorderSizePixel": 0
+},
+"Children": [
+{ "ClassName": "UICorner" },
+
+    {
+      "ClassName": "Frame",
+      "Name": "Header",
+      "Properties": {
+        "Size": { "UDim2": [[1, 0], [0, 50]] },
+        "BackgroundColor3": { "Color3": [0.15, 0.15, 0.18] },
+        "BorderSizePixel": 0
+      },
+      "Children": [
+        { "ClassName": "UICorner" },
+
+        {
+          "ClassName": "TextLabel",
+          "Name": "Title",
+          "Properties": {
+            "Size": { "UDim2": [[1, -50], [1, 0]] },
+            "Position": { "UDim2": [[0, 10], [0, 0]] },
+            "BackgroundTransparency": 1,
+            "Text": "Online Reward",
+            "TextScaled": true,
+            "TextColor3": { "Color3": [1, 1, 1] },
+            "Font": "GothamBold",
+            "TextXAlignment": "Left"
+          }
+        },
+
+        {
+          "ClassName": "TextButton",
+          "Name": "CloseButton",
+          "Properties": {
+            "AnchorPoint": [1, 0],
+            "Position": { "UDim2": [[1, -10], [0, 10]] },
+            "Size": { "UDim2": [[0, 30], [0, 30]] },
+            "BackgroundColor3": { "Color3": [0.8, 0.2, 0.2] },
+            "Text": "X",
+            "TextScaled": true,
+            "TextColor3": { "Color3": [1, 1, 1] },
+            "Font": "GothamBold"
+          },
+          "Children": [
+            { "ClassName": "UICorner" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "ClassName": "Frame",
+      "Name": "Content",
+      "Properties": {
+        "Size": { "UDim2": [[1, 0], [1, -60]] },
+        "Position": { "UDim2": [[0, 0], [0, 60]] },
+        "BackgroundTransparency": 1
+      },
+      "Children": [
+        {
+          "ClassName": "UIGridLayout",
+          "Name": "Grid",
+          "Properties": {
+            "CellSize": { "UDim2": [[0, 100], [0, 100]] },
+            "CellPadding": { "UDim2": [[0, 10], [0, 10]] },
+            "FillDirectionMaxCells": 4,
+            "HorizontalAlignment": "Center",
+            "VerticalAlignment": "Center"
+          }
+        },
+
+        {
+          "ClassName": "Frame",
+          "Name": "RewardSlotTemplate",
+          "Properties": {
+            "Size": { "UDim2": [[0, 100], [0, 100]] },
+            "BackgroundColor3": { "Color3": [0.2, 0.2, 0.25] },
+            "BorderSizePixel": 0,
+            "Visible": false
+          },
+          "Children": [
+            { "ClassName": "UICorner" },
+
+            {
+              "ClassName": "ImageLabel",
+              "Name": "Icon",
+              "Properties": {
+                "Size": { "UDim2": [[1, -10], [0.6, 0]] },
+                "Position": { "UDim2": [[0, 5], [0, 5]] },
+                "BackgroundTransparency": 1,
+                "Image": ""
+              }
+            },
+
+            {
+              "ClassName": "TextLabel",
+              "Name": "Quantity",
+              "Properties": {
+                "AnchorPoint": [1, 1],
+                "Position": { "UDim2": [[1, -5], [0.6, -5]] },
+                "Size": { "UDim2": [[0, 40], [0, 18]] },
+                "BackgroundTransparency": 1,
+                "Text": "x1",
+                "TextScaled": true,
+                "TextColor3": { "Color3": [1, 1, 1] },
+                "Font": "GothamBold",
+                "TextXAlignment": "Right"
+              }
+            },
+
+            {
+              "ClassName": "TextLabel",
+              "Name": "Timer",
+              "Properties": {
+                "Size": { "UDim2": [[1, -10], [0, 16]] },
+                "Position": { "UDim2": [[0, 5], [0.6, 0]] },
+                "BackgroundTransparency": 1,
+                "Text": "00:00",
+                "TextScaled": true,
+                "TextColor3": { "Color3": [1, 1, 1] },
+                "Font": "GothamBold"
+              }
+            },
+
+            {
+              "ClassName": "TextButton",
+              "Name": "ClaimButton",
+              "Properties": {
+                "Size": { "UDim2": [[1, -10], [0, 24]] },
+                "Position": { "UDim2": [[0, 5], [1, -28]] },
+                "BackgroundColor3": { "Color3": [0.2, 0.7, 0.3] },
+                "Text": "Claim",
+                "TextScaled": true,
+                "TextColor3": { "Color3": [1, 1, 1] },
+                "Font": "GothamBold",
+                "Visible": false
+              },
+              "Children": [
+                { "ClassName": "UICorner" }
+              ]
+            },
+
+            {
+              "ClassName": "TextLabel",
+              "Name": "Claimed",
+              "Properties": {
+                "Size": { "UDim2": [[1, -10], [0, 24]] },
+                "Position": { "UDim2": [[0, 5], [1, -28]] },
+                "BackgroundTransparency": 1,
+                "Text": "Claimed",
+                "TextScaled": true,
+                "TextColor3": { "Color3": [0.6, 0.6, 0.6] },
+                "Font": "GothamBold",
+                "Visible": false
+              }
+            },
+
+            {
+              "ClassName": "ImageLabel",
+              "Name": "LockIcon",
+              "Properties": {
+                "Size": { "UDim2": [[0, 24], [0, 24]] },
+                "Position": { "UDim2": [[0, 5], [0, 5]] },
+                "BackgroundTransparency": 1,
+                "Image": "rbxassetid://LOCK_ICON_ID"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+]
+}

@@ -1,3 +1,4 @@
+A. Map
 1. World Spec
 Arena:
 - size: 1000x1000 studs
@@ -78,3 +79,97 @@ The spawn system reads this attribute to determine which food types can spawn.
 - Avoid placing near walls.
 - Distribute zones across the arena:
   Center (low-tier foods), Middle (mixed foods), Edge (high-tier foods).
+
+C. Game Core Loop (Team Control Mode)**
+
+### Arena Mode
+* Mode: 2 Teams (Sling vs Sling)
+* Objective: Control Center Zone to gain points
+* Win Condition:
+  * First team reaches **1000 points**
+  * Or match ends when one team dominates
+* Match Duration: ~10–15 minutes
+
+---
+
+### Zones
+
+**Center Zone:**
+* Capture Rule:
+  * Team with more players enters **capture state**
+  * After **5s → zone captured → +1 point/sec**
+* Effects:
+  * Enter → **Invincible 3s**
+  * Gain **Rage Buff (1 min, persists outside)**
+* Hazards:
+  * Air Blower (push players away)
+  * Lava pits (instant death)
+* Events:
+  * Every **90s → spawn Chest (5 diamonds, last hit)**
+---
+**Outer Zone:**
+* Purpose: Farming & recovery
+* Contains:
+  * High-density food → fast EXP + heal
+  * Mini Robots:
+    * Slow movement, attackable
+    * Reward: **2 diamonds**
+  * Large Food (rare):
+
+    * Chance: **+1 diamond**
+---
+
+### Combat Rules
+
+* Collision:
+  * Apply **stun: 2s**
+* Release:
+  * Apply **knockback + stun**
+  * Enemy: **damage**
+  * Ally: **no damage (only CC)**
+* Cooldown:
+  * Trigger immediately after release
+
+---
+
+### Respawn System
+
+* Each team has:
+  * Dedicated spawn zone
+* On death:
+  * Respawn at base
+  * Full heal inside base
+* Protection:
+  * **30s spawn protection**
+  * Removed when entering Center Zone
+
+---
+
+### Reward System
+* Kill / Lava push:
+  * **Diamonds + EXP**
+* Assist:
+  * **EXP + 1 diamond**
+* Match End:
+  * Win: **10–15 diamonds**
+  * Lose: **5–10 diamonds**
+---
+### Core Loop Flow
+
+1. Spawn → Farm (Outer Zone)
+2. Move to Center → Fight
+3. Capture → Gain Points
+4. Contest:
+   * Center (main objective)
+   * Outer (resources & mini objectives)
+5. Repeat until win condition reached
+---
+### Design Intent
+* Clear objective: **Control Center**
+* Risk vs Reward:
+  * Center = High risk, fast win
+  * Outer = Safe farm
+* Encourage:
+  * Team play
+  * Positioning
+  * Physics-based combat
