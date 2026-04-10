@@ -354,6 +354,8 @@ DataModel
 │     ├─ LobbyMap
 │     │  ├─ SpawnPoints
 │     │  │  └─ LobbySpawn
+│     │  ├─ GachaSpin
+│     │  │  └─ Spinwheel
 │     │  └─ Gate (optional join trigger)
 │     │
 │     └─ ArenaMap
