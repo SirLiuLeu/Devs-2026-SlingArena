@@ -10,6 +10,7 @@ Legend:
 
 
 DataModel
+## 🟦 ReplicatedStorage
 ├─ ReplicatedStorage
 │  ├─ Shared  -> src/ReplicatedStorage/Shared
 │  │  ├─ Config
@@ -50,23 +51,38 @@ DataModel
 │  │  │     ├─ Sling_03 (Image)
 │  │  │     ├─ Sling_04 (Image)
 │  │  │     └─ Sling_05 (Image)
-│  │  └─ UI
-│  │     ├─ ItemSlotTemplate (Frame)
-│  │     │  ├─ Root (Frame)
-│  │     │  │  ├─ UICorner
-│  │     │  │  ├─ Icon (ImageLabel)
-│  │     │  │  ├─ Name (TextLabel)
-│  │     │  │  └─ Quantity (TextLabel)
-│  │     │
-│  │     └─ SlingsSlotTemplate (Frame)
-│  │        ├─ Root (Frame)
-│  │        │  ├─ RarityStroke (UIStroke)
+│  │     └─ UI
+│  │        ├─ ItemSlotTemplate (Frame)
+│  │        │  ├─ Root (Frame)
+│  │        │  │  ├─ UICorner
+│  │        │  │  ├─ Icon (ImageLabel)
+│  │        │  │  ├─ Name (TextLabel)
+│  │        │  │  └─ Quantity (TextLabel)
+│  │        │
+│  │        ├─ SlingsSlotTemplate (Frame)
+│  │        │  ├─ Root (Frame)
+│  │        │  │  ├─ RarityStroke (UIStroke)
+│  │        │  │  ├─ UICorner
+│  │        │  │  ├─ Stars (Frame/Folder)
+│  │        │  │  ├─ Icon (ImageLabel)
+│  │        │  │  ├─ EquippedTag (TextLabel)
+│  │        │  │  ├─ Level (TextLabel)
+│  │        │  │  └─ Name (TextLabel)
+│  │        │
+│  │        ├─ RewardSlotTemplate (Frame)
 │  │        │  ├─ UICorner
-│  │        │  ├─ Stars (Frame/Folder)
+│  │        │  ├─ ClaimButton (TextButton)
 │  │        │  ├─ Icon (ImageLabel)
-│  │        │  ├─ EquippedTag (TextLabel)
-│  │        │  ├─ Level (TextLabel)
-│  │        │  └─ Name (TextLabel)
+│  │        │  ├─ Claimed (TextLabel)
+│  │        │  ├─ Quantity (TextLabel)
+│  │        │  └─ Timer (TextLabel)
+│  │        │
+│  │        └─ AttributeRowTemplate (Frame)
+│  │           ├─ DecreaseButton (TextButton)
+│  │           ├─ IncreaseButton (TextButton)
+│  │           ├─ AllocatedPointsLabel (TextLabel)
+│  │           ├─ AttributeNameLabel (TextLabel)
+│  │           └─ CurrentValueLabel (TextLabel)
 │  │
 │  ├─ SlingArenaRemotes
 │  │  └─ (RemoteEvents from *.model.json)
@@ -100,6 +116,7 @@ DataModel
 │  └─ Assets
 │     └─ SlingModel.model.json
 │
+## 🟥 ServerScriptService
 ├─ ServerScriptService  -> src/ServerScriptService
 │  ├─ Main.server.lua
 │  ├─ MapLoader.server.lua
@@ -128,6 +145,7 @@ DataModel
 │     ├─ MovementService.lua    [INFERRED deprecated/unused]
 │     └─ ChargeService.lua      [KNOWN deprecated]
 │
+## 🟩 StarterPlayer
 ├─ StarterPlayer
 │  └─ StarterPlayerScripts
 │     └─ Client  -> src/StarterPlayer
@@ -137,6 +155,7 @@ DataModel
 │           ├─ SlingController.client.lua    [UNKNOWN active status]
 │           └─ ClientController.client.lua   (legacy inert)
 │
+## 🟨 StarterGui
 ├─ StarterGui  -> src/StarterGui
 │  ├─ LobbyUI (ScreenGui)
 │  │  └─ RootFrame
@@ -151,6 +170,35 @@ DataModel
 │  │     ├─ RespawnLabel
 │  │     └─ StatusLabel
 │  │
+│  ├─ OnlineRewardUI (ScreenGui)
+│  │  └─ Root
+│  │     ├─ UICorner
+│  │     ├─ Content
+│  │     │  ├─ Grid (UIGridLayout)
+│  │     │  └─ RewardSlotTemplate
+│  │     ├─ Footer
+│  │     │  ├─ ClaimAll (TextButton)
+│  │     │  └─ SkipAll (TextButton)
+│  │     └─ Header
+│  │        ├─ UICorner
+│  │        ├─ CloseButton (TextButton)
+│  │        └─ Title (TextLabel)
+│  │
+│  ├─ SpinUI (ScreenGui)
+│  │  └─ Root
+│  │     ├─ Buttons
+│  │     │  ├─ UIListLayout
+│  │     │  ├─ Spin1 (TextButton)
+│  │     │  └─ Spin2 (TextButton)
+│  │     ├─ TurnsDisplay
+│  │     ├─ WheelContainer
+│  │     │  ├─ UICorner
+│  │     │  ├─ UIStroke
+│  │     │  ├─ Pointer
+│  │     │  └─ GachaWheel (ImageLabel)
+│  │     ├─ CloseButton (TextButton)
+│  │     └─ Title (TextLabel)
+│  │ 
 │  ├─ InventoryUI (ScreenGui)
 │  │  ├── MainHub (Frame)
 │  │  │   ├── UICorner
@@ -218,111 +266,49 @@ DataModel
 │  │     └─ WinsLabel
 │  │
 │  ├─ MainHUD (ScreenGui)
-│  │  └─ Root (Frame)
-│  │     ├─ BuffContainer (Frame)
+│  │  └─ Root
+│  │     ├─ BuffContainer
 │  │     │  ├─ UIListLayout
-│  │     │  ├─ Buff1 (Frame)
-│  │     │  └─ Buff2 (Frame)
-│  │     ├─ LeftMenu (Frame)
+│  │     │  ├─ Buff1
+│  │     │  └─ Buff2
+│  │     ├─ ExpProress
+│  │     │  ├─ ExpBarBackground
+│  │     │  ├─ ExpBarFill
+│  │     │  ├─ ExpValueLabel
+│  │     │  └─ LevelOnBarLabel
+│  │     ├─ LeftMenu
 │  │     │  ├─ UIGridLayout
-│  │     │  ├─ DailyButton (TextButton/ImageButton)
-│  │     │  ├─ InventoryButton (TextButton/ImageButton)
-│  │     │  ├─ OnlineRewardButton (TextButton/ImageButton)
-│  │     │  ├─ SettingButton (TextButton/ImageButton)
-│  │     │  └─ SpinButton (TextButton/ImageButton)
-│  │     ├─ RankFrame (Frame)
+│  │     │  ├─ DailyButton (TextButton)
+│  │     │  ├─ InventoryButton (TextButton)
+│  │     │  ├─ OnlineRewardButton (TextButton)
+│  │     │  ├─ SettingButton (TextButton)
+│  │     │  └─ SpinButton (TextButton)
+│  │     ├─ RankFrame
 │  │     │  ├─ UICorner
 │  │     │  ├─ UIPadding
-│  │     │  ├─ Title (TextLabel)
-│  │     │  └─ List (Frame)
-│  │     │     ├─ UIListLayout
-│  │     │     ├─ Player1 (Frame)
-│  │     │     │  ├─ UICorner
-│  │     │     │  ├─ Level (TextLabel)
-│  │     │     │  └─ Name (TextLabel)
-│  │     │     ├─ Player2 (Frame)
-│  │     │     ├─ Player3 (Frame)
-│  │     │     ├─ Player4 (Frame)
-│  │     │     └─ Player5 (Frame)
-│  │     ├─ QuickHP (TextButton/ImageButton)
-│  │     ├─ Home (TextButton/ImageButton)
-│  │     └─ SlingStatsButton (TextButton/ImageButton)   
+│  │     │  ├─ List
+│  │     │  │  ├─ UIListLayout
+│  │     │  │  └─ Player1
+│  │     │  └─ Title (TextLabel)
+│  │     ├─ QuickHP (ImageLabel)
+│  │     ├─ Home (TextButton)
+│  │     └─ SlingStatsButton (TextButton)
+│  │   
 │  ├─ SlingStatsUI (ScreenGui)
-│  │   └─ StatsRoot (Frame)
-│  │     ├─ HeaderBar (Frame)
-│  │     │   ├─ TitleLabel (TextLabel)
-│  │     │   ├─ AvailablePointsLabel (TextLabel)
-│  │     │   └─ ToggleDropdownButton (TextButton)
-│  │     │
-│  │     ├─ BodyContainer (Frame)
-│  │     │   ├─ AttributeList (Frame)
-│  │     │   │   ├─ UIListLayout
-│  │     │   │
-│  │     │   │   ├─ HPRow (Frame)
-│  │     │   │   │   ├─ AttributeNameLabel (TextLabel)
-│  │     │   │   │   ├─ CurrentValueLabel (TextLabel)
-│  │     │   │   │   ├─ AllocatedPointsLabel (TextLabel)
-│  │     │   │   │   ├─ DecreaseButton (TextButton)
-│  │     │   │   │   └─ IncreaseButton (TextButton)
-│  │     │   │
-│  │     │   │   ├─ BaseDamageRow (Frame)
-│  │     │   │   │   ├─ AttributeNameLabel
-│  │     │   │   │   ├─ CurrentValueLabel
-│  │     │   │   │   ├─ AllocatedPointsLabel
-│  │     │   │   │   ├─ DecreaseButton
-│  │     │   │   │   └─ IncreaseButton
-│  │     │   │
-│  │     │   │   ├─ RegenRateRow (Frame)
-│  │     │   │   │   ├─ AttributeNameLabel
-│  │     │   │   │   ├─ CurrentValueLabel
-│  │     │   │   │   ├─ AllocatedPointsLabel
-│  │     │   │   │   ├─ DecreaseButton
-│  │     │   │   │   └─ IncreaseButton
-│  │     │   │
-│  │     │   │   ├─ ReflectDamageRow (Frame)
-│  │     │   │   │   ├─ AttributeNameLabel
-│  │     │   │   │   ├─ CurrentValueLabel
-│  │     │   │   │   ├─ AllocatedPointsLabel
-│  │     │   │   │   ├─ DecreaseButton
-│  │     │   │   │   └─ IncreaseButton
-│  │     │   │
-│  │     │   │   ├─ LaunchSpeedRow (Frame)
-│  │     │   │   │   ├─ AttributeNameLabel
-│  │     │   │   │   ├─ CurrentValueLabel
-│  │     │   │   │   ├─ AllocatedPointsLabel
-│  │     │   │   │   ├─ DecreaseButton
-│  │     │   │   │   └─ IncreaseButton
-│  │     │   │
-│  │     │   │   ├─ LaunchRangeRow (Frame)
-│  │     │   │   │   ├─ AttributeNameLabel
-│  │     │   │   │   ├─ CurrentValueLabel
-│  │     │   │   │   ├─ AllocatedPointsLabel
-│  │     │   │   │   ├─ DecreaseButton
-│  │     │   │   │   └─ IncreaseButton
-│  │     │   │
-│  │     │   │   ├─ ChargeSpeedRow (Frame)
-│  │     │   │   │   ├─ AttributeNameLabel
-│  │     │   │   │   ├─ CurrentValueLabel
-│  │     │   │   │   ├─ AllocatedPointsLabel
-│  │     │   │   │   ├─ DecreaseButton
-│  │     │   │   │   └─ IncreaseButton
-│  │     │   │
-│  │     │   │   └─ MoveSpeedRow (Frame)
-│  │     │   │       ├─ AttributeNameLabel
-│  │     │   │       ├─ CurrentValueLabel
-│  │     │   │       ├─ AllocatedPointsLabel
-│  │     │   │       ├─ DecreaseButton
-│  │     │   │       └─ IncreaseButton
-│  │     │   │
-│  │     │   └─ ActionButtonsRow (Frame)
-│  │     │       ├─ ResetButton (TextButton)
-│  │     │       └─ AcceptButton (TextButton)
-│  │     │
-│  │     └─ FooterExpBar (Frame)
-│  │         ├─ ExpBarBackground (Frame)
-│  │         ├─ ExpBarFill (Frame)
-│  │         ├─ ExpValueLabel (TextLabel)
-│  │         └─ LevelOnBarLabel (TextLabel)
+│  │  └─ StatsRoot
+│  │     ├─ UICorner
+│  │     ├─ UIStroke
+│  │     ├─ BodyContainer
+│  │     │  ├─ ActionButtonsRow
+│  │     │  │  ├─ AcceptButton (TextButton)
+│  │     │  │  └─ ResetButton (TextButton)
+│  │     │  └─ AttributeList
+│  │     │     ├─ UIGridLayout
+│  │     │     ├─ UIPadding
+│  │     │     └─ AttributeRowTemplate
+│  │     └─ HeaderBar
+│  │        ├─ AvailablePointsLabel (TextLabel)
+│  │        └─ TitleLabel (TextLabel)
 │  │
 │  ├─ DailyLoginUI (ScreenGui) -- [REFINED FROM NEW IMAGE]
 │  │  ├─ MainPanel (Frame)
@@ -362,6 +348,7 @@ DataModel
 │        ├─ UIController.lua
 │        └─ Components/*
 │
+## 🟫 Workspace (Maps)
 ├─ Workspace  -> src/Workspace
 │  └─ Maps
 │     ├─ LobbyMap
@@ -409,6 +396,7 @@ DataModel
 │        ├─ SizeRestrictedCorridor
 │        └─ WallContainer
 │
+## 🟪 ServerStorage
 ├─ ServerStorage [INFERRED runtime dependency]
 │  ├─ FoodTemplates
 │  │  ├─ Food1
@@ -423,6 +411,7 @@ DataModel
 │     ├─ MineTrap
 │     └─ SpikeTrap
 │
+## ⚫ Runtime Workspace
 └─ Workspace
    └─ Runtime
       └─ SlingPawns
