@@ -46,10 +46,10 @@ local function ensureAssetTemplates()
 		itemTemplate.Parent = ui
 	end
 
-	local slingTemplate = ui:FindFirstChild("SlingsSlotTemplate")
+	local slingTemplate = ui:FindFirstChild("SlingSlotTemplate")
 	if not slingTemplate then
 		slingTemplate = Instance.new("Frame")
-		slingTemplate.Name = "SlingsSlotTemplate"
+		slingTemplate.Name = "SlingSlotTemplate"
 		local icon = Instance.new("ImageLabel")
 		icon.Name = "Icon"
 		icon.Parent = slingTemplate
@@ -69,20 +69,20 @@ end
 local function buildInventoryGui(): ScreenGui
 	local screen = Instance.new("ScreenGui")
 	screen.Name = "InventoryUI"
-	local mainHub = Instance.new("Frame")
-	mainHub.Name = "MainHub"
-	mainHub.Parent = screen
+	local root = Instance.new("Frame")
+	root.Name = "Root"
+	root.Parent = screen
 
 	local header = Instance.new("Frame")
 	header.Name = "Header"
-	header.Parent = mainHub
+	header.Parent = root
 	local closeButton = Instance.new("TextButton")
 	closeButton.Name = "CloseButton"
 	closeButton.Parent = header
 
 	local tabs = Instance.new("Frame")
 	tabs.Name = "Tabs"
-	tabs.Parent = mainHub
+	tabs.Parent = root
 	local itemsTab = Instance.new("TextButton")
 	itemsTab.Name = "ItemsTab"
 	itemsTab.Parent = tabs
@@ -92,14 +92,14 @@ local function buildInventoryGui(): ScreenGui
 
 	local bodyItems = Instance.new("Frame")
 	bodyItems.Name = "BodyItems"
-	bodyItems.Parent = mainHub
+	bodyItems.Parent = root
 	local itemsGrid = Instance.new("Frame")
 	itemsGrid.Name = "GridContainer"
 	itemsGrid.Parent = bodyItems
 
 	local bodySling = Instance.new("Frame")
 	bodySling.Name = "BodySling"
-	bodySling.Parent = mainHub
+	bodySling.Parent = root
 	local slingGrid = Instance.new("Frame")
 	slingGrid.Name = "GridContainer"
 	slingGrid.Parent = bodySling
@@ -151,11 +151,11 @@ local function testMockInventoryLoadsAndUsesTemplates()
 	local inventoryGui = buildInventoryGui()
 	inventoryGui.Parent = playerGui
 
-	local itemsGrid = inventoryGui.MainHub.BodyItems.GridContainer
+	local itemsGrid = inventoryGui.Root.BodyItems.GridContainer
 	local staticItemSlot = Instance.new("Frame")
 	staticItemSlot.Name = "Slot1"
 	staticItemSlot.Parent = itemsGrid
-	local slingsGrid = inventoryGui.MainHub.BodySling.GridContainer
+	local slingsGrid = inventoryGui.Root.BodySling.GridContainer
 	local staticSlingSlot = Instance.new("Frame")
 	staticSlingSlot.Name = "Slot1"
 	staticSlingSlot.Parent = slingsGrid

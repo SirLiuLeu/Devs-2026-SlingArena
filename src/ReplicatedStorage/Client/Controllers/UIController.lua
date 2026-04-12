@@ -8,6 +8,8 @@ local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local MainStatsPopupController = require(ReplicatedStorage.Client.Controllers.MainStatsPopupController)
 local InventoryUIController = require(ReplicatedStorage.Client.Controllers.InventoryUIController)
 local InventoryDataProvider = require(ReplicatedStorage.Client.Services.InventoryDataProvider)
+local OnlineRewardUIController = require(ReplicatedStorage.Client.Controllers.OnlineRewardUIController)
+local OnlineRewardLogicService = require(ReplicatedStorage.Client.Services.OnlineRewardLogicService)
 local SpinUIController = require(ReplicatedStorage.Client.Controllers.SpinUIController)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 
@@ -54,8 +56,11 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.MainStatsPopupController = MainStatsPopupController.new(playerGui, dependencies)
 	self.InventoryUIController = InventoryUIController.new(playerGui)
 	self.SpinUIController = SpinUIController.new(playerGui)
+	self.OnlineRewardUIController = OnlineRewardUIController.new(playerGui)
 	self.InventoryDataProvider = InventoryDataProvider.GetDefault()
+	self.OnlineRewardLogicService = OnlineRewardLogicService.GetDefault()
 	self.InventoryUIController:SetDataProvider(self.InventoryDataProvider)
+	self.OnlineRewardUIController:SetLogicService(self.OnlineRewardLogicService)
 
 	self.JoinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.JoinButton)
 	self.LeaveButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton)
@@ -138,6 +143,9 @@ function UIController:Start()
 	if self.SpinUIController then
 		self.SpinUIController:Start()
 	end
+	if self.OnlineRewardUIController then
+		self.OnlineRewardUIController:Start()
+	end
 	if self.InventoryDataProvider then
 		table.insert(self.Connections, self.InventoryDataProvider:BindChanged(function(snapshot)
 			if self.InventoryUIController then
@@ -145,6 +153,9 @@ function UIController:Start()
 			end
 		end))
 		self.InventoryDataProvider:LoadMockInventory()
+	end
+	if self.OnlineRewardLogicService then
+		self.OnlineRewardLogicService:LoadMockData()
 	end
 	if self.JoinButton then
 		table.insert(self.Connections, self.JoinButton.MouseButton1Click:Connect(function()
@@ -190,6 +201,9 @@ function UIController:Start()
 	if self.OnlineRewardButton then
 		table.insert(self.Connections, self.OnlineRewardButton.MouseButton1Click:Connect(function()
 			self:ShowMainHubPanel("OnlineReward")
+			if self.OnlineRewardUIController then
+				self.OnlineRewardUIController:SetVisible(true)
+			end
 		end))
 	end
 	if self.SettingButton then
@@ -288,6 +302,9 @@ function UIController:Destroy()
 	end
 	if self.SpinUIController then
 		self.SpinUIController:Destroy()
+	end
+	if self.OnlineRewardUIController then
+		self.OnlineRewardUIController:Destroy()
 	end
 	for _, connection in ipairs(self.Connections) do
 		connection:Disconnect()

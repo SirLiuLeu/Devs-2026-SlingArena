@@ -69,31 +69,39 @@ local ProjectTreeSpec = {
 		},
 		Inventory = {
 			ScreenGui = "InventoryUI", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI
-			MainHub = "InventoryUI.MainHub", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub
-			BodyItems = "InventoryUI.MainHub.BodyItems", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodyItems
-			BodySling = "InventoryUI.MainHub.BodySling", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling
-			ItemsTab = "InventoryUI.MainHub.Tabs.ItemsTab", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.Tabs.ItemsTab
-			SlingTab = "InventoryUI.MainHub.Tabs.SlingTab", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.Tabs.SlingTab
-			CloseButton = "InventoryUI.MainHub.Header.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.Header.CloseButton
-			ItemsGridContainer = "InventoryUI.MainHub.BodyItems.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodyItems.GridContainer
-			SlingsGridContainer = "InventoryUI.MainHub.BodySling.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.GridContainer
-			BodySlingGridContainer = "InventoryUI.MainHub.BodySling.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.GridContainer
-			SlingCapacityLabel = "InventoryUI.MainHub.BodySling.Footer.CapacityLabel", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.Footer.CapacityLabel
-			ItemsSelectedName = "InventoryUI.MainHub.BodyItems.RightPanel.SelectedName", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodyItems.RightPanel.SelectedName
-			ItemsDescription = "InventoryUI.MainHub.BodyItems.RightPanel.Description", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodyItems.RightPanel.Description
-			ItemsPanelIcon = "InventoryUI.MainHub.BodyItems.RightPanel.Icon", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodyItems.RightPanel.Icon (optional ImageLabel)
-			ItemsUseButton = "InventoryUI.MainHub.BodyItems.RightPanel.ActionButtons.UseButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodyItems.RightPanel.ActionButtons.UseButton
-			ItemsStat1 = "InventoryUI.MainHub.BodyItems.RightPanel.Stats.ItemStat1", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodyItems.RightPanel.Stats.ItemStat1
-			ItemsStat2 = "InventoryUI.MainHub.BodyItems.RightPanel.Stats.ItemStat2", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodyItems.RightPanel.Stats.ItemStat2
-			ItemsStat3 = "InventoryUI.MainHub.BodyItems.RightPanel.Stats.ItemStat3", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodyItems.RightPanel.Stats.ItemStat3
-			SlingSelectedName = "InventoryUI.MainHub.BodySling.RightPanel.SelectedName", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.RightPanel.SelectedName
-			SlingPanelIcon = "InventoryUI.MainHub.BodySling.RightPanel.Icon", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.RightPanel.Icon (optional ImageLabel)
-			SlingEquipButton = "InventoryUI.MainHub.BodySling.RightPanel.ActionButtons.EquipButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.RightPanel.ActionButtons.EquipButton
-			SlingDeleteButton = "InventoryUI.MainHub.BodySling.RightPanel.ActionButtons.DeleteButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.RightPanel.ActionButtons.DeleteButton
-			SlingStatDamage = "InventoryUI.MainHub.BodySling.RightPanel.Stats.Damage", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.RightPanel.Stats.Damage
-			SlingStatHP = "InventoryUI.MainHub.BodySling.RightPanel.Stats.HP", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.RightPanel.Stats.HP
-			SlingStatRange = "InventoryUI.MainHub.BodySling.RightPanel.Stats.Range", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.RightPanel.Stats.Range
-			SlingStatRegen = "InventoryUI.MainHub.BodySling.RightPanel.Stats.Regen", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.RightPanel.Stats.Regen
+			Root = "InventoryUI.Root", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root
+			BodyItems = "InventoryUI.Root.BodyItems", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems
+			BodySling = "InventoryUI.Root.BodySling", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling
+			ItemsTab = "InventoryUI.Root.Tabs.ItemsTab", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Tabs.ItemsTab
+			SlingTab = "InventoryUI.Root.Tabs.SlingTab", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Tabs.SlingTab
+			CloseButton = "InventoryUI.Root.Header.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Header.CloseButton
+			ItemsGridContainer = "InventoryUI.Root.BodyItems.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.GridContainer
+			SlingsGridContainer = "InventoryUI.Root.BodySling.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.GridContainer
+			BodySlingGridContainer = "InventoryUI.Root.BodySling.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.GridContainer
+			SlingCapacityLabel = "InventoryUI.Root.BodySling.Footer.CapacityLabel", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.Footer.CapacityLabel
+			ItemsSelectedName = "InventoryUI.Root.BodyItems.RightPanel.SelectedName", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.SelectedName
+			ItemsDescription = "InventoryUI.Root.BodyItems.RightPanel.Description", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Description
+			ItemsPanelIcon = "InventoryUI.Root.BodyItems.RightPanel.Icon", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Icon (optional ImageLabel)
+			ItemsUseButton = "InventoryUI.Root.BodyItems.RightPanel.ActionButtons.UseButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.ActionButtons.UseButton
+			ItemsStat1 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat1", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat1
+			ItemsStat2 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat2", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat2
+			ItemsStat3 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat3", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat3
+			SlingSelectedName = "InventoryUI.Root.BodySling.RightPanel.SelectedName", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.SelectedName
+			SlingPanelIcon = "InventoryUI.Root.BodySling.RightPanel.Icon", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.Icon (optional ImageLabel)
+			SlingEquipButton = "InventoryUI.Root.BodySling.RightPanel.ActionButtons.EquipButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.ActionButtons.EquipButton
+			SlingDeleteButton = "InventoryUI.Root.BodySling.RightPanel.ActionButtons.DeleteButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.ActionButtons.DeleteButton
+			SlingStatDamage = "InventoryUI.Root.BodySling.RightPanel.Stats.Damage", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.Stats.Damage
+			SlingStatHP = "InventoryUI.Root.BodySling.RightPanel.Stats.HP", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.Stats.HP
+			SlingStatRange = "InventoryUI.Root.BodySling.RightPanel.Stats.Range", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.Stats.Range
+			SlingStatRegen = "InventoryUI.Root.BodySling.RightPanel.Stats.Regen", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.Stats.Regen
+		},
+		OnlineReward = {
+			ScreenGui = "OnlineRewardUI", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI
+			Root = "OnlineRewardUI.Root", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI.Root
+			Content = "OnlineRewardUI.Root.Content", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI.Root.Content
+			ClaimAll = "OnlineRewardUI.Root.Footer.ClaimAll", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI.Root.Footer.ClaimAll
+			SkipAll = "OnlineRewardUI.Root.Footer.SkipAll", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI.Root.Footer.SkipAll
+			CloseButton = "OnlineRewardUI.Root.Header.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI.Root.Header.CloseButton
 		},
 		Spin = {
 			ScreenGui = "SpinUI", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI
@@ -211,7 +219,7 @@ local ProjectTreeSpec = {
 		--   Assets (Folder)
 		--     UI (Folder)
 		--       ItemSlotTemplate (Frame)
-		--       SlingsSlotTemplate (Frame)
+		--       SlingSlotTemplate (Frame)
 		--     Slings (Folder)
 		--       Sling_01..Sling_05 (Model test templates)
 		--     Food (Folder)
@@ -242,7 +250,8 @@ local ProjectTreeSpec = {
 		ReplicatedStorage = {
 			Assets = {
 				ItemSlotTemplate = "Assets.UI.ItemSlotTemplate",
-				SlingsSlotTemplate = "Assets.UI.SlingsSlotTemplate",
+				SlingSlotTemplate = "Assets.UI.SlingSlotTemplate",
+				RewardSlotTemplate = "Assets.UI.RewardSlotTemplate",
 				Food1 = "Assets.Food.Food1",
 				Food2 = "Assets.Food.Food2",
 				Food3 = "Assets.Food.Food3",
