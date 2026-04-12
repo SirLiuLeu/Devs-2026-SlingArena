@@ -32,57 +32,63 @@ DataModel
 │  │
 │  ├─ Assets
 │  │  ├─ Slings
-│  │  │  ├─ Sling_01 (Model test template)
-│  │  │  ├─ Sling_02 (Model test template)
-│  │  │  ├─ Sling_03 (Model test template)
-│  │  │  ├─ Sling_04 (Model test template)
-│  │  │  └─ Sling_05 (Model test template)
+│  │  │   ├── Sling_01 (Model test template)
+│  │  │   ├── Sling_02 (Model test template)
+│  │  │   ├── Sling_03 (Model test template)
+│  │  │   ├── Sling_04 (Model test template)
+│  │  │   └── Sling_05 (Model test template)
 │  │  │
+│  │  ├── Icons
+│  │  │   ├── Items
+│  │  │   │   ├── HP_Potion (Image)
+│  │  │   │   ├── Gacha_Ticket (Image)
+│  │  │   │   └── EXP_Buff (Image)
+│  │  │   │
+│  │  │   └── Slings
+│  │  │       ├── Sling_01 (Image)
+│  │  │       ├── Sling_02 (Image)
+│  │  │       ├── Sling_03 (Image)
+│  │  │       ├── Sling_04 (Image)
+│  │  │       └── Sling_05 (Image)
 │  │  │
-│  │  ├─ Icons
-│  │  │  ├─ Items
-│  │  │  │  ├─ HP_Potion (Image)
-│  │  │  │  ├─ Gacha_Ticket (Image)
-│  │  │  │  └─ EXP_Buff (Image)
-│  │  │  │
-│  │  │  └─ Slings
-│  │  │     ├─ Sling_01 (Image)
-│  │  │     ├─ Sling_02 (Image)
-│  │  │     ├─ Sling_03 (Image)
-│  │  │     ├─ Sling_04 (Image)
-│  │  │     └─ Sling_05 (Image)
-│  │     └─ UI
-│  │        ├─ ItemSlotTemplate (Frame)
-│  │        │  ├─ Root (Frame)
-│  │        │  │  ├─ UICorner
-│  │        │  │  ├─ Icon (ImageLabel)
-│  │        │  │  ├─ Name (TextLabel)
-│  │        │  │  └─ Quantity (TextLabel)
-│  │        │
-│  │        ├─ SlingsSlotTemplate (Frame)
-│  │        │  ├─ Root (Frame)
-│  │        │  │  ├─ RarityStroke (UIStroke)
-│  │        │  │  ├─ UICorner
-│  │        │  │  ├─ Stars (Frame/Folder)
-│  │        │  │  ├─ Icon (ImageLabel)
-│  │        │  │  ├─ EquippedTag (TextLabel)
-│  │        │  │  ├─ Level (TextLabel)
-│  │        │  │  └─ Name (TextLabel)
-│  │        │
-│  │        ├─ RewardSlotTemplate (Frame)
-│  │        │  ├─ UICorner
-│  │        │  ├─ ClaimButton (TextButton)
-│  │        │  ├─ Icon (ImageLabel)
-│  │        │  ├─ Claimed (TextLabel)
-│  │        │  ├─ Quantity (TextLabel)
-│  │        │  └─ Timer (TextLabel)
-│  │        │
-│  │        └─ AttributeRowTemplate (Frame)
-│  │           ├─ DecreaseButton (TextButton)
-│  │           ├─ IncreaseButton (TextButton)
-│  │           ├─ AllocatedPointsLabel (TextLabel)
-│  │           ├─ AttributeNameLabel (TextLabel)
-│  │           └─ CurrentValueLabel (TextLabel)
+│  │  └── UI
+│  │      ├── ItemSlotTemplate (Frame)
+│  │      │   └── Root (Frame)
+│  │      │       ├── UICorner
+│  │      │       ├── Icon (ImageLabel)
+│  │      │       ├── Name (TextLabel)
+│  │      │       └── Quantity (TextLabel)
+│  │      │
+│  │      ├── SlingsSlotTemplate (Frame)
+│  │      │   └── Root (Frame)
+│  │      │       ├── RarityStroke (UIStroke)
+│  │      │       ├── UICorner
+│  │      │       ├── Stars (Frame)
+│  │      │       │   ├── UIListLayout
+│  │      │       │   ├── Star1 (ImageLabel)
+│  │      │       │   ├── Star2 (ImageLabel)
+│  │      │       │   ├── Star3 (ImageLabel)
+│  │      │       │   ├── Star4 (ImageLabel)
+│  │      │       │   └── Star5 (ImageLabel)
+│  │      │       ├── Icon (ImageLabel)
+│  │      │       ├── EquippedTag (TextLabel)
+│  │      │       ├── Level (TextLabel)
+│  │      │       └── Name (TextLabel)
+│  │      │
+│  │      ├─ RewardSlotTemplate (Frame)
+│  │      │  ├─ UICorner
+│  │      │  ├─ ClaimButton (TextButton)
+│  │      │  ├─ Icon (ImageLabel)
+│  │      │  ├─ Claimed (TextLabel)
+│  │      │  ├─ Quantity (TextLabel)
+│  │      │  └─ Timer (TextLabel)
+│  │      │
+│  │      └─ AttributeRowTemplate (Frame)
+│  │         ├─ DecreaseButton (TextButton)
+│  │         ├─ IncreaseButton (TextButton)
+│  │         ├─ AllocatedPointsLabel (TextLabel)
+│  │         ├─ AttributeNameLabel (TextLabel)
+│  │         └─ CurrentValueLabel (TextLabel)
 │  │
 │  ├─ SlingArenaRemotes
 │  │  └─ (RemoteEvents from *.model.json)
@@ -200,7 +206,7 @@ DataModel
 │  │     └─ Title (TextLabel)
 │  │ 
 │  ├─ InventoryUI (ScreenGui)
-│  │  ├── MainHub (Frame)
+│  │  ├── Root (Frame)
 │  │  │   ├── UICorner
 │  │  │   ├── Header (Frame)
 │  │  │   │   ├─ CloseButton (TextButton)
