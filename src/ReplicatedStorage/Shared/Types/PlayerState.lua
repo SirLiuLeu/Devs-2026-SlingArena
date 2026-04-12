@@ -15,6 +15,7 @@ export type PlayerState = {
 	UserId: number,
 	MapName: string,
 	ArenaStatus: string,
+	TeamId: string,
 	Level: number,
 	Exp: number,
 	Size: number,

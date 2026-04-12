@@ -8,6 +8,8 @@ local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local MainStatsPopupController = require(ReplicatedStorage.Client.Controllers.MainStatsPopupController)
 local InventoryUIController = require(ReplicatedStorage.Client.Controllers.InventoryUIController)
 local InventoryDataProvider = require(ReplicatedStorage.Client.Services.InventoryDataProvider)
+local SpinUIController = require(ReplicatedStorage.Client.Controllers.SpinUIController)
+local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 
 local UIController = {}
 UIController.__index = UIController
@@ -51,6 +53,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.Connections = {}
 	self.MainStatsPopupController = MainStatsPopupController.new(playerGui, dependencies)
 	self.InventoryUIController = InventoryUIController.new(playerGui)
+	self.SpinUIController = SpinUIController.new(playerGui)
 	self.InventoryDataProvider = InventoryDataProvider.GetDefault()
 	self.InventoryUIController:SetDataProvider(self.InventoryDataProvider)
 
@@ -70,6 +73,10 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.SpinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.SpinButton)
 	self.QuickHpButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP)
 	self.HomeButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.HomeButton)
+	self.TeamIndicator = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.TeamIndicator)
+	self.ExpBarFill = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.Fill)
+	self.ExpValueLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.ValueLabel)
+	self.ExpLevelLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.LevelLabel)
 
 	self.PanelMap = {
 		SlingStats = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.SlingStats),
@@ -98,6 +105,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not self.SpinButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SpinButton, "TextButton") end
 	if not self.QuickHpButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHP, "TextButton") end
 	if not self.HomeButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.HomeButton, "TextButton") end
+	if not self.TeamIndicator then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.TeamIndicator, "TextLabel") end
 	if not self.PanelMap.SlingStats then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.SlingStats, "ScreenGui") end
 	if not self.PanelMap.DailyLogin then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.DailyLogin, "ScreenGui") end
 	if not self.PanelMap.Inventory then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Inventory, "ScreenGui") end
@@ -126,6 +134,9 @@ end
 function UIController:Start()
 	if self.InventoryUIController then
 		self.InventoryUIController:Start()
+	end
+	if self.SpinUIController then
+		self.SpinUIController:Start()
 	end
 	if self.InventoryDataProvider then
 		table.insert(self.Connections, self.InventoryDataProvider:BindChanged(function(snapshot)
@@ -220,6 +231,28 @@ function UIController:Start()
 		if self.MainStatsPopupController then
 			self.MainStatsPopupController:ApplyState(state)
 		end
+		local currentExp = math.max(0, math.floor(state.Exp or 0))
+		local level = math.max(1, math.floor(state.Level or 1))
+		local required = math.max(1, LevelConfig.RequiredExp(level))
+		local ratio = math.clamp(currentExp / required, 0, 1)
+		if self.ExpBarFill and self.ExpBarFill:IsA("GuiObject") then
+			self.ExpBarFill.Size = UDim2.new(ratio, 0, self.ExpBarFill.Size.Y.Scale, self.ExpBarFill.Size.Y.Offset)
+		end
+		if self.ExpValueLabel then
+			self.ExpValueLabel.Text = string.format("%d / %d", currentExp, required)
+		end
+		if self.ExpLevelLabel then
+			self.ExpLevelLabel.Text = string.format("Lv.%d", level)
+		end
+		if self.TeamIndicator then
+			local teamId = tostring(state.TeamId or "NoTeam")
+			self.TeamIndicator.Text = string.format("Team: %s", teamId)
+			if teamId == "TeamRed" then
+				self.TeamIndicator.TextColor3 = Color3.fromRGB(255, 80, 80)
+			elseif teamId == "TeamBlue" then
+				self.TeamIndicator.TextColor3 = Color3.fromRGB(80, 160, 255)
+			end
+		end
 	end)
 	if stateConnection then
 		table.insert(self.Connections, stateConnection)
@@ -252,6 +285,9 @@ end
 function UIController:Destroy()
 	if self.InventoryUIController then
 		self.InventoryUIController:Destroy()
+	end
+	if self.SpinUIController then
+		self.SpinUIController:Destroy()
 	end
 	for _, connection in ipairs(self.Connections) do
 		connection:Disconnect()

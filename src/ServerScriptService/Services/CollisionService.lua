@@ -111,7 +111,11 @@ function CollisionService:_resolvePlayerCollisions(hits)
 		if attackerState and defenderState then
 			local velocityMagnitude = winnerRoot.AssemblyLinearVelocity.Magnitude
 			local impactDirection = loserRoot.Position - winnerRoot.Position
+			local isFriendly = self._context.Services.TeamService and self._context.Services.TeamService:IsFriendly(winner, loser)
 			local damage = self._context.Services.CombatService:ComputeImpactDamage(attackerState, velocityMagnitude, attackerState.ChargeValue)
+			if isFriendly then
+				damage = 0
+			end
 			local knockback = self._context.Services.CombatService:ComputeKnockback(attackerState, defenderState, impactDirection, velocityMagnitude)
 			self._context.EventBus:Fire("CollisionDetected", "Sling", winner, loser, { Speed = velocityMagnitude, ChargeRatio = attackerState.ChargeValue })
 			self._context.EventBus:Fire("CollisionPlayerHit", loser, winner, damage, knockback, { ChargeRatio = attackerState.ChargeValue, VelocityMagnitude = velocityMagnitude })

@@ -69,6 +69,7 @@ local function buildDefaultState(player: Player): PlayerState
 		UserId = player.UserId,
 		MapName = "LobbyMap",
 		ArenaStatus = GameStates.ArenaStatus.Lobby,
+		TeamId = "TeamRed",
 		Level = LevelConfig.StartingLevel,
 		Exp = LevelConfig.StartingExp,
 		Size = sling.Size,
@@ -243,6 +244,15 @@ function PlayerStateService:SetArenaStatus(player: Player, arenaStatus: string)
 	self:PublishState(player)
 end
 
+function PlayerStateService:SetTeamId(player: Player, teamId: string)
+	local state = self._states[player]
+	if not state then
+		return
+	end
+	state.TeamId = teamId
+	self:PublishState(player)
+end
+
 function PlayerStateService:SetTeleporting(player: Player, isTeleporting: boolean)
 	local state = self._states[player]
 	if not state then return end
@@ -305,7 +315,11 @@ end
 function PlayerStateService:GrantExp(player: Player, amount: number)
 	local state = self._states[player]
 	if not state then return end
-	state.Exp += math.max(0, amount)
+	local expBonus = 1
+	if state.TeamId == "TeamRed" or state.TeamId == "TeamBlue" then
+		expBonus = 1 + 0
+	end
+	state.Exp += math.max(0, amount) * expBonus
 	while state.Level < LevelConfig.MaxLevel do
 		local requiredExp = self:GetRequiredExp(state.Level)
 		if state.Exp < requiredExp then break end

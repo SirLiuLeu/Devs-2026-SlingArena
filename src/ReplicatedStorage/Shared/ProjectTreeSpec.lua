@@ -47,6 +47,13 @@ local ProjectTreeSpec = {
 			SpinButton = "MainHUD.Root.LeftMenu.SpinButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.SpinButton
 			QuickHP = "MainHUD.Root.QuickHP", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuickHP
 			HomeButton = "MainHUD.Root.Home", -- [INFERRED from PROJECT_TREE.md] StarterGui.MainHUD.Root.Home
+			TeamIndicator = "MainHUD.Root.TeamIndicator", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.TeamIndicator (TextLabel)
+			ExpProgress = {
+				Root = "MainHUD.Root.ExpProress", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress
+				Fill = "MainHUD.Root.ExpProress.ExpBarFill", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.ExpBarFill
+				ValueLabel = "MainHUD.Root.ExpProress.ExpValueLabel", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.ExpValueLabel
+				LevelLabel = "MainHUD.Root.ExpProress.LevelOnBarLabel", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.LevelOnBarLabel
+			},
 			Panels = {
 				SlingStats = "SlingStatsUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI
 				DailyLogin = "DailyLoginUI", -- [PROJECT_TREE_SPEC] StarterGui.DailyLoginUI
@@ -70,6 +77,7 @@ local ProjectTreeSpec = {
 			CloseButton = "InventoryUI.MainHub.Header.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.Header.CloseButton
 			ItemsGridContainer = "InventoryUI.MainHub.BodyItems.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodyItems.GridContainer
 			SlingsGridContainer = "InventoryUI.MainHub.BodySling.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.GridContainer
+			BodySlingGridContainer = "InventoryUI.MainHub.BodySling.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.GridContainer
 			SlingCapacityLabel = "InventoryUI.MainHub.BodySling.Footer.CapacityLabel", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.Footer.CapacityLabel
 			ItemsSelectedName = "InventoryUI.MainHub.BodyItems.RightPanel.SelectedName", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodyItems.RightPanel.SelectedName
 			ItemsDescription = "InventoryUI.MainHub.BodyItems.RightPanel.Description", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodyItems.RightPanel.Description
@@ -86,6 +94,15 @@ local ProjectTreeSpec = {
 			SlingStatHP = "InventoryUI.MainHub.BodySling.RightPanel.Stats.HP", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.RightPanel.Stats.HP
 			SlingStatRange = "InventoryUI.MainHub.BodySling.RightPanel.Stats.Range", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.RightPanel.Stats.Range
 			SlingStatRegen = "InventoryUI.MainHub.BodySling.RightPanel.Stats.Regen", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.MainHub.BodySling.RightPanel.Stats.Regen
+		},
+		Spin = {
+			ScreenGui = "SpinUI", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI
+			Root = "SpinUI.Root", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root
+			Wheel = "SpinUI.Root.WheelContainer.GachaWheel", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.WheelContainer.GachaWheel
+			Pointer = "SpinUI.Root.WheelContainer.Pointer", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.WheelContainer.Pointer
+			Spin1 = "SpinUI.Root.Buttons.Spin1", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.Buttons.Spin1
+			Spin2 = "SpinUI.Root.Buttons.Spin2", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.Buttons.Spin2
+			CloseButton = "SpinUI.Root.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.CloseButton
 		},
 		InventoryTest = {
 			ScreenGui = "InventoryTestUI", -- [PROJECT_TREE_SPEC] StarterGui.InventoryTestUI
@@ -155,10 +172,13 @@ local ProjectTreeSpec = {
 		--     LobbyMap (Model)
 		--       SpawnPoints (Folder)
 		--         SpawnPoint (Part)
+		--       GachaSpin (Model)
 		--       Gate (Part)
 		--     Arena_01 (Model)
 		--       SpawnPoints (Folder)
 		--         SpawnPoint_01..N (Part)
+		--         RedSpawn (SpawnLocation | Part)
+		--         BlueSpawn (SpawnLocation | Part)
 		--       FoodContainer (Folder)
 		--       Traps (Folder)
 		--         Trap_01..N (Part | Model)
@@ -199,11 +219,16 @@ local ProjectTreeSpec = {
 		--		 Food1, Food2, Food3, ...Food7 (Model)
 		--     Trap (Folder)
 		--       BasicTrap (Model) [fallback]
+		--
+		-- Teams
+		--   TeamRed (Team)
+		--   TeamBlue (Team)
 		Workspace = {
 			SlingPawns = "SlingPawns",
 			Maps = {
 				Root = "Maps",
 				LobbyMap = "Maps.LobbyMap",
+				GachaSpin = "Maps.LobbyMap.GachaSpin",
 				Arena01 = "Maps.Arena_01",
 				Arena02 = "Maps.Arena_02",
 				ArenaMapDirect = "ArenaMap",
@@ -235,6 +260,11 @@ local ProjectTreeSpec = {
 				Sling04 = "Assets.Slings.Sling_04",
 				Sling05 = "Assets.Slings.Sling_05",
 			}
+		},
+	},
+	World = {
+		GachaSpin = {
+			Model = "Maps.LobbyMap.GachaSpin", -- [PROJECT_TREE_SPEC] Workspace.Maps.LobbyMap.GachaSpin
 		},
 	},
 }

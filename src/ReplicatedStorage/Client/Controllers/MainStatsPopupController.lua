@@ -164,18 +164,50 @@ function MainStatsPopupController:_resolveUi()
 	self.LevelOnBarLabel = self:_resolveTyped(ProjectTreeSpec.UI.SlingStats.LevelOnBarLabel, "TextLabel")
 
 	self.RowBindings = {}
+	self:_buildDynamicRows()
+end
+
+function MainStatsPopupController:_buildDynamicRows()
+	if not self.AttributeList then
+		warn("[STATS_UI] AttributeList missing for dynamic row generation")
+		return
+	end
+	for _, child in ipairs(self.AttributeList:GetChildren()) do
+		if child:IsA("GuiObject") and child.Name ~= "AttributeRowTemplate" and not child:IsA("UIGridLayout") and not child:IsA("UIPadding") then
+			child:Destroy()
+		end
+	end
+	local template = ReplicatedStorage:FindFirstChild("Assets")
+	template = template and template:FindFirstChild("UI")
+	template = template and template:FindFirstChild("AttributeRowTemplate")
+	if not (template and template:IsA("GuiObject")) then
+		warn("[STATS_UI] ReplicatedStorage.Assets.UI.AttributeRowTemplate missing")
+		return
+	end
 	for _, attributeKey in ipairs(ATTRIBUTE_ORDER) do
-		local rowPath = ProjectTreeSpec.UI.SlingStats.AttributeRows[attributeKey]
-		local rowRoot = self:_resolveTyped(rowPath, "GuiObject")
-		local binding = {
-			Row = rowRoot,
-			NameLabel = self:_resolveTyped(string.format("%s.AttributeNameLabel", rowPath), "TextLabel"),
-			CurrentValueLabel = self:_resolveTyped(string.format("%s.CurrentValueLabel", rowPath), "TextLabel"),
-			AllocatedPointsLabel = self:_resolveTyped(string.format("%s.AllocatedPointsLabel", rowPath), "TextLabel"),
-			IncreaseButton = self:_resolveTyped(string.format("%s.IncreaseButton", rowPath), "TextButton"),
-			DecreaseButton = self:_resolveTyped(string.format("%s.DecreaseButton", rowPath), "TextButton"),
+		local row = template:Clone()
+		row.Name = string.format("%sRow", attributeKey)
+		row.Visible = true
+		row.Parent = self.AttributeList
+		self.RowBindings[attributeKey] = {
+			Row = row,
+			NameLabel = row:FindFirstChild("AttributeNameLabel"),
+			CurrentValueLabel = row:FindFirstChild("CurrentValueLabel"),
+			AllocatedPointsLabel = row:FindFirstChild("AllocatedPointsLabel"),
+			IncreaseButton = row:FindFirstChild("IncreaseButton"),
+			DecreaseButton = row:FindFirstChild("DecreaseButton"),
 		}
-		self.RowBindings[attributeKey] = binding
+		local rowBinding = self.RowBindings[attributeKey]
+		if rowBinding.IncreaseButton and rowBinding.IncreaseButton:IsA("TextButton") then
+			table.insert(self.Connections, rowBinding.IncreaseButton.MouseButton1Click:Connect(function()
+				self:_changeAllocation(attributeKey, 1)
+			end))
+		end
+		if rowBinding.DecreaseButton and rowBinding.DecreaseButton:IsA("TextButton") then
+			table.insert(self.Connections, rowBinding.DecreaseButton.MouseButton1Click:Connect(function()
+				self:_changeAllocation(attributeKey, -1)
+			end))
+		end
 	end
 end
 
@@ -201,20 +233,6 @@ function MainStatsPopupController:_bindStaticControls()
 		table.insert(self.Connections, self.AcceptButton.MouseButton1Click:Connect(function()
 			self:_acceptAllocations()
 		end))
-	end
-
-	for _, attributeKey in ipairs(ATTRIBUTE_ORDER) do
-		local rowBinding = self.RowBindings[attributeKey]
-		if rowBinding.IncreaseButton then
-			table.insert(self.Connections, rowBinding.IncreaseButton.MouseButton1Click:Connect(function()
-				self:_changeAllocation(attributeKey, 1)
-			end))
-		end
-		if rowBinding.DecreaseButton then
-			table.insert(self.Connections, rowBinding.DecreaseButton.MouseButton1Click:Connect(function()
-				self:_changeAllocation(attributeKey, -1)
-			end))
-		end
 	end
 
 	self:_refreshVisibility()

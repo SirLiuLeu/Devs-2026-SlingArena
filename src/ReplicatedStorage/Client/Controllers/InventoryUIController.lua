@@ -104,7 +104,7 @@ function InventoryUIController:Start()
 			warn("[INVENTORY_UI] ReplicatedStorage.Assets.UI missing")
 		else
 			self._itemTemplate = uiFolder:FindFirstChild("ItemSlotTemplate")
-			self._slingTemplate = uiFolder:FindFirstChild("SlingsSlotTemplate") or uiFolder:FindFirstChild("SlingSlotTemplate")
+			self._slingTemplate = uiFolder:FindFirstChild("SlingsSlotTemplate")
 			if not self._itemTemplate then
 				warn("[INVENTORY_UI] ItemSlotTemplate missing in ReplicatedStorage.Assets.UI")
 			end
@@ -320,10 +320,13 @@ function InventoryUIController:_spawnItemSlot(itemId: string, quantity: number)
 	table.insert(self._spawnedItemSlots, slot)
 end
 
-function InventoryUIController:_spawnSlingSlot(slingId: string, level: number, isEquipped: boolean)
+function InventoryUIController:_spawnSlingSlot(slingEntry)
 	if not self._slingsGrid or not self._slingTemplate or not self._slingTemplate:IsA("GuiObject") then
 		return
 	end
+	local slingId = slingEntry.id
+	local level = slingEntry.level or 1
+	local isEquipped = slingEntry.equipped == true
 	local slingDef = SlingConfig.GetById(slingId)
 	if not slingDef then
 		warn(string.format("[INVENTORY_UI] Unknown sling id in owned data: %s", slingId))
@@ -334,11 +337,16 @@ function InventoryUIController:_spawnSlingSlot(slingId: string, level: number, i
 	slot.Name = string.format("GeneratedSling_%s", slingId)
 	slot.Visible = true
 	slot.Parent = self._slingsGrid
-	self:_bindCommonSlot(slot, slingDef.name, nil)
+	self:_bindCommonSlot(slot, slingEntry.name or slingDef.name, slingEntry.icon or slingDef.icon)
 
 	local levelLabel = slot:FindFirstChild("Level", true)
 	if levelLabel and levelLabel:IsA("TextLabel") then
-		levelLabel.Text = string.format("Lv.%d", math.max(1, level))
+		local stats = slingEntry.stats
+		if type(stats) == "table" then
+			levelLabel.Text = string.format("Lv.%d | Dmg %.1f | HP %.0f", math.max(1, level), stats.damage or 0, stats.hp or 0)
+		else
+			levelLabel.Text = string.format("Lv.%d", math.max(1, level))
+		end
 	end
 
 	local equippedTag = slot:FindFirstChild("EquippedTag", true)
@@ -392,23 +400,27 @@ function InventoryUIController:_refreshSlingPanel(data)
 	local slingEntry = slingId and self:_findSlingEntry(data.ownedSlings, slingId) or nil
 
 	if self._slingSelectedName then
-		self._slingSelectedName.Text = slingDef and slingDef.name or "No sling selected"
+		self._slingSelectedName.Text = (slingEntry and slingEntry.name) or (slingDef and slingDef.name) or "No sling selected"
 	end
 	if self._slingPanelIcon and slingDef then
-		self._slingPanelIcon.Image = slingDef.icon or ""
+		self._slingPanelIcon.Image = (slingEntry and slingEntry.icon) or slingDef.icon or ""
 	end
 	if self._slingStatDamage then
-		self._slingStatDamage.Text = slingDef and string.format("Power: %.2f", slingDef.stats.launchPower or 0) or "Power: -"
+		local value = slingEntry and slingEntry.stats and slingEntry.stats.damage
+		self._slingStatDamage.Text = string.format("Power: %.2f", value or (slingDef and slingDef.stats.launchPower or 0))
 	end
 	if self._slingStatHP then
-		self._slingStatHP.Text = slingEntry and string.format("Level: %d", slingEntry.level or 1) or "Level: -"
+		local hpValue = slingEntry and slingEntry.stats and slingEntry.stats.hp
+		self._slingStatHP.Text = hpValue and string.format("HP: %.0f", hpValue) or (slingEntry and string.format("Level: %d", slingEntry.level or 1) or "Level: -")
 	end
 	if self._slingStatRange then
-		self._slingStatRange.Text = slingDef and string.format("Range: %.2f", slingDef.stats.control or 0) or "Range: -"
+		local rangeValue = slingEntry and slingEntry.stats and slingEntry.stats.range
+		self._slingStatRange.Text = string.format("Range: %.2f", rangeValue or (slingDef and slingDef.stats.control or 0))
 	end
 	if self._slingStatRegen then
+		local regenValue = slingEntry and slingEntry.stats and slingEntry.stats.regen
 		local isEquipped = slingEntry and slingEntry.equipped == true
-		self._slingStatRegen.Text = isEquipped and "Status: Equipped" or "Status: Unequipped"
+		self._slingStatRegen.Text = string.format("Regen: %.2f | %s", regenValue or 0, isEquipped and "Equipped" or "Unequipped")
 	end
 end
 
@@ -526,7 +538,7 @@ function InventoryUIController:RefreshWithData(data)
 
 	local ownedSlings = data.ownedSlings or {}
 	for _, slingEntry in ipairs(ownedSlings) do
-		self:_spawnSlingSlot(slingEntry.id, slingEntry.level or 1, slingEntry.equipped == true)
+		self:_spawnSlingSlot(slingEntry)
 	end
 
 	if self._slingCapacityLabel then

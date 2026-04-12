@@ -8,6 +8,7 @@ local ServicesFolder = script.Parent:WaitForChild("Services")
 local EventBus = require(ServicesFolder.EventBus)
 local PlayerStateService = require(ServicesFolder.PlayerStateService)
 local PlayerService = require(ServicesFolder.PlayerService)
+local TeamService = require(ServicesFolder.TeamService)
 local SlingService = require(ServicesFolder.SlingService)
 local MapService = require(ServicesFolder.MapService)
 local FoodService = require(ServicesFolder.FoodService)
@@ -49,6 +50,7 @@ local context = {
 }
 
 context.Services.PlayerStateService = PlayerStateService.new(context)
+context.Services.TeamService = TeamService.new(context)
 context.Services.PlayerService = PlayerService.new(context)
 context.Services.SlingService = SlingService.new(context)
 context.Services.MapService = MapService.new(context)
@@ -64,6 +66,7 @@ context.Services.MonetizationService = MonetizationService.new(context)
 context.Services.LeaderboardService = LeaderboardService.new(context)
 
 context.Services.PlayerStateService:Init()
+context.Services.TeamService:Init()
 context.Services.MapService:Init()
 context.Services.PlayerService:Init()
 context.Services.FoodService:Init()

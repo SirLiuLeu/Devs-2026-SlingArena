@@ -153,9 +153,11 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	pawn.Name = player.Name
 	local index = spawnIndex or (player.UserId % 8) + 1
 	local mapService = self._context.Services.MapService
+	local playerState = self._context.Services.PlayerStateService:GetState(player)
+	local teamId = playerState and playerState.TeamId or nil
 	local spawnCFrame = CFrame.new(mapService:GetSpawnPoint(index, mapName))
 	if type(mapService.GetSpawnCFrame) == "function" then
-		spawnCFrame = mapService:GetSpawnCFrame(index, mapName)
+		spawnCFrame = mapService:GetSpawnCFrame(index, mapName, teamId)
 	end
 	pawn:PivotTo(spawnCFrame)
 	pawn.Parent = self._pawnsFolder

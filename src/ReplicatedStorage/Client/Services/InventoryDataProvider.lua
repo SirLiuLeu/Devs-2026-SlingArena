@@ -11,7 +11,7 @@ InventoryDataProvider.__index = InventoryDataProvider
 
 export type InventorySnapshot = {
 	ownedItems: { [string]: number },
-	ownedSlings: { { id: string, level: number, equipped: boolean } },
+	ownedSlings: { { id: string, level: number, equipped: boolean, name: string?, icon: string?, stats: any? } },
 	slingCapacity: number,
 	selectedItemId: string?,
 	selectedSlingId: string?,
@@ -26,13 +26,16 @@ local function cloneItems(items: { [string]: number }): { [string]: number }
 	return result
 end
 
-local function cloneSlings(slings: { { id: string, level: number, equipped: boolean } }): { { id: string, level: number, equipped: boolean } }
+local function cloneSlings(slings): any
 	local result = {}
 	for _, slingEntry in ipairs(slings) do
 		table.insert(result, {
 			id = slingEntry.id,
 			level = slingEntry.level,
 			equipped = slingEntry.equipped,
+			name = slingEntry.name,
+			icon = slingEntry.icon,
+			stats = slingEntry.stats and table.clone(slingEntry.stats) or nil,
 		})
 	end
 	return result

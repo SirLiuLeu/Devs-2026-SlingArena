@@ -169,6 +169,25 @@ function MapService:GetArenaSpawn(mapName: string?): BasePart?
 	return points[math.random(1, #points)]
 end
 
+function MapService:GetTeamArenaSpawn(teamId: string, mapName: string?): BasePart?
+	local arena: Instance? = nil
+	if mapName and self._mapRoot then
+		arena = self._mapRoot:FindFirstChild(mapName)
+	end
+	if not arena then
+		arena = self:GetArenaModel()
+	end
+	if not arena or not arena:IsA("Model") then
+		return nil
+	end
+	local spawnName = teamId == "TeamRed" and "RedSpawn" or "BlueSpawn"
+	local spawn = arena:FindFirstChild(spawnName, true)
+	if spawn and spawn:IsA("BasePart") then
+		return spawn
+	end
+	return self:GetArenaSpawn(mapName)
+end
+
 function MapService:GetLobbySpawn(): BasePart?
 	local mapsRoot = self._mapRoot or getStudioMapsRoot()
 	if mapsRoot then
@@ -356,9 +375,9 @@ function MapService:GetSpawnPoint(index: number, mapName: string?): Vector3
 	return self:GetSpawnCFrame(index, mapName).Position
 end
 
-function MapService:GetSpawnCFrame(index: number, mapName: string?): CFrame
+function MapService:GetSpawnCFrame(index: number, mapName: string?, teamId: string?): CFrame
 	if isArenaMapName(mapName) then
-		local spawn = self:GetArenaSpawn(mapName)
+		local spawn = teamId and self:GetTeamArenaSpawn(teamId, mapName) or self:GetArenaSpawn(mapName)
 		return spawn and spawn.CFrame or CFrame.new(0, 8, 0)
 	end
 	if isLobbyMapName(mapName) then
