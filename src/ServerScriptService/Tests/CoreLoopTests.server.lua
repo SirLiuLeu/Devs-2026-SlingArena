@@ -127,8 +127,8 @@ local function testChargeToLaunchForce()
 end
 
 local function testReleaseDistanceMultiplierApplied()
-	local boostedForce = SlingServiceModule.CalculateLaunchForce(1, SlingshotConfig.MIN_LAUNCH_FORCE, SlingshotConfig.MAX_LAUNCH_FORCE * 5, 1)
-	assertAlmostEqual(boostedForce, SlingshotConfig.MAX_LAUNCH_FORCE * 5, 0.0001, "Release force should scale to 5x the prior max range")
+	local boostedForce = SlingServiceModule.CalculateLaunchForce(1, SlingshotConfig.MIN_LAUNCH_FORCE, SlingshotConfig.MAX_LAUNCH_FORCE, 1)
+	assertAlmostEqual(boostedForce, SlingshotConfig.MAX_LAUNCH_FORCE, 0.0001, "Release force should clamp to base max force before planar speed limits")
 end
 
 local function testReleaseSpeedMultiplierApplied()
@@ -156,7 +156,7 @@ local function testReleaseSpeedMultiplierApplied()
 
 	service:ReleaseCharge(player, Vector3.new(40, 5, 0))
 	local horizontalSpeed = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude
-	assertAlmostEqual(horizontalSpeed, 425, 0.0001, "Full charge release should apply the 0.5 speed multiplier before max velocity clamp")
+	assertAlmostEqual(horizontalSpeed, 48, 0.0001, "Full charge release should clamp planar speed to 3x default move speed")
 
 	root:Destroy()
 end

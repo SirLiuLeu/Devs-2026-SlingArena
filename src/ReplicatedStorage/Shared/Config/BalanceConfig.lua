@@ -62,6 +62,9 @@ local BalanceConfig = {
 	DiamondsPerPrestigeLevelDivisor = 5,
 	ReleaseDistanceMultiplier = 5,
 	ReleaseSpeedMultiplier = 0.5,
+	MaxLaunchDistance = 30,
+	LaunchSpeedToMoveSpeedRatio = 3,
+	MaxLaunchPlanarSpeed = 48,
 }
 
 return BalanceConfig

@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config.Config)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 
 local PlayerService = {}
 PlayerService.__index = PlayerService
@@ -16,6 +17,7 @@ function PlayerService.new(context)
 	self._deathConnections = {}
 	self._pawnsFolder = Workspace:FindFirstChild("SlingPawns")
 	self._slingTemplate = nil
+	self._worldUiTemplate = nil
 	if not self._pawnsFolder then
 		self._pawnsFolder = Instance.new("Folder")
 		self._pawnsFolder.Name = "SlingPawns"
@@ -27,6 +29,11 @@ end
 function PlayerService:Init()
 	Players.CharacterAutoLoads = false
 	self:_loadSlingTemplate()
+	self:_loadWorldUiTemplate()
+
+	self._context.EventBus:On("PlayerStateUpdated", function(player: Player, state)
+		self:_updateWorldUi(player, state)
+	end)
 
 	Players.PlayerAdded:Connect(function(player)
 		self:SpawnPawn(player, 1, "LobbyMap")
@@ -45,6 +52,97 @@ function PlayerService:Init()
 		debugResetRemote.OnServerEvent:Connect(function(player)
 			self:SpawnPawn(player, nil, self._context.Services.MapService:GetActiveMap() or "LobbyMap")
 		end)
+	end
+end
+
+function PlayerService:_loadWorldUiTemplate(): BillboardGui?
+	if self._worldUiTemplate and self._worldUiTemplate.Parent ~= nil then
+		return self._worldUiTemplate
+	end
+
+	-- [UI_CREATION_GUIDE]
+	-- Create in Studio:
+	-- ReplicatedStorage
+	--   Assets (Folder)
+	--     UI (Folder)
+	--       SlingWorldUI (BillboardGui)
+	--         HpBarBackground (Frame)
+	--           HpBarFill (Frame)
+	--         LevelLabel (TextLabel)
+	--         TeamLabel (TextLabel)
+
+	local resolved = ReplicatedStorage
+	for token in string.gmatch(ProjectTreeSpec.GameplayInstances.ReplicatedStorage.Assets.SlingWorldUI, "[^%.]+") do
+		resolved = resolved:FindFirstChild(token)
+		if not resolved then
+			break
+		end
+	end
+	if resolved and resolved:IsA("BillboardGui") then
+		self._worldUiTemplate = resolved
+		return self._worldUiTemplate
+	end
+
+	warn("[WORLD_UI] ReplicatedStorage.Assets.UI.SlingWorldUI missing. Create it manually in Studio.")
+	self._worldUiTemplate = nil
+	return nil
+end
+
+function PlayerService:_attachWorldUi(pawn: Model)
+	local worldUiTemplate = self:_loadWorldUiTemplate()
+	if not worldUiTemplate then
+		return
+	end
+
+	local existing = pawn:FindFirstChild("SlingWorldUI")
+	if existing and existing:IsA("BillboardGui") then
+		existing:Destroy()
+	end
+
+	local worldUi = worldUiTemplate:Clone()
+	worldUi.Name = "SlingWorldUI"
+	worldUi.Adornee = pawn.PrimaryPart
+	worldUi.Parent = pawn
+end
+
+function PlayerService:_updateWorldUi(player: Player, state)
+	local pawn = self:GetPawn(player)
+	if not pawn then
+		return
+	end
+	local worldUi = pawn:FindFirstChild("SlingWorldUI")
+	if not (worldUi and worldUi:IsA("BillboardGui")) then
+		self:_attachWorldUi(pawn)
+		worldUi = pawn:FindFirstChild("SlingWorldUI")
+	end
+	if not (worldUi and worldUi:IsA("BillboardGui")) then
+		return
+	end
+
+	if pawn.PrimaryPart then
+		worldUi.Adornee = pawn.PrimaryPart
+	end
+
+	local hpFill = worldUi:FindFirstChild("HpBarBackground")
+	hpFill = hpFill and hpFill:FindFirstChild("HpBarFill")
+	if hpFill and hpFill:IsA("Frame") then
+		local maxHp = math.max(state.MaxHP or 1, 1)
+		local hpRatio = math.clamp((state.CurrentHP or 0) / maxHp, 0, 1)
+		hpFill.Size = UDim2.new(hpRatio, 0, 1, 0)
+		if state.TeamId == "TeamRed" then
+			hpFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+		elseif state.TeamId == "TeamBlue" then
+			hpFill.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
+		end
+	end
+
+	local levelLabel = worldUi:FindFirstChild("LevelLabel")
+	if levelLabel and levelLabel:IsA("TextLabel") then
+		levelLabel.Text = string.format("Lv.%d", math.max(1, math.floor(state.Level or 1)))
+	end
+	local teamLabel = worldUi:FindFirstChild("TeamLabel")
+	if teamLabel and teamLabel:IsA("TextLabel") then
+		teamLabel.Text = tostring(state.TeamId or "NoTeam")
 	end
 end
 
@@ -161,6 +259,7 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	end
 	pawn:PivotTo(spawnCFrame)
 	pawn.Parent = self._pawnsFolder
+	self:_attachWorldUi(pawn)
 	pawn:SetAttribute("ScaleValue", Config.SlingScale)
 	for _, descendant in pawn:GetDescendants() do
 		if descendant:IsA("BasePart") then
@@ -175,6 +274,10 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 
 	player.Character = pawn
 	self._context.Services.PlayerStateService:ResetForRespawn(player)
+	local state = self._context.Services.PlayerStateService:GetState(player)
+	if state then
+		self:_updateWorldUi(player, state)
+	end
 
 	return pawn
 end

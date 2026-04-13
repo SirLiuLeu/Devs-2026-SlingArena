@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
@@ -16,6 +17,17 @@ PathResolver.reportMissing(ReplicatedStorage, PathResolver.collectPaths(ProjectT
 
 local clientService = LobbyClientService.new()
 local controller: any = nil
+local rebuildScheduled = false
+local watchedGuiNames = {
+	["MainHUD"] = true,
+	["SlingStatsUI"] = true,
+	["LobbyUI"] = true,
+	["MatchUI"] = true,
+	["InventoryUI"] = true,
+	["OnlineRewardUI"] = true,
+	["SpinUI"] = true,
+	["DailyLoginUI"] = true,
+}
 
 local function buildController()
 	if controller then
@@ -29,7 +41,41 @@ local function buildController()
 	controller:Start()
 end
 
+local function scheduleRebuild()
+	if rebuildScheduled then
+		return
+	end
+	rebuildScheduled = true
+	task.defer(function()
+		rebuildScheduled = false
+		buildController()
+	end)
+end
+
 buildController()
+
+playerGui.ChildAdded:Connect(function(child)
+	if child:IsA("ScreenGui") and watchedGuiNames[child.Name] then
+		scheduleRebuild()
+	end
+end)
+
+playerGui.ChildRemoved:Connect(function(child)
+	if child:IsA("ScreenGui") and watchedGuiNames[child.Name] then
+		scheduleRebuild()
+	end
+end)
+
+player.CharacterAdded:Connect(function()
+	task.wait()
+	scheduleRebuild()
+end)
+
+RunService.Heartbeat:Connect(function()
+	if controller == nil then
+		scheduleRebuild()
+	end
+end)
 
 player.AncestryChanged:Connect(function(_, parent)
 	if parent == nil and controller then

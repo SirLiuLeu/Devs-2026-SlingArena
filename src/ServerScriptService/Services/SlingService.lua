@@ -48,6 +48,9 @@ end
 
 local RELEASE_DISTANCE_MULTIPLIER = BalanceConfig.ReleaseDistanceMultiplier
 local RELEASE_SPEED_MULTIPLIER = BalanceConfig.ReleaseSpeedMultiplier
+local MAX_LAUNCH_DISTANCE = math.max(1, BalanceConfig.MaxLaunchDistance or 30)
+local LAUNCH_SPEED_TO_MOVE_SPEED_RATIO = math.max(0.5, BalanceConfig.LaunchSpeedToMoveSpeedRatio or 3)
+local MAX_LAUNCH_PLANAR_SPEED = math.max(1, BalanceConfig.MaxLaunchPlanarSpeed or (BalanceConfig.DefaultWalkSpeed * 3))
 
 function SlingService.BuildLaunchVector(direction: Vector3, launchForce: number): Vector3
 	local safeDirection = if direction.Magnitude < 0.01 then Vector3.new(0, 0, -1) else direction.Unit
@@ -271,17 +274,22 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	local chargeRatio = SlingService.CalculateChargeRatio(chargeState.chargeStartTime, os.clock(), maxChargeTime)
 
 	chargeState.aimDirection = SlingService.ResolveAimDirection(root.Position, aimTarget)
+	local aimPlanar = Vector3.new(aimTarget.X - root.Position.X, 0, aimTarget.Z - root.Position.Z)
+	if aimPlanar.Magnitude > MAX_LAUNCH_DISTANCE then
+		chargeState.aimDirection = Vector3.new(aimPlanar.Unit.X, chargeState.aimDirection.Y, aimPlanar.Unit.Z).Unit
+	end
 
 	local maxForce = SlingshotConfig.MAX_LAUNCH_FORCE or (SlingshotConfig.BaseLaunchForce + Config.MaxExtraForce)
-	local launchForce = SlingService.CalculateLaunchForce(chargeRatio, 0, maxForce * RELEASE_DISTANCE_MULTIPLIER, 1) * RELEASE_SPEED_MULTIPLIER
+	local launchForce = SlingService.CalculateLaunchForce(chargeRatio, 0, maxForce, 1) * RELEASE_SPEED_MULTIPLIER
 	local launchVector = SlingService.BuildLaunchVector(chargeState.aimDirection, launchForce)
 
-	local maxReleaseVelocity = BalanceConfig.MaxVelocity * RELEASE_DISTANCE_MULTIPLIER * RELEASE_SPEED_MULTIPLIER
-	root.AssemblyLinearVelocity = Vector3.new(
-		math.clamp(launchVector.X, -maxReleaseVelocity, maxReleaseVelocity),
-		root.AssemblyLinearVelocity.Y,
-		math.clamp(launchVector.Z, -maxReleaseVelocity, maxReleaseVelocity)
-	)
+	local maxFromMoveSpeed = math.max((state.MoveSpeed or Config.MoveSpeed) * LAUNCH_SPEED_TO_MOVE_SPEED_RATIO, 1)
+	local planarSpeedCap = math.min(maxFromMoveSpeed, MAX_LAUNCH_PLANAR_SPEED)
+	local planarLaunch = Vector3.new(launchVector.X, 0, launchVector.Z)
+	if planarLaunch.Magnitude > planarSpeedCap then
+		planarLaunch = planarLaunch.Unit * planarSpeedCap
+	end
+	root.AssemblyLinearVelocity = Vector3.new(planarLaunch.X, root.AssemblyLinearVelocity.Y, planarLaunch.Z)
 
 	state.CurrentVelocity = root.AssemblyLinearVelocity
 	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)

@@ -28,6 +28,14 @@ local function resolveTextButton(root: Instance, path: string): TextButton?
 	return nil
 end
 
+local function resolveGuiButton(root: Instance, path: string): GuiButton?
+	local value = PathResolver.resolvePath(root, path)
+	if value and value:IsA("GuiButton") then
+		return value
+	end
+	return nil
+end
+
 local function resolveTextLabel(root: Instance, path: string): TextLabel?
 	local value = PathResolver.resolvePath(root, path)
 	if value and value:IsA("TextLabel") then
@@ -76,7 +84,8 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.OnlineRewardButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.OnlineRewardButton)
 	self.SettingButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.SettingButton)
 	self.SpinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.SpinButton)
-	self.QuickHpButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP)
+	self.QuickHpButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP)
+	self.QuickHpCountLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPCountLabel)
 	self.HomeButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.HomeButton)
 	self.TeamIndicator = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.TeamIndicator)
 	self.ExpBarFill = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.Fill)
@@ -108,8 +117,11 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not self.OnlineRewardButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.OnlineRewardButton, "TextButton") end
 	if not self.SettingButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SettingButton, "TextButton") end
 	if not self.SpinButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SpinButton, "TextButton") end
-	if not self.QuickHpButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHP, "TextButton") end
+	if not self.QuickHpButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHP, "GuiButton") end
 	if not self.HomeButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.HomeButton, "TextButton") end
+	if not (self.QuickHpCountLabel and self.QuickHpCountLabel:IsA("TextLabel")) then
+		warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHPCountLabel, "TextLabel")
+	end
 	if not self.TeamIndicator then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.TeamIndicator, "TextLabel") end
 	if not self.PanelMap.SlingStats then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.SlingStats, "ScreenGui") end
 	if not self.PanelMap.DailyLogin then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.DailyLogin, "ScreenGui") end
@@ -236,8 +248,8 @@ function UIController:Start()
 	end
 
 	local stateConnection = self.ClientService:BindStateUpdate(function(state)
-		if self.QuickHpButton then
-			self.QuickHpButton.Text = string.format("HP x%d", math.max(0, math.floor(state.HpPotions or 0)))
+		if self.QuickHpCountLabel and self.QuickHpCountLabel:IsA("TextLabel") then
+			self.QuickHpCountLabel.Text = string.format("x%d", math.max(0, math.floor(state.HpPotions or 0)))
 		end
 		if self.InventoryDataProvider then
 			self.InventoryDataProvider:SetFromState(state)

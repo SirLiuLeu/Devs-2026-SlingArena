@@ -303,7 +303,7 @@ DataModel
 │  │     │  │  ├─ UIListLayout
 │  │     │  │  └─ Player1
 │  │     │  └─ Title (TextLabel)
-│  │     ├─ QuickHP (ImageLabel)
+│  │     ├─ QuickHP (ImageButton)
 │  │     ├─ Home (TextButton)
 │  │     └─ SlingStatsButton (TextButton)
 │  │   

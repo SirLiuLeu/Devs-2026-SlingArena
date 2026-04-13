@@ -32,6 +32,9 @@ local function getOrCreateLinearVelocity(root: BasePart, attachment: Attachment,
 	if linearVelocity and linearVelocity:IsA("LinearVelocity") then
 		linearVelocity.Attachment0 = attachment
 		linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
+		linearVelocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Plane
+		linearVelocity.PrimaryTangentAxis = Vector3.new(1, 0, 0)
+		linearVelocity.SecondaryTangentAxis = Vector3.new(0, 0, 1)
 		linearVelocity.MaxForce = math.max(root.AssemblyMass * forceMultiplier, 1000)
 		return linearVelocity
 	end
@@ -40,8 +43,11 @@ local function getOrCreateLinearVelocity(root: BasePart, attachment: Attachment,
 	linearVelocity.Name = "LinearVelocity"
 	linearVelocity.Attachment0 = attachment
 	linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
+	linearVelocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Plane
+	linearVelocity.PrimaryTangentAxis = Vector3.new(1, 0, 0)
+	linearVelocity.SecondaryTangentAxis = Vector3.new(0, 0, 1)
 	linearVelocity.MaxForce = math.max(root.AssemblyMass * forceMultiplier, 1000)
-	linearVelocity.VectorVelocity = Vector3.zero
+	linearVelocity.PlaneVelocity = Vector2.zero
 	linearVelocity.Enabled = false
 	linearVelocity.Parent = root
 	return linearVelocity
@@ -84,13 +90,13 @@ function SlingMovement:Move(direction: Vector3, dt: number?)
 	end
 
 	self._planarVelocity = nextVelocity
-	self._linearVelocity.VectorVelocity = nextVelocity
+	self._linearVelocity.PlaneVelocity = Vector2.new(nextVelocity.X, nextVelocity.Z)
 	self._linearVelocity.Enabled = nextVelocity.Magnitude > 0.001
 end
 
 function SlingMovement:Stop()
 	self._planarVelocity = Vector3.zero
-	self._linearVelocity.VectorVelocity = Vector3.zero
+	self._linearVelocity.PlaneVelocity = Vector2.zero
 	self._linearVelocity.Enabled = false
 
 	local rootVelocity = self._root.AssemblyLinearVelocity
@@ -99,7 +105,7 @@ end
 
 function SlingMovement:DisableLocomotion(preserveMomentum: boolean?)
 	self._planarVelocity = Vector3.zero
-	self._linearVelocity.VectorVelocity = Vector3.zero
+	self._linearVelocity.PlaneVelocity = Vector2.zero
 	self._linearVelocity.Enabled = false
 
 	if preserveMomentum then

@@ -2,7 +2,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 
@@ -68,7 +67,6 @@ function MainStatsPopupController.new(playerGui: PlayerGui, dependencies: Depend
 	self.ClientService = dependencies.ClientService
 	self.Connections = {}
 	self.WarnedPaths = {}
-	self.IsCollapsed = false
 
 	self.AvailablePoints = 0
 	self.AllocatedTotal = 0
@@ -80,31 +78,6 @@ function MainStatsPopupController.new(playerGui: PlayerGui, dependencies: Depend
 		self.AllocatedByAttribute[attributeKey] = 0
 		self.BaseValues[attributeKey] = 0
 	end
-
-	-- [UI_CREATION_GUIDE]
-	-- Create in Studio:
-	-- StarterGui
-	--   SlingStatsUI (ScreenGui)
-	--     StatsRoot (Frame)
-	--       HeaderBar (Frame)
-	--         TitleLabel (TextLabel)
-	--         AvailablePointsLabel (TextLabel)
-	--         ToggleDropdownButton (TextButton)
-	--       BodyContainer (Frame)
-	--         AttributeList (Frame)
-	--           HPRow | BaseDamageRow | RegenRateRow | ReflectDamageRow | LaunchSpeedRow | LaunchRangeRow | ChargeSpeedRow | MoveSpeedRow
-	--             AttributeNameLabel (TextLabel)
-	--             CurrentValueLabel (TextLabel)
-	--             AllocatedPointsLabel (TextLabel)
-	--             DecreaseButton (TextButton)
-	--             IncreaseButton (TextButton)
-	--         ActionButtonsRow (Frame)
-	--           ResetButton (TextButton)
-	--           AcceptButton (TextButton)
-	--       FooterExpBar (Frame)
-	--         ExpBarFill (Frame)
-	--         ExpValueLabel (TextLabel)
-	--         LevelOnBarLabel (TextLabel)
 
 	self:_resolveUi()
 	self:_bindStaticControls()
@@ -153,15 +126,10 @@ function MainStatsPopupController:_resolveUi()
 	self.HeaderBar = self:_resolveTyped(ProjectTreeSpec.UI.SlingStats.HeaderBar, "GuiObject")
 	self.TitleLabel = self:_resolveTyped(ProjectTreeSpec.UI.SlingStats.TitleLabel, "TextLabel")
 	self.AvailablePointsLabel = self:_resolveTyped(ProjectTreeSpec.UI.SlingStats.AvailablePointsLabel, "TextLabel")
-	self.ToggleDropdownButton = self:_resolveTyped(ProjectTreeSpec.UI.SlingStats.ToggleDropdownButton, "TextButton")
 	self.BodyContainer = self:_resolveTyped(ProjectTreeSpec.UI.SlingStats.BodyContainer, "GuiObject")
 	self.AttributeList = self:_resolveTyped(ProjectTreeSpec.UI.SlingStats.AttributeList, "GuiObject")
 	self.ResetButton = self:_resolveTyped(ProjectTreeSpec.UI.SlingStats.ResetButton, "TextButton")
 	self.AcceptButton = self:_resolveTyped(ProjectTreeSpec.UI.SlingStats.AcceptButton, "TextButton")
-	self.FooterExpBar = self:_resolveTyped(ProjectTreeSpec.UI.SlingStats.FooterExpBar, "GuiObject")
-	self.ExpBarFill = self:_resolveTyped(ProjectTreeSpec.UI.SlingStats.ExpBarFill, "GuiObject")
-	self.ExpValueLabel = self:_resolveTyped(ProjectTreeSpec.UI.SlingStats.ExpValueLabel, "TextLabel")
-	self.LevelOnBarLabel = self:_resolveTyped(ProjectTreeSpec.UI.SlingStats.LevelOnBarLabel, "TextLabel")
 
 	self.RowBindings = {}
 	self:_buildDynamicRows()
@@ -216,13 +184,6 @@ function MainStatsPopupController:_bindStaticControls()
 		self.TitleLabel.Text = "Stats"
 	end
 
-	if self.ToggleDropdownButton then
-		table.insert(self.Connections, self.ToggleDropdownButton.MouseButton1Click:Connect(function()
-			self.IsCollapsed = not self.IsCollapsed
-			self:_refreshVisibility()
-		end))
-	end
-
 	if self.ResetButton then
 		table.insert(self.Connections, self.ResetButton.MouseButton1Click:Connect(function()
 			self:_resetAllocations()
@@ -235,25 +196,12 @@ function MainStatsPopupController:_bindStaticControls()
 		end))
 	end
 
-	self:_refreshVisibility()
 	self:_refreshAll()
-end
-
-function MainStatsPopupController:_refreshVisibility()
-	if self.BodyContainer then
-		self.BodyContainer.Visible = not self.IsCollapsed
-	end
-	if self.FooterExpBar then
-		self.FooterExpBar.Visible = true
-	end
 end
 
 function MainStatsPopupController:_changeAllocation(attributeKey: AttributeKey, delta: number)
 	local current = self.AllocatedByAttribute[attributeKey] or 0
-	local nextValue = current + delta
-	if nextValue < 0 then
-		nextValue = 0
-	end
+	local nextValue = math.max(0, current + delta)
 
 	if delta > 0 and self.AllocatedTotal >= self.AvailablePoints then
 		return
@@ -318,28 +266,9 @@ function MainStatsPopupController:_refreshRows()
 	end
 end
 
-function MainStatsPopupController:_refreshExpBar()
-	local state = self.LastState
-	local level = toNumber(state and state.Level, 1)
-	local currentExp = toNumber(state and state.Exp, 0)
-	local requiredExp = math.max(LevelConfig.RequiredExp(level), 1)
-	local fillRatio = math.clamp(currentExp / requiredExp, 0, 1)
-
-	if self.ExpBarFill then
-		self.ExpBarFill.Size = UDim2.new(fillRatio, 0, 1, 0)
-	end
-	if self.ExpValueLabel then
-		self.ExpValueLabel.Text = string.format("%d / %d", math.floor(currentExp), math.floor(requiredExp))
-	end
-	if self.LevelOnBarLabel then
-		self.LevelOnBarLabel.Text = string.format("LV %d", math.floor(level))
-	end
-end
-
 function MainStatsPopupController:_refreshAll()
 	self:_refreshHeader()
 	self:_refreshRows()
-	self:_refreshExpBar()
 end
 
 function MainStatsPopupController:ApplyState(state: { [string]: any })

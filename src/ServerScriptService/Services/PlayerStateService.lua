@@ -379,6 +379,9 @@ function PlayerStateService:PublishState(player: Player)
 	if self._stateUpdateRemote and state then
 		self._stateUpdateRemote:FireClient(player, state)
 	end
+	if state then
+		self._context.EventBus:Fire("PlayerStateUpdated", player, state)
+	end
 end
 
 function PlayerStateService:SetCharging(player: Player, isCharging: boolean, chargeValue: number)
