@@ -1,0 +1,67 @@
+{
+  "ClassName": "BillboardGui",
+  "Name": "SlingWorldUI",
+  "Properties": {
+    "AlwaysOnTop": true,
+    "Size": { "UDim2": [[0, 160], [0, 48]] },
+    "StudsOffset": [0, 5, 0]
+  },
+  "Children": [
+    {
+      "ClassName": "Frame",
+      "Name": "HpBarBackground",
+      "Properties": {
+        "Size": { "UDim2": [[1, 0], [0, 10]] },
+        "Position": { "UDim2": [[0, 0], [0, 0]] },
+        "BackgroundColor3": { "Color3": [0.1, 0.1, 0.1] },
+        "BorderSizePixel": 0
+      },
+      "Children": [
+        { "ClassName": "UICorner" },
+        {
+          "ClassName": "Frame",
+          "Name": "HpBarFill",
+          "Properties": {
+            "Size": { "UDim2": [[1, 0], [1, 0]] },
+            "Position": { "UDim2": [[0, 0], [0, 0]] },
+            "BackgroundColor3": { "Color3": [0.2, 0.8, 0.2] },
+            "BorderSizePixel": 0
+          },
+          "Children": [
+            { "ClassName": "UICorner" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "ClassName": "TextLabel",
+      "Name": "LevelLabel",
+      "Properties": {
+        "Size": { "UDim2": [[1, 0], [0, 16]] },
+        "Position": { "UDim2": [[0, 0], [0, 12]] },
+        "BackgroundTransparency": 1,
+        "Text": "Lv.1",
+        "TextScaled": true,
+        "TextColor3": { "Color3": [1, 1, 1] },
+        "Font": "GothamBold",
+        "TextXAlignment": "Center"
+      }
+    },
+
+    {
+      "ClassName": "TextLabel",
+      "Name": "TeamLabel",
+      "Properties": {
+        "Size": { "UDim2": [[1, 0], [0, 16]] },
+        "Position": { "UDim2": [[0, 0], [0, 28]] },
+        "BackgroundTransparency": 1,
+        "Text": "TEAM",
+        "TextScaled": true,
+        "TextColor3": { "Color3": [1, 1, 1] },
+        "Font": "GothamBold",
+        "TextXAlignment": "Center"
+      }
+    }
+  ]
+}

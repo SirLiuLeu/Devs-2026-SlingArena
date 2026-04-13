@@ -75,6 +75,13 @@ DataModel
 │  │      │       ├── Level (TextLabel)
 │  │      │       └── Name (TextLabel)
 │  │      │
+│  │      ├── SlingWorldUI (BillboardGui)
+│  │      │   ├── UIListLayout
+│  │      │   ├── HpBarBackground (Frame)
+│  │      │   │   ├── UICorner
+│  │      │   │   └── HpBarFill (Frame)
+│  │      │   └── LevelLabel (TextLabel)
+│  │      │ 
 │  │      ├─ RewardSlotTemplate (Frame)
 │  │      │  ├─ UICorner
 │  │      │  ├─ ClaimButton (TextButton)
