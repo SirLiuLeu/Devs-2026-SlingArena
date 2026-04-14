@@ -35,7 +35,7 @@ local function getRootPart(): BasePart?
 		return nil
 	end
 
-	local root = character:FindFirstChild("HumanoidRootPart")
+	local root = character:FindFirstChild("Hitbox")
 	if root and root:IsA("BasePart") then
 		return root
 	end
@@ -43,6 +43,11 @@ local function getRootPart(): BasePart?
 	local primary = character.PrimaryPart
 	if primary and primary:IsA("BasePart") then
 		return primary
+	end
+
+	root = character:FindFirstChild("HumanoidRootPart")
+	if root and root:IsA("BasePart") then
+		return root
 	end
 
 	return character:FindFirstChildWhichIsA("BasePart")

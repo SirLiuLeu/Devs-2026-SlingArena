@@ -490,9 +490,9 @@ function InventoryUIController:_applyEquippedSlingModel(slingId: string)
 		warn("[INVENTORY_UI] Character missing while equipping sling")
 		return
 	end
-	local root = character:FindFirstChild("HumanoidRootPart")
+	local root = character:FindFirstChild("Hitbox") or character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
 	if not root or not root:IsA("BasePart") then
-		warn("[INVENTORY_UI] HumanoidRootPart missing while equipping sling")
+		warn("[INVENTORY_UI] Character root (Hitbox/PrimaryPart) missing while equipping sling")
 		return
 	end
 

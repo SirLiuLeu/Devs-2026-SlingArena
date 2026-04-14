@@ -46,9 +46,9 @@ SlingConfig.Types = {
 		stats = { speed = 14.8, weight = 1.1, launchPower = 1.15, control = 0.95 },
 	},
 	{
-		id = "SlingModel",
+		id = "Sling_Template",
 		name = "Default Arena Sling",
-		modelPath = "ReplicatedStorage/Slings/SlingModel",
+		modelPath = "ReplicatedStorage/Assets/Slings/Sling_Template",
 		rarity = "Common",
 		stats = { speed = 16, weight = 1.0, launchPower = 1.0, control = 1.0 },
 	},

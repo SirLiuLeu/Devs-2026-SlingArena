@@ -200,8 +200,9 @@ local ProjectTreeSpec = {
 		--     MineTrap (Model)
 		--
 		-- ReplicatedStorage
-		--   Slings (Folder)
-		--     SlingModel (Model)
+		--   Assets (Folder)
+		--     Slings (Folder)
+		--       Sling_Template (Model)
 		--   Assets (Folder)
 		--     UI (Folder)
 		--       ItemSlotTemplate (Frame)
@@ -249,7 +250,7 @@ local ProjectTreeSpec = {
 				BasicTrap = "Assets.Trap.BasicTrap",
 			},
 			Slings = {
-				SlingModel = "Slings.SlingModel",
+				SlingTemplate = "Assets.Slings.Sling_Template",
 				Sling01 = "Assets.Slings.Sling_01",
 				Sling02 = "Assets.Slings.Sling_02",
 				Sling03 = "Assets.Slings.Sling_03",

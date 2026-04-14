@@ -151,17 +151,18 @@ function PlayerService:_loadSlingTemplate(): Model
 		return self._slingTemplate
 	end
 
-	local slingsFolder = ReplicatedStorage:WaitForChild("Slings", 5)
+	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
+	local slingsFolder = assetsFolder and assetsFolder:FindFirstChild("Slings")
 	local slingModel = nil
 	if slingsFolder then
-		slingModel = slingsFolder:FindFirstChild("SlingModel")
+		slingModel = slingsFolder:FindFirstChild("Sling_Template")
 	end
 	if not (slingModel and slingModel:IsA("Model")) then
-		warn("[PLAYER_SERVICE] ReplicatedStorage/Slings/SlingModel missing. Using fallback physics model.")
+		warn("[PLAYER_SERVICE] ReplicatedStorage/Assets/Slings/Sling_Template missing. Using fallback physics model.")
 		local fallback = Instance.new("Model")
-		fallback.Name = "SlingModel"
+		fallback.Name = "Sling_Template"
 		local rootPart = Instance.new("Part")
-		rootPart.Name = "HumanoidRootPart"
+		rootPart.Name = "Hitbox"
 		rootPart.Shape = Enum.PartType.Ball
 		rootPart.Size = Vector3.new(4, 4, 4)
 		rootPart.TopSurface = Enum.SurfaceType.Smooth
@@ -172,21 +173,21 @@ function PlayerService:_loadSlingTemplate(): Model
 	end
 
 	local template = slingModel:Clone()
-	template.Name = "SlingModelTemplate"
+	template.Name = "SlingTemplate"
 	template.Parent = nil
 
 	if Config.SlingScale ~= 1 then
 		template:ScaleTo(Config.SlingScale)
 	end
 
-	local root = template.PrimaryPart
+	local root = template:FindFirstChild("Hitbox") :: BasePart?
 	if not root then
-		root = template:FindFirstChild("HumanoidRootPart") :: BasePart?
+		root = template.PrimaryPart
 	end
 	if not (root and root:IsA("BasePart")) then
-		warn("[PLAYER_SERVICE] SlingModel missing PrimaryPart/HumanoidRootPart. Injecting fallback root part.")
+		warn("[PLAYER_SERVICE] Sling_Template missing PrimaryPart/Hitbox. Injecting fallback root part.")
 		local fallbackRoot = Instance.new("Part")
-		fallbackRoot.Name = "HumanoidRootPart"
+		fallbackRoot.Name = "Hitbox"
 		fallbackRoot.Shape = Enum.PartType.Ball
 		fallbackRoot.Size = Vector3.new(4, 4, 4)
 		fallbackRoot.Parent = template
@@ -309,7 +310,7 @@ function PlayerService:GetRoot(player)
 	if not pawn then
 		return nil
 	end
-	local root = pawn.PrimaryPart or pawn:FindFirstChild("HumanoidRootPart")
+	local root = pawn:FindFirstChild("Hitbox") or pawn.PrimaryPart or pawn:FindFirstChild("HumanoidRootPart")
 	if root and root:IsA("BasePart") then
 		return root
 	end
