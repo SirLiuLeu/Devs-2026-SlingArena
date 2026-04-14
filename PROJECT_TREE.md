@@ -31,12 +31,21 @@ DataModel
 │  │  └─ RemoteContracts.lua
 │  │
 │  ├─ Assets
-│  │  ├─ Slings
-│  │  │   ├── Sling_01 (Model test template)
-│  │  │   ├── Sling_02 (Model test template)
-│  │  │   ├── Sling_03 (Model test template)
-│  │  │   ├── Sling_04 (Model test template)
-│  │  │   └── Sling_05 (Model test template)
+│  │  ├── Slings
+│  │  │   ├── Sling_Template (Model)
+│  │  │   │   ├── Hitbox (Part - PrimaryPart)
+│  │  │   │   ├── Mesh (MeshPart/SpecialMesh)
+│  │  │   │   ├── Attachments
+│  │  │   │   │   ├── TrailStart (Attachment)
+│  │  │   │   │   ├── TrailEnd (Attachment)
+│  │  │   │   │   └── EffectOrigin (Attachment)
+│  │  │   │   └── Trail (Trail)
+│  │  │   │
+│  │  │   ├── Sling_01 (Sling_Template)
+│  │  │   ├── Sling_02 (Sling_Template)
+│  │  │   ├── Sling_03 (Sling_Template)
+│  │  │   ├── Sling_04 (Sling_Template)
+│  │  │   └── Sling_05 (Sling_Template)
 │  │  │
 │  │  ├── Icons
 │  │  │   ├── Items
@@ -120,15 +129,12 @@ DataModel
 │  │     ├─ RoundResult
 │  │     └─ PopupMessage
 │  │
-│  ├─ Client  -> src/ReplicatedStorage/Client
-│  │  ├─ Controllers
-│  │  │  └─ UIController.lua
-│  │  └─ Services
-│  │     └─ LobbyClientService.lua
-│  │
-│  └─ Assets
-│     └─ SlingModel.model.json
-│
+│  └─ Client  -> src/ReplicatedStorage/Client
+│     ├─ Controllers
+│     │  └─ UIController.lua
+│     └─ Services
+│        └─ LobbyClientService.lua 
+│ 
 ## 🟥 ServerScriptService
 ├─ ServerScriptService  -> src/ServerScriptService
 │  ├─ Main.server.lua
