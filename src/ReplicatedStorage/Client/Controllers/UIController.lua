@@ -11,6 +11,10 @@ local InventoryDataProvider = require(ReplicatedStorage.Client.Services.Inventor
 local OnlineRewardUIController = require(ReplicatedStorage.Client.Controllers.OnlineRewardUIController)
 local OnlineRewardLogicService = require(ReplicatedStorage.Client.Services.OnlineRewardLogicService)
 local SpinUIController = require(ReplicatedStorage.Client.Controllers.SpinUIController)
+local ShopUIController = require(ReplicatedStorage.Client.Controllers.ShopUIController)
+local ShopLogicService = require(ReplicatedStorage.Client.Services.ShopLogicService)
+local DailyLoginUIController = require(ReplicatedStorage.Client.Controllers.DailyLoginUIController)
+local DailyLoginLogicService = require(ReplicatedStorage.Client.Services.DailyLoginLogicService)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 
 local UIController = {}
@@ -65,10 +69,16 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.InventoryUIController = InventoryUIController.new(playerGui)
 	self.SpinUIController = SpinUIController.new(playerGui)
 	self.OnlineRewardUIController = OnlineRewardUIController.new(playerGui)
+	self.ShopUIController = ShopUIController.new(playerGui)
+	self.DailyLoginUIController = DailyLoginUIController.new(playerGui)
 	self.InventoryDataProvider = InventoryDataProvider.GetDefault()
 	self.OnlineRewardLogicService = OnlineRewardLogicService.GetDefault()
+	self.ShopLogicService = ShopLogicService.GetDefault()
+	self.DailyLoginLogicService = DailyLoginLogicService.GetDefault()
 	self.InventoryUIController:SetDataProvider(self.InventoryDataProvider)
 	self.OnlineRewardUIController:SetLogicService(self.OnlineRewardLogicService)
+	self.ShopUIController:SetLogicService(self.ShopLogicService)
+	self.DailyLoginUIController:SetLogicService(self.DailyLoginLogicService)
 
 	self.JoinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.JoinButton)
 	self.LeaveButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton)
@@ -84,6 +94,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.OnlineRewardButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.OnlineRewardButton)
 	self.SettingButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.SettingButton)
 	self.SpinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.SpinButton)
+	self.ShopButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.ShopButton)
 	self.QuickHpButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP)
 	self.QuickHpCountLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPCountLabel)
 	self.HomeButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.HomeButton)
@@ -95,6 +106,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.PanelMap = {
 		SlingStats = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.SlingStats),
 		DailyLogin = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.DailyLogin),
+		Shop = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Shop) or resolveScreenGui(playerGui, "ShopUI"),
 		Inventory = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Inventory),
 		OnlineReward = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.OnlineReward),
 		Settings = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Settings),
@@ -117,6 +129,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not self.OnlineRewardButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.OnlineRewardButton, "TextButton") end
 	if not self.SettingButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SettingButton, "TextButton") end
 	if not self.SpinButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SpinButton, "TextButton") end
+	if not self.ShopButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.ShopButton, "TextButton") end
 	if not self.QuickHpButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHP, "GuiButton") end
 	if not self.HomeButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.HomeButton, "TextButton") end
 	if not (self.QuickHpCountLabel and self.QuickHpCountLabel:IsA("TextLabel")) then
@@ -125,6 +138,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not self.TeamIndicator then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.TeamIndicator, "TextLabel") end
 	if not self.PanelMap.SlingStats then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.SlingStats, "ScreenGui") end
 	if not self.PanelMap.DailyLogin then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.DailyLogin, "ScreenGui") end
+	if not self.PanelMap.Shop then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Shop, "ScreenGui") end
 	if not self.PanelMap.Inventory then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Inventory, "ScreenGui") end
 	if not self.PanelMap.OnlineReward then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.OnlineReward, "ScreenGui") end
 	if not self.PanelMap.Settings then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Settings, "ScreenGui") end
@@ -158,6 +172,12 @@ function UIController:Start()
 	if self.OnlineRewardUIController then
 		self.OnlineRewardUIController:Start()
 	end
+	if self.ShopUIController then
+		self.ShopUIController:Start()
+	end
+	if self.DailyLoginUIController then
+		self.DailyLoginUIController:Start()
+	end
 	if self.InventoryDataProvider then
 		table.insert(self.Connections, self.InventoryDataProvider:BindChanged(function(snapshot)
 			if self.InventoryUIController then
@@ -168,6 +188,12 @@ function UIController:Start()
 	end
 	if self.OnlineRewardLogicService then
 		self.OnlineRewardLogicService:LoadMockData()
+	end
+	if self.ShopLogicService then
+		self.ShopLogicService:LoadMockData()
+	end
+	if self.DailyLoginLogicService then
+		self.DailyLoginLogicService:LoadMockData()
 	end
 	if self.JoinButton then
 		table.insert(self.Connections, self.JoinButton.MouseButton1Click:Connect(function()
@@ -197,6 +223,17 @@ function UIController:Start()
 	if self.DailyButton then
 		table.insert(self.Connections, self.DailyButton.MouseButton1Click:Connect(function()
 			self:ShowMainHubPanel("DailyLogin")
+			if self.DailyLoginUIController then
+				self.DailyLoginUIController:SetVisible(true)
+			end
+		end))
+	end
+	if self.ShopButton then
+		table.insert(self.Connections, self.ShopButton.MouseButton1Click:Connect(function()
+			self:ShowMainHubPanel("Shop")
+			if self.ShopUIController then
+				self.ShopUIController:SetVisible(true)
+			end
 		end))
 	end
 	if self.InventoryButton then
@@ -317,6 +354,12 @@ function UIController:Destroy()
 	end
 	if self.OnlineRewardUIController then
 		self.OnlineRewardUIController:Destroy()
+	end
+	if self.ShopUIController then
+		self.ShopUIController:Destroy()
+	end
+	if self.DailyLoginUIController then
+		self.DailyLoginUIController:Destroy()
 	end
 	for _, connection in ipairs(self.Connections) do
 		connection:Disconnect()

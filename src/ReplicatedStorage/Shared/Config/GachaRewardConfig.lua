@@ -52,7 +52,7 @@ GachaRewardConfig.Rewards = {
 		type = "Currency",
 		weight = 14,
 		icon = "rbxassetid://0",
-		name = "Diamond",
+		name = "Dinamond",
 		teamBonus = { TeamRed = 0.04, TeamBlue = 0.04 },
 	},
 	{
