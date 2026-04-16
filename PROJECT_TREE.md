@@ -70,7 +70,7 @@ DataModel
 │  │      │
 │  │      ├── SlingsSlotTemplate (Frame)
 │  │      │   └── Root (Frame)
-│  │      │       ├── RarityStroke (UIStroke)
+│  │      │       ├── UIStroke (RarityStroke)
 │  │      │       ├── UICorner
 │  │      │       ├── Stars (Frame)
 │  │      │       │   ├── UIListLayout
@@ -84,6 +84,38 @@ DataModel
 │  │      │       ├── Level (TextLabel)
 │  │      │       └── Name (TextLabel)
 │  │      │
+│  │      ├── SlotDailyLoginRewardTemplate (Frame)
+│  │      │   ├── UICorner
+│  │      │   ├── UIStroke
+│  │      │   ├── ClaimButton (TextButton)
+│  │      │   ├── Icon (ImageLabel)
+│  │      │   ├── Claimed (TextLabel)
+│  │      │   ├── Quantity (TextLabel)
+│  │      │   ├── Timer (TextLabel)
+│  │      │   └── Title (TextLabel)
+│  │      │
+│  │      ├── SlotItemsOfStoreTemplate (Frame)
+│  │      │   ├── UICorner
+│  │      │   ├── InfoButton (ImageButton)
+│  │      │   ├── BuyButton (TextButton/ImageButton)
+│  │      │   ├── Icon (ImageLabel)
+│  │      │   ├── Quantity (TextLabel)
+│  │      │   └── Title (TextLabel)
+│  │      │
+│  │      ├── SlotLaunchersOfStoreTemplate (Frame)
+│  │      │   ├── UICorner
+│  │      │   ├── InfoButton (ImageButton)
+│  │      │   ├── BuyButton (TextButton/ImageButton)
+│  │      │   ├── Icon (ImageLabel)
+│  │      │   └── Title (TextLabel)
+│  │      │
+│  │      ├── SlotDinamondsOfStoreTemplate (Frame)
+│  │      │   ├── UICorner
+│  │      │   ├── BuyButton (TextButton/ImageButton)
+│  │      │   ├── Icon (ImageLabel)
+│  │      │   ├── Description (TextLabel)
+│  │      │   └── Title (TextLabel)
+│  │      │
 │  │      ├── SlingWorldUI (BillboardGui)
 │  │      │   ├── UIListLayout
 │  │      │   ├── HpBarBackground (Frame)
@@ -92,19 +124,19 @@ DataModel
 │  │      │   └── LevelLabel (TextLabel)
 │  │      │ 
 │  │      ├─ RewardSlotTemplate (Frame)
-│  │      │  ├─ UICorner
-│  │      │  ├─ ClaimButton (TextButton)
-│  │      │  ├─ Icon (ImageLabel)
-│  │      │  ├─ Claimed (TextLabel)
-│  │      │  ├─ Quantity (TextLabel)
-│  │      │  └─ Timer (TextLabel)
+│  │      │   ├─ UICorner
+│  │      │   ├─ ClaimButton (TextButton)
+│  │      │   ├─ Icon (ImageLabel)
+│  │      │   ├─ Claimed (TextLabel)
+│  │      │   ├─ Quantity (TextLabel)
+│  │      │   └─ Timer (TextLabel)
 │  │      │
 │  │      └─ AttributeRowTemplate (Frame)
-│  │         ├─ DecreaseButton (TextButton)
-│  │         ├─ IncreaseButton (TextButton)
-│  │         ├─ AllocatedPointsLabel (TextLabel)
-│  │         ├─ AttributeNameLabel (TextLabel)
-│  │         └─ CurrentValueLabel (TextLabel)
+│  │          ├─ DecreaseButton (TextButton)
+│  │          ├─ IncreaseButton (TextButton)
+│  │          ├─ AllocatedPointsLabel (TextLabel)
+│  │          ├─ AttributeNameLabel (TextLabel)
+│  │          └─ CurrentValueLabel (TextLabel)
 │  │
 │  ├─ SlingArenaRemotes
 │  │  └─ (RemoteEvents from *.model.json)
@@ -202,6 +234,58 @@ DataModel
 │  │        ├─ UICorner
 │  │        ├─ CloseButton (TextButton)
 │  │        └─ Title (TextLabel)
+│  │
+│  ├─ DailyLoginUI (ScreenGui)
+│  │  ├─ MainPanel (Frame)
+│  │  │  ├─ UICorner
+│  │  │  ├─ UIPadding
+│  │  │  ├─ Content (Frame)
+│  │  │  │  ├─ Day7Big (Frame)
+│  │  │  │  │  ├─ UICorner
+│  │  │  │  │  ├─ UIStroke
+│  │  │  │  │  ├─ ClaimButton (TextButton)
+│  │  │  │  │  ├─ Icon (ImageLabel)
+│  │  │  │  │  ├─ Claimed (TextLabel)
+│  │  │  │  │  ├─ Description (TextLabel)
+│  │  │  │  │  ├─ Timer (TextLabel)
+│  │  │  │  │  └─ Title (TextLabel)
+│  │  │  │  └─ LeftGrid (Frame)
+│  │  │  │     ├─ UIGridLayout
+│  │  │  │     └─ SlotDailyLoginRewardTemplate -- Script Spawn in run time
+│  │  │  └─ Header (Frame)
+│  │  │     ├─ CloseButton (TextButton)
+│  │  │     └─ Title (TextLabel)
+│  │  └─ Overlay (Frame/TextButton)
+│  │
+│  ├─ ShopGui (ScreenGui)
+│  │  └─ Main (ImageLabel)
+│  │     ├─ UICorner
+│  │     ├─ UIGradient
+│  │     ├─ UIStroke
+│  │     ├─ Buttons (Frame)
+│  │     │  ├─ UIListLayout
+│  │     │  ├─ Launcher (ImageButton/Frame)
+│  │     │  ├─ Dinamonds (ImageButton/Frame)
+│  │     │  └─ Items (ImageButton/Frame)
+│  │     ├─ Dinamonds (Frame)
+│  │     │  ├─ UIListLayout
+│  │     │  └─ Content (Frame)
+│  │     │     ├─ UICorner
+│  │     │     ├─ UIListLayout
+│  │     │     └─ ScrollingFrame
+│  │     ├─ Items (Frame)
+│  │     │  ├─ UIListLayout
+│  │     │  └─ Content (Frame)
+│  │     │     ├─ UICorner
+│  │     │     ├─ UIListLayout
+│  │     │     └─ ScrollingFrame
+│  │     ├─ Launcher (Frame)
+│  │     │  ├─ UIListLayout
+│  │     │  └─ Content (Frame)
+│  │     │     ├─ UICorner
+│  │     │     ├─ UIListLayout
+│  │     │     └─ ScrollingFrame
+│  │     └─ Close (TextButton/ImageButton)
 │  │
 │  ├─ SpinUI (ScreenGui)
 │  │  └─ Root

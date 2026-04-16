@@ -1,0 +1,150 @@
+{
+  "ClassName": "ScreenGui",
+  "Name": "ScoreHUD",
+  "Properties": {
+    "ResetOnSpawn": false,
+    "DisplayOrder": 10
+  },
+  "Children": [
+    {
+      "ClassName": "Frame",
+      "Name": "Container",
+      "Properties": {
+        "Size": { "UDim2": [[0, 400], [0, 100]] },
+        "Position": { "UDim2": [[0.5, -200], [0, 20]] },
+        "BackgroundTransparency": 1
+      },
+      "Children": [
+        {
+          "ClassName": "UIListLayout",
+          "Properties": {
+            "FillDirection": "Vertical",
+            "HorizontalAlignment": "Center",
+            "VerticalAlignment": "Top",
+            "Padding": { "UDim": [0, 10] }
+          }
+        },
+        
+        {
+          "ClassName": "Frame",
+          "Name": "ScoreBar",
+          "Properties": {
+            "Size": { "UDim2": [[1, 0], [0, 40]] },
+            "BackgroundColor3": { "Color3": [0.1, 0.1, 0.1] },
+            "BorderSizePixel": 0
+          },
+          "Children": [
+            { "ClassName": "UICorner" },
+            {
+              "ClassName": "TextLabel",
+              "Name": "TeamRedScore",
+              "Properties": {
+                "Size": { "UDim2": [[0.4, 0], [1, 0]] },
+                "Position": { "UDim2": [[0, 10], [0, 0]] },
+                "BackgroundTransparency": 1,
+                "Text": "0 pts",
+                "TextColor3": { "Color3": [1, 0.2, 0.2] },
+                "Font": "GothamBold",
+                "TextScaled": true,
+                "TextXAlignment": "Left"
+              }
+            },
+            {
+              "ClassName": "TextLabel",
+              "Name": "VSLabel",
+              "Properties": {
+                "Size": { "UDim2": [[0.1, 0], [1, 0]] },
+                "Position": { "UDim2": [[0.45, 0], [0, 0]] },
+                "BackgroundTransparency": 1,
+                "Text": "VS",
+                "TextColor3": { "Color3": [1, 1, 1] },
+                "Font": "GothamBold",
+                "TextScaled": true
+              }
+            },
+            {
+              "ClassName": "TextLabel",
+              "Name": "TeamBlueScore",
+              "Properties": {
+                "Size": { "UDim2": [[0.4, 0], [1, 0]] },
+                "Position": { "UDim2": [[0.6, -10], [0, 0]] },
+                "BackgroundTransparency": 1,
+                "Text": "0 pts",
+                "TextColor3": { "Color3": [0.2, 0.2, 1] },
+                "Font": "GothamBold",
+                "TextScaled": true,
+                "TextXAlignment": "Right"
+              }
+            }
+          ]
+        },
+
+        {
+          "ClassName": "Frame",
+          "Name": "CenterStatus",
+          "Properties": {
+            "Size": { "UDim2": [[1, 0], [0, 50]] },
+            "BackgroundTransparency": 1
+          },
+          "Children": [
+            {
+              "ClassName": "UIListLayout",
+              "Properties": {
+                "FillDirection": "Horizontal",
+                "HorizontalAlignment": "Center",
+                "VerticalAlignment": "Center",
+                "Padding": { "UDim": [0, 15] }
+              }
+            },
+            {
+              "ClassName": "TextLabel",
+              "Name": "RedSlingCount",
+              "Properties": {
+                "Size": { "UDim2": [[0, 80], [1, 0]] },
+                "BackgroundTransparency": 1,
+                "Text": "0x 🔴",
+                "TextColor3": { "Color3": [1, 1, 1] },
+                "Font": "GothamBold",
+                "TextScaled": true
+              }
+            },
+            {
+              "ClassName": "Frame",
+              "Name": "CaptureProgress",
+              "Properties": {
+                "Size": { "UDim2": [[0, 150], [0, 15]] },
+                "BackgroundColor3": { "Color3": [0.3, 0.3, 0.3] },
+                "BorderSizePixel": 0
+              },
+              "Children": [
+                { "ClassName": "UICorner" },
+                {
+                  "ClassName": "Frame",
+                  "Name": "Fill",
+                  "Properties": {
+                    "Size": { "UDim2": [[0, 0], [1, 0]] },
+                    "BackgroundColor3": { "Color3": [1, 1, 1] },
+                    "BorderSizePixel": 0
+                  },
+                  "Children": [ { "ClassName": "UICorner" } ]
+                }
+              ]
+            },
+            {
+              "ClassName": "TextLabel",
+              "Name": "BlueSlingCount",
+              "Properties": {
+                "Size": { "UDim2": [[0, 80], [1, 0]] },
+                "BackgroundTransparency": 1,
+                "Text": "🔵 x0",
+                "TextColor3": { "Color3": [1, 1, 1] },
+                "Font": "GothamBold",
+                "TextScaled": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

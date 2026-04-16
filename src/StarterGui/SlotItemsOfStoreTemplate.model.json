@@ -1,0 +1,114 @@
+{
+  "ClassName": "Frame",
+  "Name": "StoreSlotTemplate",
+  "Properties": {
+    "Size": { "UDim2": [[0, 140], [0, 200]] },
+    "BackgroundColor3": { "Color3": [0.1, 0.6, 0.9] },
+    "BorderSizePixel": 0
+  },
+  "Children": [
+
+    {
+      "ClassName": "UICorner",
+      "Name": "UICorner",
+      "Properties": {
+        "CornerRadius": { "UDim": [0, 12] }
+      }
+    },
+
+    {
+      "ClassName": "TextLabel",
+      "Name": "Title",
+      "Properties": {
+        "AnchorPoint": [0.5, 0],
+        "Position": { "UDim2": [[0.5, 0], [0, 5]] },
+        "Size": { "UDim2": [[1, -10], [0, 24]] },
+        "BackgroundTransparency": 1,
+        "Text": "600",
+        "TextScaled": true,
+        "TextColor3": { "Color3": [1, 1, 1] },
+        "Font": "GothamBold"
+      }
+    },
+
+    {
+      "ClassName": "ImageButton",
+      "Name": "InfoButton",
+      "Properties": {
+        "AnchorPoint": [1, 0],
+        "Position": { "UDim2": [[1, -5], [0, 5]] },
+        "Size": { "UDim2": [[0, 20], [0, 20]] },
+        "BackgroundTransparency": 1,
+        "Image": "rbxassetid://0"
+      }
+    },
+
+    {
+      "ClassName": "ImageLabel",
+      "Name": "Icon",
+      "Properties": {
+        "AnchorPoint": [0.5, 0.5],
+        "Position": { "UDim2": [[0.5, 0], [0.45, 0]] },
+        "Size": { "UDim2": [[0, 80], [0, 80]] },
+        "BackgroundTransparency": 1,
+        "Image": "rbxassetid://0"
+      }
+    },
+
+    {
+      "ClassName": "TextLabel",
+      "Name": "Description",
+      "Properties": {
+        "AnchorPoint": [0.5, 0.5],
+        "Position": { "UDim2": [[0.5, 0], [0.7, 0]] },
+        "Size": { "UDim2": [[1, -10], [0, 30]] },
+        "BackgroundTransparency": 1,
+        "Text": "A FEW COINS",
+        "TextScaled": true,
+        "TextColor3": { "Color3": [1, 1, 1] },
+        "Font": "GothamBold"
+      }
+    },
+
+    {
+      "ClassName": "TextLabel",
+      "Name": "Quantity",
+      "Properties": {
+        "AnchorPoint": [1, 1],
+        "Position": { "UDim2": [[1, -5], [1, -45]] },
+        "Size": { "UDim2": [[0, 40], [0, 18]] },
+        "BackgroundTransparency": 1,
+        "Text": "x1",
+        "TextScaled": true,
+        "TextColor3": { "Color3": [1, 1, 1] },
+        "Font": "GothamBold",
+        "TextXAlignment": "Right"
+      }
+    },
+
+    {
+      "ClassName": "TextButton",
+      "Name": "BuyButton",
+      "Properties": {
+        "AnchorPoint": [0.5, 1],
+        "Position": { "UDim2": [[0.5, 0], [1, -5]] },
+        "Size": { "UDim2": [[1, -10], [0, 40]] },
+        "BackgroundColor3": { "Color3": [0.2, 0.9, 0.2] },
+        "Text": "60 💎",
+        "TextScaled": true,
+        "TextColor3": { "Color3": [1, 1, 1] },
+        "Font": "GothamBold"
+      },
+      "Children": [
+        {
+          "ClassName": "UICorner",
+          "Name": "UICorner",
+          "Properties": {
+            "CornerRadius": { "UDim": [0, 10] }
+          }
+        }
+      ]
+    }
+
+  ]
+}
