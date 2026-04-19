@@ -1,13 +1,3 @@
-# PROJECT_TREE.md
-
-This tree describes current project organization and intended Roblox DataModel mapping
-from `default.project.json` + source layout.
-
-Legend:
-- **** exact from code/config
-- [INFERRED] likely runtime structure from patterns
-- [UNKNOWN] not confirmed in repository assets
-
 
 DataModel
 ## 🟦 ReplicatedStorage
@@ -122,21 +112,14 @@ DataModel
 │  │      │   │   ├── UICorner
 │  │      │   │   └── HpBarFill (Frame)
 │  │      │   └── LevelLabel (TextLabel)
-│  │      │ 
-│  │      ├─ RewardSlotTemplate (Frame)
-│  │      │   ├─ UICorner
-│  │      │   ├─ ClaimButton (TextButton)
-│  │      │   ├─ Icon (ImageLabel)
-│  │      │   ├─ Claimed (TextLabel)
-│  │      │   ├─ Quantity (TextLabel)
-│  │      │   └─ Timer (TextLabel)
 │  │      │
-│  │      └─ AttributeRowTemplate (Frame)
-│  │          ├─ DecreaseButton (TextButton)
-│  │          ├─ IncreaseButton (TextButton)
-│  │          ├─ AllocatedPointsLabel (TextLabel)
-│  │          ├─ AttributeNameLabel (TextLabel)
-│  │          └─ CurrentValueLabel (TextLabel)
+│  │      └─ RewardSlotTemplate (Frame)
+│  │          ├─ UICorner
+│  │          ├─ ClaimButton (TextButton)
+│  │          ├─ Icon (ImageLabel)
+│  │          ├─ Claimed (TextLabel)
+│  │          ├─ Quantity (TextLabel)
+│  │          └─ Timer (TextLabel)
 │  │
 │  ├─ SlingArenaRemotes
 │  │  └─ (RemoteEvents from *.model.json)
@@ -394,25 +377,8 @@ DataModel
 │  │     │  │  └─ Player1
 │  │     │  └─ Title (TextLabel)
 │  │     ├─ QuickHP (ImageButton)
-│  │     ├─ Home (TextButton)
-│  │     └─ SlingStatsButton (TextButton)
+│  │     └─ Home (TextButton)
 │  │   
-│  ├─ SlingStatsUI (ScreenGui)
-│  │  └─ StatsRoot
-│  │     ├─ UICorner
-│  │     ├─ UIStroke
-│  │     ├─ BodyContainer
-│  │     │  ├─ ActionButtonsRow
-│  │     │  │  ├─ AcceptButton (TextButton)
-│  │     │  │  └─ ResetButton (TextButton)
-│  │     │  └─ AttributeList
-│  │     │     ├─ UIGridLayout
-│  │     │     ├─ UIPadding
-│  │     │     └─ AttributeRowTemplate
-│  │     └─ HeaderBar
-│  │        ├─ AvailablePointsLabel (TextLabel)
-│  │        └─ TitleLabel (TextLabel)
-│  │
 │  ├─ DailyLoginUI (ScreenGui) -- [REFINED FROM NEW IMAGE]
 │  │  ├─ MainPanel (Frame)
 │  │  │  ├─ UICorner

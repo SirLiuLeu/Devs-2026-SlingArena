@@ -1,58 +1,53 @@
-🔥 SLING ARENA – CODEX BUILD SPEC
+# 🔥 SLING ARENA – CODEX BUILD SPEC (ALIGNED WITH DESIGN)
 
-0. BUILD GOAL
+# 0. BUILD GOAL
 
-Build a physics PvP arena system where:
+Build a server-authoritative physics PvP arena system:
 
-Player charge → launch
-Collision → damage + knockback
-Players grow by consuming entities
-Self-damage risk system
-Diamond monetization
+Core Gameplay:
+- Charge → Launch → Collision → Knockback → Damage
+- Farm Food → Gain EXP → Level up → Increase Size
+- Survive until last player alive
 
-System requirements:
+Key Principles:
+- Physics-first combat (force, velocity, inertia)
+- Skill-based > stat-based
+- Server authoritative
+- Modular service architecture
+- All balance in Config
 
-Server authoritative
-Anti-exploit
-Modular service-based architecture
-All balance values stored in Config
 
-
-1. SYSTEM ARCHITECTURE (Roblox Service Pattern)
-
-Required Services
+# 1. SYSTEM ARCHITECTURE
 
 ServerScriptService/
   Services/
     PlayerStateService
+    RoundService
     SlingshotService
-    CombatService
     CollisionService
-    GrowthService
-    SkillService
-    MonetizationService
+    CombatService
+    FoodService
+    LevelService
+    SlingService (Archetype/Passive)
     MapService
-
-
-Shared Modules
+    SafeZoneService
+    TeamService
 
 ReplicatedStorage/
   Shared/
     Config/
       BalanceConfig.lua
-      SlingshotConfig.lua
+      SlingConfig.lua
       LevelConfig.lua
+      FoodConfig.lua
+      MapConfig.lua
 
     Types/
       PlayerState.lua
       CombatTypes.lua
 
 
-2. DATA CONTRACTS
-
-Codex must strictly follow these schemas.
-
-PlayerState Schema
+# 2. DATA CONTRACTS
 
 PlayerState = {
 
@@ -67,216 +62,155 @@ PlayerState = {
     MaxHP: number,
     CurrentHP: number,
 
-    -- Base Slingshot Stats (from SlingshotConfig)
     BaseDamage: number,
-    RegenRate: number,
-    ReflectDamage: number,
-    LaunchSpeed: number,
-    LaunchRange: number,
-    ChargeSpeed: number,
     MoveSpeed: number,
-
-    -- Attribute Scaling
-    DamageMultiplier: number,
-    HPBonus: number,
-    LaunchSpeedBonus: number,
-    RegenBonus: number,
+    LaunchRange: number,
+    ReflectDamage: number,
 
     -- Physics
     CurrentVelocity: Vector3,
+    Mass: number,
 
-    -- Slingshot
-    SlingshotType: string,
-    ChargeValue: number,
+    -- Sling
+    SlingType: string,
+    ChargeStartTime: number,
 
-    -- Combat State
-    InvulnerableUntil: number,
+    -- Combat
     LastDamageTime: number,
 
-    -- Monetization
-    Diamonds: number,
-    RespawnCountThisMatch: number,
+    -- Round State
+    IsAlive: boolean,
+    IsGhost: boolean,
+
+    -- Team
+    TeamId: number?,
 
     -- Flags
-    IsAlive: boolean,
     IsCharging: boolean
 }
 
 
-3. CORE SYSTEM PIPELINES
-
-
-A. CHARGE & LAUNCH PIPELINE
-
-Client actions:
-
-Send StartCharge
-Send ReleaseCharge
-
-
-Server pipeline:
+# 4. CHARGE & LAUNCH PIPELINE
 
 OnStartCharge(player):
-
     PlayerState.IsCharging = true
-    Record ChargeStartTime
-
+    PlayerState.ChargeStartTime = now
 
 OnReleaseCharge(player):
 
-    ChargeTime = clamp(now - ChargeStartTime)
-    ChargeRatio = ChargeTime / MaxChargeTime
+    ChargeTime = now - ChargeStartTime
+    ChargeRatio = clamp(ChargeTime / MaxChargeTime)
 
     LaunchForce =
-        BaseLaunchForce
+        BaseForce
         × ChargeRatio
-        × SizeModifier
-        × PlayerState.LaunchSpeed
+        × sqrt(Level scaling)
+        × MassFactor
 
-    ApplyImpulse(player.Character, LaunchForce)
+    ApplyImpulse(Character, LaunchForce)
 
     PlayerState.IsCharging = false
 
 
-Purpose:
+# 5. COLLISION & COMBAT
 
-Convert player charge input into physical launch velocity.
+Server-only resolution
 
+CollisionService.Resolve(attacker, defender):
 
-
-B. COLLISION RESOLUTION PIPELINE
-
-Server only.
-
-When character touches another entity:
-
-CollisionService.ResolveCollision(attacker, defender)
-
-
-Pipeline order:
-
-1 Validate attacker alive
-2 Validate defender alive
-3 Check invulnerability state
-4 Compute ImpactDamage
-5 Apply self-damage if conditions met
-6 Apply defender damage
-7 Apply knockback force
-8 Apply force decay
+1 Validate both alive
+2 Ignore Ghost
+3 Calculate velocity at impact
+4 Compute damage
+5 Apply damage
+6 Apply knockback
 
 
-Purpose:
-
-Ensure consistent server-authoritative combat resolution.
-
-
-
-C. DAMAGE CALCULATION
-
-Damage formula must follow Game Design Spec:
+## DAMAGE FORMULA (FROM DESIGN)
 
 ImpactDamage =
-VelocityMagnitude
-× log(Size + 1)
-× SlingshotModifier
-× DamageMultiplier
+BaseDamage × CollisionSpeedMultiplier
 
-Rules:
-
-Clamp damage to prevent one-hit kills.
-Apply attribute scaling after base calculation.
+Apply:
+- Level scaling
+- Clamp max damage
 
 
+## KNOCKBACK
 
-D. KNOCKBACK RESOLUTION
+Knockback =
+BaseForce × (AttackerMass / DefenderMass)
 
-SizeRatio = AttackerSize / DefenderSize
-
-KnockbackForce =
-BaseImpactForce × SizeRatio
-
-Clamp knockback to maximum safe value.
-
-If SizeRatio < 1:
-Small attacker receives partial rebound force.
+Apply impulse to defender
 
 
+# 6. LEVEL & GROWTH SYSTEM
 
-E. FORCE DECAY
+OnFoodConsumed(player):
 
-After each collision:
-
-RemainingVelocity *= ForceDecayFactor
-
-Stop motion if:
-
-VelocityMagnitude < VelocityStopThreshold
+    Add EXP
+    Check Level Up
 
 
+Level Up:
 
-4. SKILL SYSTEM PIPELINE
+- Increase Size:
+  Size = BaseSize × (1 + sqrt(Level) × 0.08)
 
-PassiveHealSystem
-
-Activation:
-
-If PlayerVelocity < MovementThreshold
-AND now - LastDamageTime > HealDelay
-AND PlayerNotCharging
-
-StartPassiveHeal()
+- Increase stats:
+  +3% all stats
 
 
-Healing formula:
-
-HealPerSecond =
-MaxHP × PassiveHealPercent
-
-
-Cancel healing if:
-
-Player moves
-Player charges sling
-Player receives damage
+EXP Formula:
+RequiredEXP = BaseEXP × (Level ^ 1.3)
 
 
 
-5. ANTI-EXPLOIT RULES
+# 10. TEAM SYSTEM
 
-Server must enforce:
+- Max 2 players
+- Friendly fire OFF
 
-All damage calculations server-side
-Client never sets velocity directly
-Client cannot modify PlayerState
-All diamond transactions server-only
-Clamp all physics and stat values
+Final Phase:
+- Auto disband team
 
-Reject invalid remote requests.
-
+Win condition:
+- Still last man standing
 
 
-6. BUILD PRIORITY ORDER FOR CODEX
+# 12. ANTI-EXPLOIT
 
-Build services in this order:
+Server enforces:
+
+- All physics applied server-side
+- Client cannot set velocity
+- Client cannot modify PlayerState
+- Validate all remote calls
+
+Clamp:
+- Force
+- Speed
+- Damage
+
+
+# 13. BUILD ORDER
 
 1 PlayerStateService
-2 SlingshotService
-3 CollisionService
-4 CombatService
-5 GrowthService
-6 SkillService
-7 MonetizationService
-8 MapService
+2 RoundService
+3 SlingshotService
+4 CollisionService
+5 CombatService
+6 FoodService
+7 LevelService
+8 SlingService
+9 SafeZoneService
+10 MapService
+11 TeamService
 
 
+# FINAL NOTE
 
-FINAL NOTE FOR CODEX
-
-System requirements:
-
-Services must remain modular.
-No hard-coded balance values.
-All balancing stored in Config modules.
-
-Services communicate via events
-instead of directly mutating other services.
+- No hard-coded values
+- All balance in Config
+- Services communicate via events
+- No cross-service direct mutation
