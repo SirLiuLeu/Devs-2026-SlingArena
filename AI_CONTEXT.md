@@ -52,6 +52,10 @@
 - `GameplayFeedback(payload)`
 - `PopupMessage(payload)`
 
+## 4) Runtime safety guards
+- `MoveRequest` is handled on server with payload validation and per-player throttling to mitigate spam.
+- `PlayerService` enforces sling-only avatars by replacing non-managed `CharacterAdded` models with sling pawns.
+
 # SPAWN RULE
 
 - Roblox default character MUST NOT be used

@@ -1,6 +1,7 @@
 --!strict
 
 local PhysicsService = game:GetService("PhysicsService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ServicesFolder = script.Parent:WaitForChild("Services")
@@ -33,6 +34,7 @@ ensureCollisionGroup("Players")
 ensureCollisionGroup("Environment")
 PhysicsService:CollisionGroupSetCollidable("Players", "Players", true)
 PhysicsService:CollisionGroupSetCollidable("Players", "Environment", true)
+Players.CharacterAutoLoads = false
 
 local remotesFolder = ReplicatedStorage:WaitForChild("SlingArenaRemotes") :: Folder
 for _, remoteName in pairs(RemoteContracts.Names) do
@@ -67,8 +69,8 @@ context.Services.PlayerStateService:Init()
 context.Services.TeamService:Init()
 context.Services.MapService:Init()
 context.Services.PlayerService:Init()
-context.Services.FoodService:Init()
 context.Services.SlingService:Init()
+context.Services.FoodService:Init()
 context.Services.CombatService:Init()
 context.Services.CollisionService:Init()
 context.Services.DamagePipelineService:Init()

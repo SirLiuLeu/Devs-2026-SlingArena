@@ -15,6 +15,8 @@ function PlayerService.new(context)
 	local self = setmetatable({}, PlayerService)
 	self._context = context
 	self._deathConnections = {}
+	self._characterConnections = {}
+	self._respawnDebounce = {}
 	self._pawnsFolder = Workspace:FindFirstChild("SlingPawns")
 	self._slingTemplate = nil
 	self._worldUiTemplate = nil
@@ -24,6 +26,30 @@ function PlayerService.new(context)
 		self._pawnsFolder.Parent = Workspace
 	end
 	return self
+end
+
+function PlayerService:_disconnectCharacterSignal(player: Player)
+	local connection = self._characterConnections[player]
+	if connection then
+		connection:Disconnect()
+		self._characterConnections[player] = nil
+	end
+end
+
+function PlayerService:_isManagedPawn(player: Player, model: Model): boolean
+	return model.Parent == self._pawnsFolder and model.Name == player.Name
+end
+
+function PlayerService:_enforceSlingCharacter(player: Player, sourceMapName: string?)
+	if self._respawnDebounce[player] then
+		return
+	end
+	self._respawnDebounce[player] = true
+	local targetMap = sourceMapName or self._context.Services.MapService:GetActiveMap() or "LobbyMap"
+	task.defer(function()
+		self:SpawnPawn(player, nil, targetMap)
+		self._respawnDebounce[player] = nil
+	end)
 end
 
 function PlayerService:Init()
@@ -36,14 +62,32 @@ function PlayerService:Init()
 	end)
 
 	Players.PlayerAdded:Connect(function(player)
+		self:_disconnectCharacterSignal(player)
+		self._characterConnections[player] = player.CharacterAdded:Connect(function(character: Model)
+			if not self:_isManagedPawn(player, character) then
+				warn(string.format("[PlayerService] Non-sling character detected for %s. Replacing with Sling pawn.", player.Name))
+				character:Destroy()
+				self:_enforceSlingCharacter(player)
+			end
+		end)
 		self:SpawnPawn(player, 1, "LobbyMap")
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		self:_disconnectDeathSignal(player)
+		self:_disconnectCharacterSignal(player)
+		self._respawnDebounce[player] = nil
 		self:_destroyPawn(player)
 	end)
 
 	for _, player in Players:GetPlayers() do
+		self:_disconnectCharacterSignal(player)
+		self._characterConnections[player] = player.CharacterAdded:Connect(function(character: Model)
+			if not self:_isManagedPawn(player, character) then
+				warn(string.format("[PlayerService] Non-sling character detected for %s. Replacing with Sling pawn.", player.Name))
+				character:Destroy()
+				self:_enforceSlingCharacter(player)
+			end
+		end)
 		self:SpawnPawn(player, 1, "LobbyMap")
 	end
 
