@@ -9,15 +9,9 @@ RemoteContracts.Names = {
 	GameplayFeedback = "GameplayFeedback",
 	StateUpdate = "StateUpdate",
 	UIStateUpdate = "UIStateUpdate",
-	AttributeUpgrade = "AttributeUpgrade",
-	RequestRespawn = "RequestRespawn",
 	MatchStateUpdate = "MatchStateUpdate",
 	RoundResult = "RoundResult",
 	PopupMessage = "PopupMessage",
-	PurchaseRespawn = "PurchaseRespawn",
-	PurchaseMatchBuff = "PurchaseMatchBuff",
-	PrestigeReset = "PrestigeReset",
-	ToggleSpecialUpgrade = "ToggleSpecialUpgrade",
 	JoinArena = "JoinArena",
 	LeaveArena = "LeaveArena",
 	TeleportRequest = "TeleportRequest",
@@ -35,12 +29,6 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.ReleaseCharge] = function(aimTarget: any): boolean
 		return typeof(aimTarget) == "Vector3"
-	end,
-	[RemoteContracts.Names.AttributeUpgrade] = function(attributeName: any): boolean
-		return typeof(attributeName) == "string"
-	end,
-	[RemoteContracts.Names.RequestRespawn] = function(respawnType: any): boolean
-		return typeof(respawnType) == "string"
 	end,
 	[RemoteContracts.Names.TeleportRequest] = function(mapName: any, spawnName: any): boolean
 		return typeof(mapName) == "string" and typeof(spawnName) == "string"

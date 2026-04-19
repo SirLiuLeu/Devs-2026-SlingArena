@@ -1,100 +1,88 @@
-# 🔥 SYSTEM OWNERSHIP MATRIX (ALIGNED WITH DESIGN)
+# Sling Arena – System Ownership (Design-Aligned)
 
-# PlayerStateService
-- Responsibility: canonical player state (progression + combat + round state)
-- Owns: Level, EXP, Size, MaxHP, CurrentHP, BaseDamage, MoveSpeed, LaunchRange, ReflectDamage, Mass, CurrentVelocity, SlingType, IsAlive, IsGhost, IsCharging, TeamId
-- Controls: Level up, Stat scaling (+3% per level), Size scaling (sqrt formula), State mutation (HP, EXP)
-- Called by: LevelService, CollisionService, SlingService, RoundService, TeamService
-- Depends on: BalanceConfig, LevelConfig, SlingConfig
+Source of truth used: `Rule_DESIGN.md`, current `/src` code, and `PROJECT_TREE.md`.
 
-# PlayerService
-- Responsibility: player pawn lifecycle
-- Owns: Player ↔ Character mapping
-- Controls: Spawn / Respawn, Teleport to map, Ghost transform (visual + collision off)
-- Called by: RoundService, MapService
-- Depends on: PlayerStateService
+## Core gameplay services (active)
 
-# RoundService
-- Responsibility: match lifecycle & phase control
-- Owns: CurrentPhase (Lobby / Early / Final / End), RoundTimer, ActivePlayers
-- Controls: Phase transitions, Respawn rules, Ghost rules, Join rules (late join → ghost), Winner detection, Round reset
-- Called by: Player join/leave events
-- Depends on: PlayerService, PlayerStateService, MapService, TeamService
+### PlayerStateService
+- **Owns:** canonical per-player runtime state (HP, EXP, Level, Size, Damage, Regen, movement/charge flags, arena/lobby status).
+- **Responsibilities:** state mutation APIs, state publish to `StateUpdate`, EXP/level progression, respawn/round reset state.
+- **Called by:** GrowthService, SlingService, DamagePipelineService, RoundService, PlayerService, TrapService.
+- **Dependencies:** `BalanceConfig`, `LevelConfig`, `SlingshotConfig`, `GameStates`.
 
-# SlingService
-- Responsibility: charge & launch mechanics
-- Owns: ChargeStartTime per player
-- Controls: StartCharge / ReleaseCharge, Launch force calculation, ApplyImpulse
-- Called by: Client (Remote)
-- Depends on: PlayerStateService, RoundService
+### RoundService
+- **Owns:** match phase and participant roster.
+- **Responsibilities:** join/leave arena flow, round lifecycle, winner resolution, state broadcast via `MatchStateUpdate`, `UIStateUpdate`, `RoundResult`.
+- **Called by:** remotes/events (`JoinArena`, `LeaveArena`, gate events).
+- **Dependencies:** MapService, PlayerService, PlayerStateService.
 
-# CollisionService
-- Responsibility: collision detection & resolution
-- Owns: Collision debounce cache
-- Controls: Player vs Player collision, Player vs Trap, Player vs Environment
-- Called by: Heartbeat
-- Depends on: PlayerService, PlayerStateService, CombatService, MapService, SlingService
+### SlingService
+- **Owns:** input cache, charge state, release cooldown/movement stepping.
+- **Responsibilities:** validate move/charge/release inputs, apply launch and movement state transitions.
+- **Called by:** remotes `MoveRequest`, `StartCharge`, `ReleaseCharge`.
+- **Dependencies:** PlayerService, PlayerStateService, RoundService, SlingMovement helpers.
 
-# CombatService
-- Responsibility: combat formulas (stateless)
-- Owns: None
-- Controls: ImpactDamage calculation, Knockback calculation
-- Called by: CollisionService
-- Depends on: BalanceConfig
+### CollisionService
+- **Owns:** collision cooldown caches.
+- **Responsibilities:** detect and resolve player collisions, trap overlap candidates, exit zones, wall bounce/drag.
+- **Called by:** heartbeat loop.
+- **Dependencies:** PlayerService, PlayerStateService, CombatService, TeamService, MapService.
 
-# LevelService
-- Responsibility: EXP & leveling system
-- Owns: None (event-driven)
-- Controls: Add EXP, Check LevelUp, Trigger stat scaling
-- Called by: FoodService, CollisionService (on kill)
-- Depends on: PlayerStateService, LevelConfig
+### DamagePipelineService
+- **Owns:** damage application pipeline and feedback dispatch (`GameplayFeedback`).
+- **Responsibilities:** apply damage/kill flow, collision self-damage, regen ticks, death penalties, LevelUp growth hook.
+- **Called by:** CollisionService, TrapService, EventBus listeners.
+- **Dependencies:** PlayerStateService, PlayerService, RoundService.
 
-# FoodService
-- Responsibility: food spawn & consumption
-- Owns: Active food instances, Spawn timers
-- Controls: Spawn Food theo FoodSpawns, Maintain 5 Food / spawn, Respawn after 10s, Zone-based food distribution
-- Called by: MapService
-- Depends on: PlayerStateService, LevelService
+### GrowthService
+- **Owns:** EXP event routing.
+- **Responsibilities:** convert events (damage/kill/food) to EXP grants.
+- **Called by:** EventBus.
+- **Dependencies:** PlayerStateService.
 
-# MapService
-- Responsibility: map data & environment setup
-- Owns: Active map, Spawn points, FoodSpawns, Trap locations
-- Controls: Load map, Provide spawn positions
-- Called by: RoundService
-- Depends on: FoodService
+### FoodService
+- **Owns:** food spawn center state and active food tracking.
+- **Responsibilities:** spawn/respawn food from map `FoodSpawns`, consume-on-touch rewards, maintain per-anchor density.
+- **Called by:** map load/init and touch events.
+- **Dependencies:** MapService, PlayerService, PlayerStateService.
 
-# SafeZoneService
-- Responsibility: shrinking zone & damage
-- Owns: Current zone radius, Shrink timer
-- Controls: Shrink over time, Detect players outside zone, Apply %HP damage scaling
-- Called by: Heartbeat
-- Depends on: PlayerStateService, RoundService
+### TrapService
+- **Owns:** trap cooldown state.
+- **Responsibilities:** trap collision handling and trap-driven damage/feedback.
+- **Called by:** CollisionService events.
+- **Dependencies:** MapService, DamagePipelineService, PlayerStateService.
 
-# SlingService (Archetype / Passive)
-- Responsibility: Sling passive abilities
-- Owns: Passive state (stack, cooldown nếu có)
-- Controls: Trigger passive: - On launch - On collision - Passive loop
-- Examples: Stun, Clone, Vacuum, Speed stack
-- Called by: SlingService, CollisionService
-- Depends on: PlayerStateService
+### MapService
+- **Owns:** active map/resource caches (gates/traps/spawns/zones).
+- **Responsibilities:** map activation/resource discovery, spawn resolution, lobby gate wiring.
+- **Called by:** RoundService, PlayerService.
+- **Dependencies:** FoodService, TrapService.
 
-# TeamService
-- Responsibility: team logic
-- Owns: Team mapping
-- Controls: Create team (max 2 players), Disable friendly fire, Disband team in Final Phase
-- Called by: RoundService
-- Depends on: PlayerStateService
+### PlayerService
+- **Owns:** sling pawn lifecycle (`Workspace/SlingPawns`) and world-ui attachment.
+- **Responsibilities:** spawn/despawn/teleport pawns, death listeners, world UI sync.
+- **Called by:** RoundService, DamagePipelineService, MapService.
+- **Dependencies:** MapService, PlayerStateService.
 
-# TrapService
-- Responsibility: trap behavior
-- Owns: Trap cooldown states
-- Controls: Lava (kill after 3s), Toxic (DOT), Spike (damage + knockback), Totem (projectile force)
-- Called by: CollisionService
-- Depends on: PlayerStateService, CombatService
+### TeamService (minimal)
+- **Owns:** friendly-check helper only.
+- **Responsibilities:** determine same-team friendly state from `PlayerState.TeamId` (no TeamRed/TeamBlue assignment).
+- **Called by:** CollisionService.
+- **Dependencies:** PlayerStateService.
 
-# FINAL NOTES
-- No DamagePipelineService → gộp trực tiếp vào CollisionService + PlayerStateService
-- No MonetizationService → không thuộc core gameplay
-- No global regen system → không có trong design
-- Services giao tiếp qua event / call rõ ràng
-- PlayerStateService là nguồn dữ liệu duy nhất (single source of truth)
+### CombatService
+- **Owns:** pure combat calculations.
+- **Responsibilities:** impact damage and knockback formulas.
+- **Called by:** CollisionService.
+- **Dependencies:** balance config.
+
+### LeaderboardService
+- **Owns:** end-of-match leaderboard snapshot and ranking output.
+- **Responsibilities:** collect and sort placement/reward presentation data.
+- **Called by:** round/death/event hooks.
+- **Dependencies:** PlayerStateService, RoundService.
+
+## Removed / deprecated ownership
+- **Removed from runtime boot:** `MonetizationService` (respawn purchase, match buff purchase, prestige purchase loops) — not part of Rule_DESIGN core loop.
+- **Removed feature ownership:** manual stat allocation workflow (`SlingStatsUI` + `AttributeUpgrade` remote path).
+- **Removed TeamRed/TeamBlue ownership model:** no fixed red/blue assignment/spawn branching.

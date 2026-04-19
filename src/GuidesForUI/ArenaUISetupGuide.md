@@ -52,7 +52,7 @@ Create in **StarterGui**:
       - `Thumb` (`Frame`)
     - `ChargeBar` (`Frame`)
       - `Fill` (`Frame`)
-    - `DirectionIndicator` (`ImageLabel`) or compatibility alias `DirectionArrow`
+    - `DirectionIndicator` (`ImageLabel`)
     - `CooldownBar` (`Frame`)
       - `Fill` (`Frame`)
 
@@ -77,12 +77,7 @@ Required production remotes:
 - `JoinArena`
 - `LeaveArena`
 - `TeleportRequest`
-- `AttributeUpgrade`
-- `RequestRespawn`
-- `PurchaseRespawn`
-- `PurchaseMatchBuff`
-- `PrestigeReset`
-- `ToggleSpecialUpgrade`
+- Removed legacy remotes: `AttributeUpgrade`, `RequestRespawn`, `PurchaseRespawn`, `PurchaseMatchBuff`, `PrestigeReset`, `ToggleSpecialUpgrade`
 - `DebugSpawnFood`
 - `DebugResetSling`
 - `StateUpdate`

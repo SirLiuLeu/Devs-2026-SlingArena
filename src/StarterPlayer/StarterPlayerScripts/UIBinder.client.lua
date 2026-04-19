@@ -20,7 +20,6 @@ local controller: any = nil
 local rebuildScheduled = false
 local watchedGuiNames = {
 	["MainHUD"] = true,
-	["SlingStatsUI"] = true,
 	["LobbyUI"] = true,
 	["MatchUI"] = true,
 	["InventoryUI"] = true,

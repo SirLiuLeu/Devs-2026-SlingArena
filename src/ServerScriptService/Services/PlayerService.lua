@@ -129,11 +129,6 @@ function PlayerService:_updateWorldUi(player: Player, state)
 		local maxHp = math.max(state.MaxHP or 1, 1)
 		local hpRatio = math.clamp((state.CurrentHP or 0) / maxHp, 0, 1)
 		hpFill.Size = UDim2.new(hpRatio, 0, 1, 0)
-		if state.TeamId == "TeamRed" then
-			hpFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-		elseif state.TeamId == "TeamBlue" then
-			hpFill.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
-		end
 	end
 
 	local levelLabel = worldUi:FindFirstChild("LevelLabel")
@@ -252,11 +247,9 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	pawn.Name = player.Name
 	local index = spawnIndex or (player.UserId % 8) + 1
 	local mapService = self._context.Services.MapService
-	local playerState = self._context.Services.PlayerStateService:GetState(player)
-	local teamId = playerState and playerState.TeamId or nil
 	local spawnCFrame = CFrame.new(mapService:GetSpawnPoint(index, mapName))
 	if type(mapService.GetSpawnCFrame) == "function" then
-		spawnCFrame = mapService:GetSpawnCFrame(index, mapName, teamId)
+		spawnCFrame = mapService:GetSpawnCFrame(index, mapName, nil)
 	end
 	pawn:PivotTo(spawnCFrame)
 	pawn.Parent = self._pawnsFolder

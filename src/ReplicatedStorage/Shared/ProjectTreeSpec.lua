@@ -9,22 +9,9 @@ local ProjectTreeSpec = {
 			LeaveButton = "LobbyUI.RootFrame.LeaveButton", -- [PROJECT_TREE_SPEC] StarterGui.LobbyUI.RootFrame.LeaveButton
 			DebugFoodButton = "LobbyUI.RootFrame.DebugFood", -- [PROJECT_TREE_SPEC] StarterGui.LobbyUI.RootFrame.DebugFood
 			DebugResetButton = "LobbyUI.RootFrame.DebugReset", -- [PROJECT_TREE_SPEC] StarterGui.LobbyUI.RootFrame.DebugReset
-		},
-		SlingStats = {
-			ScreenGui = "SlingStatsUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI
-			StatsRoot = "SlingStatsUI.StatsRoot", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot
-			HeaderBar = "SlingStatsUI.StatsRoot.HeaderBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.HeaderBar
-			TitleLabel = "SlingStatsUI.StatsRoot.HeaderBar.TitleLabel", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.HeaderBar.TitleLabel
-			AvailablePointsLabel = "SlingStatsUI.StatsRoot.HeaderBar.AvailablePointsLabel", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.HeaderBar.AvailablePointsLabel
-			BodyContainer = "SlingStatsUI.StatsRoot.BodyContainer", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer
-			AttributeList = "SlingStatsUI.StatsRoot.BodyContainer.AttributeList", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.AttributeList
-			ResetButton = "SlingStatsUI.StatsRoot.BodyContainer.ActionButtonsRow.ResetButton", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.ActionButtonsRow.ResetButton
-			AcceptButton = "SlingStatsUI.StatsRoot.BodyContainer.ActionButtonsRow.AcceptButton", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.ActionButtonsRow.AcceptButton
-		},
-		MainHub = {
+		},MainHub = {
 			ScreenGui = "MainHUD", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD
 			Root = "MainHUD.Root", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root
-			SlingStatsButton = "MainHUD.Root.SlingStatsButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.SlingStatsButton
 			DailyButton = "MainHUD.Root.LeftMenu.DailyButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.DailyButton
 			InventoryButton = "MainHUD.Root.LeftMenu.InventoryButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.InventoryButton
 			OnlineRewardButton = "MainHUD.Root.LeftMenu.OnlineRewardButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.OnlineRewardButton
@@ -42,7 +29,6 @@ local ProjectTreeSpec = {
 				LevelLabel = "MainHUD.Root.ExpProress.LevelOnBarLabel", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.LevelOnBarLabel
 			},
 			Panels = {
-				SlingStats = "SlingStatsUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI
 				DailyLogin = "DailyLoginUI", -- [PROJECT_TREE_SPEC] StarterGui.DailyLoginUI
 				Shop = "ShopGui", -- [PROJECT_TREE_SPEC] StarterGui.ShopGui
 				Inventory = "InventoryUI", -- [ASSUMED] expected inventory panel root ScreenGui name
@@ -118,13 +104,7 @@ local ProjectTreeSpec = {
 			Spin1 = "SpinUI.Root.Buttons.Spin1", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.Buttons.Spin1
 			Spin2 = "SpinUI.Root.Buttons.Spin2", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.Buttons.Spin2
 			CloseButton = "SpinUI.Root.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.CloseButton
-		},
-		InventoryTest = {
-			ScreenGui = "InventoryTestUI", -- [PROJECT_TREE_SPEC] StarterGui.InventoryTestUI
-			GiveSlingButton = "InventoryTestUI.GiveSlingButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryTestUI.GiveSlingButton
-			GiveItemButton = "InventoryTestUI.GiveItemButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryTestUI.GiveItemButton
-		},
-		Match = {
+		},Match = {
 			ScreenGui = "MatchUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI
 			Root = "MatchUI.RootFrame", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI.RootFrame
 			StatusLabel = "MatchUI.RootFrame.StatusLabel", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI.RootFrame.StatusLabel
@@ -141,7 +121,6 @@ local ProjectTreeSpec = {
 			ChargeBar = "SlingArenaUI.SlingUI.ChargeBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.ChargeBar
 			ChargeFill = "SlingArenaUI.SlingUI.ChargeBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.ChargeBar.Fill
 			DirectionIndicator = "SlingArenaUI.SlingUI.DirectionIndicator", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.DirectionIndicator
-			DirectionArrow = "SlingArenaUI.SlingUI.DirectionArrow", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.DirectionArrow (compatibility alias)
 			CooldownBar = "SlingArenaUI.SlingUI.CooldownBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.CooldownBar
 			CooldownFill = "SlingArenaUI.SlingUI.CooldownBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.CooldownBar.Fill
 		},
@@ -154,12 +133,6 @@ local ProjectTreeSpec = {
 		JoinArena = "SlingArenaRemotes.JoinArena", -- [PROJECT_TREE_SPEC]
 		LeaveArena = "SlingArenaRemotes.LeaveArena", -- [PROJECT_TREE_SPEC]
 		TeleportRequest = "SlingArenaRemotes.TeleportRequest", -- [PROJECT_TREE_SPEC]
-		AttributeUpgrade = "SlingArenaRemotes.AttributeUpgrade", -- [PROJECT_TREE_SPEC]
-		RequestRespawn = "SlingArenaRemotes.RequestRespawn", -- [PROJECT_TREE_SPEC]
-		PurchaseRespawn = "SlingArenaRemotes.PurchaseRespawn", -- [PROJECT_TREE_SPEC]
-		PurchaseMatchBuff = "SlingArenaRemotes.PurchaseMatchBuff", -- [PROJECT_TREE_SPEC]
-		PrestigeReset = "SlingArenaRemotes.PrestigeReset", -- [PROJECT_TREE_SPEC]
-		ToggleSpecialUpgrade = "SlingArenaRemotes.ToggleSpecialUpgrade", -- [PROJECT_TREE_SPEC]
 		DebugSpawnFood = "SlingArenaRemotes.DebugSpawnFood", -- [PROJECT_TREE_SPEC]
 		DebugResetSling = "SlingArenaRemotes.DebugResetSling", -- [PROJECT_TREE_SPEC]
 		ConsumeHpPotion = "SlingArenaRemotes.ConsumeHpPotion", -- [PROJECT_TREE_SPEC]
@@ -236,9 +209,6 @@ local ProjectTreeSpec = {
 		--     Trap (Folder)
 		--       BasicTrap (Model) [fallback]
 		--
-		-- Teams
-		--   TeamRed (Team)
-		--   TeamBlue (Team)
 		Workspace = {
 			SlingPawns = "SlingPawns",
 			Maps = {

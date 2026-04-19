@@ -107,10 +107,6 @@ function RoundService:JoinArena(player: Player)
 	end
 
 	local arenaSpawn = self._context.Services.MapService:GetArenaSpawn(arenaMapName)
-	local playerState = self._context.Services.PlayerStateService:GetState(player)
-	if playerState and playerState.TeamId then
-		arenaSpawn = self._context.Services.MapService:GetTeamArenaSpawn(playerState.TeamId, arenaMapName)
-	end
 	if arenaSpawn then
 		local teleported = self._context.Services.PlayerService:TeleportCharacterToSpawn(player, arenaSpawn)
 		if not teleported then
@@ -228,11 +224,7 @@ function RoundService:_resetPlayersForRound()
 		if player.Parent == Players then
 			self._context.Services.PlayerStateService:ResetForNewRound(player)
 			self._context.Services.PlayerService:SpawnPawn(player, i, self:_getTargetArenaMapName())
-			local playerState = self._context.Services.PlayerStateService:GetState(player)
 			local arenaSpawn = self._context.Services.MapService:GetArenaSpawn(self:_getTargetArenaMapName())
-			if playerState and playerState.TeamId then
-				arenaSpawn = self._context.Services.MapService:GetTeamArenaSpawn(playerState.TeamId, self:_getTargetArenaMapName())
-			end
 			if arenaSpawn then
 				local teleported = self._context.Services.PlayerService:TeleportCharacterToSpawn(player, arenaSpawn)
 				if not teleported then

@@ -43,7 +43,6 @@ export type PlayerState = {
 	HpPotions: number,
 	NextHpPotionUseTime: number,
 	RespawnCountThisMatch: number,
-	AttributePoints: number,
 	DamageDealt: number,
 	IsTeleporting: boolean,
 	CooldownEndTime: number,

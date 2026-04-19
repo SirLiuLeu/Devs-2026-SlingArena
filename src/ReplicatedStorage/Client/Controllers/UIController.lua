@@ -5,7 +5,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
-local MainStatsPopupController = require(ReplicatedStorage.Client.Controllers.MainStatsPopupController)
 local InventoryUIController = require(ReplicatedStorage.Client.Controllers.InventoryUIController)
 local InventoryDataProvider = require(ReplicatedStorage.Client.Services.InventoryDataProvider)
 local OnlineRewardUIController = require(ReplicatedStorage.Client.Controllers.OnlineRewardUIController)
@@ -65,8 +64,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.ClientService = dependencies.ClientService
 	self.PlayerGui = playerGui
 	self.Connections = {}
-	self.MainStatsPopupController = MainStatsPopupController.new(playerGui, dependencies)
-	self.InventoryUIController = InventoryUIController.new(playerGui)
+		self.InventoryUIController = InventoryUIController.new(playerGui)
 	self.SpinUIController = SpinUIController.new(playerGui)
 	self.OnlineRewardUIController = OnlineRewardUIController.new(playerGui)
 	self.ShopUIController = ShopUIController.new(playerGui)
@@ -88,7 +86,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.WinnerPopup = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.WinnerPopup)
 	self.DebugFoodButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugFoodButton)
 	self.DebugResetButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugResetButton)
-	self.SlingStatsButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.SlingStatsButton)
 	self.DailyButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.DailyButton)
 	self.InventoryButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.InventoryButton)
 	self.OnlineRewardButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.OnlineRewardButton)
@@ -104,7 +101,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.ExpLevelLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.LevelLabel)
 
 	self.PanelMap = {
-		SlingStats = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.SlingStats),
 		DailyLogin = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.DailyLogin),
 		Shop = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Shop) or resolveScreenGui(playerGui, "ShopUI"),
 		Inventory = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Inventory),
@@ -123,7 +119,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not self.WinnerPopup then warnMissingUiPath(ProjectTreeSpec.UI.Match.WinnerPopup, "TextLabel") end
 	if not self.DebugFoodButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.DebugFoodButton, "TextButton") end
 	if not self.DebugResetButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.DebugResetButton, "TextButton") end
-	if not self.SlingStatsButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SlingStatsButton, "TextButton") end
 	if not self.DailyButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.DailyButton, "TextButton") end
 	if not self.InventoryButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.InventoryButton, "TextButton") end
 	if not self.OnlineRewardButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.OnlineRewardButton, "TextButton") end
@@ -136,7 +131,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 		warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHPCountLabel, "TextLabel")
 	end
 	if not self.TeamIndicator then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.TeamIndicator, "TextLabel") end
-	if not self.PanelMap.SlingStats then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.SlingStats, "ScreenGui") end
 	if not self.PanelMap.DailyLogin then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.DailyLogin, "ScreenGui") end
 	if not self.PanelMap.Shop then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Shop, "ScreenGui") end
 	if not self.PanelMap.Inventory then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Inventory, "ScreenGui") end
@@ -215,11 +209,6 @@ function UIController:Start()
 			self.ClientService:RequestDebugResetSling()
 		end))
 	end
-	if self.SlingStatsButton then
-		table.insert(self.Connections, self.SlingStatsButton.MouseButton1Click:Connect(function()
-			self:ToggleMainHubPanel("SlingStats")
-		end))
-	end
 	if self.DailyButton then
 		table.insert(self.Connections, self.DailyButton.MouseButton1Click:Connect(function()
 			self:ShowMainHubPanel("DailyLogin")
@@ -291,9 +280,6 @@ function UIController:Start()
 		if self.InventoryDataProvider then
 			self.InventoryDataProvider:SetFromState(state)
 		end
-		if self.MainStatsPopupController then
-			self.MainStatsPopupController:ApplyState(state)
-		end
 		local currentExp = math.max(0, math.floor(state.Exp or 0))
 		local level = math.max(1, math.floor(state.Level or 1))
 		local required = math.max(1, LevelConfig.RequiredExp(level))
@@ -308,13 +294,8 @@ function UIController:Start()
 			self.ExpLevelLabel.Text = string.format("Lv.%d", level)
 		end
 		if self.TeamIndicator then
-			local teamId = tostring(state.TeamId or "NoTeam")
+			local teamId = tostring(state.TeamId or "Solo")
 			self.TeamIndicator.Text = string.format("Team: %s", teamId)
-			if teamId == "TeamRed" then
-				self.TeamIndicator.TextColor3 = Color3.fromRGB(255, 80, 80)
-			elseif teamId == "TeamBlue" then
-				self.TeamIndicator.TextColor3 = Color3.fromRGB(80, 160, 255)
-			end
 		end
 	end)
 	if stateConnection then
@@ -365,9 +346,6 @@ function UIController:Destroy()
 		connection:Disconnect()
 	end
 	table.clear(self.Connections)
-	if self.MainStatsPopupController then
-		self.MainStatsPopupController:Destroy()
-	end
 end
 
 return UIController
