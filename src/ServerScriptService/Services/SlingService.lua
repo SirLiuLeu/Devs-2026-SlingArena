@@ -14,8 +14,6 @@ local SlingMovement = require(script.Parent.SlingMovement)
 local SlingService = {}
 SlingService.__index = SlingService
 
-local MOVE_REQUEST_MIN_INTERVAL = 1 / 30
-local MOVE_REQUEST_LOG_COOLDOWN = 2
 local ABNORMAL_LOG_COOLDOWN = 2
 
 local function sanitizeNumber(value: number, fallback: number): number
@@ -82,11 +80,11 @@ function SlingService.new(context)
 	local self = setmetatable({}, SlingService)
 	self._context = context
 	self._input = {}
+	self._inputStates = {}
 	self._chargeState = {}
 	self._releaseCooldown = {}
 	self._releaseState = {}
 	self._movementControllers = {}
-	self._moveRequestAt = {}
 	self._logCooldownByPlayer = {}
 	return self
 end
@@ -106,6 +104,12 @@ function SlingService:_getTrackedPlayers(): { any }
 	end
 
 	for player in pairs(self._input) do
+		if not seen[player] then
+			seen[player] = true
+			table.insert(trackedPlayers, player)
+		end
+	end
+	for player in pairs(self._inputStates) do
 		if not seen[player] then
 			seen[player] = true
 			table.insert(trackedPlayers, player)
@@ -158,10 +162,10 @@ function SlingService:Init()
 
 	Players.PlayerRemoving:Connect(function(player)
 		self._input[player] = nil
+		self._inputStates[player] = nil
 		self._chargeState[player] = nil
 		self._releaseCooldown[player] = nil
 		self._releaseState[player] = nil
-		self._moveRequestAt[player] = nil
 		self._logCooldownByPlayer[player] = nil
 		local movementController = self._movementControllers[player]
 		if movementController then
@@ -197,22 +201,6 @@ function SlingService:_canControl(player: Player): boolean
 	return true
 end
 
-function SlingService:_canAcceptMoveRequest(player: Player): boolean
-	local now = os.clock()
-	local nextAllowedAt = self._moveRequestAt[player] or 0
-	if now < nextAllowedAt then
-		local logKey = string.format("MoveRate:%d", player.UserId)
-		local nextLogAt = self._logCooldownByPlayer[logKey] or 0
-		if now >= nextLogAt then
-			self._logCooldownByPlayer[logKey] = now + MOVE_REQUEST_LOG_COOLDOWN
-			warn(string.format("[SlingService] MoveRequest throttled for %s (possible spam)", player.Name))
-		end
-		return false
-	end
-	self._moveRequestAt[player] = now + MOVE_REQUEST_MIN_INTERVAL
-	return true
-end
-
 function SlingService:_warnAbnormal(player: Player, logType: string, message: string)
 	local now = os.clock()
 	local logKey = string.format("%s:%d", logType, player.UserId)
@@ -224,19 +212,24 @@ function SlingService:_warnAbnormal(player: Player, logType: string, message: st
 	warn(string.format("[SlingService] %s player=%s", message, player.Name))
 end
 
-function SlingService:HandleMoveRequest(player: Player, directionInput: Vector3)
+function SlingService:HandleMoveRequest(player: Player, inputState)
 	if typeof(player) ~= "Instance" or not player:IsA("Player") or player.Parent ~= Players then
 		return
 	end
-	if not self:_canAcceptMoveRequest(player) then
-		return
-	end
-	if not RemoteContracts.Validate(RemoteContracts.Names.MoveRequest, directionInput) then
+	if not RemoteContracts.Validate(RemoteContracts.Names.MoveRequest, inputState) then
 		self:_warnAbnormal(player, "MoveInvalidPayload", "MoveRequest rejected: invalid payload type")
 		return
 	end
+	local normalizedState = {
+		W = inputState.W == true,
+		A = inputState.A == true,
+		S = inputState.S == true,
+		D = inputState.D == true,
+	}
+	self._inputStates[player] = normalizedState
 	if not self:_canControl(player) then
 		self._input[player] = Vector3.zero
+		self._inputStates[player] = { W = false, A = false, S = false, D = false }
 		self:_warnAbnormal(player, "MoveBlocked", "MoveRequest rejected: player cannot control")
 		return
 	end
@@ -244,6 +237,7 @@ function SlingService:HandleMoveRequest(player: Player, directionInput: Vector3)
 	local state = self._context.Services.PlayerStateService:GetState(player)
 	if not state or state.IsTeleporting then
 		self._input[player] = Vector3.zero
+		self._inputStates[player] = { W = false, A = false, S = false, D = false }
 		self:_warnAbnormal(player, "MoveNoState", "MoveRequest rejected: missing/teleporting state")
 		return
 	end
@@ -252,8 +246,32 @@ function SlingService:HandleMoveRequest(player: Player, directionInput: Vector3)
 		return
 	end
 
-	local planar = Vector3.new(directionInput.X, 0, directionInput.Z)
-	self._input[player] = if planar.Magnitude > 1 then planar.Unit else planar
+end
+
+function SlingService:_resolveInputVector(player: Player): Vector3
+	local inputState = self._inputStates[player]
+	if not inputState then
+		return Vector3.zero
+	end
+	local x = 0
+	local z = 0
+	if inputState.D then
+		x += 1
+	end
+	if inputState.A then
+		x -= 1
+	end
+	if inputState.W then
+		z += 1
+	end
+	if inputState.S then
+		z -= 1
+	end
+	local vector = Vector3.new(x, 0, z)
+	if vector.Magnitude > 1 then
+		return vector.Unit
+	end
+	return vector
 end
 
 function SlingService:StartCharge(player: Player, aimTarget: Vector3)
@@ -355,7 +373,8 @@ end
 function SlingService:_stepMovement(dt: number)
 	for _, player in self:_getTrackedPlayers() do
 		local root = self._context.Services.PlayerService:GetRoot(player)
-		local input = self._input[player] or Vector3.zero
+		local input = self:_resolveInputVector(player)
+		self._input[player] = input
 		if root then
 			self:_applyRootVelocity(player, root, input, dt)
 		else

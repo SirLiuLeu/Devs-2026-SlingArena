@@ -21,8 +21,25 @@ RemoteContracts.Names = {
 }
 
 RemoteContracts.Validators = {
-	[RemoteContracts.Names.MoveRequest] = function(directionInput: any): boolean
-		return typeof(directionInput) == "Vector3"
+	[RemoteContracts.Names.MoveRequest] = function(inputState: any): boolean
+		if typeof(inputState) ~= "table" then
+			return false
+		end
+		local allowedKeys = {
+			W = true,
+			A = true,
+			S = true,
+			D = true,
+		}
+		for key, value in pairs(inputState) do
+			if not allowedKeys[key] or typeof(value) ~= "boolean" then
+				return false
+			end
+		end
+		return typeof(inputState.W) == "boolean"
+			and typeof(inputState.A) == "boolean"
+			and typeof(inputState.S) == "boolean"
+			and typeof(inputState.D) == "boolean"
 	end,
 	[RemoteContracts.Names.StartCharge] = function(aimTarget: any): boolean
 		return typeof(aimTarget) == "Vector3"

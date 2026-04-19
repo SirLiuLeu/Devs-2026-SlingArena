@@ -2,7 +2,6 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
@@ -18,35 +17,31 @@ local keyStates = {
 	[Enum.KeyCode.D] = false,
 }
 
-local function computeInputVector(): Vector3
-	local x = 0
-	local z = 0
-	if keyStates[Enum.KeyCode.D] then x += 1 end
-	if keyStates[Enum.KeyCode.A] then x -= 1 end
-	if keyStates[Enum.KeyCode.W] then z += 1 end
-	if keyStates[Enum.KeyCode.S] then z -= 1 end
+local function buildInputState()
+	return {
+		W = keyStates[Enum.KeyCode.W],
+		A = keyStates[Enum.KeyCode.A],
+		S = keyStates[Enum.KeyCode.S],
+		D = keyStates[Enum.KeyCode.D],
+	}
+end
 
-	local input = Vector3.new(x, 0, z)
-	if input.Magnitude < 0.001 then
-		return Vector3.zero
-	end
+local lastSentState = buildInputState()
 
-	local camera = workspace.CurrentCamera
-	if not camera then
-		return input.Unit
-	end
+local function didStateChange(nextState): boolean
+	return nextState.W ~= lastSentState.W
+		or nextState.A ~= lastSentState.A
+		or nextState.S ~= lastSentState.S
+		or nextState.D ~= lastSentState.D
+end
 
-	local forward = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
-	local right = Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z)
-	if forward.Magnitude < 0.001 or right.Magnitude < 0.001 then
-		return input.Unit
+local function sendInputIfChanged()
+	local nextState = buildInputState()
+	if not didStateChange(nextState) then
+		return
 	end
-
-	local worldDirection = (right.Unit * input.X) + (forward.Unit * input.Z)
-	if worldDirection.Magnitude < 0.001 then
-		return Vector3.zero
-	end
-	return worldDirection.Unit
+	lastSentState = nextState
+	moveRequestRemote:FireServer(nextState)
 end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -56,6 +51,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
 	if keyStates[input.KeyCode] ~= nil then
 		keyStates[input.KeyCode] = true
+		sendInputIfChanged()
 	end
 
 end)
@@ -64,24 +60,33 @@ UserInputService.InputEnded:Connect(function(input)
 
 	if keyStates[input.KeyCode] ~= nil then
 		keyStates[input.KeyCode] = false
+		sendInputIfChanged()
 	end
 
 end)
 
 player.CharacterAdded:Connect(function()
-
+	local changed = false
 	for keyCode in pairs(keyStates) do
+		if keyStates[keyCode] then
+			changed = true
+		end
 		keyStates[keyCode] = false
+	end
+	if changed then
+		sendInputIfChanged()
 	end
 end)
 
-RunService.RenderStepped:Connect(function()
-
-	local inputVector = computeInputVector()
-
-	if inputVector.Magnitude > 1 then
-		inputVector = inputVector.Unit
+UserInputService.WindowFocusReleased:Connect(function()
+	local changed = false
+	for keyCode in pairs(keyStates) do
+		if keyStates[keyCode] then
+			changed = true
+		end
+		keyStates[keyCode] = false
 	end
-
-	moveRequestRemote:FireServer(inputVector)
+	if changed then
+		sendInputIfChanged()
+	end
 end)

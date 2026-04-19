@@ -229,7 +229,8 @@ local function testLobbyAllowsMoveAndRelease()
 	local service = SlingServiceModule.new(context)
 	local player = { UserId = 901, Name = "LobbyControlTester", Parent = game:GetService("Players") }
 
-	service:HandleMoveRequest(player, Vector3.new(1, 0, 0))
+	service:HandleMoveRequest(player, { W = false, A = false, S = false, D = true })
+	service:_stepMovement(1 / 60)
 	if (service._input[player] :: Vector3).Magnitude <= 0 then
 		root:Destroy()
 		error("MoveRequest should be accepted in Lobby state")

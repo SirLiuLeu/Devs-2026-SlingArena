@@ -17,6 +17,7 @@ function PlayerService.new(context)
 	self._deathConnections = {}
 	self._characterConnections = {}
 	self._respawnDebounce = {}
+	self._spawnInProgress = {}
 	self._pawnsFolder = Workspace:FindFirstChild("SlingPawns")
 	self._slingTemplate = nil
 	self._worldUiTemplate = nil
@@ -76,6 +77,7 @@ function PlayerService:Init()
 		self:_disconnectDeathSignal(player)
 		self:_disconnectCharacterSignal(player)
 		self._respawnDebounce[player] = nil
+		self._spawnInProgress[player] = nil
 		self:_destroyPawn(player)
 	end)
 
@@ -283,41 +285,56 @@ function PlayerService:_disconnectDeathSignal(player)
 end
 
 function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
-	self:_disconnectDeathSignal(player)
-	self:_destroyPawn(player)
-
-	local template = self:_loadSlingTemplate()
-	local pawn = template:Clone()
-	pawn.Name = player.Name
-	local index = spawnIndex or (player.UserId % 8) + 1
-	local mapService = self._context.Services.MapService
-	local spawnCFrame = CFrame.new(mapService:GetSpawnPoint(index, mapName))
-	if type(mapService.GetSpawnCFrame) == "function" then
-		spawnCFrame = mapService:GetSpawnCFrame(index, mapName, nil)
+	if self._spawnInProgress[player] then
+		return self:GetPawn(player)
 	end
-	pawn:PivotTo(spawnCFrame)
-	pawn.Parent = self._pawnsFolder
-	self:_attachWorldUi(pawn)
-	pawn:SetAttribute("ScaleValue", Config.SlingScale)
-	for _, descendant in pawn:GetDescendants() do
-		if descendant:IsA("BasePart") then
-			descendant.Anchored = false
-			descendant.AssemblyLinearVelocity = Vector3.zero
-			descendant.AssemblyAngularVelocity = Vector3.zero
-			descendant:SetNetworkOwner(nil)
-		elseif descendant:IsA("BodyMover") then
-			descendant:Destroy()
+	self._spawnInProgress[player] = true
+	local spawnedPawn = nil
+	local success, spawnError = pcall(function()
+		self:_disconnectDeathSignal(player)
+		local defaultCharacter = player.Character
+		if defaultCharacter and defaultCharacter:IsA("Model") and not self:_isManagedPawn(player, defaultCharacter) then
+			defaultCharacter:Destroy()
 		end
-	end
+		self:_destroyPawn(player)
 
-	player.Character = pawn
-	self._context.Services.PlayerStateService:ResetForRespawn(player)
-	local state = self._context.Services.PlayerStateService:GetState(player)
-	if state then
-		self:_updateWorldUi(player, state)
-	end
+		local template = self:_loadSlingTemplate()
+		local pawn = template:Clone()
+		pawn.Name = player.Name
+		local index = spawnIndex or (player.UserId % 8) + 1
+		local mapService = self._context.Services.MapService
+		local spawnCFrame = CFrame.new(mapService:GetSpawnPoint(index, mapName))
+		if type(mapService.GetSpawnCFrame) == "function" then
+			spawnCFrame = mapService:GetSpawnCFrame(index, mapName, nil)
+		end
+		pawn:PivotTo(spawnCFrame)
+		pawn.Parent = self._pawnsFolder
+		self:_attachWorldUi(pawn)
+		pawn:SetAttribute("ScaleValue", Config.SlingScale)
+		for _, descendant in pawn:GetDescendants() do
+			if descendant:IsA("BasePart") then
+				descendant.Anchored = false
+				descendant.AssemblyLinearVelocity = Vector3.zero
+				descendant.AssemblyAngularVelocity = Vector3.zero
+				descendant:SetNetworkOwner(nil)
+			elseif descendant:IsA("BodyMover") then
+				descendant:Destroy()
+			end
+		end
 
-	return pawn
+		player.Character = pawn
+		self._context.Services.PlayerStateService:ResetForRespawn(player)
+		local state = self._context.Services.PlayerStateService:GetState(player)
+		if state then
+			self:_updateWorldUi(player, state)
+		end
+		spawnedPawn = pawn
+	end)
+	self._spawnInProgress[player] = nil
+	if not success then
+		error(spawnError)
+	end
+	return spawnedPawn
 end
 
 function PlayerService:DespawnPawn(player)

@@ -34,7 +34,7 @@
 ## 3) Current remotes contract (single list)
 
 ### Client → Server
-- `MoveRequest(Vector3)`
+- `MoveRequest({ W: boolean, A: boolean, S: boolean, D: boolean })`
 - `StartCharge(Vector3)`
 - `ReleaseCharge(Vector3)`
 - `JoinArena()`
@@ -53,7 +53,7 @@
 - `PopupMessage(payload)`
 
 ## 4) Runtime safety guards
-- `MoveRequest` is handled on server with payload validation and per-player throttling to mitigate spam.
+- `MoveRequest` is handled on server with payload validation; movement is applied only in the centralized heartbeat loop using cached input states.
 - `PlayerService` enforces sling-only avatars by replacing non-managed `CharacterAdded` models with sling pawns.
 
 # SPAWN RULE
@@ -61,4 +61,4 @@
 - Roblox default character MUST NOT be used
 - Players are represented by Sling models only
 - CharacterAutoLoads must be disabled
-- SlingService is responsible for spawning player representation
+- PlayerService is responsible for spawning player representation
