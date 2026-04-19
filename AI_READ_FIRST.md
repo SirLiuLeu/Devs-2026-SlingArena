@@ -11,7 +11,7 @@ Before implementing any feature, read the following files in order.
    Authoritative Roblox instance hierarchy and project structure.
 
 3. SYSTEM_OWNERSHIP.md
-   Serivce nào đang quản lý dữ liệu nào.
+   Data ownership and service responsibility matrix.
 
 4. Rule_DESIGN.md
    High-level gameplay rules.

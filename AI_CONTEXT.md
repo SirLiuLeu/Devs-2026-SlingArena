@@ -1,7 +1,5 @@
 # Sling Arena – AI Context (Compact Source of Truth)
 
-This file replaces prior split references from `Rule_BUILD_SPEC.md` and `REMOTE_CONTRACTS.md` for day-to-day implementation context.
-
 ## 1) Design pillars (from Rule_DESIGN)
 - Round-based physics survival arena.
 - Loop: Lobby → Early combat/farm → Final phase pressure → Last alive wins → result/reset.
@@ -54,33 +52,9 @@ This file replaces prior split references from `Rule_BUILD_SPEC.md` and `REMOTE_
 - `GameplayFeedback(payload)`
 - `PopupMessage(payload)`
 
-### Removed from active contract
-- `AttributeUpgrade`, `ToggleSpecialUpgrade`
-- `RequestRespawn`, `PurchaseRespawn`, `PurchaseMatchBuff`, `PrestigeReset`
+# SPAWN RULE
 
-## 4) Progression and scaling rules (implemented target)
-- Level EXP requirement follows config curve.
-- Level-up auto scaling: increase **HP, Damage, Size, Regen** by 3% per level.
-- Do **not** scale Move Speed.
-- Do **not** scale Launch Range.
-- Manual point allocation UI/flow removed.
-
-## 5) Team/game-loop updates
-- TeamRed/TeamBlue fixed-team flow removed.
-- Spawn routing no longer branches by TeamRed/TeamBlue spawn names.
-- Friendly checks are state-based only when explicit TeamId is present.
-
-## 6) Runtime-created RemoteEvents audit note
-- Current codebase creates **no RemoteEvent instances at runtime**.
-- All remotes are expected from `ReplicatedStorage/SlingArenaRemotes` model assets.
-
-## 7) Known cleanup status
-- DirectionArrow compatibility path removed; `DirectionIndicator` is required.
-- Inventory test button script/UI paths removed (GiveSlingButton/GiveItemButton/InventoryTestUI).
-- SlingStatsUI/manual stat allocation path removed from active UI controller flows.
-
-## 8) Implementation guardrails for future sessions
-- Keep server authoritative for physics/combat and state mutation.
-- Avoid introducing new remotes unless explicitly required by design.
-- Keep docs (`AI_CONTEXT.md`, `SYSTEM_OWNERSHIP.md`) synchronized with real code paths.
-- Remove dead references when removing features (UI spec, remotes, services, tests).
+- Roblox default character MUST NOT be used
+- Players are represented by Sling models only
+- CharacterAutoLoads must be disabled
+- SlingService is responsible for spawning player representation
