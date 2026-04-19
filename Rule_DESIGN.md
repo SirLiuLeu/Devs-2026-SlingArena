@@ -24,6 +24,7 @@ Spawn Logic:
 - Player: Spawn ngẫu nhiên gần rìa (Edge)
 - Food: Spawn theo cụm (FoodSpawns)
 - Traps: Fixed positions
+- Sling/Launcher: Có thể Move (WSAD) và Launch
 
 ## 2.2 Early Game (0 → 8 phút)
 - Cơ chế: Farm + Combat tự do
