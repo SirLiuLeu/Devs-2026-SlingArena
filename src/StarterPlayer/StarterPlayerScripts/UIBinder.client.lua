@@ -12,8 +12,14 @@ local UIController = require(ReplicatedStorage.Client.Controllers.UIController)
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-PathResolver.reportMissing(game, PathResolver.collectPaths(ProjectTreeSpec.Services.Client))
-PathResolver.reportMissing(ReplicatedStorage, PathResolver.collectPaths(ProjectTreeSpec.Remotes))
+PathResolver.reportMissing(game, PathResolver.collectPaths(ProjectTreeSpec.Services.Client), {
+	waitTimeout = 2,
+	debugMissingTree = true,
+})
+PathResolver.reportMissing(ReplicatedStorage, PathResolver.collectPaths(ProjectTreeSpec.Remotes), {
+	waitTimeout = 5,
+	debugMissingTree = true,
+})
 
 local clientService = LobbyClientService.new()
 local controller: any = nil
@@ -35,7 +41,10 @@ local function buildController()
 		controller:Destroy()
 	end
 
-	PathResolver.reportMissing(playerGui, PathResolver.collectPaths(ProjectTreeSpec.UI))
+	PathResolver.reportMissing(playerGui, PathResolver.collectPaths(ProjectTreeSpec.UI), {
+		waitTimeout = 10,
+		debugMissingTree = true,
+	})
 	controller = UIController.new(playerGui, {
 		ClientService = clientService,
 	})

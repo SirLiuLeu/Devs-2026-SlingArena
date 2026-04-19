@@ -5,6 +5,7 @@ local PathResolver = {}
 export type ResolveOptions = {
 	waitTimeout: number?,
 	shouldWarn: boolean?,
+	debugMissingTree: boolean?,
 }
 
 local warnedMissingPaths: { [string]: boolean } = {}
@@ -29,14 +30,22 @@ local function getPathKey(root: Instance, path: string): string
 	return string.format("%s::%s", root:GetFullName(), path)
 end
 
-local function warnMissingOnce(root: Instance, path: string)
-	local key = getPathKey(root, path)
-	if warnedMissingPaths[key] then
-		return
+local function describeChildren(instance: Instance?): string
+	if instance == nil then
+		return "<nil>"
 	end
 
-	warnedMissingPaths[key] = true
-	warn("[ProjectTreeSpec] Missing:", path)
+	local names = {}
+	for _, child in ipairs(instance:GetChildren()) do
+		table.insert(names, child.Name)
+	end
+	table.sort(names)
+
+	if #names == 0 then
+		return "<no-children>"
+	end
+
+	return table.concat(names, ", ")
 end
 
 local function splitPath(path: string): { string }
@@ -45,6 +54,49 @@ local function splitPath(path: string): { string }
 		table.insert(segments, segment)
 	end
 	return segments
+end
+
+local function tracePathFailure(root: Instance, path: string): (Instance?, string?)
+	local current: Instance? = root
+	for _, segment in ipairs(splitPath(path)) do
+		if current == nil then
+			return nil, segment
+		end
+
+		local nextChild = current:FindFirstChild(segment)
+		if nextChild == nil then
+			return current, segment
+		end
+
+		current = nextChild
+	end
+
+	return nil, nil
+end
+
+local function warnMissingOnce(root: Instance, path: string, debugMissingTree: boolean?)
+	local key = getPathKey(root, path)
+	if warnedMissingPaths[key] then
+		return
+	end
+
+	warnedMissingPaths[key] = true
+	warn("[ProjectTreeSpec] Missing:", path)
+
+	if not debugMissingTree then
+		return
+	end
+
+	local parent, missingSegment = tracePathFailure(root, path)
+	if parent and missingSegment then
+		warn(string.format(
+			"[ProjectTreeSpec] MissingDetail root=%s parent=%s missingSegment=%s children=[%s]",
+			root:GetFullName(),
+			parent:GetFullName(),
+			missingSegment,
+			describeChildren(parent)
+		))
+	end
 end
 
 function PathResolver.waitForPath(root: Instance, path: string, timeout: number): Instance?
@@ -89,7 +141,7 @@ function PathResolver.resolvePath(root: Instance, path: string, options: Resolve
 	for _, segment in ipairs(splitPath(path)) do
 		if current == nil then
 			if shouldWarn then
-				warnMissingOnce(root, path)
+				warnMissingOnce(root, path, options and options.debugMissingTree)
 			end
 			return nil
 		end
@@ -97,7 +149,7 @@ function PathResolver.resolvePath(root: Instance, path: string, options: Resolve
 		current = current:FindFirstChild(segment)
 		if current == nil then
 			if shouldWarn then
-				warnMissingOnce(root, path)
+				warnMissingOnce(root, path, options and options.debugMissingTree)
 			end
 			return nil
 		end
@@ -113,14 +165,23 @@ function PathResolver.collectPaths(specNode: any): { string }
 	return paths
 end
 
+local function normalizePathForRoot(root: Instance, path: string): string
+	local rootName = root.Name
+	if string.sub(path, 1, #rootName + 1) == rootName .. "." then
+		return string.sub(path, #rootName + 2)
+	end
+	return path
+end
+
 function PathResolver.reportMissing(root: Instance, paths: { string }, options: ResolveOptions?): { string }
 	local missing = {}
 	for _, path in ipairs(paths) do
-		if PathResolver.resolvePath(root, path, {
+		local normalizedPath = normalizePathForRoot(root, path)
+		if PathResolver.resolvePath(root, normalizedPath, {
 			waitTimeout = if options then options.waitTimeout else nil,
 			shouldWarn = false,
 		}) == nil then
-			table.insert(missing, path)
+			table.insert(missing, normalizedPath)
 		end
 	end
 
@@ -129,7 +190,7 @@ function PathResolver.reportMissing(root: Instance, paths: { string }, options: 
 	else
 		warn(string.format("[ProjectTreeSpec] Startup check complete. Missing instances: %d", #missing))
 		for _, path in ipairs(missing) do
-			warnMissingOnce(root, path)
+			warnMissingOnce(root, path, options and options.debugMissingTree)
 			warn("[ProjectTreeSpec] MissingSummary:", path)
 		end
 	end

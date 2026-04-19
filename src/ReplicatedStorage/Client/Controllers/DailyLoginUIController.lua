@@ -11,7 +11,10 @@ DailyLoginUIController.__index = DailyLoginUIController
 local GENERATED_PREFIX = "GeneratedDailySlot_"
 
 local function resolveGuiObject(root: Instance, path: string): GuiObject?
-	local value = PathResolver.resolvePath(root, path)
+	local value = PathResolver.resolvePath(root, path, {
+		waitTimeout = 10,
+		debugMissingTree = true,
+	})
 	if value and value:IsA("GuiObject") then
 		return value
 	end
@@ -19,7 +22,10 @@ local function resolveGuiObject(root: Instance, path: string): GuiObject?
 end
 
 local function resolveButton(root: Instance, path: string): GuiButton?
-	local value = PathResolver.resolvePath(root, path)
+	local value = PathResolver.resolvePath(root, path, {
+		waitTimeout = 10,
+		debugMissingTree = true,
+	})
 	if value and value:IsA("GuiButton") then
 		return value
 	end
@@ -39,11 +45,11 @@ function DailyLoginUIController:SetLogicService(logicService)
 end
 
 function DailyLoginUIController:Start()
-	self._screenGui = PathResolver.resolvePath(self._playerGui, ProjectTreeSpec.UI.DailyLogin.ScreenGui)
+	self._screenGui = PathResolver.resolvePath(self._playerGui, ProjectTreeSpec.UI.DailyLogin.ScreenGui, {
+		waitTimeout = 10,
+		debugMissingTree = true,
+	})
 	self._leftGrid = resolveGuiObject(self._playerGui, ProjectTreeSpec.UI.DailyLogin.LeftGrid)
-	if not self._leftGrid then
-		self._leftGrid = resolveGuiObject(self._playerGui, "DailyLoginUI.MainPanel.Name_Button.Content.LeftGrid")
-	end
 	self._day7Big = resolveGuiObject(self._playerGui, ProjectTreeSpec.UI.DailyLogin.Day7Big)
 	self._closeButton = resolveButton(self._playerGui, ProjectTreeSpec.UI.DailyLogin.CloseButton)
 	self._overlayButton = resolveButton(self._playerGui, ProjectTreeSpec.UI.DailyLogin.OverlayButton)
