@@ -1,60 +1,47 @@
-1. Never skip any requested functionality.
-2. Runtime must never crash due to missing Instances or UI.
-3. Do NOT remove logic just because an Instance or UI is missing.
-4. UI must NEVER be created using code (forbidden: Instance.new("ScreenGui"), Instance.new("TextButton"), etc.).
-5. If a required UI or Instance is missing:
-   - keep the full logic
-   - use warn() to notify
-   - allow runtime to continue safely.
+# 🔥 CODING RULES & PROJECT CONSTRAINTS (FINAL)
 
-6. Whenever a feature requires a UI or Instance, write a manual creation guide in comments.
-7. Every required UI or Instance must be documented in ProjectTreeSpec.lua with its full hierarchy path.
-8. The UI creation guide must include:
-   - instance type
-   - instance name
-   - full hierarchy path.
+# 1. CORE PRINCIPLES
+- Never skip any requested functionality.
+- Code must run successfully in one build without runtime crashes.
+- Runtime must never crash due to missing Instances or UI.
+- Do NOT remove logic just because an Instance or UI is missing.
+- Do NOT provide unnecessary explanations in output.
 
-9. Example UI guide format:
+# 2. UI & INSTANCE RULES
+- UI must NEVER be created using code (forbidden: Instance.new("ScreenGui"), Instance.new("TextButton"), etc.).
+- Never early-return because of missing UI or Instance.
 
-   -- [UI_CREATION_GUIDE]
-   -- Create in Studio:
-   -- StarterGui
-   --   ArenaUI (ScreenGui)
-   --       JoinArenaButton (TextButton)
-   --       LeaveArenaButton (TextButton)
+# 3. MISSING INSTANCE HANDLING
+- If a required UI or Instance is missing:
+  - Keep the full logic intact.
+  - Use warn() to notify.
+  - Allow runtime to continue safely.
+  - Document the full hierarchy path.
+  - Request manual creation via comments.
 
-10. Example ProjectTreeSpec entry:
+# 4. VALIDATION EXAMPLES
 
-   -- [PROJECT_TREE_SPEC]
-   -- StarterGui
-   --   ArenaUI
-   --       JoinArenaButton
-   --       LeaveArenaButton
+## ❌ Incorrect
+if not button then return end
 
-11. Never early-return because of missing UI.
+## ✅ Correct
+if not button then
+    warn("JoinArenaButton missing")
+else
+    button.MouseButton1Click:Connect(...)
+end
 
-12. Incorrect behavior example:
-   if not button then return end
+# 5. DOCUMENTATION RULES
+- Every required UI or Instance must be documented in ProjectTreeSpec.lua with its full hierarchy path.
+- Whenever a feature requires a UI or Instance, include a manual creation guide in comments.
 
-13. Correct behavior example:
-   if not button then
-       warn("JoinArenaButton missing")
-   else
-       button.MouseButton1Click:Connect(...)
-   end
+# 6. AI CONTEXT WORKFLOW
+- Whenever the project changes, update AI_Context.md.
+- Use AI_Context.md as the main input for new chat sessions instead of the full source code.
 
-14. Every feature must include unit tests for quick validation.
-
-15. Unit tests should test core logic such as:
-   - charge calculation
-   - damage formula
-   - spawn system
-   - teleport system.
-
-16. Code must run successfully in one build without runtime crashes.
-
-17. If something is missing:
-   - warn()
-   - document the path
-   - request manual creation
-   - never crash runtime.
+# 7. RUNTIME SAFETY GUARANTEE
+- If something is missing:
+  - warn()
+  - document the path
+  - request manual creation
+  - never crash runtime

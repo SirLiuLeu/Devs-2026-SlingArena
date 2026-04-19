@@ -1,414 +1,165 @@
-🔥 SLING ARENA – MASTER GAME DESIGN SPEC
-
-1. CORE COMBAT SYSTEM
-
-Damage Formula
-ImpactDamage =
-    VelocityMagnitude
-    × log(Size + 1)
-    × SlingshotModifier
-    × DamageMultiplier
-
-Rules:
-- Damage per hit must be clamped.
-- No slingshot may increase base damage more than 15%.
-
-
-Self Damage Rule
-Self damage only applies when:
-
-ChargeRatio == 1
-AND SpecialUpgradeActive == true
-
-Logic:
-if ImpactDamage > 1.5 * SelfHP then
-    ImpactDamage = 1.5 * SelfHP
-end
-
-SelfDamage = ImpactDamage * 0.5
-Size Dominance Rule
-Large players have natural advantage but must not become unstoppable.
-
-If AttackerSize > DefenderSize:
-    DamageMultiplier += SizeAdvantageFactor
-
-Counterplay for small players:
-If DefenderSize < AttackerSize:
-    DefenderKnockbackMultiplier = 1.5
-    DefenderBounceDistance = High
-
-Meaning:
-Small players can:
-- deal chip damage
-- escape safely
-- perform hit-and-run attacks
-
-Purpose: Prevent large players from endlessly farming smaller players.
-
-
-2. PHYSICS SYSTEM
-
-Knockback Formula
-SizeRatio = AttackerSize / DefenderSize
-
-KnockbackForce = BaseImpactForce × SizeRatio
-
-Special rule:
-    If SizeRatio < 1
-    Reverse knockback direction to attacker
-
-Meaning:
-    Small player hitting large player gets pushed away.
-    All knockback must be clamped to a maximum limit.
-    Force Decay
-
-After each collision: RemainingVelocity *= 0.6
-Stop motion if: Velocity < Threshold
-Purpose: Prevent infinite bouncing.
-
-HitCooldown = 0.2s per target
-LaunchRecoverTime = 3s (Cộng dồng 2 lần Launch)
-
-3. PLAYER GROWTH SYSTEM
-
-EXP Sources
-
-Players gain EXP from:
-- Consuming food
-- Damaging players
-- Killing players
-- Destroying objects
-
-
-Level Formula
-
-RequiredEXP =
-    BaseEXP × (Level ^ 1.3)
-
-
-Size Growth Formula
-
-Size =
-    BaseSize × (1 + sqrt(Level) × 0.08)
-
-After Level 30:
-    SizeGrowthReducedBy = 70%
-
-Purpose:
-Prevent late-game giants from dominating.
-Attribute System
-Each level grants:
-    AttributePoints += 1
-
-Attributes:
-- MaxHP
-- MoveSpeed
-- LaunchForce
-- ChargeSpeed
-- RegenRate
-- ReflectDamage
-- LaunchRange
-- DamageMultiplier
-
-Rule: Every attribute must have a maximum cap.
-Purpose: Prevent infinite stat scaling.
-
-
-4. SKILLS & ITEMS SYSTEM
-
-Passive Heal System
-Players regenerate HP by staying still.
-Activation condition:
-    PlayerVelocity < MovementThreshold
-    AND PlayerNotCharging
-    AND PlayerNotAttacking
-    for 1 second
-
-Then: StartPassiveHeal()
-
-Healing formula:
-    HealPerSecond = MaxHP × PassiveHealPercent
-
-Cancel conditions:
-- Player moves
-- Player charges sling
-- Player receives damage
-
-Purpose: Create tactical retreat opportunities.
-
-
-HP Potion System
-HP Potions are emergency combat consumables.
-
-Sources:
-- Daily Login Reward
-- Treasure Chest
-- Diamond Shop
-
-Usage: 
-    Heal = 100 HP / second
-    Duration = 5 seconds
-    TotalHeal = 500 HP
-
-Cooldown: PotionCooldown = 5 seconds
-
-Cancel condition:
-    If player receives damage
-    PotionEffect stops
-
-Limit: MaxPotionsPerMatch = configurable
-Purpose: Prevent potion spam while allowing clutch healing.
-
-
-5. SLINGSHOT SYSTEM
-
-All slingshots must be defined inside: SlingshotConfig
-Each slingshot defines base stats and passive abilities that determine its playstyle.
-
-BASE STAT SYSTEM
-Each slingshot must define the following base attributes:
-    HP
-    BaseDamage
-    RegenRate
-    ReflectDamage
-    LaunchSpeed
-    LaunchRange
-    ChargeSpeed
-    MoveSpeed
-
-Example:
-FireSling = {
-
-    HP = 150,
-    BaseDamage = 20,
-    RegenRate = 2,
-    ReflectDamage = 0.05,
-
-    LaunchSpeed = 50,
-    LaunchRange = 35,
-    ChargeSpeed = 1.0,
-    MoveSpeed = 16,
-
-    Passive = "BurnTrail"
-}
-These base stats define the default combat behavior of the slingshot.
-
-PLAYER ATTRIBUTE SCALING
-Players gain Attribute Points when leveling up.
-Attributes increase slingshot stats using percentage scaling.
-
-Formula:
-FinalStat =
-BaseStat × (1 + AttributeBonus)
-
-Example:
-BaseHP = 150
-AttributeHPBonus = 0.30
-FinalHP = 150 × 1.30
-
-Rules:
-- Attribute bonuses must have maximum caps
-- Attributes must scale multiplicatively, not additively
-
-Example caps:
-MaxHPBonus = 100%
-MaxDamageBonus = 80%
-MaxRegenBonus = 60%
-MaxLaunchSpeedBonus = 50%
-
-Purpose: Prevent infinite stat scaling.
-
-SLINGSHOT PASSIVE ABILITY
-Each slingshot may define one passive ability.
-Passive abilities should change gameplay style, not significantly increase raw power.
-
-Example: FireSling
-Passive = BurnTrail
-
-Effect:
-Creates fire trail after launch
-Applies damage over time to enemies
-
-Example: StealthSling
-Passive:
-PlayerInvisible = true
-Duration = 1 second
-After launch
-
-
-SLINGSHOT BALANCE RULES
-All slingshots must follow these balance constraints:
-Damage bonus from slingshot ≤ 15%
-
-Passive abilities must:
-- modify gameplay
-- provide situational advantages
-- avoid large stat boosts
-
-Effect stacking rules:
-
-Multiple effects must be limited
-Effect duration must be capped
-
-Purpose: Ensure slingshots change playstyle, not raw combat power.
-EXAMPLE SLINGSHOT ARCHETYPES
-
-TankSling
-High HP
-High reflect damage
-Slow launch speed
-
-SpeedSling
-Low HP
-High launch speed
-High mobility
-
-BounceSling
-Launch attacks bounce between players
-
-GhostSling
-Temporary invisibility after launch
-
-FastFarmSling
-Bonus EXP from food
-
-DESIGN GOAL
-
-Slingshots should create distinct playstyles while maintaining fair PvP balance.
-Core principle: Playstyle diversity > Raw stat advantage
-
-6. MAP SYSTEM
-
-MapService must manage:
-- Safe Spawn Zones
-- Anti-Giant Zones
-- Size Restricted Corridors
-
-Corridor rule:
-    If Size > CorridorLimit
-    PlayerCannotEnter
-
-Purpose: Prevent giant players from dominating the entire map.
-
-7. ARENA GAMEPLAY LOOP
-
-Core player actions:
-    - Move freely
-    - Charge sling
-    - Launch to attack or escape
-    - Collect food
-    - Level up, grow size
-    - Fight players
-    - Earn rewards
-
-Gameplay loop:
-
-Spawn
-→ Explore Map
-→ Eat Food
-→ Gain Level
-→ Grow Size
-→ Fight Players
-→ Earn Rewards
-→ Prestige Reset
-
-
-8. PRESTIGE SYSTEM
-
-Players may reset their progress.
-Level → 0
-Reward: Diamonds
-
-Purpose:
-- Long term progression
-- Repeatable diamond farming
-- Reset match power curve
-
-
-9. DIAMOND ECONOMY
-
-Diamonds may be purchased with Robux.
-Design goal: Avoid hard Pay-to-Win.
-
-Diamond Sources:
-
-- KillPlayer
-- TreasureChest
-- MapEvents
-
-Restrictions:
-
-DiamondDropFromFood = false
-DiamondPerMatchCap = configurable
-
-Purpose: Prevent infinite diamond farming.
-
-Respawn System
-Respawn costs: [10, 15, 20] diamonds
-
-Limit: MaxRespawnPerMatch = 3
-
-Respawn retains:
-70% Size
-70% Level
-
-Match Buffs
-Cost: 20 diamonds
-Possible buffs:
-- EXP boost ≤ 10%
-- HP boost ≤ 10%
-- Damage boost ≤ 10%
-- Charge speed ≤ 10%
-
-
-No Respawn Option
-If player does NOT respawn:
-Player may restart for free but retains:
-    30% Level
-    30% Size
-
-
-Cosmetics
-
-- Slingshot trails
-- Kill effects
-- Size aura effects
-
-Cosmetics must NOT affect gameplay stats.
-
-
-10. VIP STATUS
-
-VIP provides a soft progression bonus.
-Effect: EXPFromFood × 1.10
-
-VIP must NOT increase:
-- Damage
-- HP
-- Combat stats
-
-Sources:
-- Daily Login
-- Temporary Events
-- Shop
-
-Purpose:
-Allow monetization without Pay-to-Win.
-
-11. MATCHMAKING
-
-Players should be matched with similar progression players.
-Purpose:Prevent veteran players from farming new players.
-
-12. COMBAT DESIGN PRINCIPLES
-
-All gameplay systems must follow:
-
-Skill > Size
-Strategy > Stats
-Positioning > Raw Damage
-
-Hard limits:
-- Stat scaling must be capped
-- Economy must be controlled
-- Infinite farming loops must not exist
+# 🔥 SLING ARENA – MASTER GAME DESIGN SPECIFICATION (FINAL)
+
+# 0. MỤC TIÊU THIẾT KẾ (DESIGN GOAL)
+- Thể loại: Survival Physics Arena (Round-based).
+- Trải nghiệm lõi: Farm Food tăng cấp, dùng vật lý để va chạm và đẩy đối thủ vào bẫy hoặc vòng bo.
+- Triết lý: Kỹ năng & Phối hợp > Chỉ số thuần.
+- Core Feeling: "Phóng – Va – Bật – Trượt" phải rõ ràng, có lực.
+
+# 1. VÒNG LẶP GAME (CORE GAME LOOP)
+1. Lobby: Chọn / Mua / Quay Sling, Trang bị Item, Nâng sao cho Sling
+2. Start: Join Map, Farm Food, Tăng Level
+3. Mid Game: Combat, Giữ vị trí, Tận dụng Trap
+4. Late Game: Vòng bo thu hẹp, Ép giao tranh, Sinh tồn
+5. End: Player cuối cùng sống sót thắng, Nhận thưởng, Reset round
+
+# 2. QUY TẮC TRẬN ĐẤU (ROUND RULES)
+
+## 2.1 World & Map
+- Size: 700x700 studs (Square Arena)
+- Boundary: Wall bao quanh
+- Players: 12 người
+- Traps: 10 (cố định)
+Spawn Logic:
+- Player: Spawn ngẫu nhiên gần rìa (Edge)
+- Food: Spawn theo cụm (FoodSpawns)
+- Traps: Fixed positions
+- Sling/Launcher: Có thể Move (WSAD) và Launch
+
+## 2.2 Early Game (0 → 8 phút)
+- Cơ chế: Farm + Combat tự do
+Death:
+- Respawn sau 5s
+- Vị trí random trong Safe Zone
+- -30% EXP hiện tại
+Join:
+- Player mới có thể tham gia
+
+## 2.3 Final Phase (8 → 10 phút)
+Death:
+- Không respawn → chuyển Ghost
+Ghost State:
+- 0–5s đứng yên
+- Sau đó spectate tự do (không tương tác)
+Team:
+- Tự động giải tán
+Join Rule:
+- Join sau phút 8 → thành Ghost ngay
+- Vẫn farm + level
+- Không được Launch
+- Bị tàng hình
+
+## 2.4 End Condition
+- Winner: Player cuối cùng sống sót
+After Win:
+- Safe zone không gây damage nữa
+Flow:
+- 5s: xác định winner
+- 15s: hiển thị rank + reward
+- 15s: reset round
+
+# 3. FOOD SPAWN SYSTEM (TECHNICAL)
+
+## 3.1 Structure
+- Container: Workspace/FoodSpawns
+- Naming: "FoodSpawn"
+- Attribute: Zone = Edge | Middle | Center
+
+## 3.2 Spawn Rule
+- Radius: ±5 studs (X, Z)
+- Formula: spawnPos = FoodSpawn.Position + Vector3.new(random(-5,5), 0, random(-5,5))
+- Density: 1 FoodSpawn = 5 Food active, Thiếu → respawn sau 10s
+
+## 3.3 Food Zones
+- Có 2 loại food: Foods Normal, Food có HP
+- Foods Normal: chạm vào là biến mất, Player nhận exp và hồi HP từ Foods này
+- Foods CÓ HP: Player cần tấn công lasthit để nhận exp+ cơ hội nhận kim cương
+
+## 3.4 Maintenance
+- Mỗi Food bị phá → respawn đúng 1 cái sau 10s
+- Không được overlap trong cùng cụm
+
+# 4. PHYSICS & COMBAT
+
+## 4.1 Formula
+- ImpactDamage = BaseDamage × CollisionSpeedMultiplier
+- Size = BaseSize × (1 + sqrt(Level) × 0.08)
+- RequiredEXP = BaseEXP × (Level ^ 1.3)
+
+## 4.2 Combat Flow
+- Charge → Launch → Move → Collision → Damage + Knockback
+Physics: Gravity, Mass, Friction, Inertia, Knockback
+
+# 5. SLING SYSTEM (CHARACTERS)
+
+## 5.1 Core Stats
+- MaxHP, BaseDamage, MoveSpeed, LaunchRange, ReflectDamage
+
+## 5.2 Archetypes (Passive)
+- CloneSling: Tạo clone (50% HP, tồn tại 15s)
+- SupportSling: Va vào đồng đội → heal
+- SplitSling: Tách hướng trái/phải khi launch
+- StunSling: Stun 1s khi va chạm
+- VacuumSling: Hút Mini Food xung quanh
+- StealthSling: Tàng hình 1s trước khi launch
+- HealSling: Launch → tự heal
+- SpeedSling: +5% speed mỗi lần launch (stack)
+
+# 6. PROGRESSION & UPGRADE
+
+## 6.1 Star Upgrade
+- 3 Sling giống nhau → +1★
+- Max: 3★
+Balance:
+- 3★ thường có thể mạnh hơn 2★ hiếm (stat)
+- Rare có skill đặc biệt
+
+## 6.2 In-match Scaling
+- Level up: Tăng Size, Tăng Damage, +3% all stats
+- Attribute: +1 point / level
+- UI Rule: Không mở UI chỉnh stat trong trận
+
+# 7. ITEM & TEAM
+
+## 7.1 Items
+- HP Potion: 300 HP/s × 5s = 1500 HP, Có cooldown
+- Khác: Scale potion, EXP buff, Gacha ticket
+Nguồn: Daily Login, Chest, Shop, Event
+
+## 7.2 Team
+- Max: 2 người
+- Friendly fire: OFF
+Win: Vẫn là last man standing, Team chỉ hỗ trợ
+
+# 8. ENVIRONMENT & SAFE ZONE
+
+## 8.1 Safe Zone
+- Thu hẹp theo thời gian, Ép combat
+Outside:
+- Mất % HP mỗi giây 
+- Damage tăng dần ( tăng dần theo thời gian 1%/s -> 10%/s)
+
+## 8.2 Traps
+- Lava: Chết sau 3s
+- Toxic Smoke / Fire: Damage over time
+- Spike: Damage + Knockback
+- Totem: Bắn đạn đẩy player
+
+# 9. ECONOMY & PROGRESSION
+
+## 9.1 Income
+- Kill: Diamonds, EXP = 1/2 EXP đối thủ mất
+- Khác: Chest, Event, Daily, Robux
+
+## 9.2 VIP
+- Giá: 1000 Diamonds / 7 ngày
+- Buff: +20% EXP từ Food
+
+# 10. BUILD ORDER
+1. Round System
+2. Physics Core
+3. Food System
+4. Leveling System
+5. Sling System
+6. Environment (Safe Zone + Traps)
+7. Meta (Economy + Lobby + UI)
