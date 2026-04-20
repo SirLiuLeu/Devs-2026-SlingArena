@@ -49,7 +49,11 @@ Join Rule:
 - Không được Launch
 - Bị tàng hình
 
-## 2.4 End Condition
+## 2.4 Trạng thái Ghost
+- Ghost vẫn được farm các Foods Normal, nhưng không được launch nên không thể farm Foods có HP
+- Ghost vẫn move bình thường trong map, nhưng sẽ tàng hình với những Players vẫn còn sống.
+
+## 2.5 End Condition
 - Winner: Player cuối cùng sống sót
 After Win:
 - Safe zone không gây damage nữa
@@ -61,7 +65,7 @@ Flow:
 # 3. FOOD SPAWN SYSTEM (TECHNICAL)
 
 ## 3.1 Structure
-- Container: Workspace/FoodSpawns
+- Container: Workspace/Maps/ArenaMap/FoodSpawns
 - Naming: "FoodSpawn"
 - Attribute: Zone = Edge | Middle | Center
 
@@ -129,6 +133,7 @@ Nguồn: Daily Login, Chest, Shop, Event
 ## 7.2 Team
 - Max: 2 người
 - Friendly fire: OFF
+- Chỉ 1 người chiến thắng, vào 2 phút cuối sẽ tách team, cả 2 buộc phải phản bội nhau.
 Win: Vẫn là last man standing, Team chỉ hỗ trợ
 
 # 8. ENVIRONMENT & SAFE ZONE
