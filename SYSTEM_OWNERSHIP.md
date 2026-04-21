@@ -211,3 +211,74 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - `CombatService` currently invoked from collision-stage flow; formalize DamagePipelineService as the sole combat gate while preserving CombatService as pure formula module.
 - Existing respawn timing/flow in damage pipeline and monetization should be reconciled with round-phase ghost/final-phase restrictions before implementation lock.
 
+### TeamService
+- **Owns:** Team relationship domain.
+- **Responsibilities:** Team creation/management (max size 2), relationship query `IsTeammate(playerA, playerB)`.
+- **Called by:** DamagePipelineService, RoundService.
+- **Dependencies:** PlayerStateService.
+
+---
+
+## World
+
+### World ownership boundary
+- Collision sensing: CollisionService.
+- Hazard/zone logic: TrapService + SafeZoneService.
+- Map topology/resources: MapService.
+
+---
+
+## Meta
+
+### LeaderboardService
+- **Owns:** End-of-round ranking and reward sequencing.
+- **Responsibilities:** winner/rank resolve, reward trigger (EXP/Gems), enforce 15-second reward delay after round end.
+- **Called by:** Round end flow.
+- **Dependencies:** RoundService, PlayerStateService, GrowthService.
+
+### MonetizationService
+- **Owns:** Monetization actions (respawn purchase, match buff purchase, prestige reset).
+- **Responsibilities:** Validate and execute monetization remotes against player state APIs.
+- **Called by:** Monetization remotes.
+- **Dependencies:** PlayerStateService, PlayerService.
+
+---
+
+## Infrastructure
+
+### EventBus
+- **Owns:** Pub/sub messaging for service decoupling.
+- **Responsibilities:** register/listen/dispatch events.
+- **Called by:** All services.
+- **Dependencies:** none.
+
+### RemoteContracts
+- **Owns:** Remote name registry and validators.
+- **Responsibilities:** single source for remote contract keys + payload validation hooks.
+- **Called by:** Remote-owning services.
+- **Dependencies:** Shared constants/types.
+
+---
+
+## Frozen Consolidation Decisions
+- SlingshotService ownership merged into SlingService.
+- MovementService removed (absorbed by SlingService internal module).
+- ChargeService removed (absorbed by SlingService internal module).
+- SkillService removed:
+  - Attribute upgrade ownership → PlayerStateService/GrowthService boundary.
+  - Ability toggle ownership → SlingAbilityService.
+  - Consumables ownership → PlayerStateService (until Inventory system takes ownership).
+
+---
+
+## Deprecated / Pending Review
+
+### Deprecated
+- Fixed TeamRed/TeamBlue auto-balance as primary team model.
+- EXP mutation from non-Growth services.
+- Friendly-fire checks outside DamagePipelineService.
+
+### Pending Review
+- Runtime still contains legacy `SkillService.lua` and wiring in `Main.server.lua`; remove after remote-owner reassignment.
+- SafeZoneService/SlingAbilityService are not yet implemented as runtime modules.
+- Ghost/Spectating state machine is not yet enforced in runtime constants/services.
