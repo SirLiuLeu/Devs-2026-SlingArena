@@ -82,7 +82,38 @@ Source of truth used: `Rule_DESIGN.md`, current `/src` code, and `PROJECT_TREE.m
 - **Called by:** round/death/event hooks.
 - **Dependencies:** PlayerStateService, RoundService.
 
+### SlingAbilityService
+- **Owns:** Logic kỹ năng bị động (Passive Skills) theo cấp sao.
+- **Responsibilities:** - Kích hoạt Tàng hình/Phân thân/Hồi máu khi nhận tín hiệu từ `SlingService`.
+  - Áp dụng hiệu ứng "Làm choáng" (Stun Flag) khi va chạm.
+  - Gán EXP Multiplier Buff vào `PlayerStateService`.
+### SafeZoneService
+- **Owns:** Vòng bo tử thần.
+- **Responsibilities:** Điều khiển Visual thu nhỏ, tính toán sát thương môi trường ($1\% \rightarrow 10\%$ HP/s) gửi về `DamagePipeline`.
+
+### MonetizationService (respawn purchase, match buff purchase, prestige purchase loops) — not part of Rule_DESIGN core loop.
+- Owns: Dữ liệu tiền tệ (Diamonds), danh sách sở hữu (Owned Gamepasses, Owned Slings/Skins).
+- Responsibilities:
+    + Xử lý giao dịch bằng Kim cương (Diamond Transactions).
+    + Xử lý giao dịch bằng Robux (Gamepasses & Developer Products).
+    + Kiểm tra quyền sở hữu trước khi cho phép trang bị vật phẩm.
+    + Lưu trữ dữ liệu vĩnh viễn (DataStore Saving/Loading).
+
+### DataStoreService ( Sau khi hoàn thiện Core Gameplay sẽ triển khai)
+- Owns: Lưu trữ data
+- Dữ liệu cần lưu trữ:
+    + Số lượng Kim cương hiện có.
+    + Danh sách các Sling đã sở hữu và cấp độ sao của chúng.
+    + Các vật phẩm (Potion, Gacha tickets) trong kho đồ.
+    + Chỉ số vĩnh viễn (Tổng số trận thắng, tổng số mạng hạ gục).
+### MarketplaceService ( Khi làm Shop Robux/Gamepass sẽ triển khai)
+- "Cánh cổng" doanh thu
+- Các tác vụ chính:
+    + Kiểm tra Gamepass:
+    + Xử lý Developer Products: Khi người chơi nhấn mua "Gói 1000 Kim cương", dịch vụ này sẽ xử lý giao dịch và trả về kết quả để cộng tiền cho họ
+
 ## Removed / deprecated ownership
-- **Removed from runtime boot:** `MonetizationService` (respawn purchase, match buff purchase, prestige purchase loops) — not part of Rule_DESIGN core loop.
+- **Removed from runtime boot:** `MonetizationService` 
 - **Removed feature ownership:** manual stat allocation workflow (`SlingStatsUI` + `AttributeUpgrade` remote path).
 - **Removed TeamRed/TeamBlue ownership model:** no fixed red/blue assignment/spawn branching.
+

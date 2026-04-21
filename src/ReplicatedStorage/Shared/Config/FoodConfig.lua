@@ -1,0 +1,4 @@
+-- exp mỗi loại food
+-- HP của food
+-- respawn time
+-- drop diamond rate

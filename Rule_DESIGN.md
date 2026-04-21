@@ -1,66 +1,98 @@
 # 🔥 SLING ARENA – MASTER GAME DESIGN SPECIFICATION (FINAL)
 
-# 0. MỤC TIÊU THIẾT KẾ (DESIGN GOAL)
-- Thể loại: Survival Physics Arena (Round-based).
-- Trải nghiệm lõi: Farm Food tăng cấp, dùng vật lý để va chạm và đẩy đối thủ vào bẫy hoặc vòng bo.
-- Triết lý: Kỹ năng & Phối hợp > Chỉ số thuần.
-- Core Feeling: "Phóng – Va – Bật – Trượt" phải rõ ràng, có lực.
+# 0. DESIGN GOAL
+- Genre: Survival Physics Arena (Round-based)
+- Core Experience: Farm Food to level up, use physics to collide with and push opponents into traps or the shrinking zone
+- Philosophy: Skill & Coordination > Raw Stats
+- Core Feeling: “Launch – Impact – Bounce – Slide” must feel strong and responsive
 
-# 1. VÒNG LẶP GAME (CORE GAME LOOP)
-1. Lobby: Chọn / Mua / Quay Sling, Trang bị Item, Nâng sao cho Sling
-2. Start: Join Map, Farm Food, Tăng Level
-3. Mid Game: Combat, Giữ vị trí, Tận dụng Trap
-4. Late Game: Vòng bo thu hẹp, Ép giao tranh, Sinh tồn
-5. End: Player cuối cùng sống sót thắng, Nhận thưởng, Reset round
+# 1. CORE GAME LOOP
+1. Lobby: Select / Buy / Spin Sling, Equip Items, Upgrade Stars
+2. Start: Join Map, Farm Food, Level Up
+3. Mid Game: Combat, Position Control, Use Traps
+4. Late Game: Shrinking Zone, Forced Fights, Survival
+5. End: Last player alive wins, rewards granted, round reset
 
-# 2. QUY TẮC TRẬN ĐẤU (ROUND RULES)
+# 2. ROUND RULES
 
 ## 2.1 World & Map
 - Size: 700x700 studs (Square Arena)
-- Boundary: Wall bao quanh
-- Players: 12 người
-- Traps: 10 (cố định)
+- Boundary: Surrounded by walls
+- Players: 12
+- Traps: 10 (fixed)
+
 Spawn Logic:
-- Player: Spawn ngẫu nhiên gần rìa (Edge)
-- Food: Spawn theo cụm (FoodSpawns)
+- Player: Random spawn near edges
+- Food: Spawn in clusters (FoodSpawns)
 - Traps: Fixed positions
-- Sling/Launcher: Có thể Move (WSAD) và Launch
+- Sling/Launcher: Can Move (WASD) and Launch
 
-## 2.2 Early Game (0 → 8 phút)
-- Cơ chế: Farm + Combat tự do
+## 2.2 Early Game (0 → 8 minutes)
+- Mechanic: Free farming + combat
 Death:
-- Respawn sau 5s
-- Vị trí random trong Safe Zone
-- -30% EXP hiện tại
+- Respawn after 5s
+- Random position inside Safe Zone
+- -30% current EXP
 Join:
-- Player mới có thể tham gia
+- New players can join
 
-## 2.3 Final Phase (8 → 10 phút)
+## 2.3 Final Phase (8 → 10 minutes)
 Death:
-- Không respawn → chuyển Ghost
+- No respawn → becomes Ghost
 Ghost State:
-- 0–5s đứng yên
-- Sau đó spectate tự do (không tương tác)
+- 0–5s: immobile
+- After: Can only move (state = Ghost)
+
 Team:
-- Tự động giải tán
+- No new team formation allowed during this phase
+- Players without team play solo
+
 Join Rule:
-- Join sau phút 8 → thành Ghost ngay
-- Vẫn farm + level
-- Không được Launch
-- Bị tàng hình
+- Join after minute 8 → becomes Ghost immediately
+- Can still farm + level
+- Cannot Launch
+- Invisible
 
-## 2.4 Trạng thái Ghost
-- Ghost vẫn được farm các Foods Normal, nhưng không được launch nên không thể farm Foods có HP
-- Ghost vẫn move bình thường trong map, nhưng sẽ tàng hình với những Players vẫn còn sống.
+## 2.4 State
 
-## 2.5 End Condition
-- Winner: Player cuối cùng sống sót
+Lobby:
+- Cannot attack
+- Active when player is in Lobby Map
+
+Arena:
+- Can attack
+- Active when player is in Arena Map
+
+Ghost:
+- Can only move and farm foods, cannot Launch
+- Cannot farm HP Foods (requires attack)
+- Invisible to non-Ghost players
+- Cannot deal damage
+- Activated on death or joining during final phase
+
+## 2.5 Flags
+- Visibility:
+  + True: Visible
+  + False: Invisible (Ghost or skill effect)
+
+- Stun:
+  + Cannot move or Charge/Launch
+  + Charging is interrupted immediately
+
+## 2.6 Round Lifecycle
+- Defined via full state transitions and flow
+
+## 2.7 End Condition
+- Winner: Last player alive
+
 After Win:
-- Safe zone không gây damage nữa
+- Safe zone stops dealing damage
+
 Flow:
-- 5s: xác định winner
-- 15s: hiển thị rank + reward
-- 15s: reset round
+- 5s: Determine winner
+- 15s: Show rank + reward,
+- Reset round
+
 
 # 3. FOOD SPAWN SYSTEM (TECHNICAL)
 
@@ -75,13 +107,17 @@ Flow:
 - Density: 1 FoodSpawn = 5 Food active, Thiếu → respawn sau 10s
 
 ## 3.3 Food Zones
-- Có 2 loại food: Foods Normal, Food có HP
-- Foods Normal: chạm vào là biến mất, Player nhận exp và hồi HP từ Foods này
-- Foods CÓ HP: Player cần tấn công lasthit để nhận exp+ cơ hội nhận kim cương
+-  Normal Food (Touch):
+  + Disappears on contact
+  + Grants EXP + heals HP
+
+- HP Food (Must Hit):
+  + Requires attack (last hit)
+  + Grants EXP + chance for Diamonds
 
 ## 3.4 Maintenance
-- Mỗi Food bị phá → respawn đúng 1 cái sau 10s
-- Không được overlap trong cùng cụm
+- Each destroyed Food → respawn exactly 1 after 10s
+- No overlap within same cluster
 
 # 4. PHYSICS & COMBAT
 
@@ -91,7 +127,7 @@ Flow:
 - RequiredEXP = BaseEXP × (Level ^ 1.3)
 
 ## 4.2 Combat Flow
-- Charge → Launch → Move → Collision → Damage + Knockback
+- Move → Charge → Launch → Move → Collision → Damage + Knockback
 Physics: Gravity, Mass, Friction, Inertia, Knockback
 
 # 5. SLING SYSTEM (CHARACTERS)
@@ -100,65 +136,79 @@ Physics: Gravity, Mass, Friction, Inertia, Knockback
 - MaxHP, BaseDamage, MoveSpeed, LaunchRange, ReflectDamage
 
 ## 5.2 Archetypes (Passive)
-- CloneSling: Tạo clone (50% HP, tồn tại 15s)
-- SupportSling: Va vào đồng đội → heal
-- SplitSling: Tách hướng trái/phải khi launch
-- StunSling: Stun 1s khi va chạm
-- VacuumSling: Hút Mini Food xung quanh
-- StealthSling: Tàng hình 1s trước khi launch
-- HealSling: Launch → tự heal
-- SpeedSling: +5% speed mỗi lần launch (stack)
+- CloneSling: Spawn clone (50% HP, 15s duration)
+- SupportSling: Collision with ally → heal
+- SplitSling: Split direction left/right on launch
+- StunSling: Apply 1s stun on collision
+- VacuumSling: Pull nearby Mini Food
+- StealthSling: Invisible 1s before launch
+- HealSling: Heal on launch
+- SpeedSling: +5% speed per launch (stack)
 
 # 6. PROGRESSION & UPGRADE
 
 ## 6.1 Star Upgrade
-- 3 Sling giống nhau → +1★
+- 3 identical Slings → +1★
 - Max: 3★
+
 Balance:
-- 3★ thường có thể mạnh hơn 2★ hiếm (stat)
-- Rare có skill đặc biệt
+- 3★ common can be stronger than 2★ rare (stats)
+- Rare has unique skills
 
 ## 6.2 In-match Scaling
-- Level up: Tăng Size, Tăng Damage, +3% all stats
-- Attribute: +1 point / level
-- UI Rule: Không mở UI chỉnh stat trong trận
+- Level up:
+  + Increase Size
+  + Increase Damage
+  + +3% all stats
+- UI Rule: No stat adjustment UI during match
 
 # 7. ITEM & TEAM
 
 ## 7.1 Items
-- HP Potion: 300 HP/s × 5s = 1500 HP, Có cooldown
-- Khác: Scale potion, EXP buff, Gacha ticket
-Nguồn: Daily Login, Chest, Shop, Event
+- HP Potion: 300 HP/s × 5s = 1500 HP (with cooldown)
+- Others: Scale potion, EXP buff, Gacha ticket
+Sources:
+- Daily Login, Chest, Shop, Event
+
 
 ## 7.2 Team
-- Max: 2 người
-- Friendly fire: OFF
-- Chỉ 1 người chiến thắng, vào 2 phút cuối sẽ tách team, cả 2 buộc phải phản bội nhau.
-Win: Vẫn là last man standing, Team chỉ hỗ trợ
+- Max: 2 players
+- Friendly fire: OFF (no damage, still knockback)
+- Shared Win: Highest rank of one applies to both
+- Assist Reward:
+  + Assist kill (Player or HP Food)
+  + Gain +50% EXP and Diamonds
+- Off-screen teammate:
+  + Show direction marker (Arrow)
+- Show real distance between teammates
 
 # 8. ENVIRONMENT & SAFE ZONE
 
 ## 8.1 Safe Zone
-- Thu hẹp theo thời gian, Ép combat
+- Shrinks over time → force combat
+
 Outside:
-- Mất % HP mỗi giây 
-- Damage tăng dần ( tăng dần theo thời gian 1%/s -> 10%/s)
+- Lose % HP per second
+- Damage increases over time (1%/s → 10%/s)
+
 
 ## 8.2 Traps
-- Lava: Chết sau 3s
+- Lava: Death after 3s
 - Toxic Smoke / Fire: Damage over time
 - Spike: Damage + Knockback
-- Totem: Bắn đạn đẩy player
+- Totem: Shoots projectiles to push players
 
 # 9. ECONOMY & PROGRESSION
 
 ## 9.1 Income
-- Kill: Diamonds, EXP = 1/2 EXP đối thủ mất
-- Khác: Chest, Event, Daily, Robux
+- Kill:
+  + Diamonds
+  + EXP = 50% of target’s lost EXP
+- Others: Chest, Event, Daily, Robux
 
 ## 9.2 VIP
-- Giá: 1000 Diamonds / 7 ngày
-- Buff: +20% EXP từ Food
+- Price: 1000 Diamonds / 7 days
+- Buff: +20% EXP from Food
 
 # 10. BUILD ORDER
 1. Round System

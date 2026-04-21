@@ -4,19 +4,32 @@ DataModel
 ├─ ReplicatedStorage
 │  ├─ Shared  -> src/ReplicatedStorage/Shared
 │  │  ├─ Config
+│  │  │  ├─ AbilityConfig.lua
 │  │  │  ├─ BalanceConfig.lua
 │  │  │  ├─ Config.lua
+│  │  │  ├─ FoodConfig.lua
+│  │  │  ├─ GachaRewardConfig.lua
+│  │  │  ├─ GameConfig.lua
+│  │  │  ├─ ItemConfig.lua
 │  │  │  ├─ LevelConfig.lua
+│  │  │  ├─ SlingConfig.lua
 │  │  │  ├─ SlingshotConfig.lua
 │  │  │  └─ TrapConfig.lua
 │  │  │
+│  │  ├─ Constants
+│  │  │  ├─ GameStates.lua
+│  │  │  └─ SlingUiConstants.lua
+│  │  │
 │  │  ├─ Types
-│  │  │  ├─ PlayerState.lua
-│  │  │  └─ CombatTypes.lua
+│  │  │  ├─ CombatTypes.lua
+│  │  │  └─ PlayerState.lua
 │  │  │
 │  │  ├─ Utils
-│  │  │  └─ PathResolver.lua
-│  │  │
+│  │  │  ├─ GachaSpinLogic.lua
+│  │  │  ├─ PathResolver.lua
+│  │  │  ├─ RewardRoller.lua
+│  │  │  ├─ SlingUiState.lua
+│  │  │  └─ WaitForUI.lua
 │  │  ├─ ProjectTreeSpec.lua
 │  │  └─ RemoteContracts.lua
 │  │
@@ -129,12 +142,6 @@ DataModel
 │  │     ├─ JoinArena
 │  │     ├─ LeaveArena
 │  │     ├─ TeleportRequest
-│  │     ├─ AttributeUpgrade
-│  │     ├─ RequestRespawn
-│  │     ├─ PurchaseRespawn
-│  │     ├─ PurchaseMatchBuff
-│  │     ├─ PrestigeReset
-│  │     ├─ ToggleSpecialUpgrade
 │  │     ├─ DebugSpawnFood
 │  │     ├─ DebugResetSling
 │  │     ├─ StateUpdate
@@ -175,9 +182,8 @@ DataModel
 │     ├─ MapService.lua
 │     ├─ MapLoader.lua
 │     ├─ RoundService.lua
-│     ├─ FoodService.lua        [INFERRED legacy/overlap]
-│     ├─ MovementService.lua    [INFERRED deprecated/unused]
-│     └─ ChargeService.lua      [KNOWN deprecated]
+│     ├─ TeamService.lua
+│     └─ FoodService.lua      [INFERRED legacy/overlap]
 │
 ## 🟩 StarterPlayer
 ├─ StarterPlayer

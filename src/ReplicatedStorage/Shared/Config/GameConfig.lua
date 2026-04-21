@@ -1,0 +1,4 @@
+-- max players (12)
+-- thời gian: early / final phase
+-- respawn time
+-- join rules
