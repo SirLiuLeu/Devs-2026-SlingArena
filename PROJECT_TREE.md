@@ -135,13 +135,21 @@ DataModel
 │  │          └─ Timer (TextLabel)
 │  │
 │  ├─ SlingArenaRemotes
-│  │  └─ (RemoteEvents from *.model.json)
+│  │  └─ (RemoteEvents from *.model.json + freeze contracts)
 │  │     ├─ MoveRequest
 │  │     ├─ StartCharge
 │  │     ├─ ReleaseCharge
+│  │     ├─ RequestLaunch [CONTRACT ALIAS / freeze-required]
 │  │     ├─ JoinArena
 │  │     ├─ LeaveArena
 │  │     ├─ TeleportRequest
+│  │     ├─ AbilityTrigger [freeze-required]
+│  │     ├─ AttributeUpgrade
+│  │     ├─ ConsumeHpPotion
+│  │     ├─ RequestRespawn
+│  │     ├─ PurchaseRespawn
+│  │     ├─ PurchaseMatchBuff
+│  │     ├─ PrestigeReset
 │  │     ├─ DebugSpawnFood
 │  │     ├─ DebugResetSling
 │  │     ├─ StateUpdate
@@ -149,7 +157,8 @@ DataModel
 │  │     ├─ GameplayFeedback
 │  │     ├─ MatchStateUpdate
 │  │     ├─ RoundResult
-│  │     └─ PopupMessage
+│  │     ├─ PopupMessage
+│  │     └─ ZoneUpdate [freeze-required]
 │  │
 │  └─ Client  -> src/ReplicatedStorage/Client
 │     ├─ Controllers
@@ -170,20 +179,24 @@ DataModel
 │     ├─ EventBus.lua
 │     ├─ PlayerStateService.lua
 │     ├─ PlayerService.lua
+│     ├─ RoundService.lua
+│     ├─ MapService.lua
 │     ├─ SlingService.lua
-│     ├─ SlingshotService.lua (adapter)
+│     │  ├─ SlingMovement.lua (internal movement module)
+│     │  └─ ChargeFlow.lua [MISSING: planned internal submodule]
 │     ├─ CollisionService.lua
 │     ├─ CombatService.lua
 │     ├─ DamagePipelineService.lua
 │     ├─ GrowthService.lua
-│     ├─ SkillService.lua
-│     ├─ MonetizationService.lua
+│     ├─ FoodService.lua
 │     ├─ TrapService.lua
-│     ├─ MapService.lua
-│     ├─ MapLoader.lua
-│     ├─ RoundService.lua
 │     ├─ TeamService.lua
-│     └─ FoodService.lua      [INFERRED legacy/overlap]
+│     ├─ LeaderboardService.lua
+│     ├─ MonetizationService.lua
+│     ├─ SlingAbilityService.lua [MISSING: required by freeze]
+│     ├─ SafeZoneService.lua [MISSING: required by freeze]
+│     ├─ MapLoader.server.lua (legacy helper entrypoint)
+│     └─ (SkillService removed in safe migration target)
 │
 ## 🟩 StarterPlayer
 ├─ StarterPlayer
