@@ -1,7 +1,6 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 
 type Context = {
@@ -19,11 +18,6 @@ function GrowthService.new(context: Context)
 end
 
 function GrowthService:Init()
-	self._context.EventBus:On("DamageDealt", function(attacker: Player, _defender: Player, damage: number)
-		local playerStateService = self._context.Services.PlayerStateService
-		playerStateService:GrantExp(attacker, damage * BalanceConfig.DamageToExpRatio)
-	end)
-
 	self._context.EventBus:On("PlayerKilled", function(killer: Player)
 		self._context.Services.PlayerStateService:GrantExp(killer, BalanceConfig.KillExp)
 	end)

@@ -1,10 +1,6 @@
 --!strict
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
-local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
-local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local FOOD_ZONE_TYPES = {
 	Edge = { "Food5", "Food6", "Food7" },
@@ -92,8 +88,6 @@ function MapService.new(context)
 	self._safeSpawnZones = {}
 	self._sizeRestrictedCorridors = {}
 	self._lobbyTouchedDebounce = {}
-	self._teleportRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.TeleportRequest) :: RemoteEvent?
-	self._debugSpawnFoodRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.DebugSpawnFood) :: RemoteEvent?
 	return self
 end
 
@@ -244,18 +238,7 @@ function MapService:Init()
 	if not self._mapRoot then
 		warn("Workspace.Maps folder is missing. MapService requires Workspace.Maps.LobbyMap and arena models.")
 	end
-	if self._teleportRemote then
-		self._teleportRemote.OnServerEvent:Connect(function(player: Player, mapName: string, spawnName: string)
-			self:RequestTeleport(player, mapName, spawnName)
-		end)
-	end
-	if self._debugSpawnFoodRemote then
-		self._debugSpawnFoodRemote.OnServerEvent:Connect(function(player: Player, mapName: string)
-			self:DebugSpawnFood(player, mapName)
-		end)
-	end
 	self:ActivateMap("LobbyMap")
-	self:_hookLobbyGates()
 end
 
 function MapService:_hookLobbyGates()
@@ -356,11 +339,8 @@ function MapService:GetSizeRestrictedCorridors(): { BasePart }
 end
 
 function MapService:CanPlayerUseCorridors(player: Player): boolean
-	local state = self._context.Services.PlayerStateService:GetState(player)
-	if not state then
-		return true
-	end
-	return state.Size <= BalanceConfig.CorridorSizeLimit
+	local _ = player
+	return true
 end
 
 function MapService:GetMapDuration(): number
@@ -420,56 +400,14 @@ function MapService:SpawnTrap(_count: number?)
 end
 
 function MapService:RequestTeleport(player: Player, mapName: string, spawnName: string)
-	if not RemoteContracts.Validate(RemoteContracts.Names.TeleportRequest, mapName, spawnName) then
-		return
-	end
-	local roundState = self._context.Services.RoundService:GetState()
-	if roundState == "ActiveRound" or roundState == "Countdown" then
-		return
-	end
-	local mapsRoot = getStudioMapsRoot()
-	if not mapsRoot then
-		warn("[INSTANCE_MISSING] Workspace.Maps is missing. Create Workspace.Maps.[MapName].SpawnPoints.[SpawnName] manually in Studio.")
-		return
-	end
-	local mapModel = mapsRoot:FindFirstChild(mapName)
-	if not mapModel or not mapModel:IsA("Model") then
-		warn(string.format("[INSTANCE_MISSING] Workspace.Maps.%s (Model) is missing.", mapName))
-		return
-	end
-	local spawnPoints = mapModel:FindFirstChild("SpawnPoints")
-	if not spawnPoints then
-		warn(string.format("[INSTANCE_MISSING] Workspace.Maps.%s.SpawnPoints (Folder) is missing.", mapName))
-		return
-	end
-	local spawnPart = spawnPoints:FindFirstChild(spawnName)
-	if not spawnPart or not spawnPart:IsA("BasePart") then
-		warn(string.format("[INSTANCE_MISSING] Workspace.Maps.%s.SpawnPoints.%s (BasePart) is missing.", mapName, spawnName))
-		return
-	end
-	if not self:CanPlayerUseCorridors(player) then
-		warn(string.format("[MAP_RULE] %s cannot enter corridor while size exceeds limit %.2f", player.Name, BalanceConfig.CorridorSizeLimit))
-		return
-	end
-	local pawn = self._context.Services.PlayerService:GetPawn(player)
-	if not pawn then
-		pawn = self._context.Services.PlayerService:SpawnPawn(player, nil, self._activeMap)
-	end
-	if not pawn then
-		return
-	end
-	self._context.Services.PlayerStateService:SetTeleporting(player, true)
-	task.wait(0.1)
-	pawn:PivotTo(spawnPart.CFrame + Vector3.new(0, 3, 0))
-	self._context.Services.PlayerStateService:SetMapName(player, mapName)
-	self._context.Services.PlayerStateService:SetArenaStatus(player, `Teleported:{mapName}`)
-	self._context.Services.PlayerStateService:SetTeleporting(player, false)
+	local _ = player
+	local _mapName = mapName
+	local _spawnName = spawnName
+	return
 end
 
 function MapService:DebugSpawnFood(_player: Player, mapName: string)
-	if self._context.Services.FoodService then
-		self._context.Services.FoodService:SpawnFoodForMapName(mapName)
-	end
+	local _ = mapName
 end
 
 return MapService

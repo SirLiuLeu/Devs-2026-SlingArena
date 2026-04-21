@@ -24,9 +24,7 @@ function CollisionService:Init()
 		self:_applyDragAndBounce(dt)
 		local playerHits = self:_detectPlayerCollisions()
 		self:_resolvePlayerCollisions(playerHits)
-		self:_resolveGateCollisions()
 		self:_resolveTrapCollisions()
-		self:_resolveExitZones()
 	end)
 end
 
@@ -127,21 +125,7 @@ end
 
 
 function CollisionService:_resolveGateCollisions()
-	for _, gate in self._context.Services.MapService:GetGates() do
-		for _, player in Players:GetPlayers() do
-			local root = self._context.Services.PlayerService:GetRoot(player)
-			local state = self._context.Services.PlayerStateService:GetState(player)
-			if root and state then
-				local localPos = gate.CFrame:PointToObjectSpace(root.Position)
-				local half = gate.Size * 0.5
-				if math.abs(localPos.X) <= half.X and math.abs(localPos.Y) <= half.Y and math.abs(localPos.Z) <= half.Z then
-					if self._context.Services.MapService:IsGateBlocking(gate, state.Size) then
-						root.AssemblyLinearVelocity = -Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z) * (1 - Config.BounceLoss)
-					end
-				end
-			end
-		end
-	end
+	return
 end
 
 function CollisionService:_resolveTrapCollisions()
@@ -167,18 +151,7 @@ end
 
 
 function CollisionService:_resolveExitZones()
-	for _, zone in self._context.Services.MapService:GetExitZones() do
-		for _, player in Players:GetPlayers() do
-			local root = self._context.Services.PlayerService:GetRoot(player)
-			if root and self._context.Services.PlayerService:IsAlive(player) then
-				local localPos = zone.CFrame:PointToObjectSpace(root.Position)
-				local half = zone.Size * 0.5
-				if math.abs(localPos.X) <= half.X and math.abs(localPos.Y) <= half.Y and math.abs(localPos.Z) <= half.Z then
-					self._context.EventBus:Fire("ExitZoneTouched", player, zone)
-				end
-			end
-		end
-	end
+	return
 end
 
 return CollisionService

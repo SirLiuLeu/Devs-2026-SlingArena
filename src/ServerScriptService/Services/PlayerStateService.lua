@@ -158,32 +158,22 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 		return
 	end
 	local sling = SlingshotConfig.SlingConfig
-	local baseSizeFromLevel = BalanceConfig.BaseSize * (1 + (math.sqrt(math.max(state.Level, 1)) * BalanceConfig.SizeSqrtMultiplier))
-	if state.Level > 30 then
-		local extraFromPost30 = baseSizeFromLevel - (BalanceConfig.BaseSize * (1 + (math.sqrt(30) * BalanceConfig.SizeSqrtMultiplier)))
-		baseSizeFromLevel = (BalanceConfig.BaseSize * (1 + (math.sqrt(30) * BalanceConfig.SizeSqrtMultiplier))) + (extraFromPost30 * BalanceConfig.PostLevel30SizeScalar)
-	end
+	local levelMultiplier = 1 + (math.max(state.Level - 1, 0) * 0.03)
+	state.HPBonus = 0
+	state.RegenBonus = 0
+	state.LaunchSpeedBonus = 0
 
-	local hpBonus = math.clamp(state.Attributes.MaxHP * 0.05, 0, 1)
-	local damageBonus = math.clamp(state.Attributes.Damage * 0.04, 0, 0.8)
-	local regenBonus = math.clamp(state.Attributes.Regen * 0.03, 0, 0.6)
-	local launchSpeedBonus = math.clamp(state.Attributes.LaunchSpeed * 0.03, 0, 0.5)
+	state.Size = (BalanceConfig.BaseSize * levelMultiplier) * state.ScaleMultiplier
+	state.BaseDamage = sling.BaseDamage * levelMultiplier
+	state.DamageMultiplier = 1
+	state.RegenRate = sling.RegenPerSecond * levelMultiplier
+	state.ReflectDamage = sling.ReflectDamagePercent
+	state.LaunchSpeed = SlingshotConfig.BaseLaunchForce * levelMultiplier
+	state.LaunchRange = sling.MaxShootRange * levelMultiplier
+	state.ChargeSpeed = 1
+	state.MoveSpeed = BalanceConfig.DefaultWalkSpeed * levelMultiplier
 
-	state.HPBonus = hpBonus
-	state.RegenBonus = regenBonus
-	state.LaunchSpeedBonus = launchSpeedBonus
-
-	state.Size = (baseSizeFromLevel + (state.Attributes.Range * 0.02)) * state.ScaleMultiplier
-	state.BaseDamage = sling.BaseDamage + state.LevelDamageBonus
-	state.DamageMultiplier = 1 + damageBonus + state.BonusDamageMultiplier
-	state.RegenRate = sling.RegenPerSecond * (1 + regenBonus)
-	state.ReflectDamage = math.clamp(sling.ReflectDamagePercent + (state.Attributes.Reflect * 0.01), 0, 0.5)
-	state.LaunchSpeed = SlingshotConfig.BaseLaunchForce * (1 + launchSpeedBonus)
-	state.LaunchRange = sling.MaxShootRange + (state.Attributes.Range * 10)
-	state.ChargeSpeed = 1 + (state.Attributes.ChargeSpeed * 0.02)
-	state.MoveSpeed = BalanceConfig.DefaultWalkSpeed * (1 + (state.Attributes.MoveSpeed * 0.02))
-
-	local hp = (sling.MaxHP * (1 + hpBonus)) + state.BonusMaxHP
+	local hp = sling.MaxHP * levelMultiplier
 	state.MaxHP = hp
 	if refillHealth then
 		state.CurrentHP = hp
@@ -415,13 +405,6 @@ function PlayerStateService:SetLastReleaseDuration(player: Player, duration: num
 end
 
 function PlayerStateService:ApplyLevelGrowth(player: Player)
-	local state = self._states[player]
-	if not state then return end
-	state.ScaleMultiplier += 0.01
-	state.BonusMaxHP += 10
-	local perLevelDamage = math.random(BalanceConfig.DamageLevelBonusMin, BalanceConfig.DamageLevelBonusMax)
-	state.LevelDamageBonus = math.clamp((state.LevelDamageBonus or 0) + perLevelDamage, 0, BalanceConfig.DamageLevelBonusCap)
-	state.BonusDamageMultiplier += 0.01
 	self:RecalculateDerivedStats(player, true)
 end
 
@@ -430,13 +413,12 @@ function PlayerStateService:GetBuff(player: Player): BuffState?
 end
 
 function PlayerStateService:TrySpendAttribute(player: Player, attributeName: string): boolean
+	local _ = attributeName
 	local state = self._states[player]
-	if not state or state.AttributePoints <= 0 then return false end
-	if state.Attributes[attributeName] == nil then return false end
-	state.AttributePoints -= 1
-	state.Attributes[attributeName] += 1
-	self:RecalculateDerivedStats(player, false)
-	return true
+	if not state then
+		return false
+	end
+	return false
 end
 
 function PlayerStateService:SpendDiamonds(player: Player, amount: number): boolean
@@ -450,36 +432,11 @@ function PlayerStateService:SpendDiamonds(player: Player, amount: number): boole
 end
 
 function PlayerStateService:ApplyMatchBuff(player: Player)
-	local state = self._states[player]
-	if not state then return end
-	state.BonusDamageMultiplier += BalanceConfig.MatchBuffMaxBoost
-	state.BonusMaxHP += math.floor((SlingshotConfig.SlingConfig.MaxHP or BalanceConfig.BaseHP) * BalanceConfig.MatchBuffMaxBoost)
-	self:RecalculateDerivedStats(player, false)
+	self:PublishState(player)
 end
 
 function PlayerStateService:PrestigeReset(player: Player)
-	local state = self._states[player]
-	if not state then return end
-	local reward = math.floor(math.max(state.Level, 0) / BalanceConfig.DiamondsPerPrestigeLevelDivisor)
-	state.Diamonds += reward
-	state.Level = 1
-	state.Exp = 0
-	state.AttributePoints = 0
-	state.ScaleMultiplier = 1
-	state.BonusMaxHP = 0
-	state.BonusDamageMultiplier = 0
-	state.LevelDamageBonus = 0
-	state.Attributes = {
-		Damage = 0,
-		MaxHP = 0,
-		Regen = 0,
-		Range = 0,
-		Reflect = 0,
-		LaunchSpeed = 0,
-		ChargeSpeed = 0,
-		MoveSpeed = 0,
-	}
-	self:RecalculateDerivedStats(player, true)
+	self:PublishState(player)
 end
 
 function PlayerStateService:SetLastAttacker(victim: Player, attacker: Player)

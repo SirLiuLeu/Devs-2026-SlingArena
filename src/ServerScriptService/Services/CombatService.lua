@@ -41,9 +41,6 @@ function CombatService:ComputeKnockback(attackerState, defenderState, direction:
 	local sizeRatio = attackerSize / defenderSize
 	local baseForce = math.max(BalanceConfig.BaseImpactForce, velocityMagnitude * BalanceConfig.KnockbackFactor)
 	local knockbackForce = math.clamp(baseForce * sizeRatio, 0, BalanceConfig.MaxKnockback)
-	if sizeRatio < 1 then
-		return -direction.Unit * knockbackForce
-	end
 	return direction.Unit * knockbackForce
 end
 

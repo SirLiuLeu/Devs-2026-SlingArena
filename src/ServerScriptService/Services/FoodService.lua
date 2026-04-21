@@ -9,23 +9,14 @@ local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 
 local DEFAULT_FOOD_RESPAWN_DELAY = 10
 local FOODS_PER_SPAWN = 5
-local FOOD_SPAWN_RADIUS = 5
-local FOOD_MIN_DISTANCE = 2.5
-
 local FOOD_ZONE_TYPES = {
-	Edge = { "Food5", "Food6", "Food7" },
-	Middle = { "Food2", "Food3", "Food4", "Food5", "Food6", "Food7" },
-	Center = { "Food1", "Food2", "Food3", "Food4" },
+	Edge = { "Food1" },
+	Middle = { "Food1" },
+	Center = { "Food1" },
 }
 
 local FOOD_TYPE_STATS = {
-	Food1 = { Exp = 12, HP = 4 },
-	Food2 = { Exp = 18, HP = 6 },
-	Food3 = { Exp = 24, HP = 8 },
-	Food4 = { Exp = 30, HP = 10 },
-	Food5 = { Exp = 36, HP = 12 },
-	Food6 = { Exp = 44, HP = 14 },
-	Food7 = { Exp = 52, HP = 16 },
+	Food1 = { Exp = BalanceConfig.FoodExp, HP = BalanceConfig.FoodHealth },
 }
 
 local FoodService = {}
@@ -71,18 +62,12 @@ local function getMapCenter(positionAnchors: { BasePart }, mapModel: Model): Vec
 end
 
 local function getZoneForAnchor(anchor: BasePart, mapCenter: Vector3): string
+	local _ = mapCenter
 	local configuredZone = anchor:GetAttribute("Zone")
 	if type(configuredZone) == "string" and FOOD_ZONE_TYPES[configuredZone] then
 		return configuredZone
 	end
-	local offset = anchor.Position - mapCenter
-	local distance = math.sqrt(offset.X * offset.X + offset.Z * offset.Z)
-	if distance <= 40 then
-		return "Center"
-	elseif distance <= 85 then
-		return "Middle"
-	end
-	return "Edge"
+	return "Middle"
 end
 
 local function getFoodTemplate(): Model?
@@ -140,39 +125,7 @@ local function anchorFoodModel(model: Model)
 end
 
 function FoodService:_buildSpawnPosition(centerState: any): Vector3
-	local attempts = 0
-	local minDistanceSquared = FOOD_MIN_DISTANCE * FOOD_MIN_DISTANCE
-	local basePosition = centerState.Anchor.Position
-
-	while attempts < 12 do
-		attempts += 1
-		local offset = if attempts == 1 then Vector3.zero else Vector3.new(
-			math.random(-FOOD_SPAWN_RADIUS * 100, FOOD_SPAWN_RADIUS * 100) / 100,
-			0,
-			math.random(-FOOD_SPAWN_RADIUS * 100, FOOD_SPAWN_RADIUS * 100) / 100
-		)
-		local candidatePosition = basePosition + offset
-		local canUse = true
-		for foodModel, info in pairs(self._foodSpawnByInstance) do
-			if info.CenterKey == centerState.CenterKey and foodModel and foodModel.Parent then
-				local existingRoot = foodModel.PrimaryPart or foodModel:FindFirstChildWhichIsA("BasePart")
-				if existingRoot then
-					local delta = existingRoot.Position - candidatePosition
-					local horizontalDistanceSquared = (delta.X * delta.X) + (delta.Z * delta.Z)
-					if horizontalDistanceSquared < minDistanceSquared then
-						canUse = false
-						break
-					end
-				end
-			end
-		end
-
-		if canUse then
-			return candidatePosition
-		end
-	end
-
-	return basePosition
+	return centerState.Anchor.Position
 end
 
 function FoodService:_spawnFoodFromCenterState(centerState: any): boolean
