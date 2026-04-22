@@ -5,22 +5,43 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ServicesFolder = script.Parent:WaitForChild("Services")
 
-local EventBus = require(ServicesFolder.EventBus)
-local PlayerStateService = require(ServicesFolder.PlayerStateService)
-local PlayerService = require(ServicesFolder.PlayerService)
-local TeamService = require(ServicesFolder.TeamService)
-local SlingService = require(ServicesFolder.SlingService)
-local MapService = require(ServicesFolder.MapService)
-local FoodService = require(ServicesFolder.FoodService)
-local CollisionService = require(ServicesFolder.CollisionService)
-local DamagePipelineService = require(ServicesFolder.DamagePipelineService)
-local GrowthService = require(ServicesFolder.GrowthService)
-local TrapService = require(ServicesFolder.TrapService)
-local RoundService = require(ServicesFolder.RoundService)
-local SlingAbilityService = require(ServicesFolder.SlingAbilityService.SlingAbilityService)
-local SafeZoneService = require(ServicesFolder.SafeZoneService)
-local MonetizationService = require(ServicesFolder.MonetizationService)
-local LeaderboardService = require(ServicesFolder.LeaderboardService)
+local function requireSafe(moduleScript: Instance, moduleName: string)
+	local ok, loaded = pcall(require, moduleScript)
+	if not ok then
+		warn(string.format("[Bootstrap] Failed to require %s: %s", moduleName, tostring(loaded)))
+		return nil
+	end
+	return loaded
+end
+
+local EventBus = requireSafe(ServicesFolder:WaitForChild("EventBus"), "EventBus")
+local ServiceRegistry = requireSafe(ServicesFolder:WaitForChild("ServiceRegistry"), "ServiceRegistry")
+local PlayerStateService = requireSafe(ServicesFolder:WaitForChild("PlayerStateService"), "PlayerStateService")
+local PlayerService = requireSafe(ServicesFolder:WaitForChild("PlayerService"), "PlayerService")
+local TeamService = requireSafe(ServicesFolder:WaitForChild("TeamService"), "TeamService")
+local SlingService = requireSafe(ServicesFolder:WaitForChild("SlingService"), "SlingService")
+local MapService = requireSafe(ServicesFolder:WaitForChild("MapService"), "MapService")
+local FoodService = requireSafe(ServicesFolder:WaitForChild("FoodService"), "FoodService")
+local CollisionService = requireSafe(ServicesFolder:WaitForChild("CollisionService"), "CollisionService")
+local DamagePipelineService = requireSafe(ServicesFolder:WaitForChild("DamagePipelineService"), "DamagePipelineService")
+local GrowthService = requireSafe(ServicesFolder:WaitForChild("GrowthService"), "GrowthService")
+local TrapService = requireSafe(ServicesFolder:WaitForChild("TrapService"), "TrapService")
+local RoundService = requireSafe(ServicesFolder:WaitForChild("RoundService"), "RoundService")
+local SafeZoneService = requireSafe(ServicesFolder:WaitForChild("SafeZoneService"), "SafeZoneService")
+local MonetizationService = requireSafe(ServicesFolder:WaitForChild("MonetizationService"), "MonetizationService")
+local LeaderboardService = requireSafe(ServicesFolder:WaitForChild("LeaderboardService"), "LeaderboardService")
+local SlingAbilityFolder = ServicesFolder:FindFirstChild("SlingAbilityService")
+local SlingAbilityService = nil
+if SlingAbilityFolder and SlingAbilityFolder:IsA("Folder") then
+	local moduleScript = SlingAbilityFolder:FindFirstChild("SlingAbilityService")
+	if moduleScript then
+		SlingAbilityService = requireSafe(moduleScript, "SlingAbilityService")
+	else
+		warn("[Bootstrap] Missing Services.SlingAbilityService.SlingAbilityService module.")
+	end
+else
+	warn("[Bootstrap] Missing Services.SlingAbilityService folder.")
+end
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
@@ -46,7 +67,8 @@ end
 local context = {
 	Remotes = remotesFolder,
 	Services = {},
-	EventBus = EventBus.new(),
+	EventBus = EventBus and EventBus.new() or nil,
+	ServiceRegistry = ServiceRegistry and ServiceRegistry.new() or nil,
 }
 
 local function runServicePhase(serviceName: string, phase: "Init" | "Start")
@@ -69,21 +91,41 @@ local function runServicePhase(serviceName: string, phase: "Init" | "Start")
 	end
 end
 
-context.Services.PlayerStateService = PlayerStateService.new(context)
-context.Services.TeamService = TeamService.new(context)
-context.Services.PlayerService = PlayerService.new(context)
-context.Services.SlingService = SlingService.new(context)
-context.Services.MapService = MapService.new(context)
-context.Services.FoodService = FoodService.new(context)
-context.Services.CollisionService = CollisionService.new(context)
-context.Services.DamagePipelineService = DamagePipelineService.new(context)
-context.Services.GrowthService = GrowthService.new(context)
-context.Services.TrapService = TrapService.new(context)
-context.Services.RoundService = RoundService.new(context)
-context.Services.SlingAbilityService = SlingAbilityService.new(context)
-context.Services.SafeZoneService = SafeZoneService.new(context)
-context.Services.MonetizationService = MonetizationService.new(context)
-context.Services.LeaderboardService = LeaderboardService.new(context)
+local serviceConstructors = {
+	PlayerStateService = PlayerStateService,
+	TeamService = TeamService,
+	PlayerService = PlayerService,
+	SlingService = SlingService,
+	MapService = MapService,
+	FoodService = FoodService,
+	CollisionService = CollisionService,
+	DamagePipelineService = DamagePipelineService,
+	GrowthService = GrowthService,
+	TrapService = TrapService,
+	RoundService = RoundService,
+	SlingAbilityService = SlingAbilityService,
+	SafeZoneService = SafeZoneService,
+	MonetizationService = MonetizationService,
+	LeaderboardService = LeaderboardService,
+}
+
+for serviceName, constructor in pairs(serviceConstructors) do
+	if constructor and typeof(constructor.new) == "function" then
+		local ok, service = xpcall(function()
+			return constructor.new(context)
+		end, debug.traceback)
+		if ok and service then
+			context.Services[serviceName] = service
+			if context.ServiceRegistry then
+				context.ServiceRegistry:Register(serviceName, service)
+			end
+		else
+			warn(string.format("[Bootstrap] Failed to construct service %s: %s", serviceName, tostring(service)))
+		end
+	else
+		warn(string.format("[Bootstrap] Missing constructor for service %s.", serviceName))
+	end
+end
 
 local initializationOrder = {
 	"PlayerStateService",

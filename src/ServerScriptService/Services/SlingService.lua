@@ -14,6 +14,12 @@ local SlingMovement = require(script.Parent.SlingMovement)
 local SlingService = {}
 SlingService.__index = SlingService
 
+local function getService(context, name)
+	if context.ServiceRegistry then
+		return context.ServiceRegistry:GetOptional(name)
+	end
+	return context.Services and context.Services[name]
+end
 
 local function sanitizeNumber(value: number, fallback: number): number
 	if value ~= value or value == math.huge or value == -math.huge then
@@ -93,7 +99,7 @@ function SlingService:_getTrackedPlayers(): { any }
 	local trackedPlayers = {}
 	local seen = {}
 
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = getService(self._context, "PlayerStateService")
 	if stateService and typeof(stateService.GetAllStates) == "function" then
 		for player in pairs(stateService:GetAllStates()) do
 			if not seen[player] then
@@ -194,24 +200,31 @@ function SlingService:Start()
 end
 
 function SlingService:_isRoundPlaying(): boolean
-	return self._context.Services.RoundService:GetState() == GameStates.Round.ActiveRound
+	local roundService = getService(self._context, "RoundService")
+	return roundService and roundService:GetState() == GameStates.Round.ActiveRound or false
 end
 
 function SlingService:_canControl(player: Player): boolean
-	local roundState = self._context.Services.RoundService:GetState()
+	local roundService = getService(self._context, "RoundService")
+	local playerService = getService(self._context, "PlayerService")
+	local stateService = getService(self._context, "PlayerStateService")
+	if not roundService or not playerService or not stateService then
+		return false
+	end
+	local roundState = roundService:GetState()
 	local canControlForRound = false
 	if roundState == GameStates.Round.ActiveRound then
-		canControlForRound = self._context.Services.RoundService:IsPlayerQueued(player)
+		canControlForRound = roundService:IsPlayerQueued(player)
 	elseif roundState == GameStates.Round.Lobby then
 		canControlForRound = true
 	end
 	if not canControlForRound then
 		return false
 	end
-	if not self._context.Services.PlayerService:IsAlive(player) then
+	if not playerService:IsAlive(player) then
 		return false
 	end
-	if self._context.Services.PlayerStateService:IsStunned(player) then
+	if stateService:IsStunned(player) then
 		return false
 	end
 	return true

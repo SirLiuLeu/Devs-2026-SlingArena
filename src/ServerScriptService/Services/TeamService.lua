@@ -27,13 +27,19 @@ function TeamService:IsFriendly(playerA: Player, playerB: Player): boolean
 end
 
 function TeamService:Init()
+	local stateService = self._context.ServiceRegistry and self._context.ServiceRegistry:GetOptional("PlayerStateService")
+		or self._context.Services.PlayerStateService
+	if not stateService then
+		warn("[TeamService] PlayerStateService unavailable; team assignment skipped.")
+		return
+	end
 	Players.PlayerAdded:Connect(function(player)
 		local teamId = self:AssignBalancedTeam(player)
-		self._context.Services.PlayerStateService:SetTeamId(player, teamId)
+		stateService:SetTeamId(player, teamId)
 	end)
 	for _, player in ipairs(Players:GetPlayers()) do
 		local teamId = self:AssignBalancedTeam(player)
-		self._context.Services.PlayerStateService:SetTeamId(player, teamId)
+		stateService:SetTeamId(player, teamId)
 	end
 end
 

@@ -10,6 +10,13 @@ local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local CollisionService = {}
 CollisionService.__index = CollisionService
 
+local function getService(context, name)
+	if context.ServiceRegistry then
+		return context.ServiceRegistry:GetOptional(name)
+	end
+	return context.Services and context.Services[name]
+end
+
 function CollisionService.new(context)
 	local self = setmetatable({}, CollisionService)
 	self._context = context
@@ -29,9 +36,13 @@ function CollisionService:Init()
 end
 
 function CollisionService:_applyDragAndBounce(dt)
+	local playerService = getService(self._context, "PlayerService")
+	if not playerService then
+		return
+	end
 	for _, player in Players:GetPlayers() do
-		local root = self._context.Services.PlayerService:GetRoot(player)
-		if root and self._context.Services.PlayerService:IsAlive(player) then
+		local root = playerService:GetRoot(player)
+		if root and playerService:IsAlive(player) then
 			local velocity = root.AssemblyLinearVelocity
 			local horizontal = Vector3.new(velocity.X, 0, velocity.Z)
 			local dragFactor = math.max(0, 1 - Config.AirDrag * dt)
@@ -63,15 +74,19 @@ end
 
 -- Detection only: returns candidate collisions, no domain mutations.
 function CollisionService:_detectPlayerCollisions()
+	local playerService = getService(self._context, "PlayerService")
+	if not playerService then
+		return {}
+	end
 	local list = Players:GetPlayers()
 	local hits = {}
 	for i = 1, #list do
 		for j = i + 1, #list do
 			local playerA = list[i]
 			local playerB = list[j]
-			local rootA = self._context.Services.PlayerService:GetRoot(playerA)
-			local rootB = self._context.Services.PlayerService:GetRoot(playerB)
-			if rootA and rootB and self._context.Services.PlayerService:IsAlive(playerA) and self._context.Services.PlayerService:IsAlive(playerB) then
+			local rootA = playerService:GetRoot(playerA)
+			local rootB = playerService:GetRoot(playerB)
+			if rootA and rootB and playerService:IsAlive(playerA) and playerService:IsAlive(playerB) then
 				local distance = (rootA.Position - rootB.Position).Magnitude
 				local hitDistance = (rootA.Size.X + rootB.Size.X) * BalanceConfig.PlayerCollisionDistanceFactor
 				if distance <= hitDistance then
@@ -91,8 +106,10 @@ end
 -- Resolution only: physics + event emission; damage is applied by DamagePipelineService.
 function CollisionService:_resolvePlayerCollisions(hits)
 	for _, hit in ipairs(hits) do
-		local stateA = self._context.Services.PlayerStateService:GetState(hit.playerA)
-		local stateB = self._context.Services.PlayerStateService:GetState(hit.playerB)
+		local stateService = getService(self._context, "PlayerStateService")
+		local damageService = getService(self._context, "DamagePipelineService")
+		local stateA = stateService and stateService:GetState(hit.playerA)
+		local stateB = stateService and stateService:GetState(hit.playerB)
 		local sizeA = stateA and stateA.Size or 1
 		local sizeB = stateB and stateB.Size or 1
 		local massA = Config.Mass * sizeA
@@ -109,8 +126,8 @@ function CollisionService:_resolvePlayerCollisions(hits)
 		if attackerState and defenderState then
 			local velocityMagnitude = winnerRoot.AssemblyLinearVelocity.Magnitude
 			local impactDirection = loserRoot.Position - winnerRoot.Position
-			local damage = self._context.Services.DamagePipelineService:ComputeCollisionDamage(attackerState, velocityMagnitude)
-			local knockback = self._context.Services.DamagePipelineService:ComputeCollisionKnockback(attackerState, defenderState, impactDirection, velocityMagnitude)
+			local damage = damageService and damageService:ComputeCollisionDamage(attackerState, velocityMagnitude) or 0
+			local knockback = damageService and damageService:ComputeCollisionKnockback(attackerState, defenderState, impactDirection, velocityMagnitude) or Vector3.zero
 			self._context.EventBus:Fire("CollisionDetected", "Sling", winner, loser, { Speed = velocityMagnitude, ChargeRatio = attackerState.ChargeValue })
 			self._context.EventBus:Fire("CollisionPlayerHit", loser, winner, damage, knockback, { ChargeRatio = attackerState.ChargeValue, VelocityMagnitude = velocityMagnitude })
 			local decay = math.clamp(BalanceConfig.VelocityDecayFactor, 0, 1)
@@ -125,10 +142,18 @@ function CollisionService:_resolveGateCollisions()
 end
 
 function CollisionService:_resolveTrapCollisions()
-	for _, trap in self._context.Services.MapService:GetTrapBlocks() do
+	local mapService = getService(self._context, "MapService")
+	if not mapService or typeof(mapService.GetTrapBlocks) ~= "function" then
+		return
+	end
+	for _, trap in mapService:GetTrapBlocks() do
+		local playerService = getService(self._context, "PlayerService")
+		if not playerService then
+			return
+		end
 		for _, player in Players:GetPlayers() do
-			local root = self._context.Services.PlayerService:GetRoot(player)
-			if root and self._context.Services.PlayerService:IsAlive(player) then
+			local root = playerService:GetRoot(player)
+			if root and playerService:IsAlive(player) then
 				local localPos = trap.CFrame:PointToObjectSpace(root.Position)
 				local half = trap.Size * 0.5
 				if math.abs(localPos.X) <= half.X and math.abs(localPos.Y) <= half.Y and math.abs(localPos.Z) <= half.Z then

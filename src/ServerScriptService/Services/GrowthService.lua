@@ -11,6 +11,13 @@ type Context = {
 local GrowthService = {}
 GrowthService.__index = GrowthService
 
+local function getService(context: Context, name: string)
+	if context.ServiceRegistry then
+		return context.ServiceRegistry:GetOptional(name)
+	end
+	return context.Services and context.Services[name]
+end
+
 function GrowthService.new(context: Context)
 	local self = setmetatable({}, GrowthService)
 	self._context = context
@@ -19,11 +26,21 @@ end
 
 function GrowthService:Init()
 	self._context.EventBus:On("PlayerKilled", function(killer: Player)
-		self._context.Services.PlayerStateService:GrantExp(killer, BalanceConfig.KillExp)
+		local stateService = getService(self._context, "PlayerStateService")
+		if stateService then
+			stateService:GrantExp(killer, BalanceConfig.KillExp)
+		else
+			warn("[GrowthService] PlayerStateService unavailable; kill EXP skipped.")
+		end
 	end)
 
 	self._context.EventBus:On("FoodConsumed", function(player: Player, expAmount: number)
-		self._context.Services.PlayerStateService:GrantExp(player, expAmount)
+		local stateService = getService(self._context, "PlayerStateService")
+		if stateService then
+			stateService:GrantExp(player, expAmount)
+		else
+			warn("[GrowthService] PlayerStateService unavailable; food EXP skipped.")
+		end
 	end)
 end
 

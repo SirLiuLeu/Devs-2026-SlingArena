@@ -22,6 +22,13 @@ local FOOD_TYPE_STATS = {
 local FoodService = {}
 FoodService.__index = FoodService
 
+local function getService(context, name)
+	if context.ServiceRegistry then
+		return context.ServiceRegistry:GetOptional(name)
+	end
+	return context.Services and context.Services[name]
+end
+
 local function isArenaMapName(mapName: string?): boolean
 	return type(mapName) == "string" and mapName ~= "LobbyMap" and mapName ~= "Lobby" and string.find(mapName, "Arena", 1, true) ~= nil
 end
@@ -250,7 +257,13 @@ function FoodService:_onFoodTouched(food: Model, hit: BasePart)
 	if not player then
 		return
 	end
-	if model ~= self._context.Services.PlayerService:GetPawn(player) then
+	local playerService = getService(self._context, "PlayerService")
+	if not playerService then
+		warn("[FoodService] PlayerService unavailable; cannot validate food collision owner.")
+		self._foodTouchedDebounce[player] = nil
+		return
+	end
+	if model ~= playerService:GetPawn(player) then
 		return
 	end
 	if self._foodTouchedDebounce[player] then
@@ -278,8 +291,13 @@ function FoodService:_onFoodTouched(food: Model, hit: BasePart)
 
 	self._context.EventBus:Fire("CollisionDetected", "Food", player, food, {})
 	self._context.EventBus:Fire("FoodConsumed", player, stats.Exp)
-	self._context.Services.PlayerStateService:Heal(player, stats.HP)
-	self._context.Services.PlayerStateService:PublishState(player)
+	local stateService = getService(self._context, "PlayerStateService")
+	if stateService then
+		stateService:Heal(player, stats.HP)
+		stateService:PublishState(player)
+	else
+		warn("[FoodService] PlayerStateService unavailable; skipped heal/state publish on consume.")
+	end
 	task.delay(0.1, function()
 		self._foodTouchedDebounce[player] = nil
 	end)
@@ -311,7 +329,8 @@ function FoodService:LoadMapResources(mapName: string)
 end
 
 function FoodService:SpawnFoodForActiveMap()
-	local arena = self._context.Services.MapService:GetArenaModel()
+	local mapService = getService(self._context, "MapService")
+	local arena = mapService and mapService:GetArenaModel()
 	if arena then
 		self:SpawnFoodForMap(arena)
 	end

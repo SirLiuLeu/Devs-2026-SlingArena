@@ -14,6 +14,13 @@ type Context = {
 local DamagePipelineService = {}
 DamagePipelineService.__index = DamagePipelineService
 
+local function getService(context: Context, name: string)
+	if context.ServiceRegistry then
+		return context.ServiceRegistry:GetOptional(name)
+	end
+	return context.Services and context.Services[name]
+end
+
 function DamagePipelineService.new(context: Context)
 	local self = setmetatable({}, DamagePipelineService)
 	self._context = context
@@ -29,7 +36,12 @@ function DamagePipelineService:Init()
 		self:ApplyExpPenalty(player, penalty)
 	end)
 	self._context.EventBus:On("LevelUp", function(player: Player)
-		self._context.Services.PlayerStateService:ApplyLevelGrowth(player)
+		local stateService = getService(self._context, "PlayerStateService")
+		if not stateService then
+			warn("[DamagePipelineService] PlayerStateService unavailable; level-up growth skipped.")
+			return
+		end
+		stateService:ApplyLevelGrowth(player)
 		self:_sendFeedback(player, "LevelUp", {})
 	end)
 end
@@ -64,13 +76,18 @@ function DamagePipelineService:_sendFeedback(player: Player, eventType: string, 
 end
 
 function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?): boolean
-	local playerStateService = self._context.Services.PlayerStateService
+	local playerStateService = getService(self._context, "PlayerStateService")
+	if not playerStateService then
+		warn("[DamagePipelineService] PlayerStateService unavailable; damage skipped.")
+		return false
+	end
 	if playerStateService:IsInvulnerable(victim) then
 		return false
 	end
 
 	local amount = math.clamp(rawDamage, 0, BalanceConfig.MaxDamagePerHit)
-	if attacker and self._context.Services.TeamService and self._context.Services.TeamService:IsFriendly(attacker, victim) then
+	local teamService = getService(self._context, "TeamService")
+	if attacker and teamService and teamService:IsFriendly(attacker, victim) then
 		amount = 0
 	end
 	if attacker then
@@ -105,7 +122,8 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 	end
 
 	if knockbackDirection then
-		local root = self._context.Services.PlayerService:GetRoot(victim)
+		local playerService = getService(self._context, "PlayerService")
+		local root = playerService and playerService:GetRoot(victim)
 		if root and knockbackDirection.Magnitude > 0 then
 			local nextVelocity = root.AssemblyLinearVelocity + knockbackDirection
 			root.AssemblyLinearVelocity = Vector3.new(
@@ -134,11 +152,15 @@ function DamagePipelineService:ApplySelfDamage(player: Player, amount: number)
 end
 
 function DamagePipelineService:ApplyExpPenalty(player: Player, amount: number)
-	local state = self._context.Services.PlayerStateService:GetState(player)
+	local stateService = getService(self._context, "PlayerStateService")
+	if not stateService then
+		return
+	end
+	local state = stateService:GetState(player)
 	if not state then
 		return
 	end
-	self._context.Services.PlayerStateService:TryApplyExpPenalty(player, amount)
+	stateService:TryApplyExpPenalty(player, amount)
 end
 
 function DamagePipelineService:HandlePlayerDeath(player: Player)
