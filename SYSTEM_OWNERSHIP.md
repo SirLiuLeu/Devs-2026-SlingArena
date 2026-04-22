@@ -189,15 +189,6 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - **Called by:** Services handling remotes.
 - **Dependencies:** Shared constants/types.
 
----
-
-## 7) Consolidation decisions (frozen)
-- `SlingshotService` ownership is merged into `SlingService` (canonical movement/launch owner).
-- `MovementService` removed (logic consolidated as SlingService internal movement module).
-- `ChargeService` removed (logic consolidated as SlingService internal charge module).
-- `MapLoader` converted to helper ownership under `MapService` (legacy entrypoint only).
-
----
 
 ## 8) Deprecated / Pending Review
 
@@ -207,7 +198,7 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - Any Friendly Fire checks outside DamagePipelineService.
 
 ### Pending review (not core freeze blockers)
-- `SkillService` overlaps with `SlingAbilityService` orchestration responsibilities; migrate SkillService-owned gameplay passives into SlingAbilityService ownership boundary.
+
 - `CombatService` currently invoked from collision-stage flow; formalize DamagePipelineService as the sole combat gate while preserving CombatService as pure formula module.
 - Existing respawn timing/flow in damage pipeline and monetization should be reconciled with round-phase ghost/final-phase restrictions before implementation lock.
 
@@ -267,7 +258,7 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - SkillService removed:
   - Attribute upgrade ownership → PlayerStateService/GrowthService boundary.
   - Ability toggle ownership → SlingAbilityService.
-  - Consumables ownership → PlayerStateService (until Inventory system takes ownership).
+
 
 ---
 
