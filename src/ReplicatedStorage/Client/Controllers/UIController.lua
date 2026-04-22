@@ -5,7 +5,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
-local MainStatsPopupController = require(ReplicatedStorage.Client.Controllers.MainStatsPopupController)
 local InventoryUIController = require(ReplicatedStorage.Client.Controllers.InventoryUIController)
 local InventoryDataProvider = require(ReplicatedStorage.Client.Services.InventoryDataProvider)
 local OnlineRewardUIController = require(ReplicatedStorage.Client.Controllers.OnlineRewardUIController)
@@ -65,7 +64,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.ClientService = dependencies.ClientService
 	self.PlayerGui = playerGui
 	self.Connections = {}
-	self.MainStatsPopupController = MainStatsPopupController.new(playerGui, dependencies)
 	self.InventoryUIController = InventoryUIController.new(playerGui)
 	self.SpinUIController = SpinUIController.new(playerGui)
 	self.OnlineRewardUIController = OnlineRewardUIController.new(playerGui)
@@ -291,9 +289,6 @@ function UIController:Start()
 		if self.InventoryDataProvider then
 			self.InventoryDataProvider:SetFromState(state)
 		end
-		if self.MainStatsPopupController then
-			self.MainStatsPopupController:ApplyState(state)
-		end
 		local currentExp = math.max(0, math.floor(state.Exp or 0))
 		local level = math.max(1, math.floor(state.Level or 1))
 		local required = math.max(1, LevelConfig.RequiredExp(level))
@@ -365,9 +360,6 @@ function UIController:Destroy()
 		connection:Disconnect()
 	end
 	table.clear(self.Connections)
-	if self.MainStatsPopupController then
-		self.MainStatsPopupController:Destroy()
-	end
 end
 
 return UIController
