@@ -6,7 +6,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
-local CombatService = require(ServerScriptService.Services.CombatService)
+local DamagePipelineService = require(ServerScriptService.Services.DamagePipelineService)
 local MapServiceModule = require(ServerScriptService.Services.MapService)
 local FoodServiceModule = require(ServerScriptService.Services.FoodService)
 local SlingServiceModule = require(ServerScriptService.Services.SlingService)
@@ -407,7 +407,11 @@ end
 
 
 local function testCollisionTriggersDamageFormula()
-	local service = CombatService.new({})
+	local service = DamagePipelineService.new({
+		Services = {},
+		EventBus = { On = function() end },
+		Remotes = Instance.new("Folder"),
+	})
 	local attacker = {
 		BaseDamage = 20,
 		Size = 2,
@@ -416,16 +420,20 @@ local function testCollisionTriggersDamageFormula()
 		DamageMultiplier = 1,
 	}
 	local speed = 80
-	local expected = math.clamp(speed * math.log(attacker.Size + 1) * (SlingshotConfig.SlingshotModifiers.Default or 1) * attacker.DamageMultiplier * (1 + BalanceConfig.ChargeDamageFactor), 0, BalanceConfig.MaxDamagePerHit)
-	local damage = service:ComputeImpactDamage(attacker, speed, 1)
-	assertAlmostEqual(damage, expected, 0.0001, "Damage formula should follow speed*log(size+1)*mods")
+	local expected = math.clamp(attacker.BaseDamage * (speed / math.max(BalanceConfig.MinVelocityToCollide, 1)), 0, BalanceConfig.MaxDamagePerHit)
+	local damage = service:ComputeCollisionDamage(attacker, speed)
+	assertAlmostEqual(damage, expected, 0.0001, "Damage formula should follow BaseDamage*SpeedMultiplier")
 end
 
 local function testKnockbackDirectionForSmallerAttacker()
-	local service = CombatService.new({})
-	local knockback = service:ComputeKnockback({ Size = 1 }, { Size = 3 }, Vector3.new(1, 0, 0), 50)
-	if knockback.X >= 0 then
-		error("Smaller attacker must receive reversed knockback direction")
+	local service = DamagePipelineService.new({
+		Services = {},
+		EventBus = { On = function() end },
+		Remotes = Instance.new("Folder"),
+	})
+	local knockback = service:ComputeCollisionKnockback({ Size = 1 }, { Size = 3 }, Vector3.new(1, 0, 0), 50)
+	if knockback.X <= 0 then
+		error("Knockback should follow collision direction")
 	end
 end
 

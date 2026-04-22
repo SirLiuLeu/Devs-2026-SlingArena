@@ -10,9 +10,8 @@
 | LeaveArena | C->S | RoundService | `{}` | Player exits arena participation. |
 | TeleportRequest | C->S | MapService | `{ mapName: string, spawnName: string }` | Admin/debug teleport request. |
 | AbilityTrigger | C->S | SlingAbilityService | `{ abilityId: string, phase: "Start"\|"Commit"\|"Cancel", target?: Vector3, contextId?: string }` | Ability activation intent routed to ability orchestrator. |
-| AttributeUpgrade | C->S | SkillService | `{ attributeName: string }` | Spend attribute point on selected stat. |
-| ToggleSpecialUpgrade | C->S | SkillService | `{ active: boolean }` | Toggle special-upgrade state for player session. |
-| ConsumeHpPotion | C->S | SkillService | `{}` | Consume HP potion request. |
+| AttributeUpgrade | C->S | PlayerStateService | `{ attributeName: string }` | Spend attribute point on selected stat. |
+| ConsumeHpPotion | C->S | PlayerStateService | `{}` | Consume HP potion request. |
 | RequestRespawn | C->S | MonetizationService | `{ mode: "Free" }` | Request free respawn flow. |
 | PurchaseRespawn | C->S | MonetizationService | `{}` | Purchase paid respawn with diamonds. |
 | PurchaseMatchBuff | C->S | MonetizationService | `{}` | Purchase in-match buff with diamonds. |
@@ -31,4 +30,3 @@
 | GameplayFeedback | S->C | DamagePipelineService | `{ eventType: string, payload: { [string]: any } }` | Combat/damage feedback (damage dealt, impact, level-up, etc.). |
 | PopupMessage | S->C | TrapService | `{ type: string, text: string }` | Contextual popup notification (trap or gameplay warnings). |
 | ZoneUpdate | S->C | SafeZoneService | `{ phase: string, radius: number, center: Vector3, dpsPercent: number, nextShrinkAt?: number }` | Safe-zone visual and damage sync (freeze-required). |
-

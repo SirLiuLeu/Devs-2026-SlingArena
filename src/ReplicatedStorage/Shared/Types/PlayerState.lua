@@ -52,6 +52,8 @@ export type PlayerState = {
 	IsAlive: boolean,
 	IsCharging: boolean,
 	MovementState: string,
+	IsVisible: boolean,
+	StunnedUntil: number,
 	ScaleMultiplier: number,
 	BonusMaxHP: number,
 	BonusDamageMultiplier: number,

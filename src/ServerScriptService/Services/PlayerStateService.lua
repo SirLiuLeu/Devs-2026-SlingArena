@@ -37,6 +37,8 @@ function PlayerStateService.new(context: Context)
 	self._lastAttacker = {} :: { [Player]: Player }
 	self._damageDealt = {} :: { [Player]: number }
 	self._stateUpdateRemote = context.Remotes:FindFirstChild("StateUpdate") :: RemoteEvent
+	self._consumeHpPotionRemote = context.Remotes:FindFirstChild("ConsumeHpPotion") :: RemoteEvent?
+	self._attributeUpgradeRemote = context.Remotes:FindFirstChild("AttributeUpgrade") :: RemoteEvent?
 	return self
 end
 
@@ -115,6 +117,8 @@ local function buildDefaultState(player: Player): PlayerState
 		IsAlive = true,
 		IsCharging = false,
 		MovementState = MOVEMENT_STATE.Idle,
+		IsVisible = true,
+		StunnedUntil = 0,
 		ScaleMultiplier = 1,
 		BonusMaxHP = 0,
 		BonusDamageMultiplier = 0,
@@ -124,6 +128,17 @@ local function buildDefaultState(player: Player): PlayerState
 end
 
 function PlayerStateService:Init()
+	if self._consumeHpPotionRemote then
+		self._consumeHpPotionRemote.OnServerEvent:Connect(function(player: Player)
+			self:TryConsumeHpPotion(player)
+		end)
+	end
+	if self._attributeUpgradeRemote then
+		self._attributeUpgradeRemote.OnServerEvent:Connect(function(player: Player, attributeName: string)
+			self:TrySpendAttribute(player, attributeName)
+		end)
+	end
+
 	Players.PlayerAdded:Connect(function(player)
 		self._states[player] = buildDefaultState(player)
 		self._buffs[player] = { DamageBoost = 0, HpBoost = 0, ExpBoost = 0, ChargeBoost = 0, Active = false }
@@ -142,6 +157,33 @@ function PlayerStateService:Init()
 		self._damageDealt[player] = 0
 		self:RecalculateDerivedStats(player, true)
 	end
+end
+
+function PlayerStateService:IsStunned(player: Player): boolean
+	local state = self._states[player]
+	return state ~= nil and (state.StunnedUntil or 0) > os.clock()
+end
+
+function PlayerStateService:ApplyStun(player: Player, duration: number)
+	local state = self._states[player]
+	if not state then
+		return
+	end
+	local stunUntil = os.clock() + math.max(0, duration)
+	state.StunnedUntil = math.max(state.StunnedUntil or 0, stunUntil)
+	state.IsCharging = false
+	state.ChargeValue = 0
+	state.MovementState = MOVEMENT_STATE.Idle
+	self:PublishState(player)
+end
+
+function PlayerStateService:SetVisibility(player: Player, visible: boolean)
+	local state = self._states[player]
+	if not state then
+		return
+	end
+	state.IsVisible = visible
+	self:PublishState(player)
 end
 
 function PlayerStateService:GetState(player: Player): PlayerState?

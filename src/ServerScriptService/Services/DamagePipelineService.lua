@@ -34,6 +34,26 @@ function DamagePipelineService:Init()
 	end)
 end
 
+function DamagePipelineService:ComputeCollisionDamage(attackerState: any, velocityMagnitude: number): number
+	local baseDamage = math.max(attackerState.BaseDamage or 0, 0)
+	local speed = math.max(0, velocityMagnitude)
+	local speedMultiplier = speed / math.max(BalanceConfig.MinVelocityToCollide, 1)
+	local damage = baseDamage * speedMultiplier
+	return math.clamp(damage, 0, BalanceConfig.MaxDamagePerHit)
+end
+
+function DamagePipelineService:ComputeCollisionKnockback(attackerState: any, defenderState: any, direction: Vector3, velocityMagnitude: number): Vector3
+	if direction.Magnitude < 0.01 then
+		direction = Vector3.new(1, 0, 0)
+	end
+	local attackerSize = math.max(attackerState.Size or 1, 0.1)
+	local defenderSize = math.max(defenderState.Size or 1, 0.1)
+	local sizeRatio = attackerSize / defenderSize
+	local baseForce = math.max(BalanceConfig.BaseImpactForce, velocityMagnitude * BalanceConfig.KnockbackFactor)
+	local knockbackForce = math.clamp(baseForce * sizeRatio, 0, BalanceConfig.MaxKnockback)
+	return direction.Unit * knockbackForce
+end
+
 function DamagePipelineService:_sendFeedback(player: Player, eventType: string, payload: any)
 	if self._feedbackRemote then
 		self._feedbackRemote:FireClient(player, {
@@ -50,28 +70,38 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 	end
 
 	local amount = math.clamp(rawDamage, 0, BalanceConfig.MaxDamagePerHit)
+	if attacker and self._context.Services.TeamService and self._context.Services.TeamService:IsFriendly(attacker, victim) then
+		amount = 0
+	end
 	if attacker then
 		playerStateService:SetLastAttacker(victim, attacker)
 	end
-	local didDamage = playerStateService:ApplyDamage(victim, amount)
+	local didDamage = true
+	if amount > 0 then
+		didDamage = playerStateService:ApplyDamage(victim, amount)
+	end
 	if not didDamage then
 		return false
 	end
 
-	self:_sendFeedback(victim, "DamageTaken", { Amount = amount })
+	if amount > 0 then
+		self:_sendFeedback(victim, "DamageTaken", { Amount = amount })
+	end
 
 	if attacker then
-		playerStateService:AddDamageDealt(attacker, amount)
-		self:_sendFeedback(attacker, "DamageDealt", { Amount = amount })
-		local victimStats = playerStateService:GetFinalStats(victim)
-		if victimStats then
-			local reflectPct = math.clamp(victimStats.Reflect, 0, 0.5)
-			if reflectPct > 0 then
-				local reflected = amount * reflectPct
-				playerStateService:ApplyDamage(attacker, reflected)
+		if amount > 0 then
+			playerStateService:AddDamageDealt(attacker, amount)
+			self:_sendFeedback(attacker, "DamageDealt", { Amount = amount })
+			local victimStats = playerStateService:GetFinalStats(victim)
+			if victimStats then
+				local reflectPct = math.clamp(victimStats.Reflect, 0, 0.5)
+				if reflectPct > 0 then
+					local reflected = amount * reflectPct
+					playerStateService:ApplyDamage(attacker, reflected)
+				end
 			end
+			self._context.EventBus:Fire("DamageDealt", attacker, victim, amount)
 		end
-		self._context.EventBus:Fire("DamageDealt", attacker, victim, amount)
 	end
 
 	if knockbackDirection then

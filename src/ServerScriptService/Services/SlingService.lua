@@ -187,6 +187,9 @@ function SlingService:_canControl(player: Player): boolean
 	if not self._context.Services.PlayerService:IsAlive(player) then
 		return false
 	end
+	if self._context.Services.PlayerStateService:IsStunned(player) then
+		return false
+	end
 	return true
 end
 

@@ -6,6 +6,8 @@ RemoteContracts.Names = {
 	MoveRequest = "MoveRequest",
 	StartCharge = "StartCharge",
 	ReleaseCharge = "ReleaseCharge",
+	RequestLaunch = "RequestLaunch",
+	AbilityTrigger = "AbilityTrigger",
 	GameplayFeedback = "GameplayFeedback",
 	StateUpdate = "StateUpdate",
 	UIStateUpdate = "UIStateUpdate",
@@ -14,10 +16,10 @@ RemoteContracts.Names = {
 	MatchStateUpdate = "MatchStateUpdate",
 	RoundResult = "RoundResult",
 	PopupMessage = "PopupMessage",
+	ZoneUpdate = "ZoneUpdate",
 	PurchaseRespawn = "PurchaseRespawn",
 	PurchaseMatchBuff = "PurchaseMatchBuff",
 	PrestigeReset = "PrestigeReset",
-	ToggleSpecialUpgrade = "ToggleSpecialUpgrade",
 	JoinArena = "JoinArena",
 	LeaveArena = "LeaveArena",
 	TeleportRequest = "TeleportRequest",
@@ -35,6 +37,12 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.ReleaseCharge] = function(aimTarget: any): boolean
 		return typeof(aimTarget) == "Vector3"
+	end,
+	[RemoteContracts.Names.RequestLaunch] = function(payload: any): boolean
+		return type(payload) == "table" and typeof(payload.aimTarget) == "Vector3"
+	end,
+	[RemoteContracts.Names.AbilityTrigger] = function(payload: any): boolean
+		return type(payload) == "table"
 	end,
 	[RemoteContracts.Names.AttributeUpgrade] = function(attributeName: any): boolean
 		return typeof(attributeName) == "string"
