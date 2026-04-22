@@ -36,6 +36,9 @@ function PlayerService:Init()
 	end)
 
 	Players.PlayerAdded:Connect(function(player)
+		player.CharacterAdded:Connect(function(character)
+			self:_onCharacterAdded(player, character)
+		end)
 		self:SpawnPawn(player, 1, "LobbyMap")
 	end)
 	Players.PlayerRemoving:Connect(function(player)
@@ -44,6 +47,9 @@ function PlayerService:Init()
 	end)
 
 	for _, player in Players:GetPlayers() do
+		player.CharacterAdded:Connect(function(character)
+			self:_onCharacterAdded(player, character)
+		end)
 		self:SpawnPawn(player, 1, "LobbyMap")
 	end
 
@@ -53,6 +59,23 @@ function PlayerService:Init()
 			self:SpawnPawn(player, nil, self._context.Services.MapService:GetActiveMap() or "LobbyMap")
 		end)
 	end
+end
+
+function PlayerService:_onCharacterAdded(player: Player, character: Model)
+	local expectedPawn = self:GetPawn(player)
+	if expectedPawn and character == expectedPawn then
+		return
+	end
+
+	if character and character:IsDescendantOf(self._pawnsFolder) then
+		return
+	end
+
+	task.defer(function()
+		if player.Parent == Players then
+			self:SpawnPawn(player, nil, self._context.Services.MapService:GetActiveMap() or "LobbyMap")
+		end
+	end)
 end
 
 function PlayerService:_loadWorldUiTemplate(): BillboardGui?

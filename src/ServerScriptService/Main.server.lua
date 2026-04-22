@@ -49,6 +49,26 @@ local context = {
 	EventBus = EventBus.new(),
 }
 
+local function runServicePhase(serviceName: string, phase: "Init" | "Start")
+	local service = context.Services[serviceName]
+	if not service then
+		warn(string.format("[Bootstrap] Missing service %s during %s phase.", serviceName, phase))
+		return
+	end
+
+	local phaseMethod = service[phase]
+	if typeof(phaseMethod) ~= "function" then
+		return
+	end
+
+	local ok, err = xpcall(function()
+		phaseMethod(service)
+	end, debug.traceback)
+	if not ok then
+		warn(string.format("[Bootstrap] %s:%s failed: %s", serviceName, phase, tostring(err)))
+	end
+end
+
 context.Services.PlayerStateService = PlayerStateService.new(context)
 context.Services.TeamService = TeamService.new(context)
 context.Services.PlayerService = PlayerService.new(context)
@@ -65,18 +85,28 @@ context.Services.SafeZoneService = SafeZoneService.new(context)
 context.Services.MonetizationService = MonetizationService.new(context)
 context.Services.LeaderboardService = LeaderboardService.new(context)
 
-context.Services.PlayerStateService:Init()
-context.Services.TeamService:Init()
-context.Services.MapService:Init()
-context.Services.PlayerService:Init()
-context.Services.FoodService:Init()
-context.Services.SlingService:Init()
-context.Services.CollisionService:Init()
-context.Services.DamagePipelineService:Init()
-context.Services.GrowthService:Init()
-context.Services.TrapService:Init()
-context.Services.SlingAbilityService:Init()
-context.Services.SafeZoneService:Init()
-context.Services.MonetizationService:Init()
-context.Services.LeaderboardService:Init()
-context.Services.RoundService:Init()
+local initializationOrder = {
+	"PlayerStateService",
+	"TeamService",
+	"MapService",
+	"PlayerService",
+	"FoodService",
+	"SlingService",
+	"CollisionService",
+	"DamagePipelineService",
+	"GrowthService",
+	"TrapService",
+	"SlingAbilityService",
+	"SafeZoneService",
+	"MonetizationService",
+	"LeaderboardService",
+	"RoundService",
+}
+
+for _, serviceName in ipairs(initializationOrder) do
+	runServicePhase(serviceName, "Init")
+end
+
+for _, serviceName in ipairs(initializationOrder) do
+	runServicePhase(serviceName, "Start")
+end

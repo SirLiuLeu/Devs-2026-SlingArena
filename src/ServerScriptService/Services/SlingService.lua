@@ -79,10 +79,13 @@ function SlingService.new(context)
 	local self = setmetatable({}, SlingService)
 	self._context = context
 	self._input = {}
+	self._moveRateState = {}
 	self._chargeState = {}
 	self._releaseCooldown = {}
 	self._releaseState = {}
 	self._movementControllers = {}
+	self._remoteConnections = {}
+	self._heartbeatConnection = nil
 	return self
 end
 
@@ -135,24 +138,37 @@ end
 
 function SlingService:Init()
 	local remotes = self._context.Remotes
-	local moveRemote = remotes:WaitForChild(RemoteContracts.Names.MoveRequest)
-	local startChargeRemote = remotes:WaitForChild(RemoteContracts.Names.StartCharge)
-	local releaseChargeRemote = remotes:WaitForChild(RemoteContracts.Names.ReleaseCharge)
+	local moveRemote = remotes:FindFirstChild(RemoteContracts.Names.MoveRequest)
+	local startChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.StartCharge)
+	local releaseChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.ReleaseCharge)
 
-	moveRemote.OnServerEvent:Connect(function(player, directionInput)
-		self:HandleMoveRequest(player, directionInput)
-	end)
+	if moveRemote and moveRemote:IsA("RemoteEvent") then
+		self._remoteConnections.MoveRequest = moveRemote.OnServerEvent:Connect(function(player, directionInput)
+			self:HandleMoveRequest(player, directionInput)
+		end)
+	else
+		warn(string.format("[SlingService] Missing remote %s; movement input listener disabled.", RemoteContracts.Names.MoveRequest))
+	end
 
-	startChargeRemote.OnServerEvent:Connect(function(player, aimTarget)
-		self:StartCharge(player, aimTarget)
-	end)
+	if startChargeRemote and startChargeRemote:IsA("RemoteEvent") then
+		self._remoteConnections.StartCharge = startChargeRemote.OnServerEvent:Connect(function(player, aimTarget)
+			self:StartCharge(player, aimTarget)
+		end)
+	else
+		warn(string.format("[SlingService] Missing remote %s; charge-start listener disabled.", RemoteContracts.Names.StartCharge))
+	end
 
-	releaseChargeRemote.OnServerEvent:Connect(function(player, aimTarget)
-		self:ReleaseCharge(player, aimTarget)
-	end)
+	if releaseChargeRemote and releaseChargeRemote:IsA("RemoteEvent") then
+		self._remoteConnections.ReleaseCharge = releaseChargeRemote.OnServerEvent:Connect(function(player, aimTarget)
+			self:ReleaseCharge(player, aimTarget)
+		end)
+	else
+		warn(string.format("[SlingService] Missing remote %s; charge-release listener disabled.", RemoteContracts.Names.ReleaseCharge))
+	end
 
 	Players.PlayerRemoving:Connect(function(player)
 		self._input[player] = nil
+		self._moveRateState[player] = nil
 		self._chargeState[player] = nil
 		self._releaseCooldown[player] = nil
 		self._releaseState[player] = nil
@@ -163,7 +179,15 @@ function SlingService:Init()
 		end
 	end)
 
-	RunService.Heartbeat:Connect(function(dt)
+end
+
+function SlingService:Start()
+	if self._heartbeatConnection then
+		self._heartbeatConnection:Disconnect()
+		self._heartbeatConnection = nil
+	end
+
+	self._heartbeatConnection = RunService.Heartbeat:Connect(function(dt)
 		self:_stepMovement(dt)
 		self:_stepMovementStates()
 	end)
@@ -194,6 +218,16 @@ function SlingService:_canControl(player: Player): boolean
 end
 
 function SlingService:HandleMoveRequest(player: Player, directionInput: Vector3)
+	if typeof(directionInput) ~= "Vector3" then
+		return
+	end
+
+	local now = os.clock()
+	local lastEventAt = self._moveRateState[player]
+	if lastEventAt and (now - lastEventAt) < 0.03 then
+		return
+	end
+
 	if not RemoteContracts.Validate(RemoteContracts.Names.MoveRequest, directionInput) then
 		return
 	end
@@ -214,6 +248,7 @@ function SlingService:HandleMoveRequest(player: Player, directionInput: Vector3)
 
 	local planar = Vector3.new(directionInput.X, 0, directionInput.Z)
 	self._input[player] = if planar.Magnitude > 1 then planar.Unit else planar
+	self._moveRateState[player] = now
 end
 
 function SlingService:StartCharge(player: Player, aimTarget: Vector3)

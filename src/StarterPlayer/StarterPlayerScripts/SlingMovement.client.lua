@@ -17,6 +17,9 @@ local keyStates = {
 	[Enum.KeyCode.S] = false,
 	[Enum.KeyCode.D] = false,
 }
+local SEND_INTERVAL_SECONDS = 1 / 20
+local lastSentAt = 0
+local lastSentVector = Vector3.zero
 
 local function computeInputVector(): Vector3
 	local x = 0
@@ -76,6 +79,10 @@ player.CharacterAdded:Connect(function()
 end)
 
 RunService.RenderStepped:Connect(function()
+	local now = os.clock()
+	if now - lastSentAt < SEND_INTERVAL_SECONDS then
+		return
+	end
 
 	local inputVector = computeInputVector()
 
@@ -83,5 +90,11 @@ RunService.RenderStepped:Connect(function()
 		inputVector = inputVector.Unit
 	end
 
+	if (inputVector - lastSentVector).Magnitude < 0.001 then
+		return
+	end
+
 	moveRequestRemote:FireServer(inputVector)
+	lastSentVector = inputVector
+	lastSentAt = now
 end)
