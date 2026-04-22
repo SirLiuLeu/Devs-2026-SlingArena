@@ -7,7 +7,7 @@
   - **Description:** Impact damage is computed from speed × `log(size+1)` × slingshot modifier × damage multiplier × charge multiplier, then clamped.
   - **Impact:** Diverges from Rule_DESIGN’s simpler formula and creates hidden scaling behavior.
 
-## DamagePipelineService
+## DamagePipelineService - phản sát thương chưa có ghi rõ trong Rule design
 - **Feature Name:** Reflection damage against attacker.
   - **Location:** `src/ServerScriptService/Services/DamagePipelineService.lua`.
   - **Description:** Victim reflect stat causes automatic reflected damage to attacker.
@@ -26,7 +26,7 @@
   - **Description:** State tracks `InvulnerableUntil` and blocks damage while active.
   - **Impact:** Hidden defensive state not described in rule flags.
 
-## UI / Client Controllers
+## UI / Client Controllers - Xử lý sau đó (button unitest, cooldown for launch, debug log..)
 - **Feature Name:** Developer debug buttons wired to server remotes.
   - **Location:** `src/ReplicatedStorage/Client/Controllers/UIController.lua` + `LobbyClientService.lua`.
   - **Description:** UI includes debug spawn-food and debug reset-sling controls.
