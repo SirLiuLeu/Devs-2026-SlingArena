@@ -185,7 +185,6 @@ DataModel
 │     │  ├─ SlingMovement.lua (internal movement module)
 │     │  └─ ChargeFlow.lua [MISSING: planned internal submodule]
 │     ├─ CollisionService.lua
-│     ├─ CombatService.lua
 │     ├─ DamagePipelineService.lua
 │     ├─ GrowthService.lua
 │     ├─ FoodService.lua
