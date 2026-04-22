@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
@@ -440,6 +441,13 @@ end
 function InventoryUIController:_resolveSlingModelSource(slingId: string): Model?
 	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
 	if assetsFolder then
+		local assetsSling = assetsFolder:FindFirstChild("Sling")
+		if assetsSling then
+			local model = assetsSling:FindFirstChild(slingId)
+			if model and model:IsA("Model") then
+				return model
+			end
+		end
 		local assetsSlings = assetsFolder:FindFirstChild("Slings")
 		if assetsSlings then
 			local model = assetsSlings:FindFirstChild(slingId)
@@ -462,12 +470,11 @@ function InventoryUIController:_resolveSlingModelSource(slingId: string): Model?
 end
 
 function InventoryUIController:_removeEquippedSlingModel()
-	local player = Players.LocalPlayer
-	local character = player.Character
-	if not character then
+	local pawn = PawnLocator.GetLocalPawn()
+	if not pawn then
 		return
 	end
-	for _, child in ipairs(character:GetChildren()) do
+	for _, child in ipairs(pawn:GetChildren()) do
 		if child:IsA("Model") and child.Name == "EquippedSlingModel" then
 			child:Destroy()
 		end
@@ -479,20 +486,14 @@ function InventoryUIController:_applyEquippedSlingModel(slingId: string)
 	if not modelTemplate then
 		return
 	end
-	if modelTemplate:FindFirstChildOfClass("Humanoid") then
-		warn(string.format("[INVENTORY_UI] Sling model %s contains Humanoid; skipping equip", slingId))
+	local pawn = PawnLocator.GetLocalPawn()
+	if not pawn then
+		warn("[INVENTORY_UI] Sling pawn missing while equipping sling")
 		return
 	end
-
-	local player = Players.LocalPlayer
-	local character = player.Character
-	if not character then
-		warn("[INVENTORY_UI] Character missing while equipping sling")
-		return
-	end
-	local root = character:FindFirstChild("Hitbox") or character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
+	local root = PawnLocator.GetRootPart(pawn)
 	if not root or not root:IsA("BasePart") then
-		warn("[INVENTORY_UI] Character root (Hitbox/PrimaryPart) missing while equipping sling")
+		warn("[INVENTORY_UI] Sling pawn root (Hitbox/PrimaryPart) missing while equipping sling")
 		return
 	end
 
@@ -500,7 +501,7 @@ function InventoryUIController:_applyEquippedSlingModel(slingId: string)
 
 	local newModel = modelTemplate:Clone()
 	newModel.Name = "EquippedSlingModel"
-	newModel.Parent = character
+	newModel.Parent = pawn
 	if not newModel.PrimaryPart then
 		local firstPart = newModel:FindFirstChildWhichIsA("BasePart", true)
 		if firstPart then

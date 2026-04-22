@@ -3,6 +3,7 @@
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
@@ -99,8 +100,7 @@ function SpinUIController:_bindWorldTrigger()
 	end
 
 	table.insert(self._connections, game:GetService("RunService").Heartbeat:Connect(function()
-		local character = game:GetService("Players").LocalPlayer.Character
-		local hrp = character and character:FindFirstChild("HumanoidRootPart")
+		local hrp = PawnLocator.GetRootPart(PawnLocator.GetLocalPawn())
 		local modelPart = self._gachaModel:IsA("Model") and self._gachaModel.PrimaryPart or nil
 		if not (hrp and hrp:IsA("BasePart") and modelPart) then
 			return

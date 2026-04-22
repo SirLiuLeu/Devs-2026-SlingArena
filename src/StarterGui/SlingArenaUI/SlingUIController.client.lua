@@ -11,6 +11,7 @@ local SlingUiConstants = require(ReplicatedStorage.Shared.Constants.SlingUiConst
 local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
 local SlingUiState = require(ReplicatedStorage.Shared.Utils.SlingUiState)
 local WaitForUI = require(ReplicatedStorage.Shared.Utils.WaitForUI)
+local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -319,27 +320,7 @@ local function clampDragToRadius(rawVector: Vector2): (Vector2, number, Vector2)
 end
 
 local function getCharacterRoot(): BasePart?
-	local character = player.Character
-	if not character then
-		return nil
-	end
-
-	local root = character:FindFirstChild("Hitbox")
-	if root and root:IsA("BasePart") then
-		return root
-	end
-
-	local primary = character.PrimaryPart
-	if primary and primary:IsA("BasePart") then
-		return primary
-	end
-
-	root = character:FindFirstChild("HumanoidRootPart")
-	if root and root:IsA("BasePart") then
-		return root
-	end
-
-	return nil
+	return PawnLocator.GetRootPart(PawnLocator.GetLocalPawn())
 end
 
 local function computeAimTargetFromJoystick(): Vector3
@@ -629,7 +610,10 @@ if stateUpdateRemote then
 	end)
 end
 
-player.CharacterAdded:Connect(function()
+workspace:WaitForChild("SlingPawns").ChildAdded:Connect(function(child)
+	if child.Name ~= player.Name then
+		return
+	end
 	resolveUi(false)
 	bindJoystickInput()
 	resetVisualState()

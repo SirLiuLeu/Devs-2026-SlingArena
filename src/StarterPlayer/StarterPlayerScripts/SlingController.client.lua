@@ -7,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
@@ -21,49 +22,11 @@ local MIN_RELEASE_SPEED = 6
 local lastMovementState = GameStates.Movement.Idle
 local releaseCameraEnabled = false
 
-local function getCharacter(): Model?
-	local character = player.Character
-	if character and character:IsA("Model") then
-		return character
-	end
-	return nil
-end
-
 local function getRootPart(): BasePart?
-	local character = getCharacter()
-	if not character then
-		return nil
-	end
-
-	local root = character:FindFirstChild("Hitbox")
-	if root and root:IsA("BasePart") then
-		return root
-	end
-
-	local primary = character.PrimaryPart
-	if primary and primary:IsA("BasePart") then
-		return primary
-	end
-
-	root = character:FindFirstChild("HumanoidRootPart")
-	if root and root:IsA("BasePart") then
-		return root
-	end
-
-	return character:FindFirstChildWhichIsA("BasePart")
+	return PawnLocator.GetRootPart(PawnLocator.GetLocalPawn())
 end
 
 local function getSlingCameraTarget(): Instance?
-	local character = getCharacter()
-	if not character then
-		return nil
-	end
-
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		return humanoid
-	end
-
 	return getRootPart()
 end
 
@@ -131,7 +94,11 @@ if stateUpdateRemote then
 	end)
 end
 
-player.CharacterAdded:Connect(function()
+local slingPawnsFolder = Workspace:WaitForChild("SlingPawns")
+slingPawnsFolder.ChildAdded:Connect(function(child)
+	if child.Name ~= player.Name then
+		return
+	end
 	task.defer(applyDefaultCameraSubject)
 	task.delay(0.2, applyDefaultCameraSubject)
 end)

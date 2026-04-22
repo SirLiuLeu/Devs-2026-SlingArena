@@ -71,8 +71,10 @@ UserInputService.InputEnded:Connect(function(input)
 
 end)
 
-player.CharacterAdded:Connect(function()
-
+workspace:WaitForChild("SlingPawns").ChildAdded:Connect(function(child)
+	if child.Name ~= player.Name then
+		return
+	end
 	for keyCode in pairs(keyStates) do
 		keyStates[keyCode] = false
 	end

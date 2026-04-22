@@ -66,7 +66,10 @@ playerGui.ChildRemoved:Connect(function(child)
 	end
 end)
 
-player.CharacterAdded:Connect(function()
+workspace:WaitForChild("SlingPawns").ChildAdded:Connect(function(child)
+	if child.Name ~= player.Name then
+		return
+	end
 	task.wait()
 	scheduleRebuild()
 end)

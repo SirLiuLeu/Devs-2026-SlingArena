@@ -50,21 +50,6 @@ function PlayerStateService:GetRequiredExp(level: number): number
 	return LevelConfig.RequiredExp(level)
 end
 
-
-local function syncHumanoidHealth(player: Player, currentHp: number, maxHp: number)
-	local character = player.Character
-	if not character then
-		return
-	end
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if not humanoid then
-		return
-	end
-	humanoid.MaxHealth = math.max(maxHp, 1)
-	humanoid.Health = math.clamp(currentHp, 0, humanoid.MaxHealth)
-	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOn
-end
-
 local function buildDefaultState(player: Player): PlayerState
 	local sling = SlingshotConfig.SlingConfig
 	local state: PlayerState = {
@@ -222,7 +207,6 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	else
 		state.CurrentHP = math.clamp(state.CurrentHP, 0, hp)
 	end
-	syncHumanoidHealth(player, state.CurrentHP, state.MaxHP)
 	self:PublishState(player)
 end
 
@@ -258,7 +242,6 @@ function PlayerStateService:SetAlive(player: Player, alive: boolean)
 	local state = self._states[player]
 	if not state then return end
 	state.IsAlive = alive
-	syncHumanoidHealth(player, state.CurrentHP, state.MaxHP)
 	self:PublishState(player)
 end
 
@@ -297,7 +280,6 @@ function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
 	if not state or not state.IsAlive then return false end
 	state.CurrentHP = math.max(0, state.CurrentHP - math.max(0, amount))
 	state.LastDamageTime = os.clock()
-	syncHumanoidHealth(player, state.CurrentHP, state.MaxHP)
 	self:PublishState(player)
 	return true
 end
@@ -306,7 +288,6 @@ function PlayerStateService:Heal(player: Player, amount: number)
 	local state = self._states[player]
 	if not state then return end
 	state.CurrentHP = math.min(state.MaxHP, state.CurrentHP + math.max(0, amount))
-	syncHumanoidHealth(player, state.CurrentHP, state.MaxHP)
 	self:PublishState(player)
 end
 

@@ -2,12 +2,12 @@
   "ClassName": "Model",
   "Name": "CubeSling",
   "PrimaryPart": {
-    "Ref": "HumanoidRootPart"
+    "Ref": "Hitbox"
   },
   "Children": [
     {
       "ClassName": "Part",
-      "Name": "HumanoidRootPart",
+      "Name": "Hitbox",
       "Size": [
         2,
         2,
@@ -63,7 +63,7 @@
       "ClassName": "WeldConstraint",
       "Name": "BodyWeld",
       "Part0": {
-        "Ref": "HumanoidRootPart"
+        "Ref": "Hitbox"
       },
       "Part1": {
         "Ref": "Body"

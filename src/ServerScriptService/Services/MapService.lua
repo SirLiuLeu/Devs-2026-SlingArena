@@ -251,7 +251,9 @@ function MapService:_hookLobbyGates()
 			part.Touched:Connect(function(hit)
 				local model = hit:FindFirstAncestorOfClass("Model")
 				if not model then return end
-				local player = game.Players:GetPlayerFromCharacter(model)
+				local playerService = self._context.Services.PlayerService
+				if not playerService then return end
+				local player = playerService:GetPlayerFromPawn(model)
 				if not player then return end
 				if self._lobbyTouchedDebounce[player] then return end
 				self._lobbyTouchedDebounce[player] = true

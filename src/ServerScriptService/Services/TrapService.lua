@@ -81,11 +81,15 @@ end
 
 function TrapService:_bindTrapTouched(trapPart: BasePart)
 	table.insert(self._trapTouchedConnections, trapPart.Touched:Connect(function(hit)
-		local character = hit:FindFirstAncestorOfClass("Model")
-		if not character then
+		local pawn = hit:FindFirstAncestorOfClass("Model")
+		if not pawn then
 			return
 		end
-		local player = game:GetService("Players"):GetPlayerFromCharacter(character)
+		local playerService = self._context.Services.PlayerService
+		if not playerService then
+			return
+		end
+		local player = playerService:GetPlayerFromPawn(pawn)
 		if not player then
 			return
 		end

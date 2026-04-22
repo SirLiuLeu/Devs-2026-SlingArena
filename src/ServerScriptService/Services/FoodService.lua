@@ -253,14 +253,13 @@ function FoodService:_onFoodTouched(food: Model, hit: BasePart)
 	if not model then
 		return
 	end
-	local player = Players:GetPlayerFromCharacter(model)
-	if not player then
-		return
-	end
 	local playerService = getService(self._context, "PlayerService")
 	if not playerService then
 		warn("[FoodService] PlayerService unavailable; cannot validate food collision owner.")
-		self._foodTouchedDebounce[player] = nil
+		return
+	end
+	local player = playerService:GetPlayerFromPawn(model)
+	if not player then
 		return
 	end
 	if model ~= playerService:GetPawn(player) then
