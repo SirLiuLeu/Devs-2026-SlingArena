@@ -437,6 +437,7 @@ DataModel
 │
 ## 🟫 Workspace (Maps)
 ├─ Workspace  -> src/Workspace
+│  ├─ Camera
 │  └─ Maps
 │     ├─ LobbyMap
 │     │  ├─ SpawnPoints
