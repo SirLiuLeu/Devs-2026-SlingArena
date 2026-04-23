@@ -144,17 +144,8 @@ end
 
 function SlingService:Init()
 	local remotes = self._context.Remotes
-	local moveRemote = remotes:FindFirstChild(RemoteContracts.Names.MoveRequest)
 	local startChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.StartCharge)
 	local releaseChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.ReleaseCharge)
-
-	if moveRemote and moveRemote:IsA("RemoteEvent") then
-		self._remoteConnections.MoveRequest = moveRemote.OnServerEvent:Connect(function(player, directionInput)
-			self:HandleMoveRequest(player, directionInput)
-		end)
-	else
-		warn(string.format("[SlingService] Missing remote %s; movement input listener disabled.", RemoteContracts.Names.MoveRequest))
-	end
 
 	if startChargeRemote and startChargeRemote:IsA("RemoteEvent") then
 		self._remoteConnections.StartCharge = startChargeRemote.OnServerEvent:Connect(function(player, aimTarget)
