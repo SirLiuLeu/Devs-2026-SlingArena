@@ -38,6 +38,7 @@ function PlayerService:Init()
 	end)
 
 	Players.PlayerAdded:Connect(function(player)
+		self:_waitForPlayerReady(player)
 		self:SpawnPawn(player, 1, "LobbyMap")
 	end)
 	Players.PlayerRemoving:Connect(function(player)
@@ -47,6 +48,7 @@ function PlayerService:Init()
 	end)
 
 	for _, player in Players:GetPlayers() do
+		self:_waitForPlayerReady(player)
 		self:SpawnPawn(player, 1, "LobbyMap")
 	end
 
@@ -55,6 +57,12 @@ function PlayerService:Init()
 		debugResetRemote.OnServerEvent:Connect(function(player)
 			self:SpawnPawn(player, nil, self._context.Services.MapService:GetActiveMap() or "LobbyMap")
 		end)
+	end
+end
+
+function PlayerService:_waitForPlayerReady(player: Player)
+	while player.Parent == Players and not player:FindFirstChildOfClass("PlayerGui") do
+		task.wait()
 	end
 end
 
@@ -149,36 +157,17 @@ function PlayerService:_updateWorldUi(player: Player, state)
 	end
 end
 
-function PlayerService:_loadSlingTemplate(): Model
+function PlayerService:_loadSlingTemplate(): Model?
 	if self._slingTemplate then
 		return self._slingTemplate
 	end
 
 	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
-	local slingFolder = assetsFolder and assetsFolder:FindFirstChild("Sling")
-	local slingModel = nil
-	if slingFolder then
-		slingModel = slingFolder:FindFirstChild("Sling_Template") or slingFolder:FindFirstChildWhichIsA("Model")
-	end
-	if not slingModel then
-		local slingsFolder = assetsFolder and assetsFolder:FindFirstChild("Slings")
-		if slingsFolder then
-			slingModel = slingsFolder:FindFirstChild("Sling_Template")
-		end
-	end
+	local slingsFolder = assetsFolder and assetsFolder:FindFirstChild("Slings")
+	local slingModel = slingsFolder and slingsFolder:FindFirstChild("Sling_Template")
 	if not (slingModel and slingModel:IsA("Model")) then
-		warn("[PLAYER_SERVICE] ReplicatedStorage/Assets/Sling/Sling_Template missing. Using fallback physics model.")
-		local fallback = Instance.new("Model")
-		fallback.Name = "Sling_Template"
-		local rootPart = Instance.new("Part")
-		rootPart.Name = "Hitbox"
-		rootPart.Shape = Enum.PartType.Ball
-		rootPart.Size = Vector3.new(4, 4, 4)
-		rootPart.TopSurface = Enum.SurfaceType.Smooth
-		rootPart.BottomSurface = Enum.SurfaceType.Smooth
-		rootPart.Parent = fallback
-		fallback.PrimaryPart = rootPart
-		slingModel = fallback
+		warn("[PLAYER_SERVICE] ReplicatedStorage/Assets/Slings/Sling_Template missing. Pawn spawn aborted.")
+		return nil
 	end
 
 	local template = slingModel:Clone()
@@ -194,13 +183,8 @@ function PlayerService:_loadSlingTemplate(): Model
 		root = template.PrimaryPart
 	end
 	if not (root and root:IsA("BasePart")) then
-		warn("[PLAYER_SERVICE] Sling_Template missing PrimaryPart/Hitbox. Injecting fallback root part.")
-		local fallbackRoot = Instance.new("Part")
-		fallbackRoot.Name = "Hitbox"
-		fallbackRoot.Shape = Enum.PartType.Ball
-		fallbackRoot.Size = Vector3.new(4, 4, 4)
-		fallbackRoot.Parent = template
-		root = fallbackRoot
+		warn("[PLAYER_SERVICE] Sling_Template has no PrimaryPart/Hitbox. Pawn spawn aborted.")
+		return nil
 	end
 	template.PrimaryPart = root
 
@@ -240,7 +224,7 @@ function PlayerService:GetPawn(player)
 	if mapped and mapped.Parent then
 		return mapped
 	end
-	local byName = self._pawnsFolder:FindFirstChild(player.Name)
+	local byName = self._pawnsFolder:FindFirstChild(player.Name .. "_Pawn")
 	if byName and byName:IsA("Model") then
 		self._playerToSling[player] = byName
 		self._slingToPlayer[byName] = player
@@ -281,8 +265,22 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	self:_destroyPawn(player)
 
 	local template = self:_loadSlingTemplate()
+	if not template then
+		return nil
+	end
 	local pawn = template:Clone()
-	pawn.Name = player.Name
+	if not pawn.PrimaryPart then
+		local root = pawn:FindFirstChild("Hitbox")
+		if root and root:IsA("BasePart") then
+			pawn.PrimaryPart = root
+		end
+	end
+	if not pawn.PrimaryPart then
+		warn("[PLAYER_SERVICE] Pawn clone missing PrimaryPart. Pawn spawn aborted.")
+		return nil
+	end
+
+	pawn.Name = player.Name .. "_Pawn"
 	local index = spawnIndex or (player.UserId % 8) + 1
 	local mapService = self._context.Services.MapService
 	local playerState = self._context.Services.PlayerStateService:GetState(player)
@@ -293,6 +291,8 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	end
 	pawn:PivotTo(spawnCFrame)
 	pawn.Parent = self._pawnsFolder
+	player.Character = pawn
+	pawn.PrimaryPart:SetNetworkOwner(player)
 	self._playerToSling[player] = pawn
 	self._slingToPlayer[pawn] = player
 	self:_attachWorldUi(pawn)
@@ -302,7 +302,6 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 			descendant.Anchored = false
 			descendant.AssemblyLinearVelocity = Vector3.zero
 			descendant.AssemblyAngularVelocity = Vector3.zero
-			descendant:SetNetworkOwner(nil)
 		elseif descendant:IsA("BodyMover") then
 			descendant:Destroy()
 		end
