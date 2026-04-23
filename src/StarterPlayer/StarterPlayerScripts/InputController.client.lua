@@ -122,7 +122,7 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 slingPawns.ChildAdded:Connect(function(child)
-	if child.Name ~= player.Name then
+	if child.Name ~= player.Name and child.Name ~= (player.Name .. "_Pawn") then
 		return
 	end
 	for keyCode in pairs(keyboardState) do
@@ -143,10 +143,6 @@ RunService.RenderStepped:Connect(function()
 	end
 
 	local direction = computeWorldMoveDirection()
-	if (direction - lastSentVector).Magnitude < 0.001 then
-		return
-	end
-
 	moveRequestRemote:FireServer(direction)
 	lastSentVector = direction
 	lastSentAt = now

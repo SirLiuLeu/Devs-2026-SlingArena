@@ -345,10 +345,17 @@ function PlayerService:GetRoot(player)
 	if not pawn then
 		return nil
 	end
-	local root = pawn:FindFirstChild("Hitbox") or pawn.PrimaryPart
+	local root = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox")
 	if root and root:IsA("BasePart") then
+		if pawn.PrimaryPart == nil then
+			pawn.PrimaryPart = root
+		end
+		if root.Name ~= "Hitbox" then
+			warn(string.format("[PlayerService] PrimaryPart is not Hitbox for %s (%s)", player.Name, root:GetFullName()))
+		end
 		return root
 	end
+	warn(string.format("[PlayerService] Missing PrimaryPart/Hitbox for %s", player.Name))
 	return nil
 end
 

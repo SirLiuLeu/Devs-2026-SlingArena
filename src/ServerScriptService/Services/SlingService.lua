@@ -92,6 +92,8 @@ function SlingService.new(context)
 	self._movementControllers = {}
 	self._remoteConnections = {}
 	self._heartbeatConnection = nil
+	self._warnedInvalidRoot = {}
+	self._loggedControllerRoot = {}
 	return self
 end
 
@@ -146,6 +148,7 @@ function SlingService:Init()
 	local remotes = self._context.Remotes
 	local startChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.StartCharge)
 	local releaseChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.ReleaseCharge)
+	local moveRequestRemote = remotes:FindFirstChild(RemoteContracts.Names.MoveRequest)
 
 	if startChargeRemote and startChargeRemote:IsA("RemoteEvent") then
 		self._remoteConnections.StartCharge = startChargeRemote.OnServerEvent:Connect(function(player, aimTarget)
@@ -163,12 +166,22 @@ function SlingService:Init()
 		warn(string.format("[SlingService] Missing remote %s; charge-release listener disabled.", RemoteContracts.Names.ReleaseCharge))
 	end
 
+	if moveRequestRemote and moveRequestRemote:IsA("RemoteEvent") then
+		self._remoteConnections.MoveRequest = moveRequestRemote.OnServerEvent:Connect(function(player, direction)
+			self:HandleMoveRequest(player, direction)
+		end)
+	else
+		warn(string.format("[SlingService] Missing remote %s; movement listener disabled.", RemoteContracts.Names.MoveRequest))
+	end
+
 	Players.PlayerRemoving:Connect(function(player)
 		self._input[player] = nil
 		self._moveRateState[player] = nil
 		self._chargeState[player] = nil
 		self._releaseCooldown[player] = nil
 		self._releaseState[player] = nil
+		self._warnedInvalidRoot[player] = nil
+		self._loggedControllerRoot[player] = nil
 		local movementController = self._movementControllers[player]
 		if movementController then
 			movementController:Destroy()
@@ -379,12 +392,30 @@ function SlingService:_getMovementController(player: Player, root: BasePart)
 			acceleration = BalanceConfig.GroundAcceleration or 18,
 			deceleration = BalanceConfig.GroundDeceleration or 24,
 		})
+		warn(string.format("[SlingService] movementController ready player=%s root=%s", player.Name, root:GetFullName()))
 		self._movementControllers[player] = movementController
 	end
 	return movementController
 end
 
 function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: Vector3, dt: number)
+	if root.Anchored then
+		if not self._warnedInvalidRoot[player] then
+			self._warnedInvalidRoot[player] = true
+			warn(string.format("[SlingService] Root anchored; movement blocked for %s (%s)", player.Name, root:GetFullName()))
+		end
+		return
+	end
+
+	self._warnedInvalidRoot[player] = nil
+	if root:GetNetworkOwner() ~= player then
+		root:SetNetworkOwner(player)
+		if not self._loggedControllerRoot[player] then
+			self._loggedControllerRoot[player] = true
+			warn(string.format("[SlingService] SetNetworkOwner player=%s root=%s", player.Name, root:GetFullName()))
+		end
+	end
+
 	local state = self._context.Services.PlayerStateService:GetState(player)
 	if not state then
 		return

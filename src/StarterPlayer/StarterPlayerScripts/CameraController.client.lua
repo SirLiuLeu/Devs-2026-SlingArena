@@ -13,17 +13,38 @@ local LOOK_HEIGHT = 3
 local FOLLOW_SHARPNESS = 10
 
 local desiredCFrame: CFrame? = nil
+local lastCameraTargetName: string? = nil
+
+local function findPawnModel(): Model?
+	local bySuffix = slingPawns:FindFirstChild(player.Name .. "_Pawn")
+	if bySuffix and bySuffix:IsA("Model") then
+		return bySuffix
+	end
+	local byName = slingPawns:FindFirstChild(player.Name)
+	if byName and byName:IsA("Model") then
+		return byName
+	end
+	return nil
+end
 
 local function resolveRootPart(): BasePart?
-	local pawn = slingPawns:FindFirstChild(player.Name)
+	local pawn = findPawnModel()
 	if not pawn or not pawn:IsA("Model") then
+		if lastCameraTargetName ~= nil then
+			lastCameraTargetName = nil
+			warn("[CameraController] No pawn model found for local player.")
+		end
 		return nil
 	end
 
-	local root = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox")
+	local root = pawn:FindFirstChild("Hitbox") or pawn.PrimaryPart
 	if root and root:IsA("BasePart") then
 		if pawn.PrimaryPart == nil then
 			pawn.PrimaryPart = root
+		end
+		if lastCameraTargetName ~= pawn.Name then
+			lastCameraTargetName = pawn.Name
+			warn(string.format("[CameraController] Following target=%s root=%s", pawn.Name, root:GetFullName()))
 		end
 		return root
 	end
@@ -31,6 +52,10 @@ local function resolveRootPart(): BasePart?
 	local fallback = pawn:FindFirstChildWhichIsA("BasePart")
 	if fallback then
 		pawn.PrimaryPart = fallback
+		if lastCameraTargetName ~= pawn.Name then
+			lastCameraTargetName = pawn.Name
+			warn(string.format("[CameraController] Following fallback target=%s root=%s", pawn.Name, fallback:GetFullName()))
+		end
 		return fallback
 	end
 
@@ -87,7 +112,7 @@ Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 end)
 
 slingPawns.ChildAdded:Connect(function(child)
-	if child.Name == player.Name then
+	if child.Name == player.Name or child.Name == (player.Name .. "_Pawn") then
 		desiredCFrame = nil
 	end
 end)
