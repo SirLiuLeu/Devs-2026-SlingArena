@@ -14,6 +14,10 @@ local function getPawnsFolder(): Folder?
 end
 
 function PawnLocator.GetPawnByPlayer(player: Player): Model?
+	if player.Character and player.Character:IsA("Model") then
+		return player.Character
+	end
+
 	local pawnsFolder = getPawnsFolder()
 	if not pawnsFolder then
 		return nil
@@ -21,6 +25,10 @@ function PawnLocator.GetPawnByPlayer(player: Player): Model?
 	local pawn = pawnsFolder:FindFirstChild(player.Name)
 	if pawn and pawn:IsA("Model") then
 		return pawn
+	end
+	local suffixPawn = pawnsFolder:FindFirstChild(player.Name .. "_Pawn")
+	if suffixPawn and suffixPawn:IsA("Model") then
+		return suffixPawn
 	end
 	return nil
 end

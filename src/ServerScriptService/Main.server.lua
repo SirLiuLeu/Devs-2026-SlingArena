@@ -58,7 +58,7 @@ PhysicsService:CollisionGroupSetCollidable("Players", "Environment", true)
 
 local remotesFolder = ReplicatedStorage:WaitForChild("SlingArenaRemotes") :: Folder
 for _, remoteName in pairs(RemoteContracts.Names) do
-	local remote = remotesFolder:WaitForChild(remoteName, 5)
+	local remote = remotesFolder:FindFirstChild(remoteName)
 	if not remote then
 		warn(string.format("[RemoteSetup] Missing ReplicatedStorage.SlingArenaRemotes.%s (RemoteEvent). Create it in Studio.", remoteName))
 	end

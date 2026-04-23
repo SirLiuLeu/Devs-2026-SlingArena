@@ -611,7 +611,7 @@ if stateUpdateRemote then
 end
 
 workspace:WaitForChild("SlingPawns").ChildAdded:Connect(function(child)
-	if child.Name ~= player.Name then
+	if child.Name ~= player.Name and child.Name ~= (player.Name .. "_Pawn") then
 		return
 	end
 	resolveUi(false)

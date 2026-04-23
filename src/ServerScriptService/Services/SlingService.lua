@@ -94,6 +94,7 @@ function SlingService.new(context)
 	self._heartbeatConnection = nil
 	self._warnedInvalidRoot = {}
 	self._loggedControllerRoot = {}
+	self._aimTargets = {}
 	return self
 end
 
@@ -167,8 +168,8 @@ function SlingService:Init()
 	end
 
 	if moveRequestRemote and moveRequestRemote:IsA("RemoteEvent") then
-		self._remoteConnections.MoveRequest = moveRequestRemote.OnServerEvent:Connect(function(player, direction)
-			self:HandleMoveRequest(player, direction)
+		self._remoteConnections.MoveRequest = moveRequestRemote.OnServerEvent:Connect(function(player, direction, aimTarget)
+			self:HandleMoveRequest(player, direction, aimTarget)
 		end)
 	else
 		warn(string.format("[SlingService] Missing remote %s; movement listener disabled.", RemoteContracts.Names.MoveRequest))
@@ -182,6 +183,7 @@ function SlingService:Init()
 		self._releaseState[player] = nil
 		self._warnedInvalidRoot[player] = nil
 		self._loggedControllerRoot[player] = nil
+		self._aimTargets[player] = nil
 		local movementController = self._movementControllers[player]
 		if movementController then
 			movementController:Destroy()
@@ -189,6 +191,33 @@ function SlingService:Init()
 		end
 	end)
 
+end
+
+function SlingService:_resolvePawnAndRoot(player: Player): (Model?, BasePart?)
+	local playerService = self._context.Services.PlayerService
+	local pawn = player.Character
+	if not (pawn and pawn:IsA("Model")) and playerService then
+		pawn = playerService:GetPawn(player)
+	end
+	if not (pawn and pawn:IsA("Model")) then
+		return nil, nil
+	end
+
+	if player.Character ~= pawn then
+		player.Character = pawn
+	end
+
+	local root = pawn:FindFirstChild("HumanoidRootPart")
+	if not (root and root:IsA("BasePart")) then
+		root = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox")
+	end
+	if root and root:IsA("BasePart") then
+		if pawn.PrimaryPart == nil then
+			pawn.PrimaryPart = root
+		end
+		return pawn, root
+	end
+	return pawn, nil
 end
 
 function SlingService:Start()
@@ -234,7 +263,7 @@ function SlingService:_canControl(player: Player): boolean
 	return true
 end
 
-function SlingService:HandleMoveRequest(player: Player, directionInput: Vector3)
+function SlingService:HandleMoveRequest(player: Player, directionInput: Vector3, aimTarget: Vector3?)
 	if typeof(directionInput) ~= "Vector3" then
 		return
 	end
@@ -265,6 +294,9 @@ function SlingService:HandleMoveRequest(player: Player, directionInput: Vector3)
 
 	local planar = Vector3.new(directionInput.X, 0, directionInput.Z)
 	self._input[player] = if planar.Magnitude > 1 then planar.Unit else planar
+	if typeof(aimTarget) == "Vector3" then
+		self._aimTargets[player] = aimTarget
+	end
 	self._moveRateState[player] = now
 end
 
@@ -282,7 +314,7 @@ function SlingService:StartCharge(player: Player, aimTarget: Vector3)
 		return
 	end
 
-	local root = self._context.Services.PlayerService:GetRoot(player)
+	local _, root = self:_resolvePawnAndRoot(player)
 	local state = self._context.Services.PlayerStateService:GetState(player)
 	if not root or not state then
 		return
@@ -317,7 +349,7 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	if not chargeState then
 		return
 	end
-	local root = self._context.Services.PlayerService:GetRoot(player)
+	local _, root = self:_resolvePawnAndRoot(player)
 	local state = self._context.Services.PlayerStateService:GetState(player)
 	if not root or not state then
 		self._chargeState[player] = nil
@@ -362,6 +394,31 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	self._releaseCooldown[player] = 0
 	self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
 	self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
+end
+
+function SlingService:_applyAimRotation(player: Player, root: BasePart, input: Vector3, dt: number)
+	local aimTarget = self._aimTargets[player]
+	local desiredPlanar = Vector3.zero
+	if typeof(aimTarget) == "Vector3" then
+		desiredPlanar = Vector3.new(aimTarget.X - root.Position.X, 0, aimTarget.Z - root.Position.Z)
+	end
+	if desiredPlanar.Magnitude < 0.01 then
+		desiredPlanar = Vector3.new(input.X, 0, input.Z)
+	end
+	if desiredPlanar.Magnitude < 0.01 then
+		return
+	end
+
+	local currentLook = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+	if currentLook.Magnitude < 0.01 then
+		currentLook = desiredPlanar.Unit
+	end
+	local rotationAlpha = 1 - math.exp(-math.max(1, (BalanceConfig.AimRotationSharpness or 16)) * math.max(dt, 1 / 240))
+	local blended = currentLook.Unit:Lerp(desiredPlanar.Unit, rotationAlpha)
+	if blended.Magnitude < 0.01 then
+		blended = desiredPlanar.Unit
+	end
+	root.CFrame = CFrame.lookAt(root.Position, root.Position + blended.Unit, Vector3.yAxis)
 end
 
 function SlingService:_stepMovement(dt: number)
@@ -432,6 +489,8 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		movementController:DisableLocomotion(false)
 		return
 	end
+
+	self:_applyAimRotation(player, root, input, dt)
 
 	if input.Magnitude < 0.001 then
 		movementController:SetSpeed(math.max(state.MoveSpeed or Config.MoveSpeed, 0))

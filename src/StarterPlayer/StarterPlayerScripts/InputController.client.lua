@@ -87,6 +87,57 @@ local function computeWorldMoveDirection(): Vector3
 	return move.Unit
 end
 
+local function resolveLocalRoot(): BasePart?
+	local character = player.Character
+	if character and character:IsA("Model") then
+		local root = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Hitbox") or character.PrimaryPart
+		if root and root:IsA("BasePart") then
+			return root
+		end
+	end
+
+	local pawnBySuffix = slingPawns:FindFirstChild(player.Name .. "_Pawn")
+	if pawnBySuffix and pawnBySuffix:IsA("Model") then
+		local root = pawnBySuffix:FindFirstChild("Hitbox") or pawnBySuffix.PrimaryPart
+		if root and root:IsA("BasePart") then
+			return root
+		end
+	end
+
+	local pawnByName = slingPawns:FindFirstChild(player.Name)
+	if pawnByName and pawnByName:IsA("Model") then
+		local root = pawnByName:FindFirstChild("Hitbox") or pawnByName.PrimaryPart
+		if root and root:IsA("BasePart") then
+			return root
+		end
+	end
+
+	return nil
+end
+
+local function computeAimTarget(): Vector3?
+	local root = resolveLocalRoot()
+	local camera = Workspace.CurrentCamera
+	if not (root and camera) then
+		return nil
+	end
+
+	local mousePosition = UserInputService:GetMouseLocation()
+	local ray = camera:ViewportPointToRay(mousePosition.X, mousePosition.Y)
+	local dy = ray.Direction.Y
+	if math.abs(dy) < 0.001 then
+		local planarDirection = Vector3.new(ray.Direction.X, 0, ray.Direction.Z)
+		if planarDirection.Magnitude < 0.001 then
+			planarDirection = Vector3.new(0, 0, -1)
+		end
+		return root.Position + planarDirection.Unit * 32
+	end
+
+	local t = (root.Position.Y - ray.Origin.Y) / dy
+	local hitPosition = ray.Origin + (ray.Direction * t)
+	return Vector3.new(hitPosition.X, root.Position.Y, hitPosition.Z)
+end
+
 local function onDirectionalAction(directionName: string, state: Enum.UserInputState): Enum.ContextActionResult
 	local pressed = state == Enum.UserInputState.Begin or state == Enum.UserInputState.Change
 	actionState[directionName] = if pressed then 1 else 0
@@ -143,7 +194,7 @@ RunService.RenderStepped:Connect(function()
 	end
 
 	local direction = computeWorldMoveDirection()
-	moveRequestRemote:FireServer(direction)
+	moveRequestRemote:FireServer(direction, computeAimTarget())
 	lastSentVector = direction
 	lastSentAt = now
 end)
