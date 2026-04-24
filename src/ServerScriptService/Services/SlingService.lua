@@ -53,8 +53,6 @@ local function applyRootPhysicalProperties(root: BasePart)
 	)
 end
 
-local MAX_LAUNCH_DISTANCE = math.max(1, BalanceConfig.MaxLaunchDistance or 30)
-
 function SlingService.BuildLaunchVector(direction: Vector3, launchForce: number): Vector3
 	local safeDirection = if direction.Magnitude < 0.01 then Vector3.new(0, 0, -1) else direction.Unit
 	local safeForce = math.max(0, sanitizeNumber(launchForce, 0))
@@ -354,7 +352,16 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 		self._chargeState[player] = nil
 		return
 	end
+	if not root:IsA("BasePart") then
+		self._chargeState[player] = nil
+		return
+	end
 	if root.Anchored then
+		self._chargeState[player] = nil
+		return
+	end
+	local mass = root.AssemblyMass
+	if mass <= 0 then
 		self._chargeState[player] = nil
 		return
 	end
@@ -362,35 +369,39 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	local maxChargeTime = math.max(0.001, PhysicsConfig.Charge.MaxChargeTime)
 	local chargeRatio = SlingService.CalculateChargeRatio(chargeState.chargeStartTime, os.clock(), maxChargeTime)
 
-	local aimPlanar = Vector3.new(aimTarget.X - root.Position.X, 0, aimTarget.Z - root.Position.Z)
-	local launchDirectionPlanar: Vector3
-	if aimPlanar.Magnitude > 0.01 then
-		launchDirectionPlanar = aimPlanar.Unit
-	else
-		local lastMoveInput = self._input[player] or Vector3.zero
-		local movePlanar = Vector3.new(lastMoveInput.X, 0, lastMoveInput.Z)
-		if movePlanar.Magnitude > 0.01 then
-			launchDirectionPlanar = movePlanar.Unit
-		else
-			local facingPlanar = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
-			launchDirectionPlanar = if facingPlanar.Magnitude > 0.01 then facingPlanar.Unit else Vector3.new(0, 0, -1)
-		end
+	local direction = aimTarget - root.Position
+	direction = Vector3.new(direction.X, 0, direction.Z)
+	if direction.Magnitude <= 0 then
+		self._chargeState[player] = nil
+		return
 	end
-	if aimPlanar.Magnitude > MAX_LAUNCH_DISTANCE then
-		launchDirectionPlanar = aimPlanar.Unit
-	end
+	local launchDirectionPlanar = direction.Unit
 	chargeState.aimDirection = launchDirectionPlanar
 
 	local minForce = math.max(0, PhysicsConfig.Charge.MinForce)
 	local maxForce = math.max(minForce, PhysicsConfig.Charge.MaxForce)
 	local chargeForce = minForce + ((maxForce - minForce) * chargeRatio)
-	local launchForce = math.max(0, chargeForce * math.max(0, PhysicsConfig.Charge.ChargeForceMultiplier))
+	local launchForce = math.max(10, chargeForce * math.max(0, PhysicsConfig.Charge.ChargeForceMultiplier))
 	local launchVector = SlingService.BuildLaunchVector(launchDirectionPlanar, launchForce)
 	local movementController = self._movementControllers[player]
 	if movementController then
 		movementController:DisableLocomotion(true)
 	end
-	root:ApplyImpulse(launchVector * root.AssemblyMass)
+	local linearVelocityController = root:FindFirstChild("MoveLinearVelocity")
+	local oldMovementControllerEnabled = false
+	if linearVelocityController and linearVelocityController:IsA("LinearVelocity") then
+		oldMovementControllerEnabled = linearVelocityController.Enabled
+		linearVelocityController.VectorVelocity = Vector3.zero
+		linearVelocityController.Enabled = false
+	end
+	root:ApplyImpulse(launchVector * mass)
+	if linearVelocityController and linearVelocityController:IsA("LinearVelocity") then
+		task.delay(0.3, function()
+			if linearVelocityController.Parent and linearVelocityController:IsA("LinearVelocity") then
+				linearVelocityController.Enabled = oldMovementControllerEnabled
+			end
+		end)
+	end
 
 	state.CurrentVelocity = root.AssemblyLinearVelocity
 	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
