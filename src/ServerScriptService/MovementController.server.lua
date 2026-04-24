@@ -129,6 +129,9 @@ moveRequestRemote.OnServerEvent:Connect(function(player: Player, directionInput:
 	end
 
 	local movementController = getOrCreateController(player, root)
+	if root:GetNetworkOwner() == nil and movementController.Enabled == false then
+		return
+	end
 	assignNetworkOwnership(root, player)
 	local direction = sanitizeDirection(directionInput)
 	local targetVelocity = Vector3.new(direction.X, 0, direction.Z) * PhysicsConfig.Movement.MoveSpeed

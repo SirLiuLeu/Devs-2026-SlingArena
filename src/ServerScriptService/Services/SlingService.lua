@@ -90,7 +90,24 @@ function SlingService.new(context)
 	self._warnedInvalidRoot = {}
 	self._loggedControllerRoot = {}
 	self._aimTargets = {}
+	self._launchVelocityControllers = {}
 	return self
+end
+
+function SlingService:_restoreLaunchVelocityControllers(player: Player)
+	local controllerInfos = self._launchVelocityControllers[player]
+	if not controllerInfos then
+		return
+	end
+
+	for _, controllerInfo in ipairs(controllerInfos) do
+		local controller = controllerInfo.instance
+		if controller and controller.Parent and controller:IsA("LinearVelocity") then
+			controller.Enabled = controllerInfo.enabled
+		end
+	end
+
+	self._launchVelocityControllers[player] = nil
 end
 
 function SlingService:_getTrackedPlayers(): { any }
@@ -179,6 +196,7 @@ function SlingService:Init()
 		self._warnedInvalidRoot[player] = nil
 		self._loggedControllerRoot[player] = nil
 		self._aimTargets[player] = nil
+		self._launchVelocityControllers[player] = nil
 		local movementController = self._movementControllers[player]
 		if movementController then
 			movementController:Destroy()
@@ -385,10 +403,10 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	if movementController then
 		movementController:DisableLocomotion(true)
 	end
+	self:_restoreLaunchVelocityControllers(player)
 	local velocityControllers = {}
-	for _, controllerName in { "MoveLinearVelocity", "LinearVelocity" } do
-		local controller = root:FindFirstChild(controllerName)
-		if controller and controller:IsA("LinearVelocity") then
+	for _, controller in ipairs(root:GetDescendants()) do
+		if controller:IsA("LinearVelocity") then
 			table.insert(velocityControllers, {
 				instance = controller,
 				enabled = controller.Enabled,
@@ -397,24 +415,15 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 			controller.Enabled = false
 		end
 	end
+	self._launchVelocityControllers[player] = velocityControllers
 
-	root.AssemblyLinearVelocity = launchVector
+	root:SetNetworkOwner(nil)
 	root:ApplyImpulse(launchVector * mass)
 	print("Before:", root.AssemblyLinearVelocity)
 
 task.delay(0.1, function()
     print("After 0.1s:", root.AssemblyLinearVelocity)
 end)
-	if #velocityControllers > 0 then
-		task.delay(0.3, function()
-			for _, controllerInfo in ipairs(velocityControllers) do
-				local controller = controllerInfo.instance
-				if controller and controller.Parent and controller:IsA("LinearVelocity") then
-					controller.Enabled = controllerInfo.enabled
-				end
-			end
-		end)
-	end
 
 	state.CurrentVelocity = root.AssemblyLinearVelocity
 	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
@@ -498,18 +507,24 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		return
 	end
 
-	self._warnedInvalidRoot[player] = nil
-	if root:GetNetworkOwner() ~= player then
-		root:SetNetworkOwner(player)
-		if not self._loggedControllerRoot[player] then
-			self._loggedControllerRoot[player] = true
-			warn(string.format("[SlingService] SetNetworkOwner player=%s root=%s", player.Name, root:GetFullName()))
-		end
-	end
-
 	local state = self._context.Services.PlayerStateService:GetState(player)
 	if not state then
 		return
+	end
+	if state.MovementState ~= MOVEMENT_STATE.Launched then
+		self:_restoreLaunchVelocityControllers(player)
+	end
+	self._warnedInvalidRoot[player] = nil
+	if state.MovementState == MOVEMENT_STATE.Launched then
+		root:SetNetworkOwner(nil)
+	else
+		if root:GetNetworkOwner() ~= player then
+			root:SetNetworkOwner(player)
+			if not self._loggedControllerRoot[player] then
+				self._loggedControllerRoot[player] = true
+				warn(string.format("[SlingService] SetNetworkOwner player=%s root=%s", player.Name, root:GetFullName()))
+			end
+		end
 	end
 	local movementController = self:_getMovementController(player, root)
 
@@ -548,6 +563,7 @@ function SlingService:_stepMovementStates()
 			local now = os.clock()
 			local horizontal = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude
 			if state.MovementState == MOVEMENT_STATE.Launched and horizontal <= BalanceConfig.VelocityStopThreshold then
+				self:_restoreLaunchVelocityControllers(player)
 				local releaseState = self._releaseState[player]
 				local releaseDuration = 0
 				if releaseState and typeof(releaseState.releaseStartTime) == "number" then
