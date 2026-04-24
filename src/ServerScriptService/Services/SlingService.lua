@@ -340,7 +340,6 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	if not self:_canControl(player) then
 		return
 	end
-
 	local chargeState = self._chargeState[player]
 	if not chargeState then
 		return
@@ -386,7 +385,6 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	if movementController then
 		movementController:DisableLocomotion(true)
 	end
-
 	local velocityControllers = {}
 	for _, controllerName in { "MoveLinearVelocity", "LinearVelocity" } do
 		local controller = root:FindFirstChild(controllerName)
@@ -402,7 +400,11 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 
 	root.AssemblyLinearVelocity = launchVector
 	root:ApplyImpulse(launchVector * mass)
+	print("Before:", root.AssemblyLinearVelocity)
 
+task.delay(0.1, function()
+    print("After 0.1s:", root.AssemblyLinearVelocity)
+end)
 	if #velocityControllers > 0 then
 		task.delay(0.3, function()
 			for _, controllerInfo in ipairs(velocityControllers) do

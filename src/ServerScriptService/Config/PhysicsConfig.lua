@@ -18,7 +18,7 @@ local PhysicsConfig = {
 		MaxChargeTime = 1.4,
 		ChargeForceMultiplier = 1,
 		MinForce = 35,
-		MaxForce = 140,
+		MaxForce = 1400,
 	},
 
 	Stability = {
