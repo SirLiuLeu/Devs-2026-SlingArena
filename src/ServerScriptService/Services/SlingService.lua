@@ -94,6 +94,14 @@ function SlingService.new(context)
 	return self
 end
 
+local function resolveAlignOrientation(root: BasePart): AlignOrientation?
+	local alignOrientation = root:FindFirstChild("AlignOrientation")
+	if alignOrientation and alignOrientation:IsA("AlignOrientation") then
+		return alignOrientation
+	end
+	return nil
+end
+
 function SlingService:_restoreLaunchVelocityControllers(player: Player)
 	local controllerInfos = self._launchVelocityControllers[player]
 	if not controllerInfos then
@@ -277,8 +285,8 @@ function SlingService:_canControl(player: Player): boolean
 	return true
 end
 
-function SlingService:HandleMoveRequest(player: Player, directionInput: Vector3, aimTarget: Vector3?)
-	if typeof(directionInput) ~= "Vector3" then
+function SlingService:HandleMoveRequest(player: Player, moveInput: Vector3, aimDirection: Vector3?)
+	if typeof(moveInput) ~= "Vector3" then
 		return
 	end
 
@@ -288,7 +296,7 @@ function SlingService:HandleMoveRequest(player: Player, directionInput: Vector3,
 		return
 	end
 
-	if not RemoteContracts.Validate(RemoteContracts.Names.MoveRequest, directionInput) then
+	if not RemoteContracts.Validate(RemoteContracts.Names.MoveRequest, moveInput) then
 		return
 	end
 	if not self:_canControl(player) then
@@ -306,10 +314,13 @@ function SlingService:HandleMoveRequest(player: Player, directionInput: Vector3,
 		return
 	end
 
-	local planar = Vector3.new(directionInput.X, 0, directionInput.Z)
+	local planar = Vector3.new(moveInput.X, 0, moveInput.Z)
 	self._input[player] = if planar.Magnitude > 1 then planar.Unit else planar
-	if typeof(aimTarget) == "Vector3" then
-		self._aimTargets[player] = aimTarget
+	if typeof(aimDirection) == "Vector3" then
+		local planarAim = Vector3.new(aimDirection.X, 0, aimDirection.Z)
+		if planarAim.Magnitude > 0.001 then
+			self._aimTargets[player] = planarAim.Unit
+		end
 	end
 	self._moveRateState[player] = now
 end
@@ -443,29 +454,29 @@ end)
 	self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
 end
 
-function SlingService:_applyAimRotation(player: Player, root: BasePart, input: Vector3, dt: number)
-	local aimTarget = self._aimTargets[player]
+function SlingService:_applyAimRotation(player: Player, root: BasePart, input: Vector3, _dt: number)
+	local alignOrientation = resolveAlignOrientation(root)
+	if not alignOrientation then
+		return
+	end
+	local aimDirection = self._aimTargets[player]
 	local desiredPlanar = Vector3.zero
-	if typeof(aimTarget) == "Vector3" then
-		desiredPlanar = Vector3.new(aimTarget.X - root.Position.X, 0, aimTarget.Z - root.Position.Z)
+	if typeof(aimDirection) == "Vector3" then
+		desiredPlanar = Vector3.new(aimDirection.X, 0, aimDirection.Z)
 	end
 	if desiredPlanar.Magnitude < 0.01 then
-		desiredPlanar = Vector3.new(input.X, 0, input.Z)
+		local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+		if forward.Magnitude > 0.01 then
+			desiredPlanar = forward.Unit
+		elseif input.Magnitude > 0.01 then
+			desiredPlanar = input.Unit
+		end
 	end
 	if desiredPlanar.Magnitude < 0.01 then
 		return
 	end
 
-	local currentLook = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
-	if currentLook.Magnitude < 0.01 then
-		currentLook = desiredPlanar.Unit
-	end
-	local rotationAlpha = 1 - math.exp(-math.max(1, (BalanceConfig.AimRotationSharpness or 16)) * math.max(dt, 1 / 240))
-	local blended = currentLook.Unit:Lerp(desiredPlanar.Unit, rotationAlpha)
-	if blended.Magnitude < 0.01 then
-		blended = desiredPlanar.Unit
-	end
-	root.CFrame = CFrame.lookAt(root.Position, root.Position + blended.Unit, Vector3.yAxis)
+	alignOrientation.CFrame = CFrame.lookAt(root.Position, root.Position + desiredPlanar.Unit, Vector3.yAxis)
 end
 
 function SlingService:_stepMovement(dt: number)
@@ -530,6 +541,14 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		end
 	end
 	local movementController = self:_getMovementController(player, root)
+	local moveDirection = Vector3.zero
+	if input.Magnitude > 0.001 then
+		local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+		local right = Vector3.new(root.CFrame.RightVector.X, 0, root.CFrame.RightVector.Z)
+		if forward.Magnitude > 0.001 and right.Magnitude > 0.001 then
+			moveDirection = (forward.Unit * input.Z) + (right.Unit * input.X)
+		end
+	end
 
 	if state.MovementState == MOVEMENT_STATE.Launched then
 		-- Preserve launch momentum. We only disable the locomotion actuator so it does not
@@ -544,7 +563,7 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		return
 	end
 
-	if input.Magnitude < 0.001 then
+	if moveDirection.Magnitude < 0.001 then
 		movementController:SetSpeed(math.max(PhysicsConfig.Movement.MoveSpeed, 0))
 		movementController:Move(Vector3.zero, dt)
 		self:_applyAimRotation(player, root, input, dt)
@@ -555,7 +574,7 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 	end
 
 	movementController:SetSpeed(math.max(PhysicsConfig.Movement.MoveSpeed, 0))
-	movementController:Move(input.Unit, dt)
+	movementController:Move(moveDirection.Unit, dt)
 	self:_applyAimRotation(player, root, input, dt)
 	if state.MovementState ~= MOVEMENT_STATE.Moving then
 		self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Moving)

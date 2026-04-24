@@ -35,23 +35,6 @@ local lastSentVector = Vector3.zero
 local lastSentAt = 0
 
 
-local function resolveCameraBasis(): (Vector3, Vector3)
-	local camera = Workspace.CurrentCamera
-	if not camera then
-		return Vector3.new(0, 0, -1), Vector3.new(1, 0, 0)
-	end
-
-	local forward = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
-	local right = Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z)
-	if forward.Magnitude < 0.001 then
-		forward = Vector3.new(0, 0, -1)
-	end
-	if right.Magnitude < 0.001 then
-		right = Vector3.new(1, 0, 0)
-	end
-	return forward.Unit, right.Unit
-end
-
 local function composeInput2D(): Vector2
 	local x = 0
 	local y = 0
@@ -74,60 +57,26 @@ local function composeInput2D(): Vector2
 	return output
 end
 
-local function computeWorldMoveDirection(): Vector3
+local function computeMoveInput(): Vector3
 	local input2D = composeInput2D()
 	if input2D.Magnitude <= 0 then
 		return Vector3.zero
 	end
 
-	local forward, right = resolveCameraBasis()
-	local move = (right * input2D.X) + (forward * input2D.Y)
-	if move.Magnitude < 0.001 then
-		return Vector3.zero
-	end
-	return move.Unit
+	return Vector3.new(input2D.X, 0, input2D.Y)
 end
 
-local function resolveLocalRoot(): BasePart?
-	local character = player.Character
-	if character and character:IsA("Model") then
-		local root = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Hitbox") or character.PrimaryPart
-		if root and root:IsA("BasePart") then
-			return root
-		end
-	end
-
-	local pawnBySuffix = slingPawns:FindFirstChild(player.Name .. "_Pawn")
-	if pawnBySuffix and pawnBySuffix:IsA("Model") then
-		local root = pawnBySuffix:FindFirstChild("Hitbox") or pawnBySuffix.PrimaryPart
-		if root and root:IsA("BasePart") then
-			return root
-		end
-	end
-
-	local pawnByName = slingPawns:FindFirstChild(player.Name)
-	if pawnByName and pawnByName:IsA("Model") then
-		local root = pawnByName:FindFirstChild("Hitbox") or pawnByName.PrimaryPart
-		if root and root:IsA("BasePart") then
-			return root
-		end
-	end
-
-	return nil
-end
-
-local function computeAimTarget(): Vector3?
-	local root = resolveLocalRoot()
+local function computeAimDirection(): Vector3?
 	local camera = Workspace.CurrentCamera
-	if not (root and camera) then
+	if not camera then
 		return nil
 	end
 
 	local planarLook = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
 	if planarLook.Magnitude < 0.001 then
-		planarLook = Vector3.new(0, 0, -1)
+		return Vector3.new(0, 0, -1)
 	end
-	return root.Position + planarLook.Unit * 32
+	return planarLook.Unit
 end
 
 local function onDirectionalAction(directionName: string, state: Enum.UserInputState): Enum.ContextActionResult
@@ -194,8 +143,8 @@ RunService.RenderStepped:Connect(function()
 		return
 	end
 
-	local direction = computeWorldMoveDirection()
-	moveRequestRemote:FireServer(direction, computeAimTarget())
-	lastSentVector = direction
+	local input = computeMoveInput()
+	moveRequestRemote:FireServer(input, computeAimDirection())
+	lastSentVector = input
 	lastSentAt = now
 end)

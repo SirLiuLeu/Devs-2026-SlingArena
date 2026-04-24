@@ -203,7 +203,9 @@ function PlayerService:_loadSlingTemplate(): Model?
 		if alignOrientation and alignOrientation:IsA("AlignOrientation") then
 			alignOrientation.Attachment0 = attachment
 			alignOrientation.Mode = Enum.OrientationAlignmentMode.OneAttachment
-			alignOrientation.RigidityEnabled = true
+			alignOrientation.RigidityEnabled = false
+			alignOrientation.MaxTorque = math.huge
+			alignOrientation.Responsiveness = 20
 		end
 	end
 
