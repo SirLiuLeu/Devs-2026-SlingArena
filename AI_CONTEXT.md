@@ -30,3 +30,36 @@
 | GameplayFeedback | S->C | DamagePipelineService | `{ eventType: string, payload: { [string]: any } }` | Combat/damage feedback (damage dealt, impact, level-up, etc.). |
 | PopupMessage | S->C | TrapService | `{ type: string, text: string }` | Contextual popup notification (trap or gameplay warnings). |
 | ZoneUpdate | S->C | SafeZoneService | `{ phase: string, radius: number, center: Vector3, dpsPercent: number, nextShrinkAt?: number }` | Safe-zone visual and damage sync (freeze-required). |
+
+# Controllers (Current)
+
+| Controller | Responsibility | Category |
+|---|---|---|
+| `InputController.client.lua` | Captures keyboard/touch movement input, right-mouse hold state, computes camera-relative movement direction, and sends `MoveRequest` with aim target. | Input |
+| `CameraController.client.lua` | Keeps the local camera in `Custom` mode and sets camera subject to the local pawn root when available. | Input |
+| `SlingUIController.client.lua` | Runs sling joystick/charge/cooldown HUD behavior and sends `StartCharge` / `ReleaseCharge` remotes from UI input. | UI |
+| `UIController.lua` | Composes and starts feature UI controllers, wires top-level hub toggles, and routes snapshot updates into UI. | UI |
+| `InventoryUIController.lua` | Renders and updates inventory UI (items/slings), slot interactions, and equipped sling preview model. | UI |
+| `ShopUIController.lua` | Renders shop tabs/slots and binds buy actions through shop logic service snapshots. | UI |
+| `OnlineRewardUIController.lua` | Renders online reward slots/timers and reward-claim UI states from logic snapshots. | UI |
+| `DailyLoginUIController.lua` | Renders daily login reward slots and claim/locked/completed states from logic snapshots. | UI |
+| `SpinUIController.lua` | Controls spin UI visibility, spin animation, world trigger binding, and spin button interactions. | UI |
+| `MovementController.server.lua` | Receives `MoveRequest` from clients, applies pawn linear velocity, and updates facing rotation toward movement direction. | Network |
+
+# Config Data (`ReplicatedStorage/Shared/Config`)
+
+Config modules store shared tuning and content tables (movement/combat constants, level progression formulas, item/sling catalogs, trap/gameplay values, and gacha reward pools). They are required by both client and server code to keep gameplay math and UI/content lookups consistent across systems.
+
+| Config file | Data it contains | Known users |
+|---|---|---|
+| `AbilityConfig.lua` | No runtime table currently present (empty file). | usage unclear |
+| `BalanceConfig.lua` | Core balance constants for combat, collisions, growth, launch, respawn, food, and economy values. | `SlingService`, `GrowthService`, `PlayerStateService`, `CollisionService`, `DamagePipelineService`, `FoodService`, `LevelConfig` |
+| `Config.lua` | Base gameplay constants (force/charge/physics/arena/player defaults and movement speed). | `SlingService`, `PlayerService`, `SafeZoneService`, `CollisionService` |
+| `FoodConfig.lua` | Placeholder comments for food design fields (EXP/HP/respawn/drop-rate); no exported config table. | usage unclear |
+| `GachaRewardConfig.lua` | Gacha reward entries (id/type/weight/icon/name/teamBonus) and reward accessor. | `GachaSpinLogic`, `SpinUIController`, `GachaSpinLogicTests` |
+| `GameConfig.lua` | Placeholder comments for player cap/phase/respawn/join rules; no exported config table. | usage unclear |
+| `ItemConfig.lua` | Item catalog (`Items`) with metadata (`id`, `name`, `effect`, `icon`, `stackable`) and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
+| `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
+| `SlingConfig.lua` | Sling catalog (`Types`) with rarity/modelPath/stats and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
+| `SlingshotConfig.lua` | Launch/charge/recovery constants, slingshot modifiers, and sling combat baseline values. | `SlingService`, `PlayerStateService`, `SlingUIController` |
+| `TrapConfig.lua` | Trap tuning constants (EXP penalty, cooldown, count, color). | `TrapService` |

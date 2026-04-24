@@ -34,6 +34,7 @@ local actionState = {
 local lastSentVector = Vector3.zero
 local lastSentAt = 0
 
+
 local function resolveCameraBasis(): (Vector3, Vector3)
 	local camera = Workspace.CurrentCamera
 	if not camera then
@@ -158,6 +159,10 @@ ContextActionService:BindAction("SlingRight", function(_, state)
 end, false, Enum.PlayerActions.CharacterRight)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		player:SetAttribute("CameraRotateHeld", true)
+	end
+
 	if gameProcessed then
 		return
 	end
@@ -167,6 +172,10 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		player:SetAttribute("CameraRotateHeld", false)
+	end
+
 	if keyboardState[input.KeyCode] ~= nil then
 		keyboardState[input.KeyCode] = false
 	end
@@ -183,6 +192,7 @@ slingPawns.ChildAdded:Connect(function(child)
 	actionState.backward = 0
 	actionState.left = 0
 	actionState.right = 0
+	player:SetAttribute("CameraRotateHeld", false)
 	lastSentVector = Vector3.zero
 	lastSentAt = 0
 end)

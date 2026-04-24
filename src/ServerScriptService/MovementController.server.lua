@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
@@ -9,12 +10,14 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local MOVE_SPEED = 36
 local MOVE_FORCE = 5000
 local MAX_INPUT_MAGNITUDE = 1
+local ROTATION_SHARPNESS = 14
 
 local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
 local moveRequestRemote = remotes:WaitForChild(RemoteContracts.Names.MoveRequest) :: RemoteEvent
 local slingPawns = Workspace:WaitForChild("SlingPawns")
 
 local controllers: {[Player]: LinearVelocity} = {}
+local facingDirections: {[Player]: Vector3} = {}
 
 local function getPawnRoot(player: Player): BasePart?
 	local pawn = slingPawns:FindFirstChild(player.Name)
@@ -83,6 +86,18 @@ local function sanitizeDirection(directionInput: Vector3): Vector3
 	return planar
 end
 
+local function rotateRootTowards(root: BasePart, targetDirection: Vector3, dt: number)
+	local planarDirection = Vector3.new(targetDirection.X, 0, targetDirection.Z)
+	if planarDirection.Magnitude < 0.001 then
+		return
+	end
+
+	local targetLook = planarDirection.Unit
+	local targetCFrame = CFrame.lookAt(root.Position, root.Position + targetLook, Vector3.yAxis)
+	local alpha = 1 - math.exp(-ROTATION_SHARPNESS * dt)
+	root.CFrame = root.CFrame:Lerp(targetCFrame, alpha)
+end
+
 moveRequestRemote.OnServerEvent:Connect(function(player: Player, directionInput: Vector3)
 	if typeof(directionInput) ~= "Vector3" then
 		return
@@ -100,10 +115,24 @@ moveRequestRemote.OnServerEvent:Connect(function(player: Player, directionInput:
 	local movementController = getOrCreateController(player, root)
 	local direction = sanitizeDirection(directionInput)
 	movementController.VectorVelocity = direction * MOVE_SPEED
+
+	if direction.Magnitude > 0.001 then
+		facingDirections[player] = direction.Unit
+	end
+end)
+
+RunService.Heartbeat:Connect(function(deltaTime)
+	for player, direction in pairs(facingDirections) do
+		local root = getPawnRoot(player)
+		if root then
+			rotateRootTowards(root, direction, deltaTime)
+		end
+	end
 end)
 
 local function clearPlayer(player: Player)
 	controllers[player] = nil
+	facingDirections[player] = nil
 end
 
 Players.PlayerRemoving:Connect(clearPlayer)
