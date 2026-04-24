@@ -386,18 +386,30 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	if movementController then
 		movementController:DisableLocomotion(true)
 	end
-	local linearVelocityController = root:FindFirstChild("MoveLinearVelocity")
-	local oldMovementControllerEnabled = false
-	if linearVelocityController and linearVelocityController:IsA("LinearVelocity") then
-		oldMovementControllerEnabled = linearVelocityController.Enabled
-		linearVelocityController.VectorVelocity = Vector3.zero
-		linearVelocityController.Enabled = false
+
+	local velocityControllers = {}
+	for _, controllerName in { "MoveLinearVelocity", "LinearVelocity" } do
+		local controller = root:FindFirstChild(controllerName)
+		if controller and controller:IsA("LinearVelocity") then
+			table.insert(velocityControllers, {
+				instance = controller,
+				enabled = controller.Enabled,
+			})
+			controller.VectorVelocity = Vector3.zero
+			controller.Enabled = false
+		end
 	end
+
+	root.AssemblyLinearVelocity = launchVector
 	root:ApplyImpulse(launchVector * mass)
-	if linearVelocityController and linearVelocityController:IsA("LinearVelocity") then
+
+	if #velocityControllers > 0 then
 		task.delay(0.3, function()
-			if linearVelocityController.Parent and linearVelocityController:IsA("LinearVelocity") then
-				linearVelocityController.Enabled = oldMovementControllerEnabled
+			for _, controllerInfo in ipairs(velocityControllers) do
+				local controller = controllerInfo.instance
+				if controller and controller.Parent and controller:IsA("LinearVelocity") then
+					controller.Enabled = controllerInfo.enabled
+				end
 			end
 		end)
 	end

@@ -63,10 +63,7 @@ function PathResolver.waitForPath(root: Instance, path: string, timeout: number)
 				return nil
 			end
 
-			local ok, result = pcall(function()
-				return current:WaitForChild(segment, remaining)
-			end)
-			child = if ok then result else nil
+			child = current:WaitForChild(segment, remaining)
 		end
 
 		current = child
