@@ -10,7 +10,7 @@ local PhysicsConfig = {
 	},
 
 	Movement = {
-		MoveSpeed = 5,
+		MoveSpeed = 10,
 		MaxForce = 30000,
 	},
 

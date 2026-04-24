@@ -37,6 +37,8 @@ DataModel
 │  │  ├── Slings
 │  │  │   ├── Sling_Template (Model)
 │  │  │   │   ├── Hitbox (Part - PrimaryPart)
+│  │  │   │   │   ├── Attachment (Attachment)
+│  │  │   │   │   └── AlignOrientation
 │  │  │   │   ├── Mesh (MeshPart/SpecialMesh)
 │  │  │   │   ├── Attachments
 │  │  │   │   │   ├── TrailStart (Attachment)
