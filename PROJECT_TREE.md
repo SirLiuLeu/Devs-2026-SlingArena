@@ -202,16 +202,14 @@ DataModel
 │  └─ StarterPlayerScripts
 │     └─ Client  -> src/StarterPlayer
 │        └─ StarterPlayerScripts
-│           ├─ SlingMovement.client.lua      (active input / charge script)
+│           ├─ InputController.client.lua      (active input / charge script)
 │           ├─ UIBinder.client.lua           (active UI bootstrap; event-driven rebinding)
-│           ├─ SlingController.client.lua    [UNKNOWN active status]
-│           └─ ClientController.client.lua   (legacy inert)
+│           └─ CameraController.client.lua   (Camera)
 │
 ## 🟨 StarterGui
 ├─ StarterGui  -> src/StarterGui
 │  ├─ LobbyUI (ScreenGui)
 │  │  └─ RootFrame
-│  │     ├─ UICorner
 │  │     ├─ DebugFood
 │  │     ├─ DebugReset
 │  │     ├─ JoinButton
@@ -224,7 +222,6 @@ DataModel
 │  │
 │  ├─ OnlineRewardUI (ScreenGui)
 │  │  └─ Root
-│  │     ├─ UICorner
 │  │     ├─ Content
 │  │     │  ├─ Grid (UIGridLayout)
 │  │     │  └─ RewardSlotTemplate
@@ -232,18 +229,13 @@ DataModel
 │  │     │  ├─ ClaimAll (TextButton)
 │  │     │  └─ SkipAll (TextButton)
 │  │     └─ Header
-│  │        ├─ UICorner
 │  │        ├─ CloseButton (TextButton)
 │  │        └─ Title (TextLabel)
 │  │
 │  ├─ DailyLoginUI (ScreenGui)
 │  │  ├─ MainPanel (Frame)
-│  │  │  ├─ UICorner
-│  │  │  ├─ UIPadding
 │  │  │  ├─ Content (Frame)
 │  │  │  │  ├─ Day7Big (Frame)
-│  │  │  │  │  ├─ UICorner
-│  │  │  │  │  ├─ UIStroke
 │  │  │  │  │  ├─ ClaimButton (TextButton)
 │  │  │  │  │  ├─ Icon (ImageLabel)
 │  │  │  │  │  ├─ Claimed (TextLabel)
@@ -260,19 +252,12 @@ DataModel
 │  │
 │  ├─ ShopGui (ScreenGui)
 │  │  └─ Main (ImageLabel)
-│  │     ├─ UICorner
-│  │     ├─ UIGradient
-│  │     ├─ UIStroke
 │  │     ├─ Buttons (Frame)
-│  │     │  ├─ UIListLayout
 │  │     │  ├─ Launcher (ImageButton/Frame)
 │  │     │  ├─ Dinamonds (ImageButton/Frame)
 │  │     │  └─ Items (ImageButton/Frame)
 │  │     ├─ Dinamonds (Frame)
-│  │     │  ├─ UIListLayout
 │  │     │  └─ Content (Frame)
-│  │     │     ├─ UICorner
-│  │     │     ├─ UIListLayout
 │  │     │     └─ ScrollingFrame
 │  │     ├─ Items (Frame)
 │  │     │  ├─ UIListLayout
@@ -291,13 +276,10 @@ DataModel
 │  ├─ SpinUI (ScreenGui)
 │  │  └─ Root
 │  │     ├─ Buttons
-│  │     │  ├─ UIListLayout
 │  │     │  ├─ Spin1 (TextButton)
 │  │     │  └─ Spin2 (TextButton)
 │  │     ├─ TurnsDisplay
 │  │     ├─ WheelContainer
-│  │     │  ├─ UICorner
-│  │     │  ├─ UIStroke
 │  │     │  ├─ Pointer
 │  │     │  └─ GachaWheel (ImageLabel)
 │  │     ├─ CloseButton (TextButton)
@@ -305,49 +287,38 @@ DataModel
 │  │ 
 │  ├─ InventoryUI (ScreenGui)
 │  │  ├── Root (Frame)
-│  │  │   ├── UICorner
 │  │  │   ├── Header (Frame)
 │  │  │   │   ├─ CloseButton (TextButton)
 │  │  │   │   └─ Title (TextLabel)
 │  │  │   ├── Tabs (Frame)
-│  │  │   │   ├─ UIListLayout
 │  │  │   │   ├─ ItemsTab (TextButton)
 │  │  │   │   └─ SlingTab (TextButton)
 │  │  │   ├── BodySling (Frame)
 │  │  │   │   ├── Footer (Frame)
 │  │  │   │   │   └─ CapacityLabel (TextLabel)
 │  │  │   │   ├── GridContainer (Frame)
-│  │  │   │   │   ├─ UIGridLayout
 │  │  │   │   │   └─ Slot1, Slot2, Slot3, Slot4 (Frames) -- Script Spawn in run time
 │  │  │   │   └── RightPanel (Frame)
-│  │  │   │       ├─ UIListLayout
 │  │  │   │       ├─ ActionButtons (Frame)
-│  │  │   │       │   ├─ UIListLayout
 │  │  │   │       │   ├─ DeleteButton (TextButton)
 │  │  │   │       │   ├─ EquipButton (TextButton)
 │  │  │   │       │   └─ UpgradeButton (TextButton)
 │  │  │   │       ├─ Stats (Frame)
-│  │  │   │       │   ├─ UIListLayout
 │  │  │   │       │   └─ Damage, HP, Range, Regen (TextLabels)
 │  │  │   │       └─ SelectedName (TextLabel)
 │  │  │   └── BodyItems (Frame)
 │  │  │       ├── GridContainer (Frame)
-│  │  │       │   ├─ UIGridLayout
 │  │  │       │   └─ Slot1, Slot2, Slot3, Slot4 (Frames) -- Script Spawn in run time
 │  │  │       └── RightPanel (Frame)
-│  │  │           ├─ UIListLayout
 │  │  │           ├─ ActionButtons (Frame)
-│  │  │           │   ├─ UIListLayout
 │  │  │           │   ├─ DeleteButton (TextButton)
 │  │  │           │   └─ UseButton (TextButton)
 │  │  │           ├─ Stats (Frame)
-│  │  │           │   ├─ UIListLayout
 │  │  │           │   └─ ItemStat1, ItemStat2, ItemStat3 (TextLabels)
 │  │  │           ├─ Description (TextLabel)
 │  │  │           └─ SelectedName (TextLabel)
 │  │  ├── Overlay (Frame)
 │  │  └── UpgradePopup (Frame)
-│  │      ├─ UICorner
 │  │      ├─ Cancel (TextButton)
 │  │      ├─ Confirm (TextButton)
 │  │      ├─ ConfirmText (TextLabel)
@@ -355,7 +326,6 @@ DataModel
 │  │
 │  ├─ MatchUI (ScreenGui)
 │  │  └─ RootFrame
-│  │     ├─ UICorner
 │  │     ├─ AlivePlayersLabel
 │  │     ├─ StatusLabel
 │  │     ├─ TimerLabel
@@ -363,7 +333,6 @@ DataModel
 │  │
 │  ├─ StatsUI (ScreenGui)
 │  │   └─ RootFrame
-│  │     ├─ UICorner
 │  │     ├─ GoldLabel
 │  │     ├─ ScoreLabel
 │  │     ├─ TitleLabel
@@ -372,26 +341,21 @@ DataModel
 │  ├─ MainHUD (ScreenGui)
 │  │  └─ Root
 │  │     ├─ BuffContainer
-│  │     │  ├─ UIListLayout
-│  │     │  ├─ Buff1
-│  │     │  └─ Buff2
+│  │     │  ├─ Buff1 (Frame)
+│  │     │  └─ Buff2 (Frame)
 │  │     ├─ ExpProress
 │  │     │  ├─ ExpBarBackground
 │  │     │  ├─ ExpBarFill
 │  │     │  ├─ ExpValueLabel
 │  │     │  └─ LevelOnBarLabel
 │  │     ├─ LeftMenu
-│  │     │  ├─ UIGridLayout
 │  │     │  ├─ DailyButton (TextButton)
 │  │     │  ├─ InventoryButton (TextButton)
 │  │     │  ├─ OnlineRewardButton (TextButton)
 │  │     │  ├─ SettingButton (TextButton)
 │  │     │  └─ SpinButton (TextButton)
 │  │     ├─ RankFrame
-│  │     │  ├─ UICorner
-│  │     │  ├─ UIPadding
 │  │     │  ├─ List
-│  │     │  │  ├─ UIListLayout
 │  │     │  │  └─ Player1
 │  │     │  └─ Title (TextLabel)
 │  │     ├─ QuickHP (ImageButton)
@@ -448,7 +412,6 @@ DataModel
 │     │
 │     └─ ArenaMap
 │        ├─ SpawnPoints
-│        │
 │        ├─ FoodSpawns
 │        │  ├─ EdgeZones
 │        │  │  ├─ FoodSpawn_01
