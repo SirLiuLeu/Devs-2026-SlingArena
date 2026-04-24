@@ -67,10 +67,12 @@ local function createController(root: BasePart): LinearVelocity
 	end
 	linearVelocity.Attachment0 = attachment
 	linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
-	linearVelocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	linearVelocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Plane
+	linearVelocity.PrimaryTangentAxis = Vector3.xAxis
+	linearVelocity.SecondaryTangentAxis = Vector3.zAxis
 	linearVelocity.ForceLimitsEnabled = true
 	linearVelocity.MaxForce = if PhysicsConfig.Stability.UseInfiniteForce then math.huge else PhysicsConfig.Movement.MaxForce
-	linearVelocity.VectorVelocity = Vector3.zero
+	linearVelocity.PlaneVelocity = Vector2.zero
 	linearVelocity.Enabled = false
 	linearVelocity.Parent = root
 
@@ -134,8 +136,8 @@ moveRequestRemote.OnServerEvent:Connect(function(player: Player, directionInput:
 	end
 	assignNetworkOwnership(root, player)
 	local direction = sanitizeDirection(directionInput)
-	local targetVelocity = Vector3.new(direction.X, 0, direction.Z) * PhysicsConfig.Movement.MoveSpeed
-	movementController.VectorVelocity = targetVelocity
+	local targetVelocity = direction * PhysicsConfig.Movement.MoveSpeed
+	movementController.PlaneVelocity = Vector2.new(targetVelocity.X, targetVelocity.Z)
 	movementController.Enabled = targetVelocity.Magnitude > 0.001
 end)
 

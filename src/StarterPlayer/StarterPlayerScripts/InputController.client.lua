@@ -123,20 +123,11 @@ local function computeAimTarget(): Vector3?
 		return nil
 	end
 
-	local mousePosition = UserInputService:GetMouseLocation()
-	local ray = camera:ViewportPointToRay(mousePosition.X, mousePosition.Y)
-	local dy = ray.Direction.Y
-	if math.abs(dy) < 0.001 then
-		local planarDirection = Vector3.new(ray.Direction.X, 0, ray.Direction.Z)
-		if planarDirection.Magnitude < 0.001 then
-			planarDirection = Vector3.new(0, 0, -1)
-		end
-		return root.Position + planarDirection.Unit * 32
+	local planarLook = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
+	if planarLook.Magnitude < 0.001 then
+		planarLook = Vector3.new(0, 0, -1)
 	end
-
-	local t = (root.Position.Y - ray.Origin.Y) / dy
-	local hitPosition = ray.Origin + (ray.Direction * t)
-	return Vector3.new(hitPosition.X, root.Position.Y, hitPosition.Z)
+	return root.Position + planarLook.Unit * 32
 end
 
 local function onDirectionalAction(directionName: string, state: Enum.UserInputState): Enum.ContextActionResult

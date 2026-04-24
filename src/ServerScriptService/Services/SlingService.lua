@@ -500,11 +500,14 @@ end
 
 function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: Vector3, dt: number)
 	if root.Anchored then
-		if not self._warnedInvalidRoot[player] then
-			self._warnedInvalidRoot[player] = true
-			warn(string.format("[SlingService] Root anchored; movement blocked for %s (%s)", player.Name, root:GetFullName()))
+		root.Anchored = false
+		if root.Anchored then
+			if not self._warnedInvalidRoot[player] then
+				self._warnedInvalidRoot[player] = true
+				warn(string.format("[SlingService] Root anchored; movement blocked for %s (%s)", player.Name, root:GetFullName()))
+			end
+			return
 		end
-		return
 	end
 
 	local state = self._context.Services.PlayerStateService:GetState(player)
@@ -532,16 +535,19 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		-- Preserve launch momentum. We only disable the locomotion actuator so it does not
 		-- counteract release velocity and create an artificial "drag/stretch" feeling.
 		movementController:DisableLocomotion(true)
+		self:_applyAimRotation(player, root, input, dt)
 		return
 	end
 	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == MOVEMENT_STATE.Recovering then
 		movementController:DisableLocomotion(false)
+		self:_applyAimRotation(player, root, input, dt)
 		return
 	end
 
 	if input.Magnitude < 0.001 then
 		movementController:SetSpeed(math.max(PhysicsConfig.Movement.MoveSpeed, 0))
 		movementController:Move(Vector3.zero, dt)
+		self:_applyAimRotation(player, root, input, dt)
 		if state.MovementState ~= MOVEMENT_STATE.Idle then
 			self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
 		end
@@ -550,6 +556,7 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 
 	movementController:SetSpeed(math.max(PhysicsConfig.Movement.MoveSpeed, 0))
 	movementController:Move(input.Unit, dt)
+	self:_applyAimRotation(player, root, input, dt)
 	if state.MovementState ~= MOVEMENT_STATE.Moving then
 		self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Moving)
 	end
