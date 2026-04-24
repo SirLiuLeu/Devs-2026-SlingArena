@@ -353,21 +353,42 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 		self._chargeState[player] = nil
 		return
 	end
+	if root.Anchored then
+		self._chargeState[player] = nil
+		return
+	end
 
 	local maxChargeTime = math.max(0.001, PhysicsConfig.Charge.MaxChargeTime)
 	local chargeRatio = SlingService.CalculateChargeRatio(chargeState.chargeStartTime, os.clock(), maxChargeTime)
 
-	chargeState.aimDirection = SlingService.ResolveAimDirection(root.Position, aimTarget)
 	local aimPlanar = Vector3.new(aimTarget.X - root.Position.X, 0, aimTarget.Z - root.Position.Z)
-	if aimPlanar.Magnitude > MAX_LAUNCH_DISTANCE then
-		chargeState.aimDirection = Vector3.new(aimPlanar.Unit.X, chargeState.aimDirection.Y, aimPlanar.Unit.Z).Unit
+	local launchDirectionPlanar: Vector3
+	if aimPlanar.Magnitude > 0.01 then
+		launchDirectionPlanar = aimPlanar.Unit
+	else
+		local lastMoveInput = self._input[player] or Vector3.zero
+		local movePlanar = Vector3.new(lastMoveInput.X, 0, lastMoveInput.Z)
+		if movePlanar.Magnitude > 0.01 then
+			launchDirectionPlanar = movePlanar.Unit
+		else
+			local facingPlanar = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+			launchDirectionPlanar = if facingPlanar.Magnitude > 0.01 then facingPlanar.Unit else Vector3.new(0, 0, -1)
+		end
 	end
+	if aimPlanar.Magnitude > MAX_LAUNCH_DISTANCE then
+		launchDirectionPlanar = aimPlanar.Unit
+	end
+	chargeState.aimDirection = launchDirectionPlanar
 
 	local minForce = math.max(0, PhysicsConfig.Charge.MinForce)
 	local maxForce = math.max(minForce, PhysicsConfig.Charge.MaxForce)
 	local chargeForce = minForce + ((maxForce - minForce) * chargeRatio)
 	local launchForce = math.max(0, chargeForce * math.max(0, PhysicsConfig.Charge.ChargeForceMultiplier))
-	local launchVector = SlingService.BuildLaunchVector(chargeState.aimDirection, launchForce)
+	local launchVector = SlingService.BuildLaunchVector(launchDirectionPlanar, launchForce)
+	local movementController = self._movementControllers[player]
+	if movementController then
+		movementController:DisableLocomotion(true)
+	end
 	root:ApplyImpulse(launchVector * root.AssemblyMass)
 
 	state.CurrentVelocity = root.AssemblyLinearVelocity
