@@ -158,6 +158,7 @@ function SlingService:Init()
 
 	if releaseChargeRemote and releaseChargeRemote:IsA("RemoteEvent") then
 		self._remoteConnections.ReleaseCharge = releaseChargeRemote.OnServerEvent:Connect(function(player, aimTarget)
+			print(string.format("[SlingService] ReleaseCharge received from %s with aimTarget=%s", player.Name, tostring(aimTarget)))
 			self:ReleaseCharge(player, aimTarget)
 		end)
 	else
