@@ -4,12 +4,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Config = require(ReplicatedStorage.Shared.Config.Config)
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
-local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local SlingMovement = require(script.Parent.SlingMovement)
+local PhysicsConfig = require(script.Parent.Parent.Config.PhysicsConfig)
 
 local SlingService = {}
 SlingService.__index = SlingService
@@ -28,16 +27,6 @@ local function sanitizeNumber(value: number, fallback: number): number
 	return value
 end
 
-function SlingService.CalculateLaunchForce(chargeRatio: number, _minForce: number, maxForce: number, _launchMultiplier: number): number
-	local safeCharge = math.clamp(sanitizeNumber(chargeRatio, 0), 0, 1)
-	local safeMax = math.max(0, sanitizeNumber(maxForce, 0))
-	local launchForce = safeMax * safeCharge
-	if launchForce ~= launchForce then
-		return 0
-	end
-	return math.clamp(launchForce, 0, safeMax)
-end
-
 function SlingService.CalculateChargeRatio(chargeStartTime: number, nowTime: number, maxChargeTime: number): number
 	local safeDuration = math.max(0.001, sanitizeNumber(maxChargeTime, 0.001))
 	local elapsed = math.max(0, sanitizeNumber(nowTime, 0) - sanitizeNumber(chargeStartTime, 0))
@@ -52,11 +41,19 @@ function SlingService.ResolveAimDirection(origin: Vector3, aimTarget: Vector3): 
 	return rawDirection.Unit
 end
 
-local RELEASE_DISTANCE_MULTIPLIER = BalanceConfig.ReleaseDistanceMultiplier
-local RELEASE_SPEED_MULTIPLIER = BalanceConfig.ReleaseSpeedMultiplier
+local function applyRootPhysicalProperties(root: BasePart)
+	local physical = PhysicsConfig.PhysicalProperties
+	local elasticity = if PhysicsConfig.Stability.ZeroElasticity then 0 else physical.Elasticity
+	root.CustomPhysicalProperties = PhysicalProperties.new(
+		physical.Density,
+		physical.Friction,
+		elasticity,
+		physical.FrictionWeight,
+		physical.ElasticityWeight
+	)
+end
+
 local MAX_LAUNCH_DISTANCE = math.max(1, BalanceConfig.MaxLaunchDistance or 30)
-local LAUNCH_SPEED_TO_MOVE_SPEED_RATIO = math.max(0.5, BalanceConfig.LaunchSpeedToMoveSpeedRatio or 3)
-local MAX_LAUNCH_PLANAR_SPEED = math.max(1, BalanceConfig.MaxLaunchPlanarSpeed or (BalanceConfig.DefaultWalkSpeed * 3))
 
 function SlingService.BuildLaunchVector(direction: Vector3, launchForce: number): Vector3
 	local safeDirection = if direction.Magnitude < 0.01 then Vector3.new(0, 0, -1) else direction.Unit
@@ -215,6 +212,7 @@ function SlingService:_resolvePawnAndRoot(player: Player): (Model?, BasePart?)
 		if pawn.PrimaryPart == nil then
 			pawn.PrimaryPart = root
 		end
+		applyRootPhysicalProperties(root)
 		return pawn, root
 	end
 	return pawn, nil
@@ -356,8 +354,7 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 		return
 	end
 
-	local chargeSpeed = math.max(state.ChargeSpeed or 1, 0.1)
-	local maxChargeTime = (SlingshotConfig.MAX_CHARGE_TIME or SlingshotConfig.MaxChargeTime) / chargeSpeed
+	local maxChargeTime = math.max(0.001, PhysicsConfig.Charge.MaxChargeTime)
 	local chargeRatio = SlingService.CalculateChargeRatio(chargeState.chargeStartTime, os.clock(), maxChargeTime)
 
 	chargeState.aimDirection = SlingService.ResolveAimDirection(root.Position, aimTarget)
@@ -366,17 +363,12 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 		chargeState.aimDirection = Vector3.new(aimPlanar.Unit.X, chargeState.aimDirection.Y, aimPlanar.Unit.Z).Unit
 	end
 
-	local maxForce = SlingshotConfig.MAX_LAUNCH_FORCE or (SlingshotConfig.BaseLaunchForce + Config.MaxExtraForce)
-	local launchForce = SlingService.CalculateLaunchForce(chargeRatio, 0, maxForce, 1) * RELEASE_SPEED_MULTIPLIER
+	local minForce = math.max(0, PhysicsConfig.Charge.MinForce)
+	local maxForce = math.max(minForce, PhysicsConfig.Charge.MaxForce)
+	local chargeForce = minForce + ((maxForce - minForce) * chargeRatio)
+	local launchForce = math.max(0, chargeForce * math.max(0, PhysicsConfig.Charge.ChargeForceMultiplier))
 	local launchVector = SlingService.BuildLaunchVector(chargeState.aimDirection, launchForce)
-
-	local maxFromMoveSpeed = math.max((state.MoveSpeed or Config.MoveSpeed) * LAUNCH_SPEED_TO_MOVE_SPEED_RATIO, 1)
-	local planarSpeedCap = math.min(maxFromMoveSpeed, MAX_LAUNCH_PLANAR_SPEED)
-	local planarLaunch = Vector3.new(launchVector.X, 0, launchVector.Z)
-	if planarLaunch.Magnitude > planarSpeedCap then
-		planarLaunch = planarLaunch.Unit * planarSpeedCap
-	end
-	root.AssemblyLinearVelocity = Vector3.new(planarLaunch.X, root.AssemblyLinearVelocity.Y, planarLaunch.Z)
+	root:ApplyImpulse(launchVector * root.AssemblyMass)
 
 	state.CurrentVelocity = root.AssemblyLinearVelocity
 	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
@@ -444,11 +436,7 @@ function SlingService:_getMovementController(player: Player, root: BasePart)
 		movementController = nil
 	end
 	if not movementController then
-		movementController = SlingMovement.new(root, {
-			moveSpeed = Config.MoveSpeed,
-			acceleration = BalanceConfig.GroundAcceleration or 18,
-			deceleration = BalanceConfig.GroundDeceleration or 24,
-		})
+		movementController = SlingMovement.new(root)
 		warn(string.format("[SlingService] movementController ready player=%s root=%s", player.Name, root:GetFullName()))
 		self._movementControllers[player] = movementController
 	end
@@ -490,10 +478,8 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		return
 	end
 
-	self:_applyAimRotation(player, root, input, dt)
-
 	if input.Magnitude < 0.001 then
-		movementController:SetSpeed(math.max(state.MoveSpeed or Config.MoveSpeed, 0))
+		movementController:SetSpeed(math.max(PhysicsConfig.Movement.MoveSpeed, 0))
 		movementController:Move(Vector3.zero, dt)
 		if state.MovementState ~= MOVEMENT_STATE.Idle then
 			self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
@@ -501,7 +487,7 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		return
 	end
 
-	movementController:SetSpeed(math.max(state.MoveSpeed or Config.MoveSpeed, 0))
+	movementController:SetSpeed(math.max(PhysicsConfig.Movement.MoveSpeed, 0))
 	movementController:Move(input.Unit, dt)
 	if state.MovementState ~= MOVEMENT_STATE.Moving then
 		self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Moving)

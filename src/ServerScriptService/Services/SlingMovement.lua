@@ -1,19 +1,9 @@
 --!strict
 
+local PhysicsConfig = require(script.Parent.Parent.Config.PhysicsConfig)
+
 local SlingMovement = {}
 SlingMovement.__index = SlingMovement
-
-export type Options = {
-	moveSpeed: number?,
-	acceleration: number?,
-	deceleration: number?,
-	forceMultiplier: number?,
-}
-
-local DEFAULT_SPEED = 16
-local DEFAULT_ACCELERATION = 18
-local DEFAULT_DECELERATION = 24
-local DEFAULT_FORCE_MULTIPLIER = 3500
 
 local function getOrCreateAttachment(root: BasePart): Attachment
 	local attachment = root:FindFirstChild("SlingMovementAttachment")
@@ -27,13 +17,14 @@ local function getOrCreateAttachment(root: BasePart): Attachment
 	return attachment
 end
 
-local function getOrCreateLinearVelocity(root: BasePart, attachment: Attachment, forceMultiplier: number): LinearVelocity
+local function getOrCreateLinearVelocity(root: BasePart, attachment: Attachment): LinearVelocity
 	local linearVelocity = root:FindFirstChild("LinearVelocity")
 	if linearVelocity and linearVelocity:IsA("LinearVelocity") then
 		linearVelocity.Attachment0 = attachment
 		linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
 		linearVelocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
-		linearVelocity.MaxForce = math.huge
+		linearVelocity.ForceLimitsEnabled = true
+		linearVelocity.MaxForce = if PhysicsConfig.Stability.UseInfiniteForce then math.huge else PhysicsConfig.Movement.MaxForce
 		return linearVelocity
 	end
 
@@ -42,24 +33,21 @@ local function getOrCreateLinearVelocity(root: BasePart, attachment: Attachment,
 	linearVelocity.Attachment0 = attachment
 	linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
 	linearVelocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
-	linearVelocity.MaxForce = math.huge
+	linearVelocity.ForceLimitsEnabled = true
+	linearVelocity.MaxForce = if PhysicsConfig.Stability.UseInfiniteForce then math.huge else PhysicsConfig.Movement.MaxForce
 	linearVelocity.VectorVelocity = Vector3.zero
 	linearVelocity.Enabled = false
 	linearVelocity.Parent = root
 	return linearVelocity
 end
 
-function SlingMovement.new(root: BasePart, options: Options?)
-	local opts = options or {}
+function SlingMovement.new(root: BasePart)
 	local self = setmetatable({}, SlingMovement)
 	self._root = root
-	self._speed = math.max(0, opts.moveSpeed or DEFAULT_SPEED)
-	self._acceleration = math.max(0.01, opts.acceleration or DEFAULT_ACCELERATION)
-	self._deceleration = math.max(0.01, opts.deceleration or DEFAULT_DECELERATION)
-	self._planarVelocity = Vector3.zero
+	self._speed = math.max(0, PhysicsConfig.Movement.MoveSpeed)
 
 	local attachment = getOrCreateAttachment(root)
-	self._linearVelocity = getOrCreateLinearVelocity(root, attachment, opts.forceMultiplier or DEFAULT_FORCE_MULTIPLIER)
+	self._linearVelocity = getOrCreateLinearVelocity(root, attachment)
 	return self
 end
 
@@ -67,31 +55,18 @@ function SlingMovement:SetSpeed(speed: number)
 	self._speed = math.max(0, speed)
 end
 
-function SlingMovement:Move(direction: Vector3, dt: number?)
-	local stepDt = math.max(dt or (1 / 60), 1 / 240)
+function SlingMovement:Move(direction: Vector3, _dt: number?)
 	local planarInput = Vector3.new(direction.X, 0, direction.Z)
 	local desiredVelocity = Vector3.zero
-
 	if planarInput.Magnitude > 0.001 then
 		desiredVelocity = planarInput.Unit * self._speed
 	end
 
-	local current = self._planarVelocity
-	local accel = if desiredVelocity.Magnitude > current.Magnitude then self._acceleration else self._deceleration
-	local alpha = 1 - math.exp(-accel * stepDt)
-	local nextVelocity = current:Lerp(desiredVelocity, alpha)
-
-	if nextVelocity.Magnitude < 0.05 then
-		nextVelocity = Vector3.zero
-	end
-
-	self._planarVelocity = nextVelocity
-	self._linearVelocity.VectorVelocity = Vector3.new(nextVelocity.X, 0, nextVelocity.Z)
-	self._linearVelocity.Enabled = nextVelocity.Magnitude > 0.001
+	self._linearVelocity.VectorVelocity = Vector3.new(desiredVelocity.X, 0, desiredVelocity.Z)
+	self._linearVelocity.Enabled = desiredVelocity.Magnitude > 0.001
 end
 
 function SlingMovement:Stop()
-	self._planarVelocity = Vector3.zero
 	self._linearVelocity.VectorVelocity = Vector3.zero
 	self._linearVelocity.Enabled = false
 
@@ -100,7 +75,6 @@ function SlingMovement:Stop()
 end
 
 function SlingMovement:DisableLocomotion(preserveMomentum: boolean?)
-	self._planarVelocity = Vector3.zero
 	self._linearVelocity.VectorVelocity = Vector3.zero
 	self._linearVelocity.Enabled = false
 

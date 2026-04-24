@@ -5,8 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local PhysicsConfig = require(script.Parent.Config.PhysicsConfig)
 
-local MOVE_SPEED = 36
 local MAX_INPUT_MAGNITUDE = 1
 
 local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
@@ -14,6 +14,18 @@ local moveRequestRemote = remotes:WaitForChild(RemoteContracts.Names.MoveRequest
 local slingPawns = Workspace:WaitForChild("SlingPawns")
 
 local controllers: {[Player]: LinearVelocity} = {}
+
+local function applyRootPhysicalProperties(root: BasePart)
+	local physical = PhysicsConfig.PhysicalProperties
+	local elasticity = if PhysicsConfig.Stability.ZeroElasticity then 0 else physical.Elasticity
+	root.CustomPhysicalProperties = PhysicalProperties.new(
+		physical.Density,
+		physical.Friction,
+		elasticity,
+		physical.FrictionWeight,
+		physical.ElasticityWeight
+	)
+end
 
 local function getPawnRoot(player: Player): BasePart?
 	local pawn = slingPawns:FindFirstChild(player.Name)
@@ -26,12 +38,14 @@ local function getPawnRoot(player: Player): BasePart?
 		if pawn.PrimaryPart == nil then
 			pawn.PrimaryPart = root
 		end
+		applyRootPhysicalProperties(root)
 		return root
 	end
 
 	local firstPart = pawn:FindFirstChildWhichIsA("BasePart")
 	if firstPart then
 		pawn.PrimaryPart = firstPart
+		applyRootPhysicalProperties(firstPart)
 		return firstPart
 	end
 
@@ -53,11 +67,10 @@ local function createController(root: BasePart): LinearVelocity
 	end
 	linearVelocity.Attachment0 = attachment
 	linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
-	linearVelocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Plane
-	linearVelocity.PrimaryTangentAxis = Vector3.xAxis
-	linearVelocity.SecondaryTangentAxis = Vector3.zAxis
-	linearVelocity.ForceLimitsEnabled = false
-	linearVelocity.PlaneVelocity = Vector2.zero
+	linearVelocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	linearVelocity.ForceLimitsEnabled = true
+	linearVelocity.MaxForce = if PhysicsConfig.Stability.UseInfiniteForce then math.huge else PhysicsConfig.Movement.MaxForce
+	linearVelocity.VectorVelocity = Vector3.zero
 	linearVelocity.Parent = root
 
 	return linearVelocity
@@ -117,7 +130,7 @@ moveRequestRemote.OnServerEvent:Connect(function(player: Player, directionInput:
 	local movementController = getOrCreateController(player, root)
 	assignNetworkOwnership(root, player)
 	local direction = sanitizeDirection(directionInput)
-	movementController.PlaneVelocity = Vector2.new(direction.X, direction.Z) * MOVE_SPEED
+	movementController.VectorVelocity = Vector3.new(direction.X, 0, direction.Z) * PhysicsConfig.Movement.MoveSpeed
 end)
 
 local function clearPlayer(player: Player)
