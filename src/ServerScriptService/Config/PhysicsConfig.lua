@@ -10,7 +10,7 @@ local PhysicsConfig = {
 	},
 
 	Movement = {
-		MoveSpeed = 36,
+		MoveSpeed = 5,
 		MaxForce = 30000,
 	},
 
@@ -18,7 +18,7 @@ local PhysicsConfig = {
 		MaxChargeTime = 1.4,
 		ChargeForceMultiplier = 1,
 		MinForce = 35,
-		MaxForce = 1400,
+		MaxForce = 500,
 	},
 
 	Stability = {
