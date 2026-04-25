@@ -49,6 +49,17 @@ function SlingService.ResolveLaunchDirectionFromRoot(root: BasePart): Vector3
 	return forward.Unit
 end
 
+function SlingService.ResolveLaunchDirection(root: BasePart, aimTarget: Vector3?): Vector3
+	if typeof(aimTarget) == "Vector3" then
+		local aimDirection = SlingService.ResolveAimDirection(root.Position, aimTarget)
+		local planarAim = Vector3.new(aimDirection.X, 0, aimDirection.Z)
+		if planarAim.Magnitude >= 0.01 then
+			return planarAim.Unit
+		end
+	end
+	return SlingService.ResolveLaunchDirectionFromRoot(root)
+end
+
 local function applyRootPhysicalProperties(root: BasePart)
 	local physical = PhysicsConfig.PhysicalProperties
 	local elasticity = if PhysicsConfig.Stability.ZeroElasticity then 0 else physical.Elasticity
@@ -359,12 +370,13 @@ function SlingService:StartCharge(player: Player, aimTarget: Vector3)
 		return
 	end
 
-	local direction = SlingService.ResolveLaunchDirectionFromRoot(root)
+	local direction = SlingService.ResolveLaunchDirection(root, aimTarget)
 
 	self._chargeState[player] = {
 		chargeStartTime = now,
 		aimDirection = direction,
 	}
+	self._aimTargets[player] = direction
 	self._context.Services.PlayerStateService:SetCharging(player, true, 0)
 	self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Charging)
 	self._context.EventBus:Fire("ChargeStarted", player)
@@ -404,8 +416,9 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	local maxChargeTime = math.max(0.001, PhysicsConfig.Charge.MaxChargeTime)
 	local chargeRatio = SlingService.CalculateChargeRatio(chargeState.chargeStartTime, os.clock(), maxChargeTime)
 
-	local launchDirectionPlanar = SlingService.ResolveLaunchDirectionFromRoot(root)
+	local launchDirectionPlanar = SlingService.ResolveLaunchDirection(root, aimTarget)
 	chargeState.aimDirection = launchDirectionPlanar
+	self._aimTargets[player] = launchDirectionPlanar
 
 	local minForce = math.max(0, PhysicsConfig.Charge.MinForce)
 	local maxForce = math.max(minForce, PhysicsConfig.Charge.MaxForce)

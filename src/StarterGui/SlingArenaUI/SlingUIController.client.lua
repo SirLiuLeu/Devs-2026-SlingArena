@@ -25,7 +25,6 @@ local MAX_CHARGE_TIME = SlingshotConfig.MAX_CHARGE_TIME or 2
 local DEFAULT_COOLDOWN_DURATION = SlingshotConfig.RECOVER_TIME or 3
 local DEFAULT_JOYSTICK_RADIUS = 60
 local MAX_RELEASE_DISTANCE = SlingshotConfig.SlingConfig.MaxShootRange or 20
-local ARROW_PREVIEW_DISTANCE = math.max(4, MAX_RELEASE_DISTANCE)
 local DEBUG_LOG = false
 
 local warnedMissingUi = false
@@ -334,6 +333,25 @@ local function getLaunchDirectionFromRoot(root: BasePart): Vector3
 	return forward.Unit
 end
 
+local function getChargeDirection(root: BasePart): Vector3
+	local forward = getLaunchDirectionFromRoot(root)
+	if currentDragDistance <= 0.001 then
+		return forward
+	end
+
+	local right = Vector3.new(root.CFrame.RightVector.X, 0, root.CFrame.RightVector.Z)
+	if right.Magnitude < 0.001 then
+		return forward
+	end
+
+	local localInput = Vector3.new(currentDirection.X, 0, -currentDirection.Y)
+	local worldDirection = (right.Unit * localInput.X) + (forward * localInput.Z)
+	if worldDirection.Magnitude < 0.001 then
+		return forward
+	end
+	return worldDirection.Unit
+end
+
 local function destroyArrowPreview()
 	if arrowPreview then
 		arrowPreview:Destroy()
@@ -365,25 +383,9 @@ local function updateArrowPreview()
 		arrowPreview.Parent = workspace.CurrentCamera or workspace
 	end
 
-	local direction = getLaunchDirectionFromRoot(root)
-	local startPosition = root.Position
-	local endPosition = startPosition + (direction * ARROW_PREVIEW_DISTANCE)
-
-	local startAttachment = arrowPreview:FindFirstChild("StartAttachment", true)
-	local endAttachment = arrowPreview:FindFirstChild("EndAttachment", true)
-	if startAttachment and startAttachment:IsA("Attachment") then
-		startAttachment.WorldPosition = startPosition
-	end
-	if endAttachment and endAttachment:IsA("Attachment") then
-		endAttachment.WorldPosition = endPosition
-	end
-
-	local arrowPart = arrowPreview:FindFirstChild("Arrow", true)
-	if arrowPart and arrowPart:IsA("BasePart") then
-		arrowPart.CFrame = CFrame.lookAt(startPosition, endPosition, Vector3.yAxis)
-	elseif arrowPreview.PrimaryPart then
-		arrowPreview:PivotTo(CFrame.lookAt(startPosition, endPosition, Vector3.yAxis))
-	end
+	local direction = getChargeDirection(root)
+	local origin = root.Position
+	arrowPreview:PivotTo(CFrame.lookAt(origin, origin + direction, Vector3.yAxis))
 end
 
 local function computeAimTargetFromJoystick(): Vector3
@@ -392,7 +394,7 @@ local function computeAimTargetFromJoystick(): Vector3
 		return Vector3.zero
 	end
 
-	local worldDirection = getLaunchDirectionFromRoot(root)
+	local worldDirection = getChargeDirection(root)
 	local normalizedDistance = math.clamp(currentDragDistance / math.max(getJoystickRadius(), 1), 0, 1)
 	local aimDistance = SlingUiState.ComputeAimDistance(normalizedDistance, MAX_RELEASE_DISTANCE)
 	return root.Position + worldDirection * aimDistance
