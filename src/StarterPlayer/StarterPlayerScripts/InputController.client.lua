@@ -67,6 +67,14 @@ local function computeMoveInput(): Vector3
 end
 
 local function computeAimDirection(): Vector3?
+	local joystickAim = player:GetAttribute("SlingAimDirection")
+	if typeof(joystickAim) == "Vector3" then
+		local planarJoystickAim = Vector3.new(joystickAim.X, 0, joystickAim.Z)
+		if planarJoystickAim.Magnitude >= 0.001 then
+			return planarJoystickAim.Unit
+		end
+	end
+
 	local camera = Workspace.CurrentCamera
 	if not camera then
 		return nil
