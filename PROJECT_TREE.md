@@ -34,6 +34,12 @@ DataModel
 │  │  └─ RemoteContracts.lua
 │  │
 │  ├─ Assets
+│  │  ├── Prefabs
+│  │  │   └── ArrowModel (Model)
+│  │  │       ├── EndAttachment (Attachment)
+│  │  │       ├── StartAttachment (Attachment)
+│  │  │       └── Arrow (MeshPart/Part)
+│  │  │
 │  │  ├── Slings
 │  │  │   ├── Sling_Template (Model)
 │  │  │   │   ├── Hitbox (Part - PrimaryPart)
