@@ -539,6 +539,7 @@ local function startHold(input: InputObject)
 	ensureUiLoopRunning()
 
 	debugLog("[SlingUI] StartCharge remote fired")
+
 	startChargeRemote:FireServer(computeAimTargetFromJoystick())
 end
 

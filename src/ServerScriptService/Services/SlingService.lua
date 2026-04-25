@@ -445,11 +445,7 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 
 	root:SetNetworkOwner(nil)
 	root:ApplyImpulse(launchVector * mass)
-	print("Before:", root.AssemblyLinearVelocity)
-
-task.delay(0.1, function()
-    print("After 0.1s:", root.AssemblyLinearVelocity)
-end)
+	
 
 	state.CurrentVelocity = root.AssemblyLinearVelocity
 	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
