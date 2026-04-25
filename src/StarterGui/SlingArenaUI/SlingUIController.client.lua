@@ -19,11 +19,13 @@ local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
 local startChargeRemote = remotes:WaitForChild(RemoteContracts.Names.StartCharge) :: RemoteEvent
 local releaseChargeRemote = remotes:WaitForChild(RemoteContracts.Names.ReleaseCharge) :: RemoteEvent
 local stateUpdateRemote = remotes:FindFirstChild(RemoteContracts.Names.StateUpdate) :: RemoteEvent?
+local prefabsFolder = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("Prefabs")
 
 local MAX_CHARGE_TIME = SlingshotConfig.MAX_CHARGE_TIME or 2
 local DEFAULT_COOLDOWN_DURATION = SlingshotConfig.RECOVER_TIME or 3
 local DEFAULT_JOYSTICK_RADIUS = 60
 local MAX_RELEASE_DISTANCE = SlingshotConfig.SlingConfig.MaxShootRange or 20
+local ARROW_PREVIEW_DISTANCE = math.max(4, MAX_RELEASE_DISTANCE)
 local DEBUG_LOG = false
 
 local warnedMissingUi = false
@@ -45,6 +47,7 @@ local cooldownEndTime = 0
 local cooldownDuration = DEFAULT_COOLDOWN_DURATION
 local lastKnownServerState: { [string]: any }? = nil
 local uiUpdateConnection: RBXScriptConnection? = nil
+local arrowPreview: Model? = nil
 
 local joystickInputBeganConnection: RBXScriptConnection? = nil
 local joystickInputChangedConnection: RBXScriptConnection? = nil
@@ -323,34 +326,73 @@ local function getCharacterRoot(): BasePart?
 	return PawnLocator.GetRootPart(PawnLocator.GetLocalPawn())
 end
 
+local function getLaunchDirectionFromRoot(root: BasePart): Vector3
+	local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+	if forward.Magnitude < 0.001 then
+		return Vector3.new(0, 0, -1)
+	end
+	return forward.Unit
+end
+
+local function destroyArrowPreview()
+	if arrowPreview then
+		arrowPreview:Destroy()
+		arrowPreview = nil
+	end
+end
+
+local function updateArrowPreview()
+	if not isHolding then
+		destroyArrowPreview()
+		return
+	end
+
+	local root = getCharacterRoot()
+	if not root then
+		destroyArrowPreview()
+		return
+	end
+
+	if not arrowPreview then
+		local arrowTemplate = prefabsFolder:FindFirstChild("ArrowModel")
+		if not arrowTemplate or not arrowTemplate:IsA("Model") then
+			warn("[SlingUI] Missing ReplicatedStorage.Assets.Prefabs.ArrowModel for local charge preview.")
+			return
+		end
+
+		arrowPreview = arrowTemplate:Clone()
+		arrowPreview.Name = "LocalChargeArrowPreview"
+		arrowPreview.Parent = workspace.CurrentCamera or workspace
+	end
+
+	local direction = getLaunchDirectionFromRoot(root)
+	local startPosition = root.Position
+	local endPosition = startPosition + (direction * ARROW_PREVIEW_DISTANCE)
+
+	local startAttachment = arrowPreview:FindFirstChild("StartAttachment", true)
+	local endAttachment = arrowPreview:FindFirstChild("EndAttachment", true)
+	if startAttachment and startAttachment:IsA("Attachment") then
+		startAttachment.WorldPosition = startPosition
+	end
+	if endAttachment and endAttachment:IsA("Attachment") then
+		endAttachment.WorldPosition = endPosition
+	end
+
+	local arrowPart = arrowPreview:FindFirstChild("Arrow", true)
+	if arrowPart and arrowPart:IsA("BasePart") then
+		arrowPart.CFrame = CFrame.lookAt(startPosition, endPosition, Vector3.yAxis)
+	elseif arrowPreview.PrimaryPart then
+		arrowPreview:PivotTo(CFrame.lookAt(startPosition, endPosition, Vector3.yAxis))
+	end
+end
+
 local function computeAimTargetFromJoystick(): Vector3
 	local root = getCharacterRoot()
 	if not root then
 		return Vector3.zero
 	end
 
-	local camera = workspace.CurrentCamera
-	if not camera then
-		return root.Position + Vector3.new(0, 0, -1) * 32
-	end
-
-	local direction2D = currentDirection
-	local cameraForward = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
-	local cameraRight = Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z)
-	if cameraForward.Magnitude < 0.001 then
-		cameraForward = Vector3.new(0, 0, -1)
-	end
-	if cameraRight.Magnitude < 0.001 then
-		cameraRight = Vector3.new(1, 0, 0)
-	end
-
-	local worldDirection = ((cameraRight.Unit * direction2D.X) + (cameraForward.Unit * -direction2D.Y))
-	if worldDirection.Magnitude < 0.001 then
-		worldDirection = Vector3.new(0, 0, -1)
-	else
-		worldDirection = worldDirection.Unit
-	end
-
+	local worldDirection = getLaunchDirectionFromRoot(root)
 	local normalizedDistance = math.clamp(currentDragDistance / math.max(getJoystickRadius(), 1), 0, 1)
 	local aimDistance = SlingUiState.ComputeAimDistance(normalizedDistance, MAX_RELEASE_DISTANCE)
 	return root.Position + worldDirection * aimDistance
@@ -393,6 +435,7 @@ local function stepUi()
 	else
 		updateChargeBar(0)
 	end
+	updateArrowPreview()
 
 	applyJoystickVisibilityFromState(lastKnownServerState)
 
@@ -446,6 +489,7 @@ local function resetVisualState()
 	setVisibleSafe(cachedChargeBar, false)
 	resetThumbPosition()
 	updateChargeBar(0)
+	destroyArrowPreview()
 	clearCooldown()
 	applyJoystickVisibilityFromState(lastKnownServerState)
 end
@@ -489,6 +533,7 @@ local function startHold(input: InputObject)
 	resetThumbPosition()
 	updateDirectionIndicator(nil)
 	applyJoystickVisibilityFromState(lastKnownServerState)
+	updateArrowPreview()
 	ensureUiLoopRunning()
 
 	debugLog("[SlingUI] StartCharge remote fired")
@@ -523,6 +568,7 @@ local function releaseHold(input: InputObject)
 	setVisibleSafe(cachedChargeBar, false)
 	resetThumbPosition()
 	updateChargeBar(0)
+	destroyArrowPreview()
 	applyJoystickVisibilityFromState(lastKnownServerState)
 
 	debugLog("[SlingUI] ReleaseCharge remote fired")

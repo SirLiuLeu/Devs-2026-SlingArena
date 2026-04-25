@@ -41,6 +41,14 @@ function SlingService.ResolveAimDirection(origin: Vector3, aimTarget: Vector3): 
 	return rawDirection.Unit
 end
 
+function SlingService.ResolveLaunchDirectionFromRoot(root: BasePart): Vector3
+	local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+	if forward.Magnitude < 0.01 then
+		return Vector3.new(0, 0, -1)
+	end
+	return forward.Unit
+end
+
 local function applyRootPhysicalProperties(root: BasePart)
 	local physical = PhysicsConfig.PhysicalProperties
 	local elasticity = if PhysicsConfig.Stability.ZeroElasticity then 0 else physical.Elasticity
@@ -351,7 +359,7 @@ function SlingService:StartCharge(player: Player, aimTarget: Vector3)
 		return
 	end
 
-	local direction = SlingService.ResolveAimDirection(root.Position, aimTarget)
+	local direction = SlingService.ResolveLaunchDirectionFromRoot(root)
 
 	self._chargeState[player] = {
 		chargeStartTime = now,
@@ -396,13 +404,7 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	local maxChargeTime = math.max(0.001, PhysicsConfig.Charge.MaxChargeTime)
 	local chargeRatio = SlingService.CalculateChargeRatio(chargeState.chargeStartTime, os.clock(), maxChargeTime)
 
-	local direction = aimTarget - root.Position
-	direction = Vector3.new(direction.X, 0, direction.Z)
-	if direction.Magnitude <= 0 then
-		self._chargeState[player] = nil
-		return
-	end
-	local launchDirectionPlanar = direction.Unit
+	local launchDirectionPlanar = SlingService.ResolveLaunchDirectionFromRoot(root)
 	chargeState.aimDirection = launchDirectionPlanar
 
 	local minForce = math.max(0, PhysicsConfig.Charge.MinForce)
