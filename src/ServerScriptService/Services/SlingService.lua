@@ -33,12 +33,12 @@ function SlingService.CalculateChargeRatio(chargeStartTime: number, nowTime: num
 	return math.clamp(elapsed / safeDuration, 0, 1)
 end
 
-function SlingService.ResolveAimDirection(origin: Vector3, aimTarget: Vector3): Vector3
-	local rawDirection = aimTarget - origin
-	if rawDirection.Magnitude < 0.01 then
+function SlingService.ResolveAimDirection(aimDirection: Vector3): Vector3
+	local planarDirection = Vector3.new(aimDirection.X, 0, aimDirection.Z)
+	if planarDirection.Magnitude < 0.01 then
 		return Vector3.new(0, 0, -1)
 	end
-	return rawDirection.Unit
+	return planarDirection.Unit
 end
 
 function SlingService.ResolveLaunchDirectionFromRoot(root: BasePart): Vector3
@@ -49,13 +49,9 @@ function SlingService.ResolveLaunchDirectionFromRoot(root: BasePart): Vector3
 	return forward.Unit
 end
 
-function SlingService.ResolveLaunchDirection(root: BasePart, aimTarget: Vector3?): Vector3
-	if typeof(aimTarget) == "Vector3" then
-		local aimDirection = SlingService.ResolveAimDirection(root.Position, aimTarget)
-		local planarAim = Vector3.new(aimDirection.X, 0, aimDirection.Z)
-		if planarAim.Magnitude >= 0.01 then
-			return planarAim.Unit
-		end
+function SlingService.ResolveLaunchDirection(root: BasePart, aimDirection: Vector3?): Vector3
+	if typeof(aimDirection) == "Vector3" then
+		return SlingService.ResolveAimDirection(aimDirection)
 	end
 	return SlingService.ResolveLaunchDirectionFromRoot(root)
 end
@@ -344,8 +340,8 @@ function SlingService:HandleMoveRequest(player: Player, moveInput: Vector3, aimD
 	self._moveRateState[player] = now
 end
 
-function SlingService:StartCharge(player: Player, aimTarget: Vector3)
-	if not RemoteContracts.Validate(RemoteContracts.Names.StartCharge, aimTarget) then
+function SlingService:StartCharge(player: Player, aimDirection: Vector3)
+	if not RemoteContracts.Validate(RemoteContracts.Names.StartCharge, aimDirection) then
 		return
 	end
 	if not self:_canControl(player) then
@@ -370,7 +366,7 @@ function SlingService:StartCharge(player: Player, aimTarget: Vector3)
 		return
 	end
 
-	local direction = SlingService.ResolveLaunchDirection(root, aimTarget)
+	local direction = SlingService.ResolveLaunchDirection(root, aimDirection)
 
 	self._chargeState[player] = {
 		chargeStartTime = now,
@@ -382,8 +378,8 @@ function SlingService:StartCharge(player: Player, aimTarget: Vector3)
 	self._context.EventBus:Fire("ChargeStarted", player)
 end
 
-function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
-	if not RemoteContracts.Validate(RemoteContracts.Names.ReleaseCharge, aimTarget) then
+function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
+	if not RemoteContracts.Validate(RemoteContracts.Names.ReleaseCharge, aimDirection) then
 		return
 	end
 	if not self:_canControl(player) then
@@ -416,7 +412,13 @@ function SlingService:ReleaseCharge(player: Player, aimTarget: Vector3)
 	local maxChargeTime = math.max(0.001, PhysicsConfig.Charge.MaxChargeTime)
 	local chargeRatio = SlingService.CalculateChargeRatio(chargeState.chargeStartTime, os.clock(), maxChargeTime)
 
-	local launchDirectionPlanar = SlingService.ResolveLaunchDirection(root, aimTarget)
+	local launchDirectionPlanar = chargeState.aimDirection
+	if typeof(aimDirection) == "Vector3" then
+		local providedDirection = SlingService.ResolveAimDirection(aimDirection)
+		if providedDirection.Magnitude >= 0.01 then
+			launchDirectionPlanar = providedDirection
+		end
+	end
 	chargeState.aimDirection = launchDirectionPlanar
 	self._aimTargets[player] = launchDirectionPlanar
 
@@ -568,7 +570,11 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		self:_applyAimRotation(player, root, input, dt)
 		return
 	end
-	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == MOVEMENT_STATE.Recovering then
+	if state.MovementState == MOVEMENT_STATE.Charging then
+		movementController:DisableLocomotion(false)
+		return
+	end
+	if state.MovementState == MOVEMENT_STATE.Recovering then
 		movementController:DisableLocomotion(false)
 		self:_applyAimRotation(player, root, input, dt)
 		return

@@ -24,8 +24,6 @@ local prefabsFolder = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("Pre
 local MAX_CHARGE_TIME = SlingshotConfig.MAX_CHARGE_TIME or 2
 local DEFAULT_COOLDOWN_DURATION = SlingshotConfig.RECOVER_TIME or 3
 local DEFAULT_JOYSTICK_RADIUS = 60
-local MAX_RELEASE_DISTANCE = SlingshotConfig.SlingConfig.MaxShootRange or 20
-local DEFAULT_AIM_DISTANCE = math.max(MAX_RELEASE_DISTANCE, 16)
 local ARROW_FORWARD_OFFSET = 4
 local DEBUG_LOG = false
 
@@ -42,6 +40,8 @@ local inputObject: InputObject? = nil
 local currentDragVector = Vector2.zero
 local currentDragDistance = 0
 local currentDirection = Vector2.new(0, -1)
+local currentChargeAimDirection = Vector3.new(0, 0, -1)
+local chargeReferenceFrame: CFrame? = nil
 local chargeStartTime = 0
 local cooldownStartTime = 0
 local cooldownEndTime = 0
@@ -335,57 +335,29 @@ local function getLaunchDirectionFromRoot(root: BasePart): Vector3
 	return forward.Unit
 end
 
-local function getChargeDirection(root: BasePart): Vector3
-	local camera = workspace.CurrentCamera
-	if not camera then
+local function resolveChargeAimDirection(root: BasePart): Vector3
+	local reference = chargeReferenceFrame
+	if not reference then
 		return getLaunchDirectionFromRoot(root)
 	end
 
-	local baseScreen = getBaseCenter()
-	local dragScreen = baseScreen + currentDragVector
-	local ray = camera:ViewportPointToRay(dragScreen.X, dragScreen.Y)
-	local rayDirectionY = ray.Direction.Y
-	if math.abs(rayDirectionY) > 0.001 then
-		local planeY = root.Position.Y
-		local t = (planeY - ray.Origin.Y) / rayDirectionY
-		if t > 0 then
-			local hit = ray.Origin + (ray.Direction * t)
-			local planar = Vector3.new(hit.X - root.Position.X, 0, hit.Z - root.Position.Z)
-			if planar.Magnitude > 0.001 then
-				return planar.Unit
-			end
-		end
-	end
-
-	local cameraRight = Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z)
-	local cameraForward = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
-	if cameraRight.Magnitude < 0.001 or cameraForward.Magnitude < 0.001 then
+	local right = Vector3.new(reference.RightVector.X, 0, reference.RightVector.Z)
+	local forward = Vector3.new(reference.LookVector.X, 0, reference.LookVector.Z)
+	if right.Magnitude < 0.001 or forward.Magnitude < 0.001 then
 		return getLaunchDirectionFromRoot(root)
 	end
-	return ((cameraRight.Unit * currentDirection.X) + (cameraForward.Unit * -currentDirection.Y)).Unit
-end
 
-local function applyCameraAimDirection(root: BasePart, direction: Vector3)
-	if direction.Magnitude <= 0.001 then
-		return
+	if currentDragDistance <= 0.001 then
+		return getLaunchDirectionFromRoot(root)
 	end
 
-	local camera = workspace.CurrentCamera
-	if not camera then
-		return
+	local worldDirection = (right.Unit * currentDirection.X) + (forward.Unit * -currentDirection.Y)
+	local planarDirection = Vector3.new(worldDirection.X, 0, worldDirection.Z)
+	if planarDirection.Magnitude < 0.001 then
+		return getLaunchDirectionFromRoot(root)
 	end
 
-	player:SetAttribute("SlingAimDirection", direction)
-
-	local cameraOffset = camera.CFrame.Position - root.Position
-	local distance = cameraOffset.Magnitude
-	if distance <= 0.001 then
-		distance = 24
-	end
-
-	local verticalOffset = Vector3.yAxis * math.clamp(cameraOffset.Y, 8, 32)
-	local desiredPosition = root.Position - (direction * distance) + verticalOffset
-	camera.CFrame = CFrame.lookAt(desiredPosition, root.Position + direction, Vector3.yAxis)
+	return planarDirection.Unit
 end
 
 local function destroyArrowPreview()
@@ -419,27 +391,9 @@ local function updateArrowPreview()
 		arrowPreview.Parent = workspace.CurrentCamera or workspace
 	end
 
-	local direction = getChargeDirection(root)
+	local direction = currentChargeAimDirection
 	local origin = root.Position + (direction * ARROW_FORWARD_OFFSET)
 	arrowPreview:PivotTo(CFrame.lookAt(origin, origin + direction, Vector3.yAxis))
-end
-
-local function computeAimTargetFromJoystick(): Vector3
-	local root = getCharacterRoot()
-	if not root then
-		return Vector3.zero
-	end
-
-	local worldDirection = getChargeDirection(root)
-	local aimDistance = DEFAULT_AIM_DISTANCE
-	if currentDragDistance > 0.001 then
-		local normalizedDistance = math.clamp(currentDragDistance / math.max(getJoystickRadius(), 1), 0, 1)
-		aimDistance = SlingUiState.ComputeAimDistance(normalizedDistance, MAX_RELEASE_DISTANCE)
-		if aimDistance < 1 then
-			aimDistance = DEFAULT_AIM_DISTANCE
-		end
-	end
-	return root.Position + worldDirection * aimDistance
 end
 
 local function updateJoystickFromInput(input: InputObject)
@@ -455,13 +409,13 @@ local function updateJoystickFromInput(input: InputObject)
 	currentDragVector = clampedVector
 	currentDragDistance = distance
 	currentDirection = direction
-	cachedThumb.Position = UDim2.new(0.5, clampedVector.X, 0.5, clampedVector.Y)
-	updateDirectionIndicator(SlingUiState.ComputeDirectionRotation(clampedVector))
-
 	local root = getCharacterRoot()
 	if root then
-		applyCameraAimDirection(root, getChargeDirection(root))
+		currentChargeAimDirection = resolveChargeAimDirection(root)
+		player:SetAttribute("SlingAimDirection", currentChargeAimDirection)
 	end
+	cachedThumb.Position = UDim2.new(0.5, clampedVector.X, 0.5, clampedVector.Y)
+	updateDirectionIndicator(SlingUiState.ComputeDirectionRotation(clampedVector))
 end
 
 local function stopUiLoopIfIdle()
@@ -481,10 +435,6 @@ local function stepUi()
 	if isHolding then
 		local chargeRatio = SlingUiState.ComputeChargeRatio(os.clock() - chargeStartTime, MAX_CHARGE_TIME)
 		updateChargeBar(chargeRatio)
-		local root = getCharacterRoot()
-		if root then
-			applyCameraAimDirection(root, getChargeDirection(root))
-		end
 	else
 		updateChargeBar(0)
 	end
@@ -538,6 +488,8 @@ local function resetVisualState()
 	currentDragVector = Vector2.zero
 	currentDragDistance = 0
 	currentDirection = Vector2.new(0, -1)
+	currentChargeAimDirection = Vector3.new(0, 0, -1)
+	chargeReferenceFrame = nil
 	chargeStartTime = 0
 	setVisibleSafe(cachedChargeBar, false)
 	resetThumbPosition()
@@ -580,23 +532,27 @@ local function startHold(input: InputObject)
 	inputObject = input
 	currentDragVector = Vector2.zero
 	currentDragDistance = 0
+	currentChargeAimDirection = Vector3.new(0, 0, -1)
 	chargeStartTime = os.clock()
+	chargeReferenceFrame = nil
 
 	setVisibleSafe(joystickRoot, true)
 	setVisibleSafe(chargeBar, true)
 	resetThumbPosition()
 	updateDirectionIndicator(nil)
 	applyJoystickVisibilityFromState(lastKnownServerState)
-	updateArrowPreview()
 	local root = getCharacterRoot()
 	if root then
-		applyCameraAimDirection(root, getChargeDirection(root))
+		chargeReferenceFrame = root.CFrame
+		currentChargeAimDirection = getLaunchDirectionFromRoot(root)
+		player:SetAttribute("SlingAimDirection", currentChargeAimDirection)
 	end
+	updateArrowPreview()
 	ensureUiLoopRunning()
 
 	debugLog("[SlingUI] StartCharge remote fired")
 
-	startChargeRemote:FireServer(computeAimTargetFromJoystick())
+	startChargeRemote:FireServer(currentChargeAimDirection)
 end
 
 local function updateHold(input: InputObject)
@@ -622,8 +578,7 @@ local function releaseHold(input: InputObject)
 	awaitingReleaseAck = true
 	inputObject = nil
 	player:SetAttribute("SlingAimDirection", nil)
-	local aimTarget = computeAimTargetFromJoystick()
-	releaseChargeRemote:FireServer(aimTarget)
+	releaseChargeRemote:FireServer(currentChargeAimDirection)
 
 	setVisibleSafe(cachedChargeBar, false)
 	resetThumbPosition()
