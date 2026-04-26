@@ -341,31 +341,28 @@ local function getChargeDirection(root: BasePart): Vector3
 		return getLaunchDirectionFromRoot(root)
 	end
 
+	local baseScreen = getBaseCenter()
+	local dragScreen = baseScreen + currentDragVector
+	local ray = camera:ViewportPointToRay(dragScreen.X, dragScreen.Y)
+	local rayDirectionY = ray.Direction.Y
+	if math.abs(rayDirectionY) > 0.001 then
+		local planeY = root.Position.Y
+		local t = (planeY - ray.Origin.Y) / rayDirectionY
+		if t > 0 then
+			local hit = ray.Origin + (ray.Direction * t)
+			local planar = Vector3.new(hit.X - root.Position.X, 0, hit.Z - root.Position.Z)
+			if planar.Magnitude > 0.001 then
+				return planar.Unit
+			end
+		end
+	end
+
 	local cameraRight = Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z)
 	local cameraForward = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
-
 	if cameraRight.Magnitude < 0.001 or cameraForward.Magnitude < 0.001 then
 		return getLaunchDirectionFromRoot(root)
 	end
-
-	cameraRight = cameraRight.Unit
-	cameraForward = cameraForward.Unit
-
-	-- currentDirection:
-	-- X: phải dương
-	-- Y: xuống dương (UI screen space)
-	local x = currentDirection.X
-	local y = currentDirection.Y
-
-	-- Kéo lên => forward
-	-- Kéo xuống => backward
-	local worldDirection = (cameraRight * x) + (cameraForward * -y)
-
-	if worldDirection.Magnitude < 0.001 then
-		return getLaunchDirectionFromRoot(root)
-	end
-
-	return worldDirection.Unit
+	return ((cameraRight.Unit * currentDirection.X) + (cameraForward.Unit * -currentDirection.Y)).Unit
 end
 
 local function applyCameraAimDirection(root: BasePart, direction: Vector3)
@@ -484,6 +481,10 @@ local function stepUi()
 	if isHolding then
 		local chargeRatio = SlingUiState.ComputeChargeRatio(os.clock() - chargeStartTime, MAX_CHARGE_TIME)
 		updateChargeBar(chargeRatio)
+		local root = getCharacterRoot()
+		if root then
+			applyCameraAimDirection(root, getChargeDirection(root))
+		end
 	else
 		updateChargeBar(0)
 	end
@@ -621,8 +622,8 @@ local function releaseHold(input: InputObject)
 	awaitingReleaseAck = true
 	inputObject = nil
 	player:SetAttribute("SlingAimDirection", nil)
-	local target1 = computeAimTargetFromJoystick()
-	print("[DEBUG]", "root:", getCharacterRoot().Position, "target:", target1)	releaseChargeRemote:FireServer(computeAimTargetFromJoystick())
+	local aimTarget = computeAimTargetFromJoystick()
+	releaseChargeRemote:FireServer(aimTarget)
 
 	setVisibleSafe(cachedChargeBar, false)
 	resetThumbPosition()
