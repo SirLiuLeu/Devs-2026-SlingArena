@@ -336,27 +336,35 @@ local function getLaunchDirectionFromRoot(root: BasePart): Vector3
 end
 
 local function getChargeDirection(root: BasePart): Vector3
-	local forward = getLaunchDirectionFromRoot(root)
-	if currentDragDistance <= 0.001 then
-		return forward
-	end
-
 	local camera = workspace.CurrentCamera
 	if not camera then
-		return forward
+		return getLaunchDirectionFromRoot(root)
 	end
 
-	local cameraForward = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
 	local cameraRight = Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z)
-	if cameraForward.Magnitude < 0.001 or cameraRight.Magnitude < 0.001 then
-		return forward
+	local cameraForward = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
+
+	if cameraRight.Magnitude < 0.001 or cameraForward.Magnitude < 0.001 then
+		return getLaunchDirectionFromRoot(root)
 	end
 
-	local localInput = Vector3.new(currentDirection.X, 0, -currentDirection.Y)
-	local worldDirection = (cameraRight.Unit * localInput.X) + (cameraForward.Unit * localInput.Z)
+	cameraRight = cameraRight.Unit
+	cameraForward = cameraForward.Unit
+
+	-- currentDirection:
+	-- X: phải dương
+	-- Y: xuống dương (UI screen space)
+	local x = currentDirection.X
+	local y = currentDirection.Y
+
+	-- Kéo lên => forward
+	-- Kéo xuống => backward
+	local worldDirection = (cameraRight * x) + (cameraForward * -y)
+
 	if worldDirection.Magnitude < 0.001 then
-		return forward
+		return getLaunchDirectionFromRoot(root)
 	end
+
 	return worldDirection.Unit
 end
 
@@ -613,8 +621,8 @@ local function releaseHold(input: InputObject)
 	awaitingReleaseAck = true
 	inputObject = nil
 	player:SetAttribute("SlingAimDirection", nil)
-
-	releaseChargeRemote:FireServer(computeAimTargetFromJoystick())
+	local target1 = computeAimTargetFromJoystick()
+	print("[DEBUG]", "root:", getCharacterRoot().Position, "target:", target1)	releaseChargeRemote:FireServer(computeAimTargetFromJoystick())
 
 	setVisibleSafe(cachedChargeBar, false)
 	resetThumbPosition()
