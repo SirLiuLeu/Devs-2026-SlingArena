@@ -11,6 +11,11 @@ type Context = {
 	Remotes: Folder,
 }
 
+type DamageOptions = {
+	SuppressFeedback: boolean?,
+	SuppressDeathHandling: boolean?,
+}
+
 local DamagePipelineService = {}
 DamagePipelineService.__index = DamagePipelineService
 
@@ -75,7 +80,7 @@ function DamagePipelineService:_sendFeedback(player: Player, eventType: string, 
 	end
 end
 
-function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?): boolean
+function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
 	local playerStateService = getService(self._context, "PlayerStateService")
 	if not playerStateService then
 		warn("[DamagePipelineService] PlayerStateService unavailable; damage skipped.")
@@ -101,14 +106,19 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 		return false
 	end
 
-	if amount > 0 then
+	local suppressFeedback = options and options.SuppressFeedback == true
+	local suppressDeathHandling = options and options.SuppressDeathHandling == true
+
+	if amount > 0 and not suppressFeedback then
 		self:_sendFeedback(victim, "DamageTaken", { Amount = amount })
 	end
 
 	if attacker then
 		if amount > 0 then
 			playerStateService:AddDamageDealt(attacker, amount)
-			self:_sendFeedback(attacker, "DamageDealt", { Amount = amount })
+			if not suppressFeedback then
+				self:_sendFeedback(attacker, "DamageDealt", { Amount = amount })
+			end
 			local victimStats = playerStateService:GetFinalStats(victim)
 			if victimStats then
 				local reflectPct = math.clamp(victimStats.Reflect, 0, 0.5)
@@ -131,12 +141,14 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 				nextVelocity.Y,
 				math.clamp(nextVelocity.Z, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity)
 			)
-			self:_sendFeedback(victim, "Impact", { Direction = knockbackDirection })
+			if not suppressFeedback then
+				self:_sendFeedback(victim, "Impact", { Direction = knockbackDirection })
+			end
 		end
 	end
 
 	local state = playerStateService:GetState(victim)
-	if state and state.CurrentHP <= 0 then
+	if not suppressDeathHandling and state and state.CurrentHP <= 0 then
 		self:HandlePlayerDeath(victim)
 	end
 	return true

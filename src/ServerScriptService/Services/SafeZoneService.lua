@@ -146,7 +146,9 @@ function SafeZoneService:_damagePlayersOutsideZone(dt: number)
 				local planarDistance = (flattenedPlayerPos - flattenedCenter).Magnitude
 				if planarDistance > self._radius then
 					local damage = state.MaxHP * (damagePercent / 100) * dt
-					damagePipelineService:ApplyDamage(player, damage, nil, nil)
+					-- Continuous systems (like safe-zone DOT on Heartbeat) must not emit per-tick RemoteEvent feedback.
+					-- GameplayFeedback is reserved for discrete events, not every frame.
+					damagePipelineService:ApplyDamage(player, damage, nil, nil, { SuppressFeedback = true })
 				end
 			end
 		end
