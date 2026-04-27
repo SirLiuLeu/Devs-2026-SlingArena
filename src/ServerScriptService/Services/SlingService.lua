@@ -271,7 +271,11 @@ end
 
 function SlingService:_isRoundPlaying(): boolean
 	local roundService = getService(self._context, "RoundService")
-	return roundService and roundService:GetState() == GameStates.Round.ActiveRound or false
+	if not roundService then
+		return false
+	end
+	local roundState = roundService:GetState()
+	return roundState == GameStates.Round.EarlyGame or roundState == GameStates.Round.FinalPhase
 end
 
 function SlingService:_canControl(player: Player): boolean
@@ -283,7 +287,7 @@ function SlingService:_canControl(player: Player): boolean
 	end
 	local roundState = roundService:GetState()
 	local canControlForRound = false
-	if roundState == GameStates.Round.ActiveRound then
+	if roundState == GameStates.Round.Awaits or roundState == GameStates.Round.EarlyGame or roundState == GameStates.Round.FinalPhase then
 		canControlForRound = roundService:IsPlayerQueued(player)
 	elseif roundState == GameStates.Round.Lobby then
 		canControlForRound = true

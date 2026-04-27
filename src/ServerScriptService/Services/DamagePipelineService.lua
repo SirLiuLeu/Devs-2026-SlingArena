@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 type Context = {
@@ -24,6 +25,15 @@ local function getService(context: Context, name: string)
 		return context.ServiceRegistry:GetOptional(name)
 	end
 	return context.Services and context.Services[name]
+end
+
+local function isCombatDamageAllowed(context: Context): boolean
+	local roundService = getService(context, "RoundService")
+	if not roundService then
+		return false
+	end
+	local roundState = roundService:GetState()
+	return roundState == GameStates.Round.EarlyGame or roundState == GameStates.Round.FinalPhase
 end
 
 function DamagePipelineService.new(context: Context)
@@ -81,6 +91,9 @@ function DamagePipelineService:_sendFeedback(player: Player, eventType: string, 
 end
 
 function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
+	if attacker and not isCombatDamageAllowed(self._context) then
+		return false
+	end
 	local playerStateService = getService(self._context, "PlayerStateService")
 	if not playerStateService then
 		warn("[DamagePipelineService] PlayerStateService unavailable; damage skipped.")

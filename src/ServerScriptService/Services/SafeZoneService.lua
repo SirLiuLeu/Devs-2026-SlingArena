@@ -1,14 +1,16 @@
 --!strict
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 
 local SafeZoneService = {}
 SafeZoneService.__index = SafeZoneService
 
 local SAFE_ZONE_MODEL_NAME = "SimulatorCircle"
-local CENTER_MARKER_NAME = "CenterCross"
+local LIGHT_CORE_NAME = "LightCore"
 local RADIUS_ATTRIBUTE_NAME = "CurrentRadius"
 
 local START_RADIUS = 70
@@ -46,6 +48,7 @@ function SafeZoneService.new(context)
 	self._center = Vector3.zero
 	self._activeArenaMap = nil :: Model?
 	self._visualCircle = nil :: Model?
+	self._lightCore = nil :: BasePart?
 	return self
 end
 
@@ -85,13 +88,6 @@ function SafeZoneService:_ensureVisualCircle(arenaMap: Model, centerPosition: Ve
 		local existingCircle = arenaMap:FindFirstChild(SAFE_ZONE_MODEL_NAME)
 		if existingCircle and existingCircle:IsA("Model") then
 			circle = existingCircle
-		else
-			local template = ReplicatedStorage:FindFirstChild(SAFE_ZONE_MODEL_NAME)
-			if template and template:IsA("Model") then
-				circle = template:Clone()
-				circle.Name = SAFE_ZONE_MODEL_NAME
-				circle.Parent = arenaMap
-			end
 		end
 		self._visualCircle = circle
 	end
@@ -102,6 +98,7 @@ function SafeZoneService:_ensureVisualCircle(arenaMap: Model, centerPosition: Ve
 
 	local lightCore = circle:FindFirstChild("LightCore", true)
 	if lightCore and lightCore:IsA("BasePart") then
+		self._lightCore = lightCore
 		if circle.PrimaryPart ~= lightCore then
 			circle.PrimaryPart = lightCore
 		end
@@ -110,8 +107,15 @@ function SafeZoneService:_ensureVisualCircle(arenaMap: Model, centerPosition: Ve
 end
 
 function SafeZoneService:_resolveCenter(arenaMap: Model): Vector3?
-	local centerMarker = arenaMap:FindFirstChild(CENTER_MARKER_NAME, true)
-	return getCenterPosition(centerMarker)
+	local circle = arenaMap:FindFirstChild(SAFE_ZONE_MODEL_NAME)
+	if not (circle and circle:IsA("Model")) then
+		return nil
+	end
+	local lightCore = circle:FindFirstChild(LIGHT_CORE_NAME, true)
+	if not lightCore then
+		return nil
+	end
+	return getCenterPosition(lightCore)
 end
 
 function SafeZoneService:_updateRadius(dt: number)
@@ -159,6 +163,33 @@ function SafeZoneService:_replicateRadius(arenaMap: Model)
 	arenaMap:SetAttribute(RADIUS_ATTRIBUTE_NAME, self._radius)
 end
 
+function SafeZoneService:IsAtMinimumRadius(): boolean
+	return self._radius <= self._minRadius + 0.0001
+end
+
+function SafeZoneService:_isShrinkAllowed(): boolean
+	local roundService = self._context.Services.RoundService
+	if not roundService then
+		return false
+	end
+	return roundService:IsRoundActive() and roundService:GetState() == GameStates.Round.EarlyGame
+end
+
+function SafeZoneService:_isDamageAllowed(): boolean
+	local roundService = self._context.Services.RoundService
+	if not roundService then
+		return false
+	end
+	local roundState = roundService:GetState()
+	local allowedState = roundState == GameStates.Round.EarlyGame or roundState == GameStates.Round.FinalPhase
+	return roundService:IsRoundActive() and allowedState
+end
+
+function SafeZoneService:Reset()
+	self._radius = self._startRadius
+	self._elapsed = 0
+end
+
 function SafeZoneService:_step(dt: number)
 	local arenaMap = self:_getArenaMap()
 	if not arenaMap then
@@ -177,9 +208,18 @@ function SafeZoneService:_step(dt: number)
 	self._center = centerPosition
 
 	self:_ensureVisualCircle(arenaMap, centerPosition)
-	self:_updateRadius(dt)
+	if self:_isShrinkAllowed() then
+		self:_updateRadius(dt)
+	else
+		local roundService = self._context.Services.RoundService
+		if roundService and roundService:GetState() == GameStates.Round.Lobby then
+			self:Reset()
+		end
+	end
 	self:_replicateRadius(arenaMap)
-	self:_damagePlayersOutsideZone(dt)
+	if self:_isDamageAllowed() then
+		self:_damagePlayersOutsideZone(dt)
+	end
 end
 
 return SafeZoneService

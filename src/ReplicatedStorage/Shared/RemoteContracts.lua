@@ -22,6 +22,7 @@ RemoteContracts.Names = {
 	PrestigeReset = "PrestigeReset",
 	JoinArena = "JoinArena",
 	LeaveArena = "LeaveArena",
+	StartSafeZone = "StartSafeZone",
 	TeleportRequest = "TeleportRequest",
 	DebugSpawnFood = "DebugSpawnFood",
 	DebugResetSling = "DebugResetSling",

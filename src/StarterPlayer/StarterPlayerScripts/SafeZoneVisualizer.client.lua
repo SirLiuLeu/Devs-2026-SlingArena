@@ -4,7 +4,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local SAFE_ZONE_MODEL_NAME = "SimulatorCircle"
-local CENTER_MARKER_NAME = "CenterCross"
+local LIGHT_CORE_NAME = "LightCore"
 local RADIUS_ATTRIBUTE_NAME = "CurrentRadius"
 
 local BASE_GAMEPLAY_RADIUS = 70
@@ -15,22 +15,8 @@ local targetRadius = BASE_GAMEPLAY_RADIUS
 
 local trackedMap: Model? = nil
 local trackedCircle: Model? = nil
-local trackedCenterMarker: Instance? = nil
 local basePartStates = {} :: {[BasePart]: {baseSize: Vector3, localOffset: CFrame}}
 local lightCorePart: BasePart? = nil
-
-local function getCenterPosition(centerMarker: Instance?): Vector3?
-	if not centerMarker then
-		return nil
-	end
-	if centerMarker:IsA("BasePart") then
-		return centerMarker.Position
-	end
-	if centerMarker:IsA("Model") then
-		return centerMarker:GetPivot().Position
-	end
-	return nil
-end
 
 local function resetTracking()
 	basePartStates = {}
@@ -101,7 +87,6 @@ local function updateMapTracking()
 	targetRadius = trackedMap:GetAttribute(RADIUS_ATTRIBUTE_NAME) or BASE_GAMEPLAY_RADIUS
 	currentVisualRadius = targetRadius
 
-	trackedCenterMarker = trackedMap:FindFirstChild(CENTER_MARKER_NAME, true)
 	local circle = trackedMap:FindFirstChild(SAFE_ZONE_MODEL_NAME)
 	if circle and circle:IsA("Model") then
 		cacheBaseStates(circle)
@@ -135,10 +120,13 @@ local function applyVisualScale(dt: number)
 		end
 	end
 
-	local centerPosition = getCenterPosition(trackedCenterMarker)
+	local centerPosition = lightCorePart and lightCorePart.Position or nil
 	if not centerPosition and trackedMap then
-		trackedCenterMarker = trackedMap:FindFirstChild(CENTER_MARKER_NAME, true)
-		centerPosition = getCenterPosition(trackedCenterMarker)
+		local circle = trackedMap:FindFirstChild(SAFE_ZONE_MODEL_NAME)
+		local lightCore = circle and circle:FindFirstChild(LIGHT_CORE_NAME, true)
+		if lightCore and lightCore:IsA("BasePart") then
+			centerPosition = lightCore.Position
+		end
 	end
 	if not centerPosition or not lightCorePart then
 		return

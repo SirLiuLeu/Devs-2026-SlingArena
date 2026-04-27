@@ -11,9 +11,9 @@ local GameStates = {
 	Round = {
 		Boot = "Boot",
 		Lobby = "Lobby",
-		PreRound = "PreRound",
-		Countdown = "Countdown",
-		ActiveRound = "ActiveRound",
+		Awaits = "Awaits",
+		EarlyGame = "EarlyGame",
+		FinalPhase = "FinalPhase",
 		RoundEnd = "RoundEnd",
 		PostRound = "PostRound",
 	},

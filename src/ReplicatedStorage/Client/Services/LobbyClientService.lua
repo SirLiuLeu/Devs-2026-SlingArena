@@ -13,6 +13,7 @@ export type LobbyClientService = {
 	RemotesRoot: Instance?,
 	JoinArenaRemote: RemoteEvent?,
 	LeaveArenaRemote: RemoteEvent?,
+	StartSafeZoneRemote: RemoteEvent?,
 	StateUpdateRemote: RemoteEvent?,
 	UIStateUpdateRemote: RemoteEvent?,
 	RoundResultRemote: RemoteEvent?,
@@ -24,6 +25,7 @@ export type LobbyClientService = {
 	RequestJoinArena: (self: LobbyClientService) -> (),
 	RequestLeaveArena: (self: LobbyClientService) -> (),
 	RequestTeleport: (self: LobbyClientService, mapName: string, spawnName: string) -> (),
+	RequestStartSafeZone: (self: LobbyClientService) -> (),
 	RequestDebugSpawnFood: (self: LobbyClientService, mapName: string) -> (),
 	RequestDebugResetSling: (self: LobbyClientService) -> (),
 	RequestAttributeUpgrade: (self: LobbyClientService, attributeName: string) -> (),
@@ -46,6 +48,7 @@ function LobbyClientService.new(): LobbyClientService
 	self.RemotesRoot = PathResolver.resolvePath(ReplicatedStorage, ProjectTreeSpec.Remotes.Folder)
 	self.JoinArenaRemote = resolveRemote(ProjectTreeSpec.Remotes.JoinArena)
 	self.LeaveArenaRemote = resolveRemote(ProjectTreeSpec.Remotes.LeaveArena)
+	self.StartSafeZoneRemote = resolveRemote(ProjectTreeSpec.Remotes.StartSafeZone)
 	self.StateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.StateUpdate)
 	self.UIStateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.UIStateUpdate)
 	self.RoundResultRemote = resolveRemote(ProjectTreeSpec.Remotes.RoundResult)
@@ -77,6 +80,12 @@ end
 function LobbyClientService:RequestLeaveArena()
 	if self.LeaveArenaRemote then
 		self.LeaveArenaRemote:FireServer()
+	end
+end
+
+function LobbyClientService:RequestStartSafeZone()
+	if self.StartSafeZoneRemote then
+		self.StartSafeZoneRemote:FireServer()
 	end
 end
 

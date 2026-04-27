@@ -3,12 +3,13 @@
 local ProjectTreeSpec = {
 	UI = {
 		Lobby = {
-			ScreenGui = "LobbyUI", -- [PROJECT_TREE_SPEC] StarterGui.LobbyUI
-			Root = "LobbyUI.RootFrame", -- [PROJECT_TREE_SPEC] StarterGui.LobbyUI.RootFrame
-			JoinButton = "LobbyUI.RootFrame.JoinButton", -- [PROJECT_TREE_SPEC] StarterGui.LobbyUI.RootFrame.JoinButton
-			LeaveButton = "LobbyUI.RootFrame.LeaveButton", -- [PROJECT_TREE_SPEC] StarterGui.LobbyUI.RootFrame.LeaveButton
-			DebugFoodButton = "LobbyUI.RootFrame.DebugFood", -- [PROJECT_TREE_SPEC] StarterGui.LobbyUI.RootFrame.DebugFood
-			DebugResetButton = "LobbyUI.RootFrame.DebugReset", -- [PROJECT_TREE_SPEC] StarterGui.LobbyUI.RootFrame.DebugReset
+			ScreenGui = "UnitTestUI", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI
+			Root = "UnitTestUI.RootFrame", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame
+			JoinButton = "UnitTestUI.RootFrame.JoinButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.JoinButton
+			LeaveButton = "UnitTestUI.RootFrame.LeaveButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.LeaveButton
+			StartSafeZoneButton = "UnitTestUI.RootFrame.StartSafeZoneButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.StartSafeZoneButton
+			DebugFoodButton = "UnitTestUI.RootFrame.DebugFood", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.DebugFood
+			DebugResetButton = "UnitTestUI.RootFrame.DebugReset", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.DebugReset
 		},
 		SlingStats = {
 			ScreenGui = "SlingStatsUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI
@@ -155,6 +156,7 @@ local ProjectTreeSpec = {
 		AbilityTrigger = "SlingArenaRemotes.AbilityTrigger", -- [PROJECT_TREE_SPEC]
 		JoinArena = "SlingArenaRemotes.JoinArena", -- [PROJECT_TREE_SPEC]
 		LeaveArena = "SlingArenaRemotes.LeaveArena", -- [PROJECT_TREE_SPEC]
+		StartSafeZone = "SlingArenaRemotes.StartSafeZone", -- [PROJECT_TREE_SPEC]
 		TeleportRequest = "SlingArenaRemotes.TeleportRequest", -- [PROJECT_TREE_SPEC]
 		AttributeUpgrade = "SlingArenaRemotes.AttributeUpgrade", -- [PROJECT_TREE_SPEC]
 		RequestRespawn = "SlingArenaRemotes.RequestRespawn", -- [PROJECT_TREE_SPEC]

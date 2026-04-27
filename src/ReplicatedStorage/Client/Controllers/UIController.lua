@@ -80,6 +80,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 
 	self.JoinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.JoinButton)
 	self.LeaveButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton)
+	self.StartSafeZoneButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.StartSafeZoneButton)
 	self.MatchStatusLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel)
 	self.TimerLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel)
 	self.AlivePlayersLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.AlivePlayersLabel)
@@ -115,6 +116,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 
 	if not self.JoinButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.JoinButton, "TextButton") end
 	if not self.LeaveButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.LeaveButton, "TextButton") end
+	if not self.StartSafeZoneButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.StartSafeZoneButton, "TextButton") end
 	if not self.MatchStatusLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.StatusLabel, "TextLabel") end
 	if not self.TimerLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.TimerLabel, "TextLabel") end
 	if not self.AlivePlayersLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.AlivePlayersLabel, "TextLabel") end
@@ -201,6 +203,11 @@ function UIController:Start()
 	if self.LeaveButton then
 		table.insert(self.Connections, self.LeaveButton.MouseButton1Click:Connect(function()
 			self.ClientService:RequestLeaveArena()
+		end))
+	end
+	if self.StartSafeZoneButton then
+		table.insert(self.Connections, self.StartSafeZoneButton.MouseButton1Click:Connect(function()
+			self.ClientService:RequestStartSafeZone()
 		end))
 	end
 	if self.DebugFoodButton then
@@ -318,9 +325,14 @@ function UIController:Start()
 
 	local uiStateConnection = self.ClientService:BindUIStateUpdate(function(payload)
 		if self.MatchStatusLabel then self.MatchStatusLabel.Text = string.format("Match: %s", tostring(payload.State or GameStates.Round.Lobby)) end
-		if self.TimerLabel then self.TimerLabel.Text = string.format("CountdownTimer: %d", math.floor(payload.CountdownTimer or payload.TimeLeft or 0)) end
+		if self.TimerLabel then
+			local total = math.max(0, math.floor(payload.RoundElapsed or payload.CountdownTimer or payload.TimeLeft or 0))
+			local minutes = math.floor(total / 60)
+			local seconds = total % 60
+			self.TimerLabel.Text = string.format("%02d:%02d", minutes, seconds)
+		end
 		if self.AlivePlayersLabel then self.AlivePlayersLabel.Text = string.format("PlayerCount: %d (alive %d)", payload.PlayerCount or 0, payload.AlivePlayers or 0) end
-		if self.WinnerPopup and (payload.State or "") ~= GameStates.Round.RoundEnd then
+		if self.WinnerPopup and (payload.State or "") == GameStates.Round.RoundEnd then
 			self.WinnerPopup.Visible = true
 			self.WinnerPopup.Text = "Match result screen: pending"
 		end
