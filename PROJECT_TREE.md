@@ -35,15 +35,10 @@ DataModel
 │  │
 │  ├─ Assets
 │  │  ├── Prefabs
-│  │  │   ├── ArrowModel (Model)
-│  │  │   │   ├── EndAttachment (Attachment)
-│  │  │   │   ├── StartAttachment (Attachment)
-│  │  │   │   └── Arrow (MeshPart/Part)
-│  │  │   │
-│  │  │   └── SimulatorCircle (Model)
-│  │  │       ├── NeonRing (Model/Part)
-│  │  │       ├── GradientCylinder (MeshPart/Part)
-│  │  │       └── LightCore (Part)
+│  │  │   └── ArrowModel (Model)
+│  │  │       ├── EndAttachment (Attachment)
+│  │  │       ├── StartAttachment (Attachment)
+│  │  │       └── Arrow (MeshPart/Part)
 │  │  │
 │  │  ├── Slings
 │  │  │   ├── Sling_Template (Model)
@@ -221,17 +216,13 @@ DataModel
 │
 ## 🟨 StarterGui
 ├─ StarterGui  -> src/StarterGui
-│  ├─ LobbyUI (ScreenGui)
+│  ├─ UnitTestUI (ScreenGui)
 │  │  └─ RootFrame
 │  │     ├─ DebugFood
 │  │     ├─ DebugReset
 │  │     ├─ JoinButton
 │  │     ├─ LeaveButton
-│  │     ├─ HpLabel
-│  │     ├─ LevelLabel
-│  │     ├─ MapName
-│  │     ├─ RespawnLabel
-│  │     └─ StatusLabel
+│  │     └─ StartSafeZoneButton
 │  │
 │  ├─ OnlineRewardUI (ScreenGui)
 │  │  └─ Root
@@ -413,18 +404,6 @@ DataModel
 │        └─ Components/*
 │
 ## 🟫 Workspace (Maps)
-├─ Workspace  -> src/Workspace
-│  ├─ Camera
-│  └─ Maps
-│     ├─ LobbyMap
-│     │  ├─ SpawnPoints
-│     │  │  └─ LobbySpawn
-│     │  ├─ GachaSpin
-│     │  │  └─ Spinwheel
-│     │  └─ Gate (optional join trigger)
-Chào bạn, đây là cấu trúc tree hoàn chỉnh đã được tích hợp đầy đủ các thành phần từ hình ảnh và yêu cầu bổ sung của bạn, giữ nguyên phân cấp từ Workspace xuống đến các thành phần con của ArenaMap:
-
-Plaintext
 ├─ Workspace -> src/Workspace
 │  ├─ Camera
 │  └─ Maps (Folder/Model)
@@ -463,10 +442,10 @@ Plaintext
 │        ├─ ContestZone_Green (Model)
 │        ├─ FarmZone_Main (Model)
 │        ├─ LavaBase (Part)
-│        ├─ SafeSpawnZone
-│        ├─ AntiGiantZone
-│        ├─ SizeRestrictedCorridor
-│        └─ WallContainer
+│        └─ SimulatorCircle (Model)
+│           ├── NeonRing (Model/Part)
+│           ├── GradientCylinder (MeshPart/Part)
+│           └── LightCore (Part)
 │
 ## 🟪 ServerStorage
 ├─ ServerStorage [INFERRED runtime dependency]

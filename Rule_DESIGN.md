@@ -112,7 +112,7 @@ Ghost:
 
 ## 2.6 Round Lifecycle
 
-States: Lobby, Awaits, Active (Early Game), Final Phase, RoundEnd, PostRound
+States: Lobby, Awaits, EarlyGame, FinalPhase, RoundEnd, PostRound
 1. Lobby
    Players stay in the lobby map
    Can open UI (Shop, Inventory, Spin)
@@ -128,15 +128,16 @@ States: Lobby, Awaits, Active (Early Game), Final Phase, RoundEnd, PostRound
 * No Diamonds are rewarded
 * No special rewards spawn in the map
 
-Full gameplay systems are enabled: Movement, Charge, Launch, Food farming, Combat
+Limit gameplay systems are enabled: Movement, Charge, Launch, Food farming, (No Damge when Launch, Applly for Player + Hp Foods)
 
-3. Active (0 → 8 minutes)
-   Trigger: At least 5 players are in the map
+3. EarlyGame (0 → 8 minutes)
+   Trigger: At least 3 players are in the map
    The safe zone starts shrinking
 
 Display message: “Safe zone is shrinking. EXP gain is now 100%.”
+Full gameplay systems are enabled: Movement, Charge, Launch, Food farming, Combat
 
-4. Final Phase (8 → 10 minutes)
+4. FinalPhase (8 → 10 minutes)
    Trigger: Safe zone reaches minimum radius
 Disable: Respawn, New team creation
 Enable: Ghost system
