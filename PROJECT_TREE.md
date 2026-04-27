@@ -35,10 +35,15 @@ DataModel
 │  │
 │  ├─ Assets
 │  │  ├── Prefabs
-│  │  │   └── ArrowModel (Model)
-│  │  │       ├── EndAttachment (Attachment)
-│  │  │       ├── StartAttachment (Attachment)
-│  │  │       └── Arrow (MeshPart/Part)
+│  │  │   ├── ArrowModel (Model)
+│  │  │   │   ├── EndAttachment (Attachment)
+│  │  │   │   ├── StartAttachment (Attachment)
+│  │  │   │   └── Arrow (MeshPart/Part)
+│  │  │   │
+│  │  │   └── SimulatorCircle (Model)
+│  │  │       ├── NeonRing (Model/Part)
+│  │  │       ├── GradientCylinder (MeshPart/Part)
+│  │  │       └── LightCore (Part)
 │  │  │
 │  │  ├── Slings
 │  │  │   ├── Sling_Template (Model)
@@ -417,41 +422,47 @@ DataModel
 │     │  ├─ GachaSpin
 │     │  │  └─ Spinwheel
 │     │  └─ Gate (optional join trigger)
+Chào bạn, đây là cấu trúc tree hoàn chỉnh đã được tích hợp đầy đủ các thành phần từ hình ảnh và yêu cầu bổ sung của bạn, giữ nguyên phân cấp từ Workspace xuống đến các thành phần con của ArenaMap:
+
+Plaintext
+├─ Workspace -> src/Workspace
+│  ├─ Camera
+│  └─ Maps (Folder/Model)
+│     ├─ LobbyMap (Model)
+│     │  ├─ SpawnPoints
+│     │  │  └─ LobbySpawn
+│     │  ├─ GachaSpin
+│     │  │  └─ Spinwheel
+│     │  └─ Gate (optional join trigger)
 │     │
-│     └─ ArenaMap
-│        ├─ SpawnPoints
-│        ├─ FoodSpawns
-│        │  ├─ EdgeZones
+│     └─ ArenaMap (Model)
+│        ├─ FoodContainer (Folder)
+│        ├─ FoodSpawns (Folder)
+│        │  ├─ CenterZones (Folder)
 │        │  │  ├─ FoodSpawn_01
-│        │  │  ├─ FoodSpawn_02
-│        │  │  ├─ FoodSpawn_03
-│        │  │  ├─ FoodSpawn_04
-│        │  │  ├─ FoodSpawn_05
 │        │  │  └─ FoodSpawn_..N
-│        │  │
-│        │  ├─ MidZones
+│        │  ├─ EdgeZones (Folder)
 │        │  │  ├─ FoodSpawn_01
-│        │  │  ├─ FoodSpawn_02
-│        │  │  ├─ FoodSpawn_03
-│        │  │  ├─ FoodSpawn_04
-│        │  │  ├─ FoodSpawn_05
 │        │  │  └─ FoodSpawn_..N
-│        │  │
-│        │  └─ CenterZones
+│        │  └─ MidZones (Folder)
 │        │     ├─ FoodSpawn_01
-│        │     ├─ FoodSpawn_02
-│        │     ├─ FoodSpawn_03
-│        │     ├─ FoodSpawn_04
-│        │     ├─ FoodSpawn_05
 │        │     └─ FoodSpawn_..N
 │        │
-│        ├─ FoodContainer
-│        ├─ Traps
-│        │     ├─ Trap_01
-│        │     ├─ Trap_02
-│        │     └─ Trap_..N
-│        ├─ TrapContainer
-│        ├─ ExitZone
+│        ├─ SpawnPoints (Folder)
+│        │  ├─ SpawnPoint_01
+│        │  ├─ SpawnPoint_02
+│        │  ├─ SpawnPoint_03
+│        │  └─ SpawnPoint_04
+│        │
+│        ├─ Traps (Folder)
+│        │  ├─ Trap_01
+│        │  ├─ Trap_02
+│        │  └─ Trap_..N
+│        │
+│        ├─ CenterCross (Model)
+│        ├─ ContestZone_Green (Model)
+│        ├─ FarmZone_Main (Model)
+│        ├─ LavaBase (Part)
 │        ├─ SafeSpawnZone
 │        ├─ AntiGiantZone
 │        ├─ SizeRestrictedCorridor

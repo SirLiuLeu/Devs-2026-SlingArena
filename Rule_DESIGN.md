@@ -264,7 +264,7 @@ Sources:
 
 ## 8.1 Safe Zone
 - Behavior
-  Shape: Cylinder ( bị scale nhỏ lại theo thời gian)
+  Shape: SimulatorCircle (Model)
   Center: Map center
   Shrink: Continuous over time
 - Shrinks over time → force combat

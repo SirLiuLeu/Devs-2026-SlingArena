@@ -24,7 +24,7 @@ local prefabsFolder = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("Pre
 local MAX_CHARGE_TIME = SlingshotConfig.MAX_CHARGE_TIME or 2
 local DEFAULT_COOLDOWN_DURATION = SlingshotConfig.RECOVER_TIME or 3
 local DEFAULT_JOYSTICK_RADIUS = 60
-local ARROW_FORWARD_OFFSET = 4
+local ARROW_FORWARD_OFFSET = 1
 local DEBUG_LOG = false
 
 local warnedMissingUi = false
@@ -393,7 +393,9 @@ local function updateArrowPreview()
 
 	local direction = currentChargeAimDirection
 	local origin = root.Position + (direction * ARROW_FORWARD_OFFSET)
-	arrowPreview:PivotTo(CFrame.lookAt(origin, origin + direction, Vector3.yAxis))
+	arrowPreview:PivotTo(CFrame.lookAt(origin, origin + direction, Vector3.yAxis)
+					* CFrame.Angles(0, math.rad(-90), 0)) -- Rotate so that the arrow model faces forward along the X axis
+			-- Note: The specific rotation may need to be adjusted based on the orientation of the arrow model in the asset. The above assumes the arrow points along the positive X axis in its default orientation.
 end
 
 local function updateJoystickFromInput(input: InputObject)
