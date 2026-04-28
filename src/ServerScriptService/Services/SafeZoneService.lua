@@ -102,7 +102,8 @@ function SafeZoneService:_ensureVisualCircle(arenaMap: Model, centerPosition: Ve
 		if circle.PrimaryPart ~= lightCore then
 			circle.PrimaryPart = lightCore
 		end
-		circle:PivotTo(CFrame.new(centerPosition) * lightCore.CFrame.Rotation)
+		-- Do not re-pivot the model using LightCore's own position as the target center.
+		-- Reapplying PivotTo each heartbeat with a non-zero model-pivot offset causes cumulative drift.
 	end
 end
 

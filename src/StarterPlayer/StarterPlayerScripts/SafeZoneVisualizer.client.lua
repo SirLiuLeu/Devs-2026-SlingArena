@@ -17,10 +17,12 @@ local trackedMap: Model? = nil
 local trackedCircle: Model? = nil
 local basePartStates = {} :: {[BasePart]: {baseSize: Vector3, localOffset: CFrame}}
 local lightCorePart: BasePart? = nil
+local baseLightCoreCFrame: CFrame? = nil
 
 local function resetTracking()
 	basePartStates = {}
 	lightCorePart = nil
+	baseLightCoreCFrame = nil
 	trackedCircle = nil
 end
 
@@ -37,6 +39,7 @@ local function cacheBaseStates(circle: Model)
 		circle.PrimaryPart = lightCore
 	end
 	lightCorePart = lightCore
+	baseLightCoreCFrame = lightCore.CFrame
 
 	for _, descendant in ipairs(circle:GetDescendants()) do
 		if descendant:IsA("BasePart") then
@@ -120,21 +123,23 @@ local function applyVisualScale(dt: number)
 		end
 	end
 
-	local centerPosition = lightCorePart and lightCorePart.Position or nil
-	if not centerPosition and trackedMap then
+	local centerCFrame = baseLightCoreCFrame
+	if not centerCFrame and lightCorePart then
+		centerCFrame = lightCorePart.CFrame
+	end
+	if not centerCFrame and trackedMap then
 		local circle = trackedMap:FindFirstChild(SAFE_ZONE_MODEL_NAME)
 		local lightCore = circle and circle:FindFirstChild(LIGHT_CORE_NAME, true)
 		if lightCore and lightCore:IsA("BasePart") then
-			centerPosition = lightCore.Position
+			centerCFrame = lightCore.CFrame
 		end
 	end
-	if not centerPosition or not lightCorePart then
+	if not centerCFrame then
 		return
 	end
 
 	local scaleXZ = currentVisualRadius / BASE_GAMEPLAY_RADIUS
-	local lightCoreRotation = lightCorePart.CFrame.Rotation
-	local lightCoreCFrame = CFrame.new(centerPosition) * lightCoreRotation
+	local lightCoreCFrame = centerCFrame
 
 	for part, state in pairs(basePartStates) do
 		if part.Parent then
