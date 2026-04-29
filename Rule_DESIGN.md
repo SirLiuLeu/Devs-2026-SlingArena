@@ -166,25 +166,30 @@ Flow:
 
 ## 3.1 Structure
 - Container: Workspace/Maps/ArenaMap/FoodSpawns
-- Naming: "FoodSpawn"
+-- Foods type: Common, Uncommon, Rare, Epic, Legendary, Mythic, Unique Naming: "FoodSpawn"
 
 ## 3.2 Spawn Rule
 - Radius: ±5 studs (X, Z)
 - Formula: spawnPos = FoodSpawn.Position + Vector3.new(random(-5,5), 0, random(-5,5))
-- Density: 1 FoodSpawn = 5 Food active, Thiếu → respawn sau 10s
+- Density: 1 FoodSpawn = 5 Common Food active or 1 Hp Food
 
 ## 3.3 Food Zones
--  Normal Food (Touch):
+-  Common Food (Touch): Common
   + Disappears on contact
   + Grants EXP + heals HP
+  + Each destroyed Food → respawn exactly 1 after 10s
 
-- HP Food (Must Hit):
+- HP Food (Must Hit): Uncommon, Rare, Epic, Legendary, Mythic, Unique
   + Requires attack (last hit)
   + Grants EXP + chance for Diamonds
+  + - Each destroyed Food → respawn exactly 1 after 30s
 
 ## 3.4 Maintenance
-- Each destroyed Food → respawn exactly 1 after 10s
 - No overlap within same cluster
+- Rate Spawn:
++ MidZones: Common (20%), Uncommon(20%), Rare (20%), Epic (20%), Legendary(10%), Mythic (10%)
++ EdgeZones: Common (40%), Uncommon(30%), Rare(30%)
++ CenterZones: Unique (Luôn chỉ có 1 Foods respawn mỗi 1p30s), Mythic(100%)
 
 # 4. PHYSICS & COMBAT
 
