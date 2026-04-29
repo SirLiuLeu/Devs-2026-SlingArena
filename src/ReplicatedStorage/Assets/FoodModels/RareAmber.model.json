@@ -1,0 +1,26 @@
+{
+  "ClassName": "Model",
+  "Name": "RareAmber",
+  "Children": [
+    {
+      "ClassName": "Part",
+      "Name": "Visual",
+      "Properties": {
+        "Size": { "Vector3": [2, 2, 2] },
+        "Anchored": true,
+        "CanCollide": false,
+        "Color": { "Color3": [1, 0.75, 0.3] }
+      }
+    },
+    {
+      "ClassName": "Part",
+      "Name": "Hitbox",
+      "Properties": {
+        "Size": { "Vector3": [2, 2, 2] },
+        "Anchored": true,
+        "CanCollide": false,
+        "Transparency": 1
+      }
+    }
+  ]
+}

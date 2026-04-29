@@ -1,0 +1,26 @@
+{
+  "ClassName": "Model",
+  "Name": "CommonBlue",
+  "Children": [
+    {
+      "ClassName": "Part",
+      "Name": "Visual",
+      "Properties": {
+        "Size": { "Vector3": [2, 2, 2] },
+        "Anchored": true,
+        "CanCollide": false,
+        "Color": { "Color3": [0.35, 0.55, 1] }
+      }
+    },
+    {
+      "ClassName": "Part",
+      "Name": "Hitbox",
+      "Properties": {
+        "Size": { "Vector3": [2, 2, 2] },
+        "Anchored": true,
+        "CanCollide": false,
+        "Transparency": 1
+      }
+    }
+  ]
+}

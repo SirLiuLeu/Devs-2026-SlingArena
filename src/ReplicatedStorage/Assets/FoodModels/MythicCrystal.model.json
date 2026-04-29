@@ -1,0 +1,26 @@
+{
+  "ClassName": "Model",
+  "Name": "MythicCrystal",
+  "Children": [
+    {
+      "ClassName": "Part",
+      "Name": "Visual",
+      "Properties": {
+        "Size": { "Vector3": [2, 2, 2] },
+        "Anchored": true,
+        "CanCollide": false,
+        "Color": { "Color3": [0.7, 1, 0.95] }
+      }
+    },
+    {
+      "ClassName": "Part",
+      "Name": "Hitbox",
+      "Properties": {
+        "Size": { "Vector3": [2, 2, 2] },
+        "Anchored": true,
+        "CanCollide": false,
+        "Transparency": 1
+      }
+    }
+  ]
+}
