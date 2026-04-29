@@ -13,15 +13,15 @@ local SAFE_ZONE_MODEL_NAME = "SimulatorCircle"
 local LIGHT_CORE_NAME = "LightCore"
 local RADIUS_ATTRIBUTE_NAME = "CurrentRadius"
 
-local START_RADIUS = 70
-local MIN_RADIUS = 0.1
+local START_RADIUS = 420
+local MIN_RADIUS = 1
 local SHRINK_DURATION_SECONDS = 10 * 60
 local DAMAGE_STEP_INTERVAL = 30
 local DAMAGE_START_PERCENT = 1
 local DAMAGE_MAX_PERCENT = 10
 
-local function getPlanarPosition(position: Vector3): Vector3
-	return Vector3.new(position.X, 0, position.Z)
+local function getPlanarPosition(position: Vector3): Vector2
+	return Vector2.new(position.X, position.Z)
 end
 
 local function getCenterPosition(centerMarker: Instance?): Vector3?
@@ -139,7 +139,7 @@ function SafeZoneService:_damagePlayersOutsideZone(dt: number)
 		return
 	end
 
-	local flattenedCenter = getPlanarPosition(self._center)
+	local flattenedCenter: Vector2 = getPlanarPosition(self._center)
 	local damagePercent = self:_getCurrentDamagePercent()
 
 	for _, player in ipairs(Players:GetPlayers()) do
@@ -147,7 +147,7 @@ function SafeZoneService:_damagePlayersOutsideZone(dt: number)
 		if state and state.IsAlive then
 			local root = playerService:GetRoot(player)
 			if root then
-				local flattenedPlayerPos = getPlanarPosition(root.Position)
+				local flattenedPlayerPos: Vector2 = getPlanarPosition(root.Position)
 				local planarDistance = (flattenedPlayerPos - flattenedCenter).Magnitude
 				if planarDistance > self._radius then
 					local damage = state.MaxHP * (damagePercent / 100) * dt

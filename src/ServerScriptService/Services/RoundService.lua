@@ -281,7 +281,8 @@ function RoundService:_step(dt: number)
 		if self._state == GameStates.Round.EarlyGame and safeZoneService and safeZoneService:IsAtMinimumRadius() then
 			self:_setState(GameStates.Round.FinalPhase)
 		end
-		if self:_countAliveArenaPlayers() <= 1 and arenaCount > 0 then
+		local aliveArenaPlayers = self:_countAliveArenaPlayers()
+		if arenaCount >= MIN_PLAYERS_TO_START and aliveArenaPlayers <= 1 then
 			self:_beginRoundEnd()
 		end
 	elseif self._state == GameStates.Round.RoundEnd then

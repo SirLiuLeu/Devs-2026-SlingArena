@@ -7,7 +7,7 @@ local SAFE_ZONE_MODEL_NAME = "SimulatorCircle"
 local LIGHT_CORE_NAME = "LightCore"
 local RADIUS_ATTRIBUTE_NAME = "CurrentRadius"
 
-local BASE_GAMEPLAY_RADIUS = 70
+local BASE_GAMEPLAY_RADIUS = 420
 local SMOOTH_SPEED = 10
 
 local currentVisualRadius = BASE_GAMEPLAY_RADIUS
