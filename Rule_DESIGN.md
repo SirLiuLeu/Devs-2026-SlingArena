@@ -143,8 +143,8 @@ Disable: Respawn, New team creation
 Enable: Ghost system
 
 5. RoundEnd
-   Trigger: Only 1 player or 1 team remains alive
-Flow:
+- Trigger: Only 1 player or 1 team remains alive ( if state == EarlyGame or FinalPhase then check win condition)
+- Flow:
 0–5s: Freeze all players, determine winner
 5–15s: Show result UI, grant rewards
 
