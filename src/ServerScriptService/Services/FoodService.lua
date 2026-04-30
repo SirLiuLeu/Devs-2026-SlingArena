@@ -2,21 +2,27 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerStorage = game:GetService("ServerStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
-local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
+local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
 
-local DEFAULT_FOOD_RESPAWN_DELAY = 10
-local FOODS_PER_SPAWN = 5
-local FOOD_ZONE_TYPES = {
-	Edge = { "Food1" },
-	Middle = { "Food1" },
-	Center = { "Food1" },
-}
+local COLLISION_INTERVAL = 0.1
+local CONSUME_COOLDOWN = 0.12
+local HIT_COOLDOWN = 0.18
+local BURST_SPEED_THRESHOLD = 60
 
-local FOOD_TYPE_STATS = {
-	Food1 = { Exp = BalanceConfig.FoodExp, HP = BalanceConfig.FoodHealth },
+local REQUIRED_FOOD_MODELS = {
+	CommonBlue = true,
+	CommonGreen = true,
+	CommonRed = true,
+	UncommonIce = true,
+	RareAmber = true,
+	EpicViolet = true,
+	LegendaryGold = true,
+	MythicCrystal = true,
+	UniqueCore = true,
+	UniqueCrown = true,
 }
 
 local FoodService = {}
@@ -33,94 +39,6 @@ local function isArenaMapName(mapName: string?): boolean
 	return type(mapName) == "string" and mapName ~= "LobbyMap" and mapName ~= "Lobby" and string.find(mapName, "Arena", 1, true) ~= nil
 end
 
-local function getFoodRespawnDelay(): number
-	local configuredRespawnDelay = BalanceConfig.FoodRespawnDelay
-	if type(configuredRespawnDelay) ~= "number" or configuredRespawnDelay < 0 then
-		return DEFAULT_FOOD_RESPAWN_DELAY
-	end
-	return configuredRespawnDelay
-end
-
-local function listSpawnAnchors(container: Instance?): { BasePart }
-	local anchors = {}
-	if not container then
-		return anchors
-	end
-	for _, descendant in ipairs(container:GetDescendants()) do
-		if descendant:IsA("BasePart") and string.find(descendant.Name, "FoodSpawn", 1, true) == 1 then
-			table.insert(anchors, descendant)
-		end
-	end
-	table.sort(anchors, function(a, b)
-		return a:GetFullName() < b:GetFullName()
-	end)
-	return anchors
-end
-
-local function getMapCenter(positionAnchors: { BasePart }, mapModel: Model): Vector3
-	if #positionAnchors == 0 then
-		return mapModel:GetPivot().Position
-	end
-	local sum = Vector3.zero
-	for _, anchor in ipairs(positionAnchors) do
-		sum += anchor.Position
-	end
-	return sum / #positionAnchors
-end
-
-local function getZoneForAnchor(anchor: BasePart, mapCenter: Vector3): string
-	local _ = mapCenter
-	local configuredZone = anchor:GetAttribute("Zone")
-	if type(configuredZone) == "string" and FOOD_ZONE_TYPES[configuredZone] then
-		return configuredZone
-	end
-	return "Middle"
-end
-
-local function getFoodTemplate(): Model?
-	local serverFood = ServerStorage:FindFirstChild("Food")
-	if serverFood and serverFood:IsA("Model") then
-		return serverFood
-	end
-	local templates = ServerStorage:FindFirstChild("FoodTemplates")
-	if templates and templates:IsA("Folder") then
-		for _, child in ipairs(templates:GetChildren()) do
-			if child:IsA("Model") then
-				return child
-			end
-		end
-	end
-	return nil
-end
-
-function FoodService.new(context)
-	local self = setmetatable({}, FoodService)
-	self._context = context
-	self._foodTouchedDebounce = {}
-	self._foodSpawnByInstance = {}
-	self._foodSpawnStateByCenter = {}
-	return self
-end
-
-function FoodService:Init()
-	local directArena = Workspace:FindFirstChild("ArenaMap")
-	if directArena and directArena:IsA("Model") then
-		self:ClearMapFood(directArena)
-		self:SpawnFoodForMap(directArena)
-	end
-
-	local mapsRoot = Workspace:FindFirstChild("Maps")
-	if not mapsRoot or not mapsRoot:IsA("Folder") then
-		return
-	end
-	for _, child in ipairs(mapsRoot:GetChildren()) do
-		if child:IsA("Model") and isArenaMapName(child.Name) then
-			self:ClearMapFood(child)
-			self:SpawnFoodForMap(child)
-		end
-	end
-end
-
 local function anchorFoodModel(model: Model)
 	for _, descendant in ipairs(model:GetDescendants()) do
 		if descendant:IsA("BasePart") then
@@ -131,198 +49,343 @@ local function anchorFoodModel(model: Model)
 	end
 end
 
-function FoodService:_buildSpawnPosition(centerState: any): Vector3
-	return centerState.Anchor.Position
+local function flattenXZ(v: Vector3): Vector3
+	return Vector3.new(v.X, 0, v.Z)
 end
 
-function FoodService:_spawnFoodFromCenterState(centerState: any): boolean
-	local allowedTypes = FOOD_ZONE_TYPES[centerState.Zone] or FOOD_ZONE_TYPES.Middle
-	local foodType = allowedTypes[math.random(1, #allowedTypes)]
-	local template = centerState.TemplatesByName[foodType] or centerState.FallbackTemplate
-	if not template then
-		return false
+local function sqrDistanceXZ(a: Vector3, b: Vector3): number
+	local dx = a.X - b.X
+	local dz = a.Z - b.Z
+	return dx * dx + dz * dz
+end
+
+local function distancePointToSegmentSquaredXZ(point: Vector3, segStart: Vector3, segEnd: Vector3): number
+	local sx = segStart.X
+	local sz = segStart.Z
+	local ex = segEnd.X
+	local ez = segEnd.Z
+	local px = point.X
+	local pz = point.Z
+	local vx = ex - sx
+	local vz = ez - sz
+	local wx = px - sx
+	local wz = pz - sz
+	local segLenSq = vx * vx + vz * vz
+	if segLenSq <= 1e-6 then
+		local dx = px - sx
+		local dz = pz - sz
+		return dx * dx + dz * dz
 	end
+	local t = math.clamp((wx * vx + wz * vz) / segLenSq, 0, 1)
+	local cx = sx + (vx * t)
+	local cz = sz + (vz * t)
+	local dx = px - cx
+	local dz = pz - cz
+	return dx * dx + dz * dz
+end
+
+function FoodService.new(context)
+	local self = setmetatable({}, FoodService)
+	self._context = context
+	self._foodModels = {}
+	self._foodSpawnsByZone = {}
+	self._foodEntries = {}
+	self._foodByInstance = {}
+	self._playerConsumeCooldown = {}
+	self._playerHitCooldown = {}
+	self._lastPawnPos = {}
+	self._heartbeatConnection = nil
+	return self
+end
+
+function FoodService:Init()
+	self:_loadFoodModels()
+	self:_scanAndSpawnAllArenaMaps()
+	self:_startCollisionLoop()
+end
+
+function FoodService:_loadFoodModels()
+	self._foodModels = {}
+	local folder = ReplicatedStorage:FindFirstChild("FoodModels")
+	if not (folder and folder:IsA("Folder")) then
+		warn("[FoodService] Missing ReplicatedStorage.FoodModels")
+		return
+	end
+	for foodName in pairs(REQUIRED_FOOD_MODELS) do
+		local model = folder:FindFirstChild(foodName)
+		if model and model:IsA("Model") then
+			local hitbox = model:FindFirstChild("Hitbox")
+			local visual = model:FindFirstChild("Visual")
+			if hitbox and hitbox:IsA("BasePart") and visual then
+				self._foodModels[foodName] = model
+			else
+				warn(string.format("[FoodService] Invalid food model shape: %s", model:GetFullName()))
+			end
+		else
+			warn(string.format("[FoodService] Missing food model: %s", foodName))
+		end
+	end
+end
+
+function FoodService:_scanAndSpawnAllArenaMaps()
+	local mapsRoot = Workspace:FindFirstChild("Maps")
+	if not (mapsRoot and mapsRoot:IsA("Folder")) then
+		return
+	end
+	for _, child in ipairs(mapsRoot:GetChildren()) do
+		if child:IsA("Model") and isArenaMapName(child.Name) then
+			self:ClearMapFood(child)
+			self:SpawnFoodForMap(child)
+		end
+	end
+end
+
+function FoodService:_pickWeightedType(zoneName: string): string?
+	local weights = FoodConfig.ZoneWeights[zoneName]
+	if not weights then
+		return nil
+	end
+	local totalWeight = 0
+	for rarity, weight in pairs(weights) do
+		if weight > 0 and FoodConfig.TypePools[rarity] then
+			totalWeight += weight
+		end
+	end
+	if totalWeight <= 0 then
+		return nil
+	end
+	local roll = math.random() * totalWeight
+	local run = 0
+	for rarity, weight in pairs(weights) do
+		if weight > 0 and FoodConfig.TypePools[rarity] then
+			run += weight
+			if roll <= run then
+				local pool = FoodConfig.TypePools[rarity]
+				if #pool > 0 then
+					return pool[math.random(1, #pool)]
+				end
+			end
+		end
+	end
+	return nil
+end
+
+function FoodService:_buildSpawnPosition(spawnPart: BasePart, usedPositions: { Vector3 }): Vector3
+	local radius = FoodConfig.SpawnRadius
+	local minDistance = FoodConfig.MinNoOverlapDistance
+	local minDistanceSq = minDistance * minDistance
+	local fallback = spawnPart.Position
+	for _ = 1, 6 do
+		local offset = Vector3.new(math.random(-radius, radius), 0, math.random(-radius, radius))
+		local candidate = spawnPart.Position + offset
+		local overlaps = false
+		for _, prior in ipairs(usedPositions) do
+			if sqrDistanceXZ(candidate, prior) < minDistanceSq then
+				overlaps = true
+				break
+			end
+		end
+		if not overlaps then
+			return candidate
+		end
+	end
+	return fallback
+end
+
+function FoodService:_spawnFoodOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string)
+	local foodType = self:_pickWeightedType(zoneName)
+	if not foodType then
+		return
+	end
+	local foodRule = FoodConfig.Foods[foodType]
+	local template = self._foodModels[foodType]
+	if not (foodRule and template) then
+		return
+	end
+	local usedPositions = self._foodSpawnsByZone[spawnPart] or {}
+	local spawnPos = self:_buildSpawnPosition(spawnPart, usedPositions)
+	table.insert(usedPositions, spawnPos)
+	self._foodSpawnsByZone[spawnPart] = usedPositions
+
 	local clone = template:Clone()
-	clone.Name = string.format("%s_%s", foodType, centerState.CenterKey)
-	clone:SetAttribute("SpawnedByServer", true)
-	clone:SetAttribute("FoodType", foodType)
-	clone.Parent = centerState.FoodContainer
-	local root = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
-	if not root then
-		clone:Destroy()
-		return false
-	end
-	clone.PrimaryPart = root
+	clone.Name = foodType
+	clone.Parent = foodContainer
 	anchorFoodModel(clone)
-	local spawnPosition = self:_buildSpawnPosition(centerState)
-	local currentPivot = clone:GetPivot()
-	local translation = spawnPosition - root.Position
-	clone:PivotTo(currentPivot + translation)
-	root = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
-	self._foodSpawnByInstance[clone] = { CenterKey = centerState.CenterKey }
-	root.Touched:Connect(function(hit)
-		self:_onFoodTouched(clone, hit)
-	end)
-	return true
-end
-
-function FoodService:_spawnMissingFoodsForCenter(centerState: any)
-	centerState.ActiveCount = 0
-	for foodModel, info in pairs(self._foodSpawnByInstance) do
-		if info.CenterKey == centerState.CenterKey and foodModel and foodModel.Parent then
-			centerState.ActiveCount += 1
-		end
+	local hitbox = clone:FindFirstChild("Hitbox") :: BasePart?
+	if not hitbox then
+		clone:Destroy()
+		return
 	end
-	while centerState.ActiveCount < FOODS_PER_SPAWN do
-		if not self:_spawnFoodFromCenterState(centerState) then
-			break
-		end
-		centerState.ActiveCount += 1
-	end
+	clone.PrimaryPart = hitbox
+	clone:PivotTo(CFrame.new(spawnPos))
+	local entry = {
+		Instance = clone,
+		FoodType = foodType,
+		SpawnPart = spawnPart,
+		ZoneName = zoneName,
+		IsActive = true,
+		IsConsumed = false,
+		HP = foodRule.HP,
+		LastHitBy = nil,
+	}
+	self._foodEntries[clone] = entry
+	self._foodByInstance[clone] = entry
 end
 
 function FoodService:ClearMapFood(mapModel: Model)
-	for instance in pairs(self._foodSpawnByInstance) do
+	for instance, entry in pairs(self._foodEntries) do
 		if instance and instance.Parent and instance:IsDescendantOf(mapModel) then
+			entry.IsActive = false
 			instance:Destroy()
-		end
-		self._foodSpawnByInstance[instance] = nil
-	end
-	for centerKey, state in pairs(self._foodSpawnStateByCenter) do
-		if state.MapModel == mapModel then
-			self._foodSpawnStateByCenter[centerKey] = nil
+			self._foodEntries[instance] = nil
+			self._foodByInstance[instance] = nil
 		end
 	end
 end
 
 function FoodService:SpawnFoodForMap(mapModel: Model)
 	local foodContainer = mapModel:FindFirstChild("FoodContainer")
-	if not foodContainer or not foodContainer:IsA("Folder") then
-		warn(string.format("[FoodService] Missing food container: %s.FoodContainer", mapModel:GetFullName()))
+	local foodSpawns = mapModel:FindFirstChild("FoodSpawns")
+	if not (foodContainer and foodContainer:IsA("Folder")) then
+		warn(string.format("[FoodService] Missing required folder: %s", mapModel:GetFullName() .. ".FoodContainer"))
 		return
 	end
-	local templatesByName = {}
-	local serverTemplates = ServerStorage:FindFirstChild("FoodTemplates")
-	if serverTemplates and serverTemplates:IsA("Folder") then
-		for _, item in ipairs(serverTemplates:GetChildren()) do
-			if item:IsA("Model") then
-				templatesByName[item.Name] = item
+	if not (foodSpawns and foodSpawns:IsA("Folder")) then
+		warn(string.format("[FoodService] Missing required folder: %s", mapModel:GetFullName() .. ".FoodSpawns"))
+		return
+	end
+	for _, zoneFolder in ipairs(foodSpawns:GetChildren()) do
+		if zoneFolder:IsA("Folder") and FoodConfig.ZoneWeights[zoneFolder.Name] then
+			for _, spawnPart in ipairs(zoneFolder:GetChildren()) do
+				if spawnPart:IsA("BasePart") then
+					self:_spawnFoodOnSpawn(mapModel, foodContainer, spawnPart, zoneFolder.Name)
+				end
 			end
 		end
 	end
-	local fallbackTemplate = getFoodTemplate()
-	if not fallbackTemplate and next(templatesByName) == nil then
-		warn("[FoodService] Food spawning aborted: no template models were found.")
-		return
-	end
+end
 
-	local anchors = listSpawnAnchors(mapModel:FindFirstChild("FoodSpawns"))
-	local mapCenter = getMapCenter(anchors, mapModel)
-	if #anchors == 0 then
-		warn(string.format("[FoodService] No FoodSpawn* parts found under %s.FoodSpawns", mapModel:GetFullName()))
+function FoodService:_isPlayerAlive(player: Player): boolean
+	local stateService = getService(self._context, "PlayerStateService")
+	if not stateService then
+		return true
+	end
+	local state = stateService:GetState(player)
+	return state ~= nil and state.IsAlive == true
+end
+
+function FoodService:_consumeFood(entry: any, player: Player)
+	if not entry.IsActive or entry.IsConsumed then
 		return
 	end
-	for index, anchor in ipairs(anchors) do
-		local centerKey = string.format("%s:%s:%d", mapModel.Name, anchor.Name, index)
-		local state = self._foodSpawnStateByCenter[centerKey] or {
-			CenterKey = centerKey,
-			MapModel = mapModel,
-			FoodContainer = foodContainer,
-			Anchor = anchor,
-			Zone = getZoneForAnchor(anchor, mapCenter),
-			TemplatesByName = templatesByName,
-			FallbackTemplate = fallbackTemplate,
-			ActiveCount = 0,
-		}
-		state.MapModel = mapModel
-		state.FoodContainer = foodContainer
-		state.Anchor = anchor
-		state.Zone = getZoneForAnchor(anchor, mapCenter)
-		state.TemplatesByName = templatesByName
-		state.FallbackTemplate = fallbackTemplate
-		self._foodSpawnStateByCenter[centerKey] = state
-		self:_spawnMissingFoodsForCenter(state)
+	entry.IsConsumed = true
+	entry.IsActive = false
+	local instance = entry.Instance
+	self._foodEntries[instance] = nil
+	self._foodByInstance[instance] = nil
+	if instance and instance.Parent then
+		instance:Destroy()
+	end
+	local rule = FoodConfig.Foods[entry.FoodType]
+	if rule then
+		self._context.EventBus:Fire("CollisionDetected", "Food", player, nil, {})
+		self._context.EventBus:Fire("FoodConsumed", player, rule.Exp)
+		local stateService = getService(self._context, "PlayerStateService")
+		if stateService and rule.HealHP > 0 then
+			stateService:Heal(player, rule.HealHP)
+			stateService:PublishState(player)
+		end
+		local respawnDelay = rule.RespawnTime
+		task.delay(respawnDelay, function()
+			if entry.SpawnPart and entry.SpawnPart.Parent then
+				local mapModel = entry.SpawnPart:FindFirstAncestorOfClass("Model")
+				if mapModel then
+					local foodContainer = mapModel:FindFirstChild("FoodContainer")
+					if foodContainer and foodContainer:IsA("Folder") then
+						self:_spawnFoodOnSpawn(mapModel, foodContainer, entry.SpawnPart, entry.ZoneName)
+					end
+				end
+			end
+		end)
 	end
 end
 
-function FoodService:_onFoodTouched(food: Model, hit: BasePart)
-	if not food.Parent or food:GetAttribute("Consumed") then
+function FoodService:_processPlayerFoodCollision(player: Player, pawn: Model, pawnPos: Vector3, prevPos: Vector3?)
+	if not self:_isPlayerAlive(player) then
 		return
 	end
-	local model = hit:FindFirstAncestorOfClass("Model")
-	if not model then
+	if (self._playerConsumeCooldown[player] or 0) > os.clock() then
 		return
 	end
-	local playerService = getService(self._context, "PlayerService")
-	if not playerService then
-		warn("[FoodService] PlayerService unavailable; cannot validate food collision owner.")
-		return
-	end
-	local player = playerService:GetPlayerFromPawn(model)
-	if not player then
-		return
-	end
-	if model ~= playerService:GetPawn(player) then
-		return
-	end
-	if self._foodTouchedDebounce[player] then
-		return
-	end
-	self._foodTouchedDebounce[player] = true
-	food:SetAttribute("Consumed", true)
-	local spawnInfo = self._foodSpawnByInstance[food]
-	self._foodSpawnByInstance[food] = nil
-	local foodType = food:GetAttribute("FoodType")
-	local stats = FOOD_TYPE_STATS[foodType] or { Exp = BalanceConfig.FoodExp, HP = BalanceConfig.FoodHealth }
-	food:Destroy()
-
-	if spawnInfo then
-		local centerState = self._foodSpawnStateByCenter[spawnInfo.CenterKey]
-		if centerState then
-			centerState.ActiveCount = math.max(0, centerState.ActiveCount - 1)
-			task.delay(getFoodRespawnDelay(), function()
-				if centerState.MapModel.Parent and centerState.FoodContainer.Parent then
-					self:_spawnMissingFoodsForCenter(centerState)
+	for _, entry in pairs(self._foodEntries) do
+		if entry.IsActive and not entry.IsConsumed then
+			local instance = entry.Instance
+			local hitbox = instance and instance:FindFirstChild("Hitbox")
+			if hitbox and hitbox:IsA("BasePart") then
+				local radius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5 + 2.8
+				local radiusSq = radius * radius
+				local canTouch = FoodConfig.Foods[entry.FoodType].Touch == true
+				local isBurst = flattenXZ((pawn.PrimaryPart and pawn.PrimaryPart.AssemblyLinearVelocity or Vector3.zero)).Magnitude >= BURST_SPEED_THRESHOLD
+				local collides = sqrDistanceXZ(pawnPos, hitbox.Position) <= radiusSq
+				if (not collides) and isBurst and prevPos then
+					collides = distancePointToSegmentSquaredXZ(hitbox.Position, prevPos, pawnPos) <= radiusSq
 				end
-			end)
+				if collides then
+					if canTouch then
+						self._playerConsumeCooldown[player] = os.clock() + CONSUME_COOLDOWN
+						self:_consumeFood(entry, player)
+						return
+					elseif (self._playerHitCooldown[player] or 0) <= os.clock() then
+						self._playerHitCooldown[player] = os.clock() + HIT_COOLDOWN
+						entry.LastHitBy = player
+						entry.HP -= 1
+						if entry.HP <= 0 then
+							self:_consumeFood(entry, player)
+							return
+						end
+					end
+				end
+			end
 		end
 	end
+end
 
-	self._context.EventBus:Fire("CollisionDetected", "Food", player, food, {})
-	self._context.EventBus:Fire("FoodConsumed", player, stats.Exp)
-	local stateService = getService(self._context, "PlayerStateService")
-	if stateService then
-		stateService:Heal(player, stats.HP)
-		stateService:PublishState(player)
-	else
-		warn("[FoodService] PlayerStateService unavailable; skipped heal/state publish on consume.")
+function FoodService:_startCollisionLoop()
+	if self._heartbeatConnection then
+		self._heartbeatConnection:Disconnect()
 	end
-	task.delay(0.1, function()
-		self._foodTouchedDebounce[player] = nil
+	local accum = 0
+	self._heartbeatConnection = RunService.Heartbeat:Connect(function(dt)
+		accum += dt
+		if accum < COLLISION_INTERVAL then
+			return
+		end
+		accum = 0
+		local playerService = getService(self._context, "PlayerService")
+		if not playerService then
+			return
+		end
+		for _, player in ipairs(Players:GetPlayers()) do
+			local pawn = playerService:GetPawn(player)
+			local root = pawn and (pawn.PrimaryPart or pawn:FindFirstChild("Hitbox"))
+			if pawn and root and root:IsA("BasePart") then
+				local currPos = root.Position
+				local prevPos = self._lastPawnPos[player]
+				self:_processPlayerFoodCollision(player, pawn, currPos, prevPos)
+				self._lastPawnPos[player] = currPos
+			end
+		end
 	end)
 end
 
 function FoodService:LoadMapResources(mapName: string)
-	local mapModel: Model? = nil
-	if mapName == "ArenaMap" then
-		local directArena = Workspace:FindFirstChild("ArenaMap")
-		if directArena and directArena:IsA("Model") then
-			mapModel = directArena
-		end
-	end
-	if not mapModel then
-		local mapsRoot = Workspace:FindFirstChild("Maps")
-		if mapsRoot and mapsRoot:IsA("Folder") then
-			local nested = mapsRoot:FindFirstChild(mapName)
-			if nested and nested:IsA("Model") then
-				mapModel = nested
-			end
-		end
-	end
-	if not mapModel then
+	local mapsRoot = Workspace:FindFirstChild("Maps")
+	if not (mapsRoot and mapsRoot:IsA("Folder")) then
 		return
 	end
-	if isArenaMapName(mapName) then
+	local mapModel = mapsRoot:FindFirstChild(mapName)
+	if mapModel and mapModel:IsA("Model") and isArenaMapName(mapName) then
+		self:ClearMapFood(mapModel)
 		self:SpawnFoodForMap(mapModel)
 	end
 end
@@ -336,14 +399,7 @@ function FoodService:SpawnFoodForActiveMap()
 end
 
 function FoodService:SpawnFoodForMapName(mapName: string)
-	local mapsRoot = Workspace:FindFirstChild("Maps")
-	if not mapsRoot then
-		return
-	end
-	local mapModel = mapsRoot:FindFirstChild(mapName)
-	if mapModel and mapModel:IsA("Model") then
-		self:SpawnFoodForMap(mapModel)
-	end
+	self:LoadMapResources(mapName)
 end
 
 return FoodService
