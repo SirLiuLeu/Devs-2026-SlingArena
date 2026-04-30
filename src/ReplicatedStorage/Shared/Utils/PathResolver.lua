@@ -11,7 +11,11 @@ local warnedMissingPaths: { [string]: boolean } = {}
 
 local function flattenSpec(prefix: string, node: any, output: { string })
 	if type(node) == "string" then
-		table.insert(output, node)
+		if node ~= nil then
+			table.insert(output, node)
+		else
+			warn("flattenSpec: nil string node detected", debug.traceback())
+		end
 		return
 	end
 
@@ -41,6 +45,7 @@ end
 
 local function splitPath(path: string): { string }
 	local segments = {}
+	print("SPLIT PATH", path)
 	for segment in string.gmatch(path, "[^%.]+") do
 		table.insert(segments, segment)
 	end
