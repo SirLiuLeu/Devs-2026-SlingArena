@@ -2,6 +2,38 @@
 DataModel
 ## 🟦 ReplicatedStorage
 ├─ ReplicatedStorage
+│  │  └─ FoodModels
+│  │     ├─ CommonBlue
+│  │     │  ├─ Hitbox
+│  │     │  └─ Visual
+│  │     ├─ CommonGreen
+│  │     │  ├─ Hitbox
+│  │     │  └─ Visual
+│  │     ├─ CommonRed
+│  │     │  ├─ Hitbox
+│  │     │  └─ Visual
+│  │     ├─ EpicViolet
+│  │     │  ├─ Hitbox
+│  │     │  └─ Visual
+│  │     ├─ LegendaryGold
+│  │     │  ├─ Hitbox
+│  │     │  └─ Visual
+│  │     ├─ MythicCrystal
+│  │     │  ├─ Hitbox
+│  │     │  └─ Visual
+│  │     ├─ RareAmber
+│  │     │  ├─ Hitbox
+│  │     │  └─ Visual
+│  │     ├─ UncommonIce
+│  │     │  ├─ Hitbox
+│  │     │  └─ Visual
+│  │     ├─ UniqueCore
+│  │     │  ├─ Hitbox
+│  │     │  └─ Visual
+│  │     └─ UniqueCrown
+│  │        ├─ Hitbox
+│  │        └─ Visual
+│  │
 │  ├─ Shared  -> src/ReplicatedStorage/Shared
 │  │  ├─ Config
 │  │  │  ├─ AbilityConfig.lua
@@ -179,6 +211,10 @@ DataModel
 │  ├─ Main.server.lua
 │  ├─ MapLoader.server.lua
 │  ├─ SlingService.server.lua
+│  │
+│  ├─ Config
+│  │  ├─ PhysisConfig.lua
+│  │  └─ FoodConfig.lua
 │  │
 │  ├─ Tests
 │  │  └─ CoreLoopTests.server.lua

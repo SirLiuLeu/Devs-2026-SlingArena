@@ -165,8 +165,7 @@ Flow:
 # 3. FOOD SPAWN SYSTEM (TECHNICAL)
 
 ## 3.1 Structure
-- Container: Workspace/Maps/ArenaMap/FoodSpawns
--- Foods type: Common, Uncommon, Rare, Epic, Legendary, Mythic, Unique Naming: "FoodSpawn"
+- Foods type: Common, Uncommon, Rare, Epic, Legendary, Mythic, Unique Naming: "FoodSpawn"
 
 ## 3.2 Spawn Rule
 - Radius: ±5 studs (X, Z)
@@ -182,14 +181,76 @@ Flow:
 - HP Food (Must Hit): Uncommon, Rare, Epic, Legendary, Mythic, Unique
   + Requires attack (last hit)
   + Grants EXP + chance for Diamonds
-  + - Each destroyed Food → respawn exactly 1 after 30s
+  + Each destroyed Food → respawn exactly 1 after 30s
+  + Each destroyed "Unique" Food → respawn exactly 1 after 90s
 
 ## 3.4 Maintenance
 - No overlap within same cluster
 - Rate Spawn:
 + MidZones: Common (20%), Uncommon(20%), Rare (20%), Epic (20%), Legendary(10%), Mythic (10%)
 + EdgeZones: Common (40%), Uncommon(30%), Rare(30%)
-+ CenterZones: Unique (Luôn chỉ có 1 Foods respawn mỗi 1p30s), Mythic(100%)
++ CenterZones: Unique (20%), Mythic(80%)
+
+## 3.5 Collision Math (Player/Sling vs Food)
+- Collision is calculated on the Server only.
+- Do not use client touch events as source of truth.
+- task.wait(0.1) -- 10 lần/giây là đủ
+
+### A) Basic Distance Check
+- Let:
+  + P = Player root position
+  + F = Food position
+  + rP = Player collision radius
+  + rF = Food collision radius
+
+- Distance formula:
+  + d = sqrt((Px - Fx)^2 + (Py - Fy)^2 + (Pz - Fz)^2)
+
+- Collision condition:
+  + d <= (rP + rF)
+
+### B) Horizontal Check (recommended for ground-based food)
+- Use XZ plane distance to ignore small Y offset:
+  + dXZ = sqrt((Px - Fx)^2 + (Pz - Fz)^2)
+
+- Optional vertical tolerance:
+  + |Py - Fy| <= YTolerance
+
+- Collision condition:
+  + dXZ <= (rP + rF)
+  + AND |Py - Fy| <= YTolerance
+
+### C) Fast Movement / Sling Check (segment check, chỉ dùng khi Launch)
+- To avoid missing collision when Player moves too fast, check the shortest distance from Food to the movement segment:
+  + A = previous player position
+  + B = current player position
+  + F = Food position
+
+- Compute:
+  + t = clamp(((F - A) · (B - A)) / |B - A|^2, 0, 1)
+  + ClosestPoint = A + t * (B - A)
+  + d = |F - ClosestPoint|
+
+- Collision condition:
+  + d <= (rP + rF)
+
+### D) Server Validation
+- Server must verify:
+  + food exists
+  + food is active
+  + player is alive
+  + distance check passes
+  + cooldown / anti-spam passes
+
+### E) Despawn / Eat Rules
+- Common Food:
+  + On collision, destroy on Server
+  + Respawn exactly 1 after 10s
+
+- HP Food:
+  + On valid hit, destroy on Server
+  + Respawn exactly 1 after 30s
+  + Unique respawn after 90s
 
 # 4. PHYSICS & COMBAT
 
