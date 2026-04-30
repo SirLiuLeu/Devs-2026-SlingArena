@@ -25,7 +25,7 @@ local function resolveRootPart(): BasePart?
 	if not pawn then
 		return nil
 	end
-
+	print("FOUND PAWN", pawn:GetFullName())
 	local root = pawn:FindFirstChild("Hitbox") or pawn.PrimaryPart
 	if root and root:IsA("BasePart") then
 		if pawn.PrimaryPart == nil then
@@ -48,12 +48,14 @@ local function applyDefaultCamera()
 	if not camera then
 		return
 	end
-
+	print("APPLY CAMERA")
 	camera.CameraType = Enum.CameraType.Custom
 
 	local root = resolveRootPart()
 	if root then
 		camera.CameraSubject = root
+	else
+		warn("NO ROOT FOUND")
 	end
 end
 
