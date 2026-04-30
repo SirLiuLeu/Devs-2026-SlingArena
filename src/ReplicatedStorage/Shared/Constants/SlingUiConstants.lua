@@ -11,7 +11,6 @@ local SlingUiConstants = {
 		CooldownBar = "CooldownBar",
 		Fill = "Fill",
 		DirectionIndicator = "DirectionIndicator",
-		DirectionArrow = "DirectionArrow",
 	},
 }
 

@@ -77,8 +77,6 @@ local cachedCooldownFill: GuiObject? = nil
 --       CooldownBar (Frame)
 --         Fill (Frame)
 --       DirectionIndicator (ImageLabel)
--- Optional compatibility alias:
--- StarterGui.SlingArenaUI.SlingUI.DirectionArrow (ImageLabel)
 
 local function debugLog(message: string)
 	if DEBUG_LOG then
@@ -110,7 +108,7 @@ local function warnMissingUiOnce(message: string)
 
 	warnedMissingUi = true
 	warn(message)
-	warn("[UI_CREATION_GUIDE] Required path: StarterGui.SlingArenaUI.SlingUI.JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator. Compatibility alias supported: DirectionArrow.")
+	warn("[UI_CREATION_GUIDE] Required path: StarterGui.SlingArenaUI.SlingUI.JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator.")
 end
 
 local function setVisibleSafe(instance: GuiObject?, visible: boolean)
@@ -156,12 +154,7 @@ local function ensureAnchors(joystickRoot: GuiObject?, base: GuiObject?, thumb: 
 end
 
 local function resolveDirectionIndicator(screenGui: ScreenGui): Instance?
-	local indicator = findChild(screenGui, SlingUiConstants.Elements.DirectionIndicator)
-	if indicator then
-		return indicator
-	end
-
-	return findChild(screenGui, SlingUiConstants.Elements.DirectionArrow)
+	return findChild(screenGui, SlingUiConstants.Elements.DirectionIndicator)
 end
 
 local function disconnectUiInputConnections()
@@ -243,7 +236,7 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 	local cooldownFill = if cooldownBar then findChild(cooldownBar, "Fill") else nil
 
 	if not joystickRoot or not base or not thumb or not chargeBar or not chargeFill or not cooldownBar or not cooldownFill or not directionIndicator then
-		warnMissingUiOnce("[SlingUI] SlingUI hierarchy is incomplete. Expected SlingUI > JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator or DirectionArrow.")
+		warnMissingUiOnce("[SlingUI] SlingUI hierarchy is incomplete. Expected SlingUI > JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator.")
 	end
 
 	cachedJoystickRoot = if joystickRoot and joystickRoot:IsA("GuiObject") then joystickRoot else nil

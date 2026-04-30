@@ -40,14 +40,6 @@ local function resolveTextButton(root: Instance, path: string): TextButton?
 	return nil
 end
 
-local function resolveImageLabel(root: Instance, path: string): ImageLabel?
-	local value = PathResolver.resolvePath(root, path)
-	if value and value:IsA("ImageLabel") then
-		return value
-	end
-	return nil
-end
-
 function InventoryUIController.new(playerGui: PlayerGui)
 	local self = setmetatable({}, InventoryUIController)
 	self._playerGui = playerGui
@@ -80,15 +72,12 @@ function InventoryUIController:Start()
 	self._slingCapacityLabel = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingCapacityLabel)
 
 	self._itemSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsSelectedName)
-	self._itemDescription = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsDescription)
-	self._itemPanelIcon = resolveImageLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsPanelIcon)
 	self._itemStat1 = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsStat1)
 	self._itemStat2 = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsStat2)
 	self._itemStat3 = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsStat3)
 	self._itemUseButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsUseButton)
 
 	self._slingSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingSelectedName)
-	self._slingPanelIcon = resolveImageLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingPanelIcon)
 	self._slingStatDamage = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingStatDamage)
 	self._slingStatHP = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingStatHP)
 	self._slingStatRange = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingStatRange)
@@ -376,12 +365,6 @@ function InventoryUIController:_refreshItemPanel(data)
 	if self._itemSelectedName then
 		self._itemSelectedName.Text = itemDef and itemDef.name or "No item selected"
 	end
-	if self._itemDescription then
-		self._itemDescription.Text = itemDef and (itemDef.effect or "No description") or "Select an item to view details"
-	end
-	if self._itemPanelIcon and itemDef then
-		self._itemPanelIcon.Image = itemDef.icon or ""
-	end
 	if self._itemStat1 then
 		local qty = itemId and (data.ownedItems[itemId] or 0) or 0
 		self._itemStat1.Text = string.format("Quantity: %d", qty)
@@ -402,9 +385,6 @@ function InventoryUIController:_refreshSlingPanel(data)
 
 	if self._slingSelectedName then
 		self._slingSelectedName.Text = (slingEntry and slingEntry.name) or (slingDef and slingDef.name) or "No sling selected"
-	end
-	if self._slingPanelIcon and slingDef then
-		self._slingPanelIcon.Image = (slingEntry and slingEntry.icon) or slingDef.icon or ""
 	end
 	if self._slingStatDamage then
 		local value = slingEntry and slingEntry.stats and slingEntry.stats.damage

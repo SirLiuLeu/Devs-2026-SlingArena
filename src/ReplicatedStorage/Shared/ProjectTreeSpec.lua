@@ -11,17 +11,6 @@ local ProjectTreeSpec = {
 			DebugFoodButton = "UnitTestUI.RootFrame.DebugFood", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.DebugFood
 			DebugResetButton = "UnitTestUI.RootFrame.DebugReset", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.DebugReset
 		},
-		SlingStats = {
-			ScreenGui = "SlingStatsUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI
-			StatsRoot = "SlingStatsUI.StatsRoot", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot
-			HeaderBar = "SlingStatsUI.StatsRoot.HeaderBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.HeaderBar
-			TitleLabel = "SlingStatsUI.StatsRoot.HeaderBar.TitleLabel", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.HeaderBar.TitleLabel
-			AvailablePointsLabel = "SlingStatsUI.StatsRoot.HeaderBar.AvailablePointsLabel", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.HeaderBar.AvailablePointsLabel
-			BodyContainer = "SlingStatsUI.StatsRoot.BodyContainer", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer
-			AttributeList = "SlingStatsUI.StatsRoot.BodyContainer.AttributeList", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.AttributeList
-			ResetButton = "SlingStatsUI.StatsRoot.BodyContainer.ActionButtonsRow.ResetButton", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.ActionButtonsRow.ResetButton
-			AcceptButton = "SlingStatsUI.StatsRoot.BodyContainer.ActionButtonsRow.AcceptButton", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI.StatsRoot.BodyContainer.ActionButtonsRow.AcceptButton
-		},
 		MainHub = {
 			ScreenGui = "MainHUD", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD
 			Root = "MainHUD.Root", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root
@@ -43,7 +32,6 @@ local ProjectTreeSpec = {
 				LevelLabel = "MainHUD.Root.ExpProress.LevelOnBarLabel", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.LevelOnBarLabel
 			},
 			Panels = {
-				SlingStats = "SlingStatsUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingStatsUI
 				DailyLogin = "DailyLoginUI", -- [PROJECT_TREE_SPEC] StarterGui.DailyLoginUI
 				Shop = "ShopGui", -- [PROJECT_TREE_SPEC] StarterGui.ShopGui
 				Inventory = "InventoryUI", -- [ASSUMED] expected inventory panel root ScreenGui name
@@ -69,14 +57,11 @@ local ProjectTreeSpec = {
 			BodySlingGridContainer = "InventoryUI.Root.BodySling.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.GridContainer
 			SlingCapacityLabel = "InventoryUI.Root.BodySling.Footer.CapacityLabel", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.Footer.CapacityLabel
 			ItemsSelectedName = "InventoryUI.Root.BodyItems.RightPanel.SelectedName", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.SelectedName
-			ItemsDescription = "InventoryUI.Root.BodyItems.RightPanel.Description", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Description
-			ItemsPanelIcon = "InventoryUI.Root.BodyItems.RightPanel.Icon", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Icon (optional ImageLabel)
 			ItemsUseButton = "InventoryUI.Root.BodyItems.RightPanel.ActionButtons.UseButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.ActionButtons.UseButton
 			ItemsStat1 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat1", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat1
 			ItemsStat2 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat2", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat2
 			ItemsStat3 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat3", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat3
 			SlingSelectedName = "InventoryUI.Root.BodySling.RightPanel.SelectedName", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.SelectedName
-			SlingPanelIcon = "InventoryUI.Root.BodySling.RightPanel.Icon", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.Icon (optional ImageLabel)
 			SlingEquipButton = "InventoryUI.Root.BodySling.RightPanel.ActionButtons.EquipButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.ActionButtons.EquipButton
 			SlingDeleteButton = "InventoryUI.Root.BodySling.RightPanel.ActionButtons.DeleteButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.ActionButtons.DeleteButton
 			SlingStatDamage = "InventoryUI.Root.BodySling.RightPanel.Stats.Damage", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.Stats.Damage
@@ -120,11 +105,6 @@ local ProjectTreeSpec = {
 			Spin2 = "SpinUI.Root.Buttons.Spin2", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.Buttons.Spin2
 			CloseButton = "SpinUI.Root.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.CloseButton
 		},
-		InventoryTest = {
-			ScreenGui = "InventoryTestUI", -- [PROJECT_TREE_SPEC] StarterGui.InventoryTestUI
-			GiveSlingButton = "InventoryTestUI.GiveSlingButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryTestUI.GiveSlingButton
-			GiveItemButton = "InventoryTestUI.GiveItemButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryTestUI.GiveItemButton
-		},
 		Match = {
 			ScreenGui = "MatchUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI
 			Root = "MatchUI.RootFrame", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI.RootFrame
@@ -142,7 +122,6 @@ local ProjectTreeSpec = {
 			ChargeBar = "SlingArenaUI.SlingUI.ChargeBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.ChargeBar
 			ChargeFill = "SlingArenaUI.SlingUI.ChargeBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.ChargeBar.Fill
 			DirectionIndicator = "SlingArenaUI.SlingUI.DirectionIndicator", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.DirectionIndicator
-			DirectionArrow = "SlingArenaUI.SlingUI.DirectionArrow", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.DirectionArrow (compatibility alias)
 			CooldownBar = "SlingArenaUI.SlingUI.CooldownBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.CooldownBar
 			CooldownFill = "SlingArenaUI.SlingUI.CooldownBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.CooldownBar.Fill
 		},
