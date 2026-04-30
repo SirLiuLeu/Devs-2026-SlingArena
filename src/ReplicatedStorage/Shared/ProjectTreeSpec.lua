@@ -32,6 +32,7 @@ local ProjectTreeSpec = {
 				LevelLabel = "MainHUD.Root.ExpProress.LevelOnBarLabel", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.LevelOnBarLabel
 			},
 			Panels = {
+				SlingStats = "SlingStatsUI", -- [ASSUMED] expected sling stats panel root ScreenGui name
 				DailyLogin = "DailyLoginUI", -- [PROJECT_TREE_SPEC] StarterGui.DailyLoginUI
 				Shop = "ShopGui", -- [PROJECT_TREE_SPEC] StarterGui.ShopGui
 				Inventory = "InventoryUI", -- [ASSUMED] expected inventory panel root ScreenGui name

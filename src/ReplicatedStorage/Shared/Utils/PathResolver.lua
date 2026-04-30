@@ -43,16 +43,23 @@ local function warnMissingOnce(root: Instance, path: string)
 	warn("[ProjectTreeSpec] Missing:", path)
 end
 
-local function splitPath(path: string): { string }
+local function splitPath(path: string?): { string }
 	local segments = {}
-	print("SPLIT PATH", path)
+	if type(path) ~= "string" or path == "" then
+		warn("[PathResolver] Invalid path provided to splitPath:", path)
+		return segments
+	end
 	for segment in string.gmatch(path, "[^%.]+") do
 		table.insert(segments, segment)
 	end
 	return segments
 end
 
-function PathResolver.waitForPath(root: Instance, path: string, timeout: number): Instance?
+function PathResolver.waitForPath(root: Instance, path: string?, timeout: number): Instance?
+	if type(path) ~= "string" or path == "" then
+		return nil
+	end
+
 	local current: Instance? = root
 	local deadline = os.clock() + math.max(timeout, 0)
 
@@ -77,7 +84,14 @@ function PathResolver.waitForPath(root: Instance, path: string, timeout: number)
 	return current
 end
 
-function PathResolver.resolvePath(root: Instance, path: string, options: ResolveOptions?): Instance?
+function PathResolver.resolvePath(root: Instance, path: string?, options: ResolveOptions?): Instance?
+	if type(path) ~= "string" or path == "" then
+		if options == nil or options.shouldWarn ~= false then
+			warn("[PathResolver] resolvePath called with invalid path:", path)
+		end
+		return nil
+	end
+
 	local shouldWarn = if options and options.shouldWarn ~= nil then options.shouldWarn else true
 	local resolved = if options and options.waitTimeout ~= nil
 		then PathResolver.waitForPath(root, path, options.waitTimeout)
