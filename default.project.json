@@ -14,10 +14,8 @@
       },
       "Assets": {
         "$path": "src/ReplicatedStorage/Assets"
-      },
-      "Slings": {
-        "$path": "src/ReplicatedStorage/Slings"
       }
+     
     },
     "ServerScriptService": {
       "$path": "src/ServerScriptService"
