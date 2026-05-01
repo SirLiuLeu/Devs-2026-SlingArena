@@ -9,8 +9,13 @@ local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
 
 local COLLISION_INTERVAL = 0.1
 local CONSUME_COOLDOWN = 0.12
-local HIT_COOLDOWN = 0.18
+local DEFAULT_HIT_COOLDOWN = 0.18
 local BURST_SPEED_THRESHOLD = 60
+local FOOD_UI_TEMPLATE_PATH = { "Assets", "UI", "FoodWorldUI" }
+local DAMAGE_MIN_VELOCITY = 20
+local DAMAGE_MAX_VELOCITY = 170
+local DAMAGE_BASE = 1
+local FOOD_HIT_RADIUS_PADDING = 3.2
 
 local REQUIRED_FOOD_MODELS = {
 	CommonBlue = true,
@@ -27,6 +32,16 @@ local REQUIRED_FOOD_MODELS = {
 
 local FoodService = {}
 FoodService.__index = FoodService
+
+local FOOD_TYPE_COLORS = {
+	Common = Color3.fromRGB(84, 255, 119),
+	Uncommon = Color3.fromRGB(102, 217, 255),
+	Rare = Color3.fromRGB(90, 161, 255),
+	Epic = Color3.fromRGB(188, 119, 255),
+	Legendary = Color3.fromRGB(255, 196, 90),
+	Mythic = Color3.fromRGB(255, 122, 215),
+	Unique = Color3.fromRGB(255, 88, 88),
+}
 
 local function getService(context, name)
 	if context.ServiceRegistry then
@@ -92,10 +107,48 @@ function FoodService.new(context)
 	self._foodEntries = {}
 	self._foodByInstance = {}
 	self._playerConsumeCooldown = {}
-	self._playerHitCooldown = {}
+	self._slingFoodHitCooldown = {}
 	self._lastPawnPos = {}
 	self._heartbeatConnection = nil
 	return self
+end
+
+function FoodService:_resolveFoodUiTemplate(): BillboardGui?
+	local current = ReplicatedStorage
+	for _, childName in ipairs(FOOD_UI_TEMPLATE_PATH) do
+		current = current and current:FindFirstChild(childName)
+	end
+	if current and current:IsA("BillboardGui") then
+		return current
+	end
+	return nil
+end
+
+function FoodService:_attachFoodUI(entry: any, hitbox: BasePart)
+	local template = self:_resolveFoodUiTemplate()
+	if not template then
+		return
+	end
+	local ui = template:Clone()
+	ui.Name = "FoodWorldUI"
+	ui.Adornee = hitbox
+	ui.Enabled = false
+	ui.Parent = entry.Instance
+	local fill = ui:FindFirstChild("HpBarBackground")
+	fill = fill and fill:FindFirstChild("HpBarFill")
+	if fill and fill:IsA("Frame") then
+		local foodType = FoodConfig.Foods[entry.FoodType] and FoodConfig.Foods[entry.FoodType].Type
+		fill.BackgroundColor3 = FOOD_TYPE_COLORS[foodType] or FOOD_TYPE_COLORS.Common
+	end
+	entry.WorldUI = ui
+end
+
+function FoodService:_publishFoodHp(entry: any)
+	if not entry or not entry.Instance then
+		return
+	end
+	entry.Instance:SetAttribute("FoodHP", math.max(0, entry.CurrentHP))
+	entry.Instance:SetAttribute("FoodMaxHP", math.max(1, entry.MaxHP))
 end
 
 function FoodService:Init()
@@ -229,9 +282,14 @@ function FoodService:_spawnFoodOnSpawn(mapModel: Model, foodContainer: Folder, s
 		ZoneName = zoneName,
 		IsActive = true,
 		IsConsumed = false,
-		HP = foodRule.HP,
+		MaxHP = math.max(0, foodRule.HP),
+		CurrentHP = math.max(0, foodRule.HP),
 		LastHitBy = nil,
 	}
+	if entry.MaxHP > 0 then
+		self:_attachFoodUI(entry, hitbox)
+	end
+	self:_publishFoodHp(entry)
 	self._foodEntries[clone] = entry
 	self._foodByInstance[clone] = entry
 end
@@ -278,6 +336,23 @@ function FoodService:_isPlayerAlive(player: Player): boolean
 	return state ~= nil and state.IsAlive == true
 end
 
+function FoodService:_rewardFoodKill(entry: any)
+	local player = entry.LastHitBy
+	local rule = FoodConfig.Foods[entry.FoodType]
+	if not (player and rule) then
+		return
+	end
+	self._context.EventBus:Fire("FoodConsumed", player, rule.Exp)
+	if rule.DiamondRate > 0 and rule.DiamondAmount > 0 and math.random() <= rule.DiamondRate then
+		local stateService = getService(self._context, "PlayerStateService")
+		local state = stateService and stateService:GetState(player)
+		if state then
+			state.Diamonds = math.max(0, state.Diamonds + rule.DiamondAmount)
+			stateService:PublishState(player)
+		end
+	end
+end
+
 function FoodService:_consumeFood(entry: any, player: Player)
 	if not entry.IsActive or entry.IsConsumed then
 		return
@@ -293,8 +368,10 @@ function FoodService:_consumeFood(entry: any, player: Player)
 	local rule = FoodConfig.Foods[entry.FoodType]
 	if rule then
 		self._context.EventBus:Fire("CollisionDetected", "Food", player, nil, {})
-		self._context.EventBus:Fire("FoodConsumed", player, rule.Exp)
 		local stateService = getService(self._context, "PlayerStateService")
+		if rule.Touch then
+			self._context.EventBus:Fire("FoodConsumed", player, rule.Exp)
+		end
 		if stateService and rule.HealHP > 0 then
 			stateService:Heal(player, rule.HealHP)
 			stateService:PublishState(player)
@@ -314,6 +391,22 @@ function FoodService:_consumeFood(entry: any, player: Player)
 	end
 end
 
+function FoodService:_applySlingDamage(entry: any, player: Player, velocity: number)
+	local rule = FoodConfig.Foods[entry.FoodType]
+	if not rule or entry.CurrentHP <= 0 then
+		return
+	end
+	local clampedVelocity = math.clamp(velocity, DAMAGE_MIN_VELOCITY, DAMAGE_MAX_VELOCITY)
+	local damage = clampedVelocity * DAMAGE_BASE
+	entry.LastHitBy = player
+	entry.CurrentHP = math.max(0, entry.CurrentHP - damage)
+	self:_publishFoodHp(entry)
+	if entry.CurrentHP <= 0 then
+		self:_rewardFoodKill(entry)
+		self:_consumeFood(entry, player)
+	end
+end
+
 function FoodService:_processPlayerFoodCollision(player: Player, pawn: Model, pawnPos: Vector3, prevPos: Vector3?)
 	if not self:_isPlayerAlive(player) then
 		return
@@ -326,7 +419,7 @@ function FoodService:_processPlayerFoodCollision(player: Player, pawn: Model, pa
 			local instance = entry.Instance
 			local hitbox = instance and instance:FindFirstChild("Hitbox")
 			if hitbox and hitbox:IsA("BasePart") then
-				local radius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5 + 2.8
+				local radius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5 + FOOD_HIT_RADIUS_PADDING
 				local radiusSq = radius * radius
 				local canTouch = FoodConfig.Foods[entry.FoodType].Touch == true
 				local isBurst = flattenXZ((pawn.PrimaryPart and pawn.PrimaryPart.AssemblyLinearVelocity or Vector3.zero)).Magnitude >= BURST_SPEED_THRESHOLD
@@ -339,12 +432,20 @@ function FoodService:_processPlayerFoodCollision(player: Player, pawn: Model, pa
 						self._playerConsumeCooldown[player] = os.clock() + CONSUME_COOLDOWN
 						self:_consumeFood(entry, player)
 						return
-					elseif (self._playerHitCooldown[player] or 0) <= os.clock() then
-						self._playerHitCooldown[player] = os.clock() + HIT_COOLDOWN
-						entry.LastHitBy = player
-						entry.HP -= 1
-						if entry.HP <= 0 then
-							self:_consumeFood(entry, player)
+					elseif entry.MaxHP > 0 then
+						local now = os.clock()
+						local perPlayer = self._slingFoodHitCooldown[player]
+						if not perPlayer then
+							perPlayer = {}
+							self._slingFoodHitCooldown[player] = perPlayer
+						end
+						local hitCooldown = DEFAULT_HIT_COOLDOWN
+						local cooldownKey = entry.Instance
+						local nextAllowedAt = perPlayer[cooldownKey] or 0
+						if nextAllowedAt <= now then
+							local speed = flattenXZ((pawn.PrimaryPart and pawn.PrimaryPart.AssemblyLinearVelocity or Vector3.zero)).Magnitude
+							self:_applySlingDamage(entry, player, speed)
+							perPlayer[cooldownKey] = now + hitCooldown
 							return
 						end
 					end
