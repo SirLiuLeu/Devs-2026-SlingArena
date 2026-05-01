@@ -104,6 +104,11 @@ DataModel
 │  │  │       └── Sling_05 (Image)
 │  │  │
 │  │  └── UI
+│  │      ├── FoodWorldUI (BillboardGui)
+│  │      │   └── HpBarBackground (Frame)
+│  │      │       ├── UICorner
+│  │      │       └── HpBarFill (Frame)
+│  │      │
 │  │      ├── ItemSlotTemplate (Frame)
 │  │      │   └── Root (Frame)
 │  │      │       ├── UICorner

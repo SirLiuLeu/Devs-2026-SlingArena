@@ -48,15 +48,29 @@ local function applyDefaultCamera()
 	if not camera then
 		return
 	end
+
 	print("APPLY CAMERA")
 	camera.CameraType = Enum.CameraType.Custom
 
-	local root = resolveRootPart()
-	if root then
-		camera.CameraSubject = root
-	else
-		warn("NO ROOT FOUND")
+	local maxAttempts = 20
+	local attempt = 0
+
+	local function tryResolve()
+		local root = resolveRootPart()
+		if root then
+			camera.CameraSubject = root
+			return
+		end
+
+		attempt += 1
+		if attempt < maxAttempts then
+			task.delay(0.1, tryResolve)
+		else
+			warn("NO ROOT FOUND")
+		end
 	end
+
+	tryResolve()
 end
 
 Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(applyDefaultCamera)

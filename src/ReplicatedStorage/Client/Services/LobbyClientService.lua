@@ -99,6 +99,8 @@ function LobbyClientService:RequestTeleport(mapName: string, spawnName: string)
 end
 
 function LobbyClientService:RequestDebugSpawnFood(mapName: string)
+	print("DebugSpawnFoodRemote =", self.DebugSpawnFoodRemote)
+print("FullName =", self.DebugSpawnFoodRemote and self.DebugSpawnFoodRemote:GetFullName())
 	if self.DebugSpawnFoodRemote then
 		self.DebugSpawnFoodRemote:FireServer(mapName)
 	end

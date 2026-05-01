@@ -99,6 +99,7 @@ function FoodService.new(context)
 end
 
 function FoodService:Init()
+	print("[FoodService] Init called")
 	self:_loadFoodModels()
 	self:_scanAndSpawnAllArenaMaps()
 	self:_startCollisionLoop()
@@ -106,11 +107,14 @@ end
 
 function FoodService:_loadFoodModels()
 	self._foodModels = {}
-	local folder = ReplicatedStorage:FindFirstChild("FoodModels")
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local folder = assets and assets:FindFirstChild("FoodModels")
+
 	if not (folder and folder:IsA("Folder")) then
-		warn("[FoodService] Missing ReplicatedStorage.FoodModels")
+		warn("[FoodService] Missing ReplicatedStorage.Assets.FoodModels")
 		return
 	end
+	
 	for foodName in pairs(REQUIRED_FOOD_MODELS) do
 		local model = folder:FindFirstChild(foodName)
 		if model and model:IsA("Model") then

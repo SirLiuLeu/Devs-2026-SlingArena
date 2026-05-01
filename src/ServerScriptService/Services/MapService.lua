@@ -389,6 +389,7 @@ function MapService:GetExitZones(): { BasePart }
 end
 
 function MapService:SpawnFood(_count: number?)
+	print("[MapService] SpawnFood called with count:", _count)
 	if self._context.Services.FoodService then
 		self._context.Services.FoodService:SpawnFoodForActiveMap()
 	end
@@ -409,6 +410,7 @@ function MapService:RequestTeleport(player: Player, mapName: string, spawnName: 
 end
 
 function MapService:DebugSpawnFood(_player: Player, mapName: string)
+	print("[MapService] DebugSpawnFood called for player:", _player.Name, "mapName:", mapName)
 	local _ = mapName
 end
 
