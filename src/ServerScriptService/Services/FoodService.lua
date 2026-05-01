@@ -16,6 +16,10 @@ local DAMAGE_MIN_VELOCITY = 20
 local DAMAGE_MAX_VELOCITY = 170
 local DAMAGE_BASE = 1
 local FOOD_HIT_RADIUS_PADDING = 3.2
+local NORMAL_EPSILON = 1e-5
+local MIN_SPEED_EPSILON = 1e-3
+local REFLECTION_DAMPING = 0.8
+local LAST_HIT_VELOCITY_DAMPING = 0.5
 
 local REQUIRED_FOOD_MODELS = {
 	CommonBlue = true,
@@ -72,6 +76,13 @@ local function sqrDistanceXZ(a: Vector3, b: Vector3): number
 	local dx = a.X - b.X
 	local dz = a.Z - b.Z
 	return dx * dx + dz * dz
+end
+
+local function sanitizeUnit(v: Vector3, fallback: Vector3): Vector3
+	if v.Magnitude <= NORMAL_EPSILON then
+		return fallback
+	end
+	return v.Unit
 end
 
 local function distancePointToSegmentSquaredXZ(point: Vector3, segStart: Vector3, segEnd: Vector3): number
@@ -407,6 +418,36 @@ function FoodService:_applySlingDamage(entry: any, player: Player, velocity: num
 	end
 end
 
+function FoodService:_computeCollisionNormal(playerPosition: Vector3, foodPosition: Vector3, velocity: Vector3): Vector3
+	local fallbackNormal = sanitizeUnit(flattenXZ(-velocity), Vector3.new(0, 0, -1))
+	return sanitizeUnit(playerPosition - foodPosition, fallbackNormal)
+end
+
+function FoodService:_reflectVelocity(velocity: Vector3, normal: Vector3): Vector3
+	if velocity.Magnitude <= MIN_SPEED_EPSILON then
+		return Vector3.zero
+	end
+	local unitNormal = sanitizeUnit(normal, Vector3.new(0, 0, -1))
+	local reflected = velocity - (2 * velocity:Dot(unitNormal) * unitNormal)
+	if reflected.Magnitude <= MIN_SPEED_EPSILON then
+		return Vector3.zero
+	end
+	return reflected * REFLECTION_DAMPING
+end
+
+function FoodService:_resolvePenetration(root: BasePart, hitbox: BasePart, normal: Vector3)
+	local radius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5 + FOOD_HIT_RADIUS_PADDING
+	local currentOffset = root.Position - hitbox.Position
+	local planarDistance = flattenXZ(currentOffset).Magnitude
+	local penetrationDepth = radius - planarDistance
+	if penetrationDepth <= 0 then
+		return
+	end
+	local pushNormal = sanitizeUnit(flattenXZ(normal), Vector3.new(0, 0, -1))
+	local pushOut = pushNormal * (penetrationDepth + 0.05)
+	root.CFrame = root.CFrame + Vector3.new(pushOut.X, 0, pushOut.Z)
+end
+
 function FoodService:_processPlayerFoodCollision(player: Player, pawn: Model, pawnPos: Vector3, prevPos: Vector3?)
 	if not self:_isPlayerAlive(player) then
 		return
@@ -443,9 +484,27 @@ function FoodService:_processPlayerFoodCollision(player: Player, pawn: Model, pa
 						local cooldownKey = entry.Instance
 						local nextAllowedAt = perPlayer[cooldownKey] or 0
 						if nextAllowedAt <= now then
-							local speed = flattenXZ((pawn.PrimaryPart and pawn.PrimaryPart.AssemblyLinearVelocity or Vector3.zero)).Magnitude
+							local root = pawn.PrimaryPart
+							if not (root and root:IsA("BasePart")) then
+								return
+							end
+							local preVelocity = root.AssemblyLinearVelocity
+							local speed = flattenXZ(preVelocity).Magnitude
+							local hpBeforeHit = entry.CurrentHP
 							self:_applySlingDamage(entry, player, speed)
+							local hpAfterHit = entry.CurrentHP
 							perPlayer[cooldownKey] = now + hitCooldown
+							if hpBeforeHit <= 0 then
+								return
+							end
+							if hpAfterHit <= 0 then
+								root.AssemblyLinearVelocity = preVelocity * LAST_HIT_VELOCITY_DAMPING
+								return
+							end
+							local normal = self:_computeCollisionNormal(root.Position, hitbox.Position, preVelocity)
+							local reflected = self:_reflectVelocity(preVelocity, normal)
+							root.AssemblyLinearVelocity = reflected
+							self:_resolvePenetration(root, hitbox, normal)
 							return
 						end
 					end
