@@ -10,15 +10,15 @@ local PhysicsConfig = {
 	},
 
 	Movement = {
-		MoveSpeed = 10,
-		MaxForce = 30000,
+		MoveSpeed = 20,
+		MaxForce = 3000,
 	},
 
 	Charge = {
 		MaxChargeTime = 1.4,
 		ChargeForceMultiplier = 1,
 		MinForce = 35,
-		MaxForce = 500,
+		MaxForce = 100,
 	},
 
 	Stability = {
