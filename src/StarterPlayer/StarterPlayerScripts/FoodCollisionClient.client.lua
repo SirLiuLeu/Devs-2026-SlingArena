@@ -21,7 +21,7 @@ end
 
 local function getRoot(): BasePart?
 	local character = player.Character
-	return character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	return character and character:FindFirstChild("Hitbox") :: BasePart?
 end
 
 local function getNearbyFood(position: Vector3): { Model }
@@ -63,6 +63,7 @@ RunService.RenderStepped:Connect(function()
 	for _, food in ipairs(getNearbyFood(currPos)) do
 		local hitbox = food:FindFirstChild("Hitbox")
 		local foodId = food:GetAttribute("FoodId")
+		local rarity = food:GetAttribute("FoodRarity")
 		if hitbox and hitbox:IsA("BasePart") and typeof(foodId) == "string" then
 			local playerRadius = math.max(root.Size.X, root.Size.Z) * 0.5
 			local foodRadius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5 + HIT_EPSILON
@@ -72,7 +73,20 @@ RunService.RenderStepped:Connect(function()
 				local now = os.clock()
 				if (lastHit[foodId] or 0) <= now then
 					lastHit[foodId] = now + REPORT_COOLDOWN
-					food.Parent = nil
+					-- Client-side prediction: if it's a common food, make it invisible and non-collidable immediately
+					if rarity == "Common" then
+						for _, obj in ipairs(food:GetDescendants()) do
+							if obj:IsA("BasePart") then
+								obj.Transparency = 1
+								obj.CanCollide = false
+								obj.CanTouch = false
+								obj.CanQuery = false
+							elseif obj:IsA("Decal") then
+								obj.Transparency = 1
+							end
+						end
+					end
+					-- Fire the remote to report the hit to the server
 					reportRemote:FireServer({
 						foodId = foodId,
 						hitType = "ClientPredictedFoodOverlap",

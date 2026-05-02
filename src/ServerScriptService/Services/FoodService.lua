@@ -335,6 +335,7 @@ function FoodService:_spawnFoodOnSpawn(mapModel: Model, foodContainer: Folder, s
 		LastHitBy = nil,
 	}
 	clone:SetAttribute("FoodId", entry.Id)
+	clone:SetAttribute("FoodRarity", foodRule.Type)
 	if entry.MaxHP > 0 then
 		self:_attachFoodUI(entry, hitbox)
 	end

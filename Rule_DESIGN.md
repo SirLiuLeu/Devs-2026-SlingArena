@@ -114,10 +114,15 @@ Ghost:
 
 States: Lobby, Awaits, EarlyGame, FinalPhase, RoundEnd, PostRound
 1. Lobby
-   Players stay in the lobby map
+   Players stay in the Lobby map
    Can open UI (Shop, Inventory, Spin)
    Players can join the Arena Map
    After leaving the Arena, there is a 15-second cooldown before rejoining
+  -- Re-Round (PostRound States)
+   When the round ends, all players are teleported back to the Lobby
+   Reset the game state for the next round
+   Reset: Map, Food, Player state, temporary flags and round data
+   When the Map is ready, transition to the next state
 
 2. Awaits
    The safe zone only starts shrinking when enough players have joined the map
@@ -148,10 +153,6 @@ Enable: Ghost system
 0–5s: Freeze all players, determine winner
 5–15s: Show result UI, grant rewards
 
-6. PostRound (Reset)
-   Reset the game state for the next round
-Reset: Map, Food, Player state
-Teleport back to Lobby
 
 ## 2.7 End Condition
 - Winner: Last player alive
@@ -372,6 +373,7 @@ Where:
 - StealthSling: Invisible 1s before launch
 - HealSling: Heal on launch
 - SpeedSling: +5% speed per launch (stack)
+
 ## 5.2.1 SLING ABILITY SYSTEM
 1. Trigger Type
 - Each ability must define: OnLaunch, OnCollision, Passive
@@ -460,8 +462,157 @@ Outside:
 - Price: 1000 Diamonds / 7 days
 - Buff: +20% EXP from Food
 (Does NOT stack, Only refresh duration)
+# 10. STATE SYSTEM (PLAYER)
 
-# 10. BUILD ORDER
+## 10.1 Player States
+- Idle: Default state, no active input
+- Moving: Player is moving normally
+- Charging: Holding input to prepare launch
+- Launching: Player is in launched physics state
+- Dead: Player is eliminated, no actions allowed
+
+## 10.2 State Rules
+- Dead:
+  + Disable all actions
+  + Ignore input
+- Charging:
+  + Cannot move
+  + Can transition to Launching
+- Launching:
+  + Movement controlled by physics
+  + Cannot re-enter Charging until resolved
+- Idle / Moving:
+  + Normal control allowed
+
+## 10.3 State Transition
+- Idle → Moving (input)
+- Moving → Charging (hold input)
+- Charging → Launching (release input)
+- Launching → Idle (velocity below threshold or collision resolve)
+- Any → Dead (HP <= 0)
+
+---
+
+# 10.4 FLAG SYSTEM (MODIFIERS)
+
+## 10.4.1 Flag Types
+- Ghost: Ignore collision, ignore damage
+- Slow: Reduce movement speed
+- Stun: Disable input and movement
+- Freeze: Strong CC, disable move + rotate
+- PoisonSpike: Damage over time
+- Invisible: Hidden from enemy UI
+- Recovering: Heal over time
+- Invulnerable: Ignore incoming damage
+
+## 10.4.2 Flag Properties
+- Duration: Time the flag is active
+- Stackable: Whether multiple stacks are allowed
+- MaxStack: Maximum stack count (if applicable)
+
+## 10.4.3 Flag Rules
+- Stun / Freeze:
+  + Override movement (cannot move)
+- Slow:
+  + Modify movement speed (stack if allowed)
+- Ghost:
+  + Ignore collision checks
+- Invulnerable:
+  + Ignore all damage sources
+- Invisible:
+  + Hide UI / targeting
+- PoisonSpike:
+  + Apply periodic damage
+- Recovering:
+  + Apply periodic healing
+
+## 10.4.4 Priority Rule
+- Freeze > Stun > Slow
+- Hard CC overrides all movement-related states
+
+---
+
+# 10.5 STATE + FLAG RESOLUTION
+
+## 10.5.1 Movement Rule
+A player can move only if:
+
+- State != Dead
+- State != Charging
+- State != Launching
+- No active Stun
+- No active Freeze
+
+## 10.5.2 Final Behavior Pipeline
+- State defines intent (what player is doing)
+- Flag modifies or overrides behavior
+- Final result is resolved on server
+
+---
+
+# 10.6 SESSION SYSTEM
+
+## 10.6.1 Session States
+- Lobby: Pre-game state
+- Loading: Preparing player / map
+- InGame: Active gameplay
+
+## 10.6.2 Session Rules
+- Lobby:
+  + Players can interact but cannot deal damage
+- Loading:
+  + Disable spawn / interaction until ready
+- InGame:
+  + Full gameplay enabled
+
+## 10.6.3 Flow
+Lobby → Loading → InGame → Lobby
+
+---
+
+# 10.7 MAP / ROUND SYSTEM
+
+## 10.7.1 Round States
+- Lobby: No active round
+- Awaits: Waiting for players or timer
+- EarlyGame: Main gameplay phase
+- FinalPhase: Endgame pressure phase
+- RoundEnd: Round finished
+- PostRound: Cleanup / transition
+
+## 10.7.2 Rules
+- PostRound is treated as Lobby at player/session level
+- Round logic handled by Round Service (server authority)
+
+---
+
+# 10.8 PLAYER DATA & MAP BINDING
+
+## 10.8.1 PlayerData
+- LocationState: Lobby | Loading | InGame
+- CurrentMap: nil or map reference
+
+## 10.8.2 Join Map
+- playerData.CurrentMap = map
+- map.Players[player] = true
+- playerData.LocationState = InGame
+
+## 10.8.3 Leave Map
+- Remove player from map.Players
+- playerData.CurrentMap = nil
+- playerData.LocationState = Lobby
+
+---
+
+# 10.9 DESIGN PRINCIPLES
+
+- Server is authoritative for State and Flag
+- Client only reads and renders
+- Config contains data only (no logic)
+- All behavior resolved via State + Flag pipeline
+- Avoid conflicting logic between State and Flag
+
+# 11. BUILD ORDER
 1. Round System
 2. Physics Core
 3. Food System

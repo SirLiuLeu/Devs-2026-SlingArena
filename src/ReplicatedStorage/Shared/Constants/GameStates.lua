@@ -1,25 +1,40 @@
 --!strict
 
 local GameStates = {
-	Movement = {
+	-- Player gameplay state
+	PlayerState = {
 		Idle = "Idle",
 		Moving = "Moving",
 		Charging = "Charging",
-		Launched = "Launched",
-		Recovering = "Recovering",
+		Launching = "Launching",
+		Dead = "Dead",
 	},
-	Round = {
-		Boot = "Boot",
+
+	-- Player flag / modifier system
+	PlayerFlag = {
+		Ghost = "Ghost",
+		Slow = "Slow",
+		Stun = "Stun",
+		Freeze = "Freeze",
+		PoisonSpike = "PoisonSpike", -- dính gai độc
+		Invisible = "Invisible",
+		Recovering = "Recovering", -- hồi máu
+	},
+
+	-- Session state: dùng cho flow vào game / ở lobby
+	SessionState = {
+		Lobby = "Lobby",
+		Loading = "Loading",
+		InGame = "InGame",
+	},
+
+	-- Map / Round service state
+	MapRoundState = {
 		Lobby = "Lobby",
 		Awaits = "Awaits",
 		EarlyGame = "EarlyGame",
 		FinalPhase = "FinalPhase",
-		RoundEnd = "RoundEnd",
-		PostRound = "PostRound",
-	},
-	ArenaStatus = {
-		Lobby = "Lobby",
-		InArena = "InArena",
+		RoundEnd = "RoundEnd"
 	},
 }
 
