@@ -27,6 +27,7 @@ RemoteContracts.Names = {
 	DebugSpawnFood = "DebugSpawnFood",
 	DebugResetSling = "DebugResetSling",
 	ConsumeHpPotion = "ConsumeHpPotion",
+	ReportFoodHit = "ReportFoodHit",
 }
 
 RemoteContracts.Validators = {
@@ -55,6 +56,24 @@ RemoteContracts.Validators = {
 		return typeof(mapName) == "string" and typeof(spawnName) == "string"
 	end,
 	[RemoteContracts.Names.ConsumeHpPotion] = function(): boolean
+		return true
+	end,
+	[RemoteContracts.Names.ReportFoodHit] = function(payload: any): boolean
+		if type(payload) ~= "table" then
+			return false
+		end
+		if typeof(payload.foodId) ~= "string" or #payload.foodId == 0 then
+			return false
+		end
+		if payload.hitType ~= nil and typeof(payload.hitType) ~= "string" then
+			return false
+		end
+		if payload.prevPos ~= nil and typeof(payload.prevPos) ~= "Vector3" then
+			return false
+		end
+		if payload.currPos ~= nil and typeof(payload.currPos) ~= "Vector3" then
+			return false
+		end
 		return true
 	end,
 }

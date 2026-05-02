@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config.Config)
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
+local PhysicsConfig = require(script.Parent.Parent.Config.PhysicsConfig)
 
 local CollisionService = {}
 CollisionService.__index = CollisionService
@@ -128,6 +129,12 @@ function CollisionService:_resolvePlayerCollisions(hits)
 			local impactDirection = loserRoot.Position - winnerRoot.Position
 			local damage = damageService and damageService:ComputeCollisionDamage(attackerState, velocityMagnitude) or 0
 			local knockback = damageService and damageService:ComputeCollisionKnockback(attackerState, defenderState, impactDirection, velocityMagnitude) or Vector3.zero
+			local impulseScale = PhysicsConfig.Collision and PhysicsConfig.Collision.PlayerImpulseScale or 45
+			local minImpulse = PhysicsConfig.Collision and PhysicsConfig.Collision.MinImpulse or 500
+			local maxImpulse = PhysicsConfig.Collision and PhysicsConfig.Collision.MaxImpulse or 9000
+			local rawImpulse = math.clamp(knockback.Magnitude * impulseScale, minImpulse, maxImpulse)
+			local impulseDir = impactDirection.Magnitude > 1e-4 and impactDirection.Unit or Vector3.new(0, 0, 1)
+			loserRoot:ApplyImpulse(impulseDir * rawImpulse)
 			self._context.EventBus:Fire("CollisionDetected", "Sling", winner, loser, { Speed = velocityMagnitude, ChargeRatio = attackerState.ChargeValue })
 			self._context.EventBus:Fire("CollisionPlayerHit", loser, winner, damage, knockback, { ChargeRatio = attackerState.ChargeValue, VelocityMagnitude = velocityMagnitude })
 			local decay = math.clamp(BalanceConfig.VelocityDecayFactor, 0, 1)

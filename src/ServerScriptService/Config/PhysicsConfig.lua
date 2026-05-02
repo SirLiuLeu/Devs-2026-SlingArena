@@ -25,6 +25,11 @@ local PhysicsConfig = {
 		UseInfiniteForce = true,
 		ZeroElasticity = true,
 	},
+	Collision = {
+		MinImpulse = 500,
+		MaxImpulse = 9000,
+		PlayerImpulseScale = 45,
+	},
 }
 
 return PhysicsConfig

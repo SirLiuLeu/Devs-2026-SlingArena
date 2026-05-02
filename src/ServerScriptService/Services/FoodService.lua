@@ -7,19 +7,23 @@ local Workspace = game:GetService("Workspace")
 
 local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
 
-local COLLISION_INTERVAL = 0.1
+local COLLISION_INTERVAL = 0.05
 local CONSUME_COOLDOWN = 0.12
 local DEFAULT_HIT_COOLDOWN = 0.18
-local BURST_SPEED_THRESHOLD = 60
 local FOOD_UI_TEMPLATE_PATH = { "Assets", "UI", "FoodWorldUI" }
 local DAMAGE_MIN_VELOCITY = 20
 local DAMAGE_MAX_VELOCITY = 170
 local DAMAGE_BASE = 1
-local FOOD_HIT_RADIUS_PADDING = 3.2
+local FOOD_HIT_RADIUS_PADDING = 0.75
 local NORMAL_EPSILON = 1e-5
 local MIN_SPEED_EPSILON = 1e-3
 local REFLECTION_DAMPING = 0.8
 local LAST_HIT_VELOCITY_DAMPING = 0.5
+local GRID_CELL_SIZE = 48
+local Y_TOLERANCE = 10
+local VALIDATION_EPSILON = 0.75
+local MAX_ALLOWED_SPEED = 450
+local HIT_REQUEST_COOLDOWN = 0.06
 
 local REQUIRED_FOOD_MODELS = {
 	CommonBlue = true,
@@ -116,12 +120,44 @@ function FoodService.new(context)
 	self._foodModels = {}
 	self._foodSpawnsByZone = {}
 	self._foodEntries = {}
+	self._foodById = {}
+	self._foodGrid = {}
 	self._foodByInstance = {}
 	self._playerConsumeCooldown = {}
 	self._slingFoodHitCooldown = {}
+	self._hitRequestCooldown = {}
 	self._lastPawnPos = {}
 	self._heartbeatConnection = nil
 	return self
+end
+
+local function gridKeyFromPosition(pos: Vector3): string
+	return string.format("%d:%d", math.floor(pos.X / GRID_CELL_SIZE), math.floor(pos.Z / GRID_CELL_SIZE))
+end
+
+function FoodService:_addEntryToGrid(entry: any)
+	local hitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
+	if not (hitbox and hitbox:IsA("BasePart")) then
+		return
+	end
+	local key = gridKeyFromPosition(hitbox.Position)
+	self._foodGrid[key] = self._foodGrid[key] or {}
+	self._foodGrid[key][entry.Id] = entry
+	entry.GridKey = key
+end
+
+function FoodService:_removeEntryFromGrid(entry: any)
+	if not entry.GridKey then
+		return
+	end
+	local bucket = self._foodGrid[entry.GridKey]
+	if bucket then
+		bucket[entry.Id] = nil
+		if next(bucket) == nil then
+			self._foodGrid[entry.GridKey] = nil
+		end
+	end
+	entry.GridKey = nil
 end
 
 function FoodService:_resolveFoodUiTemplate(): BillboardGui?
@@ -287,6 +323,7 @@ function FoodService:_spawnFoodOnSpawn(mapModel: Model, foodContainer: Folder, s
 	clone.PrimaryPart = hitbox
 	clone:PivotTo(CFrame.new(spawnPos))
 	local entry = {
+		Id = game:GetService("HttpService"):GenerateGUID(false),
 		Instance = clone,
 		FoodType = foodType,
 		SpawnPart = spawnPart,
@@ -297,20 +334,27 @@ function FoodService:_spawnFoodOnSpawn(mapModel: Model, foodContainer: Folder, s
 		CurrentHP = math.max(0, foodRule.HP),
 		LastHitBy = nil,
 	}
+	clone:SetAttribute("FoodId", entry.Id)
 	if entry.MaxHP > 0 then
 		self:_attachFoodUI(entry, hitbox)
 	end
 	self:_publishFoodHp(entry)
 	self._foodEntries[clone] = entry
+	self._foodById[entry.Id] = entry
 	self._foodByInstance[clone] = entry
+	self:_addEntryToGrid(entry)
 end
 
 function FoodService:ClearMapFood(mapModel: Model)
 	for instance, entry in pairs(self._foodEntries) do
 		if instance and instance.Parent and instance:IsDescendantOf(mapModel) then
 			entry.IsActive = false
+			self:_removeEntryFromGrid(entry)
 			instance:Destroy()
 			self._foodEntries[instance] = nil
+			if entry.Id then
+				self._foodById[entry.Id] = nil
+			end
 			self._foodByInstance[instance] = nil
 		end
 	end
@@ -372,6 +416,10 @@ function FoodService:_consumeFood(entry: any, player: Player)
 	entry.IsActive = false
 	local instance = entry.Instance
 	self._foodEntries[instance] = nil
+	self:_removeEntryFromGrid(entry)
+	if entry.Id then
+		self._foodById[entry.Id] = nil
+	end
 	self._foodByInstance[instance] = nil
 	if instance and instance.Parent then
 		instance:Destroy()
@@ -400,6 +448,49 @@ function FoodService:_consumeFood(entry: any, player: Player)
 			end
 		end)
 	end
+end
+
+function FoodService:_computeEffectiveRadius(playerRadius: number, foodRadius: number, speed: number, ping: number): number
+	return playerRadius + foodRadius + (speed * ping) + VALIDATION_EPSILON
+end
+
+function FoodService:_passesSweptCheck(foodPos: Vector3, prevPos: Vector3, currPos: Vector3, rEffective: number): boolean
+	return distancePointToSegmentSquaredXZ(foodPos, prevPos, currPos) <= (rEffective * rEffective)
+end
+
+function FoodService:_validateFoodHit(player: Player, entry: any, payload: any): boolean
+	if not (entry and entry.IsActive and not entry.IsConsumed and entry.Instance and entry.Instance.Parent) then
+		return false
+	end
+	local playerService = getService(self._context, "PlayerService")
+	local root = playerService and playerService:GetRoot(player)
+	if not (root and self:_isPlayerAlive(player)) then
+		return false
+	end
+	local speed = root.AssemblyLinearVelocity.Magnitude
+	if speed > MAX_ALLOWED_SPEED then
+		return false
+	end
+	local hitbox = entry.Instance:FindFirstChild("Hitbox")
+	if not (hitbox and hitbox:IsA("BasePart")) then
+		return false
+	end
+	local playerRadius = math.max(root.Size.X, root.Size.Z) * 0.5
+	local foodRadius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5 + FOOD_HIT_RADIUS_PADDING
+	local pingSec = (player:GetNetworkPing() or 0) * 0.5
+	local rEffective = self:_computeEffectiveRadius(playerRadius, foodRadius, speed, pingSec)
+	local currPos = root.Position
+	local dXZSq = sqrDistanceXZ(currPos, hitbox.Position)
+	if dXZSq > (rEffective * rEffective) then
+		local prevPos = (payload and payload.prevPos) or self._lastPawnPos[player] or currPos
+		if not self:_passesSweptCheck(hitbox.Position, prevPos, currPos, rEffective) then
+			return false
+		end
+	end
+	if math.abs(currPos.Y - hitbox.Position.Y) > Y_TOLERANCE then
+		return false
+	end
+	return true
 end
 
 function FoodService:_applySlingDamage(entry: any, player: Player, velocity: number)
@@ -455,7 +546,7 @@ function FoodService:_processPlayerFoodCollision(player: Player, pawn: Model, pa
 	if (self._playerConsumeCooldown[player] or 0) > os.clock() then
 		return
 	end
-	for _, entry in pairs(self._foodEntries) do
+	for _, entry in ipairs(self:_collectNearbyEntries(pawnPos)) do
 		if entry.IsActive and not entry.IsConsumed then
 			local instance = entry.Instance
 			local hitbox = instance and instance:FindFirstChild("Hitbox")
@@ -463,17 +554,12 @@ function FoodService:_processPlayerFoodCollision(player: Player, pawn: Model, pa
 				local radius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5 + FOOD_HIT_RADIUS_PADDING
 				local radiusSq = radius * radius
 				local canTouch = FoodConfig.Foods[entry.FoodType].Touch == true
-				local isBurst = flattenXZ((pawn.PrimaryPart and pawn.PrimaryPart.AssemblyLinearVelocity or Vector3.zero)).Magnitude >= BURST_SPEED_THRESHOLD
 				local collides = sqrDistanceXZ(pawnPos, hitbox.Position) <= radiusSq
-				if (not collides) and isBurst and prevPos then
+				if (not collides) and prevPos then
 					collides = distancePointToSegmentSquaredXZ(hitbox.Position, prevPos, pawnPos) <= radiusSq
 				end
 				if collides then
-					if canTouch then
-						self._playerConsumeCooldown[player] = os.clock() + CONSUME_COOLDOWN
-						self:_consumeFood(entry, player)
-						return
-					elseif entry.MaxHP > 0 then
+					if (not canTouch) and entry.MaxHP > 0 then
 						local now = os.clock()
 						local perPlayer = self._slingFoodHitCooldown[player]
 						if not perPlayer then
@@ -537,6 +623,59 @@ function FoodService:_startCollisionLoop()
 				local prevPos = self._lastPawnPos[player]
 				self:_processPlayerFoodCollision(player, pawn, currPos, prevPos)
 				self._lastPawnPos[player] = currPos
+			end
+		end
+	end)
+end
+
+function FoodService:_collectNearbyEntries(position: Vector3): { any }
+	local cx = math.floor(position.X / GRID_CELL_SIZE)
+	local cz = math.floor(position.Z / GRID_CELL_SIZE)
+	local out = {}
+	for gx = cx - 1, cx + 1 do
+		for gz = cz - 1, cz + 1 do
+			local bucket = self._foodGrid[string.format("%d:%d", gx, gz)]
+			if bucket then
+				for _, entry in pairs(bucket) do
+					table.insert(out, entry)
+				end
+			end
+		end
+	end
+	return out
+end
+
+function FoodService:Start()
+	local remote = self._context.Remotes:FindFirstChild("ReportFoodHit")
+	if not (remote and remote:IsA("RemoteEvent")) then
+		return
+	end
+	remote.OnServerEvent:Connect(function(player, payload)
+		local now = os.clock()
+		if (self._hitRequestCooldown[player] or 0) > now then
+			return
+		end
+		self._hitRequestCooldown[player] = now + HIT_REQUEST_COOLDOWN
+		if type(payload) ~= "table" then
+			return
+		end
+		local entry = self._foodById[payload.foodId]
+		if not self:_validateFoodHit(player, entry, payload) then
+			return
+		end
+		local rule = FoodConfig.Foods[entry.FoodType]
+		if not rule then
+			return
+		end
+		if rule.Touch then
+			self:_consumeFood(entry, player)
+		elseif entry.MaxHP > 0 then
+			local playerService = getService(self._context, "PlayerService")
+			local root = playerService and playerService:GetRoot(player)
+			if root then
+				self:_applySlingDamage(entry, player, flattenXZ(root.AssemblyLinearVelocity).Magnitude)
+				local impulse = flattenXZ(root.AssemblyLinearVelocity) * -root.AssemblyMass * 0.75
+				root:ApplyImpulse(Vector3.new(impulse.X, 0, impulse.Z))
 			end
 		end
 	end)
