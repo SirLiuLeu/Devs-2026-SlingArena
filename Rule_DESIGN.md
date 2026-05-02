@@ -173,16 +173,32 @@ Flow:
 - Density: 1 FoodSpawn = 5 Common Food active or 1 Hp Food
 
 ## 3.3 Food Zones
--  Common Food (Touch): Common
-  + Disappears on contact
-  + Grants EXP + heals HP
-  + Each destroyed Food → respawn exactly 1 after 10s
 
-- HP Food (Must Hit): Uncommon, Rare, Epic, Legendary, Mythic, Unique
+### A) Common Food (Touch)
+- Type: Common
+- Behavior:
+  + Disappears on valid contact
+  + Grants EXP + heals HP
+
+- Server Rules:
+  + On valid server-confirmed collision, remove the Food on the Server
+
+- Respawn:
+  + Each destroyed Food → respawn exactly 1 after 10 seconds
+
+### B) HP Food (Must Hit)
+- Type: Uncommon, Rare, Epic, Legendary, Mythic, Unique
+- Behavior:
   + Requires attack (last hit)
   + Grants EXP + chance for Diamonds
-  + Each destroyed Food → respawn exactly 1 after 30s
-  + Each destroyed "Unique" Food → respawn exactly 1 after 90s
+
+- Server Rules:
+  + On valid server-confirmed hit, reduce HP on the Server
+  + Destroy only when HP reaches 0
+
+- Respawn:
+  + Each destroyed Food → respawn exactly 1 after 30 seconds
+  + Each destroyed "Unique" Food → respawn exactly 1 after 90 seconds
 
 ## 3.4 Maintenance
 - No overlap within same cluster
@@ -190,67 +206,6 @@ Flow:
 + MidZones: Common (20%), Uncommon(20%), Rare (20%), Epic (20%), Legendary(10%), Mythic (10%)
 + EdgeZones: Common (40%), Uncommon(30%), Rare(30%)
 + CenterZones: Unique (20%), Mythic(80%)
-
-## 3.5 Collision Math (Player/Sling vs Food)
-- Collision is calculated on the Server only.
-- Do not use client touch events as source of truth.
-- task.wait(0.1) -- 10 lần/giây là đủ
-
-### A) Basic Distance Check
-- Let:
-  + P = Player root position
-  + F = Food position
-  + rP = Player collision radius
-  + rF = Food collision radius
-
-- Distance formula:
-  + d = sqrt((Px - Fx)^2 + (Py - Fy)^2 + (Pz - Fz)^2)
-
-- Collision condition:
-  + d <= (rP + rF)
-
-### B) Horizontal Check (recommended for ground-based food)
-- Use XZ plane distance to ignore small Y offset:
-  + dXZ = sqrt((Px - Fx)^2 + (Pz - Fz)^2)
-
-- Optional vertical tolerance:
-  + |Py - Fy| <= YTolerance
-
-- Collision condition:
-  + dXZ <= (rP + rF)
-  + AND |Py - Fy| <= YTolerance
-
-### C) Fast Movement / Sling Check (segment check, chỉ dùng khi Launch)
-- To avoid missing collision when Player moves too fast, check the shortest distance from Food to the movement segment:
-  + A = previous player position
-  + B = current player position
-  + F = Food position
-
-- Compute:
-  + t = clamp(((F - A) · (B - A)) / |B - A|^2, 0, 1)
-  + ClosestPoint = A + t * (B - A)
-  + d = |F - ClosestPoint|
-
-- Collision condition:
-  + d <= (rP + rF)
-
-### D) Server Validation
-- Server must verify:
-  + food exists
-  + food is active
-  + player is alive
-  + distance check passes
-  + cooldown / anti-spam passes
-
-### E) Despawn / Eat Rules
-- Common Food:
-  + On collision, destroy on Server
-  + Respawn exactly 1 after 10s
-
-- HP Food:
-  + On valid hit, destroy on Server
-  + Respawn exactly 1 after 30s
-  + Unique respawn after 90s
 
 # 4. PHYSICS & COMBAT
 
@@ -261,14 +216,147 @@ Flow:
 
 ## 4.2 Combat Flow
 - Move → Charge → Launch → Move → Collision → Damage + Knockback
-- Physics: Gravity, Mass, Friction, Inertia, Knockback
-- Prevent multi-hit spam in single contact
-## 4.3 Collision
-- Collision  must be math-based, not physics-event-based. Server handles logic, client only renders visuals
-- Use sphere check: dist <= (r1 + r2)
-- Ignore .Touched for core logic
-- Run in server loop (Heartbeat / interval)
-- Only valid if:Not Ghost, Speed > threshold, In active state (Launch/Move)
+- Physics rules: Gravity, Mass, Friction, Inertia, Knockback
+- Prevent multi-hit spam during a single contact window
+- Any applied force must be clamped by `PhysicsConfig.lua`
+
+## 4.3 Collision Architecture
+- Collision is **server authoritative**
+- Client may detect potential overlap and send a hit trigger, but **client touch events are not the source of truth**
+- Use **Client-Side + Server Check**:
+  + Client detects possible contact
+  + Server validates distance, state, cooldown, and plausibility
+- Server manages the positions/state of Food and Player
+- Use a fixed server check interval of `task.wait(0.1)` for broad polling
+- Use **spatial grid / zone filtering** so the server only checks nearby foods
+
+## 4.4 Collision Math (Player / Sling vs Food)
+
+### A) Core Distance Check
+Let:
+  + P = Player root position
+  + F = Food position
+  + rP = Player collision radius
+  + rF = Food collision radius
+  + Ping = estimated round-trip / 2
+  + ε = small tolerance margin
+
+Lag-compensated effective radius:
+  + rEffective = rP + rF + (PlayerSpeed * Ping) + ε
+
+Collision condition:
+  + d <= rEffective
+
+Where:
+  + d = |P - F|
+
+### B) Horizontal Check (recommended for ground-based food)
+- Use XZ plane distance to ignore small Y offsets:
+  + dXZ = sqrt((Px - Fx)^2 + (Pz - Fz)^2)
+
+- Optional vertical tolerance:
+  + |Py - Fy| <= YTolerance
+
+- Collision condition:
+  + dXZ <= rEffective
+  + AND |Py - Fy| <= YTolerance
+
+### C) Fast Movement / Launch Check
+- When Sling / Player moves very fast, use swept collision to avoid missing hits:
+  + A = previous player position
+  + B = current player position
+  + F = Food position
+
+- Compute:
+  + t = clamp(((F - A) · (B - A)) / |B - A|^2, 0, 1)
+  + ClosestPoint = A + t * (B - A)
+  + d = |F - ClosestPoint|
+
+- Collision condition:
+  + d <= rEffective
+
+### D) Server Validation
+- Server must verify:
+  + food exists
+  + food is active
+  + player exists and is alive
+  + cooldown / anti-spam passes
+  + distance / horizontal / swept check passes
+  + client-reported hit is plausible, if a client trigger is used
+  + player velocity is within allowed threshold
+
+## 4.5 Collision Types
+
+### A) Player vs Common Food
+- Common Food:
+  + `CanCollide = false`
+  + `CanTouch = false`
+- Client:
+  + may detect overlap locally using distance or spatial query
+  + may hide the Common Food immediately for instant feedback
+  + sends a trigger to the server
+- Server:
+  + validates the hit
+  + grants EXP / heals HP
+  + removes the Food on the server
+  + replicates the state change to all clients
+
+### B) Player vs HP Food
+- HP Food:
+  + `CanCollide = true`
+  + does not allow the player to pass through
+- Server:
+  + handles the real hit
+  + reduces HP
+  + destroys the Food only when HP reaches 0
+  + may apply `ApplyImpulse` on the server to create a strong impact feel
+- Client:
+  + only plays visual feedback
+  + must not decide damage or destroy state
+
+### C) Player vs Player
+- `CanCollide = true`
+- Server resolves the impact
+- Use `ApplyImpulse` on the server to create a strong controlled bounce / hit
+- Clamp force to avoid unstable physics
+
+## 4.6 Hitbox Shapes
+- Player: Sphere
+- Common Food: Sphere
+- HP Food: Sphere preferred, Box allowed if the food shape requires it
+- Use simplified hitboxes only; do not rely on mesh collision for core gameplay
+
+## 4.7 Anti-Hack / Validation Rules
+- Server must reject hit if:
+  + distance is invalid
+  + velocity exceeds allowed threshold
+  + cooldown has not expired
+  + food no longer exists
+  + food is not active
+  + player is dead / invalid
+
+### E) Collision Type Rules
+
+#### 1) Player vs Common Food
+- Common Food has `CanCollide = false`
+- Client may predict overlap and hide the food locally for instant feedback
+- Server verifies the hit and then:
+  + destroy / despawn the food
+  + award reward / exp
+  + replicate state to all clients
+
+#### 2) Player vs HP Food
+- HP Food has `CanCollide = true`
+- Server handles the real hit, HP reduction, and physics response
+- On valid hit, server may apply a controlled `ApplyImpulse` to create a strong impact feel
+- Client may only play visual feedback; it must not decide damage or destroy state
+
+#### 3) Player vs Player
+- `CanCollide = true`
+- Server resolves the impact
+- Use `ApplyImpulse` on the server to create a strong and controlled bounce / hit feeling
+- Clamp impulse force to avoid unstable physics
+
 
 # 5. SLING SYSTEM (CHARACTERS)
 

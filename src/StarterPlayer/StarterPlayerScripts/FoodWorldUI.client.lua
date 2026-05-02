@@ -5,7 +5,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
-local NEAR_DISTANCE = 120
+local NEAR_DISTANCE = 20
 local NEAR_DISTANCE_SQ = NEAR_DISTANCE * NEAR_DISTANCE
 
 local function sqrMagnitude(a: Vector3, b: Vector3): number
