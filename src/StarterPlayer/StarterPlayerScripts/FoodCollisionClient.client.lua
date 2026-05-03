@@ -12,6 +12,8 @@ local GRID_CELL_SIZE = 48
 local Y_TOLERANCE = 10
 local HIT_EPSILON = 0.75
 local REPORT_COOLDOWN = 0.05
+local CONTACT_RESET_DISTANCE = 1.75
+local MIN_REPORT_SPEED = 8
 local IMPACT_ABSORPTION = 0.6
 local HITSTOP_SECONDS = 0.05
 local BOUNCE_RETENTION = 0.7
@@ -21,6 +23,7 @@ local MAJOR_DESYNC = 12
 local lastPos: Vector3? = nil
 local lastHit: { [string]: number } = {}
 local predictedImpacts: { [string]: { beforeVelocity: Vector3, beforePosition: Vector3 } } = {}
+local activeContacts: { [string]: boolean } = {}
 
 local function gridKey(pos: Vector3): string
 	return string.format("%d:%d", math.floor(pos.X / GRID_CELL_SIZE), math.floor(pos.Z / GRID_CELL_SIZE))
@@ -91,8 +94,10 @@ RunService.RenderStepped:Connect(function()
 			local dXZ = (Vector3.new(currPos.X, 0, currPos.Z) - Vector3.new(hitbox.Position.X, 0, hitbox.Position.Z)).Magnitude
 			if dXZ <= rEffective and math.abs(currPos.Y - hitbox.Position.Y) <= Y_TOLERANCE then
 				local now = os.clock()
-				if (lastHit[foodId] or 0) <= now then
+				local alreadyTouching = activeContacts[foodId] == true
+				if (lastHit[foodId] or 0) <= now and (not alreadyTouching) and root.AssemblyLinearVelocity.Magnitude >= MIN_REPORT_SPEED then
 					lastHit[foodId] = now + REPORT_COOLDOWN
+					activeContacts[foodId] = true
 					-- Client-side prediction: if it's a common food, make it invisible and non-collidable immediately
 					if rarity == "Common" then
 						for _, obj in ipairs(food:GetDescendants()) do
@@ -113,7 +118,7 @@ RunService.RenderStepped:Connect(function()
 					}
 					applyPredictedLaunchFeel(root, normal)
 					-- Fire the remote to report the hit to the server
-					print("Reporting hit on foodId:", foodId)
+					print(string.format("[FoodCollisionClient] reportRemote:FireServer foodId=%s speed=%.2f", foodId, root.AssemblyLinearVelocity.Magnitude))
 					reportRemote:FireServer({
 						foodId = foodId,
 						hitType = "ClientPredictedFoodOverlap",
@@ -121,6 +126,8 @@ RunService.RenderStepped:Connect(function()
 						currPos = currPos,
 					})
 				end
+			elseif activeContacts[foodId] and dXZ > (rEffective + CONTACT_RESET_DISTANCE) then
+				activeContacts[foodId] = nil
 			end
 		end
 	end

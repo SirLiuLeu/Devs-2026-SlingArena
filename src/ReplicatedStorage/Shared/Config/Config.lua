@@ -7,7 +7,7 @@ return {
 	ChargeRatePerSecond = 40,
 	BounceLoss = 0.2,
 	MaxArenaRadius = 300,
-	AirDrag = 1.8,
+	AirDrag = 0.95,
 	StopVelocityThreshold = 2,
 	ShotCooldown = 2,
 	MaxAimAngleDelta = math.rad(70),

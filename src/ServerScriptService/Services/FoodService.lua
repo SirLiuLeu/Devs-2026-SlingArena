@@ -17,13 +17,18 @@ local DAMAGE_BASE = 100
 local FOOD_HIT_RADIUS_PADDING = 0.75
 local NORMAL_EPSILON = 1e-5
 local MIN_SPEED_EPSILON = 1e-3
-local REFLECTION_DAMPING = 0.8
-local LAST_HIT_VELOCITY_DAMPING = 0.5
+local REFLECTION_DAMPING = 0.88
+local LAST_HIT_VELOCITY_DAMPING = 0.75
 local GRID_CELL_SIZE = 48
 local Y_TOLERANCE = 10
 local VALIDATION_EPSILON = 0.75
 local MAX_ALLOWED_SPEED = 450
 local HIT_REQUEST_COOLDOWN = 0.06
+local COMMON_ALLOWED_STATES = {
+	[GameStates.PlayerState.Launching] = true,
+	[GameStates.PlayerState.Moving] = true,
+	[GameStates.PlayerState.Idle] = true,
+}
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
@@ -484,8 +489,18 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	local stateService = getService(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player)
 	local rule = entry and FoodConfig.Foods[entry.FoodType]
+	local movementState = state and state.MovementState
+	if not movementState then
+		return false
+	end
 	if rule and (not rule.Touch) and entry.MaxHP > 0 then
-		if not state or state.MovementState ~= GameStates.PlayerState.Launching then
+		if movementState ~= GameStates.PlayerState.Launching then
+			print(string.format("[FoodService] Reject HP food hit player=%s foodId=%s state=%s", player.Name, tostring(payload and payload.foodId), tostring(movementState)))
+			return false
+		end
+	else
+		if not COMMON_ALLOWED_STATES[movementState] then
+			print(string.format("[FoodService] Reject common food hit player=%s foodId=%s state=%s", player.Name, tostring(payload and payload.foodId), tostring(movementState)))
 			return false
 		end
 	end
@@ -675,8 +690,10 @@ function FoodService:Start()
 		if type(payload) ~= "table" then
 			return
 		end
+		print(string.format("[FoodService] ReportFoodHit player=%s foodId=%s", player.Name, tostring(payload.foodId)))
 		local entry = self._foodById[payload.foodId]
 		if not self:_validateFoodHit(player, entry, payload) then
+			print(string.format("[FoodService] Reject hit player=%s foodId=%s", player.Name, tostring(payload.foodId)))
 			if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
 				feedbackRemote:FireClient(player, {
 					EventType = "FoodHitRejected",
@@ -693,13 +710,15 @@ function FoodService:Start()
 			return
 		end
 		if rule.Touch then
+			print(string.format("[FoodService] Accept common food player=%s foodId=%s", player.Name, tostring(payload.foodId)))
 			self:_consumeFood(entry, player)
 		elseif entry.MaxHP > 0 then
 			local playerService = getService(self._context, "PlayerService")
 			local root = playerService and playerService:GetRoot(player)
 			if root then
+				print(string.format("[FoodService] Accept HP food player=%s foodId=%s speed=%.2f", player.Name, tostring(payload.foodId), flattenXZ(root.AssemblyLinearVelocity).Magnitude))
 				self:_applySlingDamage(entry, player, flattenXZ(root.AssemblyLinearVelocity).Magnitude)
-				local impulse = flattenXZ(root.AssemblyLinearVelocity) * -root.AssemblyMass * 0.75
+				local impulse = flattenXZ(root.AssemblyLinearVelocity) * -root.AssemblyMass * 0.35
 				root:ApplyImpulse(Vector3.new(impulse.X, 0, impulse.Z))
 			end
 		end

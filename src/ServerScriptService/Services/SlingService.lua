@@ -451,11 +451,13 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 
 	root:SetNetworkOwner(nil)
 	root:ApplyImpulse(launchVector * mass)
+	warn(string.format("[SlingService] Launch player=%s charge=%.2f impulse=%.2f,%0.2f,%0.2f", player.Name, chargeRatio, launchVector.X, launchVector.Y, launchVector.Z))
 	
 
 	state.CurrentVelocity = root.AssemblyLinearVelocity
 	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
 	self._context.Services.PlayerStateService:SetMovementState(player, "Launching")
+	warn(string.format("[SlingService] State player=%s -> Launching", player.Name))
 	self._context.EventBus:Fire("SlingLaunched", player, chargeRatio, launchVector)
 
 	if chargeRatio >= 0.999 then
@@ -620,6 +622,7 @@ function SlingService:_stepMovementStates()
 				self._context.Services.PlayerStateService:SetLastReleaseDuration(player, releaseDuration)
 				self._context.Services.PlayerStateService:SetCooldownEndTime(player, self._releaseCooldown[player])
 				self._context.Services.PlayerStateService:SetMovementState(player, "Recovering")
+				warn(string.format("[SlingService] State player=%s -> Recovering (horizontal=%.2f)", player.Name, horizontal))
 			elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
 				self._releaseState[player] = nil
 				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
