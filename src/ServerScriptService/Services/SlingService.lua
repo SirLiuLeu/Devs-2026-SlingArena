@@ -89,7 +89,7 @@ function SlingService.BuildCooldownUiState(cooldownEndTime: number, nowTime: num
 	}
 end
 
-local MOVEMENT_STATE = GameStates.Movement
+local MOVEMENT_STATE = GameStates.PlayerState
 
 function SlingService.new(context)
 	local self = setmetatable({}, SlingService)
@@ -275,7 +275,7 @@ function SlingService:_isRoundPlaying(): boolean
 		return false
 	end
 	local roundState = roundService:GetState()
-	return roundState == GameStates.Round.EarlyGame or roundState == GameStates.Round.FinalPhase
+	return roundState == GameStates.MapRoundState.EarlyGame or roundState == GameStates.MapRoundState.FinalPhase
 end
 
 function SlingService:_canControl(player: Player): boolean
@@ -287,9 +287,9 @@ function SlingService:_canControl(player: Player): boolean
 	end
 	local roundState = roundService:GetState()
 	local canControlForRound = false
-	if roundState == GameStates.Round.Awaits or roundState == GameStates.Round.EarlyGame or roundState == GameStates.Round.FinalPhase then
+	if roundState == GameStates.MapRoundState.Awaits or roundState == GameStates.MapRoundState.EarlyGame or roundState == GameStates.MapRoundState.FinalPhase then
 		canControlForRound = roundService:IsPlayerQueued(player)
-	elseif roundState == GameStates.Round.Lobby then
+	elseif roundState == GameStates.MapRoundState.Lobby then
 		canControlForRound = true
 	end
 	if not canControlForRound then
@@ -328,7 +328,7 @@ function SlingService:HandleMoveRequest(player: Player, moveInput: Vector3, aimD
 		self._input[player] = Vector3.zero
 		return
 	end
-	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == MOVEMENT_STATE.Recovering then
+	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == "Recovering" then
 		self._input[player] = Vector3.zero
 		return
 	end
@@ -363,7 +363,7 @@ function SlingService:StartCharge(player: Player, aimDirection: Vector3)
 	if not root or not state then
 		return
 	end
-	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == MOVEMENT_STATE.Launched or state.MovementState == MOVEMENT_STATE.Recovering then
+	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == "Launching" or state.MovementState == "Recovering" then
 		return
 	end
 	if self._chargeState[player] then
@@ -455,7 +455,7 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 
 	state.CurrentVelocity = root.AssemblyLinearVelocity
 	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
-	self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Launched)
+	self._context.Services.PlayerStateService:SetMovementState(player, "Launching")
 	self._context.EventBus:Fire("SlingLaunched", player, chargeRatio, launchVector)
 
 	if chargeRatio >= 0.999 then
@@ -542,11 +542,11 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 	if not state then
 		return
 	end
-	if state.MovementState ~= MOVEMENT_STATE.Launched then
+	if state.MovementState ~= "Launching" then
 		self:_restoreLaunchVelocityControllers(player)
 	end
 	self._warnedInvalidRoot[player] = nil
-	if state.MovementState == MOVEMENT_STATE.Launched then
+	if state.MovementState == "Launching" then
 		root:SetNetworkOwner(nil)
 	else
 		if root:GetNetworkOwner() ~= player then
@@ -567,7 +567,7 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		end
 	end
 
-	if state.MovementState == MOVEMENT_STATE.Launched then
+	if state.MovementState == "Launching" then
 		-- Preserve launch momentum. We only disable the locomotion actuator so it does not
 		-- counteract release velocity and create an artificial "drag/stretch" feeling.
 		movementController:DisableLocomotion(true)
@@ -578,7 +578,7 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		movementController:DisableLocomotion(false)
 		return
 	end
-	if state.MovementState == MOVEMENT_STATE.Recovering then
+	if state.MovementState == "Recovering" then
 		movementController:DisableLocomotion(false)
 		self:_applyAimRotation(player, root, input, dt)
 		return
@@ -609,7 +609,7 @@ function SlingService:_stepMovementStates()
 		if state and root then
 			local now = os.clock()
 			local horizontal = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude
-			if state.MovementState == MOVEMENT_STATE.Launched and horizontal <= BalanceConfig.VelocityStopThreshold then
+			if state.MovementState == "Launching" and horizontal <= BalanceConfig.VelocityStopThreshold then
 				self:_restoreLaunchVelocityControllers(player)
 				local releaseState = self._releaseState[player]
 				local releaseDuration = 0
@@ -619,8 +619,8 @@ function SlingService:_stepMovementStates()
 				self._releaseCooldown[player] = now + releaseDuration
 				self._context.Services.PlayerStateService:SetLastReleaseDuration(player, releaseDuration)
 				self._context.Services.PlayerStateService:SetCooldownEndTime(player, self._releaseCooldown[player])
-				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Recovering)
-			elseif state.MovementState == MOVEMENT_STATE.Recovering and now >= (self._releaseCooldown[player] or 0) then
+				self._context.Services.PlayerStateService:SetMovementState(player, "Recovering")
+			elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
 				self._releaseState[player] = nil
 				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
 				self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)

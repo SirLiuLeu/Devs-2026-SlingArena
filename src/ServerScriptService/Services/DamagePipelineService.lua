@@ -33,7 +33,7 @@ local function isCombatDamageAllowed(context: Context): boolean
 		return false
 	end
 	local roundState = roundService:GetState()
-	return roundState == GameStates.Round.EarlyGame or roundState == GameStates.Round.FinalPhase
+	return roundState == GameStates.MapRoundState.EarlyGame or roundState == GameStates.MapRoundState.FinalPhase
 end
 
 function DamagePipelineService.new(context: Context)

@@ -11,7 +11,7 @@ local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 
 type PlayerState = PlayerStateTypes.PlayerState
 
-local MOVEMENT_STATE = GameStates.Movement
+local MOVEMENT_STATE = GameStates.PlayerState
 
 type BuffState = {
 	DamageBoost: number,
@@ -54,8 +54,8 @@ local function buildDefaultState(player: Player): PlayerState
 	local sling = SlingshotConfig.SlingConfig
 	local state: PlayerState = {
 		UserId = player.UserId,
-		MapName = "LobbyMap",
-		ArenaStatus = GameStates.ArenaStatus.Lobby,
+		CurrentMap = nil,
+		LocationState = GameStates.SessionState.Lobby,
 		TeamId = "TeamRed",
 		Level = LevelConfig.StartingLevel,
 		Exp = LevelConfig.StartingExp,
@@ -245,17 +245,17 @@ function PlayerStateService:SetAlive(player: Player, alive: boolean)
 	self:PublishState(player)
 end
 
-function PlayerStateService:SetMapName(player: Player, mapName: string)
+function PlayerStateService:SetCurrentMap(player: Player, mapName: string)
 	local state = self._states[player]
 	if not state then return end
-	state.MapName = mapName
+	state.CurrentMap = mapName
 	self:PublishState(player)
 end
 
-function PlayerStateService:SetArenaStatus(player: Player, arenaStatus: string)
+function PlayerStateService:SetLocationState(player: Player, arenaStatus: string)
 	local state = self._states[player]
 	if not state then return end
-	state.ArenaStatus = arenaStatus
+	state.LocationState = arenaStatus
 	self:PublishState(player)
 end
 

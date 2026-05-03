@@ -324,7 +324,7 @@ function UIController:Start()
 	end
 
 	local uiStateConnection = self.ClientService:BindUIStateUpdate(function(payload)
-		if self.MatchStatusLabel then self.MatchStatusLabel.Text = string.format("Match: %s", tostring(payload.State or GameStates.Round.Lobby)) end
+		if self.MatchStatusLabel then self.MatchStatusLabel.Text = string.format("Match: %s", tostring(payload.State or GameStates.MapRoundState.Lobby)) end
 		if self.TimerLabel then
 			local total = math.max(0, math.floor(payload.RoundElapsed or payload.CountdownTimer or payload.TimeLeft or 0))
 			local minutes = math.floor(total / 60)
@@ -332,7 +332,7 @@ function UIController:Start()
 			self.TimerLabel.Text = string.format("%02d:%02d", minutes, seconds)
 		end
 		if self.AlivePlayersLabel then self.AlivePlayersLabel.Text = string.format("PlayerCount: %d (alive %d)", payload.PlayerCount or 0, payload.AlivePlayers or 0) end
-		if self.WinnerPopup and (payload.State or "") == GameStates.Round.RoundEnd then
+		if self.WinnerPopup and (payload.State or "") == GameStates.MapRoundState.RoundEnd then
 			self.WinnerPopup.Visible = true
 			self.WinnerPopup.Text = "Match result screen: pending"
 		end

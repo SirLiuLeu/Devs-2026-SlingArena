@@ -173,7 +173,7 @@ function SafeZoneService:_isShrinkAllowed(): boolean
 	if not roundService then
 		return false
 	end
-	return roundService:IsRoundActive() and roundService:GetState() == GameStates.Round.EarlyGame
+	return roundService:IsRoundActive() and roundService:GetState() == GameStates.MapRoundState.EarlyGame
 end
 
 function SafeZoneService:_isDamageAllowed(): boolean
@@ -182,7 +182,7 @@ function SafeZoneService:_isDamageAllowed(): boolean
 		return false
 	end
 	local roundState = roundService:GetState()
-	local allowedState = roundState == GameStates.Round.EarlyGame or roundState == GameStates.Round.FinalPhase
+	local allowedState = roundState == GameStates.MapRoundState.EarlyGame or roundState == GameStates.MapRoundState.FinalPhase
 	return roundService:IsRoundActive() and allowedState
 end
 
@@ -213,7 +213,7 @@ function SafeZoneService:_step(dt: number)
 		self:_updateRadius(dt)
 	else
 		local roundService = self._context.Services.RoundService
-		if roundService and roundService:GetState() == GameStates.Round.Lobby then
+		if roundService and roundService:GetState() == GameStates.MapRoundState.Lobby then
 			self:Reset()
 		end
 	end

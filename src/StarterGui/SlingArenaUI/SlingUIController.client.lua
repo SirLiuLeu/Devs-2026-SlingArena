@@ -123,7 +123,7 @@ local function shouldShowJoystickByState(state: { [string]: any }?): boolean
 	end
 
 	local movementState = if state then state.MovementState else nil
-	if movementState == GameStates.Movement.Recovering or movementState == GameStates.Movement.Launched then
+	if movementState == "Recovering" or movementState == "Launching" then
 		return false
 	end
 
@@ -655,10 +655,10 @@ if stateUpdateRemote then
 			updateChargeBar(0)
 		end
 
-		if state.MovementState == GameStates.Movement.Recovering then
+		if state.MovementState == "Recovering" then
 			awaitingReleaseAck = false
 			syncCooldownFromServerState(state)
-		elseif state.MovementState == GameStates.Movement.Idle and awaitingReleaseAck == false and state.IsCharging ~= true then
+		elseif state.MovementState == GameStates.PlayerState.Idle and awaitingReleaseAck == false and state.IsCharging ~= true then
 			clearCooldown()
 		end
 
@@ -684,7 +684,7 @@ playerGui.ChildAdded:Connect(function(child)
 	bindJoystickInput()
 	if lastKnownServerState and lastKnownServerState.IsAlive == false then
 		resetVisualState()
-	elseif lastKnownServerState and lastKnownServerState.MovementState == GameStates.Movement.Recovering then
+	elseif lastKnownServerState and lastKnownServerState.MovementState == "Recovering" then
 		syncCooldownFromServerState(lastKnownServerState)
 	end
 	applyJoystickVisibilityFromState(lastKnownServerState)

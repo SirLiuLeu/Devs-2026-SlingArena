@@ -13,8 +13,8 @@ export type AttributesState = {
 
 export type PlayerState = {
 	UserId: number,
-	MapName: string,
-	ArenaStatus: string,
+	CurrentMap: string?,
+	LocationState: string,
 	TeamId: string,
 	Level: number,
 	Exp: number,
