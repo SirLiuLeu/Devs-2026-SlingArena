@@ -207,21 +207,75 @@ Flow:
 + MidZones: Common (20%), Uncommon(20%), Rare (20%), Epic (20%), Legendary(10%), Mythic (10%)
 + EdgeZones: Common (40%), Uncommon(30%), Rare(30%)
 + CenterZones: Unique (20%), Mythic(80%)
-
 # 4. PHYSICS & COMBAT
 
-## 4.1 Formula
+## 4.1 Core Philosophy & Architecture
+The physics and collision system strictly follows the **Client-Side Prediction + Server Authoritative** model. The goal is to eliminate the noise of "fake physics" during normal movement, while maximizing collision feel (game feel) during combat.
+
+*   **Client (The "Feel" Layer):**
+    *   Responsible for simulating movement, velocity, bounce, and effects (VFX/SFX).
+    *   Each client only simulates physics for itself.
+    *   Predicts collision and knockback for immediate feedback, but does not decide the final outcome.
+*   **Server (The "Truth" Layer):**
+    *   Holds the final authority.
+    *   Validates collisions using Distance Check / Threshold.
+    *   Controls Damage, HP, Kill, and State logic.
+    *   Replicates valid results to all clients.
+
+---
+
+## 4.2 Formula
 - ImpactDamage = BaseDamage × CollisionSpeedMultiplier
 - Size = BaseSize × (1 + sqrt(Level) × 0.08)
 - RequiredEXP = BaseEXP × (Level ^ 1.3)
 
-## 4.2 Combat Flow
-- Move → Charge → Launch → Move → Collision → Damage + Knockback
+---
+
+## 4.3 Combat Flow
+- Move → Charge → Launch → Collision → Damage + Knockback
 - Physics rules: Gravity, Mass, Friction, Inertia, Knockback
 - Prevent multi-hit spam during a single contact window
 - Any applied force must be clamped by `PhysicsConfig.lua`
 
-## 4.3 Collision Architecture
+---
+
+## 4.4 State-Based Physics Rules
+Physics rules change entirely based on the player’s current `PlayerState`.
+
+### A. State = "Moving" (Normal Movement)
+*   **Goal:** Smooth movement, not affected by junk physics.
+*   **Collision Rules:**
+    *   **No Damage & No Bounce:** Contact with other players or Food is purely visual (visual overlap), with no force applied or impact on match outcomes.
+    *   **Ignore physics with Solid Objects:** If colliding with Food that has HP (Type != "Common"), the system completely IGNORES physical resistance.
+*   **Interaction with Flag "Ghost":**
+    *   The player passes through everything (other players, Food with HP).
+    *   Can only interact (consume) Food marked as `Common`.
+
+### B. State = "Launching" (Attack / Launch State)
+*   **Goal:** Realistic weight, compression, and precise damage.
+*   **Collision Rules:**
+    *   Applies real physics (Velocity, Knockback, Damage, Reaction force).
+    *   Damage is applied **only once** at the moment of impact.
+    *   Maximum velocity must be limited by Drag to gradually slow down, preventing uncontrollable high-speed movement.
+
+---
+
+## 4.5 Reconciliation Rules
+Client collision and knockback should follow the same logic as the Server as closely as possible, but the Server always has the final result.
+
+- If the desync is small (minor desync):
+  + use Lerp / Smooth correction
+
+- If the desync is large:
+  + immediately update the client to the Server state
+
+- If the client already applied knockback, but the Server later confirms that no collision happened:
+  + cancel the local knockback immediately
+  + resync position and velocity from the Server
+
+---
+
+## 4.6 Collision Architecture
 - Collision is **server authoritative**
 - Client may detect potential overlap and send a hit trigger, but **client touch events are not the source of truth**
 - Use **Client-Side + Server Check**:
@@ -231,7 +285,9 @@ Flow:
 - Use a fixed server check interval of `task.wait(0.1)` for broad polling
 - Use **spatial grid / zone filtering** so the server only checks nearby foods
 
-## 4.4 Collision Math (Player / Sling vs Food)
+---
+
+## 4.7 Collision Math (Player / Sling vs Food)
 
 ### A) Core Distance Check
 Let:
@@ -286,7 +342,9 @@ Where:
   + client-reported hit is plausible, if a client trigger is used
   + player velocity is within allowed threshold
 
-## 4.5 Collision Types
+---
+
+## 4.8 Collision Types
 
 ### A) Player vs Common Food
 - Common Food:
@@ -321,13 +379,47 @@ Where:
 - Use `ApplyImpulse` on the server to create a strong controlled bounce / hit
 - Clamp force to avoid unstable physics
 
-## 4.6 Hitbox Shapes
+---
+
+## 4.9 The "Launch" Combat Feel (Hitstop & Bounce Logic)
+To fix collisions feeling too "light" or "instant", the event sequence when a Client detects a collision (in Launching state) is split into 3 steps to create a "Compression Feeling":
+
+1.  **Impact Absorption:**
+    *   Immediately upon collision detection: `Velocity *= 0.6`
+    *   *Purpose:* Instantly reduce velocity to simulate hitting a massive object.
+2.  **Compression / Hitstop:**
+    *   Pause physics (Delay) for `50ms`.
+    *   *Purpose:* Create artificial "impact time" to give weight and depth to the hit.
+3.  **Realistic Bounce:**
+    *   Bounce handling: `Velocity = Reflect(Velocity, Normal) * 0.7`
+    *   *Purpose:* Reduce 30% of energy after collision to simulate energy loss, making the rebound trajectory more realistic and controllable.
+
+---
+
+## 4.10 Standardized Execution Flow (Hit Processing Pipeline)
+All collision (Hit) phases in the game must strictly follow this lifecycle:
+
+1.  **Initiate:** Client switches to `PlayerState.Launching` and begins movement.
+2.  **Simulate:** Client simulates trajectory, calculates Drag and reaction forces for smooth feel.
+3.  **Detect & Request:** Client detects collision with Food/Player -> Immediately executes Hitstop & Bounce (Section 4.9) -> Sends Hit Request (including Target ID, Moment) to Server.
+4.  **Validate:** Server receives the request and validates:
+    *   Is the player in `Launching` state?
+    *   Is the distance check valid?
+5.  **Resolve & Replicate:**
+    *   If valid: Server applies HP reduction, handles death/elimination, updates state, and replicates results to all clients.
+    *   If invalid (Lag/Hack): Server ignores the request, and the client automatically resyncs to the correct position from the server.
+
+---
+
+## 4.11 Hitbox Shapes
 - Player: Sphere
 - Common Food: Sphere
 - HP Food: Sphere preferred, Box allowed if the food shape requires it
 - Use simplified hitboxes only; do not rely on mesh collision for core gameplay
 
-## 4.7 Anti-Hack / Validation Rules
+---
+
+## 4.12 Anti-Hack / Validation Rules
 - Server must reject hit if:
   + distance is invalid
   + velocity exceeds allowed threshold
@@ -335,30 +427,7 @@ Where:
   + food no longer exists
   + food is not active
   + player is dead / invalid
-
-### E) Collision Type Rules
-
-#### 1) Player vs Common Food
-- Common Food has `CanCollide = false`
-- Client may predict overlap and hide the food locally for instant feedback
-- Server verifies the hit and then:
-  + destroy / despawn the food
-  + award reward / exp
-  + replicate state to all clients
-
-#### 2) Player vs HP Food
-- HP Food has `CanCollide = true`
-- Server handles the real hit, HP reduction, and physics response
-- On valid hit, server may apply a controlled `ApplyImpulse` to create a strong impact feel
-- Client may only play visual feedback; it must not decide damage or destroy state
-
-#### 3) Player vs Player
-- `CanCollide = true`
-- Server resolves the impact
-- Use `ApplyImpulse` on the server to create a strong and controlled bounce / hit feeling
-- Clamp impulse force to avoid unstable physics
-
-
+  
 # 5. SLING SYSTEM (CHARACTERS)
 
 ## 5.1 Core Stats
@@ -568,8 +637,6 @@ A player can move only if:
 ## 10.6.3 Flow
 Lobby → Loading → InGame → Lobby
 
----
-
 # 10.7 MAP / ROUND SYSTEM
 
 ## 10.7.1 Round States
@@ -583,8 +650,6 @@ Lobby → Loading → InGame → Lobby
 ## 10.7.2 Rules
 - PostRound is treated as Lobby at player/session level
 - Round logic handled by Round Service (server authority)
-
----
 
 # 10.8 PLAYER DATA & MAP BINDING
 
@@ -601,8 +666,6 @@ Lobby → Loading → InGame → Lobby
 - Remove player from map.Players
 - playerData.CurrentMap = nil
 - playerData.LocationState = Lobby
-
----
 
 # 10.9 DESIGN PRINCIPLES
 
