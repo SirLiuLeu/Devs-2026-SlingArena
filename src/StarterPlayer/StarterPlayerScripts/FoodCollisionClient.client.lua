@@ -6,14 +6,21 @@ local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local reportRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
+local gameplayFeedbackRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("GameplayFeedback") :: RemoteEvent
 
 local GRID_CELL_SIZE = 48
 local Y_TOLERANCE = 10
 local HIT_EPSILON = 0.75
 local REPORT_COOLDOWN = 0.05
+local IMPACT_ABSORPTION = 0.6
+local HITSTOP_SECONDS = 0.05
+local BOUNCE_RETENTION = 0.7
+local MINOR_DESYNC = 4
+local MAJOR_DESYNC = 12
 
 local lastPos: Vector3? = nil
 local lastHit: { [string]: number } = {}
+local predictedImpacts: { [string]: { beforeVelocity: Vector3, beforePosition: Vector3 } } = {}
 
 local function gridKey(pos: Vector3): string
 	return string.format("%d:%d", math.floor(pos.X / GRID_CELL_SIZE), math.floor(pos.Z / GRID_CELL_SIZE))
@@ -22,6 +29,19 @@ end
 local function getRoot(): BasePart?
 	local character = player.Character
 	return character and character:FindFirstChild("Hitbox") :: BasePart?
+end
+
+local function applyPredictedLaunchFeel(root: BasePart, normal: Vector3)
+	local velocity = root.AssemblyLinearVelocity
+	local compressed = velocity * IMPACT_ABSORPTION
+	root.AssemblyLinearVelocity = compressed
+	task.delay(HITSTOP_SECONDS, function()
+		if not root.Parent then
+			return
+		end
+		local reflected = compressed - (2 * compressed:Dot(normal) * normal)
+		root.AssemblyLinearVelocity = reflected * BOUNCE_RETENTION
+	end)
 end
 
 local function getNearbyFood(position: Vector3): { Model }
@@ -86,6 +106,12 @@ RunService.RenderStepped:Connect(function()
 							end
 						end
 					end
+					local normal = (currPos - hitbox.Position).Magnitude > 0.001 and (currPos - hitbox.Position).Unit or Vector3.new(0, 0, -1)
+					predictedImpacts[foodId] = {
+						beforeVelocity = root.AssemblyLinearVelocity,
+						beforePosition = currPos,
+					}
+					applyPredictedLaunchFeel(root, normal)
 					-- Fire the remote to report the hit to the server
 					reportRemote:FireServer({
 						foodId = foodId,
@@ -98,4 +124,30 @@ RunService.RenderStepped:Connect(function()
 		end
 	end
 	lastPos = currPos
+end)
+
+gameplayFeedbackRemote.OnClientEvent:Connect(function(message)
+	if type(message) ~= "table" or message.EventType ~= "FoodHitRejected" then
+		return
+	end
+	local payload = message.Payload
+	if type(payload) ~= "table" then
+		return
+	end
+	local foodId = payload.FoodId
+	if typeof(foodId) ~= "string" then
+		return
+	end
+	local root = getRoot()
+	local predicted = predictedImpacts[foodId]
+	if root and predicted then
+		root.AssemblyLinearVelocity = predicted.beforeVelocity
+		local delta = (root.Position - predicted.beforePosition).Magnitude
+		if delta >= MAJOR_DESYNC then
+			root.CFrame = CFrame.new(predicted.beforePosition)
+		elseif delta >= MINOR_DESYNC then
+			root.CFrame = root.CFrame:Lerp(CFrame.new(predicted.beforePosition), 0.35)
+		end
+	end
+	predictedImpacts[foodId] = nil
 end)

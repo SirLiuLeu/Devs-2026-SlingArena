@@ -24,6 +24,8 @@ local Y_TOLERANCE = 10
 local VALIDATION_EPSILON = 0.75
 local MAX_ALLOWED_SPEED = 450
 local HIT_REQUEST_COOLDOWN = 0.06
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local REQUIRED_FOOD_MODELS = {
 	CommonBlue = true,
@@ -476,6 +478,14 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	if not (hitbox and hitbox:IsA("BasePart")) then
 		return false
 	end
+	local stateService = getService(self._context, "PlayerStateService")
+	local state = stateService and stateService:GetState(player)
+	local rule = entry and FoodConfig.Foods[entry.FoodType]
+	if rule and (not rule.Touch) and entry.MaxHP > 0 then
+		if not state or state.MovementState ~= GameStates.PlayerState.Launching then
+			return false
+		end
+	end
 	local playerRadius = math.max(root.Size.X, root.Size.Z) * 0.5
 	local foodRadius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5 + FOOD_HIT_RADIUS_PADDING
 	local pingSec = (player:GetNetworkPing() or 0) * 0.5
@@ -648,6 +658,7 @@ end
 
 function FoodService:Start()
 	local remote = self._context.Remotes:FindFirstChild("ReportFoodHit")
+	local feedbackRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
 	if not (remote and remote:IsA("RemoteEvent")) then
 		return
 	end
@@ -662,6 +673,15 @@ function FoodService:Start()
 		end
 		local entry = self._foodById[payload.foodId]
 		if not self:_validateFoodHit(player, entry, payload) then
+			if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
+				feedbackRemote:FireClient(player, {
+					EventType = "FoodHitRejected",
+					Payload = {
+						FoodId = payload.foodId,
+						ServerResync = true,
+					},
+				})
+			end
 			return
 		end
 		local rule = FoodConfig.Foods[entry.FoodType]

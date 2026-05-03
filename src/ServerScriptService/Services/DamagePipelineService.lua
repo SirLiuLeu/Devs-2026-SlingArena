@@ -15,6 +15,7 @@ type Context = {
 type DamageOptions = {
 	SuppressFeedback: boolean?,
 	SuppressDeathHandling: boolean?,
+	SuppressKnockback: boolean?,
 }
 
 local DamagePipelineService = {}
@@ -45,7 +46,9 @@ end
 
 function DamagePipelineService:Init()
 	self._context.EventBus:On("CollisionPlayerHit", function(victim: Player, attacker: Player?, rawDamage: number, knockbackDirection: Vector3, _collisionMeta: any)
-		self:ApplyDamage(victim, rawDamage, attacker, knockbackDirection)
+		self:ApplyDamage(victim, rawDamage, attacker, knockbackDirection, {
+			SuppressKnockback = true,
+		})
 	end)
 	self._context.EventBus:On("TrapCollision", function(player: Player, penalty: number)
 		self:ApplyExpPenalty(player, penalty)
@@ -144,7 +147,8 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 		end
 	end
 
-	if knockbackDirection then
+	local suppressKnockback = options and options.SuppressKnockback == true
+	if knockbackDirection and not suppressKnockback then
 		local playerService = getService(self._context, "PlayerService")
 		local root = playerService and playerService:GetRoot(victim)
 		if root and knockbackDirection.Magnitude > 0 then

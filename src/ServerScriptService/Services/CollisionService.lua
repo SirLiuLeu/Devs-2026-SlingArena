@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config.Config)
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local PhysicsConfig = require(script.Parent.Parent.Config.PhysicsConfig)
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 
 local CollisionService = {}
 CollisionService.__index = CollisionService
@@ -111,7 +112,11 @@ function CollisionService:_resolvePlayerCollisions(hits)
 		local damageService = getService(self._context, "DamagePipelineService")
 		local stateA = stateService and stateService:GetState(hit.playerA)
 		local stateB = stateService and stateService:GetState(hit.playerB)
-		local sizeA = stateA and stateA.Size or 1
+		local launchState = GameStates.PlayerState.Launching
+		if not (stateA and stateB) or (stateA.MovementState ~= launchState and stateB.MovementState ~= launchState) then
+			continue
+		end
+		local sizeA = stateA.Size or 1
 		local sizeB = stateB and stateB.Size or 1
 		local massA = Config.Mass * sizeA
 		local massB = Config.Mass * sizeB
@@ -126,6 +131,9 @@ function CollisionService:_resolvePlayerCollisions(hits)
 		local defenderState = if loser == hit.playerA then stateA else stateB
 		if attackerState and defenderState then
 			local velocityMagnitude = winnerRoot.AssemblyLinearVelocity.Magnitude
+			if velocityMagnitude < (PhysicsConfig.Collision.MinCollisionSpeed or 0) then
+				continue
+			end
 			local impactDirection = loserRoot.Position - winnerRoot.Position
 			local damage = damageService and damageService:ComputeCollisionDamage(attackerState, velocityMagnitude) or 0
 			local knockback = damageService and damageService:ComputeCollisionKnockback(attackerState, defenderState, impactDirection, velocityMagnitude) or Vector3.zero

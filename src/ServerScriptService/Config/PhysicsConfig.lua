@@ -29,6 +29,10 @@ local PhysicsConfig = {
 		MinImpulse = 500,
 		MaxImpulse = 9000,
 		PlayerImpulseScale = 45,
+		MinCollisionSpeed = 20,
+		HitstopSeconds = 0.05,
+		ImpactAbsorption = 0.6,
+		BounceRetention = 0.7,
 	},
 }
 
