@@ -25,7 +25,6 @@ local function resolveRootPart(): BasePart?
 	if not pawn then
 		return nil
 	end
-	print("FOUND PAWN", pawn:GetFullName())
 	local root = pawn:FindFirstChild("Hitbox") or pawn.PrimaryPart
 	if root and root:IsA("BasePart") then
 		if pawn.PrimaryPart == nil then
@@ -49,7 +48,6 @@ local function applyDefaultCamera()
 		return
 	end
 
-	print("APPLY CAMERA")
 	camera.CameraType = Enum.CameraType.Custom
 
 	local maxAttempts = 20
@@ -66,7 +64,6 @@ local function applyDefaultCamera()
 		if attempt < maxAttempts then
 			task.delay(0.1, tryResolve)
 		else
-			warn("NO ROOT FOUND")
 		end
 	end
 
