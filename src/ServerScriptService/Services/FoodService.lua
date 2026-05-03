@@ -13,7 +13,7 @@ local DEFAULT_HIT_COOLDOWN = 0.18
 local FOOD_UI_TEMPLATE_PATH = { "Assets", "UI", "FoodWorldUI" }
 local DAMAGE_MIN_VELOCITY = 20
 local DAMAGE_MAX_VELOCITY = 170
-local DAMAGE_BASE = 1
+local DAMAGE_BASE = 100
 local FOOD_HIT_RADIUS_PADDING = 0.75
 local NORMAL_EPSILON = 1e-5
 local MIN_SPEED_EPSILON = 1e-3
@@ -461,6 +461,9 @@ function FoodService:_passesSweptCheck(foodPos: Vector3, prevPos: Vector3, currP
 	return distancePointToSegmentSquaredXZ(foodPos, prevPos, currPos) <= (rEffective * rEffective)
 end
 
+-- 1. Check current distance (currPos vs food)
+-- 2. If not close enough → check path (prevPos → currPos)
+-- 3. If still not hit → reject
 function FoodService:_validateFoodHit(player: Player, entry: any, payload: any): boolean
 	if not (entry and entry.IsActive and not entry.IsConsumed and entry.Instance and entry.Instance.Parent) then
 		return false
@@ -495,6 +498,7 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	if dXZSq > (rEffective * rEffective) then
 		local prevPos = (payload and payload.prevPos) or self._lastPawnPos[player] or currPos
 		if not self:_passesSweptCheck(hitbox.Position, prevPos, currPos, rEffective) then
+			print(string.format("[FoodService] Hit validation failed: dXZSq=%.2f, rEffective=%.2f", dXZSq, rEffective))
 			return false
 		end
 	end

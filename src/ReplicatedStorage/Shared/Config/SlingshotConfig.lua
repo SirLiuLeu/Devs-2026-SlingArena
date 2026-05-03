@@ -17,7 +17,7 @@ local SlingshotConfig = {
 	},
 	SlingConfig = {
 		MaxHP = 1000,
-		BaseDamage = 2000,
+		BaseDamage = 211000,
 		ReflectDamagePercent = 0.05,
 		RegenPerSecond = 2,
 		MaxPullDistance = 30,

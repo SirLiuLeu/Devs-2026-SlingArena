@@ -1,7 +1,7 @@
 --!strict
 
 return {
-	BaseForce = 80,
+	BaseForce = 8000,
 	MaxExtraForce = 150,
 	MaxCharge = 100,
 	ChargeRatePerSecond = 40,

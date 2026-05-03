@@ -2,10 +2,10 @@
 
 local PhysicsConfig = {
 	PhysicalProperties = {
-		Density = 1.05,
-		Friction = 0.85,
-		Elasticity = 0,
-		FrictionWeight = 1,
+		Density = 0.7,
+		Friction = 0,
+		Elasticity = 0.8,
+		FrictionWeight = 0,
 		ElasticityWeight = 1,
 	},
 
@@ -25,6 +25,7 @@ local PhysicsConfig = {
 		UseInfiniteForce = true,
 		ZeroElasticity = true,
 	},
+
 	Collision = {
 		MinImpulse = 500,
 		MaxImpulse = 9000,

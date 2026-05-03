@@ -113,6 +113,7 @@ RunService.RenderStepped:Connect(function()
 					}
 					applyPredictedLaunchFeel(root, normal)
 					-- Fire the remote to report the hit to the server
+					print("Reporting hit on foodId:", foodId)
 					reportRemote:FireServer({
 						foodId = foodId,
 						hitType = "ClientPredictedFoodOverlap",
