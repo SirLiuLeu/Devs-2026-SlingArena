@@ -104,11 +104,11 @@ RunService.RenderStepped:Connect(function()
 				local now = os.clock()
 				local speed = root.AssemblyLinearVelocity.Magnitude
 				local canReportNow = (lastHit[foodId] or 0) <= now
-				print(string.format("[FoodCollisionClient] contact detected foodId=%s template=%s rarity=%s state=%s speed=%.2f", foodId, food.Name, tostring(rarity), tostring(currentMovementState), speed))
+				--print(string.format("[FoodCollisionClient] contact detected foodId=%s template=%s rarity=%s state=%s speed=%.2f", foodId, food.Name, tostring(rarity), tostring(currentMovementState), speed))
 				if canReportNow and speed >= MIN_REPORT_SPEED then
 					local canReport = canReportForStateAndRarity(currentMovementState, rarity)
 					if not canReport then
-						print(string.format("[FoodCollisionClient] hit blocked by rarity/state rule foodId=%s template=%s rarity=%s state=%s", foodId, food.Name, tostring(rarity), tostring(currentMovementState)))
+						--print(string.format("[FoodCollisionClient] hit blocked by rarity/state rule foodId=%s template=%s rarity=%s state=%s", foodId, food.Name, tostring(rarity), tostring(currentMovementState)))
 						continue
 					end
 					lastHit[foodId] = now + REPORT_COOLDOWN
@@ -141,7 +141,7 @@ RunService.RenderStepped:Connect(function()
 					})
 				else
 					if not canReportNow then
-						print(string.format("[FoodCollisionClient] hit blocked by cooldown foodId=%s rarity=%s state=%s", foodId, tostring(rarity), tostring(currentMovementState)))
+						--print(string.format("[FoodCollisionClient] hit blocked by cooldown foodId=%s rarity=%s state=%s", foodId, tostring(rarity), tostring(currentMovementState)))
 					end
 				end
 			end
