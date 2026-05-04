@@ -76,13 +76,13 @@ end
 function SlingMovement:Stop()
 	self._linearVelocity.PlaneVelocity = Vector2.zero
 	self._linearVelocity.Enabled = false
-	warn("[SlingMovement] Stop called, LinearVelocity disabled")
+	--warn("[SlingMovement] Stop called, LinearVelocity disabled")
 end
 
 function SlingMovement:DisableLocomotion(preserveMomentum: boolean?)
 	self._linearVelocity.PlaneVelocity = Vector2.zero
 	self._linearVelocity.Enabled = false
-	warn(string.format("[SlingMovement] DisableLocomotion preserveMomentum=%s", tostring(preserveMomentum == true)))
+	--warn(string.format("[SlingMovement] DisableLocomotion preserveMomentum=%s", tostring(preserveMomentum == true)))
 
 	if preserveMomentum then
 		return

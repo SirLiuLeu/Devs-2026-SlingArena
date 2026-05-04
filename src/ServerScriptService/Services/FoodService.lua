@@ -21,7 +21,7 @@ local REFLECTION_DAMPING = 0.88
 local LAST_HIT_VELOCITY_DAMPING = 0.75
 local GRID_CELL_SIZE = 48
 local Y_TOLERANCE = 10
-local VALIDATION_EPSILON = 0.75
+local VALIDATION_EPSILON = 10.75
 local MAX_ALLOWED_SPEED = 450
 local HIT_REQUEST_COOLDOWN = 0.06
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
@@ -321,13 +321,6 @@ function FoodService:_spawnFoodOnSpawn(mapModel: Model, foodContainer: Folder, s
 	local clone = template:Clone()
 	clone.Name = foodType
 	clone.Parent = foodContainer
-	print(string.format(
-		"[FoodService] Food clone triggered: template=%s map=%s parent=%s spawn=%s",
-		template:GetFullName(),
-		mapModel.Name,
-		foodContainer:GetFullName(),
-		spawnPart:GetFullName()
-	))
 	anchorFoodModel(clone)
 	local hitbox = clone:FindFirstChild("Hitbox") :: BasePart?
 	if not hitbox then
