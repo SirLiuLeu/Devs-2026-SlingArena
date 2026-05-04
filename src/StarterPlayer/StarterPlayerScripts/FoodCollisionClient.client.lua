@@ -24,7 +24,6 @@ local MAJOR_DESYNC = 12
 local lastPos: Vector3? = nil
 local lastHit: { [string]: number } = {}
 local predictedImpacts: { [string]: { beforeVelocity: Vector3, beforePosition: Vector3 } } = {}
-local activeContacts: { [string]: boolean } = {}
 local currentMovementState = GameStates.PlayerState.Idle
 
 local function canReportForStateAndRarity(movementState: string, rarity: any): boolean
@@ -105,12 +104,11 @@ RunService.RenderStepped:Connect(function()
 				local now = os.clock()
 				local speed = root.AssemblyLinearVelocity.Magnitude
 				local canReportNow = (lastHit[foodId] or 0) <= now
-				activeContacts[foodId] = true
-				--print(string.format("[FoodCollisionClient] contact foodId=%s template=%s rarity=%s state=%s speed=%.2f", foodId, food.Name, tostring(rarity), tostring(currentMovementState), speed))
+				print(string.format("[FoodCollisionClient] contact detected foodId=%s template=%s rarity=%s state=%s speed=%.2f", foodId, food.Name, tostring(rarity), tostring(currentMovementState), speed))
 				if canReportNow and speed >= MIN_REPORT_SPEED then
 					local canReport = canReportForStateAndRarity(currentMovementState, rarity)
 					if not canReport then
-						--print(string.format("[FoodCollisionClient] blocked foodId=%s template=%s rarity=%s state=%s", foodId, food.Name, tostring(rarity), tostring(currentMovementState)))
+						print(string.format("[FoodCollisionClient] hit blocked by rarity/state rule foodId=%s template=%s rarity=%s state=%s", foodId, food.Name, tostring(rarity), tostring(currentMovementState)))
 						continue
 					end
 					lastHit[foodId] = now + REPORT_COOLDOWN
@@ -134,7 +132,7 @@ RunService.RenderStepped:Connect(function()
 					}
 					applyPredictedLaunchFeel(root, normal)
 					-- Fire the remote to report the hit to the server
-					print(string.format("[FoodCollisionClient] report foodId=%s template=%s rarity=%s state=%s speed=%.2f", foodId, food.Name, tostring(rarity), tostring(currentMovementState), root.AssemblyLinearVelocity.Magnitude))
+					print(string.format("[FoodCollisionClient] hit reported foodId=%s template=%s rarity=%s state=%s speed=%.2f", foodId, food.Name, tostring(rarity), tostring(currentMovementState), root.AssemblyLinearVelocity.Magnitude))
 					reportRemote:FireServer({
 						foodId = foodId,
 						hitType = "ClientPredictedFoodOverlap",
@@ -142,12 +140,10 @@ RunService.RenderStepped:Connect(function()
 						currPos = currPos,
 					})
 				else
-					local reason = if not canReportNow then "cooldown" else "speed"
-					--print(string.format("[FoodCollisionClient] spam-blocked foodId=%s reason=%s rarity=%s speed=%.2f", foodId, reason, tostring(rarity), speed))
+					if not canReportNow then
+						print(string.format("[FoodCollisionClient] hit blocked by cooldown foodId=%s rarity=%s state=%s", foodId, tostring(rarity), tostring(currentMovementState)))
+					end
 				end
-			elseif activeContacts[foodId] then
-				activeContacts[foodId] = nil
-				--print(string.format("[FoodCollisionClient] contact reset foodId=%s template=%s rarity=%s distance=%.2f", foodId, food.Name, tostring(rarity), dXZ))
 			end
 		end
 	end

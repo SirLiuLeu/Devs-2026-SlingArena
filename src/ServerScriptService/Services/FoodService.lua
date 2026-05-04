@@ -25,6 +25,7 @@ local VALIDATION_EPSILON = 10.75
 local MAX_ALLOWED_SPEED = 450
 local HIT_REQUEST_COOLDOWN = 0.06
 local HP_FOOD_MIN_HORIZONTAL_SPEED = 22
+local MOTION_HISTORY_WINDOW = 0.3
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local COMMON_ALLOWED_STATES = {
@@ -135,6 +136,7 @@ function FoodService.new(context)
 	self._slingFoodHitCooldown = {}
 	self._hitRequestCooldown = {}
 	self._lastPawnPos = {}
+	self._motionHistory = {}
 	self._heartbeatConnection = nil
 	return self
 end
@@ -467,6 +469,32 @@ function FoodService:_passesSweptCheck(foodPos: Vector3, prevPos: Vector3, currP
 	return distancePointToSegmentSquaredXZ(foodPos, prevPos, currPos) <= (rEffective * rEffective)
 end
 
+function FoodService:_recordMotionSample(player: Player, position: Vector3, velocity: Vector3, timestamp: number)
+	local history = self._motionHistory[player]
+	if not history then
+		history = {}
+		self._motionHistory[player] = history
+	end
+	table.insert(history, { t = timestamp, pos = position, vel = velocity })
+	while #history > 0 and (timestamp - history[1].t) > MOTION_HISTORY_WINDOW do
+		table.remove(history, 1)
+	end
+end
+
+function FoodService:_getMotionWindow(player: Player, now: number): { any }
+	local history = self._motionHistory[player]
+	if not history then
+		return {}
+	end
+	local out = {}
+	for _, sample in ipairs(history) do
+		if (now - sample.t) <= MOTION_HISTORY_WINDOW then
+			table.insert(out, sample)
+		end
+	end
+	return out
+end
+
 -- 1. Check current distance (currPos vs food)
 -- 2. If not close enough → check path (prevPos → currPos)
 -- 3. If still not hit → reject
@@ -479,6 +507,7 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	if not (root and self:_isPlayerAlive(player)) then
 		return false
 	end
+	local now = os.clock()
 	local speed = root.AssemblyLinearVelocity.Magnitude
 	if speed > MAX_ALLOWED_SPEED then
 		return false
@@ -494,16 +523,20 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	if not movementState then
 		return false
 	end
+	local motionWindow = self:_getMotionWindow(player, now)
+	local recentHorizontalMax = flattenXZ(root.AssemblyLinearVelocity).Magnitude
+	for _, sample in ipairs(motionWindow) do
+		recentHorizontalMax = math.max(recentHorizontalMax, flattenXZ(sample.vel).Magnitude)
+	end
 	if rule and (not rule.Touch) and entry.MaxHP > 0 then
-		local horizontalSpeed = flattenXZ(root.AssemblyLinearVelocity).Magnitude
-		if horizontalSpeed < HP_FOOD_MIN_HORIZONTAL_SPEED then
-			print(string.format("[FoodService] Reject HP food hit player=%s foodId=%s horizontalSpeed=%.2f state=%s threshold=%.2f", player.Name, tostring(payload and payload.foodId), horizontalSpeed, tostring(movementState), HP_FOOD_MIN_HORIZONTAL_SPEED))
+		if recentHorizontalMax < HP_FOOD_MIN_HORIZONTAL_SPEED then
+			print(string.format("[FoodService] Reject HP food hit player=%s foodId=%s state=%s recentHorizontalMax=%.2f threshold=%.2f reason=low_recent_speed", player.Name, tostring(payload and payload.foodId), tostring(movementState), recentHorizontalMax, HP_FOOD_MIN_HORIZONTAL_SPEED))
 			return false
 		end
-		print(string.format("[FoodService] HP food velocity-valid player=%s foodId=%s horizontalSpeed=%.2f state=%s threshold=%.2f", player.Name, tostring(payload and payload.foodId), horizontalSpeed, tostring(movementState), HP_FOOD_MIN_HORIZONTAL_SPEED))
+		print(string.format("[FoodService] HP food speed-valid player=%s foodId=%s state=%s recentHorizontalMax=%.2f threshold=%.2f", player.Name, tostring(payload and payload.foodId), tostring(movementState), recentHorizontalMax, HP_FOOD_MIN_HORIZONTAL_SPEED))
 	else
 		if not COMMON_ALLOWED_STATES[movementState] then
-			print(string.format("[FoodService] Reject common food hit player=%s foodId=%s state=%s", player.Name, tostring(payload and payload.foodId), tostring(movementState)))
+			print(string.format("[FoodService] Reject common food hit player=%s foodId=%s state=%s reason=state_rule", player.Name, tostring(payload and payload.foodId), tostring(movementState)))
 			return false
 		end
 	end
@@ -513,16 +546,29 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	local rEffective = self:_computeEffectiveRadius(playerRadius, foodRadius, speed, pingSec)
 	local currPos = root.Position
 	local dXZSq = sqrDistanceXZ(currPos, hitbox.Position)
-	if dXZSq > (rEffective * rEffective) then
+	local distancePass = dXZSq <= (rEffective * rEffective)
+	local sweptPass = false
+	if not distancePass then
 		local prevPos = (payload and payload.prevPos) or self._lastPawnPos[player] or currPos
-		if not self:_passesSweptCheck(hitbox.Position, prevPos, currPos, rEffective) then
-			print(string.format("[FoodService] Hit validation failed: dXZSq=%.2f, rEffective=%.2f", dXZSq, rEffective))
+		sweptPass = self:_passesSweptCheck(hitbox.Position, prevPos, currPos, rEffective)
+		if not sweptPass then
+			for _, sample in ipairs(motionWindow) do
+				if self:_passesSweptCheck(hitbox.Position, sample.pos, currPos, rEffective) then
+					sweptPass = true
+					break
+				end
+			end
+		end
+		if not sweptPass then
+			print(string.format("[FoodService] Reject food hit player=%s foodId=%s state=%s distancePass=%s sweptPass=%s recentHorizontalMax=%.2f reason=distance_and_sweep_failed", player.Name, tostring(payload and payload.foodId), tostring(movementState), tostring(distancePass), tostring(sweptPass), recentHorizontalMax))
 			return false
 		end
 	end
 	if math.abs(currPos.Y - hitbox.Position.Y) > Y_TOLERANCE then
+		print(string.format("[FoodService] Reject food hit player=%s foodId=%s state=%s distancePass=%s sweptPass=%s recentHorizontalMax=%.2f reason=y_mismatch", player.Name, tostring(payload and payload.foodId), tostring(movementState), tostring(distancePass), tostring(sweptPass), recentHorizontalMax))
 		return false
 	end
+	print(string.format("[FoodService] Accept food hit validation player=%s foodId=%s state=%s distancePass=%s sweptPass=%s recentHorizontalMax=%.2f", player.Name, tostring(payload and payload.foodId), tostring(movementState), tostring(distancePass), tostring(sweptPass), recentHorizontalMax))
 	return true
 end
 
@@ -654,6 +700,7 @@ function FoodService:_startCollisionLoop()
 			if pawn and root and root:IsA("BasePart") then
 				local currPos = root.Position
 				local prevPos = self._lastPawnPos[player]
+				self:_recordMotionSample(player, currPos, root.AssemblyLinearVelocity, os.clock())
 				self:_processPlayerFoodCollision(player, pawn, currPos, prevPos)
 				self._lastPawnPos[player] = currPos
 			end
