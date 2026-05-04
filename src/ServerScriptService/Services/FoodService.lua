@@ -24,6 +24,7 @@ local Y_TOLERANCE = 10
 local VALIDATION_EPSILON = 10.75
 local MAX_ALLOWED_SPEED = 450
 local HIT_REQUEST_COOLDOWN = 0.06
+local HP_FOOD_MIN_HORIZONTAL_SPEED = 22
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local COMMON_ALLOWED_STATES = {
@@ -494,10 +495,12 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 		return false
 	end
 	if rule and (not rule.Touch) and entry.MaxHP > 0 then
-		if movementState ~= GameStates.PlayerState.Launching then
-			print(string.format("[FoodService] Reject HP food hit player=%s foodId=%s state=%s", player.Name, tostring(payload and payload.foodId), tostring(movementState)))
+		local horizontalSpeed = flattenXZ(root.AssemblyLinearVelocity).Magnitude
+		if horizontalSpeed < HP_FOOD_MIN_HORIZONTAL_SPEED then
+			print(string.format("[FoodService] Reject HP food hit player=%s foodId=%s horizontalSpeed=%.2f state=%s threshold=%.2f", player.Name, tostring(payload and payload.foodId), horizontalSpeed, tostring(movementState), HP_FOOD_MIN_HORIZONTAL_SPEED))
 			return false
 		end
+		print(string.format("[FoodService] HP food velocity-valid player=%s foodId=%s horizontalSpeed=%.2f state=%s threshold=%.2f", player.Name, tostring(payload and payload.foodId), horizontalSpeed, tostring(movementState), HP_FOOD_MIN_HORIZONTAL_SPEED))
 	else
 		if not COMMON_ALLOWED_STATES[movementState] then
 			print(string.format("[FoodService] Reject common food hit player=%s foodId=%s state=%s", player.Name, tostring(payload and payload.foodId), tostring(movementState)))
@@ -716,9 +719,11 @@ function FoodService:Start()
 			local playerService = getService(self._context, "PlayerService")
 			local root = playerService and playerService:GetRoot(player)
 			if root then
-				print(string.format("[FoodService] Accept HP food player=%s foodId=%s speed=%.2f", player.Name, tostring(payload.foodId), flattenXZ(root.AssemblyLinearVelocity).Magnitude))
-				self:_applySlingDamage(entry, player, flattenXZ(root.AssemblyLinearVelocity).Magnitude)
-				local impulse = flattenXZ(root.AssemblyLinearVelocity) * -root.AssemblyMass * 0.35
+				local horizontalVelocity = flattenXZ(root.AssemblyLinearVelocity)
+				local horizontalSpeed = horizontalVelocity.Magnitude
+				print(string.format("[FoodService] Accept HP food player=%s foodId=%s horizontalSpeed=%.2f", player.Name, tostring(payload.foodId), horizontalSpeed))
+				self:_applySlingDamage(entry, player, horizontalSpeed)
+				local impulse = horizontalVelocity * -root.AssemblyMass * 0.35
 				root:ApplyImpulse(Vector3.new(impulse.X, 0, impulse.Z))
 			end
 		end

@@ -14,7 +14,6 @@ local GRID_CELL_SIZE = 48
 local Y_TOLERANCE = 10
 local HIT_EPSILON = 0.75
 local REPORT_COOLDOWN = 0.05
-local CONTACT_RESET_DISTANCE = 1.75
 local MIN_REPORT_SPEED = 8
 local IMPACT_ABSORPTION = 0.6
 local HITSTOP_SECONDS = 0.05
@@ -104,16 +103,17 @@ RunService.RenderStepped:Connect(function()
 			local dXZ = (Vector3.new(currPos.X, 0, currPos.Z) - Vector3.new(hitbox.Position.X, 0, hitbox.Position.Z)).Magnitude
 			if dXZ <= rEffective and math.abs(currPos.Y - hitbox.Position.Y) <= Y_TOLERANCE then
 				local now = os.clock()
-				local alreadyTouching = activeContacts[foodId] == true
-				if (lastHit[foodId] or 0) <= now and (not alreadyTouching) and root.AssemblyLinearVelocity.Magnitude >= MIN_REPORT_SPEED then
+				local speed = root.AssemblyLinearVelocity.Magnitude
+				local canReportNow = (lastHit[foodId] or 0) <= now
+				activeContacts[foodId] = true
+				print(string.format("[FoodCollisionClient] contact foodId=%s template=%s rarity=%s state=%s speed=%.2f", foodId, food.Name, tostring(rarity), tostring(currentMovementState), speed))
+				if canReportNow and speed >= MIN_REPORT_SPEED then
 					local canReport = canReportForStateAndRarity(currentMovementState, rarity)
 					if not canReport then
-						activeContacts[foodId] = true
 						print(string.format("[FoodCollisionClient] blocked foodId=%s template=%s rarity=%s state=%s", foodId, food.Name, tostring(rarity), tostring(currentMovementState)))
 						continue
 					end
 					lastHit[foodId] = now + REPORT_COOLDOWN
-					activeContacts[foodId] = true
 					-- Client-side prediction: if it's a common food, make it invisible and non-collidable immediately
 					if rarity == "Common" then
 						for _, obj in ipairs(food:GetDescendants()) do
@@ -141,8 +141,11 @@ RunService.RenderStepped:Connect(function()
 						prevPos = lastPos,
 						currPos = currPos,
 					})
+				else
+					local reason = if not canReportNow then "cooldown" else "speed"
+					print(string.format("[FoodCollisionClient] spam-blocked foodId=%s reason=%s rarity=%s speed=%.2f", foodId, reason, tostring(rarity), speed))
 				end
-			elseif activeContacts[foodId] and dXZ > (rEffective + CONTACT_RESET_DISTANCE) then
+			elseif activeContacts[foodId] then
 				activeContacts[foodId] = nil
 				print(string.format("[FoodCollisionClient] contact reset foodId=%s template=%s rarity=%s distance=%.2f", foodId, food.Name, tostring(rarity), dXZ))
 			end
