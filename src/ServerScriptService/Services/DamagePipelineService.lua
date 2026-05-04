@@ -64,15 +64,20 @@ function DamagePipelineService:Init()
 	end)
 end
 
-function DamagePipelineService:ComputeCollisionDamage(attackerState: any, velocityMagnitude: number): number
+function DamagePipelineService:ComputeCollisionDamage(attackerState: any, velocityMagnitude: number, launchSession: any): number
 	local baseDamage = math.max(attackerState.BaseDamage or 0, 0)
 	local speed = math.max(0, velocityMagnitude)
 	local speedMultiplier = speed / math.max(BalanceConfig.MinVelocityToCollide, 1)
-	local damage = baseDamage * speedMultiplier
+	local sessionMultiplier = 1
+	if launchSession then
+		local hitFalloff = math.max(0.35, 1 - (launchSession.HitCount * 0.2))
+		sessionMultiplier = (launchSession.CurrentDamageMultiplier or 1) * hitFalloff * math.max(0.2, launchSession.EnergyLeft or 0)
+	end
+	local damage = baseDamage * speedMultiplier * sessionMultiplier
 	return math.clamp(damage, 0, BalanceConfig.MaxDamagePerHit)
 end
 
-function DamagePipelineService:ComputeCollisionKnockback(attackerState: any, defenderState: any, direction: Vector3, velocityMagnitude: number): Vector3
+function DamagePipelineService:ComputeCollisionKnockback(attackerState: any, defenderState: any, direction: Vector3, velocityMagnitude: number, launchSession: any): Vector3
 	if direction.Magnitude < 0.01 then
 		direction = Vector3.new(1, 0, 0)
 	end
@@ -80,7 +85,9 @@ function DamagePipelineService:ComputeCollisionKnockback(attackerState: any, def
 	local defenderSize = math.max(defenderState.Size or 1, 0.1)
 	local sizeRatio = attackerSize / defenderSize
 	local baseForce = math.max(BalanceConfig.BaseImpactForce, velocityMagnitude * BalanceConfig.KnockbackFactor)
-	local knockbackForce = math.clamp(baseForce * sizeRatio, 0, BalanceConfig.MaxKnockback)
+	local sessionBoost = launchSession and (0.8 + ((launchSession.ChargeRatio or 0) * 0.35) + ((launchSession.EnergyLeft or 0) * 0.25)) or 1
+	local resistance = math.clamp(defenderState.KnockbackResistance or 0, 0, 0.8)
+	local knockbackForce = math.clamp((baseForce * sizeRatio * sessionBoost) * (1 - resistance), 0, BalanceConfig.MaxKnockback)
 	return direction.Unit * knockbackForce
 end
 

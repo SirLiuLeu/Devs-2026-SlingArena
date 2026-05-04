@@ -451,6 +451,10 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 
 	root:SetNetworkOwner(nil)
 	root:ApplyImpulse(launchVector * mass)
+	local launchSessionService = getService(self._context, "LaunchSessionService")
+	if launchSessionService then
+		launchSessionService:StartSession(player, launchDirectionPlanar, chargeRatio, launchForce)
+	end
 	warn(string.format("[SlingService] Launch player=%s charge=%.2f impulse=%.2f,%0.2f,%0.2f", player.Name, chargeRatio, launchVector.X, launchVector.Y, launchVector.Z))
 	
 
@@ -611,8 +615,17 @@ function SlingService:_stepMovementStates()
 		if state and root then
 			local now = os.clock()
 			local horizontal = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude
-			if state.MovementState == "Launching" and horizontal <= BalanceConfig.VelocityStopThreshold then
+			local launchSessionService = getService(self._context, "LaunchSessionService")
+			local session = launchSessionService and launchSessionService:StepSession(player, root.Position)
+			local shouldStopLaunch = horizontal <= BalanceConfig.VelocityStopThreshold
+			if session then
+				shouldStopLaunch = (not launchSessionService:IsHitValid(session)) or session.CurrentSpeedMultiplier <= 0.03
+			end
+			if state.MovementState == "Launching" and shouldStopLaunch then
 				self:_restoreLaunchVelocityControllers(player)
+				if launchSessionService then
+					launchSessionService:EndSession(player)
+				end
 				local releaseState = self._releaseState[player]
 				local releaseDuration = 0
 				if releaseState and typeof(releaseState.releaseStartTime) == "number" then

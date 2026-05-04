@@ -20,6 +20,18 @@ local PhysicsConfig = {
 		MinForce = 30,
 		MaxForce = 85,
 	},
+	LaunchModel = {
+		MinDuration = 0.35,
+		MaxDuration = 1.35,
+		StablePhaseRatio = 0.28,
+		SustainPhaseRatio = 0.44,
+		Phase2Decay = 0.28,
+		Phase3Decay = 1.55,
+		HitEnergyFloor = 0.09,
+		MinTransferRatio = 0.45,
+		MaxTransferRatio = 0.7,
+		RepeatedTargetCooldown = 0.2,
+	},
 
 	Stability = {
 		UseInfiniteForce = true,

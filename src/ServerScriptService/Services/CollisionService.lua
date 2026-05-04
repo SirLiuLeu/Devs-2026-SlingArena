@@ -25,6 +25,7 @@ function CollisionService.new(context)
 	self._lastCollision = {}
 	self._lastTrapCollision = {}
 	self._lastWallCollision = {}
+	self._lastPosition = {}
 	return self
 end
 
@@ -89,7 +90,11 @@ function CollisionService:_detectPlayerCollisions()
 			local rootA = playerService:GetRoot(playerA)
 			local rootB = playerService:GetRoot(playerB)
 			if rootA and rootB and playerService:IsAlive(playerA) and playerService:IsAlive(playerB) then
-				local distance = (rootA.Position - rootB.Position).Magnitude
+				local previousA = self._lastPosition[playerA] or rootA.Position
+				local previousB = self._lastPosition[playerB] or rootB.Position
+				local sweepMidA = (previousA + rootA.Position) * 0.5
+				local sweepMidB = (previousB + rootB.Position) * 0.5
+				local distance = math.min((rootA.Position - rootB.Position).Magnitude, (sweepMidA - sweepMidB).Magnitude)
 				local hitDistance = (rootA.Size.X + rootB.Size.X) * BalanceConfig.PlayerCollisionDistanceFactor
 				if distance <= hitDistance then
 					local key = if playerA.UserId < playerB.UserId then `{playerA.UserId}:{playerB.UserId}` else `{playerB.UserId}:{playerA.UserId}`
@@ -101,6 +106,7 @@ function CollisionService:_detectPlayerCollisions()
 				end
 			end
 		end
+		self._lastPosition[playerA] = rootA and rootA.Position or self._lastPosition[playerA]
 	end
 	return hits
 end
@@ -110,6 +116,7 @@ function CollisionService:_resolvePlayerCollisions(hits)
 	for _, hit in ipairs(hits) do
 		local stateService = getService(self._context, "PlayerStateService")
 		local damageService = getService(self._context, "DamagePipelineService")
+		local launchSessionService = getService(self._context, "LaunchSessionService")
 		local stateA = stateService and stateService:GetState(hit.playerA)
 		local stateB = stateService and stateService:GetState(hit.playerB)
 		local launchState = GameStates.PlayerState.Launching
@@ -130,13 +137,20 @@ function CollisionService:_resolvePlayerCollisions(hits)
 		local attackerState = if winner == hit.playerA then stateA else stateB
 		local defenderState = if loser == hit.playerA then stateA else stateB
 		if attackerState and defenderState then
-			local velocityMagnitude = winnerRoot.AssemblyLinearVelocity.Magnitude
-			if velocityMagnitude < (PhysicsConfig.Collision.MinCollisionSpeed or 0) then
+			local attackerSession = launchSessionService and launchSessionService:GetSession(winner)
+			if not (attackerSession and launchSessionService:IsHitValid(attackerSession)) then
 				continue
 			end
+			local targetMarker = tostring(loser.UserId)
+			local now = os.clock()
+			local lastHitAt = attackerSession.HitTargets[targetMarker]
+			if lastHitAt and (now - lastHitAt) < PhysicsConfig.LaunchModel.RepeatedTargetCooldown then
+				continue
+			end
+			local velocityMagnitude = winnerRoot.AssemblyLinearVelocity.Magnitude
 			local impactDirection = loserRoot.Position - winnerRoot.Position
-			local damage = damageService and damageService:ComputeCollisionDamage(attackerState, velocityMagnitude) or 0
-			local knockback = damageService and damageService:ComputeCollisionKnockback(attackerState, defenderState, impactDirection, velocityMagnitude) or Vector3.zero
+			local damage = damageService and damageService:ComputeCollisionDamage(attackerState, velocityMagnitude, attackerSession) or 0
+			local knockback = damageService and damageService:ComputeCollisionKnockback(attackerState, defenderState, impactDirection, velocityMagnitude, attackerSession) or Vector3.zero
 			local impulseScale = PhysicsConfig.Collision and PhysicsConfig.Collision.PlayerImpulseScale or 45
 			local minImpulse = PhysicsConfig.Collision and PhysicsConfig.Collision.MinImpulse or 500
 			local maxImpulse = PhysicsConfig.Collision and PhysicsConfig.Collision.MaxImpulse or 9000
@@ -145,8 +159,18 @@ function CollisionService:_resolvePlayerCollisions(hits)
 			loserRoot:ApplyImpulse(impulseDir * rawImpulse)
 			self._context.EventBus:Fire("CollisionDetected", "Sling", winner, loser, { Speed = velocityMagnitude, ChargeRatio = attackerState.ChargeValue })
 			self._context.EventBus:Fire("CollisionPlayerHit", loser, winner, damage, knockback, { ChargeRatio = attackerState.ChargeValue, VelocityMagnitude = velocityMagnitude })
-			local decay = math.clamp(BalanceConfig.VelocityDecayFactor, 0, 1)
+			attackerSession.HitCount += 1
+			attackerSession.LastHitTime = now
+			attackerSession.HitTargets[targetMarker] = now
+			attackerSession.EnergyLeft = math.max(0, attackerSession.EnergyLeft - (0.16 + (attackerSession.HitCount * 0.04)))
+			local decay = math.clamp(BalanceConfig.VelocityDecayFactor * attackerSession.EnergyLeft, 0, 1)
 			winnerRoot.AssemblyLinearVelocity *= decay
+			local transferRatio = PhysicsConfig.LaunchModel.MinTransferRatio + ((PhysicsConfig.LaunchModel.MaxTransferRatio - PhysicsConfig.LaunchModel.MinTransferRatio) * attackerSession.ChargeRatio)
+			local transferredSpeed = velocityMagnitude * transferRatio * attackerSession.EnergyLeft
+			if transferRatio > 0 and launchSessionService then
+				local dir = impactDirection.Magnitude > 0.001 and impactDirection.Unit or Vector3.new(1, 0, 0)
+				launchSessionService:StartSession(loser, dir, attackerSession.ChargeRatio * 0.85, transferredSpeed)
+			end
 		end
 	end
 end

@@ -20,6 +20,7 @@ local PlayerStateService = requireSafe(ServicesFolder:WaitForChild("PlayerStateS
 local PlayerService = requireSafe(ServicesFolder:WaitForChild("PlayerService"), "PlayerService")
 local TeamService = requireSafe(ServicesFolder:WaitForChild("TeamService"), "TeamService")
 local SlingService = requireSafe(ServicesFolder:WaitForChild("SlingService"), "SlingService")
+local LaunchSessionService = requireSafe(ServicesFolder:WaitForChild("LaunchSessionService"), "LaunchSessionService")
 local MapService = requireSafe(ServicesFolder:WaitForChild("MapService"), "MapService")
 local FoodService = requireSafe(ServicesFolder:WaitForChild("FoodService"), "FoodService")
 local CollisionService = requireSafe(ServicesFolder:WaitForChild("CollisionService"), "CollisionService")
@@ -96,6 +97,7 @@ local serviceConstructors = {
 	TeamService = TeamService,
 	PlayerService = PlayerService,
 	SlingService = SlingService,
+	LaunchSessionService = LaunchSessionService,
 	MapService = MapService,
 	FoodService = FoodService,
 	CollisionService = CollisionService,
@@ -134,6 +136,7 @@ local initializationOrder = {
 	"PlayerService",
 	"FoodService",
 	"SlingService",
+	"LaunchSessionService",
 	"CollisionService",
 	"DamagePipelineService",
 	"GrowthService",
