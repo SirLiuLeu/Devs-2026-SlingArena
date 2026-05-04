@@ -693,10 +693,10 @@ function FoodService:Start()
 		if type(payload) ~= "table" then
 			return
 		end
-		print(string.format("[FoodService] ReportFoodHit player=%s foodId=%s", player.Name, tostring(payload.foodId)))
+		--print(string.format("[FoodService] ReportFoodHit player=%s foodId=%s", player.Name, tostring(payload.foodId)))
 		local entry = self._foodById[payload.foodId]
 		if not self:_validateFoodHit(player, entry, payload) then
-			print(string.format("[FoodService] Reject hit player=%s foodId=%s", player.Name, tostring(payload.foodId)))
+			--print(string.format("[FoodService] Reject hit player=%s foodId=%s", player.Name, tostring(payload.foodId)))
 			if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
 				feedbackRemote:FireClient(player, {
 					EventType = "FoodHitRejected",
