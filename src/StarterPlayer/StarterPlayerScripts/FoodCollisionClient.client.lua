@@ -5,6 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
+local GameStates = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Constants"):WaitForChild("GameStates"))
+local stateUpdateRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("StateUpdate") :: RemoteEvent
 local reportRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
 local gameplayFeedbackRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("GameplayFeedback") :: RemoteEvent
 
@@ -24,6 +26,14 @@ local lastPos: Vector3? = nil
 local lastHit: { [string]: number } = {}
 local predictedImpacts: { [string]: { beforeVelocity: Vector3, beforePosition: Vector3 } } = {}
 local activeContacts: { [string]: boolean } = {}
+local currentMovementState = GameStates.PlayerState.Idle
+
+local function canReportForStateAndRarity(movementState: string, rarity: any): boolean
+	if rarity ~= "Common" then
+		return movementState == GameStates.PlayerState.Launching
+	end
+	return movementState ~= GameStates.PlayerState.Dead
+end
 
 local function gridKey(pos: Vector3): string
 	return string.format("%d:%d", math.floor(pos.X / GRID_CELL_SIZE), math.floor(pos.Z / GRID_CELL_SIZE))
@@ -96,6 +106,12 @@ RunService.RenderStepped:Connect(function()
 				local now = os.clock()
 				local alreadyTouching = activeContacts[foodId] == true
 				if (lastHit[foodId] or 0) <= now and (not alreadyTouching) and root.AssemblyLinearVelocity.Magnitude >= MIN_REPORT_SPEED then
+					local canReport = canReportForStateAndRarity(currentMovementState, rarity)
+					if not canReport then
+						activeContacts[foodId] = true
+						print(string.format("[FoodCollisionClient] blocked foodId=%s template=%s rarity=%s state=%s", foodId, food.Name, tostring(rarity), tostring(currentMovementState)))
+						continue
+					end
 					lastHit[foodId] = now + REPORT_COOLDOWN
 					activeContacts[foodId] = true
 					-- Client-side prediction: if it's a common food, make it invisible and non-collidable immediately
@@ -118,7 +134,7 @@ RunService.RenderStepped:Connect(function()
 					}
 					applyPredictedLaunchFeel(root, normal)
 					-- Fire the remote to report the hit to the server
-					print(string.format("[FoodCollisionClient] reportRemote:FireServer foodId=%s speed=%.2f", foodId, root.AssemblyLinearVelocity.Magnitude))
+					print(string.format("[FoodCollisionClient] report foodId=%s template=%s rarity=%s state=%s speed=%.2f", foodId, food.Name, tostring(rarity), tostring(currentMovementState), root.AssemblyLinearVelocity.Magnitude))
 					reportRemote:FireServer({
 						foodId = foodId,
 						hitType = "ClientPredictedFoodOverlap",
@@ -128,10 +144,25 @@ RunService.RenderStepped:Connect(function()
 				end
 			elseif activeContacts[foodId] and dXZ > (rEffective + CONTACT_RESET_DISTANCE) then
 				activeContacts[foodId] = nil
+				print(string.format("[FoodCollisionClient] contact reset foodId=%s template=%s rarity=%s distance=%.2f", foodId, food.Name, tostring(rarity), dXZ))
 			end
 		end
 	end
 	lastPos = currPos
+end)
+
+stateUpdateRemote.OnClientEvent:Connect(function(state)
+	if type(state) ~= "table" then
+		return
+	end
+	local movementState = state.MovementState
+	if typeof(movementState) == "string" then
+		if movementState == "Move" then
+			currentMovementState = GameStates.PlayerState.Moving
+		else
+			currentMovementState = movementState
+		end
+	end
 end)
 
 gameplayFeedbackRemote.OnClientEvent:Connect(function(message)
