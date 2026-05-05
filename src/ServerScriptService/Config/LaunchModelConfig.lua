@@ -21,14 +21,15 @@ return {
 		Max = 120,
 		PassiveDecayPerSecond = 0.12,
 		CollisionLossRatio = 0.28,
-		TransferRatio = 0.58,
 		ChainHitDecayMultiplier = 0.82,
 		MinTransferEnergy = 8,
 	},
 	Collision = {
 		MinImpactSpeed = 6,
-		NormalBounce = 0.78,
-		TangentialRetention = 0.92,
+		Restitution = 0.72,
+		EnergyTransferRatio = 0.58,
+		TangentialDamping = 0.82,
+		MinPostCollisionSpeed = 3.5,
 		MaxTransferSpeed = 90,
 	},
 	Damage = {

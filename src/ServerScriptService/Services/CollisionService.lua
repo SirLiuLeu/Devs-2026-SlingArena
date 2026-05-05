@@ -106,6 +106,33 @@ function CollisionService:_detectPlayerCollisions()
 	return hits
 end
 
+local function getHorizontalVelocity(root: BasePart): Vector3
+	local velocity = root.AssemblyLinearVelocity
+	return Vector3.new(velocity.X, 0, velocity.Z)
+end
+
+local function applyHorizontalVelocity(root: BasePart, horizontal: Vector3)
+	root.AssemblyLinearVelocity = Vector3.new(horizontal.X, root.AssemblyLinearVelocity.Y, horizontal.Z)
+end
+
+local function updateLaunchFromVelocity(launchState, velocity: Vector3, energy: number, now: number)
+	local speed = velocity.Magnitude
+	if speed <= LaunchConfig.Collision.MinPostCollisionSpeed or energy <= 0 then
+		launchState.direction = Vector3.zero
+		launchState.initialSpeed = 0
+		launchState.currentSpeed = 0
+		launchState.energy = 0
+		launchState.startTime = now
+		return
+	end
+
+	launchState.direction = velocity.Unit
+	launchState.initialSpeed = speed
+	launchState.currentSpeed = speed
+	launchState.energy = energy
+	launchState.startTime = now
+end
+
 -- Resolution only: physics + event emission; damage is applied by DamagePipelineService.
 function CollisionService:_resolvePlayerCollisions(hits)
 	local slingService = getService(self._context, "SlingService")
@@ -116,11 +143,12 @@ function CollisionService:_resolvePlayerCollisions(hits)
 		if not (stateA and stateB) then
 			continue
 		end
-		local va = hit.rootA.AssemblyLinearVelocity
-		local vb = hit.rootB.AssemblyLinearVelocity
+		local va = getHorizontalVelocity(hit.rootA)
+		local vb = getHorizontalVelocity(hit.rootB)
 		local normal = hit.rootB.Position - hit.rootA.Position
+		normal = Vector3.new(normal.X, 0, normal.Z)
 		if normal.Magnitude < 0.001 then
-			normal = Vector3.new(1,0,0)
+			normal = Vector3.new(1, 0, 0)
 		end
 		normal = normal.Unit
 		local rel = va - vb
@@ -134,32 +162,64 @@ function CollisionService:_resolvePlayerCollisions(hits)
 		local energyB = launchB and launchB.energy or 0
 		local attacker, defender = hit.playerA, hit.playerB
 		local attackerRoot, defenderRoot = hit.rootA, hit.rootB
-		local attackerLaunch, defenderLaunch = launchA, launchB
+		local attackerLaunch = launchA
+		local attackerVelocity, defenderVelocity = va, vb
 		if energyB > energyA then
 			attacker, defender = defender, attacker
 			attackerRoot, defenderRoot = defenderRoot, attackerRoot
-			attackerLaunch, defenderLaunch = defenderLaunch, attackerLaunch
+			attackerLaunch = launchB
+			attackerVelocity, defenderVelocity = defenderVelocity, attackerVelocity
 			normal = -normal
+			rel = -rel
 		end
-		if not attackerLaunch then continue end
-		local transferEnergy = math.max(0, attackerLaunch.energy * LaunchConfig.Energy.TransferRatio)
-		attackerLaunch.energy *= (1 - LaunchConfig.Energy.CollisionLossRatio)
+		if not attackerLaunch then
+			continue
+		end
+		
+		local now = os.clock()
+		local originalLaunchStartTime = attackerLaunch.startTime or now
+		local preCollisionEnergy = math.max(0, attackerLaunch.energy or 0)
+		local relativeNormalVelocity = normal * rel:Dot(normal)
+		local relativeTangentVelocity = rel - relativeNormalVelocity
+		local outgoingRelativeVelocity = (relativeTangentVelocity * LaunchConfig.Collision.TangentialDamping)
+			- (relativeNormalVelocity * LaunchConfig.Collision.Restitution)
+		local remainingEnergy = preCollisionEnergy * (1 - LaunchConfig.Energy.CollisionLossRatio)
+		local energyRetention = if preCollisionEnergy > 0 then remainingEnergy / preCollisionEnergy else 0
+		local outgoingVelocity = defenderVelocity + (outgoingRelativeVelocity * energyRetention)
+		local postSpeed = outgoingVelocity.Magnitude
+		if postSpeed <= LaunchConfig.Collision.MinPostCollisionSpeed or remainingEnergy <= 0 then
+			outgoingVelocity = Vector3.zero
+		end
+
 		attackerLaunch.collisions += 1
-		local bounceSpeed = math.min(LaunchConfig.Collision.MaxTransferSpeed, impactSpeed * LaunchConfig.Collision.NormalBounce)
-		attackerRoot.AssemblyLinearVelocity = (va - (2 * va:Dot(normal) * normal)) * LaunchConfig.Collision.TangentialRetention
-		if transferEnergy >= LaunchConfig.Energy.MinTransferEnergy then
-			local receivedSpeed = math.min(LaunchConfig.Collision.MaxTransferSpeed, bounceSpeed * LaunchConfig.Energy.TransferRatio)
-			defenderRoot.AssemblyLinearVelocity = Vector3.new(normal.X * receivedSpeed, defenderRoot.AssemblyLinearVelocity.Y, normal.Z * receivedSpeed)
-			if slingService and slingService._activeLaunches then
+				updateLaunchFromVelocity(attackerLaunch, outgoingVelocity, remainingEnergy, now)
+		applyHorizontalVelocity(attackerRoot, outgoingVelocity)
+
+		local angleFactor = math.clamp(impactSpeed / math.max(attackerVelocity.Magnitude, 0.001), 0, 1)
+		local energyFactor = math.clamp(preCollisionEnergy / math.max(LaunchConfig.Energy.Max, 1), 0, 1)
+		local transferEnergy = math.max(0, preCollisionEnergy * LaunchConfig.Collision.EnergyTransferRatio * angleFactor)
+		local transferSpeed = math.min(
+			LaunchConfig.Collision.MaxTransferSpeed,
+			impactSpeed * LaunchConfig.Collision.EnergyTransferRatio * angleFactor * energyFactor
+		)
+		if transferSpeed > 0 then
+			local transferredVelocity = defenderVelocity + (normal * transferSpeed)
+			applyHorizontalVelocity(defenderRoot, transferredVelocity)
+			if slingService
+				and slingService._activeLaunches
+				and transferEnergy >= LaunchConfig.Energy.MinTransferEnergy
+				and transferSpeed > LaunchConfig.Collision.MinPostCollisionSpeed
+			then
+				local transferredSpeed = transferredVelocity.Magnitude
 				slingService._activeLaunches[defender] = {
-					direction = Vector3.new(normal.X,0,normal.Z).Unit,
-					initialSpeed = receivedSpeed,
-					currentSpeed = receivedSpeed,
+										direction = if transferredSpeed > 0.001 then transferredVelocity.Unit else normal,
+					initialSpeed = transferredSpeed,
+					currentSpeed = transferredSpeed,
 					energy = transferEnergy * LaunchConfig.Energy.ChainHitDecayMultiplier,
-					startTime = os.clock(),
+					startTime = now,
 					duration = 1.1,
 					chargeRatio = 0.3,
-					collisions = (attackerLaunch.collisions or 1),
+					collisions = attackerLaunch.collisions,
 					sourcePlayer = attacker,
 				}
 			end
@@ -173,7 +233,9 @@ function CollisionService:_resolvePlayerCollisions(hits)
 		self._context.EventBus:Fire("CollisionPlayerHit", defender, attacker, impactSpeed, normal, {
 			LaunchEnergy = attackerLaunch.energy,
 			CollisionCount = attackerLaunch.collisions,
-			ElapsedLaunchTime = os.clock() - attackerLaunch.startTime,
+			ElapsedLaunchTime = now - originalLaunchStartTime,
+			ImpactSpeed = impactSpeed,
+			TransferredSpeed = transferSpeed,
 			ImpactSpeed = impactSpeed,
 		})
 	end
