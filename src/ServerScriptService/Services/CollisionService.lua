@@ -4,11 +4,8 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage.Shared.Config.Config)
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
-local PhysicsConfig = require(script.Parent.Parent.Config.PhysicsConfig)
-local LaunchConfig = require(script.Parent.Parent.Config.LaunchModelConfig)
-local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
+local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
 local CollisionService = {}
 CollisionService.__index = CollisionService
@@ -48,26 +45,36 @@ function CollisionService:_applyDragAndBounce(dt)
 		if root and playerService:IsAlive(player) then
 			local velocity = root.AssemblyLinearVelocity
 			local horizontal = Vector3.new(velocity.X, 0, velocity.Z)
-			local dragFactor = math.max(0, 1 - Config.AirDrag * dt)
+			local dragFactor = math.max(0, 1 - (PhysicsConfig.World.LinearDragPerSecond * dt))
 			horizontal *= dragFactor
-			if horizontal.Magnitude < Config.StopVelocityThreshold then
+			if horizontal.Magnitude < PhysicsConfig.World.StopSpeed then
 				horizontal = Vector3.zero
 			end
+
 			local pos = root.Position
+			local arenaLimit = PhysicsConfig.World.MaxArenaRadius - PhysicsConfig.World.ArenaWallPadding
 			local hitWall = false
-			if math.abs(pos.X) > Config.MaxArenaRadius - BalanceConfig.ArenaWallPadding then
-				horizontal = Vector3.new(-horizontal.X * (1 - Config.BounceLoss), 0, horizontal.Z)
+			if math.abs(pos.X) > arenaLimit then
+				horizontal = Vector3.new(
+					-horizontal.X * PhysicsConfig.World.WallRestitution,
+					0,
+					horizontal.Z * PhysicsConfig.World.WallTangentialDamping
+				)
 				hitWall = true
 			end
-			if math.abs(pos.Z) > Config.MaxArenaRadius - BalanceConfig.ArenaWallPadding then
-				horizontal = Vector3.new(horizontal.X, 0, -horizontal.Z * (1 - Config.BounceLoss))
+			if math.abs(pos.Z) > arenaLimit then
+				horizontal = Vector3.new(
+					horizontal.X * PhysicsConfig.World.WallTangentialDamping,
+					0,
+					-horizontal.Z * PhysicsConfig.World.WallRestitution
+				)
 				hitWall = true
 			end
 			if hitWall then
 				local now = os.clock()
-				if not self._lastWallCollision[player] or now - self._lastWallCollision[player] >= BalanceConfig.WallCollisionCooldown then
+				if not self._lastWallCollision[player] or now - self._lastWallCollision[player] >= PhysicsConfig.World.WallCollisionCooldown then
 					self._lastWallCollision[player] = now
-					self._context.EventBus:Fire("CollisionDetected", "Wall", player, nil, { Speed = velocity.Magnitude })
+					self._context.EventBus:Fire("CollisionDetected", "Wall", player, nil, { Speed = horizontal.Magnitude })
 				end
 			end
 			root.AssemblyLinearVelocity = Vector3.new(horizontal.X, velocity.Y, horizontal.Z)
@@ -75,14 +82,18 @@ function CollisionService:_applyDragAndBounce(dt)
 	end
 end
 
--- Detection only: returns candidate collisions, no domain mutations.
+local function getCollisionKey(playerA: Player, playerB: Player): string
+	return if playerA.UserId < playerB.UserId then `{playerA.UserId}:{playerB.UserId}` else `{playerB.UserId}:{playerA.UserId}`
+end
+
+-- Candidate phase only: detects possible contact without consuming cooldowns, damage, or momentum.
 function CollisionService:_detectPlayerCollisions()
 	local playerService = getService(self._context, "PlayerService")
 	if not playerService then
 		return {}
 	end
 	local list = Players:GetPlayers()
-	local hits = {}
+	local candidates = {}
 	for i = 1, #list do
 		for j = i + 1, #list do
 			local playerA = list[i]
@@ -90,20 +101,28 @@ function CollisionService:_detectPlayerCollisions()
 			local rootA = playerService:GetRoot(playerA)
 			local rootB = playerService:GetRoot(playerB)
 			if rootA and rootB and playerService:IsAlive(playerA) and playerService:IsAlive(playerB) then
-				local distance = (rootA.Position - rootB.Position).Magnitude
-				local hitDistance = (rootA.Size.X + rootB.Size.X) * BalanceConfig.PlayerCollisionDistanceFactor
-				if distance <= hitDistance then
-					local key = if playerA.UserId < playerB.UserId then `{playerA.UserId}:{playerB.UserId}` else `{playerB.UserId}:{playerA.UserId}`
-					local now = os.clock()
-					if not self._lastCollision[key] or now - self._lastCollision[key] >= BalanceConfig.CollisionCooldown then
-						self._lastCollision[key] = now
-						table.insert(hits, { playerA = playerA, playerB = playerB, rootA = rootA, rootB = rootB })
-					end
+				local offset = rootB.Position - rootA.Position
+				local planarOffset = Vector3.new(offset.X, 0, offset.Z)
+				local distance = planarOffset.Magnitude
+				local contactDistance = ((rootA.Size.X + rootB.Size.X) * PhysicsConfig.Collision.CandidateDistanceFactor)
+					+ PhysicsConfig.Collision.CandidateExtraPadding
+				if distance <= contactDistance then
+					local normal = if distance > 0.001 then planarOffset.Unit else Vector3.new(1, 0, 0)
+					table.insert(candidates, {
+						playerA = playerA,
+						playerB = playerB,
+						rootA = rootA,
+						rootB = rootB,
+						normal = normal,
+						distance = distance,
+						contactDistance = contactDistance,
+						key = getCollisionKey(playerA, playerB),
+					})
 				end
 			end
 		end
 	end
-	return hits
+	return candidates
 end
 
 local function getHorizontalVelocity(root: BasePart): Vector3
@@ -111,18 +130,31 @@ local function getHorizontalVelocity(root: BasePart): Vector3
 	return Vector3.new(velocity.X, 0, velocity.Z)
 end
 
+local function clampHorizontalVelocity(velocity: Vector3): Vector3
+	local speed = velocity.Magnitude
+	if speed <= PhysicsConfig.Collision.MinPostCollisionSpeed then
+		return Vector3.zero
+	end
+	if speed > PhysicsConfig.Collision.MaxPostCollisionSpeed then
+		return velocity.Unit * PhysicsConfig.Collision.MaxPostCollisionSpeed
+	end
+	return velocity
+end
+
 local function applyHorizontalVelocity(root: BasePart, horizontal: Vector3)
-	root.AssemblyLinearVelocity = Vector3.new(horizontal.X, root.AssemblyLinearVelocity.Y, horizontal.Z)
+	local clamped = clampHorizontalVelocity(horizontal)
+	root.AssemblyLinearVelocity = Vector3.new(clamped.X, root.AssemblyLinearVelocity.Y, clamped.Z)
 end
 
 local function updateLaunchFromVelocity(launchState, velocity: Vector3, energy: number, now: number)
 	local speed = velocity.Magnitude
-	if speed <= LaunchConfig.Collision.MinPostCollisionSpeed or energy <= 0 then
+	if speed <= PhysicsConfig.Collision.MinPostCollisionSpeed or energy <= 0 then
 		launchState.direction = Vector3.zero
 		launchState.initialSpeed = 0
 		launchState.currentSpeed = 0
 		launchState.energy = 0
 		launchState.startTime = now
+		launchState.lastSampleTime = now
 		return
 	end
 
@@ -131,116 +163,142 @@ local function updateLaunchFromVelocity(launchState, velocity: Vector3, energy: 
 	launchState.currentSpeed = speed
 	launchState.energy = energy
 	launchState.startTime = now
+	launchState.lastSampleTime = now
 end
 
--- Resolution only: physics + event emission; damage is applied by DamagePipelineService.
-function CollisionService:_resolvePlayerCollisions(hits)
+local function isRealHitCandidate(hit, launchA, launchB, stateA, stateB, closingSpeed: number): boolean
+	if closingSpeed < PhysicsConfig.Collision.RealHitMinClosingSpeed then
+		return false
+	end
+	local energyA = launchA and math.max(0, launchA.energy or 0) or 0
+	local energyB = launchB and math.max(0, launchB.energy or 0) or 0
+	if math.max(energyA, energyB) < PhysicsConfig.Collision.MinLaunchEnergy then
+		return false
+	end
+	if stateA.MovementState ~= "Launching" and stateB.MovementState ~= "Launching" then
+		return false
+	end
+	return hit.distance <= hit.contactDistance
+end
+
+local function resolveBilliardsVelocity(va: Vector3, vb: Vector3, normal: Vector3, massA: number, massB: number): (Vector3, Vector3, number, Vector3)
+	local closingSpeed = math.max(0, (va - vb):Dot(normal))
+	local inverseMassA = 1 / math.max(massA, 0.001)
+	local inverseMassB = 1 / math.max(massB, 0.001)
+	local impulseMagnitude = ((1 + PhysicsConfig.Collision.Restitution) * closingSpeed) / (inverseMassA + inverseMassB)
+	local normalImpulse = normal * impulseMagnitude
+
+	local vaOut = va - (normalImpulse * inverseMassA)
+	local vbOut = vb + (normalImpulse * inverseMassB)
+
+	local relativeVelocity = va - vb
+	local tangentVelocity = relativeVelocity - (normal * relativeVelocity:Dot(normal))
+	local tangentLoss = tangentVelocity * ((1 - PhysicsConfig.Collision.TangentialDamping) * 0.5)
+	vaOut -= tangentLoss
+	vbOut += tangentLoss
+
+	return vaOut, vbOut, closingSpeed, tangentVelocity
+end
+
+local function chooseAttacker(playerA: Player, playerB: Player, launchA, launchB, normal: Vector3, va: Vector3, vb: Vector3): (Player, Player, any, any, Vector3)
+	local energyA = launchA and math.max(0, launchA.energy or 0) or 0
+	local energyB = launchB and math.max(0, launchB.energy or 0) or 0
+	local contributionA = energyA + math.max(0, va:Dot(normal))
+	local contributionB = energyB + math.max(0, vb:Dot(-normal))
+	if contributionB > contributionA then
+		return playerB, playerA, launchB, launchA, -normal
+	end
+	return playerA, playerB, launchA, launchB, normal
+end
+
+-- Real-hit phase only: validates relative motion/cooldown/energy, then applies momentum and emits damage events.
+function CollisionService:_resolvePlayerCollisions(candidates)
 	local slingService = getService(self._context, "SlingService")
-	for _, hit in ipairs(hits) do
-		local stateService = getService(self._context, "PlayerStateService")
-		local stateA = stateService and stateService:GetState(hit.playerA)
-		local stateB = stateService and stateService:GetState(hit.playerB)
+	local stateService = getService(self._context, "PlayerStateService")
+	if not (slingService and stateService) then
+		return
+	end
+
+	for _, hit in ipairs(candidates) do
+		local stateA = stateService:GetState(hit.playerA)
+		local stateB = stateService:GetState(hit.playerB)
 		if not (stateA and stateB) then
 			continue
 		end
+
 		local va = getHorizontalVelocity(hit.rootA)
 		local vb = getHorizontalVelocity(hit.rootB)
-		local normal = hit.rootB.Position - hit.rootA.Position
-		normal = Vector3.new(normal.X, 0, normal.Z)
-		if normal.Magnitude < 0.001 then
-			normal = Vector3.new(1, 0, 0)
-		end
-		normal = normal.Unit
-		local rel = va - vb
-		local impactSpeed = math.max(0, rel:Dot(normal))
-		if impactSpeed < LaunchConfig.Collision.MinImpactSpeed then
+		local closingSpeed = math.max(0, (va - vb):Dot(hit.normal))
+		local launchA = slingService:GetLaunchState(hit.playerA)
+		local launchB = slingService:GetLaunchState(hit.playerB)
+		if not isRealHitCandidate(hit, launchA, launchB, stateA, stateB, closingSpeed) then
 			continue
 		end
-		local launchA = slingService and slingService._activeLaunches and slingService._activeLaunches[hit.playerA]
-		local launchB = slingService and slingService._activeLaunches and slingService._activeLaunches[hit.playerB]
-		local energyA = launchA and launchA.energy or 0
-		local energyB = launchB and launchB.energy or 0
-		local attacker, defender = hit.playerA, hit.playerB
-		local attackerRoot, defenderRoot = hit.rootA, hit.rootB
-		local attackerLaunch = launchA
-		local attackerVelocity, defenderVelocity = va, vb
-		if energyB > energyA then
-			attacker, defender = defender, attacker
-			attackerRoot, defenderRoot = defenderRoot, attackerRoot
-			attackerLaunch = launchB
-			attackerVelocity, defenderVelocity = defenderVelocity, attackerVelocity
-			normal = -normal
-			rel = -rel
+
+		local now = os.clock()
+		if self._lastCollision[hit.key] and now - self._lastCollision[hit.key] < PhysicsConfig.Collision.Cooldown then
+			continue
 		end
+		self._lastCollision[hit.key] = now
+
+		local massA = hit.rootA.AssemblyMass
+		local massB = hit.rootB.AssemblyMass
+		local vaOut, vbOut, impactSpeed, tangentVelocity = resolveBilliardsVelocity(va, vb, hit.normal, massA, massB)
+		applyHorizontalVelocity(hit.rootA, vaOut)
+		applyHorizontalVelocity(hit.rootB, vbOut)
+
+		local attacker, defender, attackerLaunch, defenderLaunch, impactNormal = chooseAttacker(hit.playerA, hit.playerB, launchA, launchB, hit.normal, va, vb)
 		if not attackerLaunch then
 			continue
 		end
-		
-		local now = os.clock()
+
 		local originalLaunchStartTime = attackerLaunch.startTime or now
 		local preCollisionEnergy = math.max(0, attackerLaunch.energy or 0)
-		local relativeNormalVelocity = normal * rel:Dot(normal)
-		local relativeTangentVelocity = rel - relativeNormalVelocity
-		local outgoingRelativeVelocity = (relativeTangentVelocity * LaunchConfig.Collision.TangentialDamping)
-			- (relativeNormalVelocity * LaunchConfig.Collision.Restitution)
-		local remainingEnergy = preCollisionEnergy * (1 - LaunchConfig.Energy.CollisionLossRatio)
-		local energyRetention = if preCollisionEnergy > 0 then remainingEnergy / preCollisionEnergy else 0
-		local outgoingVelocity = defenderVelocity + (outgoingRelativeVelocity * energyRetention)
-		local postSpeed = outgoingVelocity.Magnitude
-		if postSpeed <= LaunchConfig.Collision.MinPostCollisionSpeed or remainingEnergy <= 0 then
-			outgoingVelocity = Vector3.zero
-		end
+		local angleFactor = math.clamp(impactSpeed / math.max((if attacker == hit.playerA then va else vb).Magnitude, 0.001), 0, 1)
+		local remainingEnergy = preCollisionEnergy * (1 - PhysicsConfig.Collision.CollisionEnergyLossRatio)
+		local transferEnergy = preCollisionEnergy * PhysicsConfig.Collision.EnergyTransferRatio * angleFactor
+		local attackerVelocityOut = if attacker == hit.playerA then vaOut else vbOut
+		local defenderVelocityOut = if defender == hit.playerA then vaOut else vbOut
+		updateLaunchFromVelocity(attackerLaunch, attackerVelocityOut, remainingEnergy, now)
+		attackerLaunch.collisions = (attackerLaunch.collisions or 0) + 1
 
-		attackerLaunch.collisions += 1
-				updateLaunchFromVelocity(attackerLaunch, outgoingVelocity, remainingEnergy, now)
-		applyHorizontalVelocity(attackerRoot, outgoingVelocity)
-
-		local angleFactor = math.clamp(impactSpeed / math.max(attackerVelocity.Magnitude, 0.001), 0, 1)
-		local energyFactor = math.clamp(preCollisionEnergy / math.max(LaunchConfig.Energy.Max, 1), 0, 1)
-		local transferEnergy = math.max(0, preCollisionEnergy * LaunchConfig.Collision.EnergyTransferRatio * angleFactor)
-		local transferSpeed = math.min(
-			LaunchConfig.Collision.MaxTransferSpeed,
-			impactSpeed * LaunchConfig.Collision.EnergyTransferRatio * angleFactor * energyFactor
-		)
-		if transferSpeed > 0 then
-			local transferredVelocity = defenderVelocity + (normal * transferSpeed)
-			applyHorizontalVelocity(defenderRoot, transferredVelocity)
-			if slingService
-				and slingService._activeLaunches
-				and transferEnergy >= LaunchConfig.Energy.MinTransferEnergy
-				and transferSpeed > LaunchConfig.Collision.MinPostCollisionSpeed
-			then
-				local transferredSpeed = transferredVelocity.Magnitude
-				slingService._activeLaunches[defender] = {
-										direction = if transferredSpeed > 0.001 then transferredVelocity.Unit else normal,
-					initialSpeed = transferredSpeed,
-					currentSpeed = transferredSpeed,
-					energy = transferEnergy * LaunchConfig.Energy.ChainHitDecayMultiplier,
+		if transferEnergy >= PhysicsConfig.Collision.MinTransferEnergy and defenderVelocityOut.Magnitude > PhysicsConfig.Collision.MinPostCollisionSpeed then
+			local nextDefenderEnergy = transferEnergy * PhysicsConfig.Collision.ChainHitEnergyRetention
+			if defenderLaunch then
+				updateLaunchFromVelocity(defenderLaunch, defenderVelocityOut, math.max(defenderLaunch.energy or 0, nextDefenderEnergy), now)
+			else
+				slingService:SetLaunchState(defender, {
+					direction = defenderVelocityOut.Unit,
+					initialSpeed = defenderVelocityOut.Magnitude,
+					currentSpeed = defenderVelocityOut.Magnitude,
+					energy = nextDefenderEnergy,
 					startTime = now,
-					duration = 1.1,
-					chargeRatio = 0.3,
-					collisions = attackerLaunch.collisions,
+					lastSampleTime = now,
+					chargeRatio = 0,
+					collisions = (attackerLaunch.collisions or 0),
 					sourcePlayer = attacker,
-				}
+				})
+				stateService:SetMovementState(defender, "Launching")
 			end
 		end
+
 		self._context.EventBus:Fire("CollisionDetected", "Sling", attacker, defender, {
 			Speed = impactSpeed,
-			ImpactNormal = normal,
+			ImpactNormal = impactNormal,
 			LaunchEnergy = attackerLaunch.energy,
 			CollisionCount = attackerLaunch.collisions,
+			TangentialSpeed = tangentVelocity.Magnitude,
 		})
-		self._context.EventBus:Fire("CollisionPlayerHit", defender, attacker, impactSpeed, normal, {
+		self._context.EventBus:Fire("CollisionPlayerHit", defender, attacker, impactSpeed, impactNormal, {
 			LaunchEnergy = attackerLaunch.energy,
 			CollisionCount = attackerLaunch.collisions,
 			ElapsedLaunchTime = now - originalLaunchStartTime,
 			ImpactSpeed = impactSpeed,
-			TransferredSpeed = transferSpeed,
-			ImpactSpeed = impactSpeed,
+			AngleFactor = angleFactor,
+			TransferredEnergy = transferEnergy,
 		})
 	end
 end
-
 
 function CollisionService:_resolveGateCollisions()
 	return
