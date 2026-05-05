@@ -9,6 +9,8 @@ local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local SlingMovement = require(script.Parent.SlingMovement)
 local PhysicsConfig = require(script.Parent.Parent.Config.PhysicsConfig)
+local LaunchConfig = require(script.Parent.Parent.Config.LaunchModelConfig)
+local LaunchMotionModel = require(script.Parent.LaunchMotionModel)
 
 local SlingService = {}
 SlingService.__index = SlingService
@@ -106,6 +108,7 @@ function SlingService.new(context)
 	self._loggedControllerRoot = {}
 	self._aimTargets = {}
 	self._launchVelocityControllers = {}
+	self._activeLaunches = {}
 	return self
 end
 
@@ -216,6 +219,7 @@ function SlingService:Init()
 		self._chargeState[player] = nil
 		self._releaseCooldown[player] = nil
 		self._releaseState[player] = nil
+				self._activeLaunches[player] = nil
 		self._warnedInvalidRoot[player] = nil
 		self._loggedControllerRoot[player] = nil
 		self._aimTargets[player] = nil
@@ -413,8 +417,7 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 		return
 	end
 
-	local maxChargeTime = math.max(0.001, PhysicsConfig.Charge.MaxChargeTime)
-	local chargeRatio = SlingService.CalculateChargeRatio(chargeState.chargeStartTime, os.clock(), maxChargeTime)
+	local chargeRatio = LaunchMotionModel.ComputeChargeRatio(chargeState.chargeStartTime, os.clock())
 
 	local launchDirectionPlanar = chargeState.aimDirection
 	if typeof(aimDirection) == "Vector3" then
@@ -426,11 +429,7 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	chargeState.aimDirection = launchDirectionPlanar
 	self._aimTargets[player] = launchDirectionPlanar
 
-	local minForce = math.max(0, PhysicsConfig.Charge.MinForce)
-	local maxForce = math.max(minForce, PhysicsConfig.Charge.MaxForce)
-	local chargeForce = minForce + ((maxForce - minForce) * chargeRatio)
-	local launchForce = math.max(10, chargeForce * math.max(0, PhysicsConfig.Charge.ChargeForceMultiplier))
-	local launchVector = SlingService.BuildLaunchVector(launchDirectionPlanar, launchForce)
+	local launchState = LaunchMotionModel.BuildState(launchDirectionPlanar, chargeRatio, os.clock(), player)
 	local movementController = self._movementControllers[player]
 	if movementController then
 		movementController:DisableLocomotion(true)
@@ -450,15 +449,16 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	self._launchVelocityControllers[player] = velocityControllers
 
 	root:SetNetworkOwner(nil)
-	root:ApplyImpulse(launchVector * mass)
-	warn(string.format("[SlingService] Launch player=%s charge=%.2f impulse=%.2f,%0.2f,%0.2f", player.Name, chargeRatio, launchVector.X, launchVector.Y, launchVector.Z))
+	root.AssemblyLinearVelocity = Vector3.new(launchState.direction.X * launchState.initialSpeed, root.AssemblyLinearVelocity.Y, launchState.direction.Z * launchState.initialSpeed)
+	self._activeLaunches[player] = launchState
+	warn(string.format("[SlingService] Launch player=%s charge=%.2f speed=%.2f energy=%.2f", player.Name, chargeRatio, launchState.initialSpeed, launchState.energy))
 	
 
 	state.CurrentVelocity = root.AssemblyLinearVelocity
 	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
 	self._context.Services.PlayerStateService:SetMovementState(player, "Launching")
 	warn(string.format("[SlingService] State player=%s -> Launching", player.Name))
-	self._context.EventBus:Fire("SlingLaunched", player, chargeRatio, launchVector)
+	self._context.EventBus:Fire("SlingLaunched", player, chargeRatio, launchState)
 
 	if chargeRatio >= 0.999 then
 		self._context.EventBus:Fire("MaxChargeReleased", player, BalanceConfig.MaxChargeSelfDamage)
@@ -610,6 +610,17 @@ function SlingService:_stepMovementStates()
 		local root = self._context.Services.PlayerService:GetRoot(player)
 		if state and root then
 			local now = os.clock()
+			local launchState = self._activeLaunches[player]
+			if state.MovementState == "Launching" and launchState then
+				local speed, sampledEnergy = LaunchMotionModel.Sample(launchState, now)
+				launchState.currentSpeed = speed
+				launchState.energy = sampledEnergy
+				if speed <= LaunchConfig.Speed.StopThreshold or sampledEnergy <= 0 then
+					root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
+				else
+					root.AssemblyLinearVelocity = Vector3.new(launchState.direction.X * speed, root.AssemblyLinearVelocity.Y, launchState.direction.Z * speed)
+				end
+			end
 			local horizontal = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude
 			if state.MovementState == "Launching" and horizontal <= BalanceConfig.VelocityStopThreshold then
 				self:_restoreLaunchVelocityControllers(player)
@@ -625,6 +636,7 @@ function SlingService:_stepMovementStates()
 				warn(string.format("[SlingService] State player=%s -> Recovering (horizontal=%.2f)", player.Name, horizontal))
 			elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
 				self._releaseState[player] = nil
+				self._activeLaunches[player] = nil
 				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
 				self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
 				self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)

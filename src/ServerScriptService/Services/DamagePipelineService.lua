@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local LaunchConfig = require(script.Parent.Parent.Config.LaunchModelConfig)
 
 type Context = {
 	Services: any,
@@ -45,8 +46,10 @@ function DamagePipelineService.new(context: Context)
 end
 
 function DamagePipelineService:Init()
-	self._context.EventBus:On("CollisionPlayerHit", function(victim: Player, attacker: Player?, rawDamage: number, knockbackDirection: Vector3, _collisionMeta: any)
-		self:ApplyDamage(victim, rawDamage, attacker, knockbackDirection, {
+	self._context.EventBus:On("CollisionPlayerHit", function(victim: Player, attacker: Player?, impactSpeed: number, knockbackDirection: Vector3, collisionMeta: any)
+		local attackerState = attacker and getService(self._context, "PlayerStateService") and getService(self._context, "PlayerStateService"):GetState(attacker)
+		local damage = self:ComputeCollisionDamage(attackerState or {}, impactSpeed, collisionMeta)
+		self:ApplyDamage(victim, damage, attacker, knockbackDirection * impactSpeed * 0.35, {
 			SuppressKnockback = true,
 		})
 	end)
@@ -64,12 +67,23 @@ function DamagePipelineService:Init()
 	end)
 end
 
-function DamagePipelineService:ComputeCollisionDamage(attackerState: any, velocityMagnitude: number): number
-	local baseDamage = math.max(attackerState.BaseDamage or 0, 0)
+function DamagePipelineService:ComputeCollisionDamage(attackerState: any, velocityMagnitude: number, collisionMeta: any?): number
+	local baseDamage = math.max(attackerState.BaseDamage or BalanceConfig.BaseDamage or 0, 0)
 	local speed = math.max(0, velocityMagnitude)
-	local speedMultiplier = speed / math.max(BalanceConfig.MinVelocityToCollide, 1)
-	local damage = baseDamage * speedMultiplier
-	return math.clamp(damage, 0, BalanceConfig.MaxDamagePerHit)
+	local energy = collisionMeta and math.max(0, collisionMeta.LaunchEnergy or 0) or 0
+	local elapsed = collisionMeta and math.max(0, collisionMeta.ElapsedLaunchTime or 0) or 0
+	local collisions = collisionMeta and math.max(0, collisionMeta.CollisionCount or 0) or 0
+	local earlyBonus = 1 / (1 + (elapsed * LaunchConfig.Damage.LaunchTimeBias))
+	local chainPenalty = math.max(0.2, 1 - (collisions * LaunchConfig.Damage.ChainDecayPerHit))
+	local intensity = speed / math.max(LaunchConfig.Collision.MinImpactSpeed, 1)
+	local energyScalar = energy / math.max(LaunchConfig.Energy.Max, 1)
+	local damage = baseDamage
+		* (1 + energyScalar)
+		* earlyBonus
+		* chainPenalty
+		* (intensity * LaunchConfig.Damage.CollisionIntensityMultiplier)
+		* LaunchConfig.Damage.BaseMultiplier
+	return math.clamp(damage, 0, LaunchConfig.Damage.Max)
 end
 
 function DamagePipelineService:ComputeCollisionKnockback(attackerState: any, defenderState: any, direction: Vector3, velocityMagnitude: number): Vector3

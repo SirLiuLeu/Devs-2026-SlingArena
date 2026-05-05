@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config.Config)
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local PhysicsConfig = require(script.Parent.Parent.Config.PhysicsConfig)
+local LaunchConfig = require(script.Parent.Parent.Config.LaunchModelConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 
 local CollisionService = {}
@@ -107,47 +108,74 @@ end
 
 -- Resolution only: physics + event emission; damage is applied by DamagePipelineService.
 function CollisionService:_resolvePlayerCollisions(hits)
+	local slingService = getService(self._context, "SlingService")
 	for _, hit in ipairs(hits) do
 		local stateService = getService(self._context, "PlayerStateService")
-		local damageService = getService(self._context, "DamagePipelineService")
 		local stateA = stateService and stateService:GetState(hit.playerA)
 		local stateB = stateService and stateService:GetState(hit.playerB)
-		local launchState = GameStates.PlayerState.Launching
-		if not (stateA and stateB) or (stateA.MovementState ~= launchState and stateB.MovementState ~= launchState) then
+		if not (stateA and stateB) then
 			continue
 		end
-		local sizeA = stateA.Size or 1
-		local sizeB = stateB and stateB.Size or 1
-		local massA = Config.Mass * sizeA
-		local massB = Config.Mass * sizeB
-		local momentumA = hit.rootA.AssemblyLinearVelocity.Magnitude * massA
-		local momentumB = hit.rootB.AssemblyLinearVelocity.Magnitude * massB
-
-		local winner = if momentumA >= momentumB then hit.playerA else hit.playerB
-		local loser = if winner == hit.playerA then hit.playerB else hit.playerA
-		local loserRoot = if loser == hit.playerA then hit.rootA else hit.rootB
-		local winnerRoot = if winner == hit.playerA then hit.rootA else hit.rootB
-		local attackerState = if winner == hit.playerA then stateA else stateB
-		local defenderState = if loser == hit.playerA then stateA else stateB
-		if attackerState and defenderState then
-			local velocityMagnitude = winnerRoot.AssemblyLinearVelocity.Magnitude
-			if velocityMagnitude < (PhysicsConfig.Collision.MinCollisionSpeed or 0) then
-				continue
-			end
-			local impactDirection = loserRoot.Position - winnerRoot.Position
-			local damage = damageService and damageService:ComputeCollisionDamage(attackerState, velocityMagnitude) or 0
-			local knockback = damageService and damageService:ComputeCollisionKnockback(attackerState, defenderState, impactDirection, velocityMagnitude) or Vector3.zero
-			local impulseScale = PhysicsConfig.Collision and PhysicsConfig.Collision.PlayerImpulseScale or 45
-			local minImpulse = PhysicsConfig.Collision and PhysicsConfig.Collision.MinImpulse or 500
-			local maxImpulse = PhysicsConfig.Collision and PhysicsConfig.Collision.MaxImpulse or 9000
-			local rawImpulse = math.clamp(knockback.Magnitude * impulseScale, minImpulse, maxImpulse)
-			local impulseDir = impactDirection.Magnitude > 1e-4 and impactDirection.Unit or Vector3.new(0, 0, 1)
-			loserRoot:ApplyImpulse(impulseDir * rawImpulse)
-			self._context.EventBus:Fire("CollisionDetected", "Sling", winner, loser, { Speed = velocityMagnitude, ChargeRatio = attackerState.ChargeValue })
-			self._context.EventBus:Fire("CollisionPlayerHit", loser, winner, damage, knockback, { ChargeRatio = attackerState.ChargeValue, VelocityMagnitude = velocityMagnitude })
-			local decay = math.clamp(BalanceConfig.VelocityDecayFactor, 0, 1)
-			winnerRoot.AssemblyLinearVelocity *= decay
+		local va = hit.rootA.AssemblyLinearVelocity
+		local vb = hit.rootB.AssemblyLinearVelocity
+		local normal = hit.rootB.Position - hit.rootA.Position
+		if normal.Magnitude < 0.001 then
+			normal = Vector3.new(1,0,0)
 		end
+		normal = normal.Unit
+		local rel = va - vb
+		local impactSpeed = math.max(0, rel:Dot(normal))
+		if impactSpeed < LaunchConfig.Collision.MinImpactSpeed then
+			continue
+		end
+		local launchA = slingService and slingService._activeLaunches and slingService._activeLaunches[hit.playerA]
+		local launchB = slingService and slingService._activeLaunches and slingService._activeLaunches[hit.playerB]
+		local energyA = launchA and launchA.energy or 0
+		local energyB = launchB and launchB.energy or 0
+		local attacker, defender = hit.playerA, hit.playerB
+		local attackerRoot, defenderRoot = hit.rootA, hit.rootB
+		local attackerLaunch, defenderLaunch = launchA, launchB
+		if energyB > energyA then
+			attacker, defender = defender, attacker
+			attackerRoot, defenderRoot = defenderRoot, attackerRoot
+			attackerLaunch, defenderLaunch = defenderLaunch, attackerLaunch
+			normal = -normal
+		end
+		if not attackerLaunch then continue end
+		local transferEnergy = math.max(0, attackerLaunch.energy * LaunchConfig.Energy.TransferRatio)
+		attackerLaunch.energy *= (1 - LaunchConfig.Energy.CollisionLossRatio)
+		attackerLaunch.collisions += 1
+		local bounceSpeed = math.min(LaunchConfig.Collision.MaxTransferSpeed, impactSpeed * LaunchConfig.Collision.NormalBounce)
+		attackerRoot.AssemblyLinearVelocity = (va - (2 * va:Dot(normal) * normal)) * LaunchConfig.Collision.TangentialRetention
+		if transferEnergy >= LaunchConfig.Energy.MinTransferEnergy then
+			local receivedSpeed = math.min(LaunchConfig.Collision.MaxTransferSpeed, bounceSpeed * LaunchConfig.Energy.TransferRatio)
+			defenderRoot.AssemblyLinearVelocity = Vector3.new(normal.X * receivedSpeed, defenderRoot.AssemblyLinearVelocity.Y, normal.Z * receivedSpeed)
+			if slingService and slingService._activeLaunches then
+				slingService._activeLaunches[defender] = {
+					direction = Vector3.new(normal.X,0,normal.Z).Unit,
+					initialSpeed = receivedSpeed,
+					currentSpeed = receivedSpeed,
+					energy = transferEnergy * LaunchConfig.Energy.ChainHitDecayMultiplier,
+					startTime = os.clock(),
+					duration = 1.1,
+					chargeRatio = 0.3,
+					collisions = (attackerLaunch.collisions or 1),
+					sourcePlayer = attacker,
+				}
+			end
+		end
+		self._context.EventBus:Fire("CollisionDetected", "Sling", attacker, defender, {
+			Speed = impactSpeed,
+			ImpactNormal = normal,
+			LaunchEnergy = attackerLaunch.energy,
+			CollisionCount = attackerLaunch.collisions,
+		})
+		self._context.EventBus:Fire("CollisionPlayerHit", defender, attacker, impactSpeed, normal, {
+			LaunchEnergy = attackerLaunch.energy,
+			CollisionCount = attackerLaunch.collisions,
+			ElapsedLaunchTime = os.clock() - attackerLaunch.startTime,
+			ImpactSpeed = impactSpeed,
+		})
 	end
 end
 
