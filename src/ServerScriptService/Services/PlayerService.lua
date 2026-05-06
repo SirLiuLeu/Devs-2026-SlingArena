@@ -5,6 +5,7 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config.Config)
+local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 
@@ -210,7 +211,13 @@ function PlayerService:_loadSlingTemplate(): Model?
 	end
 
 	if body and body:IsA("BasePart") then
-		body.CustomPhysicalProperties = PhysicalProperties.new(Config.Mass, 0.4, 0.5, 1, 1)
+		body.CustomPhysicalProperties = PhysicalProperties.new(
+				PhysicsConfig.PhysicalProperties.Density,
+				PhysicsConfig.PhysicalProperties.Friction,
+				PhysicsConfig.PhysicalProperties.Elasticity,
+				PhysicsConfig.PhysicalProperties.FrictionWeight,
+				PhysicsConfig.PhysicalProperties.ElasticityWeight
+			)
 	end
 	if bodyWeld and bodyWeld:IsA("WeldConstraint") and body and body:IsA("BasePart") then
 		bodyWeld.Part0 = root

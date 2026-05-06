@@ -1,23 +1,11 @@
 --!strict
 
 local BalanceConfig = {
-	CollisionCooldown = 0.3,
-	WallCollisionCooldown = 0.2,
 	TrapCollisionCooldown = 0.25,
-	PlayerCollisionDistanceFactor = 0.25,
-	ArenaWallPadding = 6,
 	MaxDamagePerHit = 350,
-	MinVelocityToCollide = 8,
-	VelocityDecayFactor = 0.6,
-	VelocityStopThreshold = 0.1,
 	MaxVelocity = 170,
-	BaseImpactForce = 60,
-	SpeedDamageFactor = 0.065,
 	SizeDamageFactor = 0.75,
-	ChargeDamageFactor = 0.8,
-	KnockbackFactor = 0.35,
 	MaxChargeSelfDamage = 18,
-	MaxKnockback = 180,
 	SelfDamageRatio = 0.5,
 	MaxSelfDamageToCurrentHpRatio = 1.5,
 	DamageLevelBonusMin = 2,
@@ -60,11 +48,6 @@ local BalanceConfig = {
 	MatchBuffCost = 20,
 	MatchBuffMaxBoost = 0.10,
 	DiamondsPerPrestigeLevelDivisor = 5,
-	ReleaseDistanceMultiplier = 5,
-	ReleaseSpeedMultiplier = 0.5,
-	MaxLaunchDistance = 30,
-	LaunchSpeedToMoveSpeedRatio = 3,
-	MaxLaunchPlanarSpeed = 48,
 }
 
 return BalanceConfig

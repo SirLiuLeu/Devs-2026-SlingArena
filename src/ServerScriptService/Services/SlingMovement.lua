@@ -1,6 +1,8 @@
 --!strict
 
-local PhysicsConfig = require(script.Parent.Parent.Config.PhysicsConfig)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
 local SlingMovement = {}
 SlingMovement.__index = SlingMovement

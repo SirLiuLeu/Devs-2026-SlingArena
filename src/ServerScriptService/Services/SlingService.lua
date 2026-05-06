@@ -8,8 +8,7 @@ local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local SlingMovement = require(script.Parent.SlingMovement)
-local PhysicsConfig = require(script.Parent.Parent.Config.PhysicsConfig)
-local LaunchConfig = require(script.Parent.Parent.Config.LaunchModelConfig)
+local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local LaunchMotionModel = require(script.Parent.LaunchMotionModel)
 
 local SlingService = {}
@@ -60,11 +59,10 @@ end
 
 local function applyRootPhysicalProperties(root: BasePart)
 	local physical = PhysicsConfig.PhysicalProperties
-	local elasticity = if PhysicsConfig.Stability.ZeroElasticity then 0 else physical.Elasticity
 	root.CustomPhysicalProperties = PhysicalProperties.new(
 		physical.Density,
 		physical.Friction,
-		elasticity,
+		physical.Elasticity,
 		physical.FrictionWeight,
 		physical.ElasticityWeight
 	)
@@ -259,6 +257,14 @@ function SlingService:_resolvePawnAndRoot(player: Player): (Model?, BasePart?)
 		return pawn, root
 	end
 	return pawn, nil
+end
+
+function SlingService:GetLaunchState(player: Player): any?
+	return self._activeLaunches[player]
+end
+
+function SlingService:SetLaunchState(player: Player, launchState: any?)
+	self._activeLaunches[player] = launchState
 end
 
 function SlingService:Start()
@@ -611,18 +617,18 @@ function SlingService:_stepMovementStates()
 		if state and root then
 			local now = os.clock()
 			local launchState = self._activeLaunches[player]
+			local horizontalVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
 			if state.MovementState == "Launching" and launchState then
-				local speed, sampledEnergy = LaunchMotionModel.Sample(launchState, now)
+				local speed, sampledEnergy = LaunchMotionModel.Sample(launchState, now, horizontalVelocity)
 				launchState.currentSpeed = speed
 				launchState.energy = sampledEnergy
-				if speed <= LaunchConfig.Speed.StopThreshold or sampledEnergy <= 0 then
-					root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
-				else
-					root.AssemblyLinearVelocity = Vector3.new(launchState.direction.X * speed, root.AssemblyLinearVelocity.Y, launchState.direction.Z * speed)
+				if speed > 0.001 then
+					launchState.direction = horizontalVelocity.Unit
 				end
 			end
-			local horizontal = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude
-			if state.MovementState == "Launching" and horizontal <= BalanceConfig.VelocityStopThreshold then
+
+			local horizontal = horizontalVelocity.Magnitude
+			if state.MovementState == "Launching" and (horizontal <= PhysicsConfig.Launch.StopSpeed or (launchState and launchState.energy <= 0)) then
 				self:_restoreLaunchVelocityControllers(player)
 				local releaseState = self._releaseState[player]
 				local releaseDuration = 0
@@ -644,5 +650,4 @@ function SlingService:_stepMovementStates()
 		end
 	end
 end
-
 return SlingService
