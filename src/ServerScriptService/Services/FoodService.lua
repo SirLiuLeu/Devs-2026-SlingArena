@@ -568,7 +568,7 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 		print(string.format("[FoodService] Reject food hit player=%s foodId=%s state=%s distancePass=%s sweptPass=%s recentHorizontalMax=%.2f reason=y_mismatch", player.Name, tostring(payload and payload.foodId), tostring(movementState), tostring(distancePass), tostring(sweptPass), recentHorizontalMax))
 		return false
 	end
-	print(string.format("[FoodService] Accept food hit validation player=%s foodId=%s state=%s distancePass=%s sweptPass=%s recentHorizontalMax=%.2f", player.Name, tostring(payload and payload.foodId), tostring(movementState), tostring(distancePass), tostring(sweptPass), recentHorizontalMax))
+	--print(string.format("[FoodService] Accept food hit validation player=%s foodId=%s state=%s distancePass=%s sweptPass=%s recentHorizontalMax=%.2f", player.Name, tostring(payload and payload.foodId), tostring(movementState), tostring(distancePass), tostring(sweptPass), recentHorizontalMax))
 	return true
 end
 
@@ -760,7 +760,6 @@ function FoodService:Start()
 			return
 		end
 		if rule.Touch then
-			print(string.format("[FoodService] Accept common food player=%s foodId=%s", player.Name, tostring(payload.foodId)))
 			self:_consumeFood(entry, player)
 		elseif entry.MaxHP > 0 then
 			local playerService = getService(self._context, "PlayerService")
@@ -768,7 +767,6 @@ function FoodService:Start()
 			if root then
 				local horizontalVelocity = flattenXZ(root.AssemblyLinearVelocity)
 				local horizontalSpeed = horizontalVelocity.Magnitude
-				print(string.format("[FoodService] Accept HP food player=%s foodId=%s horizontalSpeed=%.2f", player.Name, tostring(payload.foodId), horizontalSpeed))
 				self:_applySlingDamage(entry, player, horizontalSpeed)
 				local impulse = horizontalVelocity * -root.AssemblyMass * 0.35
 				root:ApplyImpulse(Vector3.new(impulse.X, 0, impulse.Z))
