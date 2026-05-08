@@ -2,30 +2,28 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
+local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
-local COLLISION_INTERVAL = 0.05
 local CONSUME_COOLDOWN = 0.12
 local DEFAULT_HIT_COOLDOWN = 0.18
 local FOOD_UI_TEMPLATE_PATH = { "Assets", "UI", "FoodWorldUI" }
 local DAMAGE_MIN_VELOCITY = 20
 local DAMAGE_MAX_VELOCITY = 170
 local DAMAGE_BASE = 100
-local FOOD_HIT_RADIUS_PADDING = 0.75
+local FOOD_HIT_RADIUS_PADDING = PhysicsConfig.Collision.Range
 local NORMAL_EPSILON = 1e-5
 local MIN_SPEED_EPSILON = 1e-3
 local REFLECTION_DAMPING = 0.88
 local LAST_HIT_VELOCITY_DAMPING = 0.75
 local GRID_CELL_SIZE = 48
-local Y_TOLERANCE = 10
-local VALIDATION_EPSILON = 10.75
-local MAX_ALLOWED_SPEED = 450
-local HIT_REQUEST_COOLDOWN = 0.06
+local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
+local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
+local MAX_ALLOWED_SPEED = PhysicsConfig.Collision.MaxAllowedSpeed
+local HIT_REQUEST_COOLDOWN = PhysicsConfig.Collision.ReportCooldown
 local HP_FOOD_MIN_HORIZONTAL_SPEED = 22
-local MOTION_HISTORY_WINDOW = 0.3
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local COMMON_ALLOWED_STATES = {
@@ -71,10 +69,23 @@ local function isArenaMapName(mapName: string?): boolean
 	return type(mapName) == "string" and mapName ~= "LobbyMap" and mapName ~= "Lobby" and string.find(mapName, "Arena", 1, true) ~= nil
 end
 
+local function buildPhysicalProperties(): PhysicalProperties
+	local physical = PhysicsConfig.PhysicalProperties
+	return PhysicalProperties.new(
+		physical.Density,
+		physical.Friction,
+		physical.Elasticity,
+		physical.FrictionWeight,
+		physical.ElasticityWeight
+	)
+end
+
 local function anchorFoodModel(model: Model)
+	local physicalProperties = buildPhysicalProperties()
 	for _, descendant in ipairs(model:GetDescendants()) do
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = true
+			descendant.CustomPhysicalProperties = physicalProperties
 			descendant.AssemblyLinearVelocity = Vector3.zero
 			descendant.AssemblyAngularVelocity = Vector3.zero
 		end
@@ -98,31 +109,6 @@ local function sanitizeUnit(v: Vector3, fallback: Vector3): Vector3
 	return v.Unit
 end
 
-local function distancePointToSegmentSquaredXZ(point: Vector3, segStart: Vector3, segEnd: Vector3): number
-	local sx = segStart.X
-	local sz = segStart.Z
-	local ex = segEnd.X
-	local ez = segEnd.Z
-	local px = point.X
-	local pz = point.Z
-	local vx = ex - sx
-	local vz = ez - sz
-	local wx = px - sx
-	local wz = pz - sz
-	local segLenSq = vx * vx + vz * vz
-	if segLenSq <= 1e-6 then
-		local dx = px - sx
-		local dz = pz - sz
-		return dx * dx + dz * dz
-	end
-	local t = math.clamp((wx * vx + wz * vz) / segLenSq, 0, 1)
-	local cx = sx + (vx * t)
-	local cz = sz + (vz * t)
-	local dx = px - cx
-	local dz = pz - cz
-	return dx * dx + dz * dz
-end
-
 function FoodService.new(context)
 	local self = setmetatable({}, FoodService)
 	self._context = context
@@ -135,9 +121,6 @@ function FoodService.new(context)
 	self._playerConsumeCooldown = {}
 	self._slingFoodHitCooldown = {}
 	self._hitRequestCooldown = {}
-	self._lastPawnPos = {}
-	self._motionHistory = {}
-	self._heartbeatConnection = nil
 	return self
 end
 
@@ -212,7 +195,6 @@ function FoodService:Init()
 	print("[FoodService] Init called")
 	self:_loadFoodModels()
 	self:_scanAndSpawnAllArenaMaps()
-	self:_startCollisionLoop()
 end
 
 function FoodService:_loadFoodModels()
@@ -465,39 +447,8 @@ function FoodService:_computeEffectiveRadius(playerRadius: number, foodRadius: n
 	return playerRadius + foodRadius + (speed * ping) + VALIDATION_EPSILON
 end
 
-function FoodService:_passesSweptCheck(foodPos: Vector3, prevPos: Vector3, currPos: Vector3, rEffective: number): boolean
-	return distancePointToSegmentSquaredXZ(foodPos, prevPos, currPos) <= (rEffective * rEffective)
-end
-
-function FoodService:_recordMotionSample(player: Player, position: Vector3, velocity: Vector3, timestamp: number)
-	local history = self._motionHistory[player]
-	if not history then
-		history = {}
-		self._motionHistory[player] = history
-	end
-	table.insert(history, { t = timestamp, pos = position, vel = velocity })
-	while #history > 0 and (timestamp - history[1].t) > MOTION_HISTORY_WINDOW do
-		table.remove(history, 1)
-	end
-end
-
-function FoodService:_getMotionWindow(player: Player, now: number): { any }
-	local history = self._motionHistory[player]
-	if not history then
-		return {}
-	end
-	local out = {}
-	for _, sample in ipairs(history) do
-		if (now - sample.t) <= MOTION_HISTORY_WINDOW then
-			table.insert(out, sample)
-		end
-	end
-	return out
-end
-
--- 1. Check current distance (currPos vs food)
--- 2. If not close enough → check path (prevPos → currPos)
--- 3. If still not hit → reject
+-- Server validation is intentionally lightweight and only runs after a client report.
+-- It checks that the target exists, state rules allow the hit, and current distance is plausible.
 function FoodService:_validateFoodHit(player: Player, entry: any, payload: any): boolean
 	if not (entry and entry.IsActive and not entry.IsConsumed and entry.Instance and entry.Instance.Parent) then
 		return false
@@ -507,7 +458,6 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	if not (root and self:_isPlayerAlive(player)) then
 		return false
 	end
-	local now = os.clock()
 	local speed = root.AssemblyLinearVelocity.Magnitude
 	if speed > MAX_ALLOWED_SPEED then
 		return false
@@ -518,57 +468,34 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	end
 	local stateService = getService(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player)
-	local rule = entry and FoodConfig.Foods[entry.FoodType]
+	local rule = FoodConfig.Foods[entry.FoodType]
 	local movementState = state and state.MovementState
-	if not movementState then
+	if not (rule and movementState) then
 		return false
 	end
-	local motionWindow = self:_getMotionWindow(player, now)
-	local recentHorizontalMax = flattenXZ(root.AssemblyLinearVelocity).Magnitude
-	for _, sample in ipairs(motionWindow) do
-		recentHorizontalMax = math.max(recentHorizontalMax, flattenXZ(sample.vel).Magnitude)
-	end
-	if rule and (not rule.Touch) and entry.MaxHP > 0 then
-		if recentHorizontalMax < HP_FOOD_MIN_HORIZONTAL_SPEED then
-			print(string.format("[FoodService] Reject HP food hit player=%s foodId=%s state=%s recentHorizontalMax=%.2f threshold=%.2f reason=low_recent_speed", player.Name, tostring(payload and payload.foodId), tostring(movementState), recentHorizontalMax, HP_FOOD_MIN_HORIZONTAL_SPEED))
+	local horizontalSpeed = flattenXZ(root.AssemblyLinearVelocity).Magnitude
+	if (not rule.Touch) and entry.MaxHP > 0 then
+		if movementState ~= GameStates.PlayerState.Launching or horizontalSpeed < HP_FOOD_MIN_HORIZONTAL_SPEED then
 			return false
 		end
-		print(string.format("[FoodService] HP food speed-valid player=%s foodId=%s state=%s recentHorizontalMax=%.2f threshold=%.2f", player.Name, tostring(payload and payload.foodId), tostring(movementState), recentHorizontalMax, HP_FOOD_MIN_HORIZONTAL_SPEED))
-	else
-		if not COMMON_ALLOWED_STATES[movementState] then
-			print(string.format("[FoodService] Reject common food hit player=%s foodId=%s state=%s reason=state_rule", player.Name, tostring(payload and payload.foodId), tostring(movementState)))
-			return false
-		end
+	elseif not COMMON_ALLOWED_STATES[movementState] then
+		return false
 	end
+
 	local playerRadius = math.max(root.Size.X, root.Size.Z) * 0.5
 	local foodRadius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5 + FOOD_HIT_RADIUS_PADDING
 	local pingSec = (player:GetNetworkPing() or 0) * 0.5
 	local rEffective = self:_computeEffectiveRadius(playerRadius, foodRadius, speed, pingSec)
 	local currPos = root.Position
-	local dXZSq = sqrDistanceXZ(currPos, hitbox.Position)
-	local distancePass = dXZSq <= (rEffective * rEffective)
-	local sweptPass = false
-	if not distancePass then
-		local prevPos = (payload and payload.prevPos) or self._lastPawnPos[player] or currPos
-		sweptPass = self:_passesSweptCheck(hitbox.Position, prevPos, currPos, rEffective)
-		if not sweptPass then
-			for _, sample in ipairs(motionWindow) do
-				if self:_passesSweptCheck(hitbox.Position, sample.pos, currPos, rEffective) then
-					sweptPass = true
-					break
-				end
-			end
-		end
-		if not sweptPass then
-			print(string.format("[FoodService] Reject food hit player=%s foodId=%s state=%s distancePass=%s sweptPass=%s recentHorizontalMax=%.2f reason=distance_and_sweep_failed", player.Name, tostring(payload and payload.foodId), tostring(movementState), tostring(distancePass), tostring(sweptPass), recentHorizontalMax))
-			return false
-		end
-	end
-	if math.abs(currPos.Y - hitbox.Position.Y) > Y_TOLERANCE then
-		print(string.format("[FoodService] Reject food hit player=%s foodId=%s state=%s distancePass=%s sweptPass=%s recentHorizontalMax=%.2f reason=y_mismatch", player.Name, tostring(payload and payload.foodId), tostring(movementState), tostring(distancePass), tostring(sweptPass), recentHorizontalMax))
+	local reportPos = if payload and typeof(payload.currPos) == "Vector3" then payload.currPos else currPos
+	local distancePass = sqrDistanceXZ(currPos, hitbox.Position) <= (rEffective * rEffective)
+	local reportedDistancePass = sqrDistanceXZ(reportPos, hitbox.Position) <= (rEffective * rEffective)
+	if not (distancePass or reportedDistancePass) then
 		return false
 	end
-	--print(string.format("[FoodService] Accept food hit validation player=%s foodId=%s state=%s distancePass=%s sweptPass=%s recentHorizontalMax=%.2f", player.Name, tostring(payload and payload.foodId), tostring(movementState), tostring(distancePass), tostring(sweptPass), recentHorizontalMax))
+	if math.abs(currPos.Y - hitbox.Position.Y) > Y_TOLERANCE and math.abs(reportPos.Y - hitbox.Position.Y) > Y_TOLERANCE then
+		return false
+	end
 	return true
 end
 
@@ -618,94 +545,9 @@ function FoodService:_resolvePenetration(root: BasePart, hitbox: BasePart, norma
 	root.CFrame = root.CFrame + Vector3.new(pushOut.X, 0, pushOut.Z)
 end
 
-function FoodService:_processPlayerFoodCollision(player: Player, pawn: Model, pawnPos: Vector3, prevPos: Vector3?)
-	if not self:_isPlayerAlive(player) then
-		return
-	end
-	if (self._playerConsumeCooldown[player] or 0) > os.clock() then
-		return
-	end
-	for _, entry in ipairs(self:_collectNearbyEntries(pawnPos)) do
-		if entry.IsActive and not entry.IsConsumed then
-			local instance = entry.Instance
-			local hitbox = instance and instance:FindFirstChild("Hitbox")
-			if hitbox and hitbox:IsA("BasePart") then
-				local radius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5 + FOOD_HIT_RADIUS_PADDING
-				local radiusSq = radius * radius
-				local canTouch = FoodConfig.Foods[entry.FoodType].Touch == true
-				local collides = sqrDistanceXZ(pawnPos, hitbox.Position) <= radiusSq
-				if (not collides) and prevPos then
-					collides = distancePointToSegmentSquaredXZ(hitbox.Position, prevPos, pawnPos) <= radiusSq
-				end
-				if collides then
-					if (not canTouch) and entry.MaxHP > 0 then
-						local now = os.clock()
-						local perPlayer = self._slingFoodHitCooldown[player]
-						if not perPlayer then
-							perPlayer = {}
-							self._slingFoodHitCooldown[player] = perPlayer
-						end
-						local hitCooldown = DEFAULT_HIT_COOLDOWN
-						local cooldownKey = entry.Instance
-						local nextAllowedAt = perPlayer[cooldownKey] or 0
-						if nextAllowedAt <= now then
-							local root = pawn.PrimaryPart
-							if not (root and root:IsA("BasePart")) then
-								return
-							end
-							local preVelocity = root.AssemblyLinearVelocity
-							local speed = flattenXZ(preVelocity).Magnitude
-							local hpBeforeHit = entry.CurrentHP
-							self:_applySlingDamage(entry, player, speed)
-							local hpAfterHit = entry.CurrentHP
-							perPlayer[cooldownKey] = now + hitCooldown
-							if hpBeforeHit <= 0 then
-								return
-							end
-							if hpAfterHit <= 0 then
-								root.AssemblyLinearVelocity = preVelocity * LAST_HIT_VELOCITY_DAMPING
-								return
-							end
-							local normal = self:_computeCollisionNormal(root.Position, hitbox.Position, preVelocity)
-							local reflected = self:_reflectVelocity(preVelocity, normal)
-							root.AssemblyLinearVelocity = reflected
-							self:_resolvePenetration(root, hitbox, normal)
-							return
-						end
-					end
-				end
-			end
-		end
-	end
-end
-
 function FoodService:_startCollisionLoop()
-	if self._heartbeatConnection then
-		self._heartbeatConnection:Disconnect()
-	end
-	local accum = 0
-	self._heartbeatConnection = RunService.Heartbeat:Connect(function(dt)
-		accum += dt
-		if accum < COLLISION_INTERVAL then
-			return
-		end
-		accum = 0
-		local playerService = getService(self._context, "PlayerService")
-		if not playerService then
-			return
-		end
-		for _, player in ipairs(Players:GetPlayers()) do
-			local pawn = playerService:GetPawn(player)
-			local root = pawn and (pawn.PrimaryPart or pawn:FindFirstChild("Hitbox"))
-			if pawn and root and root:IsA("BasePart") then
-				local currPos = root.Position
-				local prevPos = self._lastPawnPos[player]
-				self:_recordMotionSample(player, currPos, root.AssemblyLinearVelocity, os.clock())
-				self:_processPlayerFoodCollision(player, pawn, currPos, prevPos)
-				self._lastPawnPos[player] = currPos
-			end
-		end
-	end)
+	-- Collision detection is client-driven; the server does not scan food contacts on Heartbeat.
+	return
 end
 
 function FoodService:_collectNearbyEntries(position: Vector3): { any }

@@ -33,13 +33,23 @@ local PhysicsConfig = {
 	Launch = {
 		SpeedMin = 36,
 		SpeedMax = 112,
+		InitialVelocityCap = 112,
 		EnergyMin = 28,
 		EnergyMax = 120,
 		PassiveEnergyDecayPerSecond = 0.035,
+		VelocityDecayPerSecond = 0.12,
 		StopSpeed = 1.1,
 	},
 
 	Collision = {
+		Range = 0.75,
+		ValidationTolerance = 10.75,
+		YTolerance = 10,
+		MaxAllowedSpeed = 450,
+		ReportCooldown = 0.05,
+		MinReportSpeed = 8,
+		SphereCastRadiusPadding = 0.75,
+		SphereCastDistancePadding = 2.5,
 		CandidateDistanceFactor = 0.25,
 		CandidateExtraPadding = 0.35,
 		Cooldown = 0.28,

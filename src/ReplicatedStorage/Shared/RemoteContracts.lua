@@ -28,6 +28,7 @@ RemoteContracts.Names = {
 	DebugResetSling = "DebugResetSling",
 	ConsumeHpPotion = "ConsumeHpPotion",
 	ReportFoodHit = "ReportFoodHit",
+	ReportCollision = "ReportCollision",
 }
 
 RemoteContracts.Validators = {
@@ -68,10 +69,30 @@ RemoteContracts.Validators = {
 		if payload.hitType ~= nil and typeof(payload.hitType) ~= "string" then
 			return false
 		end
-		if payload.prevPos ~= nil and typeof(payload.prevPos) ~= "Vector3" then
+		if payload.currPos ~= nil and typeof(payload.currPos) ~= "Vector3" then
+			return false
+		end
+		return true
+	end,
+	[RemoteContracts.Names.ReportCollision] = function(payload: any): boolean
+		if type(payload) ~= "table" or typeof(payload.targetType) ~= "string" then
+			return false
+		end
+		if payload.targetType == "Player" then
+			if typeof(payload.targetUserId) ~= "number" then
+				return false
+			end
+		elseif payload.targetType == "Trap" then
+			if typeof(payload.targetPosition) ~= "Vector3" then
+				return false
+			end
+		else
 			return false
 		end
 		if payload.currPos ~= nil and typeof(payload.currPos) ~= "Vector3" then
+			return false
+		end
+		if payload.velocity ~= nil and typeof(payload.velocity) ~= "Vector3" then
 			return false
 		end
 		return true

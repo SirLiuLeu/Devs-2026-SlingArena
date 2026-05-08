@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local CollisionService = {}
 CollisionService.__index = CollisionService
@@ -29,10 +30,8 @@ end
 function CollisionService:Init()
 	RunService.Heartbeat:Connect(function(dt)
 		self:_applyDragAndBounce(dt)
-		local playerHits = self:_detectPlayerCollisions()
-		self:_resolvePlayerCollisions(playerHits)
-		self:_resolveTrapCollisions()
 	end)
+	self:_bindClientCollisionReports()
 end
 
 function CollisionService:_applyDragAndBounce(dt)
@@ -298,6 +297,146 @@ function CollisionService:_resolvePlayerCollisions(candidates)
 			TransferredEnergy = transferEnergy,
 		})
 	end
+end
+
+local function sqrDistanceXZ(a: Vector3, b: Vector3): number
+	local dx = a.X - b.X
+	local dz = a.Z - b.Z
+	return dx * dx + dz * dz
+end
+
+local function reportPosition(payload: any, fallback: Vector3): Vector3
+	return if payload and typeof(payload.currPos) == "Vector3" then payload.currPos else fallback
+end
+
+function CollisionService:_validatePlayerReport(player: Player, payload: any): (boolean, Player?, BasePart?, BasePart?, Vector3)
+	local playerService = getService(self._context, "PlayerService")
+	local stateService = getService(self._context, "PlayerStateService")
+	if not (playerService and stateService) then
+		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+	end
+	local defender = Players:GetPlayerByUserId(payload.targetUserId)
+	local root = playerService:GetRoot(player)
+	local targetRoot = defender and playerService:GetRoot(defender)
+	local attackerState = stateService:GetState(player)
+	if not (defender and defender ~= player and root and targetRoot and attackerState and attackerState.MovementState == "Launching") then
+		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+	end
+	if not (playerService:IsAlive(player) and playerService:IsAlive(defender)) then
+		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+	end
+	local playerRadius = math.max(root.Size.X, root.Size.Z) * 0.5
+	local targetRadius = math.max(targetRoot.Size.X, targetRoot.Size.Z) * 0.5
+	local tolerance = PhysicsConfig.Collision.ValidationTolerance
+	local range = playerRadius + targetRadius + tolerance
+	local pos = reportPosition(payload, root.Position)
+	if sqrDistanceXZ(root.Position, targetRoot.Position) > range * range and sqrDistanceXZ(pos, targetRoot.Position) > range * range then
+		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+	end
+	local offset = targetRoot.Position - root.Position
+	local planar = Vector3.new(offset.X, 0, offset.Z)
+	local normal = if planar.Magnitude > 0.001 then planar.Unit else Vector3.new(1, 0, 0)
+	return true, defender, root, targetRoot, normal
+end
+
+function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
+	local ok, defender, root, targetRoot, normal = self:_validatePlayerReport(player, payload)
+	if not (ok and defender and root and targetRoot) then
+		return
+	end
+	local key = getCollisionKey(player, defender)
+	local now = os.clock()
+	if self._lastCollision[key] and now - self._lastCollision[key] < PhysicsConfig.Collision.Cooldown then
+		return
+	end
+	self._lastCollision[key] = now
+
+	local slingService = getService(self._context, "SlingService")
+	local stateService = getService(self._context, "PlayerStateService")
+	if not (slingService and stateService) then
+		return
+	end
+	local launchState = slingService:GetLaunchState(player)
+	if not launchState then
+		return
+	end
+	local attackerVelocity = getHorizontalVelocity(root)
+	local defenderVelocity = getHorizontalVelocity(targetRoot)
+	local impactSpeed = attackerVelocity.Magnitude
+	if impactSpeed < PhysicsConfig.Collision.RealHitMinClosingSpeed then
+		return
+	end
+
+	local transferSpeed = math.clamp(impactSpeed * PhysicsConfig.Collision.EnergyTransferRatio, 0, PhysicsConfig.Collision.MaxPostCollisionSpeed)
+	local defenderOut = normal * transferSpeed
+	local attackerOut = attackerVelocity * (1 - PhysicsConfig.Collision.CollisionEnergyLossRatio)
+	applyHorizontalVelocity(root, attackerOut)
+	applyHorizontalVelocity(targetRoot, defenderOut)
+	updateLaunchFromVelocity(launchState, attackerOut, math.max(0, (launchState.energy or 0) * (1 - PhysicsConfig.Collision.CollisionEnergyLossRatio)), now)
+	launchState.collisions = (launchState.collisions or 0) + 1
+
+	local transferEnergy = math.max(0, (launchState.energy or 0) * PhysicsConfig.Collision.EnergyTransferRatio)
+	if transferEnergy >= PhysicsConfig.Collision.MinTransferEnergy and defenderOut.Magnitude > PhysicsConfig.Collision.MinPostCollisionSpeed then
+		slingService:SetLaunchState(defender, {
+			direction = defenderOut.Unit,
+			initialSpeed = defenderOut.Magnitude,
+			currentSpeed = defenderOut.Magnitude,
+			energy = transferEnergy,
+			startTime = now,
+			lastSampleTime = now,
+			chargeRatio = 0,
+			collisions = launchState.collisions,
+			sourcePlayer = player,
+		})
+		stateService:SetMovementState(defender, "Launching")
+	end
+
+	self._context.EventBus:Fire("CollisionDetected", "Sling", player, defender, { Speed = impactSpeed, ImpactNormal = normal, LaunchEnergy = launchState.energy, CollisionCount = launchState.collisions })
+	self._context.EventBus:Fire("CollisionPlayerHit", defender, player, impactSpeed, normal, { LaunchEnergy = launchState.energy, CollisionCount = launchState.collisions, ImpactSpeed = impactSpeed, TransferredEnergy = transferEnergy })
+end
+
+function CollisionService:_resolveClientTrapHit(player: Player, payload: any)
+	local playerService = getService(self._context, "PlayerService")
+	local mapService = getService(self._context, "MapService")
+	if not (playerService and mapService and typeof(mapService.GetTrapBlocks) == "function") then
+		return
+	end
+	local root = playerService:GetRoot(player)
+	if not (root and playerService:IsAlive(player)) then
+		return
+	end
+	local reported = payload.targetPosition
+	local tolerance = PhysicsConfig.Collision.ValidationTolerance
+	for _, trap in mapService:GetTrapBlocks() do
+		local halfRange = math.max(trap.Size.X, trap.Size.Z) * 0.5 + math.max(root.Size.X, root.Size.Z) * 0.5 + tolerance
+		if sqrDistanceXZ(reported, trap.Position) <= halfRange * halfRange or sqrDistanceXZ(root.Position, trap.Position) <= halfRange * halfRange then
+			local key = `{player.UserId}:{trap:GetDebugId(0)}`
+			local now = os.clock()
+			if not self._lastTrapCollision[key] or now - self._lastTrapCollision[key] > BalanceConfig.TrapCollisionCooldown then
+				self._lastTrapCollision[key] = now
+				self._context.EventBus:Fire("CollisionDetected", "Trap", player, trap, {})
+				self._context.EventBus:Fire("TrapCollisionCandidate", player, trap)
+			end
+			return
+		end
+	end
+end
+
+function CollisionService:_bindClientCollisionReports()
+	local remote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ReportCollision)
+	if not (remote and remote:IsA("RemoteEvent")) then
+		return
+	end
+	remote.OnServerEvent:Connect(function(player, payload)
+		if not RemoteContracts.Validate(RemoteContracts.Names.ReportCollision, payload) then
+			return
+		end
+		if payload.targetType == "Player" then
+			self:_resolveClientPlayerHit(player, payload)
+		elseif payload.targetType == "Trap" then
+			self:_resolveClientTrapHit(player, payload)
+		end
+	end)
 end
 
 function CollisionService:_resolveGateCollisions()

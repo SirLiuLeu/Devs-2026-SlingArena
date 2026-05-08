@@ -622,8 +622,12 @@ function SlingService:_stepMovementStates()
 				local speed, sampledEnergy = LaunchMotionModel.Sample(launchState, now, horizontalVelocity)
 				launchState.currentSpeed = speed
 				launchState.energy = sampledEnergy
-				if speed > 0.001 then
-					launchState.direction = horizontalVelocity.Unit
+				if speed > PhysicsConfig.Launch.StopSpeed and horizontalVelocity.Magnitude > 0.001 then
+					local decayedVelocity = horizontalVelocity.Unit * speed
+					root.AssemblyLinearVelocity = Vector3.new(decayedVelocity.X, root.AssemblyLinearVelocity.Y, decayedVelocity.Z)
+					launchState.direction = decayedVelocity.Unit
+				else
+					root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
 				end
 			end
 

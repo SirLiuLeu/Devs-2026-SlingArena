@@ -14,7 +14,8 @@ end
 
 function LaunchMotionModel.BuildState(direction: Vector3, chargeRatio: number, now: number, sourcePlayer: Player?): any
 	local d = if direction.Magnitude > 0.001 then direction.Unit else Vector3.new(0, 0, -1)
-	local speed = PhysicsConfig.Launch.SpeedMin + ((PhysicsConfig.Launch.SpeedMax - PhysicsConfig.Launch.SpeedMin) * chargeRatio)
+	local uncappedSpeed = PhysicsConfig.Launch.SpeedMin + ((PhysicsConfig.Launch.SpeedMax - PhysicsConfig.Launch.SpeedMin) * chargeRatio)
+	local speed = math.min(uncappedSpeed, PhysicsConfig.Launch.InitialVelocityCap or PhysicsConfig.Launch.SpeedMax)
 	local energy = PhysicsConfig.Launch.EnergyMin + ((PhysicsConfig.Launch.EnergyMax - PhysicsConfig.Launch.EnergyMin) * chargeRatio)
 	return {
 		direction = d,
@@ -35,9 +36,11 @@ function LaunchMotionModel.Sample(state: any, now: number, currentVelocity: Vect
 	local dt = math.max(0, now - lastSampleTime)
 	state.lastSampleTime = now
 
-	local speed = if currentVelocity then currentVelocity.Magnitude else math.max(0, state.currentSpeed or state.initialSpeed or 0)
-	local decay = math.max(0, 1 - (PhysicsConfig.Launch.PassiveEnergyDecayPerSecond * dt))
-	local energy = math.max(0, (state.energy or 0) * decay)
+	local rawSpeed = if currentVelocity then currentVelocity.Magnitude else math.max(0, state.currentSpeed or state.initialSpeed or 0)
+	local velocityDecay = math.max(0, 1 - (PhysicsConfig.Launch.VelocityDecayPerSecond * dt))
+	local speed = math.max(0, rawSpeed * velocityDecay)
+	local energyDecay = math.max(0, 1 - (PhysicsConfig.Launch.PassiveEnergyDecayPerSecond * dt))
+	local energy = math.max(0, (state.energy or 0) * energyDecay)
 	return speed, energy, elapsed
 end
 
