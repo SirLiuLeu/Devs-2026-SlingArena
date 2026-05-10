@@ -309,6 +309,14 @@ local function reportPosition(payload: any, fallback: Vector3): Vector3
 	return if payload and typeof(payload.currPos) == "Vector3" then payload.currPos else fallback
 end
 
+local function isLaunchValidationActive(player: Player, movementState: string?): boolean
+	if movementState == "Launching" then
+		return true
+	end
+	local graceEndsAt = player:GetAttribute("LaunchValidationGraceEndsAt")
+	return typeof(graceEndsAt) == "number" and os.clock() <= graceEndsAt
+end
+
 function CollisionService:_validatePlayerReport(player: Player, payload: any): (boolean, Player?, BasePart?, BasePart?, Vector3)
 	local playerService = getService(self._context, "PlayerService")
 	local stateService = getService(self._context, "PlayerStateService")
@@ -319,7 +327,7 @@ function CollisionService:_validatePlayerReport(player: Player, payload: any): (
 	local root = playerService:GetRoot(player)
 	local targetRoot = defender and playerService:GetRoot(defender)
 	local attackerState = stateService:GetState(player)
-	if not (defender and defender ~= player and root and targetRoot and attackerState and attackerState.MovementState == "Launching") then
+	if not (defender and defender ~= player and root and targetRoot and attackerState and isLaunchValidationActive(player, attackerState.MovementState)) then
 		return false, nil, nil, nil, Vector3.new(1, 0, 0)
 	end
 	if not (playerService:IsAlive(player) and playerService:IsAlive(defender)) then

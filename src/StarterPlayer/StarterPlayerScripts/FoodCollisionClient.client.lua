@@ -22,10 +22,14 @@ local IMPACT_ABSORPTION = 0.6
 local HITSTOP_SECONDS = 0.05
 local BOUNCE_RETENTION = 0.7
 local LAUNCH_SCAN_GRACE_SECONDS = 0.25
+local PREDICTED_LAUNCH_SCAN_SECONDS = 0.35
+local EXISTING_VELOCITY_SCAN_SECONDS = 0.1
 
 local lastHit: { [string]: number } = {}
 local currentMovementState = GameStates.PlayerState.Idle
 local launchScanGraceEndsAt = 0
+local predictedLaunchScanEndsAt = 0
+local predictedLaunchDirection: Vector3? = nil
 local lastRootPosition: Vector3? = nil
 local sweepDebugStart: Part? = nil
 local sweepDebugEnd: Part? = nil
@@ -34,8 +38,24 @@ local function isLaunching(): boolean
 	return currentMovementState == GameStates.PlayerState.Launching
 end
 
+local function isPredictedLaunchScanActive(): boolean
+	return os.clock() <= predictedLaunchScanEndsAt
+end
+
 local function isLaunchHitScanActive(): boolean
-	return isLaunching() or os.clock() <= launchScanGraceEndsAt
+	return isLaunching() or isPredictedLaunchScanActive() or os.clock() <= launchScanGraceEndsAt
+end
+
+local function refreshExistingLaunchVelocity(root: BasePart)
+	if isLaunchHitScanActive() or currentMovementState ~= GameStates.PlayerState.Charging then
+		return
+	end
+	local velocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
+	if velocity.Magnitude < MIN_REPORT_SPEED then
+		return
+	end
+	predictedLaunchDirection = velocity.Unit
+	predictedLaunchScanEndsAt = os.clock() + EXISTING_VELOCITY_SCAN_SECONDS
 end
 
 local function ensureSweepDebugBall(name: string, color: Color3): Part
@@ -250,13 +270,20 @@ end
 
 local function sphereCastLaunching(root: BasePart, dt: number, previousPosition: Vector3?)
 	local velocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
+	local predictedDirection = predictedLaunchDirection
 	local speed = velocity.Magnitude
 	local castStart = previousPosition or root.Position
 	local motion = root.Position - castStart
 	local planarMotion = Vector3.new(motion.X, 0, motion.Z)
 	local castVector = planarMotion
 
-	if castVector.Magnitude < 0.001 and speed >= MIN_REPORT_SPEED then
+	if predictedDirection and isPredictedLaunchScanActive() and predictedDirection.Magnitude >= 0.001 then
+		local predictedUnit = Vector3.new(predictedDirection.X, 0, predictedDirection.Z).Unit
+		local travelDistance = math.max(planarMotion.Magnitude, speed * dt, 0.1)
+		if castVector.Magnitude < 0.001 or castVector:Dot(predictedUnit) < 0 then
+			castVector = predictedUnit * travelDistance
+		end
+	elseif castVector.Magnitude < 0.001 and speed >= MIN_REPORT_SPEED then
 		castVector = velocity.Unit * math.max(speed * dt, 0.1)
 	end
 
@@ -307,6 +334,7 @@ RunService.RenderStepped:Connect(function(dt)
 		return
 	end
 	local previousPosition = lastRootPosition
+	refreshExistingLaunchVelocity(root)
 	if isLaunchHitScanActive() then
 		sphereCastLaunching(root, dt, previousPosition)
 	else
@@ -315,6 +343,23 @@ RunService.RenderStepped:Connect(function(dt)
 	end
 	lastRootPosition = root.Position
 end)
+
+local function refreshPredictedLaunchFromAttributes()
+	local launchedAt = player:GetAttribute("PredictedLaunchStartedAt")
+	local direction = player:GetAttribute("PredictedLaunchDirection")
+	if typeof(launchedAt) ~= "number" or typeof(direction) ~= "Vector3" then
+		return
+	end
+	local planarDirection = Vector3.new(direction.X, 0, direction.Z)
+	if planarDirection.Magnitude < 0.001 then
+		return
+	end
+	predictedLaunchDirection = planarDirection.Unit
+	predictedLaunchScanEndsAt = math.max(predictedLaunchScanEndsAt, launchedAt + PREDICTED_LAUNCH_SCAN_SECONDS)
+end
+
+player:GetAttributeChangedSignal("PredictedLaunchStartedAt"):Connect(refreshPredictedLaunchFromAttributes)
+player:GetAttributeChangedSignal("PredictedLaunchDirection"):Connect(refreshPredictedLaunchFromAttributes)
 
 stateUpdateRemote.OnClientEvent:Connect(function(state)
 	if type(state) ~= "table" then
@@ -328,7 +373,9 @@ stateUpdateRemote.OnClientEvent:Connect(function(state)
 		else
 			currentMovementState = movementState
 		end
-		if wasLaunching and currentMovementState ~= GameStates.PlayerState.Launching then
+		if currentMovementState == GameStates.PlayerState.Launching then
+			predictedLaunchScanEndsAt = 0
+		elseif wasLaunching then
 			launchScanGraceEndsAt = os.clock() + LAUNCH_SCAN_GRACE_SECONDS
 		end
 	end

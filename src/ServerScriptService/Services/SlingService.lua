@@ -11,6 +11,8 @@ local SlingMovement = require(script.Parent.SlingMovement)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local LaunchMotionModel = require(script.Parent.LaunchMotionModel)
 
+local LAUNCH_VALIDATION_GRACE_SECONDS = 0.15
+
 local SlingService = {}
 SlingService.__index = SlingService
 
@@ -264,6 +266,7 @@ function SlingService:GetLaunchState(player: Player): any?
 end
 
 function SlingService:SetLaunchState(player: Player, launchState: any?)
+	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 	self._activeLaunches[player] = launchState
 end
 
@@ -456,6 +459,7 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 
 	root:SetNetworkOwner(nil)
 	root.AssemblyLinearVelocity = Vector3.new(launchState.direction.X * launchState.initialSpeed, root.AssemblyLinearVelocity.Y, launchState.direction.Z * launchState.initialSpeed)
+	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 	self._activeLaunches[player] = launchState
 	warn(string.format("[SlingService] Launch player=%s charge=%.2f speed=%.2f energy=%.2f", player.Name, chargeRatio, launchState.initialSpeed, launchState.energy))
 	
@@ -633,6 +637,7 @@ function SlingService:_stepMovementStates()
 
 			local horizontal = horizontalVelocity.Magnitude
 			if state.MovementState == "Launching" 
+					and (not launchState or now >= ((launchState.startTime or now) + LAUNCH_VALIDATION_GRACE_SECONDS))
 					and (horizontal <= PhysicsConfig.Launch.StopSpeed
 			 		or (launchState and launchState.energy <= 0)) then
 				self:_restoreLaunchVelocityControllers(player)
@@ -644,11 +649,13 @@ function SlingService:_stepMovementStates()
 				self._releaseCooldown[player] = now + releaseDuration
 				self._context.Services.PlayerStateService:SetLastReleaseDuration(player, releaseDuration)
 				self._context.Services.PlayerStateService:SetCooldownEndTime(player, self._releaseCooldown[player])
+				player:SetAttribute("LaunchValidationGraceEndsAt", now + LAUNCH_VALIDATION_GRACE_SECONDS)
 				self._context.Services.PlayerStateService:SetMovementState(player, "Recovering")
 				warn(string.format("[SlingService] State player=%s -> Recovering (horizontal=%.2f)", player.Name, horizontal))
 			elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
 				self._releaseState[player] = nil
 				self._activeLaunches[player] = nil
+				player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
 				self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
 				self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)

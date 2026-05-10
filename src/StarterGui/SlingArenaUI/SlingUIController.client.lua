@@ -572,6 +572,8 @@ local function releaseHold(input: InputObject)
 	isHolding = false
 	awaitingReleaseAck = true
 	inputObject = nil
+	player:SetAttribute("PredictedLaunchDirection", currentChargeAimDirection)
+	player:SetAttribute("PredictedLaunchStartedAt", os.clock())
 	player:SetAttribute("SlingAimDirection", nil)
 	releaseChargeRemote:FireServer(currentChargeAimDirection)
 
