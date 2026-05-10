@@ -23,7 +23,7 @@ local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
 local MAX_ALLOWED_SPEED = PhysicsConfig.Collision.MaxAllowedSpeed
 local HIT_REQUEST_COOLDOWN = PhysicsConfig.Collision.ReportCooldown
-local HP_FOOD_MIN_HORIZONTAL_SPEED = 22
+local HP_FOOD_MIN_HORIZONTAL_SPEED = 1
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local COMMON_ALLOWED_STATES = {
@@ -476,6 +476,7 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	local horizontalSpeed = flattenXZ(root.AssemblyLinearVelocity).Magnitude
 	if (not rule.Touch) and entry.MaxHP > 0 then
 		if movementState ~= GameStates.PlayerState.Launching or horizontalSpeed < HP_FOOD_MIN_HORIZONTAL_SPEED then
+			print(string.format("[FoodService] Validation failed: Player movement state %s with horizontal speed %.2f does not meet requirements for hitting foodId=%s", tostring(movementState), horizontalSpeed, tostring(payload.foodId)))
 			return false
 		end
 	elseif not COMMON_ALLOWED_STATES[movementState] then
@@ -491,12 +492,6 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	local distancePass = sqrDistanceXZ(currPos, hitbox.Position) <= (rEffective * rEffective)
 	local reportedDistancePass = sqrDistanceXZ(reportPos, hitbox.Position) <= (rEffective * rEffective)
 	if not (distancePass or reportedDistancePass) then
-		print(string.format(
-		"[FoodHit][REJECT] dist=%.2f r=%.2f speed=%.2f",
-		math.sqrt(sqrDistanceXZ(currPos, hitbox.Position)),
-		rEffective,
-		speed
-	))
 		return false
 	end
 	if math.abs(currPos.Y - hitbox.Position.Y) > Y_TOLERANCE and math.abs(reportPos.Y - hitbox.Position.Y) > Y_TOLERANCE then
@@ -589,10 +584,8 @@ function FoodService:Start()
 		if type(payload) ~= "table" then
 			return
 		end
-		--print(string.format("[FoodService] ReportFoodHit player=%s foodId=%s", player.Name, tostring(payload.foodId)))
 		local entry = self._foodById[payload.foodId]
 		if not self:_validateFoodHit(player, entry, payload) then
-			print(string.format("[FoodService] Reject hit player=%s foodId=%s", player.Name, tostring(payload.foodId)))
 			if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
 				feedbackRemote:FireClient(player, {
 					EventType = "FoodHitRejected",
