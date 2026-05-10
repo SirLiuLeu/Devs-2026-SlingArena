@@ -21,12 +21,63 @@ local MIN_REPORT_SPEED = PhysicsConfig.Collision.MinReportSpeed
 local IMPACT_ABSORPTION = 0.6
 local HITSTOP_SECONDS = 0.05
 local BOUNCE_RETENTION = 0.7
+local LAUNCH_SCAN_GRACE_SECONDS = 0.25
 
 local lastHit: { [string]: number } = {}
 local currentMovementState = GameStates.PlayerState.Idle
+local launchScanGraceEndsAt = 0
+local lastRootPosition: Vector3? = nil
+local sweepDebugStart: Part? = nil
+local sweepDebugEnd: Part? = nil
 
 local function isLaunching(): boolean
 	return currentMovementState == GameStates.PlayerState.Launching
+end
+
+local function isLaunchHitScanActive(): boolean
+	return isLaunching() or os.clock() <= launchScanGraceEndsAt
+end
+
+local function ensureSweepDebugBall(name: string, color: Color3): Part
+	local debugBall = Instance.new("Part")
+	debugBall.Name = name
+	debugBall.Shape = Enum.PartType.Ball
+	debugBall.Anchored = true
+	debugBall.CanCollide = false
+	debugBall.CanTouch = false
+	debugBall.CanQuery = false
+	debugBall.CastShadow = false
+	debugBall.Material = Enum.Material.Neon
+	debugBall.Color = color
+	debugBall.Transparency = 1
+	debugBall.Parent = workspace
+	return debugBall
+end
+
+local function setSweepDebugVisible(visible: boolean, startPosition: Vector3?, endPosition: Vector3?, radius: number?)
+	if not visible and not sweepDebugStart and not sweepDebugEnd then
+		return
+	end
+	if not sweepDebugStart then
+		sweepDebugStart = ensureSweepDebugBall("ClientSphereCastDebug_Start", Color3.fromRGB(80, 220, 255))
+	end
+	if not sweepDebugEnd then
+		sweepDebugEnd = ensureSweepDebugBall("ClientSphereCastDebug_End", Color3.fromRGB(255, 180, 60))
+	end
+	local startBall = sweepDebugStart :: Part
+	local endBall = sweepDebugEnd :: Part
+
+	local transparency = visible and 0.25 or 1
+	startBall.Transparency = transparency
+	endBall.Transparency = transparency
+
+	if visible and startPosition and endPosition and radius then
+		local diameter = math.max(radius * 2, 0.1)
+		startBall.Size = Vector3.new(diameter, diameter, diameter)
+		endBall.Size = Vector3.new(diameter, diameter, diameter)
+		startBall.Position = startPosition
+		endBall.Position = endPosition
+	end
 end
 
 local function gridKey(pos: Vector3): string
@@ -111,7 +162,7 @@ local function canReportFood(rarity: any): boolean
 	if rarity == "Common" then
 		return currentMovementState ~= GameStates.PlayerState.Dead
 	end
-	return isLaunching()
+	return isLaunchHitScanActive()
 end
 
 local function markFoodPredicted(food: Model, rarity: any)
@@ -127,8 +178,7 @@ local function markFoodPredicted(food: Model, rarity: any)
 	end
 end
 
-local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitType: string)
-	print(`Reporting food hit1: {foodId}, type: {hitType}, rarity: {rarity}`)
+local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitType: string, observedSpeed: number?)
 	local foodId = food:GetAttribute("FoodId")
 	local rarity = food:GetAttribute("FoodRarity")
 	if typeof(foodId) ~= "string" or not canReportFood(rarity) then
@@ -136,14 +186,14 @@ local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitT
 	end
 	local now = os.clock()
 	local cooldownKey = `Food:{foodId}`
-	if (lastHit[cooldownKey] or 0) > now or root.AssemblyLinearVelocity.Magnitude < MIN_REPORT_SPEED then
+	local reportSpeed = math.max(root.AssemblyLinearVelocity.Magnitude, observedSpeed or 0)
+	if (lastHit[cooldownKey] or 0) > now or reportSpeed < MIN_REPORT_SPEED then
 		return
 	end
 	lastHit[cooldownKey] = now + REPORT_COOLDOWN
 	markFoodPredicted(food, rarity)
 	local normal = (root.Position - hitbox.Position).Magnitude > 0.001 and (root.Position - hitbox.Position).Unit or Vector3.new(0, 0, -1)
 	applyPredictedLaunchFeel(root, normal)
-	print(`Reporting food hit: {foodId}, type: {hitType}, rarity: {rarity}`)
 	reportFoodRemote:FireServer({
 		foodId = foodId,
 		hitType = hitType,
@@ -198,20 +248,34 @@ local function reportTrapHit(trap: BasePart, root: BasePart)
 	})
 end
 
-local function sphereCastLaunching(root: BasePart, dt: number)
+local function sphereCastLaunching(root: BasePart, dt: number, previousPosition: Vector3?)
 	local velocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
 	local speed = velocity.Magnitude
-	if speed < MIN_REPORT_SPEED then
+	local castStart = previousPosition or root.Position
+	local motion = root.Position - castStart
+	local planarMotion = Vector3.new(motion.X, 0, motion.Z)
+	local castVector = planarMotion
+
+	if castVector.Magnitude < 0.001 and speed >= MIN_REPORT_SPEED then
+		castVector = velocity.Unit * math.max(speed * dt, 0.1)
+	end
+
+	local observedSpeed = math.max(speed, castVector.Magnitude / math.max(dt, 1 / 240))
+	if castVector.Magnitude < 0.001 or observedSpeed < MIN_REPORT_SPEED then
+		setSweepDebugVisible(false, nil, nil, nil)
 		return
 	end
-	local direction = velocity.Unit
-	local castDistance = math.max(speed * dt, 0.1) + PhysicsConfig.Collision.SphereCastDistancePadding
+
+	local direction = castVector.Unit
+	local castDistance = castVector.Magnitude + PhysicsConfig.Collision.SphereCastDistancePadding
 	local radius = (math.max(root.Size.X, root.Size.Z) * 0.5) + PhysicsConfig.Collision.SphereCastRadiusPadding
+	setSweepDebugVisible(true, castStart, castStart + direction * castDistance, radius)
+
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { player.Character }
 	params.IgnoreWater = true
-	local result = workspace:Spherecast(root.Position, radius, direction * castDistance, params)
+	local result = workspace:Spherecast(castStart, radius, direction * castDistance, params)
 	if not result then
 		return
 	end
@@ -220,7 +284,7 @@ local function sphereCastLaunching(root: BasePart, dt: number)
 	if food then
 		local hitbox = food:FindFirstChild("Hitbox")
 		if hitbox and hitbox:IsA("BasePart") then
-			reportFoodHit(food, hitbox, root, "ClientLaunchSphereCast")
+			reportFoodHit(food, hitbox, root, "ClientLaunchSphereCast", observedSpeed)
 		end
 		return
 	end
@@ -238,13 +302,18 @@ end
 RunService.RenderStepped:Connect(function(dt)
 	local root = getRoot()
 	if not root then
+		lastRootPosition = nil
+		setSweepDebugVisible(false, nil, nil, nil)
 		return
 	end
-	if isLaunching() then
-		sphereCastLaunching(root, dt)
+	local previousPosition = lastRootPosition
+	if isLaunchHitScanActive() then
+		sphereCastLaunching(root, dt, previousPosition)
 	else
+		setSweepDebugVisible(false, nil, nil, nil)
 		detectCommonFoodByDistance(root)
 	end
+	lastRootPosition = root.Position
 end)
 
 stateUpdateRemote.OnClientEvent:Connect(function(state)
@@ -253,10 +322,14 @@ stateUpdateRemote.OnClientEvent:Connect(function(state)
 	end
 	local movementState = state.MovementState
 	if typeof(movementState) == "string" then
+		local wasLaunching = isLaunching()
 		if movementState == "Move" then
 			currentMovementState = GameStates.PlayerState.Moving
 		else
 			currentMovementState = movementState
+		end
+		if wasLaunching and currentMovementState ~= GameStates.PlayerState.Launching then
+			launchScanGraceEndsAt = os.clock() + LAUNCH_SCAN_GRACE_SECONDS
 		end
 	end
 end)
