@@ -632,7 +632,9 @@ function SlingService:_stepMovementStates()
 			end
 
 			local horizontal = horizontalVelocity.Magnitude
-			if state.MovementState == "Launching" and (horizontal <= PhysicsConfig.Launch.StopSpeed or (launchState and launchState.energy <= 0)) then
+			if state.MovementState == "Launching" 
+					and (horizontal <= PhysicsConfig.Launch.StopSpeed
+			 		or (launchState and launchState.energy <= 0)) then
 				self:_restoreLaunchVelocityControllers(player)
 				local releaseState = self._releaseState[player]
 				local releaseDuration = 0

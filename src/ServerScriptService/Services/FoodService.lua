@@ -491,11 +491,18 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	local distancePass = sqrDistanceXZ(currPos, hitbox.Position) <= (rEffective * rEffective)
 	local reportedDistancePass = sqrDistanceXZ(reportPos, hitbox.Position) <= (rEffective * rEffective)
 	if not (distancePass or reportedDistancePass) then
+		print(string.format(
+		"[FoodHit][REJECT] dist=%.2f r=%.2f speed=%.2f",
+		math.sqrt(sqrDistanceXZ(currPos, hitbox.Position)),
+		rEffective,
+		speed
+	))
 		return false
 	end
 	if math.abs(currPos.Y - hitbox.Position.Y) > Y_TOLERANCE and math.abs(reportPos.Y - hitbox.Position.Y) > Y_TOLERANCE then
 		return false
 	end
+
 	return true
 end
 
@@ -585,7 +592,7 @@ function FoodService:Start()
 		--print(string.format("[FoodService] ReportFoodHit player=%s foodId=%s", player.Name, tostring(payload.foodId)))
 		local entry = self._foodById[payload.foodId]
 		if not self:_validateFoodHit(player, entry, payload) then
-			--print(string.format("[FoodService] Reject hit player=%s foodId=%s", player.Name, tostring(payload.foodId)))
+			print(string.format("[FoodService] Reject hit player=%s foodId=%s", player.Name, tostring(payload.foodId)))
 			if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
 				feedbackRemote:FireClient(player, {
 					EventType = "FoodHitRejected",

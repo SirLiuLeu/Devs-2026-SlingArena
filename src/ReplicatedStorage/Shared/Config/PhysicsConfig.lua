@@ -6,14 +6,14 @@ local PhysicsConfig = {
 	PhysicalProperties = {
 		Density = 0.7,
 		Friction = 0.02,
-		Elasticity = 0.82,
+		Elasticity = 0.8,
 		FrictionWeight = 0,
-		ElasticityWeight = 1,
+		ElasticityWeight = 0.1,
 	},
 
 	Movement = {
-		MoveSpeed = 20,
-		MaxForce = 3000,
+		MoveSpeed = 15,
+		MaxForce = 300,
 	},
 
 	World = {
@@ -31,14 +31,14 @@ local PhysicsConfig = {
 	},
 
 	Launch = {
-		SpeedMin = 36,
-		SpeedMax = 112,
-		InitialVelocityCap = 112,
-		EnergyMin = 28,
+		SpeedMin = 6,
+		SpeedMax = 70,
+		InitialVelocityCap = 70,
+		EnergyMin = 18,
 		EnergyMax = 120,
 		PassiveEnergyDecayPerSecond = 0.035,
 		VelocityDecayPerSecond = 0.12,
-		StopSpeed = 1.1,
+		StopSpeed = 0.5,
 	},
 
 	Collision = {
@@ -47,7 +47,7 @@ local PhysicsConfig = {
 		YTolerance = 10,
 		MaxAllowedSpeed = 450,
 		ReportCooldown = 0.05,
-		MinReportSpeed = 8,
+		MinReportSpeed = 1,
 		SphereCastRadiusPadding = 0.75,
 		SphereCastDistancePadding = 2.5,
 		CandidateDistanceFactor = 0.25,
