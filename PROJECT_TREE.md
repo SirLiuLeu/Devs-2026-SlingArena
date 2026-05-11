@@ -104,6 +104,9 @@ DataModel
 │  │  │       └── Sling_05 (Image)
 │  │  │
 │  │  └── UI
+│  │      ├── FloatingDamage (BillboardGui)
+│  │      │   └── Value (TextLabel)
+│  │      │   
 │  │      ├── FoodWorldUI (BillboardGui)
 │  │      │   └── HpBarBackground (Frame)
 │  │      │       ├── UICorner
