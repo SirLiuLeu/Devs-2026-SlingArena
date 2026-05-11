@@ -60,6 +60,6 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `GameConfig.lua` | Placeholder comments for player cap/phase/respawn/join rules; no exported config table. | usage unclear |
 | `ItemConfig.lua` | Item catalog (`Items`) with metadata (`id`, `name`, `effect`, `icon`, `stackable`) and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
 | `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
-| `SlingConfig.lua` | Sling catalog (`Types`) with rarity/modelPath/stats and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
+| `SlingConfig.lua` | Canonical 11-sling catalog (`Types`) with `NormalSling` as `DefaultSlingId`, per-sling `modelPath` values under `ReplicatedStorage/Assets/Slings`, rarity/stats, and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
 | `SlingshotConfig.lua` | Launch/charge/recovery constants, slingshot modifiers, and sling combat baseline values. | `SlingService`, `PlayerStateService`, `SlingUIController` |
 | `TrapConfig.lua` | Trap tuning constants (EXP penalty, cooldown, count, color). | `TrapService` |

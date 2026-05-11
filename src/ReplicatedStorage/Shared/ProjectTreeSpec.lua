@@ -209,13 +209,13 @@ local ProjectTreeSpec = {
 		-- ReplicatedStorage
 		--   Assets (Folder)
 		--     Slings (Folder)
-		--       Sling_Template (Model)
+		--       NormalSling (Model default)
 		--   Assets (Folder)
 		--     UI (Folder)
 		--       ItemSlotTemplate (Frame)
 		--       SlingSlotTemplate (Frame)
 		--     Slings (Folder)
-		--       Sling_01..Sling_05 (Model test templates)
+		--       SupportSling, StunSling, NormalSling, VacuumSling, StealthSling, HealSling, SpeedSling, BonusBuffSling, FreezeSling, FireSling, PoisonSling
 		--     Food (Folder)
 		--       BasicFood (Model) [fallback]
 		--		 Food1, Food2, Food3, ...Food7 (Model)
@@ -257,12 +257,17 @@ local ProjectTreeSpec = {
 				BasicTrap = "Assets.Trap.BasicTrap",
 			},
 			Slings = {
-				SlingTemplate = "Assets.Slings.Sling_Template",
-				Sling01 = "Assets.Slings.Sling_01",
-				Sling02 = "Assets.Slings.Sling_02",
-				Sling03 = "Assets.Slings.Sling_03",
-				Sling04 = "Assets.Slings.Sling_04",
-				Sling05 = "Assets.Slings.Sling_05",
+				SupportSling = "Assets.Slings.SupportSling",
+				StunSling = "Assets.Slings.StunSling",
+				NormalSling = "Assets.Slings.NormalSling",
+				VacuumSling = "Assets.Slings.VacuumSling",
+				StealthSling = "Assets.Slings.StealthSling",
+				HealSling = "Assets.Slings.HealSling",
+				SpeedSling = "Assets.Slings.SpeedSling",
+				BonusBuffSling = "Assets.Slings.BonusBuffSling",
+				FreezeSling = "Assets.Slings.FreezeSling",
+				FireSling = "Assets.Slings.FireSling",
+				PoisonSling = "Assets.Slings.PoisonSling",
 			}
 		},
 	},

@@ -56,7 +56,7 @@ local function getDefaultOwnedSlings(): { any }
 			table.insert(slings, {
 				id = slingId,
 				level = 1,
-				equipped = slingId == "NormalSling",
+				equipped = slingId == SlingConfig.DefaultSlingId,
 				name = slingDef.name,
 				icon = slingDef.icon,
 				stats = {
@@ -109,13 +109,17 @@ local MOCK_SHOP_STATE = {
 		{ id = "item_invisible", name = "Invisibility (30s)", description = "Invisible for 30s", priceX1 = 3, priceX10 = 27, icon = "rbxassetid://0" },
 	},
 	launchers = {
-		{ id = "launcher_normal_1", name = "Normal Sling I", price = 100, icon = "rbxassetid://0" },
-		{ id = "launcher_normal_2", name = "Normal Sling II", price = 200, icon = "rbxassetid://0" },
-		{ id = "launcher_normal_3", name = "Normal Sling III", price = 350, icon = "rbxassetid://0" },
-		{ id = "launcher_normal_4", name = "Normal Sling IV", price = 500, icon = "rbxassetid://0" },
-		{ id = "launcher_normal_5", name = "Normal Sling V", price = 700, icon = "rbxassetid://0" },
-		{ id = "launcher_normal_6", name = "Normal Sling VI", price = 1000, icon = "rbxassetid://0" },
-		{ id = "launcher_special", name = "Special Sling", price = 5000, icon = "rbxassetid://0" },
+		{ id = "SupportSling", name = "Support Sling", price = 450, icon = "rbxassetid://0" },
+		{ id = "StunSling", name = "Stun Sling", price = 900, icon = "rbxassetid://0" },
+		{ id = "NormalSling", name = "Normal Sling", price = 100, icon = "rbxassetid://0" },
+		{ id = "VacuumSling", name = "Vacuum Sling", price = 500, icon = "rbxassetid://0" },
+		{ id = "StealthSling", name = "Stealth Sling", price = 1800, icon = "rbxassetid://0" },
+		{ id = "HealSling", name = "Heal Sling", price = 850, icon = "rbxassetid://0" },
+		{ id = "SpeedSling", name = "Speed Sling", price = 1700, icon = "rbxassetid://0" },
+		{ id = "BonusBuffSling", name = "Bonus Buff Sling", price = 3500, icon = "rbxassetid://0" },
+		{ id = "FreezeSling", name = "Freeze Sling", price = 1800, icon = "rbxassetid://0" },
+		{ id = "FireSling", name = "Fire Sling", price = 900, icon = "rbxassetid://0" },
+		{ id = "PoisonSling", name = "Poison Sling", price = 900, icon = "rbxassetid://0" },
 	},
 	dinamondPacks = {
 		{ id = "pack_1usd", usd = 1, dinamondAmount = 125, note = "Base rate", icon = "rbxassetid://0" },
@@ -134,7 +138,7 @@ local MOCK_DAILY_LOGIN_STATE = {
 		{ day = 3, rewardType = "Dinamond", rewardText = "100 Dinamond", icon = "rbxassetid://0", claimed = false, state = "Locked" },
 		{ day = 4, rewardType = "Item", rewardText = "Buff EXP x1", icon = "rbxassetid://0", claimed = false, state = "Locked" },
 		{ day = 5, rewardType = "Dinamond", rewardText = "150 Dinamond", icon = "rbxassetid://0", claimed = false, state = "Locked" },
-		{ day = 6, rewardType = "Sling", rewardText = "Normal Sling I", icon = "rbxassetid://0", claimed = false, state = "Locked" },
+		{ day = 6, rewardType = "Sling", rewardText = "Normal Sling", icon = "rbxassetid://0", claimed = false, state = "Locked" },
 		{ day = 7, rewardType = "Dinamond", rewardText = "1000 Dinamond (Big Reward)", icon = "rbxassetid://0", claimed = false, state = "Locked" },
 	},
 }

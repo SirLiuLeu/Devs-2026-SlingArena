@@ -1,0 +1,90 @@
+{
+  "ClassName": "Model",
+  "Name": "FreezeSling",
+  "Children": [
+    {
+      "ClassName": "Part",
+      "Name": "Hitbox",
+      "Properties": {
+        "Size": [
+          3,
+          3,
+          3
+        ],
+        "Transparency": 1,
+        "CanCollide": false,
+        "Massless": true,
+        "CastShadow": false,
+        "Anchored": false
+      }
+    },
+    {
+      "ClassName": "MeshPart",
+      "Name": "Mesh",
+      "Properties": {
+        "Size": [
+          2,
+          2,
+          2
+        ],
+        "CanCollide": false,
+        "Massless": true,
+        "Anchored": false,
+        "Color": {
+          "Color3": [
+            0.45,
+            0.9,
+            1.0
+          ]
+        }
+      }
+    },
+    {
+      "ClassName": "Folder",
+      "Name": "Attachments",
+      "Children": [
+        {
+          "ClassName": "Attachment",
+          "Name": "TrailStart",
+          "Properties": {
+            "Position": [
+              0,
+              1,
+              0
+            ]
+          }
+        },
+        {
+          "ClassName": "Attachment",
+          "Name": "TrailEnd",
+          "Properties": {
+            "Position": [
+              0,
+              -1,
+              0
+            ]
+          }
+        },
+        {
+          "ClassName": "Attachment",
+          "Name": "EffectOrigin",
+          "Properties": {
+            "Position": [
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "ClassName": "Trail",
+      "Name": "Trail",
+      "Properties": {
+        "Enabled": true,
+        "Lifetime": 0.5
+      }
+    }
+  ]
+}

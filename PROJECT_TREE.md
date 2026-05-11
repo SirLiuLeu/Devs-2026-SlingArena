@@ -73,22 +73,26 @@ DataModel
 │  │  │       └── Arrow (MeshPart/Part)
 │  │  │
 │  │  ├── Slings
-│  │  │   ├── Sling_Template (Model)
-│  │  │   │   ├── Hitbox (Part - PrimaryPart)
-│  │  │   │   │   ├── Attachment (Attachment)
-│  │  │   │   │   └── AlignOrientation
-│  │  │   │   ├── Mesh (MeshPart/SpecialMesh)
+│  │  │   ├── Sling_Template (Model structure reference only)
+│  │  │   │   ├── Hitbox (Part)
+│  │  │   │   ├── Mesh (MeshPart)
 │  │  │   │   ├── Attachments
 │  │  │   │   │   ├── TrailStart (Attachment)
 │  │  │   │   │   ├── TrailEnd (Attachment)
 │  │  │   │   │   └── EffectOrigin (Attachment)
 │  │  │   │   └── Trail (Trail)
 │  │  │   │
-│  │  │   ├── Sling_01 (Sling_Template)
-│  │  │   ├── Sling_02 (Sling_Template)
-│  │  │   ├── Sling_03 (Sling_Template)
-│  │  │   ├── Sling_04 (Sling_Template)
-│  │  │   └── Sling_05 (Sling_Template)
+│  │  │   ├── SupportSling (Sling_Template format)
+│  │  │   ├── StunSling (Sling_Template format)
+│  │  │   ├── NormalSling (Sling_Template format; default sling)
+│  │  │   ├── VacuumSling (Sling_Template format)
+│  │  │   ├── StealthSling (Sling_Template format)
+│  │  │   ├── HealSling (Sling_Template format)
+│  │  │   ├── SpeedSling (Sling_Template format)
+│  │  │   ├── BonusBuffSling (Sling_Template format)
+│  │  │   ├── FreezeSling (Sling_Template format)
+│  │  │   ├── FireSling (Sling_Template format)
+│  │  │   └── PoisonSling (Sling_Template format)
 │  │  │
 │  │  ├── Icons
 │  │  │   ├── Items
@@ -97,11 +101,7 @@ DataModel
 │  │  │   │   └── EXP_Buff (Image)
 │  │  │   │
 │  │  │   └── Slings
-│  │  │       ├── Sling_01 (Image)
-│  │  │       ├── Sling_02 (Image)
-│  │  │       ├── Sling_03 (Image)
-│  │  │       ├── Sling_04 (Image)
-│  │  │       └── Sling_05 (Image)
+│  │  │       └── Sling icons for the canonical 11 sling ids (Image)
 │  │  │
 │  │  └── UI
 │  │      ├── FloatingDamage (BillboardGui)

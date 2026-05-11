@@ -205,9 +205,9 @@ function PlayerService:_loadSlingTemplate(): Model?
 
 	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
 	local slingsFolder = assetsFolder and assetsFolder:FindFirstChild("Slings")
-	local slingModel = slingsFolder and slingsFolder:FindFirstChild("Sling_Template")
+	local slingModel = slingsFolder and slingsFolder:FindFirstChild("NormalSling")
 	if not (slingModel and slingModel:IsA("Model")) then
-		warn("[PLAYER_SERVICE] ReplicatedStorage/Assets/Slings/Sling_Template missing. Pawn spawn aborted.")
+		warn("[PLAYER_SERVICE] ReplicatedStorage/Assets/Slings/NormalSling missing. Pawn spawn aborted.")
 		return nil
 	end
 
@@ -224,7 +224,7 @@ function PlayerService:_loadSlingTemplate(): Model?
 		root = template.PrimaryPart
 	end
 	if not (root and root:IsA("BasePart")) then
-		warn("[PLAYER_SERVICE] Sling_Template has no PrimaryPart/Hitbox. Pawn spawn aborted.")
+		warn("[PLAYER_SERVICE] NormalSling has no PrimaryPart/Hitbox. Pawn spawn aborted.")
 		return nil
 	end
 	template.PrimaryPart = root
