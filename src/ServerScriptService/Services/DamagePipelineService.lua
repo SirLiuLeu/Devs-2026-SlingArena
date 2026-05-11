@@ -104,17 +104,16 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 		warn("[DamagePipelineService] PlayerStateService unavailable; damage skipped.")
 		return false
 	end
-	if playerStateService:IsInvulnerable(victim) then
+	if playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
 		return false
 	end
 
-	local amount = math.clamp(rawDamage, 0, BalanceConfig.MaxDamagePerHit)
+	local victimStats = playerStateService:GetFinalStats(victim)
+	local armor = victimStats and math.clamp(victimStats.Armor or 0, 0, 0.8) or 0
+	local amount = math.clamp(rawDamage * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
 	local teamService = getService(self._context, "TeamService")
 	if attacker and teamService and teamService:IsFriendly(attacker, victim) then
 		amount = 0
-	end
-	if attacker then
-		playerStateService:SetLastAttacker(victim, attacker)
 	end
 	local didDamage = true
 	if amount > 0 then
@@ -133,11 +132,11 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 
 	if attacker then
 		if amount > 0 then
+			playerStateService:SetLastAttacker(victim, attacker)
 			playerStateService:AddDamageDealt(attacker, amount)
 			if not suppressFeedback then
 				self:_sendFeedback(attacker, "DamageDealt", { Amount = amount })
 			end
-			local victimStats = playerStateService:GetFinalStats(victim)
 			if victimStats then
 				local reflectPct = math.clamp(victimStats.Reflect, 0, 0.5)
 				if reflectPct > 0 then

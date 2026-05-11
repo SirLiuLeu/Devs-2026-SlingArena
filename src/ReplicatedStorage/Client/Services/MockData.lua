@@ -26,12 +26,11 @@ local function cloneItems(items: { [string]: number }): { [string]: number }
 end
 
 local function cloneStats(stats)
-	return {
-		damage = stats.damage,
-		hp = stats.hp,
-		range = stats.range,
-		regen = stats.regen,
-	}
+	local result = {}
+	for key, value in pairs(stats or {}) do
+		result[key] = value
+	end
+	return result
 end
 
 local function cloneSlings(slings: { any }): { any }
@@ -50,22 +49,22 @@ local function cloneSlings(slings: { any }): { any }
 end
 
 local function getDefaultOwnedSlings(): { any }
-	local desired = { "Sling_01", "Sling_02", "Sling_03", "Sling_04", "Sling_05" }
 	local slings = {}
-	for index, slingId in ipairs(desired) do
+	for index, slingId in ipairs(SlingConfig.GetAllIds()) do
 		local slingDef = SlingConfig.GetById(slingId)
 		if slingDef then
 			table.insert(slings, {
 				id = slingId,
 				level = 1,
-				equipped = index == 1,
+				equipped = slingId == "NormalSling",
 				name = slingDef.name,
 				icon = slingDef.icon,
 				stats = {
-					damage = slingDef.stats.launchPower,
-					hp = 100 + (index * 5),
-					range = slingDef.stats.control,
-					regen = 1 + (index * 0.15),
+					damage = slingDef.stats.baseDamage or slingDef.stats.launchPower or 1,
+					hp = slingDef.stats.maxHP or (100 + (index * 5)),
+					range = slingDef.stats.control or 1,
+					regen = slingDef.stats.regen or (1 + (index * 0.15)),
+					abilityType = slingDef.abilityType or slingDef.id,
 				},
 			})
 		else

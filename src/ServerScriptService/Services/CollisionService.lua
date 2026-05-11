@@ -224,6 +224,9 @@ function CollisionService:_resolvePlayerCollisions(candidates)
 		if not (stateA and stateB) then
 			continue
 		end
+		if (stateService.HasFlag and (stateService:HasFlag(hit.playerA, "Ghost") or stateService:HasFlag(hit.playerB, "Ghost"))) then
+			continue
+		end
 
 		local va = getHorizontalVelocity(hit.rootA)
 		local vb = getHorizontalVelocity(hit.rootB)
@@ -362,6 +365,9 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	local slingService = getService(self._context, "SlingService")
 	local stateService = getService(self._context, "PlayerStateService")
 	if not (slingService and stateService) then
+		return
+	end
+	if stateService.HasFlag and (stateService:HasFlag(player, "Ghost") or stateService:HasFlag(defender, "Ghost")) then
 		return
 	end
 	local launchState = slingService:GetLaunchState(player)

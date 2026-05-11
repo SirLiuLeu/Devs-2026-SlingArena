@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local MockData = require(ReplicatedStorage.Client.Services.MockData)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local InventoryDataProvider = {}
 InventoryDataProvider.__index = InventoryDataProvider
@@ -210,6 +211,14 @@ function InventoryDataProvider:EquipSelectedSling(): boolean
 		slingEntry.equipped = false
 	end
 	self._state.ownedSlings[selectedIndex].equipped = true
+	local remotes = ReplicatedStorage:FindFirstChild("SlingArenaRemotes")
+	local abilityTrigger = remotes and remotes:FindFirstChild(RemoteContracts.Names.AbilityTrigger)
+	if abilityTrigger and abilityTrigger:IsA("RemoteEvent") then
+		abilityTrigger:FireServer({
+			action = "EquipSling",
+			slingId = slingId,
+		})
+	end
 	self:_emitChanged()
 	return true
 end

@@ -597,7 +597,12 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 	end
 
 	if moveDirection.Magnitude < 0.001 then
-		movementController:SetSpeed(math.max(PhysicsConfig.Movement.MoveSpeed, 0))
+		local speed = math.max(state.MoveSpeed or PhysicsConfig.Movement.MoveSpeed, 0)
+		local slowFlag = state.ActiveFlags and state.ActiveFlags.Slow
+		if slowFlag then
+			speed *= math.max(0, 1 - (0.25 * math.max(1, slowFlag.Stacks or 1)))
+		end
+		movementController:SetSpeed(speed)
 		movementController:Move(Vector3.zero, dt)
 		self:_applyAimRotation(player, root, input, dt)
 		if state.MovementState ~= MOVEMENT_STATE.Idle then
@@ -606,7 +611,12 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		return
 	end
 
-	movementController:SetSpeed(math.max(PhysicsConfig.Movement.MoveSpeed, 0))
+	local speed = math.max(state.MoveSpeed or PhysicsConfig.Movement.MoveSpeed, 0)
+	local slowFlag = state.ActiveFlags and state.ActiveFlags.Slow
+	if slowFlag then
+		speed *= math.max(0, 1 - (0.25 * math.max(1, slowFlag.Stacks or 1)))
+	end
+	movementController:SetSpeed(speed)
 	movementController:Move(moveDirection.Unit, dt)
 	self:_applyAimRotation(player, root, input, dt)
 	if state.MovementState ~= MOVEMENT_STATE.Moving then

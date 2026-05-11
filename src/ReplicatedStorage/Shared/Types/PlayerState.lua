@@ -58,6 +58,9 @@ export type PlayerState = {
 	BonusMaxHP: number,
 	BonusDamageMultiplier: number,
 	LevelDamageBonus: number,
+	ActiveFlags: any?,
+	Armor: number?,
+	ExpBonus: number?,
 }
 
 return {}

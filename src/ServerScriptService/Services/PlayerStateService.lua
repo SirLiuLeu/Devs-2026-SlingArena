@@ -6,6 +6,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
+local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
+local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
+local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 
@@ -19,6 +22,15 @@ type BuffState = {
 	ExpBoost: number,
 	ChargeBoost: number,
 	Active: boolean,
+}
+
+type ActiveFlag = {
+	Name: string,
+	ExpiresAt: number,
+	Stacks: number,
+	Source: Player?,
+	LastTickAt: number?,
+	Data: any?,
 }
 
 type Context = {
@@ -37,6 +49,8 @@ function PlayerStateService.new(context: Context)
 	self._buffs = {} :: { [Player]: BuffState }
 	self._lastAttacker = {} :: { [Player]: Player }
 	self._damageDealt = {} :: { [Player]: number }
+	self._activeFlags = {} :: { [Player]: { [string]: ActiveFlag } }
+	self._slingRuntime = {} :: { [Player]: any }
 	self._stateUpdateRemote = context.Remotes:FindFirstChild("StateUpdate") :: RemoteEvent
 	self._consumeHpPotionRemote = context.Remotes:FindFirstChild("ConsumeHpPotion") :: RemoteEvent?
 	self._attributeUpgradeRemote = context.Remotes:FindFirstChild("AttributeUpgrade") :: RemoteEvent?
@@ -75,7 +89,7 @@ local function buildDefaultState(player: Player): PlayerState
 		LaunchSpeedBonus = 0,
 		RegenBonus = 0,
 		KnockbackResistance = 0,
-		SlingshotType = "Default",
+		SlingshotType = "NormalSling",
 		ChargeValue = 0,
 		CurrentVelocity = Vector3.zero,
 		InvulnerableUntil = 0,
@@ -109,7 +123,11 @@ local function buildDefaultState(player: Player): PlayerState
 		BonusMaxHP = 0,
 		BonusDamageMultiplier = 0,
 		LevelDamageBonus = 0,
+		ActiveFlags = {},
+		Armor = 0,
+		ExpBonus = 0,
 	}
+
 	return state
 end
 
@@ -129,6 +147,8 @@ function PlayerStateService:Init()
 		self._states[player] = buildDefaultState(player)
 		self._buffs[player] = { DamageBoost = 0, HpBoost = 0, ExpBoost = 0, ChargeBoost = 0, Active = false }
 		self._damageDealt[player] = 0
+		self._activeFlags[player] = {}
+		self._slingRuntime[player] = {}
 		self:RecalculateDerivedStats(player, true)
 	end)
 	Players.PlayerRemoving:Connect(function(player)
@@ -136,31 +156,139 @@ function PlayerStateService:Init()
 		self._buffs[player] = nil
 		self._lastAttacker[player] = nil
 		self._damageDealt[player] = nil
+		self._activeFlags[player] = nil
+		self._slingRuntime[player] = nil
 	end)
 	for _, player in ipairs(Players:GetPlayers()) do
 		self._states[player] = buildDefaultState(player)
 		self._buffs[player] = { DamageBoost = 0, HpBoost = 0, ExpBoost = 0, ChargeBoost = 0, Active = false }
 		self._damageDealt[player] = 0
+		self._activeFlags[player] = {}
+		self._slingRuntime[player] = {}
 		self:RecalculateDerivedStats(player, true)
+	end
+end
+
+local function getFlagDefaults(flagName: string): any
+	return GameConfig.FlagConfig[flagName] or {}
+end
+
+local function buildFlagSnapshot(flags: { [string]: ActiveFlag }?): any
+	local snapshot = {}
+	if not flags then
+		return snapshot
+	end
+	for flagName, flag in pairs(flags) do
+		snapshot[flagName] = {
+			ExpiresAt = flag.ExpiresAt,
+			Stacks = flag.Stacks,
+		}
+	end
+	return snapshot
+end
+
+function PlayerStateService:HasFlag(player: Player, flagName: string): boolean
+	local flags = self._activeFlags[player]
+	local flag = flags and flags[flagName]
+	if not flag then
+		return false
+	end
+	return flag.ExpiresAt > os.clock()
+end
+
+function PlayerStateService:GetFlag(player: Player, flagName: string): ActiveFlag?
+	local flags = self._activeFlags[player]
+	local flag = flags and flags[flagName]
+	if flag and flag.ExpiresAt > os.clock() then
+		return flag
+	end
+	return nil
+end
+
+function PlayerStateService:ApplyFlag(player: Player, flagName: string, duration: number?, source: Player?, data: any?): boolean
+	local state = self._states[player]
+	if not state then
+		return false
+	end
+	if flagName == "Freeze" then
+		local stunFlag = self:GetFlag(player, "Stun")
+		if stunFlag then
+			self:RemoveFlag(player, "Stun")
+		end
+	elseif flagName == "Stun" and self:HasFlag(player, "Freeze") then
+		return false
+	end
+	local defaults = getFlagDefaults(flagName)
+	local resolvedDuration = math.max(0, duration or defaults.Duration or 0)
+	if resolvedDuration <= 0 then
+		return false
+	end
+	local flags = self._activeFlags[player]
+	if not flags then
+		flags = {}
+		self._activeFlags[player] = flags
+	end
+	local existing = flags[flagName]
+	local maxStack = math.max(1, tonumber((data and data.MaxStack) or defaults.MaxStack) or 1)
+	local stackable = (data and data.Stackable) == true or defaults.Stackable == true
+	local stacks = 1
+	if existing and existing.ExpiresAt > os.clock() and stackable then
+		stacks = math.clamp((existing.Stacks or 1) + 1, 1, maxStack)
+	elseif existing and existing.ExpiresAt > os.clock() then
+		stacks = existing.Stacks or 1
+	end
+	flags[flagName] = {
+		Name = flagName,
+		ExpiresAt = math.max(existing and existing.ExpiresAt or 0, os.clock() + resolvedDuration),
+		Stacks = stacks,
+		Source = source,
+		LastTickAt = existing and existing.LastTickAt or os.clock(),
+		Data = data,
+	}
+	if defaults.InterruptCharge or flagName == "Freeze" or flagName == "Stun" then
+		state.IsCharging = false
+		state.ChargeValue = 0
+		state.StunnedUntil = math.max(state.StunnedUntil or 0, flags[flagName].ExpiresAt)
+		state.MovementState = MOVEMENT_STATE.Idle
+	end
+	if flagName == "Invisible" or flagName == "Ghost" then
+		state.IsVisible = false
+	end
+	state.ActiveFlags = buildFlagSnapshot(flags)
+	self:PublishState(player)
+	return true
+end
+
+function PlayerStateService:RemoveFlag(player: Player, flagName: string)
+	local flags = self._activeFlags[player]
+	if flags then
+		flags[flagName] = nil
+	end
+	local state = self._states[player]
+	if state then
+		if flagName == "Invisible" or flagName == "Ghost" then
+			state.IsVisible = not self:HasFlag(player, "Invisible") and not self:HasFlag(player, "Ghost")
+		end
+		state.ActiveFlags = buildFlagSnapshot(flags) or {}
+		self:PublishState(player)
 	end
 end
 
 function PlayerStateService:IsStunned(player: Player): boolean
 	local state = self._states[player]
-	return state ~= nil and (state.StunnedUntil or 0) > os.clock()
+	return (state ~= nil and (state.StunnedUntil or 0) > os.clock()) or self:HasFlag(player, "Stun") or self:HasFlag(player, "Freeze")
+end
+
+function PlayerStateService:IsFrozen(player: Player): boolean
+	return self:HasFlag(player, "Freeze")
+end
+
+function PlayerStateService:IsGhost(player: Player): boolean
+	return self:HasFlag(player, "Ghost")
 end
 
 function PlayerStateService:ApplyStun(player: Player, duration: number)
-	local state = self._states[player]
-	if not state then
-		return
-	end
-	local stunUntil = os.clock() + math.max(0, duration)
-	state.StunnedUntil = math.max(state.StunnedUntil or 0, stunUntil)
-	state.IsCharging = false
-	state.ChargeValue = 0
-	state.MovementState = MOVEMENT_STATE.Idle
-	self:PublishState(player)
+	self:ApplyFlag(player, "Stun", duration)
 end
 
 function PlayerStateService:SetVisibility(player: Player, visible: boolean)
@@ -168,8 +296,11 @@ function PlayerStateService:SetVisibility(player: Player, visible: boolean)
 	if not state then
 		return
 	end
-	state.IsVisible = visible
-	self:PublishState(player)
+	if visible then
+		self:RemoveFlag(player, "Invisible")
+	else
+		self:ApplyFlag(player, "Invisible", getFlagDefaults("Invisible").Duration or 1)
+	end
 end
 
 function PlayerStateService:GetState(player: Player): PlayerState?
@@ -186,22 +317,27 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 		return
 	end
 	local sling = SlingshotConfig.SlingConfig
+	local equippedSling = SlingConfig.GetById(state.SlingshotType or "")
+	local abilityConfig = equippedSling and AbilityConfig.GetById(equippedSling.abilityType or equippedSling.id) or nil
 	local levelMultiplier = 1 + (math.max(state.Level - 1, 0) * 0.03)
+	local slingStats = equippedSling and equippedSling.stats or {}
 	state.HPBonus = 0
 	state.RegenBonus = 0
 	state.LaunchSpeedBonus = 0
 
 	state.Size = (BalanceConfig.BaseSize * levelMultiplier) * state.ScaleMultiplier
-	state.BaseDamage = sling.BaseDamage * levelMultiplier
-	state.DamageMultiplier = 1
-	state.RegenRate = sling.RegenPerSecond * levelMultiplier
-	state.ReflectDamage = sling.ReflectDamagePercent
-	state.LaunchSpeed = SlingshotConfig.BaseLaunchForce * levelMultiplier
-	state.LaunchRange = sling.MaxShootRange * levelMultiplier
+	state.BaseDamage = (slingStats.baseDamage or sling.BaseDamage) * levelMultiplier
+	state.DamageMultiplier = abilityConfig and abilityConfig.damageMultiplier or 1
+	state.RegenRate = sling.RegenPerSecond * (slingStats.regen or 1) * (abilityConfig and abilityConfig.regenMultiplier or 1) * levelMultiplier
+	state.ReflectDamage = math.max(sling.ReflectDamagePercent, abilityConfig and abilityConfig.reflectDamage or 0)
+	state.LaunchSpeed = SlingshotConfig.BaseLaunchForce * (slingStats.launchPower or 1) * levelMultiplier
+	state.LaunchRange = sling.MaxShootRange * (slingStats.control or 1) * levelMultiplier
 	state.ChargeSpeed = 1
-	state.MoveSpeed = BalanceConfig.DefaultWalkSpeed * levelMultiplier
+	state.MoveSpeed = (slingStats.speed or BalanceConfig.DefaultWalkSpeed) * (abilityConfig and abilityConfig.moveSpeedMultiplier or 1) * levelMultiplier
+	state.Armor = math.clamp((slingStats.armor or 0) + (abilityConfig and abilityConfig.armor or 0), 0, 0.8)
+	state.ExpBonus = abilityConfig and abilityConfig.expBonus or 0
 
-	local hp = sling.MaxHP * levelMultiplier
+	local hp = (slingStats.maxHP or sling.MaxHP) * (abilityConfig and abilityConfig.maxHpMultiplier or 1) * levelMultiplier
 	state.MaxHP = hp
 	if refillHealth then
 		state.CurrentHP = hp
@@ -218,11 +354,13 @@ function PlayerStateService:GetFinalStats(player: Player)
 	end
 	local sling = SlingshotConfig.SlingConfig
 	return {
-		Damage = state.BaseDamage,
+		Damage = state.BaseDamage * (state.DamageMultiplier or 1),
 		HP = state.MaxHP,
 		Regen = state.RegenRate,
 		Range = state.LaunchRange,
 		Reflect = state.ReflectDamage,
+		Armor = state.Armor or 0,
+		ExpBonus = state.ExpBonus or 0,
 	}
 end
 
@@ -278,7 +416,7 @@ end
 
 function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
 	local state = self._states[player]
-	if not state or not state.IsAlive then return false end
+	if not state or not state.IsAlive or self:IsInvulnerable(player) or self:HasFlag(player, "Ghost") then return false end
 	local before = state.CurrentHP
 	state.CurrentHP = math.max(0, state.CurrentHP - math.max(0, amount))
 	local playerService = self._context.Services and self._context.Services.PlayerService
@@ -335,16 +473,13 @@ end
 
 function PlayerStateService:IsInvulnerable(player: Player): boolean
 	local state = self._states[player]
-	return state ~= nil and state.InvulnerableUntil > os.clock()
+	return state ~= nil and (state.InvulnerableUntil > os.clock() or self:HasFlag(player, "Invulnerable"))
 end
 
 function PlayerStateService:GrantExp(player: Player, amount: number)
 	local state = self._states[player]
 	if not state then return end
-	local expBonus = 1
-	if state.TeamId == "TeamRed" or state.TeamId == "TeamBlue" then
-		expBonus = 1 + 0
-	end
+	local expBonus = 1 + math.max(0, state.ExpBonus or 0)
 	state.Exp += math.max(0, amount) * expBonus
 	while state.Level < LevelConfig.MaxLevel do
 		local requiredExp = self:GetRequiredExp(state.Level)
@@ -384,6 +519,9 @@ function PlayerStateService:ResetForNewRound(player: Player)
 	state.LastReleaseDuration = 0
 	self._damageDealt[player] = 0
 	state.DamageDealt = 0
+	self._activeFlags[player] = {}
+	self._slingRuntime[player] = {}
+	state.ActiveFlags = buildFlagSnapshot(self._activeFlags[player])
 	self:RecalculateDerivedStats(player, true)
 end
 
@@ -397,6 +535,9 @@ function PlayerStateService:ResetForRespawn(player: Player)
 	state.ChargeValue = 0
 	state.CooldownEndTime = 0
 	state.LastReleaseDuration = 0
+	self._activeFlags[player] = {}
+	self._slingRuntime[player] = {}
+	state.ActiveFlags = buildFlagSnapshot(self._activeFlags[player])
 	self:RecalculateDerivedStats(player, true)
 end
 
@@ -483,6 +624,72 @@ function PlayerStateService:GetLastAttacker(victim: Player): Player?
 end
 function PlayerStateService:ClearLastAttacker(victim: Player)
 	self._lastAttacker[victim] = nil
+end
+
+function PlayerStateService:SetSlingType(player: Player, slingId: string): boolean
+	local state = self._states[player]
+	if not state or not SlingConfig.GetById(slingId) then
+		return false
+	end
+	state.SlingshotType = slingId
+	self._slingRuntime[player] = {}
+	self:RecalculateDerivedStats(player, true)
+	return true
+end
+
+function PlayerStateService:GetSlingAbilityType(player: Player): string
+	local state = self._states[player]
+	local sling = state and SlingConfig.GetById(state.SlingshotType or "")
+	return (sling and (sling.abilityType or sling.id)) or "NormalSling"
+end
+
+function PlayerStateService:GetSlingRuntime(player: Player): any
+	local runtime = self._slingRuntime[player]
+	if not runtime then
+		runtime = {}
+		self._slingRuntime[player] = runtime
+	end
+	return runtime
+end
+
+function PlayerStateService:TickFlags(dt: number)
+	local now = os.clock()
+	for player, flags in pairs(self._activeFlags) do
+		local state = self._states[player]
+		if not state then
+			continue
+		end
+		local changed = false
+		for flagName, flag in pairs(flags) do
+			if flag.ExpiresAt <= now then
+				flags[flagName] = nil
+				changed = true
+				continue
+			end
+			local defaults = getFlagDefaults(flagName)
+			local tickInterval = (flag.Data and flag.Data.TickInterval) or defaults.TickInterval
+			local damagePerTick = (flag.Data and flag.Data.DamagePerTick) or defaults.DamagePerTick
+			if tickInterval and damagePerTick and not self:HasFlag(player, "Invulnerable") then
+				local lastTickAt = flag.LastTickAt or now
+				if now - lastTickAt >= tickInterval then
+					flag.LastTickAt = now
+					local damagePipeline = self._context.Services and self._context.Services.DamagePipelineService
+					local amount = damagePerTick * math.max(1, flag.Stacks or 1)
+					if damagePipeline and typeof(damagePipeline.ApplyDamage) == "function" then
+						damagePipeline:ApplyDamage(player, amount, flag.Source, nil, { SuppressKnockback = true })
+					else
+						self:ApplyDamage(player, amount)
+					end
+				end
+			end
+		end
+		state.IsVisible = not flags.Invisible and not flags.Ghost
+		state.ActiveFlags = buildFlagSnapshot(flags)
+		if changed then
+			self:PublishState(player)
+		end
+	end
+	local _ = dt
 end
 
 return PlayerStateService
