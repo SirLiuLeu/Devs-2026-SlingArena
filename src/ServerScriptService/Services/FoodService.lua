@@ -517,8 +517,14 @@ function FoodService:_applySlingDamage(entry: any, player: Player, velocity: num
 	end
 	local clampedVelocity = math.clamp(velocity, DAMAGE_MIN_VELOCITY, DAMAGE_MAX_VELOCITY)
 	local damage = clampedVelocity * DAMAGE_BASE
+	local before = entry.CurrentHP
 	entry.LastHitBy = player
 	entry.CurrentHP = math.max(0, entry.CurrentHP - damage)
+	local hitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
+	local playerService = getService(self._context, "PlayerService")
+	if hitbox and hitbox:IsA("BasePart") and playerService and entry.CurrentHP ~= before then
+		playerService:ShowFloatingHpChange(hitbox, entry.CurrentHP - before)
+	end
 	self:_publishFoodHp(entry)
 	if entry.CurrentHP <= 0 then
 		self:_rewardFoodKill(entry)

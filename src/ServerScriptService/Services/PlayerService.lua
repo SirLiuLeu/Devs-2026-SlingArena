@@ -3,6 +3,8 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
 
 local Config = require(ReplicatedStorage.Shared.Config.Config)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
@@ -59,6 +61,44 @@ function PlayerService:Init()
 			self:SpawnPawn(player, nil, self._context.Services.MapService:GetActiveMap() or "LobbyMap")
 		end)
 	end
+end
+
+function PlayerService:ShowFloatingHpChange(adornee: BasePart?, amount: number)
+	if not (adornee and adornee.Parent) or amount == 0 then
+		return
+	end
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local uiFolder = assets and assets:FindFirstChild("UI")
+	local template = uiFolder and uiFolder:FindFirstChild("FloatingDamage")
+	if not (template and template:IsA("BillboardGui")) then
+		return
+	end
+
+	local anchor = Instance.new("Part")
+	anchor.Name = "FloatingDamage"
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanQuery = false
+	anchor.CanTouch = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.new(0.1, 0.1, 0.1)
+	anchor.Position = adornee.Position
+	anchor.Parent = Workspace
+
+	local ui = template:Clone()
+	ui.Name = "FloatingDamage"
+	ui.Adornee = anchor
+	ui.Enabled = true
+	ui.Parent = anchor
+
+	local value = ui:FindFirstChild("Value")
+	if value and value:IsA("TextLabel") then
+		value.Text = string.format("%s%d", if amount > 0 then "+" else "-", math.floor(math.abs(amount) + 0.5))
+		value.TextColor3 = if amount > 0 then Color3.fromRGB(80, 255, 120) else Color3.fromRGB(255, 80, 80)
+		TweenService:Create(value, TweenInfo.new(0.8), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+	end
+	TweenService:Create(anchor, TweenInfo.new(0.8), { Position = anchor.Position + Vector3.new(0, 3, 0) }):Play()
+	Debris:AddItem(anchor, 0.85)
 end
 
 function PlayerService:_waitForPlayerReady(player: Player)

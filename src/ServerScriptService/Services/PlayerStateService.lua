@@ -24,6 +24,7 @@ type BuffState = {
 type Context = {
 	EventBus: any,
 	Remotes: Folder,
+	Services: any?,
 }
 
 local PlayerStateService = {}
@@ -278,7 +279,13 @@ end
 function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
 	local state = self._states[player]
 	if not state or not state.IsAlive then return false end
+	local before = state.CurrentHP
 	state.CurrentHP = math.max(0, state.CurrentHP - math.max(0, amount))
+	local playerService = self._context.Services and self._context.Services.PlayerService
+	local root = playerService and playerService:GetRoot(player)
+	if root and state.CurrentHP ~= before then
+		playerService:ShowFloatingHpChange(root, state.CurrentHP - before)
+	end
 	state.LastDamageTime = os.clock()
 	self:PublishState(player)
 	return true
@@ -287,7 +294,13 @@ end
 function PlayerStateService:Heal(player: Player, amount: number)
 	local state = self._states[player]
 	if not state then return end
+	local before = state.CurrentHP
 	state.CurrentHP = math.min(state.MaxHP, state.CurrentHP + math.max(0, amount))
+	local playerService = self._context.Services and self._context.Services.PlayerService
+	local root = playerService and playerService:GetRoot(player)
+	if root and state.CurrentHP ~= before then
+		playerService:ShowFloatingHpChange(root, state.CurrentHP - before)
+	end
 	self:PublishState(player)
 end
 
