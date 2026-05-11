@@ -1,3 +1,14 @@
+1. Core game loop
+2. Round Rules
+3. FOOD SPAWN SYSTEM
+4. PHYSICS & COMBAT
+5. SLING SYSTEM
+6. PROGRESSION & UPGRADE
+7. ITEM & TEAM
+8. ENVIRONMENT & SAFE ZONE
+9. ECONOMY & PROGRESSION
+10. STATE SYSTEM
+11. FLAG SYSTEM
 # 🔥 SLING ARENA – MASTER GAME DESIGN SPECIFICATION (FINAL)
 
 # 0. DESIGN GOAL
@@ -431,21 +442,190 @@ All collision (Hit) phases in the game must strictly follow this lifecycle:
 # 5. SLING SYSTEM (CHARACTERS)
 
 ## 5.1 Core Stats
-- MaxHP, BaseDamage, MoveSpeed, LaunchRange, ReflectDamage
+- MaxHP: 10,000 → 30,000
+- BaseDamage: 500 → 3,000
+- MoveSpeed: depends on type, scales by archetype
+- LaunchRange: base launch distance / force
+- ReflectDamage: % of damage reflected under certain effects
+- Armor: % damage reduction
+- Regen: % health regeneration (conditional or passive)
+- EXPBonus: % bonus experience gained
+- CollisionCC: crowd control duration on collision
+- StealthTime: duration of invisibility
+- DoT: damage over time (Fire / Poison)
+- DOTStack: max stack count for DoT
+- SlowAmount: % movement slow
+- SlowDuration: duration of slow effect
 
-## 5.2 Archetypes (Passive)
-- CloneSling: Spawn clone (50% HP, 15s duration)
-- SupportSling: Collision with ally → heal
-- SplitSling: Split direction left/right on launch
-- StunSling: Apply 1s stun on collision
-- VacuumSling: Pull nearby Mini Food
-- StealthSling: Invisible 1s before launch
-- HealSling: Heal on launch
-- SpeedSling: +5% speed per launch (stack)
+## 5.2 Archetypes (Passive / Type Sling)
+- SupportSling:
+  + Collision with ally heals instead of damaging
+  + HealAmount = 50% BaseDamage
+  + Cannot deal damage to allies
 
-## 5.2.1 SLING ABILITY SYSTEM
-1. Trigger Type
-- Each ability must define: OnLaunch, OnCollision, Passive
+- StunSling:
+  + Collision applies 1s stun to enemies
+  + Used for engage / control
+
+- NormalSling:
+  + +50% EXP gain
+  + No special combat effect
+
+- VacuumSling:
+  + Pulls nearby Mini Foods
+  + Uses distance check on Client
+  + Only requires tuning scan radius in existing system
+  + Optimized for farming
+
+- StealthSling:
+  + Invisible during charge
+  + Remains invisible for 1s after launch
+  + Revealed on collision / dealing damage / other reveal logic
+
+- HealSling:
+  + Heals 5% MaxHP on each launch
+  + Triggered on OnLaunch
+
+- SpeedSling:
+  + Each release grants +5% MoveSpeed permanently during match
+  + Stacks per successful launch
+  + Should have cap for balance
+
+- BonusBuffSling:
+  + Increased Armor
+  + Increased HP
+  + Increased Speed
+  + Increased Regen
+  + +15% Damage
+  + Reflect Damage
+  + General stat-enhancement type
+
+- FreezeSling:
+  + Collision freezes enemy for 1.5s
+  + Cannot freeze FireSling
+
+- FireSling:
+  + Applies burn damage over time
+  + Max 3 stacks
+  + Each stack deals damage per tick
+
+- PoisonSling:
+  + Applies poison damage over time
+  + Max 5 stacks
+  + Each stack deals damage per tick
+  + Applies slow effect
+
+## 5.3 Sling Ability
+
+### 5.3.1 Trigger Type
+Each ability must define:
+
+- OnInit(slingModel):
+  + Runs once when Sling is spawned
+  + Used to initialize stats (HP, Speed, Armor, Damage, flags)
+
+- OnLaunch(target/direction):
+  + Triggered when player releases
+  + Handles launch behavior (buffs, heal, speed, effects)
+
+- OnCollision(hitPart, hitPosition):
+  + Triggered when Server detects collision
+  + Handles damage, heal, CC, DoT, reflect, reveal
+
+- OnTick(deltaTime):
+  + Optional
+  + Runs every frame on Server for continuous logic
+  + Managed centrally via Heartbeat loop
+  + Do NOT create individual Heartbeat connections per ability
+
+- OnDestroy():
+  + Cleanup
+  + Remove connections, timers, effects, states
+
+### 5.3.2 Ability Rule
+- Each Sling has only ONE main type
+- Type defines core behavior
+- Buffs / modifiers can extend but NOT override core rules
+- Server is authoritative for all logic
+- Client handles VFX / UI / prediction only
+- Abilities must not operate outside their defined scope
+
+### 5.3.3 Base Class Rule
+- All abilities inherit from a base class
+- Shared interface across all abilities
+- Base class provides:
+  + Init
+  + Launch
+  + Collision
+  + Tick
+  + Destroy
+  + Config access
+  + State access
+- Child classes override specific behaviors only
+
+## 5.4 Conflict Resolution Rule
+Effects resolve in the following priority:
+
+1. Invulnerable  
+2. Ghost  
+3. Hard CC (Freeze / Stun)  
+4. Damage / Heal  
+5. DoT / Slow  
+6. Visual-only effects  
+
+- Invulnerable:
+  + Blocks all damage
+  + Immune to DoT
+  + No reflect triggered
+
+- Ghost:
+  + Ignores collision logic
+  + Does not trigger OnCollision effects
+  + No CC from collision
+
+- Hard CC:
+  + No infinite stacking
+  + Only strongest or longest effect applies
+  + Priority: Freeze > Stun
+
+- Damage Resolution:
+  + If blocked (e.g. Invulnerable), skip all damage logic
+  + Collision must be valid before applying effects
+  + Reflect only applies if base damage is accepted
+
+- DoT Resolution:
+  + Fire max stack = 3
+  + Poison max stack = 5
+  + Same-type DoT can refresh duration or stack (config-based)
+  + Server clamps to max stack
+
+- Slow Resolution:
+  + Poison may apply slow
+  + Slow cannot override Hard CC
+  + Hard CC always takes priority
+
+- Special Interaction:
+  + FreezeSling cannot freeze FireSling
+  + SupportSling heals allies, never damages
+  + VacuumSling uses client-side scan only
+
+## 5.5 Suggested Balance Rules
+- 10k–30k HP for tank / control types
+- Lower HP + higher damage for burst types
+- 500–3k damage baseline
+- Support = lower damage, higher utility
+- Control = limited CC chaining
+- SpeedSling should have cap or diminishing return
+- CC / DoT should have limits or cooldowns
+- VacuumSling should not introduce heavy server logic
+
+## 5.6 Final Resolution Order
+- OnInit → set stats
+- OnLaunch → apply launch logic
+- OnCollision → apply combat logic
+- OnTick → continuous logic
+- OnDestroy → cleanup
+- Conflict Resolution → final server decision
 
 # 6. PROGRESSION & UPGRADE
 
@@ -560,11 +740,27 @@ Outside:
 - Launching → Idle (velocity below threshold or collision resolve)
 - Any → Dead (HP <= 0)
 
+## 10.4 STATE + FLAG RESOLUTION
+
+### 10.4.1 Movement Rule
+A player can move only if:
+
+- State != Dead
+- State != Charging
+- State != Launching
+- No active Stun
+- No active Freeze
+
+### 10.4.2 Final Behavior Pipeline
+- State defines intent (what player is doing)
+- Flag modifies or overrides behavior
+- Final result is resolved on server
+
 ---
 
-# 10.4 FLAG SYSTEM (MODIFIERS)
+# 11. FLAG SYSTEM (MODIFIERS)
 
-## 10.4.1 Flag Types
+## 11.1 Flag Types
 - Ghost: Ignore collision, ignore damage
 - Slow: Reduce movement speed
 - Stun: Disable input and movement
@@ -574,12 +770,12 @@ Outside:
 - Recovering: Heal over time
 - Invulnerable: Ignore incoming damage
 
-## 10.4.2 Flag Properties
+## 11.2 Flag Properties
 - Duration: Time the flag is active
 - Stackable: Whether multiple stacks are allowed
 - MaxStack: Maximum stack count (if applicable)
 
-## 10.4.3 Flag Rules
+## 11.3 Flag Rules
 - Stun / Freeze:
   + Override movement (cannot move)
 - Slow:
@@ -595,38 +791,20 @@ Outside:
 - Recovering:
   + Apply periodic healing
 
-## 10.4.4 Priority Rule
+## 11.4 Priority Rule
 - Freeze > Stun > Slow
 - Hard CC overrides all movement-related states
 
 ---
 
-# 10.5 STATE + FLAG RESOLUTION
+## 11.5 SESSION SYSTEM
 
-## 10.5.1 Movement Rule
-A player can move only if:
-
-- State != Dead
-- State != Charging
-- State != Launching
-- No active Stun
-- No active Freeze
-
-## 10.5.2 Final Behavior Pipeline
-- State defines intent (what player is doing)
-- Flag modifies or overrides behavior
-- Final result is resolved on server
-
----
-
-# 10.6 SESSION SYSTEM
-
-## 10.6.1 Session States
+### 11.5.1 Session States
 - Lobby: Pre-game state
 - Loading: Preparing player / map
 - InGame: Active gameplay
 
-## 10.6.2 Session Rules
+### 11.5.2 Session Rules
 - Lobby:
   + Players can interact but cannot deal damage
 - Loading:
@@ -634,12 +812,12 @@ A player can move only if:
 - InGame:
   + Full gameplay enabled
 
-## 10.6.3 Flow
+### 11.5.3 Flow
 Lobby → Loading → InGame → Lobby
 
-# 10.7 MAP / ROUND SYSTEM
+## 11.6 MAP / ROUND SYSTEM
 
-## 10.7.1 Round States
+### 11.6.1 Round States
 - Lobby: No active round
 - Awaits: Waiting for players or timer
 - EarlyGame: Main gameplay phase
@@ -647,39 +825,30 @@ Lobby → Loading → InGame → Lobby
 - RoundEnd: Round finished
 - PostRound: Cleanup / transition
 
-## 10.7.2 Rules
+### 11.6.2 Rules
 - PostRound is treated as Lobby at player/session level
 - Round logic handled by Round Service (server authority)
 
-# 10.8 PLAYER DATA & MAP BINDING
+## 11.7 PLAYER DATA & MAP BINDING
 
-## 10.8.1 PlayerData
+### 11.7.1 PlayerData
 - LocationState: Lobby | Loading | InGame
 - CurrentMap: nil or map reference
 
-## 10.8.2 Join Map
+### 11.7.2 Join Map
 - playerData.CurrentMap = map
 - map.Players[player] = true
 - playerData.LocationState = InGame
 
-## 10.8.3 Leave Map
+### 11.7.3 Leave Map
 - Remove player from map.Players
 - playerData.CurrentMap = nil
 - playerData.LocationState = Lobby
 
-# 10.9 DESIGN PRINCIPLES
+## 11.8 DESIGN PRINCIPLES
 
 - Server is authoritative for State and Flag
 - Client only reads and renders
 - Config contains data only (no logic)
 - All behavior resolved via State + Flag pipeline
 - Avoid conflicting logic between State and Flag
-
-# 11. BUILD ORDER
-1. Round System
-2. Physics Core
-3. Food System
-4. Leveling System
-5. Sling System
-6. Environment (Safe Zone + Traps)
-7. Meta (Economy + Lobby + UI)
