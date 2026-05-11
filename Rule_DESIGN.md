@@ -489,16 +489,7 @@ All collision (Hit) phases in the game must strictly follow this lifecycle:
 - SpeedSling:
   + Each release grants +5% MoveSpeed permanently during match
   + Stacks per successful launch
-  + Should have cap for balance
-
-- BonusBuffSling:
-  + Increased Armor
-  + Increased HP
-  + Increased Speed
-  + Increased Regen
-  + +15% Damage
-  + Reflect Damage
-  + General stat-enhancement type
+  + Should have cap for balance (maxSpeed 50 studs/s)
 
 - FreezeSling:
   + Collision freezes enemy for 1.5s
