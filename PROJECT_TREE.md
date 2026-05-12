@@ -172,6 +172,7 @@ DataModel
 │  │      │   ├── HpBarBackground (Frame)
 │  │      │   │   ├── UICorner
 │  │      │   │   └── HpBarFill (Frame)
+│  │      │   ├── NameLabel (TextLabel)
 │  │      │   └── LevelLabel (TextLabel)
 │  │      │
 │  │      └─ RewardSlotTemplate (Frame)
