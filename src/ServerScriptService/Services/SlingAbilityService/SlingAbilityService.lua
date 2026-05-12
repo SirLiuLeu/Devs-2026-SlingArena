@@ -76,6 +76,10 @@ function SlingAbilityService:_onAbilityTrigger(player: Player, payload)
 	if type(payload) == "table" and payload.action == "EquipSling" and typeof(payload.slingId) == "string" then
 		local stateService = getService(self._context, "PlayerStateService")
 		if stateService and stateService:SetSlingType(player, payload.slingId) then
+			local playerService = getService(self._context, "PlayerService")
+			if playerService and typeof(playerService.EquipSlingModel) == "function" then
+				playerService:EquipSlingModel(player, payload.slingId)
+			end
 			self:_destroyAbility(player)
 			self:_ensureAbility(player):OnInit(nil)
 		end

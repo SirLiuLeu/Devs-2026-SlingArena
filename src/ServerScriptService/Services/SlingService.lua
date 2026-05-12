@@ -249,7 +249,7 @@ function SlingService:_resolvePawnAndRoot(player: Player): (Model?, BasePart?)
 
 	local root = pawn:FindFirstChild("HumanoidRootPart")
 	if not (root and root:IsA("BasePart")) then
-		root = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox")
+		root = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
 	end
 	if root and root:IsA("BasePart") then
 		if pawn.PrimaryPart == nil then

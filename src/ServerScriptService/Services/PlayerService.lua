@@ -10,6 +10,9 @@ local Config = require(ReplicatedStorage.Shared.Config.Config)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
+local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
+
+local EQUIPPED_SLING_MODEL_NAME = "EquippedSlingModel"
 
 local PlayerService = {}
 PlayerService.__index = PlayerService
@@ -120,8 +123,8 @@ function PlayerService:_loadWorldUiTemplate(): BillboardGui?
 	--       SlingWorldUI (BillboardGui)
 	--         HpBarBackground (Frame)
 	--           HpBarFill (Frame)
+	--         NameLabel (TextLabel)
 	--         LevelLabel (TextLabel)
-	--         TeamLabel (TextLabel)
 
 	local resolved = ReplicatedStorage
 	for token in string.gmatch(ProjectTreeSpec.GameplayInstances.ReplicatedStorage.Assets.SlingWorldUI, "[^%.]+") do
@@ -140,7 +143,16 @@ function PlayerService:_loadWorldUiTemplate(): BillboardGui?
 	return nil
 end
 
-function PlayerService:_attachWorldUi(pawn: Model)
+function PlayerService:_setWorldUiPlayerName(worldUi: BillboardGui, player: Player)
+	local nameLabel = worldUi:FindFirstChild("NameLabel")
+	if nameLabel and nameLabel:IsA("TextLabel") then
+		nameLabel.Text = player.Name
+		nameLabel.Visible = true
+		nameLabel.Active = true
+	end
+end
+
+function PlayerService:_attachWorldUi(pawn: Model, player: Player?)
 	local worldUiTemplate = self:_loadWorldUiTemplate()
 	if not worldUiTemplate then
 		return
@@ -154,6 +166,9 @@ function PlayerService:_attachWorldUi(pawn: Model)
 	local worldUi = worldUiTemplate:Clone()
 	worldUi.Name = "SlingWorldUI"
 	worldUi.Adornee = pawn.PrimaryPart
+	if player then
+		self:_setWorldUiPlayerName(worldUi, player)
+	end
 	worldUi.Parent = pawn
 end
 
@@ -164,7 +179,7 @@ function PlayerService:_updateWorldUi(player: Player, state)
 	end
 	local worldUi = pawn:FindFirstChild("SlingWorldUI")
 	if not (worldUi and worldUi:IsA("BillboardGui")) then
-		self:_attachWorldUi(pawn)
+		self:_attachWorldUi(pawn, player)
 		worldUi = pawn:FindFirstChild("SlingWorldUI")
 	end
 	if not (worldUi and worldUi:IsA("BillboardGui")) then
@@ -174,6 +189,7 @@ function PlayerService:_updateWorldUi(player: Player, state)
 	if pawn.PrimaryPart then
 		worldUi.Adornee = pawn.PrimaryPart
 	end
+	self:_setWorldUiPlayerName(worldUi, player)
 
 	local hpFill = worldUi:FindFirstChild("HpBarBackground")
 	hpFill = hpFill and hpFill:FindFirstChild("HpBarFill")
@@ -198,42 +214,31 @@ function PlayerService:_updateWorldUi(player: Player, state)
 	end
 end
 
-function PlayerService:_loadSlingTemplate(): Model?
-	if self._slingTemplate then
-		return self._slingTemplate
-	end
-
+function PlayerService:_resolveSlingModelSource(slingId: string): Model?
 	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
 	local slingsFolder = assetsFolder and assetsFolder:FindFirstChild("Slings")
-	local slingModel = slingsFolder and slingsFolder:FindFirstChild("NormalSling")
-	if not (slingModel and slingModel:IsA("Model")) then
-		warn("[PLAYER_SERVICE] ReplicatedStorage/Assets/Slings/NormalSling missing. Pawn spawn aborted.")
-		return nil
+	local slingModel = slingsFolder and slingsFolder:FindFirstChild(slingId)
+	if slingModel and slingModel:IsA("Model") then
+		return slingModel
 	end
+	return nil
+end
 
-	local template = slingModel:Clone()
-	template.Name = "SlingTemplate"
-	template.Parent = nil
-
-	if Config.SlingScale ~= 1 then
-		template:ScaleTo(Config.SlingScale)
-	end
-
-	local root = template:FindFirstChild("Hitbox") :: BasePart?
+function PlayerService:_prepareSlingModel(model: Model): BasePart?
+	local root = model:FindFirstChild("Hitbox", true) :: BasePart?
 	if not root then
-		root = template.PrimaryPart
+		root = model.PrimaryPart
 	end
 	if not (root and root:IsA("BasePart")) then
-		warn("[PLAYER_SERVICE] NormalSling has no PrimaryPart/Hitbox. Pawn spawn aborted.")
 		return nil
 	end
-	template.PrimaryPart = root
+	model.PrimaryPart = root
 
 	local attachment = root:FindFirstChild("Attachment")
 	local linearVelocity = root:FindFirstChild("LinearVelocity")
 	local alignOrientation = root:FindFirstChild("AlignOrientation")
-	local body = template:FindFirstChild("Body")
-	local bodyWeld = template:FindFirstChild("BodyWeld")
+	local body = model:FindFirstChild("Body", true)
+	local bodyWeld = model:FindFirstChild("BodyWeld", true)
 
 	if attachment and attachment:IsA("Attachment") then
 		if linearVelocity and linearVelocity:IsA("LinearVelocity") then
@@ -252,16 +257,43 @@ function PlayerService:_loadSlingTemplate(): Model?
 
 	if body and body:IsA("BasePart") then
 		body.CustomPhysicalProperties = PhysicalProperties.new(
-				PhysicsConfig.PhysicalProperties.Density,
-				PhysicsConfig.PhysicalProperties.Friction,
-				PhysicsConfig.PhysicalProperties.Elasticity,
-				PhysicsConfig.PhysicalProperties.FrictionWeight,
-				PhysicsConfig.PhysicalProperties.ElasticityWeight
-			)
+			PhysicsConfig.PhysicalProperties.Density,
+			PhysicsConfig.PhysicalProperties.Friction,
+			PhysicsConfig.PhysicalProperties.Elasticity,
+			PhysicsConfig.PhysicalProperties.FrictionWeight,
+			PhysicsConfig.PhysicalProperties.ElasticityWeight
+		)
 	end
 	if bodyWeld and bodyWeld:IsA("WeldConstraint") and body and body:IsA("BasePart") then
 		bodyWeld.Part0 = root
 		bodyWeld.Part1 = body
+	end
+
+	return root
+end
+
+function PlayerService:_loadSlingTemplate(): Model?
+	if self._slingTemplate then
+		return self._slingTemplate
+	end
+
+	local slingModel = self:_resolveSlingModelSource(SlingConfig.DefaultSlingId)
+	if not slingModel then
+		warn("[PLAYER_SERVICE] ReplicatedStorage/Assets/Slings/NormalSling missing. Pawn spawn aborted.")
+		return nil
+	end
+
+	local template = slingModel:Clone()
+	template.Name = "SlingTemplate"
+	template.Parent = nil
+
+	if Config.SlingScale ~= 1 then
+		template:ScaleTo(Config.SlingScale)
+	end
+
+	if not self:_prepareSlingModel(template) then
+		warn("[PLAYER_SERVICE] NormalSling has no PrimaryPart/Hitbox. Pawn spawn aborted.")
+		return nil
 	end
 
 	self._slingTemplate = template
@@ -317,19 +349,24 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	if not template then
 		return nil
 	end
-	local pawn = template:Clone()
-	if not pawn.PrimaryPart then
-		local root = pawn:FindFirstChild("Hitbox")
+	local equippedSling = template:Clone()
+	equippedSling.Name = EQUIPPED_SLING_MODEL_NAME
+	equippedSling:SetAttribute("SlingId", SlingConfig.DefaultSlingId)
+	if not equippedSling.PrimaryPart then
+		local root = equippedSling:FindFirstChild("Hitbox", true)
 		if root and root:IsA("BasePart") then
-			pawn.PrimaryPart = root
+			equippedSling.PrimaryPart = root
 		end
 	end
-	if not pawn.PrimaryPart then
-		warn("[PLAYER_SERVICE] Pawn clone missing PrimaryPart. Pawn spawn aborted.")
+	if not equippedSling.PrimaryPart then
+		warn("[PLAYER_SERVICE] NormalSling clone missing PrimaryPart. Pawn spawn aborted.")
 		return nil
 	end
 
+	local pawn = Instance.new("Model")
 	pawn.Name = player.Name .. "_Pawn"
+	equippedSling.Parent = pawn
+	pawn.PrimaryPart = equippedSling.PrimaryPart
 	local index = spawnIndex or (player.UserId % 8) + 1
 	local mapService = self._context.Services.MapService
 	local playerState = self._context.Services.PlayerStateService:GetState(player)
@@ -344,7 +381,7 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	pawn.PrimaryPart:SetNetworkOwner(player)
 	self._playerToSling[player] = pawn
 	self._slingToPlayer[pawn] = player
-	self:_attachWorldUi(pawn)
+	self:_attachWorldUi(pawn, player)
 	pawn:SetAttribute("ScaleValue", Config.SlingScale)
 	for _, descendant in pawn:GetDescendants() do
 		if descendant:IsA("BasePart") then
@@ -363,6 +400,77 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	end
 
 	return pawn
+end
+
+function PlayerService:EquipSlingModel(player: Player, slingId: string): boolean
+	if not SlingConfig.GetById(slingId) then
+		return false
+	end
+
+	local pawn = self:GetPawn(player)
+	if not pawn then
+		return false
+	end
+
+	local slingModel = self:_resolveSlingModelSource(slingId)
+	if not slingModel then
+		warn(string.format("[PLAYER_SERVICE] Sling model missing for %s", slingId))
+		return false
+	end
+
+	local existing = pawn:FindFirstChild(EQUIPPED_SLING_MODEL_NAME)
+	if not (existing and existing:IsA("Model")) then
+		for _, child in ipairs(pawn:GetChildren()) do
+			if child:IsA("Model") and SlingConfig.GetById(child.Name) then
+				existing = child
+				break
+			end
+		end
+	end
+
+	local targetPivot = if existing and existing:IsA("Model") then existing:GetPivot() else pawn:GetPivot()
+	local newModel = slingModel:Clone()
+	newModel.Name = EQUIPPED_SLING_MODEL_NAME
+	newModel:SetAttribute("SlingId", slingId)
+	local currentScale = pawn:GetAttribute("ScaleValue")
+	if typeof(currentScale) == "number" then
+		newModel:ScaleTo(currentScale)
+	elseif Config.SlingScale ~= 1 then
+		newModel:ScaleTo(Config.SlingScale)
+	end
+	local root = self:_prepareSlingModel(newModel)
+	if not root then
+		warn(string.format("[PLAYER_SERVICE] Sling model %s has no PrimaryPart/Hitbox", slingId))
+		newModel:Destroy()
+		return false
+	end
+
+	for _, child in ipairs(pawn:GetChildren()) do
+		if child:IsA("Model") and (child.Name == EQUIPPED_SLING_MODEL_NAME or SlingConfig.GetById(child.Name)) then
+			child:Destroy()
+		end
+	end
+	newModel.Parent = pawn
+	pawn.PrimaryPart = root
+	newModel:PivotTo(targetPivot)
+	player.Character = pawn
+	root:SetNetworkOwner(player)
+
+	for _, descendant in ipairs(newModel:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = false
+			descendant.AssemblyLinearVelocity = Vector3.zero
+			descendant.AssemblyAngularVelocity = Vector3.zero
+		elseif descendant:IsA("BodyMover") then
+			descendant:Destroy()
+		end
+	end
+
+	local state = self._context.Services.PlayerStateService:GetState(player)
+	if state then
+		self:_updateWorldUi(player, state)
+	end
+	return true
 end
 
 function PlayerService:DespawnPawn(player)
@@ -394,7 +502,7 @@ function PlayerService:GetRoot(player)
 	if not pawn then
 		return nil
 	end
-	local root = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox")
+	local root = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
 	if root and root:IsA("BasePart") then
 		if pawn.PrimaryPart == nil then
 			pawn.PrimaryPart = root

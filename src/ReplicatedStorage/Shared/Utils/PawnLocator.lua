@@ -45,7 +45,7 @@ function PawnLocator.GetRootPart(pawn: Model?): BasePart?
 	if not pawn then
 		return nil
 	end
-	local root = pawn:FindFirstChild("Hitbox")
+	local root = pawn:FindFirstChild("Hitbox", true)
 	if root and root:IsA("BasePart") then
 		return root
 	end

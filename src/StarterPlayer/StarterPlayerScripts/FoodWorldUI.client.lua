@@ -35,7 +35,7 @@ end
 
 RunService.RenderStepped:Connect(function()
 	local character = player.Character
-	local root = character and character:FindFirstChild("Hitbox")
+	local root = character and character:FindFirstChild("Hitbox", true)
 	if not (root and root:IsA("BasePart")) then
 		return
 	end

@@ -1,6 +1,5 @@
 --!strict
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 
@@ -141,8 +140,8 @@ function InventoryUIController:Start()
 	end
 	if self._slingEquipButton then
 		table.insert(self._connections, self._slingEquipButton.MouseButton1Click:Connect(function()
-			if self._dataProvider and self._dataProvider:EquipSelectedSling() and self._selectedSlingId then
-				self:_applyEquippedSlingModel(self._selectedSlingId)
+			if self._dataProvider then
+				self._dataProvider:EquipSelectedSling()
 			end
 		end))
 	else
@@ -153,7 +152,6 @@ function InventoryUIController:Start()
 			if self._dataProvider then
 				self._dataProvider:UnequipSelectedSling()
 			end
-			self:_removeEquippedSlingModel()
 		end))
 	else
 		warn("[INVENTORY_UI] " .. ProjectTreeSpec.UI.Inventory.SlingDeleteButton .. " missing")

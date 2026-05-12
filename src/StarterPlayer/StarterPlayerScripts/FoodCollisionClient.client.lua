@@ -106,7 +106,7 @@ end
 
 local function getRoot(): BasePart?
 	local character = player.Character
-	return character and character:FindFirstChild("Hitbox") :: BasePart?
+	return character and character:FindFirstChild("Hitbox", true) :: BasePart?
 end
 
 local function getFoodModelFromPart(part: Instance): Model?

@@ -25,7 +25,7 @@ local function resolveRootPart(): BasePart?
 	if not pawn then
 		return nil
 	end
-	local root = pawn:FindFirstChild("Hitbox") or pawn.PrimaryPart
+	local root = pawn:FindFirstChild("Hitbox", true) or pawn.PrimaryPart
 	if root and root:IsA("BasePart") then
 		if pawn.PrimaryPart == nil then
 			pawn.PrimaryPart = root
