@@ -15,6 +15,8 @@ InventoryUIController.__index = InventoryUIController
 local NORMAL_COLOR = Color3.fromRGB(41, 43, 53)
 local HOVER_COLOR = Color3.fromRGB(62, 66, 82)
 local SELECTED_COLOR = Color3.fromRGB(88, 102, 132)
+local EQUIPPED_SLING_MODEL_NAME = "EquippedSlingModel"
+local EQUIPPED_SLING_SLOT_NAME = "EquippedSlingSlot"
 
 local function resolveGui(root: Instance, path: string): GuiObject?
 	local value = PathResolver.resolvePath(root, path)
@@ -449,15 +451,72 @@ function InventoryUIController:_resolveSlingModelSource(slingId: string): Model?
 	return nil
 end
 
+function InventoryUIController:_findEquippedSlingModel(pawn: Model): Model?
+	local direct = pawn:FindFirstChild(EQUIPPED_SLING_MODEL_NAME)
+	if direct and direct:IsA("Model") then
+		return direct
+	end
+
+	for _, descendant in ipairs(pawn:GetDescendants()) do
+		if descendant:IsA("Model") and descendant.Name == EQUIPPED_SLING_MODEL_NAME then
+			return descendant
+		end
+	end
+
+	return nil
+end
+
+function InventoryUIController:_getOrCreateSlingSlot(parent: Instance): Folder
+	local existing = parent:FindFirstChild(EQUIPPED_SLING_SLOT_NAME)
+	if existing and existing:IsA("Folder") then
+		return existing
+	end
+
+	local slot = Instance.new("Folder")
+	slot.Name = EQUIPPED_SLING_SLOT_NAME
+	slot.Parent = parent
+	return slot
+end
+
+function InventoryUIController:_resolveSlingAttachmentSlot(pawn: Model, root: BasePart): (Folder, CFrame)
+	local existingModel = self:_findEquippedSlingModel(pawn)
+	if existingModel then
+		local oldPivot = existingModel:GetPivot()
+		local currentParent = existingModel.Parent or pawn
+		if currentParent:IsA("Folder") and currentParent.Name == EQUIPPED_SLING_SLOT_NAME then
+			return currentParent, oldPivot
+		end
+
+		local slot = self:_getOrCreateSlingSlot(currentParent)
+		return slot, oldPivot
+	end
+
+	local rootParent = root.Parent
+	local slotParent: Instance = pawn
+	if rootParent and rootParent:IsA("Model") and rootParent ~= pawn then
+		slotParent = rootParent
+	end
+
+	return self:_getOrCreateSlingSlot(slotParent), root.CFrame * CFrame.new(0, 0, -1.4)
+end
+
+function InventoryUIController:_clearSlingSlot(slot: Folder)
+	for _, child in ipairs(slot:GetChildren()) do
+		if child:IsA("Model") and child.Name == EQUIPPED_SLING_MODEL_NAME then
+			child:Destroy()
+		end
+	end
+end
+
 function InventoryUIController:_removeEquippedSlingModel()
 	local pawn = PawnLocator.GetLocalPawn()
 	if not pawn then
 		return
 	end
-	for _, child in ipairs(pawn:GetChildren()) do
-		if child:IsA("Model") and child.Name == "EquippedSlingModel" then
-			child:Destroy()
-		end
+
+	local existingModel = self:_findEquippedSlingModel(pawn)
+	if existingModel then
+		existingModel:Destroy()
 	end
 end
 
@@ -477,11 +536,13 @@ function InventoryUIController:_applyEquippedSlingModel(slingId: string)
 		return
 	end
 
+	local slingSlot, targetPivot = self:_resolveSlingAttachmentSlot(pawn, root)
 	self:_removeEquippedSlingModel()
+	self:_clearSlingSlot(slingSlot)
 
 	local newModel = modelTemplate:Clone()
-	newModel.Name = "EquippedSlingModel"
-	newModel.Parent = pawn
+	newModel.Name = EQUIPPED_SLING_MODEL_NAME
+	newModel.Parent = slingSlot
 	if not newModel.PrimaryPart then
 		local firstPart = newModel:FindFirstChildWhichIsA("BasePart", true)
 		if firstPart then
@@ -494,7 +555,7 @@ function InventoryUIController:_applyEquippedSlingModel(slingId: string)
 		return
 	end
 
-	newModel:PivotTo(root.CFrame * CFrame.new(0, 0, -1.4))
+	newModel:PivotTo(targetPivot)
 	for _, descendant in ipairs(newModel:GetDescendants()) do
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = false
