@@ -73,26 +73,34 @@ DataModel
 │  │  │       └── Arrow (MeshPart/Part)
 │  │  │
 │  │  ├── Slings
-│  │  │   ├── Sling_Template (Model structure reference only)
-│  │  │   │   ├── Hitbox (Part)
-│  │  │   │   ├── Mesh (MeshPart)
-│  │  │   │   ├── Attachments
-│  │  │   │   │   ├── TrailStart (Attachment)
-│  │  │   │   │   ├── TrailEnd (Attachment)
-│  │  │   │   │   └── EffectOrigin (Attachment)
-│  │  │   │   └── Trail (Trail)
-│  │  │   │
-│  │  │   ├── SupportSling (Sling_Template format)
-│  │  │   ├── StunSling (Sling_Template format)
-│  │  │   ├── NormalSling (Sling_Template format; default sling)
-│  │  │   ├── VacuumSling (Sling_Template format)
-│  │  │   ├── StealthSling (Sling_Template format)
-│  │  │   ├── HealSling (Sling_Template format)
-│  │  │   ├── SpeedSling (Sling_Template format)
-│  │  │   ├── BonusBuffSling (Sling_Template format)
-│  │  │   ├── FreezeSling (Sling_Template format)
-│  │  │   ├── FireSling (Sling_Template format)
-│  │  │   └── PoisonSling (Sling_Template format)
+│  │  │  ├── Player (Character Default)
+│  │  │  │  ├── Attachments
+│  │  │  │  │  ├── EffectOrigin
+│  │  │  │  │  ├── TrailEnd
+│  │  │  │  │  └── TrailStart
+│  │  │  │  ├── Trail
+│  │  │  │  ├── WeldConstraint_HitboxMesh
+│  │  │  │  ├── EquipedSlingModel (Sling_Template)
+│  │  │  │  │  └── Mesh
+│  │  │  │  │     ├── WeldConstraint
+│  │  │  │  │     └── Part
+│  │  │  │  ├── Hitbox (PrimaryPart)
+│  │  │  │  └── SlingWorldUI
+│  │  │  ├── Sling_Template (Model structure reference only)
+│  │  │  │  └── Mesh (MeshPart)
+│  │  │  │        ├── WeldConstraint
+│  │  │  │        └── Part
+│  │  │  ├── SupportSling (Sling_Template format)
+│  │  │  ├── StunSling (Sling_Template format)
+│  │  │  ├── NormalSling (Sling_Template format; default sling)
+│  │  │  ├── VacuumSling (Sling_Template format)
+│  │  │  ├── StealthSling (Sling_Template format)
+│  │  │  ├── HealSling (Sling_Template format)
+│  │  │  ├── SpeedSling (Sling_Template format)
+│  │  │  ├── BonusBuffSling (Sling_Template format)
+│  │  │  ├── FreezeSling (Sling_Template format)
+│  │  │  ├── FireSling (Sling_Template format)
+│  │  │  └── PoisonSling (Sling_Template format)
 │  │  │
 │  │  ├── Icons
 │  │  │   ├── Items
