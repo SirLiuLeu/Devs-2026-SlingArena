@@ -14,8 +14,10 @@ InventoryUIController.__index = InventoryUIController
 local NORMAL_COLOR = Color3.fromRGB(41, 43, 53)
 local HOVER_COLOR = Color3.fromRGB(62, 66, 82)
 local SELECTED_COLOR = Color3.fromRGB(88, 102, 132)
-local EQUIPPED_SLING_MODEL_NAME = "EquippedSlingModel"
-local EQUIPPED_SLING_SLOT_NAME = "EquippedSlingSlot"
+local EQUIPPED_SLING_MODEL_NAME = "EquipedSlingModel"
+local LEGACY_EQUIPPED_SLING_MODEL_NAME = "EquippedSlingModel"
+local SLING_MESH_NAME = "Mesh"
+local HITBOX_MESH_WELD_NAME = "WeldConstraint_HitboxMesh"
 
 local function resolveGui(root: Instance, path: string): GuiObject?
 	local value = PathResolver.resolvePath(root, path)
@@ -455,67 +457,47 @@ function InventoryUIController:_findEquippedSlingModel(pawn: Model): Model?
 		return direct
 	end
 
-	for _, descendant in ipairs(pawn:GetDescendants()) do
-		if descendant:IsA("Model") and descendant.Name == EQUIPPED_SLING_MODEL_NAME then
-			return descendant
-		end
+	local legacy = pawn:FindFirstChild(LEGACY_EQUIPPED_SLING_MODEL_NAME)
+	if legacy and legacy:IsA("Model") then
+		legacy.Name = EQUIPPED_SLING_MODEL_NAME
+		return legacy
 	end
 
 	return nil
 end
 
-function InventoryUIController:_getOrCreateSlingSlot(parent: Instance): Folder
-	local existing = parent:FindFirstChild(EQUIPPED_SLING_SLOT_NAME)
-	if existing and existing:IsA("Folder") then
-		return existing
-	end
-
-	local slot = Instance.new("Folder")
-	slot.Name = EQUIPPED_SLING_SLOT_NAME
-	slot.Parent = parent
-	return slot
-end
-
-function InventoryUIController:_resolveSlingAttachmentSlot(pawn: Model, root: BasePart): (Folder, CFrame)
+function InventoryUIController:_getOrCreateEquippedSlingModel(pawn: Model): Model
 	local existingModel = self:_findEquippedSlingModel(pawn)
 	if existingModel then
-		local oldPivot = existingModel:GetPivot()
-		local currentParent = existingModel.Parent or pawn
-		if currentParent:IsA("Folder") and currentParent.Name == EQUIPPED_SLING_SLOT_NAME then
-			return currentParent, oldPivot
-		end
-
-		local slot = self:_getOrCreateSlingSlot(currentParent)
-		return slot, oldPivot
+		return existingModel
 	end
 
-	local rootParent = root.Parent
-	local slotParent: Instance = pawn
-	if rootParent and rootParent:IsA("Model") and rootParent ~= pawn then
-		slotParent = rootParent
-	end
-
-	return self:_getOrCreateSlingSlot(slotParent), root.CFrame * CFrame.new(0, 0, -1.4)
+	local equippedModel = Instance.new("Model")
+	equippedModel.Name = EQUIPPED_SLING_MODEL_NAME
+	equippedModel.Parent = pawn
+	return equippedModel
 end
 
-function InventoryUIController:_clearSlingSlot(slot: Folder)
-	for _, child in ipairs(slot:GetChildren()) do
-		if child:IsA("Model") and child.Name == EQUIPPED_SLING_MODEL_NAME then
-			child:Destroy()
-		end
+function InventoryUIController:_resolveSlingMesh(model: Model): BasePart?
+	local mesh = model:FindFirstChild(SLING_MESH_NAME)
+	if mesh and mesh:IsA("BasePart") then
+		return mesh
 	end
+	return nil
 end
 
-function InventoryUIController:_removeEquippedSlingModel()
-	local pawn = PawnLocator.GetLocalPawn()
-	if not pawn then
-		return
+function InventoryUIController:_updateHitboxMeshWeld(pawn: Model, root: BasePart, mesh: BasePart)
+	local weld = pawn:FindFirstChild(HITBOX_MESH_WELD_NAME)
+	if not (weld and weld:IsA("WeldConstraint")) then
+		if weld then
+			weld:Destroy()
+		end
+		weld = Instance.new("WeldConstraint")
+		weld.Name = HITBOX_MESH_WELD_NAME
+		weld.Parent = pawn
 	end
-
-	local existingModel = self:_findEquippedSlingModel(pawn)
-	if existingModel then
-		existingModel:Destroy()
-	end
+	weld.Part0 = root
+	weld.Part1 = mesh
 end
 
 function InventoryUIController:_applyEquippedSlingModel(slingId: string)
@@ -534,36 +516,30 @@ function InventoryUIController:_applyEquippedSlingModel(slingId: string)
 		return
 	end
 
-	local slingSlot, targetPivot = self:_resolveSlingAttachmentSlot(pawn, root)
-	self:_removeEquippedSlingModel()
-	self:_clearSlingSlot(slingSlot)
-
-	local newModel = modelTemplate:Clone()
-	newModel.Name = EQUIPPED_SLING_MODEL_NAME
-	newModel.Parent = slingSlot
-	if not newModel.PrimaryPart then
-		local firstPart = newModel:FindFirstChildWhichIsA("BasePart", true)
-		if firstPart then
-			newModel.PrimaryPart = firstPart
-		end
-	end
-	if not newModel.PrimaryPart then
-		warn(string.format("[INVENTORY_UI] Sling model %s has no BasePart", slingId))
-		newModel:Destroy()
+	local sourceMesh = self:_resolveSlingMesh(modelTemplate)
+	if not sourceMesh then
+		warn(string.format("[INVENTORY_UI] Sling model %s has no Mesh", slingId))
 		return
 	end
 
-	newModel:PivotTo(targetPivot)
-	for _, descendant in ipairs(newModel:GetDescendants()) do
-		if descendant:IsA("BasePart") then
-			descendant.Anchored = false
-			descendant.CanCollide = false
-		end
+	local equippedModel = self:_getOrCreateEquippedSlingModel(pawn)
+	local oldMesh = equippedModel:FindFirstChild(SLING_MESH_NAME)
+	local targetCFrame = if oldMesh and oldMesh:IsA("BasePart") then oldMesh.CFrame else root.CFrame
+	for _, child in ipairs(equippedModel:GetChildren()) do
+		child:Destroy()
 	end
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = root
-	weld.Part1 = newModel.PrimaryPart
-	weld.Parent = newModel.PrimaryPart
+
+	local mesh = sourceMesh:Clone()
+	mesh.Name = SLING_MESH_NAME
+	mesh.CFrame = targetCFrame
+	mesh.Anchored = false
+	mesh.CanCollide = false
+	mesh.Massless = true
+	mesh.Parent = equippedModel
+	equippedModel.PrimaryPart = mesh
+	equippedModel:SetAttribute("SlingId", slingId)
+	pawn:SetAttribute("SlingId", slingId)
+	self:_updateHitboxMeshWeld(pawn, root, mesh)
 end
 
 function InventoryUIController:RefreshWithData(data)

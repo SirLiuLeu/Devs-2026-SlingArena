@@ -12,7 +12,11 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
 
-local EQUIPPED_SLING_MODEL_NAME = "EquippedSlingModel"
+local EQUIPPED_SLING_MODEL_NAME = "EquipedSlingModel"
+local LEGACY_EQUIPPED_SLING_MODEL_NAME = "EquippedSlingModel"
+local PLAYER_CHARACTER_MODEL_NAME = "Player"
+local SLING_MESH_NAME = "Mesh"
+local HITBOX_MESH_WELD_NAME = "WeldConstraint_HitboxMesh"
 
 local PlayerService = {}
 PlayerService.__index = PlayerService
@@ -224,6 +228,103 @@ function PlayerService:_resolveSlingModelSource(slingId: string): Model?
 	return nil
 end
 
+function PlayerService:_resolvePlayerModelSource(): Model?
+	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
+	local slingsFolder = assetsFolder and assetsFolder:FindFirstChild("Slings")
+	local playerModel = slingsFolder and slingsFolder:FindFirstChild(PLAYER_CHARACTER_MODEL_NAME)
+	if playerModel and playerModel:IsA("Model") then
+		return playerModel
+	end
+	return nil
+end
+
+function PlayerService:_findEquippedSlingModel(pawn: Model): Model?
+	local equipped = pawn:FindFirstChild(EQUIPPED_SLING_MODEL_NAME)
+	if equipped and equipped:IsA("Model") then
+		return equipped
+	end
+	local legacy = pawn:FindFirstChild(LEGACY_EQUIPPED_SLING_MODEL_NAME)
+	if legacy and legacy:IsA("Model") then
+		legacy.Name = EQUIPPED_SLING_MODEL_NAME
+		return legacy
+	end
+	return nil
+end
+
+function PlayerService:_resolveSlingMesh(model: Model): BasePart?
+	local mesh = model:FindFirstChild(SLING_MESH_NAME)
+	if mesh and mesh:IsA("BasePart") then
+		return mesh
+	end
+	return nil
+end
+
+function PlayerService:_getOrCreateEquippedSlingModel(pawn: Model): Model
+	local equipped = self:_findEquippedSlingModel(pawn)
+	if equipped then
+		return equipped
+	end
+
+	equipped = Instance.new("Model")
+	equipped.Name = EQUIPPED_SLING_MODEL_NAME
+	equipped.Parent = pawn
+	return equipped
+end
+
+function PlayerService:_updateHitboxMeshWeld(pawn: Model, root: BasePart, mesh: BasePart)
+	local weld = pawn:FindFirstChild(HITBOX_MESH_WELD_NAME)
+	if not (weld and weld:IsA("WeldConstraint")) then
+		if weld then
+			weld:Destroy()
+		end
+		weld = Instance.new("WeldConstraint")
+		weld.Name = HITBOX_MESH_WELD_NAME
+		weld.Parent = pawn
+	end
+	weld.Part0 = root
+	weld.Part1 = mesh
+end
+
+function PlayerService:_applySlingVisual(pawn: Model, slingId: string): boolean
+	local root = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
+	if not (root and root:IsA("BasePart")) then
+		return false
+	end
+	pawn.PrimaryPart = root
+
+	local slingModel = self:_resolveSlingModelSource(slingId)
+	if not slingModel then
+		warn(string.format("[PLAYER_SERVICE] Sling model missing for %s", slingId))
+		return false
+	end
+
+	local sourceMesh = self:_resolveSlingMesh(slingModel)
+	if not sourceMesh then
+		warn(string.format("[PLAYER_SERVICE] Sling model %s has no Mesh", slingId))
+		return false
+	end
+
+	local equipped = self:_getOrCreateEquippedSlingModel(pawn)
+	local oldMesh = equipped:FindFirstChild(SLING_MESH_NAME)
+	local targetCFrame = if oldMesh and oldMesh:IsA("BasePart") then oldMesh.CFrame else root.CFrame
+	for _, child in ipairs(equipped:GetChildren()) do
+		child:Destroy()
+	end
+
+	local mesh = sourceMesh:Clone()
+	mesh.Name = SLING_MESH_NAME
+	mesh.CFrame = targetCFrame
+	mesh.Anchored = false
+	mesh.CanCollide = false
+	mesh.Massless = true
+	mesh.Parent = equipped
+	equipped.PrimaryPart = mesh
+	equipped:SetAttribute("SlingId", slingId)
+	pawn:SetAttribute("SlingId", slingId)
+	self:_updateHitboxMeshWeld(pawn, root, mesh)
+	return true
+end
+
 function PlayerService:_prepareSlingModel(model: Model): BasePart?
 	local root = model:FindFirstChild("Hitbox", true) :: BasePart?
 	if not root then
@@ -239,6 +340,8 @@ function PlayerService:_prepareSlingModel(model: Model): BasePart?
 	local alignOrientation = root:FindFirstChild("AlignOrientation")
 	local body = model:FindFirstChild("Body", true)
 	local bodyWeld = model:FindFirstChild("BodyWeld", true)
+	local attachments = model:FindFirstChild("Attachments")
+	local trail = model:FindFirstChild("Trail")
 
 	if attachment and attachment:IsA("Attachment") then
 		if linearVelocity and linearVelocity:IsA("LinearVelocity") then
@@ -255,14 +358,26 @@ function PlayerService:_prepareSlingModel(model: Model): BasePart?
 		end
 	end
 
+	if trail and trail:IsA("Trail") and attachments then
+		local trailStart = attachments:FindFirstChild("TrailStart")
+		local trailEnd = attachments:FindFirstChild("TrailEnd")
+		if trailStart and trailStart:IsA("Attachment") then
+			trail.Attachment0 = trailStart
+		end
+		if trailEnd and trailEnd:IsA("Attachment") then
+			trail.Attachment1 = trailEnd
+		end
+	end
+
+	root.CustomPhysicalProperties = PhysicalProperties.new(
+		PhysicsConfig.PhysicalProperties.Density,
+		PhysicsConfig.PhysicalProperties.Friction,
+		PhysicsConfig.PhysicalProperties.Elasticity,
+		PhysicsConfig.PhysicalProperties.FrictionWeight,
+		PhysicsConfig.PhysicalProperties.ElasticityWeight
+	)
 	if body and body:IsA("BasePart") then
-		body.CustomPhysicalProperties = PhysicalProperties.new(
-			PhysicsConfig.PhysicalProperties.Density,
-			PhysicsConfig.PhysicalProperties.Friction,
-			PhysicsConfig.PhysicalProperties.Elasticity,
-			PhysicsConfig.PhysicalProperties.FrictionWeight,
-			PhysicsConfig.PhysicalProperties.ElasticityWeight
-		)
+		body.CustomPhysicalProperties = root.CustomPhysicalProperties
 	end
 	if bodyWeld and bodyWeld:IsA("WeldConstraint") and body and body:IsA("BasePart") then
 		bodyWeld.Part0 = root
@@ -277,14 +392,14 @@ function PlayerService:_loadSlingTemplate(): Model?
 		return self._slingTemplate
 	end
 
-	local slingModel = self:_resolveSlingModelSource(SlingConfig.DefaultSlingId)
-	if not slingModel then
-		warn("[PLAYER_SERVICE] ReplicatedStorage/Assets/Slings/NormalSling missing. Pawn spawn aborted.")
+	local playerModel = self:_resolvePlayerModelSource()
+	if not playerModel then
+		warn("[PLAYER_SERVICE] ReplicatedStorage/Assets/Slings/Player missing. Pawn spawn aborted.")
 		return nil
 	end
 
-	local template = slingModel:Clone()
-	template.Name = "SlingTemplate"
+	local template = playerModel:Clone()
+	template.Name = PLAYER_CHARACTER_MODEL_NAME
 	template.Parent = nil
 
 	if Config.SlingScale ~= 1 then
@@ -292,9 +407,10 @@ function PlayerService:_loadSlingTemplate(): Model?
 	end
 
 	if not self:_prepareSlingModel(template) then
-		warn("[PLAYER_SERVICE] NormalSling has no PrimaryPart/Hitbox. Pawn spawn aborted.")
+		warn("[PLAYER_SERVICE] Player model has no PrimaryPart/Hitbox. Pawn spawn aborted.")
 		return nil
 	end
+	self:_applySlingVisual(template, SlingConfig.DefaultSlingId)
 
 	self._slingTemplate = template
 	return template
@@ -349,27 +465,27 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	if not template then
 		return nil
 	end
-	local equippedSling = template:Clone()
-	equippedSling.Name = EQUIPPED_SLING_MODEL_NAME
-	equippedSling:SetAttribute("SlingId", SlingConfig.DefaultSlingId)
-	if not equippedSling.PrimaryPart then
-		local root = equippedSling:FindFirstChild("Hitbox", true)
+	local pawn = template:Clone()
+	pawn.Name = player.Name .. "_Pawn"
+	local playerState = self._context.Services.PlayerStateService:GetState(player)
+	local currentSlingId = SlingConfig.DefaultSlingId
+	if playerState and SlingConfig.GetById(playerState.SlingshotType or "") then
+		currentSlingId = playerState.SlingshotType
+	end
+	pawn:SetAttribute("SlingId", currentSlingId)
+	if not pawn.PrimaryPart then
+		local root = pawn:FindFirstChild("Hitbox", true)
 		if root and root:IsA("BasePart") then
-			equippedSling.PrimaryPart = root
+			pawn.PrimaryPart = root
 		end
 	end
-	if not equippedSling.PrimaryPart then
-		warn("[PLAYER_SERVICE] NormalSling clone missing PrimaryPart. Pawn spawn aborted.")
+	if not pawn.PrimaryPart then
+		warn("[PLAYER_SERVICE] Player clone missing PrimaryPart. Pawn spawn aborted.")
 		return nil
 	end
-
-	local pawn = Instance.new("Model")
-	pawn.Name = player.Name .. "_Pawn"
-	equippedSling.Parent = pawn
-	pawn.PrimaryPart = equippedSling.PrimaryPart
 	local index = spawnIndex or (player.UserId % 8) + 1
+	self:_applySlingVisual(pawn, currentSlingId)
 	local mapService = self._context.Services.MapService
-	local playerState = self._context.Services.PlayerStateService:GetState(player)
 	local teamId = playerState and playerState.TeamId or nil
 	local spawnCFrame = CFrame.new(mapService:GetSpawnPoint(index, mapName))
 	if type(mapService.GetSpawnCFrame) == "function" then
@@ -412,59 +528,19 @@ function PlayerService:EquipSlingModel(player: Player, slingId: string): boolean
 		return false
 	end
 
-	local slingModel = self:_resolveSlingModelSource(slingId)
-	if not slingModel then
-		warn(string.format("[PLAYER_SERVICE] Sling model missing for %s", slingId))
+	local root = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
+	if not (root and root:IsA("BasePart")) then
+		warn(string.format("[PLAYER_SERVICE] Player pawn missing Hitbox for %s", player.Name))
 		return false
 	end
-
-	local existing = pawn:FindFirstChild(EQUIPPED_SLING_MODEL_NAME)
-	if not (existing and existing:IsA("Model")) then
-		for _, child in ipairs(pawn:GetChildren()) do
-			if child:IsA("Model") and SlingConfig.GetById(child.Name) then
-				existing = child
-				break
-			end
-		end
-	end
-
-	local targetPivot = if existing and existing:IsA("Model") then existing:GetPivot() else pawn:GetPivot()
-	local newModel = slingModel:Clone()
-	newModel.Name = EQUIPPED_SLING_MODEL_NAME
-	newModel:SetAttribute("SlingId", slingId)
-	local currentScale = pawn:GetAttribute("ScaleValue")
-	if typeof(currentScale) == "number" then
-		newModel:ScaleTo(currentScale)
-	elseif Config.SlingScale ~= 1 then
-		newModel:ScaleTo(Config.SlingScale)
-	end
-	local root = self:_prepareSlingModel(newModel)
-	if not root then
-		warn(string.format("[PLAYER_SERVICE] Sling model %s has no PrimaryPart/Hitbox", slingId))
-		newModel:Destroy()
-		return false
-	end
-
-	for _, child in ipairs(pawn:GetChildren()) do
-		if child:IsA("Model") and (child.Name == EQUIPPED_SLING_MODEL_NAME or SlingConfig.GetById(child.Name)) then
-			child:Destroy()
-		end
-	end
-	newModel.Parent = pawn
 	pawn.PrimaryPart = root
-	newModel:PivotTo(targetPivot)
+
+	if not self:_applySlingVisual(pawn, slingId) then
+		return false
+	end
+
 	player.Character = pawn
 	root:SetNetworkOwner(player)
-
-	for _, descendant in ipairs(newModel:GetDescendants()) do
-		if descendant:IsA("BasePart") then
-			descendant.Anchored = false
-			descendant.AssemblyLinearVelocity = Vector3.zero
-			descendant.AssemblyAngularVelocity = Vector3.zero
-		elseif descendant:IsA("BodyMover") then
-			descendant:Destroy()
-		end
-	end
 
 	local state = self._context.Services.PlayerStateService:GetState(player)
 	if state then
