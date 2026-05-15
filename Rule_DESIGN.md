@@ -493,7 +493,6 @@ All collision (Hit) phases in the game must strictly follow this lifecycle:
 
 - FreezeSling:
   + Collision freezes enemy for 1.5s
-  + Cannot freeze FireSling
 
 - FireSling:
   + Applies burn damage over time

@@ -74,18 +74,32 @@ DataModel
 │  │  │
 │  │  ├── Slings
 │  │  │  ├── Player (Character Default)
-│  │  │  │  ├── Attachments
-│  │  │  │  │  ├── EffectOrigin
-│  │  │  │  │  ├── TrailEnd
-│  │  │  │  │  └── TrailStart
+│  │  │
+│  │  ├── Slings
+│  │  │  ├── Player (Character Default)
 │  │  │  │  ├── Trail
 │  │  │  │  ├── WeldConstraint_HitboxMesh
-│  │  │  │  ├── EquipedSlingModel (Sling_Template)
+│  │  │  │  ├── EquippedSlingModel (Sling_Template)
 │  │  │  │  │  └── Mesh
 │  │  │  │  │     ├── WeldConstraint
 │  │  │  │  │     └── Part
 │  │  │  │  ├── Hitbox (PrimaryPart)
+│  │  │  │  │  ├── AlignOrientation
+│  │  │  │  │  ├── Attachment (Attachment)
+│  │  │  │  │  ├── EffectHead (Attachment)
+│  │  │  │  │  ├── EffectOrigin (Attachment)
+│  │  │  │  │  ├── LinearVelocity
+│  │  │  │  │  ├── SlingMovementAttachment (Attachment)
+│  │  │  │  │  ├── TrailEnd (Attachment)
+│  │  │  │  │  └── TrailStart (Attachment)
 │  │  │  │  └── SlingWorldUI
+│  │  │  │     ├── UIListLayout
+│  │  │  │     ├── HpBarBackground
+│  │  │  │     │  ├── UICorner
+│  │  │  │     │  └── HpBarFill
+│  │  │  │     ├── LevelLabel
+│  │  │  │     └── Name
+│  │  │  │
 │  │  │  ├── Sling_Template (Model structure reference only)
 │  │  │  │  └── Mesh (MeshPart)
 │  │  │  │        ├── WeldConstraint
@@ -98,7 +112,8 @@ DataModel
 │  │  │  ├── HealSling (Sling_Template format)
 │  │  │  ├── SpeedSling (Sling_Template format)
 │  │  │  ├── BonusBuffSling (Sling_Template format)
-│  │  │  ├── FreezeSling (Sling_Template format)
+│  │  │  ├── FreezeSling (Sling_Template format) -- sẽ delete trong tương lai
+│  │  │  ├── PetrifyModel (Sling_Template format) -- new update, replace FreezeSling
 │  │  │  ├── FireSling (Sling_Template format)
 │  │  │  └── PoisonSling (Sling_Template format)
 │  │  │
@@ -110,6 +125,12 @@ DataModel
 │  │  │   │
 │  │  │   └── Slings
 │  │  │       └── Sling icons for the canonical 11 sling ids (Image)
+│  │  │
+│  │  ├── ParticleEmitters
+│  │  │   ├── Fire
+│  │  │   ├── Frost
+│  │  │   ├── Poison
+│  │  │   └── Stun
 │  │  │
 │  │  └── UI
 │  │      ├── FloatingDamage (BillboardGui)
