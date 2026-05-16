@@ -215,7 +215,7 @@ local ProjectTreeSpec = {
 		--       ItemSlotTemplate (Frame)
 		--       SlingSlotTemplate (Frame)
 		--     Slings (Folder)
-		--       SupportSling, StunSling, NormalSling, VacuumSling, StealthSling, HealSling, SpeedSling, BonusBuffSling, FreezeSling, FireSling, PoisonSling
+		--       SupportSling, StunSling, NormalSling, VacuumSling, StealthSling, HealSling, SpeedSling, BonusBuffSling, PetrifyModel, FireSling, PoisonSling
 		--     Food (Folder)
 		--       BasicFood (Model) [fallback]
 		--		 Food1, Food2, Food3, ...Food7 (Model)
@@ -265,7 +265,7 @@ local ProjectTreeSpec = {
 				HealSling = "Assets.Slings.HealSling",
 				SpeedSling = "Assets.Slings.SpeedSling",
 				BonusBuffSling = "Assets.Slings.BonusBuffSling",
-				FreezeSling = "Assets.Slings.FreezeSling",
+				PetrifyModel = "Assets.Slings.PetrifyModel",
 				FireSling = "Assets.Slings.FireSling",
 				PoisonSling = "Assets.Slings.PoisonSling",
 			}

@@ -33,6 +33,11 @@ type ActiveFlag = {
 	Data: any?,
 }
 
+type FlagVisual = {
+	Emitter: ParticleEmitter?,
+	Materials: { [BasePart]: Enum.Material },
+}
+
 type Context = {
 	EventBus: any,
 	Remotes: Folder,
@@ -50,6 +55,7 @@ function PlayerStateService.new(context: Context)
 	self._lastAttacker = {} :: { [Player]: Player }
 	self._damageDealt = {} :: { [Player]: number }
 	self._activeFlags = {} :: { [Player]: { [string]: ActiveFlag } }
+	self._flagVisuals = {} :: { [Player]: { [string]: FlagVisual } }
 	self._slingRuntime = {} :: { [Player]: any }
 	self._stateUpdateRemote = context.Remotes:FindFirstChild("StateUpdate") :: RemoteEvent
 	self._consumeHpPotionRemote = context.Remotes:FindFirstChild("ConsumeHpPotion") :: RemoteEvent?
@@ -148,6 +154,7 @@ function PlayerStateService:Init()
 		self._buffs[player] = { DamageBoost = 0, HpBoost = 0, ExpBoost = 0, ChargeBoost = 0, Active = false }
 		self._damageDealt[player] = 0
 		self._activeFlags[player] = {}
+		self._flagVisuals[player] = {}
 		self._slingRuntime[player] = {}
 		self:RecalculateDerivedStats(player, true)
 	end)
@@ -156,7 +163,9 @@ function PlayerStateService:Init()
 		self._buffs[player] = nil
 		self._lastAttacker[player] = nil
 		self._damageDealt[player] = nil
+		self:_clearFlagVisuals(player)
 		self._activeFlags[player] = nil
+		self._flagVisuals[player] = nil
 		self._slingRuntime[player] = nil
 	end)
 	for _, player in ipairs(Players:GetPlayers()) do
@@ -164,6 +173,7 @@ function PlayerStateService:Init()
 		self._buffs[player] = { DamageBoost = 0, HpBoost = 0, ExpBoost = 0, ChargeBoost = 0, Active = false }
 		self._damageDealt[player] = 0
 		self._activeFlags[player] = {}
+		self._flagVisuals[player] = {}
 		self._slingRuntime[player] = {}
 		self:RecalculateDerivedStats(player, true)
 	end
@@ -171,6 +181,26 @@ end
 
 local function getFlagDefaults(flagName: string): any
 	return GameConfig.FlagConfig[flagName] or {}
+end
+
+
+local function getParticleEmitter(effectName: string): ParticleEmitter?
+	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
+	local emittersFolder = assetsFolder and assetsFolder:FindFirstChild("ParticleEmitters")
+	local emitter = emittersFolder and emittersFolder:FindFirstChild(effectName)
+	if emitter and emitter:IsA("ParticleEmitter") then
+		return emitter
+	end
+	return nil
+end
+
+local function getEffectAttachment(root: BasePart, effectName: string): Attachment?
+	local attachmentName = if effectName == "Stun" then "EffectHead" else "EffectOrigin"
+	local attachment = root:FindFirstChild(attachmentName)
+	if attachment and attachment:IsA("Attachment") then
+		return attachment
+	end
+	return nil
 end
 
 local function buildFlagSnapshot(flags: { [string]: ActiveFlag }?): any
@@ -185,6 +215,81 @@ local function buildFlagSnapshot(flags: { [string]: ActiveFlag }?): any
 		}
 	end
 	return snapshot
+end
+
+function PlayerStateService:_removeFlagVisual(player: Player, flagName: string)
+	local playerVisuals = self._flagVisuals[player]
+	local visual = playerVisuals and playerVisuals[flagName]
+	if not visual then
+		return
+	end
+	if visual.Emitter then
+		visual.Emitter:Destroy()
+	end
+	for part, material in pairs(visual.Materials) do
+		if part and part.Parent then
+			part.Material = material
+		end
+	end
+	playerVisuals[flagName] = nil
+end
+
+function PlayerStateService:_clearFlagVisuals(player: Player)
+	local playerVisuals = self._flagVisuals[player]
+	if not playerVisuals then
+		return
+	end
+	for flagName in pairs(playerVisuals) do
+		self:_removeFlagVisual(player, flagName)
+	end
+end
+
+function PlayerStateService:_applyFlagVisual(player: Player, flagName: string, data: any?)
+	local effectName = data and data.Effect
+	local material = data and data.Material
+	if not (effectName or material) then
+		return
+	end
+
+	self:_removeFlagVisual(player, flagName)
+
+	local playerService = self._context.Services and self._context.Services.PlayerService
+	local pawn = playerService and playerService:GetPawn(player)
+	local root = playerService and playerService:GetRoot(player)
+	if not (pawn and root) then
+		return
+	end
+
+	local visual: FlagVisual = {
+		Emitter = nil,
+		Materials = {},
+	}
+	if typeof(effectName) == "string" then
+		local emitterTemplate = getParticleEmitter(effectName)
+		local attachment = getEffectAttachment(root, effectName)
+		if emitterTemplate and attachment then
+			local emitter = emitterTemplate:Clone()
+			emitter.Name = flagName .. "Effect"
+			emitter.Parent = attachment
+			visual.Emitter = emitter
+		end
+	end
+	if typeof(material) == "EnumItem" then
+		for _, descendant in pawn:GetDescendants() do
+			if descendant:IsA("BasePart") then
+				visual.Materials[descendant] = descendant.Material
+				descendant.Material = material
+			end
+		end
+	end
+	if visual.Emitter or next(visual.Materials) ~= nil then
+		local playerVisuals = self._flagVisuals[player]
+		if not playerVisuals then
+			playerVisuals = {}
+			self._flagVisuals[player] = playerVisuals
+		end
+		playerVisuals[flagName] = visual
+	end
 end
 
 function PlayerStateService:HasFlag(player: Player, flagName: string): boolean
@@ -210,12 +315,12 @@ function PlayerStateService:ApplyFlag(player: Player, flagName: string, duration
 	if not state then
 		return false
 	end
-	if flagName == "Freeze" then
+	if flagName == "Petrify" then
 		local stunFlag = self:GetFlag(player, "Stun")
 		if stunFlag then
 			self:RemoveFlag(player, "Stun")
 		end
-	elseif flagName == "Stun" and self:HasFlag(player, "Freeze") then
+	elseif flagName == "Stun" and self:HasFlag(player, "Petrify") then
 		return false
 	end
 	local defaults = getFlagDefaults(flagName)
@@ -245,7 +350,8 @@ function PlayerStateService:ApplyFlag(player: Player, flagName: string, duration
 		LastTickAt = existing and existing.LastTickAt or os.clock(),
 		Data = data,
 	}
-	if defaults.InterruptCharge or flagName == "Freeze" or flagName == "Stun" then
+	self:_applyFlagVisual(player, flagName, data)
+	if defaults.InterruptCharge or flagName == "Petrify" or flagName == "Stun" then
 		state.IsCharging = false
 		state.ChargeValue = 0
 		state.StunnedUntil = math.max(state.StunnedUntil or 0, flags[flagName].ExpiresAt)
@@ -264,6 +370,7 @@ function PlayerStateService:RemoveFlag(player: Player, flagName: string)
 	if flags then
 		flags[flagName] = nil
 	end
+	self:_removeFlagVisual(player, flagName)
 	local state = self._states[player]
 	if state then
 		if flagName == "Invisible" or flagName == "Ghost" then
@@ -276,11 +383,11 @@ end
 
 function PlayerStateService:IsStunned(player: Player): boolean
 	local state = self._states[player]
-	return (state ~= nil and (state.StunnedUntil or 0) > os.clock()) or self:HasFlag(player, "Stun") or self:HasFlag(player, "Freeze")
+	return (state ~= nil and (state.StunnedUntil or 0) > os.clock()) or self:HasFlag(player, "Stun") or self:HasFlag(player, "Petrify")
 end
 
 function PlayerStateService:IsFrozen(player: Player): boolean
-	return self:HasFlag(player, "Freeze")
+	return self:HasFlag(player, "Petrify")
 end
 
 function PlayerStateService:IsGhost(player: Player): boolean
@@ -519,6 +626,7 @@ function PlayerStateService:ResetForNewRound(player: Player)
 	state.LastReleaseDuration = 0
 	self._damageDealt[player] = 0
 	state.DamageDealt = 0
+	self:_clearFlagVisuals(player)
 	self._activeFlags[player] = {}
 	self._slingRuntime[player] = {}
 	state.ActiveFlags = buildFlagSnapshot(self._activeFlags[player])
@@ -535,6 +643,7 @@ function PlayerStateService:ResetForRespawn(player: Player)
 	state.ChargeValue = 0
 	state.CooldownEndTime = 0
 	state.LastReleaseDuration = 0
+	self:_clearFlagVisuals(player)
 	self._activeFlags[player] = {}
 	self._slingRuntime[player] = {}
 	state.ActiveFlags = buildFlagSnapshot(self._activeFlags[player])
@@ -663,6 +772,7 @@ function PlayerStateService:TickFlags(dt: number)
 		for flagName, flag in pairs(flags) do
 			if flag.ExpiresAt <= now then
 				flags[flagName] = nil
+				self:_removeFlagVisual(player, flagName)
 				changed = true
 				continue
 			end

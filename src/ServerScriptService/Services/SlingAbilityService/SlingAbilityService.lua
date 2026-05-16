@@ -200,17 +200,21 @@ function SlingAbilityService:_handleCollision(attacker: Player, victim: Player, 
 		return
 	end
 
-	if config.collisionFlag == "Freeze" then
+	if config.collisionFlag == "Petrify" then
 		local victimAbilityType = stateService:GetSlingAbilityType(victim)
-		if config.cannotFreezeAbilityTypes and config.cannotFreezeAbilityTypes[victimAbilityType] then
+		if config.cannotPetrifyAbilityTypes and config.cannotPetrifyAbilityTypes[victimAbilityType] then
 			return
 		end
 	end
 	if config.collisionFlag then
-		stateService:ApplyFlag(victim, config.collisionFlag, config.collisionCCDuration, attacker)
+		stateService:ApplyFlag(victim, config.collisionFlag, config.collisionCCDuration, attacker, {
+			Effect = config.collisionEffect,
+			Material = config.collisionMaterial,
+		})
 	end
 	if config.dotFlag then
 		stateService:ApplyFlag(victim, config.dotFlag, config.dotDuration, attacker, {
+			Effect = config.dotEffect,
 			Stackable = true,
 			MaxStack = config.dotMaxStack,
 			TickInterval = config.dotTickInterval,

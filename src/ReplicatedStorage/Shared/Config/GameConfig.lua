@@ -18,7 +18,7 @@ local GameConfig = {
 	FlagConfig = {
 		Ghost = { Duration = 9999, Priority = 90, BlocksCollision = true, BlocksDamage = true },
 		Invulnerable = { Duration = 5, Priority = 100, BlocksDamage = true, BlocksDot = true },
-		Freeze = { Duration = 1.5, Priority = 80, Stackable = false, InterruptCharge = true },
+		Petrify = { Duration = 1.5, Priority = 80, Stackable = false, InterruptCharge = true },
 		Stun = { Duration = 1, Priority = 70, Stackable = false, InterruptCharge = true },
 		Slow = { Duration = 3, Priority = 50, Stackable = true, MaxStack = 3, SlowAmount = 0.25 },
 		Burn = { Duration = 4, Stackable = true, MaxStack = 3, TickInterval = 1, DamagePerTick = 250 },

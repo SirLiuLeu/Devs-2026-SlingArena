@@ -14,6 +14,7 @@ AbilityConfig.Types = {
 		id = "StunSling",
 		collisionFlag = "Stun",
 		collisionCCDuration = 1,
+		collisionEffect = "Stun",
 	},
 	NormalSling = {
 		id = "NormalSling",
@@ -48,15 +49,18 @@ AbilityConfig.Types = {
 		damageMultiplier = 1.15,
 		reflectDamage = 0.1,
 	},
-	FreezeSling = {
-		id = "FreezeSling",
-		collisionFlag = "Freeze",
+	PetrifyModel = {
+		id = "PetrifyModel",
+		collisionFlag = "Petrify",
 		collisionCCDuration = 1.5,
-		cannotFreezeAbilityTypes = { FireSling = true },
+		collisionEffect = "Frost",
+		collisionMaterial = Enum.Material.Pebble,
+		cannotPetrifyAbilityTypes = { FireSling = true },
 	},
 	FireSling = {
 		id = "FireSling",
 		dotFlag = "Burn",
+		dotEffect = "Fire",
 		dotDamagePerTick = 250,
 		dotTickInterval = 1,
 		dotDuration = 4,
@@ -65,6 +69,7 @@ AbilityConfig.Types = {
 	PoisonSling = {
 		id = "PoisonSling",
 		dotFlag = "Poison",
+		dotEffect = "Poison",
 		dotDamagePerTick = 150,
 		dotTickInterval = 1,
 		dotDuration = 5,
