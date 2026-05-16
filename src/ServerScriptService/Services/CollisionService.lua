@@ -154,6 +154,7 @@ local function updateLaunchFromVelocity(launchState, velocity: Vector3, energy: 
 		launchState.energy = 0
 		launchState.startTime = now
 		launchState.lastSampleTime = now
+		launchState.lastImpactTime = now
 		return
 	end
 
@@ -163,6 +164,7 @@ local function updateLaunchFromVelocity(launchState, velocity: Vector3, energy: 
 	launchState.energy = energy
 	launchState.startTime = now
 	launchState.lastSampleTime = now
+	launchState.lastImpactTime = now
 end
 
 local function isRealHitCandidate(hit, launchA, launchB, stateA, stateB, closingSpeed: number): boolean

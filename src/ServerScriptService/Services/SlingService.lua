@@ -12,6 +12,10 @@ local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local LaunchMotionModel = require(script.Parent.LaunchMotionModel)
 
 local LAUNCH_VALIDATION_GRACE_SECONDS = 0.15
+local LAUNCH_ACCELERATION_RESPONSE_PER_SECOND = 18
+local LAUNCH_DIRECTION_RESPONSE_PER_SECOND = 12
+local LAUNCH_RECOIL_PRESERVE_SECONDS = 0.12
+local LAUNCH_DEFLECTION_DOT_THRESHOLD = 0.65
 
 local SlingService = {}
 SlingService.__index = SlingService
@@ -219,7 +223,7 @@ function SlingService:Init()
 		self._chargeState[player] = nil
 		self._releaseCooldown[player] = nil
 		self._releaseState[player] = nil
-				self._activeLaunches[player] = nil
+		self._activeLaunches[player] = nil
 		self._warnedInvalidRoot[player] = nil
 		self._loggedControllerRoot[player] = nil
 		self._aimTargets[player] = nil
@@ -278,7 +282,7 @@ function SlingService:Start()
 
 	self._heartbeatConnection = RunService.Heartbeat:Connect(function(dt)
 		self:_stepMovement(dt)
-		self:_stepMovementStates()
+		self:_stepMovementStates(dt)
 	end)
 end
 
@@ -457,8 +461,9 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	end
 	self._launchVelocityControllers[player] = velocityControllers
 
-	root:SetNetworkOwner(nil)
-	root.AssemblyLinearVelocity = Vector3.new(launchState.direction.X * launchState.initialSpeed, root.AssemblyLinearVelocity.Y, launchState.direction.Z * launchState.initialSpeed)
+	if root:GetNetworkOwner() ~= player then
+		root:SetNetworkOwner(player)
+	end
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 	self._activeLaunches[player] = launchState
 	warn(string.format("[SlingService] Launch player=%s charge=%.2f speed=%.2f energy=%.2f", player.Name, chargeRatio, launchState.initialSpeed, launchState.energy))
@@ -558,15 +563,11 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		self:_restoreLaunchVelocityControllers(player)
 	end
 	self._warnedInvalidRoot[player] = nil
-	if state.MovementState == "Launching" then
-		root:SetNetworkOwner(nil)
-	else
-		if root:GetNetworkOwner() ~= player then
-			root:SetNetworkOwner(player)
-			if not self._loggedControllerRoot[player] then
-				self._loggedControllerRoot[player] = true
-				warn(string.format("[SlingService] SetNetworkOwner player=%s root=%s", player.Name, root:GetFullName()))
-			end
+	if root:GetNetworkOwner() ~= player then
+		root:SetNetworkOwner(player)
+		if not self._loggedControllerRoot[player] then
+			self._loggedControllerRoot[player] = true
+			warn(string.format("[SlingService] SetNetworkOwner player=%s root=%s", player.Name, root:GetFullName()))
 		end
 	end
 	local movementController = self:_getMovementController(player, root)
@@ -624,7 +625,61 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 	end
 end
 
-function SlingService:_stepMovementStates()
+function SlingService:_applyContinuousLaunchMotion(root: BasePart, launchState: any, now: number, dt: number): Vector3
+	local currentVelocity = root.AssemblyLinearVelocity
+	local horizontalVelocity = Vector3.new(currentVelocity.X, 0, currentVelocity.Z)
+	local currentSpeed = horizontalVelocity.Magnitude
+	local sampledSpeed, sampledEnergy = LaunchMotionModel.Sample(launchState, now, nil)
+	local targetSpeed = math.min(sampledSpeed, math.max(0, launchState.initialSpeed or sampledSpeed))
+	launchState.energy = sampledEnergy
+
+	if sampledEnergy <= 0 or targetSpeed <= PhysicsConfig.Launch.StopSpeed then
+		root.AssemblyLinearVelocity = Vector3.new(0, currentVelocity.Y, 0)
+		launchState.currentSpeed = 0
+		return Vector3.zero
+	end
+
+	local currentDirection = if currentSpeed > 0.001 then horizontalVelocity.Unit else nil
+	local launchDirection = launchState.direction
+	if typeof(launchDirection) ~= "Vector3" or launchDirection.Magnitude < 0.001 then
+		launchDirection = currentDirection or Vector3.new(0, 0, -1)
+	else
+		launchDirection = launchDirection.Unit
+	end
+
+	local lastImpactTime = launchState.lastImpactTime
+	local preserveRecoil = typeof(lastImpactTime) == "number" and (now - lastImpactTime) <= LAUNCH_RECOIL_PRESERVE_SECONDS
+	local deflected = currentDirection ~= nil and currentDirection:Dot(launchDirection) < LAUNCH_DEFLECTION_DOT_THRESHOLD
+	if preserveRecoil or deflected then
+		local preservedVelocity = if currentDirection then currentDirection * targetSpeed else Vector3.zero
+		if currentDirection then
+			launchState.direction = currentDirection
+		end
+		launchState.currentSpeed = targetSpeed
+		return preservedVelocity
+	end
+
+	local directionAlpha = 1 - math.exp(-LAUNCH_DIRECTION_RESPONSE_PER_SECOND * math.max(dt, 0))
+	local speedAlpha = 1 - math.exp(-LAUNCH_ACCELERATION_RESPONSE_PER_SECOND * math.max(dt, 0))
+	local desiredDirection = launchDirection
+	if currentDirection then
+		desiredDirection = currentDirection:Lerp(launchDirection, directionAlpha)
+		if desiredDirection.Magnitude > 0.001 then
+			desiredDirection = desiredDirection.Unit
+		else
+			desiredDirection = launchDirection
+		end
+	end
+
+	local nextSpeed = currentSpeed + ((targetSpeed - currentSpeed) * speedAlpha)
+	local nextVelocity = desiredDirection * nextSpeed
+	root.AssemblyLinearVelocity = Vector3.new(nextVelocity.X, currentVelocity.Y, nextVelocity.Z)
+	launchState.direction = desiredDirection
+	launchState.currentSpeed = targetSpeed
+	return nextVelocity
+end
+
+function SlingService:_stepMovementStates(dt: number)
 	for _, player in self:_getTrackedPlayers() do
 		local state = self._context.Services.PlayerStateService:GetState(player)
 		local root = self._context.Services.PlayerService:GetRoot(player)
@@ -633,16 +688,7 @@ function SlingService:_stepMovementStates()
 			local launchState = self._activeLaunches[player]
 			local horizontalVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
 			if state.MovementState == "Launching" and launchState then
-				local speed, sampledEnergy = LaunchMotionModel.Sample(launchState, now, horizontalVelocity)
-				launchState.currentSpeed = speed
-				launchState.energy = sampledEnergy
-				if speed > PhysicsConfig.Launch.StopSpeed and horizontalVelocity.Magnitude > 0.001 then
-					local decayedVelocity = horizontalVelocity.Unit * speed
-					root.AssemblyLinearVelocity = Vector3.new(decayedVelocity.X, root.AssemblyLinearVelocity.Y, decayedVelocity.Z)
-					launchState.direction = decayedVelocity.Unit
-				else
-					root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
-				end
+				horizontalVelocity = self:_applyContinuousLaunchMotion(root, launchState, now, dt)
 			end
 
 			local horizontal = horizontalVelocity.Magnitude
