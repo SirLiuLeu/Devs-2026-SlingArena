@@ -12,7 +12,7 @@ local PhysicsConfig = {
 	},
 
 	Movement = {
-		MoveSpeed = 75,
+		MoveSpeed = 35,
 		MaxForce = 1000,
 		InputDeadzone = 0.001,
 		AimDeadzone = 0.01,
@@ -50,7 +50,7 @@ local PhysicsConfig = {
 		EnergyMax = 120,
 
 		-- Single authoritative multiplicative launch speed decay.
-		DecayPerSecond = 0.18,
+		DecayPerSecond = 0,
 
 		-- Launch enters recovery once horizontal speed reaches this threshold.
 		StopSpeed = 2.0,
