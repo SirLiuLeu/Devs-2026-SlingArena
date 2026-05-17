@@ -18,9 +18,6 @@ local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local HIT_EPSILON = PhysicsConfig.Collision.Range
 local REPORT_COOLDOWN = PhysicsConfig.Collision.ReportCooldown
 local MIN_REPORT_SPEED = PhysicsConfig.Collision.MinReportSpeed
-local IMPACT_ABSORPTION = 0.6
-local HITSTOP_SECONDS = 0.05
-local BOUNCE_RETENTION = 0.7
 local LAUNCH_SCAN_GRACE_SECONDS = 0.25
 local PREDICTED_LAUNCH_SCAN_SECONDS = 0.35
 local EXISTING_VELOCITY_SCAN_SECONDS = 0.1
@@ -135,19 +132,6 @@ local function getTrapPartFromHit(part: Instance): BasePart?
 	return nil
 end
 
-local function applyPredictedLaunchFeel(root: BasePart, normal: Vector3)
-	local velocity = root.AssemblyLinearVelocity
-	local compressed = velocity * IMPACT_ABSORPTION
-	root.AssemblyLinearVelocity = compressed
-	task.delay(HITSTOP_SECONDS, function()
-		if not root.Parent then
-			return
-		end
-		local reflected = compressed - (2 * compressed:Dot(normal) * normal)
-		root.AssemblyLinearVelocity = reflected * BOUNCE_RETENTION
-	end)
-end
-
 local function getNearbyFood(position: Vector3): { Model }
 	local out = {}
 	local foodContainers = workspace:FindFirstChild("Maps")
@@ -212,8 +196,6 @@ local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitT
 	end
 	lastHit[cooldownKey] = now + REPORT_COOLDOWN
 	markFoodPredicted(food, rarity)
-	local normal = (root.Position - hitbox.Position).Magnitude > 0.001 and (root.Position - hitbox.Position).Unit or Vector3.new(0, 0, -1)
-	applyPredictedLaunchFeel(root, normal)
 	reportFoodRemote:FireServer({
 		foodId = foodId,
 		hitType = hitType,

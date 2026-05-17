@@ -134,6 +134,37 @@ function SlingService:_restoreLaunchVelocityControllers(player: Player)
 	self._launchVelocityControllers[player] = nil
 end
 
+function SlingService:_prepareRootForLaunch(player: Player, root: BasePart)
+	local movementController = self._movementControllers[player]
+	if movementController then
+		movementController:DisableLocomotion(true)
+	end
+
+	self:_restoreLaunchVelocityControllers(player)
+	local velocityControllers = {}
+	for _, controller in ipairs(root:GetDescendants()) do
+		if controller:IsA("LinearVelocity") then
+			table.insert(velocityControllers, {
+				instance = controller,
+				enabled = controller.Enabled,
+			})
+			if controller.VelocityConstraintMode == Enum.VelocityConstraintMode.Plane then
+				controller.PlaneVelocity = Vector2.zero
+			elseif controller.VelocityConstraintMode == Enum.VelocityConstraintMode.Line then
+				controller.LineVelocity = 0
+			else
+				controller.VectorVelocity = Vector3.zero
+			end
+			controller.Enabled = false
+		end
+	end
+	self._launchVelocityControllers[player] = velocityControllers
+
+	-- Keep launch and transferred recoil server-authoritative so all clients see the
+	-- same collision result, and so client-owned locomotion constraints cannot fight it.
+	root:SetNetworkOwner(nil)
+end
+
 function SlingService:_getTrackedPlayers(): { any }
 	local trackedPlayers = {}
 	local seen = {}
@@ -264,6 +295,14 @@ end
 
 function SlingService:SetLaunchState(player: Player, launchState: any?)
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
+	local root = self._context.Services.PlayerService:GetRoot(player)
+	if root then
+		if launchState then
+			self:_prepareRootForLaunch(player, root)
+		else
+			self:_restoreLaunchVelocityControllers(player)
+		end
+	end
 	self._activeLaunches[player] = launchState
 end
 
@@ -444,29 +483,7 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	local now = os.clock()
 	local launchState = LaunchMotionModel.BuildState(launchDirectionPlanar, chargeRatio, now, player)
 
-	-- Disable locomotion actuator so WASD doesn't fight launch momentum.
-	local movementController = self._movementControllers[player]
-	if movementController then
-		movementController:DisableLocomotion(true)
-	end
-
-	-- Save and disable any pre-existing LinearVelocity constraints.
-	self:_restoreLaunchVelocityControllers(player)
-	local velocityControllers = {}
-	for _, controller in ipairs(root:GetDescendants()) do
-		if controller:IsA("LinearVelocity") then
-			table.insert(velocityControllers, {
-				instance = controller,
-				enabled = controller.Enabled,
-			})
-			controller.VectorVelocity = Vector3.zero
-			controller.Enabled = false
-		end
-	end
-	self._launchVelocityControllers[player] = velocityControllers
-
-	-- Server takes physics ownership during launch so collision resolution is authoritative.
-	root:SetNetworkOwner(nil)
+	self:_prepareRootForLaunch(player, root)
 
 	-- Stamp the initial velocity. This is the ONLY direct AssemblyLinearVelocity write
 	-- at launch start. After this, _stepMovementStates() decays speed but no longer
@@ -697,16 +714,25 @@ function SlingService:_stepMovementStates()
 				-- collision normals, wall reflections, etc.) and only controls magnitude.
 				local scale = targetSpeed / horizontalSpeed
 				local scaledHorizontal = horizontalVelocity * scale
-				root.AssemblyLinearVelocity = Vector3.new(
+				local nextVelocity = Vector3.new(
 					scaledHorizontal.X,
 					fullVelocity.Y,
 					scaledHorizontal.Z
 				)
+				root.AssemblyLinearVelocity = nextVelocity
+				fullVelocity = nextVelocity
+				horizontalVelocity = scaledHorizontal
+				horizontalSpeed = scaledHorizontal.Magnitude
 				launchState.direction = horizontalVelocity.Unit
 			else
 				-- No horizontal movement — zero it cleanly.
-				root.AssemblyLinearVelocity = Vector3.new(0, fullVelocity.Y, 0)
+				local nextVelocity = Vector3.new(0, fullVelocity.Y, 0)
+				root.AssemblyLinearVelocity = nextVelocity
+				fullVelocity = nextVelocity
+				horizontalVelocity = Vector3.zero
+				horizontalSpeed = 0
 			end
+			state.CurrentVelocity = fullVelocity
 		end
 
 		-- CHANGED: StopSpeed raised from 0.5 → 2 (from PhysicsConfig.Launch.StopSpeed).

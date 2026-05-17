@@ -30,6 +30,7 @@ end
 function CollisionService:Init()
 	RunService.Heartbeat:Connect(function(dt)
 		self:_applyDragAndBounce(dt)
+		self:_resolvePlayerCollisions(self:_detectPlayerCollisions())
 	end)
 	self:_bindClientCollisionReports()
 end
@@ -208,6 +209,18 @@ local function applyHorizontalVelocity(root: BasePart, horizontal: Vector3)
 	root.AssemblyLinearVelocity = Vector3.new(clamped.X, root.AssemblyLinearVelocity.Y, clamped.Z)
 end
 
+local function reflectHorizontalVelocity(velocity: Vector3, normal: Vector3): Vector3
+	if velocity.Magnitude <= PhysicsConfig.Collision.MinPostCollisionSpeed then
+		return Vector3.zero
+	end
+	local unitNormal = if normal.Magnitude > 0.001 then normal.Unit else -velocity.Unit
+	local normalComponent = unitNormal * velocity:Dot(unitNormal)
+	local tangentComponent = velocity - normalComponent
+	local reflected = (tangentComponent * PhysicsConfig.Collision.TangentialDamping)
+		- (normalComponent * PhysicsConfig.Collision.Restitution)
+	return reflected * (1 - PhysicsConfig.Collision.CollisionEnergyLossRatio)
+end
+
 local function updateLaunchFromVelocity(launchState, velocity: Vector3, energy: number, now: number)
 	local speed = velocity.Magnitude
 	if speed <= PhysicsConfig.Collision.MinPostCollisionSpeed or energy <= 0 then
@@ -332,12 +345,6 @@ function CollisionService:_resolvePlayerCollisions(candidates)
 		local vaOut, vbOut, impactSpeed, tangentVelocity =
 			resolveBilliardsVelocity(va, vb, hit.normal, massA, massB)
 
-		-- Write post-collision velocities to both pawns.
-		-- SlingService will pick these up on the next frame and decay
-		-- their speed while preserving this new direction.
-		applyHorizontalVelocity(hit.rootA, vaOut)
-		applyHorizontalVelocity(hit.rootB, vbOut)
-
 		local attacker, defender, attackerLaunch, defenderLaunch, impactNormal =
 			chooseAttacker(hit.playerA, hit.playerB, launchA, launchB, hit.normal, va, vb)
 		if not attackerLaunch then
@@ -386,6 +393,12 @@ function CollisionService:_resolvePlayerCollisions(candidates)
 				stateService:SetMovementState(defender, "Launching")
 			end
 		end
+
+		-- Write post-collision velocities after transferred launch state is prepared.
+		-- That disables locomotion constraints and takes server ownership before the
+		-- velocity is stamped, so recoil is not immediately fought by normal movement.
+		applyHorizontalVelocity(hit.rootA, vaOut)
+		applyHorizontalVelocity(hit.rootB, vbOut)
 
 		self._context.EventBus:Fire("CollisionDetected", "Sling", attacker, defender, {
 			Speed = impactSpeed,
@@ -494,17 +507,18 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		return
 	end
 
-	-- Use the collision normal (from server-computed hit direction) for
-	-- bounce direction rather than arbitrary velocity reversal.
+	-- Use the collision normal (from server-computed hit direction) for a
+	-- true reflection. The previous client-report path only damped the
+	-- attacker's existing velocity, so the attacker could keep sliding into
+	-- the defender instead of visibly bouncing away.
 	local transferSpeed = math.clamp(
 		impactSpeed * PhysicsConfig.Collision.EnergyTransferRatio,
 		0, PhysicsConfig.Collision.MaxPostCollisionSpeed
 	)
 	local defenderOut = normal * transferSpeed
-	local attackerOut = attackerVelocity * (1 - PhysicsConfig.Collision.CollisionEnergyLossRatio)
+	local attackerOut = reflectHorizontalVelocity(attackerVelocity, normal)
 
 	applyHorizontalVelocity(root, attackerOut)
-	applyHorizontalVelocity(targetRoot, defenderOut)
 
 	updateLaunchFromVelocity(
 		launchState,
@@ -518,19 +532,25 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	if transferEnergy >= PhysicsConfig.Collision.MinTransferEnergy
 		and defenderOut.Magnitude > PhysicsConfig.Collision.MinPostCollisionSpeed
 	then
-		slingService:SetLaunchState(defender, {
-			direction = defenderOut.Unit,
-			initialSpeed = defenderOut.Magnitude,
-			currentSpeed = defenderOut.Magnitude,
-			energy = transferEnergy,
-			startTime = now,
-			lastSampleTime = now,
-			chargeRatio = 0,
-			collisions = launchState.collisions,
-			sourcePlayer = player,
-		})
+		local defenderLaunch = slingService:GetLaunchState(defender)
+		if defenderLaunch then
+			updateLaunchFromVelocity(defenderLaunch, defenderOut, math.max(defenderLaunch.energy or 0, transferEnergy), now)
+		else
+			slingService:SetLaunchState(defender, {
+				direction = defenderOut.Unit,
+				initialSpeed = defenderOut.Magnitude,
+				currentSpeed = defenderOut.Magnitude,
+				energy = transferEnergy,
+				startTime = now,
+				lastSampleTime = now,
+				chargeRatio = 0,
+				collisions = launchState.collisions,
+				sourcePlayer = player,
+			})
+		end
 		stateService:SetMovementState(defender, "Launching")
 	end
+	applyHorizontalVelocity(targetRoot, defenderOut)
 
 	self._context.EventBus:Fire("CollisionDetected", "Sling", player, defender, {
 		Speed = impactSpeed,

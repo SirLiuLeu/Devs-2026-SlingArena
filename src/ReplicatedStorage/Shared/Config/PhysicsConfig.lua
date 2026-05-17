@@ -33,7 +33,7 @@ local PhysicsConfig = {
 	},
 
 	Launch = {
-		SpeedMin = 6,
+		SpeedMin = 2,
 		SpeedMax = 70,
 		InitialVelocityCap = 70,
 		EnergyMin = 18,
@@ -54,8 +54,6 @@ local PhysicsConfig = {
 
 		-- Kept for damage / force-transfer math; no longer drives movement.
 		PassiveEnergyDecayPerSecond = 0.035,
-		EnergyMin = 18,
-		EnergyMax = 120,
 
 		-- CHANGED: Fixed recovery duration instead of using launch duration.
 		-- Old: recovery = however long the launch lasted (punishing on full-charge).
