@@ -1,7 +1,6 @@
 --!strict
 
 local SlingshotConfig = {
-	BaseLaunchForce = 900,
 	SlingConfig = {
 		MaxHP = 1000,
 		BaseDamage = 211000,

@@ -8,14 +8,13 @@ local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
 local moveRequestRemote = remotes:WaitForChild(RemoteContracts.Names.MoveRequest) :: RemoteEvent
 local slingPawns = Workspace:WaitForChild("SlingPawns")
 
-local SEND_INTERVAL_SECONDS = 1 / 20
-local MOBILE_DEADZONE = 0.15
 
 local keyboardState = {
 	[Enum.KeyCode.W] = false,
@@ -51,7 +50,7 @@ local function composeInput2D(): Vector2
 	if output.Magnitude > 1 then
 		return output.Unit
 	end
-	if output.Magnitude < MOBILE_DEADZONE then
+	if output.Magnitude < PhysicsConfig.Movement.MobileDeadzone then
 		return Vector2.zero
 	end
 	return output
@@ -70,7 +69,7 @@ local function computeAimDirection(): Vector3?
 	local joystickAim = player:GetAttribute("SlingAimDirection")
 	if typeof(joystickAim) == "Vector3" then
 		local planarJoystickAim = Vector3.new(joystickAim.X, 0, joystickAim.Z)
-		if planarJoystickAim.Magnitude >= 0.001 then
+		if planarJoystickAim.Magnitude >= PhysicsConfig.Movement.InputDeadzone then
 			return planarJoystickAim.Unit
 		end
 	end
@@ -81,7 +80,7 @@ local function computeAimDirection(): Vector3?
 	end
 
 	local planarLook = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
-	if planarLook.Magnitude < 0.001 then
+	if planarLook.Magnitude < PhysicsConfig.Movement.InputDeadzone then
 		return Vector3.new(0, 0, -1)
 	end
 	return planarLook.Unit
@@ -147,7 +146,7 @@ end)
 
 RunService.RenderStepped:Connect(function()
 	local now = os.clock()
-	if now - lastSentAt < SEND_INTERVAL_SECONDS then
+	if now - lastSentAt < PhysicsConfig.Movement.MoveSendInterval then
 		return
 	end
 

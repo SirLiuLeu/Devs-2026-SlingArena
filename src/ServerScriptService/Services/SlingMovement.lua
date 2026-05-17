@@ -64,15 +64,12 @@ end
 function SlingMovement:Move(direction: Vector3, _dt: number?)
 	local planarInput = Vector3.new(direction.X, 0, direction.Z)
 	local desiredVelocity = Vector3.zero
-	if planarInput.Magnitude > 0.001 then
+	if planarInput.Magnitude > PhysicsConfig.Movement.InputDeadzone then
 		desiredVelocity = planarInput.Unit * self._speed
 	end
 
 	self._linearVelocity.PlaneVelocity = Vector2.new(desiredVelocity.X, desiredVelocity.Z)
-	self._linearVelocity.Enabled = desiredVelocity.Magnitude > 0.001
-	if self._linearVelocity.Enabled then
-		warn(string.format("[SlingMovement] LinearVelocity enabled speed=%.2f", desiredVelocity.Magnitude))
-	end
+	self._linearVelocity.Enabled = desiredVelocity.Magnitude > PhysicsConfig.Movement.InputDeadzone
 end
 
 function SlingMovement:Stop()
@@ -92,7 +89,11 @@ function SlingMovement:DisableLocomotion(preserveMomentum: boolean?)
 
 	local rootVelocity = self._root.AssemblyLinearVelocity
 	local planar = Vector3.new(rootVelocity.X, 0, rootVelocity.Z)
-	self._root.AssemblyLinearVelocity = Vector3.new(planar.X * 0.25, rootVelocity.Y, planar.Z * 0.25)
+	self._root.AssemblyLinearVelocity = Vector3.new(
+		planar.X * PhysicsConfig.Movement.PreservedMomentumScale,
+		rootVelocity.Y,
+		planar.Z * PhysicsConfig.Movement.PreservedMomentumScale
+	)
 end
 
 function SlingMovement:Destroy()

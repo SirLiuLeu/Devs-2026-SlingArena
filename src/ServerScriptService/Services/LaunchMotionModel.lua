@@ -8,12 +8,12 @@ local LaunchMotionModel = {}
 
 function LaunchMotionModel.ComputeChargeRatio(startedAt: number, now: number): number
 	local elapsed = math.max(0, now - startedAt)
-	local chargeWindow = math.max(0.001, PhysicsConfig.Charge.MaxSeconds)
+	local chargeWindow = math.max(PhysicsConfig.Charge.MinWindowSeconds, PhysicsConfig.Charge.MaxSeconds)
 	return math.clamp(elapsed / chargeWindow, 0, 1)
 end
 
 function LaunchMotionModel.BuildState(direction: Vector3, chargeRatio: number, now: number, sourcePlayer: Player?): any
-	local d = if direction.Magnitude > 0.001 then direction.Unit else Vector3.new(0, 0, -1)
+	local d = if direction.Magnitude > PhysicsConfig.Launch.DirectionDeadzone then direction.Unit else Vector3.new(0, 0, -1)
 	local uncappedSpeed = PhysicsConfig.Launch.SpeedMin
 		+ ((PhysicsConfig.Launch.SpeedMax - PhysicsConfig.Launch.SpeedMin) * chargeRatio)
 	local speed = math.min(uncappedSpeed, PhysicsConfig.Launch.InitialVelocityCap or PhysicsConfig.Launch.SpeedMax)
@@ -33,22 +33,9 @@ function LaunchMotionModel.BuildState(direction: Vector3, chargeRatio: number, n
 end
 
 --[[
-	CHANGED: Single-decay authority.
-
-	Old behaviour (two problems):
-	  1. This function applied VelocityDecayPerSecond = 0.12 to speed.
-	  2. CollisionService._applyDragAndBounce() applied LinearDragPerSecond = 0.08
-	     to every alive player every Heartbeat, including Launching ones.
-	  Both ran simultaneously → compounded deceleration, unpredictable feel.
-
-	New behaviour:
-	  - Speed decays by DecayPerSecond = 0.18 (multiplicative, single source).
-	  - CollisionService now skips drag for Launching players entirely.
-	  - Energy still decays separately for combat math only; it no longer drives movement.
-	  - Returns (speed, energy, elapsed) — same signature as before.
-
-	Callers: SlingService._stepMovementStates() reads speed to drive velocity.
-	         DamagePipelineService reads energy for damage calculation.
+	Launch sampling is the single source of launch decay. It uses
+	PhysicsConfig.Launch.DecayPerSecond for speed, while energy decays separately
+	for combat math and never drives movement directly.
 ]]
 function LaunchMotionModel.Sample(state: any, now: number, currentVelocity: Vector3?): (number, number, number)
 	local lastSampleTime = state.lastSampleTime or state.startTime or now

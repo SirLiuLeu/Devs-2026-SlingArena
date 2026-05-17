@@ -14,6 +14,13 @@ local PhysicsConfig = {
 	Movement = {
 		MoveSpeed = 75,
 		MaxForce = 1000,
+		InputDeadzone = 0.001,
+		AimDeadzone = 0.01,
+		MoveRequestCooldown = 0.03,
+		MoveSendInterval = 0.05,
+		MobileDeadzone = 0.15,
+		SlowPerStack = 0.25,
+		PreservedMomentumScale = 0.25,
 	},
 
 	World = {
@@ -30,37 +37,30 @@ local PhysicsConfig = {
 
 	Charge = {
 		MaxSeconds = 1.4,
+		MinWindowSeconds = 0.001,
+		MaxChargeRatioThreshold = 0.999,
 	},
 
 	Launch = {
+		DirectionDeadzone = 0.01,
 		SpeedMin = 6,
 		SpeedMax = 70,
 		InitialVelocityCap = 70,
 		EnergyMin = 18,
 		EnergyMax = 120,
 
-		-- CHANGED: Single authoritative decay for launch speed.
-		-- Old system had two sources: VelocityDecayPerSecond (0.12) in LaunchMotionModel
-		-- AND LinearDragPerSecond (0.08) in CollisionService firing simultaneously.
-		-- Now only LaunchMotionModel owns decay during Launching state.
-		-- CollisionService skips drag for Launching players (see CollisionService change).
-		-- Rate: multiplicative per second. 0.18 gives a natural slow-down arc
-		-- from max 70 → threshold 2 in roughly 2.5–3 seconds.
+		-- Single authoritative multiplicative launch speed decay.
 		DecayPerSecond = 0.18,
 
-		-- CHANGED: Raised from 0.5 → 2. Old value caused a long slow drift tail
-		-- before the stop committed. 2 gives a clean, readable stop moment.
+		-- Launch enters recovery once horizontal speed reaches this threshold.
 		StopSpeed = 2.0,
 
 		-- Kept for damage / force-transfer math; no longer drives movement.
 		PassiveEnergyDecayPerSecond = 0.035,
-		EnergyMin = 18,
-		EnergyMax = 120,
 
-		-- CHANGED: Fixed recovery duration instead of using launch duration.
-		-- Old: recovery = however long the launch lasted (punishing on full-charge).
-		-- New: always 0.4 s. Feels snappy, consistent, and not punishing.
+		-- Fixed recovery duration after launch stops.
 		RecoveryDuration = 0.4,
+		ValidationGraceSeconds = 0.15,
 	},
 
 	Collision = {
@@ -70,11 +70,13 @@ local PhysicsConfig = {
 		MaxAllowedSpeed = 450,
 		ReportCooldown = 0.05,
 		MinReportSpeed = 1,
+		FoodHitMinHorizontalSpeed = 1,
 		SphereCastRadiusPadding = 0.75,
 		SphereCastDistancePadding = 2.5,
 		CandidateDistanceFactor = 0.25,
 		CandidateExtraPadding = 0.35,
 		Cooldown = 0.28,
+		TrapCooldown = 0.25,
 		RealHitMinClosingSpeed = 5.5,
 		MinLaunchEnergy = 5,
 
@@ -87,6 +89,7 @@ local PhysicsConfig = {
 		MinTransferEnergy = 7,
 		MinPostCollisionSpeed = 1.25,
 		MaxPostCollisionSpeed = 125,
+		MinMass = 0.001,
 	},
 
 	Damage = {

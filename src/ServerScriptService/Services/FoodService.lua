@@ -23,8 +23,6 @@ local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
 local MAX_ALLOWED_SPEED = PhysicsConfig.Collision.MaxAllowedSpeed
 local HIT_REQUEST_COOLDOWN = PhysicsConfig.Collision.ReportCooldown
-local HP_FOOD_MIN_HORIZONTAL_SPEED = 1
-local LAUNCH_VALIDATION_GRACE_SECONDS = 0.15
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local COMMON_ALLOWED_STATES = {
@@ -38,7 +36,9 @@ local function isLaunchHitValidationActive(player: Player, movementState: string
 		return true
 	end
 	local graceEndsAt = player:GetAttribute("LaunchValidationGraceEndsAt")
-	return typeof(graceEndsAt) == "number" and os.clock() <= graceEndsAt and os.clock() >= graceEndsAt - LAUNCH_VALIDATION_GRACE_SECONDS
+	return typeof(graceEndsAt) == "number"
+		and os.clock() <= graceEndsAt
+		and os.clock() >= graceEndsAt - PhysicsConfig.Launch.ValidationGraceSeconds
 end
 
 local REQUIRED_FOOD_MODELS = {
@@ -484,7 +484,9 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	end
 	local horizontalSpeed = flattenXZ(root.AssemblyLinearVelocity).Magnitude
 	if (not rule.Touch) and entry.MaxHP > 0 then
-		if not isLaunchHitValidationActive(player, movementState) or horizontalSpeed < HP_FOOD_MIN_HORIZONTAL_SPEED then
+		if not isLaunchHitValidationActive(player, movementState)
+				or horizontalSpeed < PhysicsConfig.Collision.FoodHitMinHorizontalSpeed
+			then
 			print(string.format("[FoodService] Validation failed: Player movement state %s with horizontal speed %.2f does not meet requirements for hitting foodId=%s", tostring(movementState), horizontalSpeed, tostring(payload.foodId)))
 			return false
 		end

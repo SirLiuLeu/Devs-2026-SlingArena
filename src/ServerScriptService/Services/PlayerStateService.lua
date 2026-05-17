@@ -9,6 +9,7 @@ local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
 local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
 local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
+local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 
@@ -86,10 +87,10 @@ local function buildDefaultState(player: Player): PlayerState
 		BaseDamage = sling.BaseDamage,
 		RegenRate = sling.RegenPerSecond,
 		ReflectDamage = sling.ReflectDamagePercent,
-		LaunchSpeed = SlingshotConfig.BaseLaunchForce,
+		LaunchSpeed = PhysicsConfig.Launch.SpeedMax,
 		LaunchRange = sling.MaxShootRange,
 		ChargeSpeed = 1,
-		MoveSpeed = BalanceConfig.DefaultWalkSpeed,
+		MoveSpeed = PhysicsConfig.Movement.MoveSpeed,
 		DamageMultiplier = 1,
 		HPBonus = 0,
 		LaunchSpeedBonus = 0,
@@ -437,10 +438,10 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	state.DamageMultiplier = abilityConfig and abilityConfig.damageMultiplier or 1
 	state.RegenRate = sling.RegenPerSecond * (slingStats.regen or 1) * (abilityConfig and abilityConfig.regenMultiplier or 1) * levelMultiplier
 	state.ReflectDamage = math.max(sling.ReflectDamagePercent, abilityConfig and abilityConfig.reflectDamage or 0)
-	state.LaunchSpeed = SlingshotConfig.BaseLaunchForce * (slingStats.launchPower or 1) * levelMultiplier
+	state.LaunchSpeed = PhysicsConfig.Launch.SpeedMax * (slingStats.launchPower or 1) * levelMultiplier
 	state.LaunchRange = sling.MaxShootRange * (slingStats.control or 1) * levelMultiplier
 	state.ChargeSpeed = 1
-	state.MoveSpeed = (slingStats.speed or BalanceConfig.DefaultWalkSpeed) * (abilityConfig and abilityConfig.moveSpeedMultiplier or 1) * levelMultiplier
+	state.MoveSpeed = PhysicsConfig.Movement.MoveSpeed * (abilityConfig and abilityConfig.moveSpeedMultiplier or 1) * levelMultiplier
 	state.Armor = math.clamp((slingStats.armor or 0) + (abilityConfig and abilityConfig.armor or 0), 0, 0.8)
 	state.ExpBonus = abilityConfig and abilityConfig.expBonus or 0
 

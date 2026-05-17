@@ -1,7 +1,6 @@
 --!strict
 
 local BalanceConfig = {
-	TrapCollisionCooldown = 0.25,
 	MaxDamagePerHit = 350,
 	MaxVelocity = 170,
 	SizeDamageFactor = 0.75,
@@ -17,7 +16,6 @@ local BalanceConfig = {
 	AttributeCapPerStat = 20,
 	DefaultInvulnerableSeconds = 1.0,
 	HitInvulSeconds = 0.25,
-	DefaultWalkSpeed = 16,
 	BaseSize = 1,
 	LevelGrowthMultiplier = 0.08,
 	BaseHP = 100,
