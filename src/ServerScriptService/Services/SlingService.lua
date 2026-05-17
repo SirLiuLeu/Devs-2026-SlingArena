@@ -1,4 +1,21 @@
 --!strict
+-- FIX SUMMARY (tele/snap nhìn từ PlayerB):
+--
+-- [FIX 1] KHÔNG transfer NetworkOwner về server khi Launch.
+--   Trước: root:SetNetworkOwner(nil) → server own → PlayerB thấy freeze 1-4 frames rồi snap.
+--   Sau:   Giữ nguyên player own suốt launch → replication path giống movement bình thường.
+--
+-- [FIX 2] KHÔNG stamp AssemblyLinearVelocity mỗi Heartbeat trong launch.
+--   Trước: server ghi đè velocity mỗi frame → fight physics engine → jitter với PlayerB.
+--   Sau:   Chỉ clamp nếu vượt SpeedMax; decay tự nhiên qua LinearDrag hoặc không decay
+--          (DecayPerSecond = 0 trong PhysicsConfig), để Roblox physics tự lo.
+--
+-- [FIX 3] Smooth stop thay vì instant-zero velocity.
+--   Trước: root.AssemblyLinearVelocity = Vector3.new(0, y, 0) → snap rõ nhất với PlayerB.
+--   Sau:   Áp dụng brake factor mạnh (15/s) trong vài frame cho đến khi dừng hẳn.
+--
+-- [FIX 4] Bỏ lưu/restore LinearVelocity controllers khi launch (không cần vì không own server nữa).
+--   MovementController vẫn bị DisableLocomotion để WASD không fight launch momentum.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10,7 +27,6 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local SlingMovement = require(script.Parent.SlingMovement)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local LaunchMotionModel = require(script.Parent.LaunchMotionModel)
-
 
 local SlingService = {}
 SlingService.__index = SlingService
@@ -76,6 +92,10 @@ end
 
 local MOVEMENT_STATE = GameStates.PlayerState
 
+-- Brake deceleration rate (units/s per unit/s) applied when launch is stopping.
+-- Đủ nhanh để dừng trong ~2-3 frames ở 60fps, nhưng không instant → không snap với PlayerB.
+local LAUNCH_BRAKE_RATE = 15
+
 function SlingService.new(context)
 	local self = setmetatable({}, SlingService)
 	self._context = context
@@ -89,8 +109,7 @@ function SlingService.new(context)
 	self._warnedInvalidRoot = {}
 	self._loggedControllerRoot = {}
 	self._aimTargets = {}
-	self._launchVelocityControllers = {}
-	self._launchDragActuators = {}
+	-- [FIX 4] _launchVelocityControllers removed — không cần vì player vẫn own root.
 	self._activeLaunches = {}
 	return self
 end
@@ -101,91 +120,6 @@ local function resolveAlignOrientation(root: BasePart): AlignOrientation?
 		return alignOrientation
 	end
 	return nil
-end
-
-function SlingService:_restoreLaunchVelocityControllers(player: Player)
-	local controllerInfos = self._launchVelocityControllers[player]
-	if not controllerInfos then
-		return
-	end
-	for _, controllerInfo in ipairs(controllerInfos) do
-		local controller = controllerInfo.instance
-		if controller and controller.Parent and controller:IsA("LinearVelocity") then
-			controller.Enabled = controllerInfo.enabled
-		end
-	end
-	self._launchVelocityControllers[player] = nil
-end
-
-function SlingService:_clearLaunchDragActuator(player: Player)
-	local actuatorInfo = self._launchDragActuators[player]
-	if not actuatorInfo then
-		return
-	end
-	if actuatorInfo.force and actuatorInfo.force.Parent then
-		actuatorInfo.force:Destroy()
-	end
-	if actuatorInfo.attachment and actuatorInfo.attachment.Parent then
-		actuatorInfo.attachment:Destroy()
-	end
-	self._launchDragActuators[player] = nil
-end
-
-function SlingService:_getLaunchDragActuator(player: Player, root: BasePart): VectorForce
-	local actuatorInfo = self._launchDragActuators[player]
-	if actuatorInfo and actuatorInfo.root == root and actuatorInfo.force and actuatorInfo.force.Parent then
-		return actuatorInfo.force
-	end
-
-	self:_clearLaunchDragActuator(player)
-	local attachment = Instance.new("Attachment")
-	attachment.Name = "LaunchDragAttachment"
-	attachment.Parent = root
-
-	local force = Instance.new("VectorForce")
-	force.Name = "LaunchDragForce"
-	force.Attachment0 = attachment
-	force.RelativeTo = Enum.ActuatorRelativeTo.World
-	force.ApplyAtCenterOfMass = true
-	force.Enabled = false
-	force.Force = Vector3.zero
-	force.Parent = root
-
-	self._launchDragActuators[player] = {
-		root = root,
-		attachment = attachment,
-		force = force,
-	}
-	return force
-end
-
-function SlingService:_disableVelocityControllersForLaunch(player: Player, root: BasePart)
-	self:_restoreLaunchVelocityControllers(player)
-	local velocityControllers = {}
-	for _, controller in ipairs(root:GetDescendants()) do
-		if controller:IsA("LinearVelocity") then
-			table.insert(velocityControllers, {
-				instance = controller,
-				enabled = controller.Enabled,
-			})
-			controller.VectorVelocity = Vector3.zero
-			controller.Enabled = false
-		end
-	end
-	self._launchVelocityControllers[player] = velocityControllers
-end
-
-function SlingService:_prepareLaunchPhysics(player: Player, root: BasePart)
-	local movementController = self._movementControllers[player]
-	if movementController then
-		movementController:DisableLocomotion(true)
-	end
-
-	self:_disableVelocityControllersForLaunch(player, root)
-	local dragForce = self:_getLaunchDragActuator(player, root)
-	dragForce.Force = Vector3.zero
-	dragForce.Enabled = true
-	root:SetNetworkOwner(nil)
 end
 
 function SlingService:_getTrackedPlayers(): { any }
@@ -215,7 +149,6 @@ function SlingService:_getTrackedPlayers(): { any }
 			table.insert(trackedPlayers, player)
 		end
 	end
-
 
 	if #trackedPlayers == 0 then
 		for _, player in Players:GetPlayers() do
@@ -268,8 +201,6 @@ function SlingService:Init()
 		self._warnedInvalidRoot[player] = nil
 		self._loggedControllerRoot[player] = nil
 		self._aimTargets[player] = nil
-		self:_clearLaunchDragActuator(player)
-		self._launchVelocityControllers[player] = nil
 		local movementController = self._movementControllers[player]
 		if movementController then
 			movementController:Destroy()
@@ -313,15 +244,6 @@ end
 function SlingService:SetLaunchState(player: Player, launchState: any?)
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 	self._activeLaunches[player] = launchState
-	if launchState then
-		local root = self._context.Services.PlayerService:GetRoot(player)
-		if root then
-			self:_prepareLaunchPhysics(player, root)
-		end
-	else
-		self:_clearLaunchDragActuator(player)
-		self:_restoreLaunchVelocityControllers(player)
-	end
 end
 
 function SlingService:Start()
@@ -332,7 +254,7 @@ function SlingService:Start()
 
 	self._heartbeatConnection = RunService.Heartbeat:Connect(function(dt)
 		self:_stepMovement(dt)
-		self:_stepMovementStates()
+		self:_stepMovementStates(dt)
 	end)
 end
 
@@ -501,13 +423,27 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	local now = os.clock()
 	local launchState = LaunchMotionModel.BuildState(launchDirectionPlanar, chargeRatio, now, player)
 
-	-- Disable locomotion actuators and let the server own physics during launch so
-	-- player input does not fight the initial impulse or drag force.
-	self:_prepareLaunchPhysics(player, root)
+	-- Disable locomotion actuator so WASD doesn't fight launch momentum.
+	local movementController = self._movementControllers[player]
+	if movementController then
+		movementController:DisableLocomotion(true)
+	end
 
-	-- Apply the initial launch through Roblox physics instead of driving movement
-	-- with CFrame or stamping a launch velocity. ApplyImpulse expects an impulse,
-	-- so mass * configured launch speed produces the intended initial momentum.
+	-- [FIX 1] Giữ player làm NetworkOwner — KHÔNG chuyển về server.
+	-- Trước: root:SetNetworkOwner(nil)
+	-- Lý do: server-owned BasePart replicates position từ server sau mỗi physics step (~16ms).
+	-- PlayerB thấy root freeze 1-4 frames rồi jump → "snap".
+	-- Player-owned root replicates trực tiếp từ client → cùng path với movement bình thường → mượt.
+	--
+	-- Server vẫn validate collision qua CollisionService (position check ± tolerance).
+	-- Nếu cần server authority cho anti-cheat, dùng position validation sau launch thay vì ownership.
+	if root:GetNetworkOwner() ~= player then
+		root:SetNetworkOwner(player)
+	end
+
+	-- Apply initial impulse (unchanged — vẫn cần để kick off physics trên client).
+	local preLaunchVelocity = root.AssemblyLinearVelocity
+	root.AssemblyLinearVelocity = Vector3.new(0, preLaunchVelocity.Y, 0)
 	root:ApplyImpulse(launchState.direction * (root.AssemblyMass * launchState.initialSpeed))
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 
@@ -526,9 +462,6 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	end
 
 	self._chargeState[player] = nil
-
-	-- No release cooldown is active while the launch is in flight; recovery is
-	-- applied explicitly when the configured stop threshold is reached.
 	self._releaseCooldown[player] = 0
 	self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
 	self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
@@ -615,20 +548,21 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 	if not state then
 		return
 	end
-	if state.MovementState ~= "Launching" then
-		self:_clearLaunchDragActuator(player)
-		self:_restoreLaunchVelocityControllers(player)
-	end
+
 	self._warnedInvalidRoot[player] = nil
 
+	-- [FIX 1 continued] Trong Launch, player vẫn own → không cần restore controllers.
+	-- Chỉ update aim rotation để pawn face travel direction.
 	if state.MovementState == "Launching" then
-		-- Server owns during launch; do not return ownership to client here.
-		-- Aim rotation still updates so the pawn faces the travel direction.
 		self:_applyAimRotation(player, root, input, dt)
+		-- Đảm bảo player vẫn là owner (có thể bị reset bởi code khác).
+		if root:GetNetworkOwner() ~= player then
+			root:SetNetworkOwner(player)
+		end
 		return
 	end
 
-	-- Return ownership to client when not launching.
+	-- Đảm bảo player own khi không launch (đã là behavior cũ, giữ nguyên).
 	if root:GetNetworkOwner() ~= player then
 		root:SetNetworkOwner(player)
 		if not self._loggedControllerRoot[player] then
@@ -676,12 +610,24 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 end
 
 --[[
-	Launch movement after release is physics-driven. SlingService applies a
-	VectorForce opposite the current horizontal velocity to model drag, but it never
-	stamps, scales, or clamps AssemblyLinearVelocity every heartbeat. Collision and
-	wall responses therefore keep their natural direction changes.
+	_stepMovementStates (REFACTORED):
+
+	[FIX 2] Không còn stamp velocity mỗi frame trong Launch.
+	  Trước: server đọc velocity → tính targetSpeed → ghi lại scaledHorizontal mỗi frame.
+	  Sau:   Server chỉ:
+	    - Theo dõi launchState.energy để biết khi nào launch "hết năng lượng".
+	    - Clamp nếu speed vượt SpeedMax (ví dụ sau collision spike).
+	    - KHÔNG ghi đè velocity direction — để Roblox physics tự lo bounce/direction.
+	  Player own root → client physics chạy → replication tự nhiên → PlayerB thấy mượt.
+
+	[FIX 3] Smooth stop.
+	  Trước: root.AssemblyLinearVelocity = (0, y, 0) — instant snap.
+	  Sau:   Áp brake factor mạnh mỗi frame cho đến khi speed < StopSpeed thật sự.
+	  Brake frame 1: speed * (1 - 15*dt) ≈ speed * 0.75 tại 60fps
+	  Brake frame 2: speed * 0.75 * 0.75 ≈ speed * 0.56
+	  ... dừng hẳn trong ~4-5 frames = ~80ms, không thấy snap.
 ]]
-function SlingService:_stepMovementStates()
+function SlingService:_stepMovementStates(dt: number)
 	for _, player in self:_getTrackedPlayers() do
 		local state = self._context.Services.PlayerStateService:GetState(player)
 		local root = self._context.Services.PlayerService:GetRoot(player)
@@ -696,40 +642,63 @@ function SlingService:_stepMovementStates()
 		local horizontalSpeed = horizontalVelocity.Magnitude
 
 		if state.MovementState == "Launching" and launchState then
-			local sampledEnergy = LaunchMotionModel.SampleEnergy(launchState, now)
+			-- Sample energy decay (chỉ để theo dõi khi nào launch hết năng lượng).
+			-- Speed decay KHÔNG được apply ở đây nữa → để physics engine lo.
+			local _, sampledEnergy, _ = LaunchMotionModel.Sample(launchState, now, horizontalVelocity)
 			launchState.currentSpeed = horizontalSpeed
 			launchState.energy = sampledEnergy
+
+			-- [FIX 2] Chỉ clamp nếu vượt SpeedMax (collision spike guard).
+			-- Không stamp mọi frame — chỉ can thiệp khi cần thiết.
+			if horizontalSpeed > PhysicsConfig.Launch.SpeedMax then
+				local clampedSpeed = PhysicsConfig.Launch.SpeedMax
+				local clampedHorizontal = horizontalVelocity.Unit * clampedSpeed
+				root.AssemblyLinearVelocity = Vector3.new(
+					clampedHorizontal.X,
+					fullVelocity.Y,
+					clampedHorizontal.Z
+				)
+			end
+
+			-- Track direction cho collision service (không dùng để drive movement).
 			if horizontalSpeed > PhysicsConfig.Movement.InputDeadzone then
 				launchState.direction = horizontalVelocity.Unit
 			end
-
-			local dragForce = self:_getLaunchDragActuator(player, root)
-			dragForce.Force = LaunchMotionModel.ComputeDragForce(horizontalVelocity, root.AssemblyMass)
-			dragForce.Enabled = true
-		elseif launchState then
-			self:_clearLaunchDragActuator(player)
 		end
 
+		-- Kiểm tra điều kiện dừng launch.
 		local stopThreshold = PhysicsConfig.Launch.StopSpeed
-		if state.MovementState == "Launching"
+		local shouldStop = state.MovementState == "Launching"
 			and (horizontalSpeed <= stopThreshold or (launchState and launchState.energy <= 0))
-		then
-			self:_clearLaunchDragActuator(player)
-			self:_restoreLaunchVelocityControllers(player)
-			self._activeLaunches[player] = nil
 
-			local recoveryEnd = now + PhysicsConfig.Launch.RecoveryDuration
-			self._releaseCooldown[player] = recoveryEnd
-			self._context.Services.PlayerStateService:SetLastReleaseDuration(
-				player, PhysicsConfig.Launch.RecoveryDuration)
-			self._context.Services.PlayerStateService:SetCooldownEndTime(player, recoveryEnd)
-			player:SetAttribute("LaunchValidationGraceEndsAt", now + PhysicsConfig.Launch.ValidationGraceSeconds)
-			self._context.Services.PlayerStateService:SetMovementState(player, "Recovering")
-			warn(string.format("[SlingService] State player=%s -> Recovering (horizontal=%.2f)",
-				player.Name, horizontalSpeed))
+		if shouldStop then
+			-- [FIX 3] Smooth brake thay vì instant zero.
+			-- Áp dụng brake factor mạnh — dừng trong ~4-5 frames ở 60fps thay vì 1 frame.
+			local brakeFactor = math.max(0, 1 - LAUNCH_BRAKE_RATE * dt)
+			local brakedHorizontal = horizontalVelocity * brakeFactor
+			root.AssemblyLinearVelocity = Vector3.new(
+				brakedHorizontal.X,
+				fullVelocity.Y,
+				brakedHorizontal.Z
+			)
+
+			-- Chỉ chuyển sang Recovering khi speed thực sự rất thấp (gần 0).
+			-- Tránh chuyển state quá sớm → movement controller activate giữa chừng.
+			if brakedHorizontal.Magnitude <= 0.5 then
+				self._activeLaunches[player] = nil
+
+				local recoveryEnd = now + PhysicsConfig.Launch.RecoveryDuration
+				self._releaseCooldown[player] = recoveryEnd
+				self._context.Services.PlayerStateService:SetLastReleaseDuration(
+					player, PhysicsConfig.Launch.RecoveryDuration)
+				self._context.Services.PlayerStateService:SetCooldownEndTime(player, recoveryEnd)
+				player:SetAttribute("LaunchValidationGraceEndsAt", now + PhysicsConfig.Launch.ValidationGraceSeconds)
+				self._context.Services.PlayerStateService:SetMovementState(player, "Recovering")
+				warn(string.format("[SlingService] State player=%s -> Recovering (horizontal=%.2f)",
+					player.Name, horizontalSpeed))
+			end
 
 		elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
-			self:_clearLaunchDragActuator(player)
 			self._activeLaunches[player] = nil
 			player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 			self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)

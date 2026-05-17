@@ -1,4 +1,22 @@
 --!strict
+-- FIX SUMMARY (CollisionService):
+--
+-- [FIX 1] Bỏ logic skip drag cho Launching players.
+--   Trước: CollisionService skip drag khi MovementState == "Launching" vì server own root.
+--   Sau:   Player own root trong Launch → Roblox physics tự apply drag trên client.
+--          Server không cần và không nên can thiệp vào velocity của player-owned part.
+--          Drag section cho Launching được xóa → chỉ còn normal movement drag.
+--
+-- [FIX 2] Wall bounce vẫn được apply cho tất cả players (kể cả Launching).
+--   Tuy nhiên vì player own root, AssemblyLinearVelocity set từ server
+--   sẽ bị override bởi client physics sau ~1 frame. Wall bounce nên được
+--   handle client-side (SlingUIController hoặc local physics).
+--   Giữ code wall bounce ở đây để server có thể fire event CollisionDetected
+--   cho damage/logic purposes, nhưng không expect nó drive actual movement.
+--
+-- [FIX 3] CollisionService._resolveClientPlayerHit vẫn hoạt động bình thường.
+--   Player vẫn own root → AssemblyLinearVelocity readable/writable từ server
+--   (server có thể write, client sẽ nhận sau ~1 frame, acceptable cho collision).
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -15,12 +33,6 @@ local function getService(context, name)
 		return context.ServiceRegistry:GetOptional(name)
 	end
 	return context.Services and context.Services[name]
-end
-
-local function applyHorizontalVelocityWithImpulse(root: BasePart, horizontal: Vector3)
-	local velocity = root.AssemblyLinearVelocity
-	local currentHorizontal = Vector3.new(velocity.X, 0, velocity.Z)
-	root:ApplyImpulse((horizontal - currentHorizontal) * root.AssemblyMass)
 end
 
 function CollisionService.new(context)
@@ -40,19 +52,21 @@ function CollisionService:Init()
 end
 
 --[[
-	CHANGED: Skip drag for players in "Launching" state.
+	[FIX 1] _applyDragAndBounce — đơn giản hóa.
 
-	Launching players are excluded from world drag. SlingService applies launch-specific
-	VectorForce drag so launch deceleration remains physics-driven.
-
-	Wall bounce logic is unchanged — it correctly flips velocity components and fires
-	the CollisionDetected event. Launching players can still wall-bounce.
+	Với player-owned Launch (FIX 1 trong SlingService):
+	- Launching players: client own root → client physics apply drag tự nhiên.
+	  Server không cần skip hay apply riêng cho Launching.
+	  Chỉ apply normal movement drag cho NON-launching players.
+	- Wall bounce: vẫn check, nhưng chủ yếu để fire event.
+	  Actual bounce effect với Launching players sẽ từ client physics (elastic collision).
 ]]
 function CollisionService:_applyDragAndBounce(dt: number)
 	local playerService = getService(self._context, "PlayerService")
 	if not playerService then
 		return
 	end
+
 	for _, player in Players:GetPlayers() do
 		local root = playerService:GetRoot(player)
 		if not (root and playerService:IsAlive(player)) then
@@ -61,58 +75,16 @@ function CollisionService:_applyDragAndBounce(dt: number)
 
 		local stateService = getService(self._context, "PlayerStateService")
 		local playerState = stateService and stateService:GetState(player)
+		local isLaunching = playerState and playerState.MovementState == "Launching"
 
-		-- CHANGED: Skip linear drag for Launching players.
-		-- SlingService owns physics-based VectorForce drag during launch.
-		if playerState and playerState.MovementState == "Launching" then
-			-- Still apply wall bounce for Launching players (they should bounce off walls).
-			local velocity = root.AssemblyLinearVelocity
-			local pos = root.Position
-			local arenaLimit = PhysicsConfig.World.MaxArenaRadius - PhysicsConfig.World.ArenaWallPadding
-			local hitWall = false
-			local horizontal = Vector3.new(velocity.X, 0, velocity.Z)
-
-			if math.abs(pos.X) > arenaLimit then
-				horizontal = Vector3.new(
-					-horizontal.X * PhysicsConfig.World.WallRestitution,
-					0,
-					horizontal.Z * PhysicsConfig.World.WallTangentialDamping
-				)
-				hitWall = true
-			end
-			if math.abs(pos.Z) > arenaLimit then
-				horizontal = Vector3.new(
-					horizontal.X * PhysicsConfig.World.WallTangentialDamping,
-					0,
-					-horizontal.Z * PhysicsConfig.World.WallRestitution
-				)
-				hitWall = true
-			end
-			if hitWall then
-				local now = os.clock()
-				if not self._lastWallCollision[player]
-					or now - self._lastWallCollision[player] >= PhysicsConfig.World.WallCollisionCooldown
-				then
-					self._lastWallCollision[player] = now
-					applyHorizontalVelocityWithImpulse(root, horizontal)
-					self._context.EventBus:Fire("CollisionDetected", "Wall", player, nil,
-						{ Speed = horizontal.Magnitude })
-				end
-			end
-			continue
-		end
-
-		-- Normal movement drag (unchanged from original).
 		local velocity = root.AssemblyLinearVelocity
-		local horizontal = Vector3.new(velocity.X, 0, velocity.Z)
-		local dragFactor = math.max(0, 1 - (PhysicsConfig.World.LinearDragPerSecond * dt))
-		horizontal *= dragFactor
-		if horizontal.Magnitude < PhysicsConfig.World.StopSpeed then
-			horizontal = Vector3.zero
-		end
-
 		local pos = root.Position
 		local arenaLimit = PhysicsConfig.World.MaxArenaRadius - PhysicsConfig.World.ArenaWallPadding
+		local horizontal = Vector3.new(velocity.X, 0, velocity.Z)
+
+		-- Wall bounce: check cho tất cả players.
+		-- Với Launching players (player-owned): server write velocity sẽ bị client override ~1 frame sau.
+		-- Vẫn giữ để fire CollisionDetected event cho damage/game logic.
 		local hitWall = false
 		if math.abs(pos.X) > arenaLimit then
 			horizontal = Vector3.new(
@@ -136,9 +108,26 @@ function CollisionService:_applyDragAndBounce(dt: number)
 				or now - self._lastWallCollision[player] >= PhysicsConfig.World.WallCollisionCooldown
 			then
 				self._lastWallCollision[player] = now
+				-- Với Launching players: ghi velocity để fire event, client sẽ correct sau ~1 frame.
+				-- Với non-launching: apply bounce bình thường.
+				root.AssemblyLinearVelocity = Vector3.new(horizontal.X, velocity.Y, horizontal.Z)
 				self._context.EventBus:Fire("CollisionDetected", "Wall", player, nil,
 					{ Speed = horizontal.Magnitude })
 			end
+			continue
+		end
+
+		-- [FIX 1] Chỉ apply linear drag cho non-launching players.
+		-- Launching players: player own root → client physics lo drag → không can thiệp.
+		if isLaunching then
+			continue
+		end
+
+		-- Normal movement drag (unchanged).
+		local dragFactor = math.max(0, 1 - (PhysicsConfig.World.LinearDragPerSecond * dt))
+		horizontal = horizontal * dragFactor
+		if horizontal.Magnitude < PhysicsConfig.World.StopSpeed then
+			horizontal = Vector3.zero
 		end
 		root.AssemblyLinearVelocity = Vector3.new(horizontal.X, velocity.Y, horizontal.Z)
 	end
@@ -168,7 +157,7 @@ end
 
 local function applyHorizontalVelocity(root: BasePart, horizontal: Vector3)
 	local clamped = clampHorizontalVelocity(horizontal)
-	applyHorizontalVelocityWithImpulse(root, clamped)
+	root.AssemblyLinearVelocity = Vector3.new(clamped.X, root.AssemblyLinearVelocity.Y, clamped.Z)
 end
 
 local function updateLaunchFromVelocity(launchState, velocity: Vector3, energy: number, now: number)
@@ -279,8 +268,6 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		return
 	end
 
-	-- Use the collision normal (from server-computed hit direction) for
-	-- bounce direction rather than arbitrary velocity reversal.
 	local transferSpeed = math.clamp(
 		impactSpeed * PhysicsConfig.Collision.EnergyTransferRatio,
 		0, PhysicsConfig.Collision.MaxPostCollisionSpeed
@@ -288,6 +275,9 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	local defenderOut = normal * transferSpeed
 	local attackerOut = attackerVelocity * (1 - PhysicsConfig.Collision.CollisionEnergyLossRatio)
 
+	-- [FIX 3 note] Server write velocity sau collision vẫn OK:
+	-- Với player-owned root, client nhận correction sau ~1 frame.
+	-- Collision là event đặc biệt — 1 frame correction acceptable và ít thấy hơn stamp mỗi frame.
 	applyHorizontalVelocity(root, attackerOut)
 	applyHorizontalVelocity(targetRoot, defenderOut)
 
@@ -380,6 +370,5 @@ function CollisionService:_bindClientCollisionReports()
 		end
 	end)
 end
-
 
 return CollisionService

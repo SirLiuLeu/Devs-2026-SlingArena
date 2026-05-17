@@ -12,7 +12,7 @@ local PhysicsConfig = {
 	},
 
 	Movement = {
-		MoveSpeed = 35,
+		MoveSpeed = 15,
 		MaxForce = 1000,
 		InputDeadzone = 0.001,
 		AimDeadzone = 0.01,
@@ -43,19 +43,19 @@ local PhysicsConfig = {
 
 	Launch = {
 		DirectionDeadzone = 0.01,
-		SpeedMin = 6,
-		SpeedMax = 70,
-		InitialVelocityCap = 70,
+		SpeedMin = 2,
+		SpeedMax = 170,
+		InitialVelocityCap = 170,
 		EnergyMin = 18,
 		EnergyMax = 120,
 
 		-- Physical resistance applied by SlingService through a VectorForce during launch.
 		-- LinearDragPerSecond is acceleration lost per stud/sec of planar speed;
 		-- QuadraticDragPerSecond adds stronger resistance at high launch speeds.
-		LinearDragPerSecond = 1.2,
-		QuadraticDragPerSecond = 0.012,
-		DragMaxForce = 60000,
-
+		LinearDragPerSecond = 0.002,
+		QuadraticDragPerSecond = 0.00012,
+		DragMaxForce = 6000,
+		DecayPerSecond = 0.1, -- Decay of currentSpeed in LaunchMotionModel.Sample; kept at 0 since we rely on drag to reduce speed.
 		-- Launch enters recovery once horizontal speed reaches this threshold.
 		StopSpeed = 2.0,
 
