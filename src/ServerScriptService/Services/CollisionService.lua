@@ -17,6 +17,12 @@ local function getService(context, name)
 	return context.Services and context.Services[name]
 end
 
+local function applyHorizontalVelocityWithImpulse(root: BasePart, horizontal: Vector3)
+	local velocity = root.AssemblyLinearVelocity
+	local currentHorizontal = Vector3.new(velocity.X, 0, velocity.Z)
+	root:ApplyImpulse((horizontal - currentHorizontal) * root.AssemblyMass)
+end
+
 function CollisionService.new(context)
 	local self = setmetatable({}, CollisionService)
 	self._context = context
@@ -36,8 +42,8 @@ end
 --[[
 	CHANGED: Skip drag for players in "Launching" state.
 
-	Launching players are excluded from world drag. LaunchMotionModel (via SlingService)
-	is the single decay authority during launch. This drag only applies to normal movement.
+	Launching players are excluded from world drag. SlingService applies launch-specific
+	VectorForce drag so launch deceleration remains physics-driven.
 
 	Wall bounce logic is unchanged — it correctly flips velocity components and fires
 	the CollisionDetected event. Launching players can still wall-bounce.
@@ -57,7 +63,7 @@ function CollisionService:_applyDragAndBounce(dt: number)
 		local playerState = stateService and stateService:GetState(player)
 
 		-- CHANGED: Skip linear drag for Launching players.
-		-- SlingService._stepMovementStates() owns speed decay during launch.
+		-- SlingService owns physics-based VectorForce drag during launch.
 		if playerState and playerState.MovementState == "Launching" then
 			-- Still apply wall bounce for Launching players (they should bounce off walls).
 			local velocity = root.AssemblyLinearVelocity
@@ -88,7 +94,7 @@ function CollisionService:_applyDragAndBounce(dt: number)
 					or now - self._lastWallCollision[player] >= PhysicsConfig.World.WallCollisionCooldown
 				then
 					self._lastWallCollision[player] = now
-					root.AssemblyLinearVelocity = Vector3.new(horizontal.X, velocity.Y, horizontal.Z)
+					applyHorizontalVelocityWithImpulse(root, horizontal)
 					self._context.EventBus:Fire("CollisionDetected", "Wall", player, nil,
 						{ Speed = horizontal.Magnitude })
 				end
@@ -162,7 +168,7 @@ end
 
 local function applyHorizontalVelocity(root: BasePart, horizontal: Vector3)
 	local clamped = clampHorizontalVelocity(horizontal)
-	root.AssemblyLinearVelocity = Vector3.new(clamped.X, root.AssemblyLinearVelocity.Y, clamped.Z)
+	applyHorizontalVelocityWithImpulse(root, clamped)
 end
 
 local function updateLaunchFromVelocity(launchState, velocity: Vector3, energy: number, now: number)

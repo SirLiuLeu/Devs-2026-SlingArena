@@ -90,6 +90,7 @@ function SlingService.new(context)
 	self._loggedControllerRoot = {}
 	self._aimTargets = {}
 	self._launchVelocityControllers = {}
+	self._launchDragActuators = {}
 	self._activeLaunches = {}
 	return self
 end
@@ -114,6 +115,77 @@ function SlingService:_restoreLaunchVelocityControllers(player: Player)
 		end
 	end
 	self._launchVelocityControllers[player] = nil
+end
+
+function SlingService:_clearLaunchDragActuator(player: Player)
+	local actuatorInfo = self._launchDragActuators[player]
+	if not actuatorInfo then
+		return
+	end
+	if actuatorInfo.force and actuatorInfo.force.Parent then
+		actuatorInfo.force:Destroy()
+	end
+	if actuatorInfo.attachment and actuatorInfo.attachment.Parent then
+		actuatorInfo.attachment:Destroy()
+	end
+	self._launchDragActuators[player] = nil
+end
+
+function SlingService:_getLaunchDragActuator(player: Player, root: BasePart): VectorForce
+	local actuatorInfo = self._launchDragActuators[player]
+	if actuatorInfo and actuatorInfo.root == root and actuatorInfo.force and actuatorInfo.force.Parent then
+		return actuatorInfo.force
+	end
+
+	self:_clearLaunchDragActuator(player)
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "LaunchDragAttachment"
+	attachment.Parent = root
+
+	local force = Instance.new("VectorForce")
+	force.Name = "LaunchDragForce"
+	force.Attachment0 = attachment
+	force.RelativeTo = Enum.ActuatorRelativeTo.World
+	force.ApplyAtCenterOfMass = true
+	force.Enabled = false
+	force.Force = Vector3.zero
+	force.Parent = root
+
+	self._launchDragActuators[player] = {
+		root = root,
+		attachment = attachment,
+		force = force,
+	}
+	return force
+end
+
+function SlingService:_disableVelocityControllersForLaunch(player: Player, root: BasePart)
+	self:_restoreLaunchVelocityControllers(player)
+	local velocityControllers = {}
+	for _, controller in ipairs(root:GetDescendants()) do
+		if controller:IsA("LinearVelocity") then
+			table.insert(velocityControllers, {
+				instance = controller,
+				enabled = controller.Enabled,
+			})
+			controller.VectorVelocity = Vector3.zero
+			controller.Enabled = false
+		end
+	end
+	self._launchVelocityControllers[player] = velocityControllers
+end
+
+function SlingService:_prepareLaunchPhysics(player: Player, root: BasePart)
+	local movementController = self._movementControllers[player]
+	if movementController then
+		movementController:DisableLocomotion(true)
+	end
+
+	self:_disableVelocityControllersForLaunch(player, root)
+	local dragForce = self:_getLaunchDragActuator(player, root)
+	dragForce.Force = Vector3.zero
+	dragForce.Enabled = true
+	root:SetNetworkOwner(nil)
 end
 
 function SlingService:_getTrackedPlayers(): { any }
@@ -196,6 +268,7 @@ function SlingService:Init()
 		self._warnedInvalidRoot[player] = nil
 		self._loggedControllerRoot[player] = nil
 		self._aimTargets[player] = nil
+		self:_clearLaunchDragActuator(player)
 		self._launchVelocityControllers[player] = nil
 		local movementController = self._movementControllers[player]
 		if movementController then
@@ -240,6 +313,15 @@ end
 function SlingService:SetLaunchState(player: Player, launchState: any?)
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 	self._activeLaunches[player] = launchState
+	if launchState then
+		local root = self._context.Services.PlayerService:GetRoot(player)
+		if root then
+			self:_prepareLaunchPhysics(player, root)
+		end
+	else
+		self:_clearLaunchDragActuator(player)
+		self:_restoreLaunchVelocityControllers(player)
+	end
 end
 
 function SlingService:Start()
@@ -419,35 +501,13 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	local now = os.clock()
 	local launchState = LaunchMotionModel.BuildState(launchDirectionPlanar, chargeRatio, now, player)
 
-	-- Disable locomotion actuator so WASD doesn't fight launch momentum.
-	local movementController = self._movementControllers[player]
-	if movementController then
-		movementController:DisableLocomotion(true)
-	end
-
-	-- Save and disable any pre-existing LinearVelocity constraints.
-	self:_restoreLaunchVelocityControllers(player)
-	local velocityControllers = {}
-	for _, controller in ipairs(root:GetDescendants()) do
-		if controller:IsA("LinearVelocity") then
-			table.insert(velocityControllers, {
-				instance = controller,
-				enabled = controller.Enabled,
-			})
-			controller.VectorVelocity = Vector3.zero
-			controller.Enabled = false
-		end
-	end
-	self._launchVelocityControllers[player] = velocityControllers
-
-	-- Server takes physics ownership during launch so collision resolution is authoritative.
-	root:SetNetworkOwner(nil)
+	-- Disable locomotion actuators and let the server own physics during launch so
+	-- player input does not fight the initial impulse or drag force.
+	self:_prepareLaunchPhysics(player, root)
 
 	-- Apply the initial launch through Roblox physics instead of driving movement
 	-- with CFrame or stamping a launch velocity. ApplyImpulse expects an impulse,
 	-- so mass * configured launch speed produces the intended initial momentum.
-	local preLaunchVelocity = root.AssemblyLinearVelocity
-	root.AssemblyLinearVelocity = Vector3.new(0, preLaunchVelocity.Y, 0)
 	root:ApplyImpulse(launchState.direction * (root.AssemblyMass * launchState.initialSpeed))
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 
@@ -556,6 +616,7 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		return
 	end
 	if state.MovementState ~= "Launching" then
+		self:_clearLaunchDragActuator(player)
 		self:_restoreLaunchVelocityControllers(player)
 	end
 	self._warnedInvalidRoot[player] = nil
@@ -615,27 +676,10 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 end
 
 --[[
-	CHANGED: Launch velocity management during flight.
-
-	OLD behaviour (the "tốc biến" problem):
-	  Every Heartbeat, the server would:
-	    1. Read AssemblyLinearVelocity
-	    2. Get the speed from LaunchMotionModel.Sample()
-	    3. Write root.AssemblyLinearVelocity = direction.Unit * decayedSpeed
-	  This stamped a brand new vector every frame, overriding any direction change
-	  caused by collision recoil, wall bounce, or the physics engine.
-	  The result was that collisions felt nullified — the pawn resumed its original
-	  direction on the very next frame.
-
-	NEW behaviour:
-	  - Read the ACTUAL AssemblyLinearVelocity from the physics engine.
-	  - Extract horizontal speed from it (preserving whatever direction physics chose).
-	  - Apply decay to that speed value only.
-	  - Scale the existing velocity vector by (decayedSpeed / currentSpeed) so
-	    direction is fully preserved and only the magnitude is controlled.
-	  - The server only corrects speed, not direction.
-	  - CollisionService._applyDragAndBounce() now skips Launching players,
-	    so this is the single decay authority.
+	Launch movement after release is physics-driven. SlingService applies a
+	VectorForce opposite the current horizontal velocity to model drag, but it never
+	stamps, scales, or clamps AssemblyLinearVelocity every heartbeat. Collision and
+	wall responses therefore keep their natural direction changes.
 ]]
 function SlingService:_stepMovementStates()
 	for _, player in self:_getTrackedPlayers() do
@@ -652,40 +696,26 @@ function SlingService:_stepMovementStates()
 		local horizontalSpeed = horizontalVelocity.Magnitude
 
 		if state.MovementState == "Launching" and launchState then
-			-- Sample decay to get the target speed this frame.
-			local targetSpeed, sampledEnergy = LaunchMotionModel.Sample(launchState, now, horizontalVelocity)
-			launchState.currentSpeed = targetSpeed
+			local sampledEnergy = LaunchMotionModel.SampleEnergy(launchState, now)
+			launchState.currentSpeed = horizontalSpeed
 			launchState.energy = sampledEnergy
-
-			-- Clamp speed to configured max (handles post-collision spikes).
-			targetSpeed = math.min(targetSpeed, PhysicsConfig.Launch.SpeedMax)
-
 			if horizontalSpeed > PhysicsConfig.Movement.InputDeadzone then
-				-- Scale the existing velocity vector by (targetSpeed / horizontalSpeed).
-				-- This preserves whatever direction Roblox physics chose (including
-				-- collision normals, wall reflections, etc.) and only controls magnitude.
-				local scale = targetSpeed / horizontalSpeed
-				local scaledHorizontal = horizontalVelocity * scale
-				root.AssemblyLinearVelocity = Vector3.new(
-					scaledHorizontal.X,
-					fullVelocity.Y,
-					scaledHorizontal.Z
-				)
 				launchState.direction = horizontalVelocity.Unit
-			else
-				-- No horizontal movement — zero it cleanly.
-				root.AssemblyLinearVelocity = Vector3.new(0, fullVelocity.Y, 0)
 			end
+
+			local dragForce = self:_getLaunchDragActuator(player, root)
+			dragForce.Force = LaunchMotionModel.ComputeDragForce(horizontalVelocity, root.AssemblyMass)
+			dragForce.Enabled = true
+		elseif launchState then
+			self:_clearLaunchDragActuator(player)
 		end
 
-		-- Crossing the configured launch stop threshold explicitly ends launch,
-		-- clears horizontal movement, and enters the configured recovery window.
 		local stopThreshold = PhysicsConfig.Launch.StopSpeed
 		if state.MovementState == "Launching"
 			and (horizontalSpeed <= stopThreshold or (launchState and launchState.energy <= 0))
 		then
+			self:_clearLaunchDragActuator(player)
 			self:_restoreLaunchVelocityControllers(player)
-			root.AssemblyLinearVelocity = Vector3.new(0, fullVelocity.Y, 0)
 			self._activeLaunches[player] = nil
 
 			local recoveryEnd = now + PhysicsConfig.Launch.RecoveryDuration
@@ -699,6 +729,7 @@ function SlingService:_stepMovementStates()
 				player.Name, horizontalSpeed))
 
 		elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
+			self:_clearLaunchDragActuator(player)
 			self._activeLaunches[player] = nil
 			player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 			self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)

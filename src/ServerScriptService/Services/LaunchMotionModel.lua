@@ -33,31 +33,36 @@ function LaunchMotionModel.BuildState(direction: Vector3, chargeRatio: number, n
 end
 
 --[[
-	Launch sampling is the single source of launch decay. It uses
-	PhysicsConfig.Launch.DecayPerSecond for speed, while energy decays separately
-	for combat math and never drives movement directly.
+	Launch motion is physics-driven after the initial impulse. Sampling only advances
+	combat energy bookkeeping; it never returns a target speed for the server to stamp
+	onto AssemblyLinearVelocity.
 ]]
-function LaunchMotionModel.Sample(state: any, now: number, currentVelocity: Vector3?): (number, number, number)
+function LaunchMotionModel.SampleEnergy(state: any, now: number): (number, number)
 	local lastSampleTime = state.lastSampleTime or state.startTime or now
 	local dt = math.max(0, now - lastSampleTime)
 	state.lastSampleTime = now
 
 	local elapsed = math.max(0, now - (state.startTime or now))
-
-	-- Speed: use the actual physical velocity magnitude if available, then decay it.
-	-- This ensures collision-induced speed changes are respected rather than overridden.
-	local rawSpeed = if currentVelocity then currentVelocity.Magnitude
-		else math.max(0, state.currentSpeed or state.initialSpeed or 0)
-
-	-- Single multiplicative decay: speed *= (1 - DecayPerSecond * dt)
-	local decayFactor = math.max(0, 1 - (PhysicsConfig.Launch.DecayPerSecond * dt))
-	local speed = rawSpeed * decayFactor
-
-	-- Energy decays separately for combat math; does not affect movement speed.
 	local energyDecayFactor = math.max(0, 1 - (PhysicsConfig.Launch.PassiveEnergyDecayPerSecond * dt))
 	local energy = math.max(0, (state.energy or 0) * energyDecayFactor)
 
-	return speed, energy, elapsed
+	return energy, elapsed
+end
+
+function LaunchMotionModel.ComputeDragForce(horizontalVelocity: Vector3, assemblyMass: number): Vector3
+	local speed = horizontalVelocity.Magnitude
+	if speed <= PhysicsConfig.Movement.InputDeadzone then
+		return Vector3.zero
+	end
+
+	local linearAcceleration = PhysicsConfig.Launch.LinearDragPerSecond * speed
+	local quadraticAcceleration = PhysicsConfig.Launch.QuadraticDragPerSecond * speed * speed
+	local forceMagnitude = math.min(
+		assemblyMass * (linearAcceleration + quadraticAcceleration),
+		PhysicsConfig.Launch.DragMaxForce
+	)
+
+	return horizontalVelocity.Unit * -forceMagnitude
 end
 
 return LaunchMotionModel

@@ -27,7 +27,7 @@ local PhysicsConfig = {
 		MaxArenaRadius = 300,
 		ArenaWallPadding = 6,
 		-- Drag only applies to non-Launching players (normal movement).
-		-- Launch has its own dedicated decay; see Launch.DecayPerSecond below.
+		-- Launch has its own dedicated VectorForce drag; see Launch.*Drag* below.
 		LinearDragPerSecond = 0.08,
 		StopSpeed = 0.35,
 		WallRestitution = 0.78,
@@ -49,8 +49,12 @@ local PhysicsConfig = {
 		EnergyMin = 18,
 		EnergyMax = 120,
 
-		-- Single authoritative multiplicative launch speed decay.
-		DecayPerSecond = 0,
+		-- Physical resistance applied by SlingService through a VectorForce during launch.
+		-- LinearDragPerSecond is acceleration lost per stud/sec of planar speed;
+		-- QuadraticDragPerSecond adds stronger resistance at high launch speeds.
+		LinearDragPerSecond = 1.2,
+		QuadraticDragPerSecond = 0.012,
+		DragMaxForce = 60000,
 
 		-- Launch enters recovery once horizontal speed reaches this threshold.
 		StopSpeed = 2.0,
