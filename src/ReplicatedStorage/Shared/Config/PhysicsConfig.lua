@@ -19,6 +19,8 @@ local PhysicsConfig = {
 	World = {
 		MaxArenaRadius = 300,
 		ArenaWallPadding = 6,
+		-- Drag only applies to non-Launching players (normal movement).
+		-- Launch has its own dedicated decay; see Launch.DecayPerSecond below.
 		LinearDragPerSecond = 0.08,
 		StopSpeed = 0.35,
 		WallRestitution = 0.78,
@@ -36,9 +38,29 @@ local PhysicsConfig = {
 		InitialVelocityCap = 70,
 		EnergyMin = 18,
 		EnergyMax = 120,
+
+		-- CHANGED: Single authoritative decay for launch speed.
+		-- Old system had two sources: VelocityDecayPerSecond (0.12) in LaunchMotionModel
+		-- AND LinearDragPerSecond (0.08) in CollisionService firing simultaneously.
+		-- Now only LaunchMotionModel owns decay during Launching state.
+		-- CollisionService skips drag for Launching players (see CollisionService change).
+		-- Rate: multiplicative per second. 0.18 gives a natural slow-down arc
+		-- from max 70 → threshold 2 in roughly 2.5–3 seconds.
+		DecayPerSecond = 0.18,
+
+		-- CHANGED: Raised from 0.5 → 2. Old value caused a long slow drift tail
+		-- before the stop committed. 2 gives a clean, readable stop moment.
+		StopSpeed = 2.0,
+
+		-- Kept for damage / force-transfer math; no longer drives movement.
 		PassiveEnergyDecayPerSecond = 0.035,
-		VelocityDecayPerSecond = 0.12,
-		StopSpeed = 0.5,
+		EnergyMin = 18,
+		EnergyMax = 120,
+
+		-- CHANGED: Fixed recovery duration instead of using launch duration.
+		-- Old: recovery = however long the launch lasted (punishing on full-charge).
+		-- New: always 0.4 s. Feels snappy, consistent, and not punishing.
+		RecoveryDuration = 0.4,
 	},
 
 	Collision = {
@@ -55,6 +77,8 @@ local PhysicsConfig = {
 		Cooldown = 0.28,
 		RealHitMinClosingSpeed = 5.5,
 		MinLaunchEnergy = 5,
+
+		-- Kept near 1 for natural elastic bounce feel.
 		Restitution = 0.92,
 		TangentialDamping = 0.94,
 		EnergyTransferRatio = 0.82,

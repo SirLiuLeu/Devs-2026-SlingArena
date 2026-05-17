@@ -125,14 +125,12 @@ function SlingService:_restoreLaunchVelocityControllers(player: Player)
 	if not controllerInfos then
 		return
 	end
-
 	for _, controllerInfo in ipairs(controllerInfos) do
 		local controller = controllerInfo.instance
 		if controller and controller.Parent and controller:IsA("LinearVelocity") then
 			controller.Enabled = controllerInfo.enabled
 		end
 	end
-
 	self._launchVelocityControllers[player] = nil
 end
 
@@ -219,7 +217,7 @@ function SlingService:Init()
 		self._chargeState[player] = nil
 		self._releaseCooldown[player] = nil
 		self._releaseState[player] = nil
-				self._activeLaunches[player] = nil
+		self._activeLaunches[player] = nil
 		self._warnedInvalidRoot[player] = nil
 		self._loggedControllerRoot[player] = nil
 		self._aimTargets[player] = nil
@@ -230,7 +228,6 @@ function SlingService:Init()
 			self._movementControllers[player] = nil
 		end
 	end)
-
 end
 
 function SlingService:_resolvePawnAndRoot(player: Player): (Model?, BasePart?)
@@ -300,7 +297,10 @@ function SlingService:_canControl(player: Player): boolean
 	end
 	local roundState = roundService:GetState()
 	local canControlForRound = false
-	if roundState == GameStates.MapRoundState.Awaits or roundState == GameStates.MapRoundState.EarlyGame or roundState == GameStates.MapRoundState.FinalPhase then
+	if roundState == GameStates.MapRoundState.Awaits
+		or roundState == GameStates.MapRoundState.EarlyGame
+		or roundState == GameStates.MapRoundState.FinalPhase
+	then
 		canControlForRound = roundService:IsPlayerQueued(player)
 	elseif roundState == GameStates.MapRoundState.Lobby then
 		canControlForRound = true
@@ -376,7 +376,10 @@ function SlingService:StartCharge(player: Player, aimDirection: Vector3)
 	if not root or not state then
 		return
 	end
-	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == "Launching" or state.MovementState == "Recovering" then
+	if state.MovementState == MOVEMENT_STATE.Charging
+		or state.MovementState == "Launching"
+		or state.MovementState == "Recovering"
+	then
 		return
 	end
 	if self._chargeState[player] then
@@ -438,11 +441,16 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	chargeState.aimDirection = launchDirectionPlanar
 	self._aimTargets[player] = launchDirectionPlanar
 
-	local launchState = LaunchMotionModel.BuildState(launchDirectionPlanar, chargeRatio, os.clock(), player)
+	local now = os.clock()
+	local launchState = LaunchMotionModel.BuildState(launchDirectionPlanar, chargeRatio, now, player)
+
+	-- Disable locomotion actuator so WASD doesn't fight launch momentum.
 	local movementController = self._movementControllers[player]
 	if movementController then
 		movementController:DisableLocomotion(true)
 	end
+
+	-- Save and disable any pre-existing LinearVelocity constraints.
 	self:_restoreLaunchVelocityControllers(player)
 	local velocityControllers = {}
 	for _, controller in ipairs(root:GetDescendants()) do
@@ -457,12 +465,24 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	end
 	self._launchVelocityControllers[player] = velocityControllers
 
+	-- Server takes physics ownership during launch so collision resolution is authoritative.
 	root:SetNetworkOwner(nil)
-	root.AssemblyLinearVelocity = Vector3.new(launchState.direction.X * launchState.initialSpeed, root.AssemblyLinearVelocity.Y, launchState.direction.Z * launchState.initialSpeed)
+
+	-- Stamp the initial velocity. This is the ONLY direct AssemblyLinearVelocity write
+	-- at launch start. After this, _stepMovementStates() decays speed but no longer
+	-- continuously overwrites velocity — it only corrects the speed magnitude, preserving
+	-- collision-modified direction (see _stepMovementStates comments below).
+	local launchVelocity = Vector3.new(
+		launchDirectionPlanar.X * launchState.initialSpeed,
+		root.AssemblyLinearVelocity.Y,
+		launchDirectionPlanar.Z * launchState.initialSpeed
+	)
+	root.AssemblyLinearVelocity = launchVelocity
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
+
 	self._activeLaunches[player] = launchState
-	warn(string.format("[SlingService] Launch player=%s charge=%.2f speed=%.2f energy=%.2f", player.Name, chargeRatio, launchState.initialSpeed, launchState.energy))
-	
+	warn(string.format("[SlingService] Launch player=%s charge=%.2f speed=%.2f energy=%.2f",
+		player.Name, chargeRatio, launchState.initialSpeed, launchState.energy))
 
 	state.CurrentVelocity = root.AssemblyLinearVelocity
 	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
@@ -475,9 +495,11 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	end
 
 	self._chargeState[player] = nil
-	self._releaseState[player] = {
-		releaseStartTime = os.clock(),
-	}
+	self._releaseState[player] = { releaseStartTime = now }
+
+	-- CHANGED: Fixed cooldown end time. Old code set it to 0 and then computed
+	-- recovery = launch duration in _stepMovementStates, making full-charge launches
+	-- very punishing. Now recovery is always RecoveryDuration (0.4 s).
 	self._releaseCooldown[player] = 0
 	self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
 	self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
@@ -504,7 +526,6 @@ function SlingService:_applyAimRotation(player: Player, root: BasePart, input: V
 	if desiredPlanar.Magnitude < 0.01 then
 		return
 	end
-
 	alignOrientation.CFrame = CFrame.lookAt(root.Position, root.Position + desiredPlanar.Unit, Vector3.yAxis)
 end
 
@@ -544,7 +565,8 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		if root.Anchored then
 			if not self._warnedInvalidRoot[player] then
 				self._warnedInvalidRoot[player] = true
-				warn(string.format("[SlingService] Root anchored; movement blocked for %s (%s)", player.Name, root:GetFullName()))
+				warn(string.format("[SlingService] Root anchored; movement blocked for %s (%s)",
+					player.Name, root:GetFullName()))
 			end
 			return
 		end
@@ -558,17 +580,23 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		self:_restoreLaunchVelocityControllers(player)
 	end
 	self._warnedInvalidRoot[player] = nil
+
 	if state.MovementState == "Launching" then
-		root:SetNetworkOwner(nil)
-	else
-		if root:GetNetworkOwner() ~= player then
-			root:SetNetworkOwner(player)
-			if not self._loggedControllerRoot[player] then
-				self._loggedControllerRoot[player] = true
-				warn(string.format("[SlingService] SetNetworkOwner player=%s root=%s", player.Name, root:GetFullName()))
-			end
+		-- Server owns during launch; do not return ownership to client here.
+		-- Aim rotation still updates so the pawn faces the travel direction.
+		self:_applyAimRotation(player, root, input, dt)
+		return
+	end
+
+	-- Return ownership to client when not launching.
+	if root:GetNetworkOwner() ~= player then
+		root:SetNetworkOwner(player)
+		if not self._loggedControllerRoot[player] then
+			self._loggedControllerRoot[player] = true
+			warn(string.format("[SlingService] SetNetworkOwner player=%s root=%s", player.Name, root:GetFullName()))
 		end
 	end
+
 	local movementController = self:_getMovementController(player, root)
 	local moveDirection = Vector3.zero
 	if input.Magnitude > 0.001 then
@@ -579,13 +607,6 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 		end
 	end
 
-	if state.MovementState == "Launching" then
-		-- Preserve launch momentum. We only disable the locomotion actuator so it does not
-		-- counteract release velocity and create an artificial "drag/stretch" feeling.
-		movementController:DisableLocomotion(true)
-		self:_applyAimRotation(player, root, input, dt)
-		return
-	end
 	if state.MovementState == MOVEMENT_STATE.Charging then
 		movementController:DisableLocomotion(false)
 		return
@@ -624,53 +645,104 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 	end
 end
 
+--[[
+	CHANGED: Launch velocity management during flight.
+
+	OLD behaviour (the "tốc biến" problem):
+	  Every Heartbeat, the server would:
+	    1. Read AssemblyLinearVelocity
+	    2. Get the speed from LaunchMotionModel.Sample()
+	    3. Write root.AssemblyLinearVelocity = direction.Unit * decayedSpeed
+	  This stamped a brand new vector every frame, overriding any direction change
+	  caused by collision recoil, wall bounce, or the physics engine.
+	  The result was that collisions felt nullified — the pawn resumed its original
+	  direction on the very next frame.
+
+	NEW behaviour:
+	  - Read the ACTUAL AssemblyLinearVelocity from the physics engine.
+	  - Extract horizontal speed from it (preserving whatever direction physics chose).
+	  - Apply decay to that speed value only.
+	  - Scale the existing velocity vector by (decayedSpeed / currentSpeed) so
+	    direction is fully preserved and only the magnitude is controlled.
+	  - The server only corrects speed, not direction.
+	  - CollisionService._applyDragAndBounce() now skips Launching players,
+	    so this is the single decay authority.
+]]
 function SlingService:_stepMovementStates()
 	for _, player in self:_getTrackedPlayers() do
 		local state = self._context.Services.PlayerStateService:GetState(player)
 		local root = self._context.Services.PlayerService:GetRoot(player)
-		if state and root then
-			local now = os.clock()
-			local launchState = self._activeLaunches[player]
-			local horizontalVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
-			if state.MovementState == "Launching" and launchState then
-				local speed, sampledEnergy = LaunchMotionModel.Sample(launchState, now, horizontalVelocity)
-				launchState.currentSpeed = speed
-				launchState.energy = sampledEnergy
-				if speed > PhysicsConfig.Launch.StopSpeed and horizontalVelocity.Magnitude > 0.001 then
-					local decayedVelocity = horizontalVelocity.Unit * speed
-					root.AssemblyLinearVelocity = Vector3.new(decayedVelocity.X, root.AssemblyLinearVelocity.Y, decayedVelocity.Z)
-					launchState.direction = decayedVelocity.Unit
-				else
-					root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
-				end
-			end
+		if not (state and root) then
+			continue
+		end
 
-			local horizontal = horizontalVelocity.Magnitude
-			if state.MovementState == "Launching" 
-					and (not launchState or now >= ((launchState.startTime or now) + LAUNCH_VALIDATION_GRACE_SECONDS))
-					and (horizontal <= PhysicsConfig.Launch.StopSpeed
-			 		or (launchState and launchState.energy <= 0)) then
-				self:_restoreLaunchVelocityControllers(player)
-				local releaseState = self._releaseState[player]
-				local releaseDuration = 0
-				if releaseState and typeof(releaseState.releaseStartTime) == "number" then
-					releaseDuration = math.max(0, now - releaseState.releaseStartTime)
-				end
-				self._releaseCooldown[player] = now + releaseDuration
-				self._context.Services.PlayerStateService:SetLastReleaseDuration(player, releaseDuration)
-				self._context.Services.PlayerStateService:SetCooldownEndTime(player, self._releaseCooldown[player])
-				player:SetAttribute("LaunchValidationGraceEndsAt", now + LAUNCH_VALIDATION_GRACE_SECONDS)
-				self._context.Services.PlayerStateService:SetMovementState(player, "Recovering")
-				warn(string.format("[SlingService] State player=%s -> Recovering (horizontal=%.2f)", player.Name, horizontal))
-			elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
-				self._releaseState[player] = nil
-				self._activeLaunches[player] = nil
-				player:SetAttribute("LaunchValidationGraceEndsAt", 0)
-				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
-				self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
-				self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
+		local now = os.clock()
+		local launchState = self._activeLaunches[player]
+		local fullVelocity = root.AssemblyLinearVelocity
+		local horizontalVelocity = Vector3.new(fullVelocity.X, 0, fullVelocity.Z)
+		local horizontalSpeed = horizontalVelocity.Magnitude
+
+		if state.MovementState == "Launching" and launchState then
+			-- Sample decay to get the target speed this frame.
+			local targetSpeed, sampledEnergy = LaunchMotionModel.Sample(launchState, now, horizontalVelocity)
+			launchState.currentSpeed = targetSpeed
+			launchState.energy = sampledEnergy
+
+			-- Clamp speed to configured max (handles post-collision spikes).
+			targetSpeed = math.min(targetSpeed, PhysicsConfig.Launch.SpeedMax)
+
+			if horizontalSpeed > 0.001 then
+				-- Scale the existing velocity vector by (targetSpeed / horizontalSpeed).
+				-- This preserves whatever direction Roblox physics chose (including
+				-- collision normals, wall reflections, etc.) and only controls magnitude.
+				local scale = targetSpeed / horizontalSpeed
+				local scaledHorizontal = horizontalVelocity * scale
+				root.AssemblyLinearVelocity = Vector3.new(
+					scaledHorizontal.X,
+					fullVelocity.Y,
+					scaledHorizontal.Z
+				)
+				launchState.direction = horizontalVelocity.Unit
+			else
+				-- No horizontal movement — zero it cleanly.
+				root.AssemblyLinearVelocity = Vector3.new(0, fullVelocity.Y, 0)
 			end
+		end
+
+		-- CHANGED: StopSpeed raised from 0.5 → 2 (from PhysicsConfig.Launch.StopSpeed).
+		-- Old: pawn drifted for a long time at very low speed before stopping.
+		-- New: clean commit to stop when below 2 studs/s.
+		local stopThreshold = PhysicsConfig.Launch.StopSpeed -- 2.0
+		local graceExpired = not launchState
+			or now >= ((launchState.startTime or now) + LAUNCH_VALIDATION_GRACE_SECONDS)
+
+		if state.MovementState == "Launching" and graceExpired
+			and (horizontalSpeed <= stopThreshold or (launchState and launchState.energy <= 0))
+		then
+			self:_restoreLaunchVelocityControllers(player)
+
+			-- CHANGED: Fixed recovery duration.
+			-- Old: recovery = however long the launch lasted → full-charge = long recovery.
+			-- New: always PhysicsConfig.Launch.RecoveryDuration (0.4 s).
+			local recoveryEnd = now + PhysicsConfig.Launch.RecoveryDuration
+			self._releaseCooldown[player] = recoveryEnd
+			self._context.Services.PlayerStateService:SetLastReleaseDuration(
+				player, PhysicsConfig.Launch.RecoveryDuration)
+			self._context.Services.PlayerStateService:SetCooldownEndTime(player, recoveryEnd)
+			player:SetAttribute("LaunchValidationGraceEndsAt", now + LAUNCH_VALIDATION_GRACE_SECONDS)
+			self._context.Services.PlayerStateService:SetMovementState(player, "Recovering")
+			warn(string.format("[SlingService] State player=%s -> Recovering (horizontal=%.2f)",
+				player.Name, horizontalSpeed))
+
+		elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
+			self._releaseState[player] = nil
+			self._activeLaunches[player] = nil
+			player:SetAttribute("LaunchValidationGraceEndsAt", 0)
+			self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
+			self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
+			self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
 		end
 	end
 end
+
 return SlingService
