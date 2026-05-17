@@ -625,23 +625,8 @@ function FoodService:Start()
 				local horizontalVelocity = flattenXZ(root.AssemblyLinearVelocity)
 				local horizontalSpeed = horizontalVelocity.Magnitude
 				self:_applySlingDamage(entry, player, horizontalSpeed)
-				local hitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
-				if hitbox and hitbox:IsA("BasePart") then
-					local normal = self:_computeCollisionNormal(root.Position, hitbox.Position, horizontalVelocity)
-					local reflected = self:_reflectVelocity(horizontalVelocity, normal)
-					root.AssemblyLinearVelocity = Vector3.new(reflected.X, root.AssemblyLinearVelocity.Y, reflected.Z)
-
-					local slingService = getService(self._context, "SlingService")
-					local launchState = slingService and slingService:GetLaunchState(player)
-					if launchState then
-						launchState.direction = if reflected.Magnitude > MIN_SPEED_EPSILON then reflected.Unit else Vector3.zero
-						launchState.initialSpeed = reflected.Magnitude
-						launchState.currentSpeed = reflected.Magnitude
-						launchState.energy = math.max(0, (launchState.energy or 0) * LAST_HIT_VELOCITY_DAMPING)
-						launchState.lastSampleTime = os.clock()
-						launchState.collisions = (launchState.collisions or 0) + 1
-					end
-				end
+				local impulse = horizontalVelocity * -root.AssemblyMass * 0.35
+				root:ApplyImpulse(Vector3.new(impulse.X, 0, impulse.Z))
 			end
 		end
 	end)
