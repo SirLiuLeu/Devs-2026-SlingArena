@@ -35,10 +35,18 @@ local function isLaunchHitValidationActive(player: Player, movementState: string
 	if movementState == GameStates.PlayerState.Launching then
 		return true
 	end
+
+	-- "Recovering" should still allow HP food hits.
+	-- After launch stops, the player may still be sliding with remaining momentum,
+	-- so hits during this window must be considered valid.
+	if movementState == "Recovering" then
+		return true
+	end
+
 	local graceEndsAt = player:GetAttribute("LaunchValidationGraceEndsAt")
 	return typeof(graceEndsAt) == "number"
+		and graceEndsAt > 0
 		and os.clock() <= graceEndsAt
-		and os.clock() >= graceEndsAt - PhysicsConfig.Launch.ValidationGraceSeconds
 end
 
 local REQUIRED_FOOD_MODELS = {
