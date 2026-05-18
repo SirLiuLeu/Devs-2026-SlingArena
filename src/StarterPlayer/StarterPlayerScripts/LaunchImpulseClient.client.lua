@@ -46,7 +46,7 @@ local function resolvePlanarDirection(direction: any): Vector3?
 	return planar.Unit
 end
 
-clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, initialSpeed: any, serverMass: any)
+clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, initialSpeed: any, _serverMass: any)
 	local launchDirection = resolvePlanarDirection(direction)
 	if not launchDirection or typeof(initialSpeed) ~= "number" or initialSpeed <= 0 then
 		return
@@ -57,12 +57,10 @@ clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, initialSpeed
 		return
 	end
 
-	local mass = if typeof(serverMass) == "number" and serverMass > 0 then serverMass else root.AssemblyMass
-	if mass <= 0 then
-		return
-	end
-
 	local currentVelocity = root.AssemblyLinearVelocity
-	root.AssemblyLinearVelocity = Vector3.new(0, currentVelocity.Y, 0)
-	root:ApplyImpulse(launchDirection * (mass * initialSpeed))
+	root.AssemblyLinearVelocity = Vector3.new(
+		launchDirection.X * initialSpeed,
+		currentVelocity.Y,
+		launchDirection.Z * initialSpeed
+	)
 end)

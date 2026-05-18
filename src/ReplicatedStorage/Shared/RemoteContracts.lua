@@ -96,6 +96,9 @@ RemoteContracts.Validators = {
 		if payload.velocity ~= nil and typeof(payload.velocity) ~= "Vector3" then
 			return false
 		end
+		if payload.observedSpeed ~= nil and typeof(payload.observedSpeed) ~= "number" then
+			return false
+		end
 		return true
 	end,
 }

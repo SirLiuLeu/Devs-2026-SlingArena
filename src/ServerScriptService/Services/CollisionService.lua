@@ -39,6 +39,7 @@ function CollisionService.new(context)
 	local self = setmetatable({}, CollisionService)
 	self._context = context
 	self._lastCollision = {}
+	self._activeCollisionKeys = {}
 	self._lastTrapCollision = {}
 	self._lastWallCollision = {}
 	return self
@@ -144,6 +145,36 @@ local function getHorizontalVelocity(root: BasePart): Vector3
 	return Vector3.new(velocity.X, 0, velocity.Z)
 end
 
+
+local function getReportedHorizontalVelocity(payload: any): Vector3
+	if payload and typeof(payload.velocity) == "Vector3" then
+		local velocity = Vector3.new(payload.velocity.X, 0, payload.velocity.Z)
+		if velocity.Magnitude <= PhysicsConfig.Collision.MaxAllowedSpeed then
+			return velocity
+		end
+	end
+	return Vector3.zero
+end
+
+local function resolveImpactVelocity(root: BasePart, payload: any, launchState: any): Vector3
+	local rootVelocity = getHorizontalVelocity(root)
+	local reportedVelocity = getReportedHorizontalVelocity(payload)
+	local velocity = if rootVelocity.Magnitude >= reportedVelocity.Magnitude then rootVelocity else reportedVelocity
+
+	local observedSpeed = if payload and typeof(payload.observedSpeed) == "number"
+		then math.clamp(payload.observedSpeed, 0, PhysicsConfig.Collision.MaxAllowedSpeed)
+		else 0
+	local launchSpeed = math.max(launchState.currentSpeed or 0, launchState.initialSpeed or 0, observedSpeed)
+	if velocity.Magnitude >= launchSpeed or typeof(launchState.direction) ~= "Vector3" then
+		return velocity
+	end
+	local direction = Vector3.new(launchState.direction.X, 0, launchState.direction.Z)
+	if direction.Magnitude < 0.001 then
+		return velocity
+	end
+	return direction.Unit * launchSpeed
+end
+
 local function clampHorizontalVelocity(velocity: Vector3): Vector3
 	local speed = velocity.Magnitude
 	if speed <= PhysicsConfig.Collision.MinPostCollisionSpeed then
@@ -240,12 +271,6 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	end
 	local key = getCollisionKey(player, defender)
 	local now = os.clock()
-	if self._lastCollision[key]
-		and now - self._lastCollision[key] < PhysicsConfig.Collision.Cooldown
-	then
-		return
-	end
-	self._lastCollision[key] = now
 
 	local slingService = getService(self._context, "SlingService")
 	local stateService = getService(self._context, "PlayerStateService")
@@ -262,11 +287,18 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		return
 	end
 
-	local attackerVelocity = getHorizontalVelocity(root)
+	local attackerVelocity = resolveImpactVelocity(root, payload, launchState)
 	local impactSpeed = attackerVelocity.Magnitude
 	if impactSpeed < PhysicsConfig.Collision.RealHitMinClosingSpeed then
 		return
 	end
+	if self._activeCollisionKeys[key]
+		or (self._lastCollision[key] and now - self._lastCollision[key] < PhysicsConfig.Collision.Cooldown)
+	then
+		return
+	end
+	self._activeCollisionKeys[key] = true
+	self._lastCollision[key] = now
 
 	local transferSpeed = math.clamp(
 		impactSpeed * PhysicsConfig.Collision.EnergyTransferRatio,
@@ -306,6 +338,8 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		})
 		stateService:SetMovementState(defender, "Launching")
 	end
+
+	self._activeCollisionKeys[key] = nil
 
 	self._context.EventBus:Fire("CollisionDetected", "Sling", player, defender, {
 		Speed = impactSpeed,

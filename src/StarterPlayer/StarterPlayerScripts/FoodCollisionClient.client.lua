@@ -12,6 +12,7 @@ local stateUpdateRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):Wa
 local reportFoodRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
 local reportCollisionRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("ReportCollision") :: RemoteEvent
 local gameplayFeedbackRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("GameplayFeedback") :: RemoteEvent
+local clientDoLaunchRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("ClientDoLaunch") :: RemoteEvent
 
 local GRID_CELL_SIZE = 48
 local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
@@ -21,7 +22,7 @@ local MIN_REPORT_SPEED = PhysicsConfig.Collision.MinReportSpeed
 local IMPACT_ABSORPTION = 0.6
 local HITSTOP_SECONDS = 0.05
 local BOUNCE_RETENTION = 0.7
-local LAUNCH_SCAN_GRACE_SECONDS = 0.25
+local LAUNCH_SCAN_GRACE_SECONDS = PhysicsConfig.Launch.ValidationGraceSeconds
 local PREDICTED_LAUNCH_SCAN_SECONDS = 0.35
 local EXISTING_VELOCITY_SCAN_SECONDS = 0.1
 
@@ -238,7 +239,7 @@ local function detectCommonFoodByDistance(root: BasePart)
 	end
 end
 
-local function reportPlayerHit(targetPlayer: Player, root: BasePart)
+local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpeed: number?)
 	local now = os.clock()
 	local cooldownKey = `Player:{targetPlayer.UserId}`
 	if (lastHit[cooldownKey] or 0) > now then
@@ -250,6 +251,7 @@ local function reportPlayerHit(targetPlayer: Player, root: BasePart)
 		targetUserId = targetPlayer.UserId,
 		currPos = root.Position,
 		velocity = root.AssemblyLinearVelocity,
+		observedSpeed = observedSpeed,
 	})
 end
 
@@ -317,7 +319,7 @@ local function sphereCastLaunching(root: BasePart, dt: number, previousPosition:
 	end
 	local targetPlayer = getPlayerFromHit(part)
 	if targetPlayer then
-		reportPlayerHit(targetPlayer, root)
+		reportPlayerHit(targetPlayer, root, observedSpeed)
 		return
 	end
 	local trap = getTrapPartFromHit(part)
@@ -344,10 +346,8 @@ RunService.RenderStepped:Connect(function(dt)
 	lastRootPosition = root.Position
 end)
 
-local function refreshPredictedLaunchFromAttributes()
-	local launchedAt = player:GetAttribute("PredictedLaunchStartedAt")
-	local direction = player:GetAttribute("PredictedLaunchDirection")
-	if typeof(launchedAt) ~= "number" or typeof(direction) ~= "Vector3" then
+clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any)
+	if typeof(direction) ~= "Vector3" then
 		return
 	end
 	local planarDirection = Vector3.new(direction.X, 0, direction.Z)
@@ -355,11 +355,8 @@ local function refreshPredictedLaunchFromAttributes()
 		return
 	end
 	predictedLaunchDirection = planarDirection.Unit
-	predictedLaunchScanEndsAt = math.max(predictedLaunchScanEndsAt, launchedAt + PREDICTED_LAUNCH_SCAN_SECONDS)
-end
-
-player:GetAttributeChangedSignal("PredictedLaunchStartedAt"):Connect(refreshPredictedLaunchFromAttributes)
-player:GetAttributeChangedSignal("PredictedLaunchDirection"):Connect(refreshPredictedLaunchFromAttributes)
+	predictedLaunchScanEndsAt = os.clock() + PREDICTED_LAUNCH_SCAN_SECONDS
+end)
 
 stateUpdateRemote.OnClientEvent:Connect(function(state)
 	if type(state) ~= "table" then
