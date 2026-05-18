@@ -1,11 +1,10 @@
 --!strict
 -- FIX SUMMARY (LaunchMotionModel):
 --
--- [FIX] Sample() không còn được dùng để drive movement speed.
---   Trước: SlingService đọc targetSpeed từ Sample() rồi stamp lên velocity mỗi frame.
---   Sau:   Sample() chỉ track energy decay để SlingService biết khi nào launch "hết lực".
---          Speed decay (DecayPerSecond) không còn ý nghĩa cho movement — giữ = 0 trong PhysicsConfig
---          hoặc để physics engine tự lo.
+-- [FIX] Sample() returns the server-authoritative decay target.
+--   Client applies the initial launch impulse locally because the player owns the root.
+--   SlingService then uses Sample() to scale down excessive horizontal velocity
+--   without increasing speed or changing direction.
 --
 -- API không thay đổi để tránh breaking changes ở chỗ khác (CollisionService dùng energy).
 -- Chỉ thêm comment để làm rõ intent.
@@ -43,14 +42,11 @@ function LaunchMotionModel.BuildState(direction: Vector3, chargeRatio: number, n
 end
 
 --[[
-	Sample() — chỉ track energy decay. Không còn drive movement speed.
+	Sample() returns decayed speed/energy for the active launch.
 
-	Sau FIX: SlingService._stepMovementStates() gọi Sample() chỉ để:
-	  1. Lấy sampledEnergy → detect khi energy <= 0 → trigger stop.
-	  2. Không dùng returned speed để stamp velocity.
-
-	Speed decay (DecayPerSecond) trong PhysicsConfig nên = 0 (đã là 0).
-	Nếu muốn có drag trong launch, config LinearDragPerSecond và để physics engine apply.
+	SlingService._stepMovementStates() uses the returned speed as a maximum
+	horizontal velocity and scales the physical velocity down when it is above
+	the sampled target. It never accelerates the root from this sample.
 
 	Return values giữ nguyên (speed, energy, elapsed) để không break CollisionService
 	hay các caller khác.
@@ -62,8 +58,7 @@ function LaunchMotionModel.Sample(state: any, now: number, currentVelocity: Vect
 
 	local elapsed = math.max(0, now - (state.startTime or now))
 
-	-- Speed: vẫn trả về để caller có thể dùng nếu cần,
-	-- nhưng SlingService sau fix KHÔNG dùng giá trị này để stamp velocity.
+	-- Speed: target maximum horizontal speed after time-based launch decay.
 	local rawSpeed = if currentVelocity then currentVelocity.Magnitude
 		else math.max(0, state.currentSpeed or state.initialSpeed or 0)
 	local decayFactor = math.max(0, 1 - (PhysicsConfig.Launch.DecayPerSecond * dt))

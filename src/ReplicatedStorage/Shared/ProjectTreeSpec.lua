@@ -148,6 +148,7 @@ local ProjectTreeSpec = {
 		ConsumeHpPotion = "SlingArenaRemotes.ConsumeHpPotion", -- [PROJECT_TREE_SPEC]
 		ReportFoodHit = "SlingArenaRemotes.ReportFoodHit", -- [PROJECT_TREE_SPEC]
 		ReportCollision = "SlingArenaRemotes.ReportCollision", -- [PROJECT_TREE_SPEC]
+		ClientDoLaunch = "SlingArenaRemotes.ClientDoLaunch", -- [PROJECT_TREE_SPEC]
 		StateUpdate = "SlingArenaRemotes.StateUpdate", -- [PROJECT_TREE_SPEC]
 		UIStateUpdate = "SlingArenaRemotes.UIStateUpdate", -- [PROJECT_TREE_SPEC]
 		GameplayFeedback = "SlingArenaRemotes.GameplayFeedback", -- [PROJECT_TREE_SPEC]
