@@ -456,7 +456,7 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	if launchRemote then
 		launchRemote:FireClient(player, launchState.direction, launchState.initialSpeed, root.AssemblyMass)
 	end
-	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
+	player:SetAttribute("LaunchValidationGraceEndsAt", now + PhysicsConfig.Launch.ValidationGraceSeconds * 20)
 
 	self._activeLaunches[player] = launchState
 	warn(string.format("[SlingService] Launch player=%s charge=%.2f speed=%.2f energy=%.2f",
