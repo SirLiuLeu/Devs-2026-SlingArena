@@ -63,7 +63,7 @@ local PhysicsConfig = {
 
 		-- Fixed recovery duration after launch stops.
 		RecoveryDuration = 0.4,
-		ValidationGraceSeconds = 0.15,
+		ValidationGraceSeconds = 1,
 	},
 
 	Collision = {

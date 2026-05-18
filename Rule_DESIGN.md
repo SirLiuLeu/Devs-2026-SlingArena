@@ -233,14 +233,10 @@ The physics and collision system strictly follows the **Client-Side Prediction +
     *   Controls Damage, HP, Kill, and State logic.
     *   Replicates valid results to all clients.
 
----
-
 ## 4.2 Formula
 - ImpactDamage = BaseDamage × CollisionSpeedMultiplier
 - Size = BaseSize × (1 + sqrt(Level) × 0.08)
 - RequiredEXP = BaseEXP × (Level ^ 1.3)
-
----
 
 ## 4.3 Combat Flow
 - Move → Charge → Launch → Collision → Damage + Knockback
@@ -248,7 +244,6 @@ The physics and collision system strictly follows the **Client-Side Prediction +
 - Prevent multi-hit spam during a single contact window
 - Any applied force must be clamped by `PhysicsConfig.lua`
 
----
 
 ## 4.4 State-Based Physics Rules
 Physics rules change entirely based on the player’s current `PlayerState`.
@@ -269,8 +264,6 @@ Physics rules change entirely based on the player’s current `PlayerState`.
     *   Damage is applied **only once** at the moment of impact.
     *   Maximum velocity must be limited by Drag to gradually slow down, preventing uncontrollable high-speed movement.
 
----
-
 ## 4.5 Reconciliation Rules
 Client collision and knockback should follow the same logic as the Server as closely as possible, but the Server always has the final result.
 
@@ -284,8 +277,6 @@ Client collision and knockback should follow the same logic as the Server as clo
   + cancel the local knockback immediately
   + resync position and velocity from the Server
 
----
-
 ## 4.6 Collision Architecture
 - Collision is **server authoritative**
 - Client may detect potential overlap and send a hit trigger, but **client touch events are not the source of truth**
@@ -295,8 +286,6 @@ Client collision and knockback should follow the same logic as the Server as clo
 - Server manages the positions/state of Food and Player
 - Use a fixed server check interval of `task.wait(0.1)` for broad polling
 - Use **spatial grid / zone filtering** so the server only checks nearby foods
-
----
 
 ## 4.7 Collision Math (Player / Sling vs Food)
 
@@ -352,8 +341,6 @@ Where:
   + distance / horizontal / swept check passes
   + client-reported hit is plausible, if a client trigger is used
   + player velocity is within allowed threshold
-
----
 
 ## 4.8 Collision Types
 
