@@ -27,7 +27,7 @@ local PhysicsConfig = {
 		MaxArenaRadius = 300,
 		ArenaWallPadding = 6,
 		-- Drag only applies to non-Launching players (normal movement).
-		-- Launch has its own dedicated VectorForce drag; see Launch.*Drag* below.
+		-- Launch speed decay is enforced by SlingService via LaunchMotionModel.Sample().
 		LinearDragPerSecond = 0.08,
 		StopSpeed = 0.35,
 		WallRestitution = 0.78,
@@ -43,19 +43,18 @@ local PhysicsConfig = {
 
 	Launch = {
 		DirectionDeadzone = 0.01,
-		SpeedMin = 2,
+		SpeedMin = 20,
 		SpeedMax = 170,
 		InitialVelocityCap = 170,
 		EnergyMin = 18,
 		EnergyMax = 120,
 
-		-- Physical resistance applied by SlingService through a VectorForce during launch.
-		-- LinearDragPerSecond is acceleration lost per stud/sec of planar speed;
-		-- QuadraticDragPerSecond adds stronger resistance at high launch speeds.
+		-- Reserved launch drag knobs for future physical drag tuning. Current active
+		-- launch slowdown is DecayPerSecond via LaunchMotionModel.Sample().
 		LinearDragPerSecond = 0.002,
 		QuadraticDragPerSecond = 0.00012,
 		DragMaxForce = 6000,
-		DecayPerSecond = 0.1, -- Decay of currentSpeed in LaunchMotionModel.Sample; kept at 0 since we rely on drag to reduce speed.
+		DecayPerSecond = 0.1, -- Server-enforced speed decay applied from LaunchMotionModel.Sample.
 		-- Launch enters recovery once horizontal speed reaches this threshold.
 		StopSpeed = 1,
 

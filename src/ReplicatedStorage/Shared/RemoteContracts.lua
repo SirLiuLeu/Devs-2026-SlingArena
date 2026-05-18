@@ -29,6 +29,7 @@ RemoteContracts.Names = {
 	ConsumeHpPotion = "ConsumeHpPotion",
 	ReportFoodHit = "ReportFoodHit",
 	ReportCollision = "ReportCollision",
+	ClientDoLaunch = "ClientDoLaunch",
 }
 
 RemoteContracts.Validators = {

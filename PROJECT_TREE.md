@@ -217,6 +217,7 @@ DataModel
 │  │     ├─ MoveRequest
 │  │     ├─ StartCharge
 │  │     ├─ ReleaseCharge
+│  │     ├─ ClientDoLaunch
 │  │     ├─ RequestLaunch [CONTRACT ALIAS / freeze-required]
 │  │     ├─ JoinArena
 │  │     ├─ LeaveArena

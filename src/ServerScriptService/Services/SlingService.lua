@@ -5,10 +5,10 @@
 --   Trước: root:SetNetworkOwner(nil) → server own → PlayerB thấy freeze 1-4 frames rồi snap.
 --   Sau:   Giữ nguyên player own suốt launch → replication path giống movement bình thường.
 --
--- [FIX 2] KHÔNG stamp AssemblyLinearVelocity mỗi Heartbeat trong launch.
---   Trước: server ghi đè velocity mỗi frame → fight physics engine → jitter với PlayerB.
---   Sau:   Chỉ clamp nếu vượt SpeedMax; decay tự nhiên qua LinearDrag hoặc không decay
---          (DecayPerSecond = 0 trong PhysicsConfig), để Roblox physics tự lo.
+-- [FIX 2] Client-authoritative impulse; server enforces only decay/clamp.
+--   Server no longer applies the initial impulse to a player-owned root.
+--   Client applies the launch impulse locally, then server scales down excessive
+--   horizontal speed using LaunchMotionModel.Sample().
 --
 -- [FIX 3] Smooth stop thay vì instant-zero velocity.
 --   Trước: root.AssemblyLinearVelocity = Vector3.new(0, y, 0) → snap rõ nhất với PlayerB.
@@ -105,6 +105,7 @@ function SlingService.new(context)
 	self._releaseCooldown = {}
 	self._movementControllers = {}
 	self._remoteConnections = {}
+	self._clientDoLaunchRemote = nil :: RemoteEvent?
 	self._heartbeatConnection = nil
 	self._warnedInvalidRoot = {}
 	self._loggedControllerRoot = {}
@@ -167,6 +168,7 @@ function SlingService:Init()
 	local startChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.StartCharge)
 	local releaseChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.ReleaseCharge)
 	local moveRequestRemote = remotes:FindFirstChild(RemoteContracts.Names.MoveRequest)
+	local clientDoLaunchRemote = remotes:FindFirstChild(RemoteContracts.Names.ClientDoLaunch)
 
 	if startChargeRemote and startChargeRemote:IsA("RemoteEvent") then
 		self._remoteConnections.StartCharge = startChargeRemote.OnServerEvent:Connect(function(player, aimTarget)
@@ -182,6 +184,12 @@ function SlingService:Init()
 		end)
 	else
 		warn(string.format("[SlingService] Missing remote %s; charge-release listener disabled.", RemoteContracts.Names.ReleaseCharge))
+	end
+
+	if clientDoLaunchRemote and clientDoLaunchRemote:IsA("RemoteEvent") then
+		self._clientDoLaunchRemote = clientDoLaunchRemote
+	else
+		warn(string.format("[SlingService] Missing remote %s; client launch impulse disabled.", RemoteContracts.Names.ClientDoLaunch))
 	end
 
 	if moveRequestRemote and moveRequestRemote:IsA("RemoteEvent") then
@@ -441,17 +449,20 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 		root:SetNetworkOwner(player)
 	end
 
-	-- Apply initial impulse (unchanged — vẫn cần để kick off physics trên client).
-	local preLaunchVelocity = root.AssemblyLinearVelocity
-	root.AssemblyLinearVelocity = Vector3.new(0, preLaunchVelocity.Y, 0)
-	root:ApplyImpulse(launchState.direction * (root.AssemblyMass * launchState.initialSpeed))
+	-- Client-authoritative launch: the player owns the root, so the client must
+	-- apply the initial impulse locally. Server remains authoritative for state,
+	-- validation, collision damage, and decay/clamp corrections after launch.
+	local launchRemote = self._clientDoLaunchRemote
+	if launchRemote then
+		launchRemote:FireClient(player, launchState.direction, launchState.initialSpeed, root.AssemblyMass)
+	end
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 
 	self._activeLaunches[player] = launchState
 	warn(string.format("[SlingService] Launch player=%s charge=%.2f speed=%.2f energy=%.2f",
 		player.Name, chargeRatio, launchState.initialSpeed, launchState.energy))
 
-	state.CurrentVelocity = root.AssemblyLinearVelocity
+	state.CurrentVelocity = launchState.direction * launchState.initialSpeed
 	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
 	self._context.Services.PlayerStateService:SetMovementState(player, "Launching")
 	warn(string.format("[SlingService] State player=%s -> Launching", player.Name))
@@ -612,14 +623,10 @@ end
 --[[
 	_stepMovementStates (REFACTORED):
 
-	[FIX 2] Không còn stamp velocity mỗi frame trong Launch.
-	  Trước: server đọc velocity → tính targetSpeed → ghi lại scaledHorizontal mỗi frame.
-	  Sau:   Server chỉ:
-	    - Theo dõi launchState.energy để biết khi nào launch "hết năng lượng".
-	    - Clamp nếu speed vượt SpeedMax (ví dụ sau collision spike).
-	    - KHÔNG ghi đè velocity direction — để Roblox physics tự lo bounce/direction.
-	  Player own root → client physics chạy → replication tự nhiên → PlayerB thấy mượt.
-
+	[FIX 2] Client applies the initial impulse, then server enforces decay/clamp.
+	  Server reads LaunchMotionModel.Sample() and only scales horizontal speed down
+	  when actual physics velocity exceeds the sampled decay speed or SpeedMax.
+	  Direction is preserved so Roblox physics can still handle bounce/deflection.
 	[FIX 3] Smooth stop.
 	  Trước: root.AssemblyLinearVelocity = (0, y, 0) — instant snap.
 	  Sau:   Áp brake factor mạnh mỗi frame cho đến khi speed < StopSpeed thật sự.
@@ -642,23 +649,22 @@ function SlingService:_stepMovementStates(dt: number)
 		local horizontalSpeed = horizontalVelocity.Magnitude
 
 		if state.MovementState == "Launching" and launchState then
-			-- Sample energy decay (chỉ để theo dõi khi nào launch hết năng lượng).
-			-- Speed decay KHÔNG được apply ở đây nữa → để physics engine lo.
-			local _, sampledEnergy, _ = LaunchMotionModel.Sample(launchState, now, horizontalVelocity)
-			launchState.currentSpeed = horizontalSpeed
-			launchState.energy = sampledEnergy
-
-			-- [FIX 2] Chỉ clamp nếu vượt SpeedMax (collision spike guard).
-			-- Không stamp mọi frame — chỉ can thiệp khi cần thiết.
-			if horizontalSpeed > PhysicsConfig.Launch.SpeedMax then
-				local clampedSpeed = PhysicsConfig.Launch.SpeedMax
-				local clampedHorizontal = horizontalVelocity.Unit * clampedSpeed
+			-- Sample launch decay and actively enforce it by only scaling speed down.
+			local sampledSpeed, sampledEnergy, _ = LaunchMotionModel.Sample(launchState, now, horizontalVelocity)
+			local targetSpeed = math.min(sampledSpeed, PhysicsConfig.Launch.SpeedMax)
+			if horizontalSpeed > targetSpeed and horizontalSpeed > PhysicsConfig.Movement.InputDeadzone then
+				local clampedHorizontal = horizontalVelocity.Unit * math.max(targetSpeed, 0)
 				root.AssemblyLinearVelocity = Vector3.new(
 					clampedHorizontal.X,
 					fullVelocity.Y,
 					clampedHorizontal.Z
 				)
+				fullVelocity = root.AssemblyLinearVelocity
+				horizontalVelocity = Vector3.new(fullVelocity.X, 0, fullVelocity.Z)
+				horizontalSpeed = horizontalVelocity.Magnitude
 			end
+			launchState.currentSpeed = horizontalSpeed
+			launchState.energy = sampledEnergy
 
 			-- Track direction cho collision service (không dùng để drive movement).
 			if horizontalSpeed > PhysicsConfig.Movement.InputDeadzone then
