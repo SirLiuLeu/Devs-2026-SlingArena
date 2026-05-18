@@ -57,7 +57,7 @@ local PhysicsConfig = {
 		DragMaxForce = 6000,
 		DecayPerSecond = 0.1, -- Decay of currentSpeed in LaunchMotionModel.Sample; kept at 0 since we rely on drag to reduce speed.
 		-- Launch enters recovery once horizontal speed reaches this threshold.
-		StopSpeed = 0.0,
+		StopSpeed = 1,
 
 		-- Kept for damage / force-transfer math; no longer drives movement.
 		PassiveEnergyDecayPerSecond = 0.035,
