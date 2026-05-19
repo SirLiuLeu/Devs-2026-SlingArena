@@ -215,6 +215,7 @@ local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitT
 	markFoodPredicted(food, rarity)
 	local normal = (root.Position - hitbox.Position).Magnitude > 0.001 and (root.Position - hitbox.Position).Unit or Vector3.new(0, 0, -1)
 	applyPredictedLaunchFeel(root, normal)
+	print(`Reporting food hit: ${foodId}, type: ${hitType}, speed: ${reportSpeed}`)
 	reportFoodRemote:FireServer({
 		foodId = foodId,
 		hitType = hitType,
