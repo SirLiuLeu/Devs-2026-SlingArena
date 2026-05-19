@@ -22,7 +22,10 @@ local GRID_CELL_SIZE = 48
 local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
 local MAX_ALLOWED_SPEED = PhysicsConfig.Collision.MaxAllowedSpeed
-local HIT_REQUEST_COOLDOWN = PhysicsConfig.Collision.ReportCooldown
+-- FIX 1: Raise per-player hit request cooldown to match the client-side REPORT_COOLDOWN
+-- increase (0.4s). This prevents the server from processing the rare duplicate that
+-- slips through if the client fires two reports just before the cooldown resets.
+local HIT_REQUEST_COOLDOWN = 0.4
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local COMMON_ALLOWED_STATES = {
@@ -31,18 +34,28 @@ local COMMON_ALLOWED_STATES = {
 	[GameStates.PlayerState.Idle] = true,
 }
 
+-- FIX 3 ROOT CAUSE: The server validation rejects hits when MovementState == "Idle" even
+-- though the player has a non-zero horizontal speed. This happens because:
+--   1. The client fires ReportFoodHit immediately after clientDoLaunchRemote fires.
+--   2. SlingService._stepMovementStates reads root.AssemblyLinearVelocity from the SERVER,
+--      which is 0 (physics replication hasn't arrived yet since the root is client-owned).
+--   3. Because server-side speed == 0, shouldStop triggers immediately, transitioning
+--      the state to Recovering/Idle before the food report arrives.
+-- Fix: isLaunchHitValidationActive now also accepts "Idle" state when the per-player
+-- LaunchValidationGraceEndsAt attribute is still active. The grace window is already
+-- set by SlingService.ReleaseCharge to now + ValidationGraceSeconds * 20, so any food
+-- hit reported during that window (even after the premature Idle transition) is accepted.
+-- No new attribute is needed — the existing LaunchValidationGraceEndsAt covers this case.
 local function isLaunchHitValidationActive(player: Player, movementState: string?): boolean
 	if movementState == GameStates.PlayerState.Launching then
 		return true
 	end
-
-	-- "Recovering" should still allow HP food hits.
-	-- After launch stops, the player may still be sliding with remaining momentum,
-	-- so hits during this window must be considered valid.
 	if movementState == "Recovering" then
 		return true
 	end
-
+	-- FIX 3: Accept hits from any state while the launch grace window is active.
+	-- This covers the premature Idle/Recovering transition caused by server-side
+	-- velocity reading 0 immediately after a client-authoritative launch.
 	local graceEndsAt = player:GetAttribute("LaunchValidationGraceEndsAt")
 	return typeof(graceEndsAt) == "number"
 		and graceEndsAt > 0
@@ -464,8 +477,10 @@ function FoodService:_computeEffectiveRadius(playerRadius: number, foodRadius: n
 	return playerRadius + foodRadius + (speed * ping) + VALIDATION_EPSILON
 end
 
--- Server validation is intentionally lightweight and only runs after a client report.
--- It checks that the target exists, state rules allow the hit, and current distance is plausible.
+-- FIX 2 + FIX 3: _validateFoodHit now accepts observedSpeed from the client payload and
+-- uses it as a fallback when root.AssemblyLinearVelocity reads low due to replication lag.
+-- FIX 3: isLaunchHitValidationActive now checks the grace window for any movementState,
+-- so a premature Idle/Recovering transition no longer blocks valid hits.
 function FoodService:_validateFoodHit(player: Player, entry: any, payload: any): boolean
 	if not (entry and entry.IsActive and not entry.IsConsumed and entry.Instance and entry.Instance.Parent) then
 		return false
@@ -475,7 +490,16 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	if not (root and self:_isPlayerAlive(player)) then
 		return false
 	end
-	local speed = root.AssemblyLinearVelocity.Magnitude
+
+	-- FIX 2: Use max of server-measured speed and client-reported observedSpeed.
+	-- Server-side velocity can read 0 immediately after a client-authoritative launch
+	-- because physics replication from the client hasn't arrived yet.
+	local serverSpeed = root.AssemblyLinearVelocity.Magnitude
+	local clientObservedSpeed = (payload and typeof(payload.observedSpeed) == "number")
+		and math.clamp(payload.observedSpeed, 0, MAX_ALLOWED_SPEED)
+		or 0
+	local speed = math.max(serverSpeed, clientObservedSpeed)
+
 	if speed > MAX_ALLOWED_SPEED then
 		return false
 	end
@@ -490,16 +514,23 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	if not (rule and movementState) then
 		return false
 	end
-	local horizontalSpeed = flattenXZ(root.AssemblyLinearVelocity).Magnitude
+
+	-- FIX 2: Use clientObservedSpeed as fallback for horizontalSpeed when server reads 0.
+	local serverHorizontalSpeed = flattenXZ(root.AssemblyLinearVelocity).Magnitude
+	local horizontalSpeed = math.max(serverHorizontalSpeed, clientObservedSpeed)
+
 	if (not rule.Touch) and entry.MaxHP > 0 then
 		if not isLaunchHitValidationActive(player, movementState)
 				or horizontalSpeed < PhysicsConfig.Collision.FoodHitMinHorizontalSpeed
 			then
-			print(string.format("[FoodService] Validation failed: Player movement state %s with horizontal speed %.2f does not meet requirements for hitting foodId=%s", tostring(movementState), horizontalSpeed, tostring(payload.foodId)))
+			print(string.format("[FoodService] Validation failed: Player movement state %s with horizontal speed %.2f does not meet requirements for hitting foodId=%s", tostring(movementState), horizontalSpeed, tostring(payload and payload.foodId)))
 			return false
 		end
 	elseif not COMMON_ALLOWED_STATES[movementState] then
-		return false
+		-- FIX 3: Also allow common food collection during grace window (covers premature Idle).
+		if not isLaunchHitValidationActive(player, movementState) then
+			return false
+		end
 	end
 
 	local playerRadius = math.max(root.Size.X, root.Size.Z) * 0.5
@@ -573,7 +604,6 @@ function FoodService:_resolvePenetration(root: BasePart, hitbox: BasePart, norma
 end
 
 function FoodService:_startCollisionLoop()
-	-- Collision detection is client-driven; the server does not scan food contacts on Heartbeat.
 	return
 end
 
@@ -610,6 +640,11 @@ function FoodService:Start()
 			return
 		end
 		local entry = self._foodById[payload.foodId]
+
+		-- FIX 1: The IsConsumed / IsActive flags act as the authoritative one-hit guard.
+		-- _consumeFood sets IsConsumed=true and removes from _foodById atomically before
+		-- any async work. Any duplicate report arriving after that finds entry=nil (removed
+		-- from _foodById) or entry.IsConsumed=true and is rejected without damage.
 		if not self:_validateFoodHit(player, entry, payload) then
 			if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
 				feedbackRemote:FireClient(player, {
@@ -632,11 +667,23 @@ function FoodService:Start()
 			local playerService = getService(self._context, "PlayerService")
 			local root = playerService and playerService:GetRoot(player)
 			if root then
-				local horizontalVelocity = flattenXZ(root.AssemblyLinearVelocity)
-				local horizontalSpeed = horizontalVelocity.Magnitude
+				-- FIX 2: Use max of server and client-reported speed for damage calc,
+				-- same as in _validateFoodHit, so damage isn't 0 on strong launches.
+				local serverHorizontalSpeed = flattenXZ(root.AssemblyLinearVelocity).Magnitude
+				local clientObservedSpeed = (payload and typeof(payload.observedSpeed) == "number")
+					and math.clamp(payload.observedSpeed, 0, MAX_ALLOWED_SPEED)
+					or 0
+				local horizontalSpeed = math.max(serverHorizontalSpeed, clientObservedSpeed)
+
 				self:_applySlingDamage(entry, player, horizontalSpeed)
-				local impulse = horizontalVelocity * -root.AssemblyMass * 0.35
-				root:ApplyImpulse(Vector3.new(impulse.X, 0, impulse.Z))
+
+				-- FIX 4: Only apply impulse (bounce) for non-common (HP) food.
+				-- Common food is pass-through: no physical response from the server either.
+				-- rule.Touch == true means Common food; rule.MustHit == true means HP food.
+				if rule.MustHit and not rule.Touch then
+					local impulse = flattenXZ(root.AssemblyLinearVelocity) * -root.AssemblyMass * 0.35
+					root:ApplyImpulse(Vector3.new(impulse.X, 0, impulse.Z))
+				end
 			end
 		end
 	end)

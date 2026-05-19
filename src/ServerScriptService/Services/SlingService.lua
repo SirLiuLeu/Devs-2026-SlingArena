@@ -16,6 +16,19 @@
 --
 -- [FIX 4] Bỏ lưu/restore LinearVelocity controllers khi launch (không cần vì không own server nữa).
 --   MovementController vẫn bị DisableLocomotion để WASD không fight launch momentum.
+--
+-- [BUG FIX - State machine premature Idle transition]:
+--   ROOT CAUSE: _stepMovementStates called LaunchMotionModel.Sample(launchState, now, horizontalVelocity)
+--   where horizontalVelocity is read from root.AssemblyLinearVelocity on the SERVER.
+--   Because the root is CLIENT-OWNED (FIX 1), the server's physics view of velocity
+--   lags by network RTT. Immediately after ReleaseCharge, the server reads velocity≈0,
+--   LaunchMotionModel.Sample returns speed=0, shouldStop triggers immediately, and the
+--   state transitions to Recovering/Idle — BEFORE the food hit report even arrives.
+--   FIX: _stepMovementStates uses time-based speed decay from launchState.initialSpeed
+--   (computed at launch time) rather than reading root.AssemblyLinearVelocity as the
+--   authoritative speed for decay/stop decisions. The server velocity is only used to
+--   CLAMP from above (cap excessive speed) — never to drive the energy counter or stop trigger.
+--   launchState.currentSpeed is now maintained purely by the decay model, not physics reads.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -91,9 +104,6 @@ function SlingService.BuildCooldownUiState(cooldownEndTime: number, nowTime: num
 end
 
 local MOVEMENT_STATE = GameStates.PlayerState
-
--- Brake deceleration rate (units/s per unit/s) applied when launch is stopping.
--- Đủ nhanh để dừng trong ~2-3 frames ở 60fps, nhưng không instant → không snap với PlayerB.
 local LAUNCH_BRAKE_RATE = 15
 
 function SlingService.new(context)
@@ -110,7 +120,6 @@ function SlingService.new(context)
 	self._warnedInvalidRoot = {}
 	self._loggedControllerRoot = {}
 	self._aimTargets = {}
-	-- [FIX 4] _launchVelocityControllers removed — không cần vì player vẫn own root.
 	self._activeLaunches = {}
 	return self
 end
@@ -431,27 +440,15 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	local now = os.clock()
 	local launchState = LaunchMotionModel.BuildState(launchDirectionPlanar, chargeRatio, now, player)
 
-	-- Disable locomotion actuator so WASD doesn't fight launch momentum.
 	local movementController = self._movementControllers[player]
 	if movementController then
 		movementController:DisableLocomotion(true)
 	end
 
-	-- [FIX 1] Giữ player làm NetworkOwner — KHÔNG chuyển về server.
-	-- Trước: root:SetNetworkOwner(nil)
-	-- Lý do: server-owned BasePart replicates position từ server sau mỗi physics step (~16ms).
-	-- PlayerB thấy root freeze 1-4 frames rồi jump → "snap".
-	-- Player-owned root replicates trực tiếp từ client → cùng path với movement bình thường → mượt.
-	--
-	-- Server vẫn validate collision qua CollisionService (position check ± tolerance).
-	-- Nếu cần server authority cho anti-cheat, dùng position validation sau launch thay vì ownership.
 	if root:GetNetworkOwner() ~= player then
 		root:SetNetworkOwner(player)
 	end
 
-	-- Client-authoritative launch: the player owns the root, so the client must
-	-- apply the initial impulse locally. Server remains authoritative for state,
-	-- validation, collision damage, and decay/clamp corrections after launch.
 	local launchRemote = self._clientDoLaunchRemote
 	if launchRemote then
 		launchRemote:FireClient(player, launchState.direction, launchState.initialSpeed, root.AssemblyMass)
@@ -562,18 +559,14 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 
 	self._warnedInvalidRoot[player] = nil
 
-	-- [FIX 1 continued] Trong Launch, player vẫn own → không cần restore controllers.
-	-- Chỉ update aim rotation để pawn face travel direction.
 	if state.MovementState == "Launching" then
 		self:_applyAimRotation(player, root, input, dt)
-		-- Đảm bảo player vẫn là owner (có thể bị reset bởi code khác).
 		if root:GetNetworkOwner() ~= player then
 			root:SetNetworkOwner(player)
 		end
 		return
 	end
 
-	-- Đảm bảo player own khi không launch (đã là behavior cũ, giữ nguyên).
 	if root:GetNetworkOwner() ~= player then
 		root:SetNetworkOwner(player)
 		if not self._loggedControllerRoot[player] then
@@ -621,18 +614,25 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 end
 
 --[[
-	_stepMovementStates (REFACTORED):
+	_stepMovementStates (BUG FIX):
 
-	[FIX 2] Client applies the initial impulse, then server enforces decay/clamp.
-	  Server reads LaunchMotionModel.Sample() and only scales horizontal speed down
-	  when actual physics velocity exceeds the sampled decay speed or SpeedMax.
-	  Direction is preserved so Roblox physics can still handle bounce/deflection.
-	[FIX 3] Smooth stop.
-	  Trước: root.AssemblyLinearVelocity = (0, y, 0) — instant snap.
-	  Sau:   Áp brake factor mạnh mỗi frame cho đến khi speed < StopSpeed thật sự.
-	  Brake frame 1: speed * (1 - 15*dt) ≈ speed * 0.75 tại 60fps
-	  Brake frame 2: speed * 0.75 * 0.75 ≈ speed * 0.56
-	  ... dừng hẳn trong ~4-5 frames = ~80ms, không thấy snap.
+	ROOT CAUSE OF PREMATURE IDLE/RECOVERING:
+	The original code called LaunchMotionModel.Sample(launchState, now, horizontalVelocity)
+	where horizontalVelocity = root.AssemblyLinearVelocity read from the SERVER.
+	Because the root is CLIENT-OWNED, the server's physics view lags by network RTT.
+	Immediately after ReleaseCharge fires clientDoLaunchRemote, the server reads
+	velocity ≈ 0 (replication hasn't arrived). LaunchMotionModel.Sample sees rawSpeed=0,
+	returns sampledSpeed=0, shouldStop triggers, and state becomes Recovering/Idle
+	before any food report can arrive — causing the "state=Idle speed=20" log.
+
+	FIX: Decay launchState.currentSpeed using time-based math (DecayPerSecond applied
+	to the RECORDED initialSpeed over elapsed time), not from root.AssemblyLinearVelocity.
+	The server velocity is only used to CLAMP excessive speed downward (cap cheating),
+	never as the authoritative value for stop/energy decisions.
+
+	Energy is also decayed purely time-based (PassiveEnergyDecayPerSecond × elapsed).
+	shouldStop only triggers when the TIME-BASED currentSpeed drops below StopSpeed,
+	or when the grace window expires and server velocity is also low.
 ]]
 function SlingService:_stepMovementStates(dt: number)
 	for _, player in self:_getTrackedPlayers() do
@@ -646,13 +646,44 @@ function SlingService:_stepMovementStates(dt: number)
 		local launchState = self._activeLaunches[player]
 		local fullVelocity = root.AssemblyLinearVelocity
 		local horizontalVelocity = Vector3.new(fullVelocity.X, 0, fullVelocity.Z)
-		local horizontalSpeed = horizontalVelocity.Magnitude
+		local serverHorizontalSpeed = horizontalVelocity.Magnitude
 
 		if state.MovementState == "Launching" and launchState then
-			-- Sample launch decay and actively enforce it by only scaling speed down.
-			local sampledSpeed, sampledEnergy, _ = LaunchMotionModel.Sample(launchState, now, horizontalVelocity)
-			local targetSpeed = math.min(sampledSpeed, PhysicsConfig.Launch.SpeedMax)
-			if horizontalSpeed > targetSpeed and horizontalSpeed > PhysicsConfig.Movement.InputDeadzone then
+			-- BUG FIX: Use time-based decay for currentSpeed and energy.
+			-- Do NOT use root.AssemblyLinearVelocity as the speed for decay/stop
+			-- because the server reads 0 immediately after a client-authoritative launch.
+			local lastSampleTime = launchState.lastSampleTime or launchState.startTime or now
+			local elapsed = math.max(0, now - lastSampleTime)
+			launchState.lastSampleTime = now
+
+			-- Time-based speed decay: apply DecayPerSecond to currentSpeed each frame.
+			-- currentSpeed starts at initialSpeed and decays monotonically.
+			local previousSpeed = launchState.currentSpeed or launchState.initialSpeed or 0
+			local decayFactor = math.max(0, 1 - (PhysicsConfig.Launch.DecayPerSecond * elapsed))
+			local decayedSpeed = previousSpeed * decayFactor
+
+			-- Time-based energy decay.
+			local energyDecayFactor = math.max(0, 1 - (PhysicsConfig.Launch.PassiveEnergyDecayPerSecond * elapsed))
+			local decayedEnergy = math.max(0, (launchState.energy or 0) * energyDecayFactor)
+
+			-- Server velocity is only used to CLAMP from above: if the client somehow
+			-- exceeds the decayed speed cap, we bring it down. We never set currentSpeed
+			-- to the server velocity when server reads low (0), since that's a lag artifact.
+			-- Only clamp if server speed has had time to replicate (check grace window).
+			local graceEndsAt = player:GetAttribute("LaunchValidationGraceEndsAt")
+			local graceActive = typeof(graceEndsAt) == "number" and os.clock() <= graceEndsAt
+			local targetSpeed
+			if graceActive then
+				-- During the grace window: trust time-based decay only.
+				-- Server hasn't received physics replication yet.
+				targetSpeed = decayedSpeed
+			else
+				-- After grace: server velocity is now reliable; clamp from above only.
+				targetSpeed = math.min(decayedSpeed, math.max(serverHorizontalSpeed, PhysicsConfig.Launch.StopSpeed))
+			end
+
+			-- Only apply the clamp downward — never accelerate.
+			if serverHorizontalSpeed > targetSpeed and serverHorizontalSpeed > PhysicsConfig.Movement.InputDeadzone and not graceActive then
 				local clampedHorizontal = horizontalVelocity.Unit * math.max(targetSpeed, 0)
 				root.AssemblyLinearVelocity = Vector3.new(
 					clampedHorizontal.X,
@@ -661,25 +692,26 @@ function SlingService:_stepMovementStates(dt: number)
 				)
 				fullVelocity = root.AssemblyLinearVelocity
 				horizontalVelocity = Vector3.new(fullVelocity.X, 0, fullVelocity.Z)
-				horizontalSpeed = horizontalVelocity.Magnitude
+				serverHorizontalSpeed = horizontalVelocity.Magnitude
 			end
-			launchState.currentSpeed = horizontalSpeed
-			launchState.energy = sampledEnergy
 
-			-- Track direction cho collision service (không dùng để drive movement).
-			if horizontalSpeed > PhysicsConfig.Movement.InputDeadzone then
+			launchState.currentSpeed = targetSpeed
+			launchState.energy = decayedEnergy
+
+			-- Track direction for collision service (only update when server velocity is reliable).
+			if not graceActive and serverHorizontalSpeed > PhysicsConfig.Movement.InputDeadzone then
 				launchState.direction = horizontalVelocity.Unit
 			end
 		end
 
-		-- Kiểm tra điều kiện dừng launch.
+		-- Stop condition: use time-based currentSpeed, not server velocity.
+		-- This prevents premature stop when server reads 0 immediately after launch.
 		local stopThreshold = PhysicsConfig.Launch.StopSpeed
+		local timeBasedSpeed = launchState and (launchState.currentSpeed or 0) or 0
 		local shouldStop = state.MovementState == "Launching"
-			and (horizontalSpeed <= stopThreshold or (launchState and launchState.energy <= 0))
+			and (timeBasedSpeed <= stopThreshold or (launchState and launchState.energy <= 0))
 
 		if shouldStop then
-			-- [FIX 3] Smooth brake thay vì instant zero.
-			-- Áp dụng brake factor mạnh — dừng trong ~4-5 frames ở 60fps thay vì 1 frame.
 			local brakeFactor = math.max(0, 1 - LAUNCH_BRAKE_RATE * dt)
 			local brakedHorizontal = horizontalVelocity * brakeFactor
 			root.AssemblyLinearVelocity = Vector3.new(
@@ -688,8 +720,6 @@ function SlingService:_stepMovementStates(dt: number)
 				brakedHorizontal.Z
 			)
 
-			-- Chỉ chuyển sang Recovering khi speed thực sự rất thấp (gần 0).
-			-- Tránh chuyển state quá sớm → movement controller activate giữa chừng.
 			if brakedHorizontal.Magnitude <= 0.5 then
 				self._activeLaunches[player] = nil
 
@@ -700,8 +730,8 @@ function SlingService:_stepMovementStates(dt: number)
 				self._context.Services.PlayerStateService:SetCooldownEndTime(player, recoveryEnd)
 				player:SetAttribute("LaunchValidationGraceEndsAt", now + PhysicsConfig.Launch.ValidationGraceSeconds)
 				self._context.Services.PlayerStateService:SetMovementState(player, "Recovering")
-				warn(string.format("[SlingService] State player=%s -> Recovering (horizontal=%.2f)",
-					player.Name, horizontalSpeed))
+				warn(string.format("[SlingService] State player=%s -> Recovering (timeBasedSpeed=%.2f)",
+					player.Name, timeBasedSpeed))
 			end
 
 		elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
