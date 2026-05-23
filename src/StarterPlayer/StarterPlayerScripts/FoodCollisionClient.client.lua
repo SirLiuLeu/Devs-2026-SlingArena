@@ -236,6 +236,7 @@ local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitT
 
 	-- FIX 2: Send observedSpeed in the payload so the server can use it when its
 	-- own velocity read is stale due to client-authoritative physics replication lag.
+	print(`Reporting food hit: foodId={foodId}, hitType={hitType}, observedSpeed={reportSpeed}`)
 	reportFoodRemote:FireServer({
 		foodId = foodId,
 		hitType = hitType,
@@ -268,6 +269,7 @@ local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpe
 		return
 	end
 	lastHit[cooldownKey] = now + REPORT_COOLDOWN
+	print(`Reporting player hit: targetUserId={targetPlayer.UserId}, observedSpeed={observedSpeed}`)
 	reportCollisionRemote:FireServer({
 		targetType = "Player",
 		targetUserId = targetPlayer.UserId,

@@ -1,34 +1,45 @@
 --!strict
--- FIX SUMMARY (tele/snap nhìn từ PlayerB):
+-- REFACTOR SUMMARY – Launch State Machine
 --
--- [FIX 1] KHÔNG transfer NetworkOwner về server khi Launch.
---   Trước: root:SetNetworkOwner(nil) → server own → PlayerB thấy freeze 1-4 frames rồi snap.
---   Sau:   Giữ nguyên player own suốt launch → replication path giống movement bình thường.
+-- ROOT CAUSE (prior bug):
+--   The decay model (launchState.currentSpeed) was the only stop signal. Any time the
+--   time-based speed crossed StopSpeed the server immediately transitioned to Recovering.
+--   This produced two opposite failure modes:
+--     A) During the grace window the server might still read server-velocity ≈ 0 and had
+--        no protection against a stray rapid decay step ending launch immediately.
+--     B) After the grace window the stop trigger fired as soon as the decay model said
+--        the speed was low enough, even if real physics (e.g. a collision rebound) kept
+--        the Sling moving visually.
 --
--- [FIX 2] Client-authoritative impulse; server enforces only decay/clamp.
---   Server no longer applies the initial impulse to a player-owned root.
---   Client applies the launch impulse locally, then server scales down excessive
---   horizontal speed using LaunchMotionModel.Sample().
+-- REFACTOR – single server-side state machine per player:
 --
--- [FIX 3] Smooth stop thay vì instant-zero velocity.
---   Trước: root.AssemblyLinearVelocity = Vector3.new(0, y, 0) → snap rõ nhất với PlayerB.
---   Sau:   Áp dụng brake factor mạnh (15/s) trong vài frame cho đến khi dừng hẳn.
+--   LaunchState now carries:
+--     graceEndsAt       – timestamp until which ALL physics-based stop checks are skipped.
+--     stopEvidenceCount – consecutive Heartbeat frames where server-observed horizontal
+--                         speed < StopSpeed. Only incremented after grace ends.
+--     maxEndsAt         – hard timeout; Launch is forced to end if this is exceeded.
 --
--- [FIX 4] Bỏ lưu/restore LinearVelocity controllers khi launch (không cần vì không own server nữa).
---   MovementController vẫn bị DisableLocomotion để WASD không fight launch momentum.
+--   Stop decision logic (in order):
+--     1. Hard timeout: if os.clock() >= maxEndsAt → stop unconditionally.
+--     2. Grace window active (os.clock() < graceEndsAt): skip all physics checks.
+--        Decay model still runs so energy/currentSpeed are kept up to date.
+--     3. After grace window: observe real server-side horizontal speed.
+--        If speed < StopSpeed → increment stopEvidenceCount.
+--        If speed >= StopSpeed → reset stopEvidenceCount to 0.
+--        If stopEvidenceCount >= StopEvidenceFramesRequired → stop.
+--        Additionally, if the time-based currentSpeed has decayed to 0 (energy gone)
+--        *and* the grace window has expired, that also triggers stop (decay model still
+--        acts as the primary timer; physics evidence only provides early-stop correction).
 --
--- [BUG FIX - State machine premature Idle transition]:
---   ROOT CAUSE: _stepMovementStates called LaunchMotionModel.Sample(launchState, now, horizontalVelocity)
---   where horizontalVelocity is read from root.AssemblyLinearVelocity on the SERVER.
---   Because the root is CLIENT-OWNED (FIX 1), the server's physics view of velocity
---   lags by network RTT. Immediately after ReleaseCharge, the server reads velocity≈0,
---   LaunchMotionModel.Sample returns speed=0, shouldStop triggers immediately, and the
---   state transitions to Recovering/Idle — BEFORE the food hit report even arrives.
---   FIX: _stepMovementStates uses time-based speed decay from launchState.initialSpeed
---   (computed at launch time) rather than reading root.AssemblyLinearVelocity as the
---   authoritative speed for decay/stop decisions. The server velocity is only used to
---   CLAMP from above (cap excessive speed) — never to drive the energy counter or stop trigger.
---   launchState.currentSpeed is now maintained purely by the decay model, not physics reads.
+--   What did NOT change:
+--     - The decay model (time-based currentSpeed / energy) is still the main logical
+--       timeline for Launch. It determines how long Launch "should" last.
+--     - Physics observations (server-side AssemblyLinearVelocity) are NOT a second
+--       authoritative velocity source. They are a corrective signal used only to confirm
+--       the Sling has already stopped before the decay model reaches zero.
+--     - Client ownership of the root is unchanged (FIX 1).
+--     - The client still applies the initial launch impulse (FIX 2).
+--     - Smooth brake-to-stop is unchanged (FIX 3).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -440,6 +451,14 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	local now = os.clock()
 	local launchState = LaunchMotionModel.BuildState(launchDirectionPlanar, chargeRatio, now, player)
 
+	-- ── Attach state-machine fields to the launch record ────────────────────────
+	-- graceEndsAt: until this timestamp the server ignores physics-based stop checks.
+	-- stopEvidenceCount: consecutive frames where server speed < StopSpeed (post-grace).
+	-- maxEndsAt: absolute hard timeout; Launch is forced to end regardless of model state.
+	launchState.graceEndsAt = now + PhysicsConfig.Launch.GraceWindowSeconds
+	launchState.stopEvidenceCount = 0
+	launchState.maxEndsAt = now + PhysicsConfig.Launch.MaxLaunchDuration
+
 	local movementController = self._movementControllers[player]
 	if movementController then
 		movementController:DisableLocomotion(true)
@@ -456,13 +475,13 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	player:SetAttribute("LaunchValidationGraceEndsAt", now + PhysicsConfig.Launch.ValidationGraceSeconds * 20)
 
 	self._activeLaunches[player] = launchState
-	warn(string.format("[SlingService] Launch player=%s charge=%.2f speed=%.2f energy=%.2f",
-		player.Name, chargeRatio, launchState.initialSpeed, launchState.energy))
+	warn(string.format("[SlingService] Launch player=%s charge=%.2f speed=%.2f energy=%.2f grace=%.2fs max=%.1fs",
+		player.Name, chargeRatio, launchState.initialSpeed, launchState.energy,
+		PhysicsConfig.Launch.GraceWindowSeconds, PhysicsConfig.Launch.MaxLaunchDuration))
 
 	state.CurrentVelocity = launchState.direction * launchState.initialSpeed
 	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
 	self._context.Services.PlayerStateService:SetMovementState(player, "Launching")
-	warn(string.format("[SlingService] State player=%s -> Launching", player.Name))
 	self._context.EventBus:Fire("SlingLaunched", player, chargeRatio, launchState)
 
 	if chargeRatio >= PhysicsConfig.Charge.MaxChargeRatioThreshold then
@@ -614,25 +633,32 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 end
 
 --[[
-	_stepMovementStates (BUG FIX):
+	_stepMovementStates – authoritative Launch state machine.
 
-	ROOT CAUSE OF PREMATURE IDLE/RECOVERING:
-	The original code called LaunchMotionModel.Sample(launchState, now, horizontalVelocity)
-	where horizontalVelocity = root.AssemblyLinearVelocity read from the SERVER.
-	Because the root is CLIENT-OWNED, the server's physics view lags by network RTT.
-	Immediately after ReleaseCharge fires clientDoLaunchRemote, the server reads
-	velocity ≈ 0 (replication hasn't arrived). LaunchMotionModel.Sample sees rawSpeed=0,
-	returns sampledSpeed=0, shouldStop triggers, and state becomes Recovering/Idle
-	before any food report can arrive — causing the "state=Idle speed=20" log.
+	One LaunchState per player. One time-based decay estimate. One physics observation
+	signal (stop evidence counter). One hard timeout fail-safe.
 
-	FIX: Decay launchState.currentSpeed using time-based math (DecayPerSecond applied
-	to the RECORDED initialSpeed over elapsed time), not from root.AssemblyLinearVelocity.
-	The server velocity is only used to CLAMP excessive speed downward (cap cheating),
-	never as the authoritative value for stop/energy decisions.
+	STEP ORDER:
+	  A. Decay model update (always runs while Launching, including during grace).
+	     – launchState.currentSpeed decays via DecayPerSecond × dt.
+	     – launchState.energy decays via PassiveEnergyDecayPerSecond × dt.
+	     – Server velocity is used ONLY to clamp excessive speed downward, never to set it.
 
-	Energy is also decayed purely time-based (PassiveEnergyDecayPerSecond × elapsed).
-	shouldStop only triggers when the TIME-BASED currentSpeed drops below StopSpeed,
-	or when the grace window expires and server velocity is also low.
+	  B. Stop evaluation (in priority order):
+	     1. Hard timeout – maxEndsAt exceeded → force stop.
+	     2. Grace window active → skip physics stop check entirely.
+	        (Decay model continues running; no stop triggered yet.)
+	     3. Post-grace physics evidence:
+	        a. Read server horizontal speed (reliable after grace window).
+	        b. If server speed < StopSpeed → increment stopEvidenceCount.
+	           Else → reset stopEvidenceCount to 0.
+	        c. If stopEvidenceCount >= StopEvidenceFramesRequired → stop early
+	           (Sling has physically stopped before decay model predicted).
+	     4. Decay model exhausted (currentSpeed ≤ StopSpeed AND energy ≤ 0 AND grace expired)
+	        → stop normally.
+
+	  C. Brake (gradual velocity ramp-down) → once fully braked, enter Recovering.
+	  D. Recovering → wait for cooldown → return to Idle.
 ]]
 function SlingService:_stepMovementStates(dt: number)
 	for _, player in self:_getTrackedPlayers() do
@@ -648,16 +674,14 @@ function SlingService:_stepMovementStates(dt: number)
 		local horizontalVelocity = Vector3.new(fullVelocity.X, 0, fullVelocity.Z)
 		local serverHorizontalSpeed = horizontalVelocity.Magnitude
 
+		-- ── A. Decay model update ────────────────────────────────────────────────
 		if state.MovementState == "Launching" and launchState then
-			-- BUG FIX: Use time-based decay for currentSpeed and energy.
-			-- Do NOT use root.AssemblyLinearVelocity as the speed for decay/stop
-			-- because the server reads 0 immediately after a client-authoritative launch.
 			local lastSampleTime = launchState.lastSampleTime or launchState.startTime or now
 			local elapsed = math.max(0, now - lastSampleTime)
 			launchState.lastSampleTime = now
 
-			-- Time-based speed decay: apply DecayPerSecond to currentSpeed each frame.
-			-- currentSpeed starts at initialSpeed and decays monotonically.
+			-- Time-based speed decay: currentSpeed is monotonically decreasing.
+			-- It is the authoritative estimate of how fast Launch should still be.
 			local previousSpeed = launchState.currentSpeed or launchState.initialSpeed or 0
 			local decayFactor = math.max(0, 1 - (PhysicsConfig.Launch.DecayPerSecond * elapsed))
 			local decayedSpeed = previousSpeed * decayFactor
@@ -666,30 +690,24 @@ function SlingService:_stepMovementStates(dt: number)
 			local energyDecayFactor = math.max(0, 1 - (PhysicsConfig.Launch.PassiveEnergyDecayPerSecond * elapsed))
 			local decayedEnergy = math.max(0, (launchState.energy or 0) * energyDecayFactor)
 
-			-- Server velocity is only used to CLAMP from above: if the client somehow
-			-- exceeds the decayed speed cap, we bring it down. We never set currentSpeed
-			-- to the server velocity when server reads low (0), since that's a lag artifact.
-			-- Only clamp if server speed has had time to replicate (check grace window).
-			local graceEndsAt = player:GetAttribute("LaunchValidationGraceEndsAt")
-			local graceActive = typeof(graceEndsAt) == "number" and os.clock() <= graceEndsAt
+			-- Clamp from above only: if the client somehow exceeds the decayed cap,
+			-- bring it down. Never set currentSpeed TO server velocity when server
+			-- reads low (lag artifact during grace or network spike).
+			local graceActive = now < (launchState.graceEndsAt or 0)
 			local targetSpeed
 			if graceActive then
-				-- During the grace window: trust time-based decay only.
-				-- Server hasn't received physics replication yet.
+				-- Grace window: trust time-based decay exclusively.
 				targetSpeed = decayedSpeed
 			else
-				-- After grace: server velocity is now reliable; clamp from above only.
+				-- Post-grace: server velocity is reliable; cap if too high.
 				targetSpeed = math.min(decayedSpeed, math.max(serverHorizontalSpeed, PhysicsConfig.Launch.StopSpeed))
 			end
 
-			-- Only apply the clamp downward — never accelerate.
+			-- Enforce the cap downward only (never accelerate).
 			if serverHorizontalSpeed > targetSpeed and serverHorizontalSpeed > PhysicsConfig.Movement.InputDeadzone and not graceActive then
-				local clampedHorizontal = horizontalVelocity.Unit * math.max(targetSpeed, 0)
-				root.AssemblyLinearVelocity = Vector3.new(
-					clampedHorizontal.X,
-					fullVelocity.Y,
-					clampedHorizontal.Z
-				)
+				local unit = horizontalVelocity.Unit
+				local capped = unit * math.max(targetSpeed, 0)
+				root.AssemblyLinearVelocity = Vector3.new(capped.X, fullVelocity.Y, capped.Z)
 				fullVelocity = root.AssemblyLinearVelocity
 				horizontalVelocity = Vector3.new(fullVelocity.X, 0, fullVelocity.Z)
 				serverHorizontalSpeed = horizontalVelocity.Magnitude
@@ -698,19 +716,56 @@ function SlingService:_stepMovementStates(dt: number)
 			launchState.currentSpeed = targetSpeed
 			launchState.energy = decayedEnergy
 
-			-- Track direction for collision service (only update when server velocity is reliable).
+			-- Update direction only when the server reading is reliable.
 			if not graceActive and serverHorizontalSpeed > PhysicsConfig.Movement.InputDeadzone then
 				launchState.direction = horizontalVelocity.Unit
 			end
 		end
 
-		-- Stop condition: use time-based currentSpeed, not server velocity.
-		-- This prevents premature stop when server reads 0 immediately after launch.
+		-- ── B. Stop evaluation ───────────────────────────────────────────────────
 		local stopThreshold = PhysicsConfig.Launch.StopSpeed
-		local timeBasedSpeed = launchState and (launchState.currentSpeed or 0) or 0
-		local shouldStop = state.MovementState == "Launching"
-			and (timeBasedSpeed <= stopThreshold or (launchState and launchState.energy <= 0))
+		local shouldStop = false
+		local stopReason = ""
 
+		if state.MovementState == "Launching" and launchState then
+			local graceActive = now < (launchState.graceEndsAt or 0)
+			local timeBasedSpeed = launchState.currentSpeed or 0
+			local timeBasedEnergy = launchState.energy or 0
+
+			-- 1. Hard timeout fail-safe.
+			if now >= (launchState.maxEndsAt or math.huge) then
+				shouldStop = true
+				stopReason = string.format("hard_timeout (max=%.1fs)", PhysicsConfig.Launch.MaxLaunchDuration)
+
+			elseif graceActive then
+				-- 2. Grace window: no physics check. Decay model runs but no stop yet.
+				-- (shouldStop stays false)
+
+			else
+				-- 3. Post-grace: observe real physics as a corrective stop signal.
+				if serverHorizontalSpeed < stopThreshold then
+					launchState.stopEvidenceCount = (launchState.stopEvidenceCount or 0) + 1
+				else
+					-- Speed is above threshold: reset evidence counter.
+					launchState.stopEvidenceCount = 0
+				end
+
+				local evidenceRequired = PhysicsConfig.Launch.StopEvidenceFramesRequired
+				if (launchState.stopEvidenceCount or 0) >= evidenceRequired then
+					shouldStop = true
+					stopReason = string.format("physics_evidence (%d frames below StopSpeed, server=%.2f)",
+						launchState.stopEvidenceCount, serverHorizontalSpeed)
+				end
+
+				-- 4. Decay model exhausted (normal end of launch timeline).
+				if not shouldStop and timeBasedSpeed <= stopThreshold and timeBasedEnergy <= 0 then
+					shouldStop = true
+					stopReason = string.format("decay_exhausted (timeSpeed=%.2f energy=%.2f)", timeBasedSpeed, timeBasedEnergy)
+				end
+			end
+		end
+
+		-- ── C. Brake and transition ──────────────────────────────────────────────
 		if shouldStop then
 			local brakeFactor = math.max(0, 1 - LAUNCH_BRAKE_RATE * dt)
 			local brakedHorizontal = horizontalVelocity * brakeFactor
@@ -730,10 +785,10 @@ function SlingService:_stepMovementStates(dt: number)
 				self._context.Services.PlayerStateService:SetCooldownEndTime(player, recoveryEnd)
 				player:SetAttribute("LaunchValidationGraceEndsAt", now + PhysicsConfig.Launch.ValidationGraceSeconds)
 				self._context.Services.PlayerStateService:SetMovementState(player, "Recovering")
-				warn(string.format("[SlingService] State player=%s -> Recovering (timeBasedSpeed=%.2f)",
-					player.Name, timeBasedSpeed))
+				warn(string.format("[SlingService] State player=%s -> Recovering (%s)", player.Name, stopReason))
 			end
 
+		-- ── D. Recovering → Idle ─────────────────────────────────────────────────
 		elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
 			self._activeLaunches[player] = nil
 			player:SetAttribute("LaunchValidationGraceEndsAt", 0)
