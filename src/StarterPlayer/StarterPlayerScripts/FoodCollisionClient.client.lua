@@ -47,7 +47,7 @@ local function isPredictedLaunchScanActive(): boolean
 end
 
 local function isLaunchHitScanActive(): boolean
-	return isLaunching() or isPredictedLaunchScanActive() or os.clock() <= launchScanGraceEndsAt
+	return isLaunching()
 end
 
 local function refreshExistingLaunchVelocity(root: BasePart)
@@ -294,6 +294,43 @@ local function reportTrapHit(trap: BasePart, root: BasePart)
 	})
 end
 
+
+local function distancePointToSegmentXZ(point: Vector3, segA: Vector3, segB: Vector3): number
+	local ax, az = segA.X, segA.Z
+	local bx, bz = segB.X, segB.Z
+	local px, pz = point.X, point.Z
+	local abx, abz = bx - ax, bz - az
+	local ab2 = (abx * abx) + (abz * abz)
+	if ab2 <= 1e-6 then
+		local dx, dz = px - ax, pz - az
+		return math.sqrt((dx * dx) + (dz * dz))
+	end
+	local apx, apz = px - ax, pz - az
+	local t = math.clamp(((apx * abx) + (apz * abz)) / ab2, 0, 1)
+	local qx, qz = ax + (abx * t), az + (abz * t)
+	local dx, dz = px - qx, pz - qz
+	return math.sqrt((dx * dx) + (dz * dz))
+end
+
+local function findPlayerHitAlongSweep(castStart: Vector3, castEnd: Vector3, radius: number): Player?
+	local closest: Player? = nil
+	local closestDist = math.huge
+	for _, target in ipairs(Players:GetPlayers()) do
+		if target ~= player and target.Character then
+			local hitbox = target.Character:FindFirstChild("Hitbox", true)
+			if hitbox and hitbox:IsA("BasePart") then
+				local targetRadius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5
+				local d = distancePointToSegmentXZ(hitbox.Position, castStart, castEnd)
+				if d <= (radius + targetRadius + PhysicsConfig.Collision.ValidationTolerance) and d < closestDist then
+					closest = target
+					closestDist = d
+				end
+			end
+		end
+	end
+	return closest
+end
+
 local function sphereCastLaunching(root: BasePart, dt: number, previousPosition: Vector3?)
 	local velocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
 	local predictedDirection = predictedLaunchDirection
@@ -323,6 +360,13 @@ local function sphereCastLaunching(root: BasePart, dt: number, previousPosition:
 	local castDistance = castVector.Magnitude + PhysicsConfig.Collision.SphereCastDistancePadding
 	local radius = (math.max(root.Size.X, root.Size.Z) * 0.5) + PhysicsConfig.Collision.SphereCastRadiusPadding
 	setSweepDebugVisible(true, castStart, castStart + direction * castDistance, radius)
+
+	local castEnd = castStart + direction * castDistance
+	local sweptPlayer = findPlayerHitAlongSweep(castStart, castEnd, radius)
+	if sweptPlayer then
+		reportPlayerHit(sweptPlayer, root, observedSpeed)
+		return
+	end
 
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
@@ -397,7 +441,8 @@ stateUpdateRemote.OnClientEvent:Connect(function(state)
 		if currentMovementState == GameStates.PlayerState.Launching then
 			predictedLaunchScanEndsAt = 0
 		elseif wasLaunching then
-			launchScanGraceEndsAt = os.clock() + LAUNCH_SCAN_GRACE_SECONDS
+			predictedLaunchScanEndsAt = 0
+			launchScanGraceEndsAt = 0
 		end
 	end
 end)

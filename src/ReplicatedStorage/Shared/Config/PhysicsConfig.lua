@@ -51,9 +51,9 @@ local PhysicsConfig = {
 
 		-- Reserved launch drag knobs for future physical drag tuning. Current active
 		-- launch slowdown is DecayPerSecond via LaunchMotionModel.Sample().
-		LinearDragPerSecond = 1.2,
-		QuadraticDragPerSecond = 1.12,
-		DragMaxForce = 6000,
+		LinearDragPerSecond = 1.2, -- UNUSED (reserved; launch drag now uses DecayPerSecond).
+		QuadraticDragPerSecond = 1.12, -- UNUSED (no reader in runtime).
+		DragMaxForce = 6000, -- UNUSED (no reader in runtime).
 		DecayPerSecond = 0.2, -- Server-enforced speed decay applied from LaunchMotionModel.Sample.
 		-- Launch enters recovery once horizontal speed reaches this threshold.
 		StopSpeed = 1,
@@ -91,28 +91,28 @@ local PhysicsConfig = {
 		ValidationTolerance = 10.75,
 		YTolerance = 10,
 		MaxAllowedSpeed = 450,
-		ReportCooldown = 0.05,
+		ReportCooldown = 0.05, -- UNUSED (client/server use local cooldown constants instead).
 		MinReportSpeed = 1,
 		FoodHitMinHorizontalSpeed = 1,
 		SphereCastRadiusPadding = 0.75,
 		SphereCastDistancePadding = 2.5,
-		CandidateDistanceFactor = 0.25,
-		CandidateExtraPadding = 0.35,
+		CandidateDistanceFactor = 0.25, -- UNUSED (legacy candidate scan tuning).
+		CandidateExtraPadding = 0.35, -- UNUSED (legacy candidate scan tuning).
 		Cooldown = 0.28,
 		TrapCooldown = 0.25,
 		RealHitMinClosingSpeed = 5.5,
-		MinLaunchEnergy = 5,
+		MinLaunchEnergy = 5, -- UNUSED (transfer gate uses MinTransferEnergy).
 
 		-- Kept near 1 for natural elastic bounce feel.
-		Restitution = 0.92,
-		TangentialDamping = 0.94,
+		Restitution = 0.92, -- UNUSED (bounce uses World.WallRestitution/collision formulas).
+		TangentialDamping = 0.94, -- UNUSED (bounce uses World.WallTangentialDamping).
 		EnergyTransferRatio = 0.82,
 		CollisionEnergyLossRatio = 0.16,
-		ChainHitEnergyRetention = 0.78,
+		ChainHitEnergyRetention = 0.78, -- UNUSED (collision chain retention currently derived from CollisionEnergyLossRatio).
 		MinTransferEnergy = 7,
 		MinPostCollisionSpeed = 1.25,
 		MaxPostCollisionSpeed = 125,
-		MinMass = 0.001,
+		MinMass = 0.001, -- UNUSED (no mass clamp currently applied).
 	},
 
 	Damage = {

@@ -49,8 +49,8 @@ AbilityConfig.Types = {
 		damageMultiplier = 1.15,
 		reflectDamage = 0.1,
 	},
-	PetrifyModel = {
-		id = "PetrifyModel",
+	PetrifySling = {
+		id = "PetrifySling",
 		collisionFlag = "Petrify",
 		collisionCCDuration = 1.5,
 		collisionEffect = "Frost",

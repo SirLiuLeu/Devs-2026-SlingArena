@@ -117,7 +117,7 @@ local MOCK_SHOP_STATE = {
 		{ id = "HealSling", name = "Heal Sling", price = 850, icon = "rbxassetid://0" },
 		{ id = "SpeedSling", name = "Speed Sling", price = 1700, icon = "rbxassetid://0" },
 		{ id = "BonusBuffSling", name = "Bonus Buff Sling", price = 3500, icon = "rbxassetid://0" },
-		{ id = "PetrifyModel", name = "Petrify Sling", price = 1800, icon = "rbxassetid://0" },
+		{ id = "PetrifySling", name = "Petrify Sling", price = 1800, icon = "rbxassetid://0" },
 		{ id = "FireSling", name = "Fire Sling", price = 900, icon = "rbxassetid://0" },
 		{ id = "PoisonSling", name = "Poison Sling", price = 900, icon = "rbxassetid://0" },
 	},

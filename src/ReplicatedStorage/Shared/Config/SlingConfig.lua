@@ -77,10 +77,10 @@ SlingConfig.Types = {
 		stats = { speed = 17, weight = 1.0, launchPower = 1.1, control = 1.05, maxHP = 22000, baseDamage = 1200, armor = 0.15, regen = 1.1 },
 	},
 	{
-		id = "PetrifyModel",
+		id = "PetrifySling",
 		name = "Petrify Sling",
-		abilityType = "PetrifyModel",
-		modelPath = "ReplicatedStorage/Assets/Slings/PetrifyModel",
+		abilityType = "PetrifySling",
+		modelPath = "ReplicatedStorage/Assets/Slings/PetrifySling",
 		rarity = "Epic",
 		stats = { speed = 15, weight = 1.05, launchPower = 1.0, control = 1.1, maxHP = 20000, baseDamage = 900, armor = 0, regen = 1 },
 	},
