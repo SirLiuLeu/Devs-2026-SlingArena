@@ -284,7 +284,15 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	end
 	local launchState = slingService:GetLaunchState(player)
 	if not launchState then
-		return
+		launchState = {
+			direction = Vector3.zero,
+			initialSpeed = 0,
+			currentSpeed = 0,
+			energy = 0,
+			startTime = now,
+			lastSampleTime = now,
+			collisions = 0,
+		}
 	end
 
 	local attackerVelocity = resolveImpactVelocity(root, payload, launchState)
