@@ -26,6 +26,9 @@ local MAX_ALLOWED_SPEED = PhysicsConfig.Collision.MaxAllowedSpeed
 -- increase (0.4s). This prevents the server from processing the rare duplicate that
 -- slips through if the client fires two reports just before the cooldown resets.
 local HIT_REQUEST_COOLDOWN = 0.4
+
+local FIRE_FOOD_BURN_COOLDOWN = 1
+local FIRE_FOOD_BURN_DAMAGE_RATIO = 0.4
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local COMMON_ALLOWED_STATES = {
@@ -558,6 +561,17 @@ function FoodService:_applySlingDamage(entry: any, player: Player, velocity: num
 	end
 	local clampedVelocity = math.clamp(velocity, DAMAGE_MIN_VELOCITY, DAMAGE_MAX_VELOCITY)
 	local damage = clampedVelocity * DAMAGE_BASE
+	local stateService = getService(self._context, "PlayerStateService")
+	local abilityType = stateService and stateService:GetSlingAbilityType(player) or "NormalSling"
+	if abilityType == "FireSling" then
+		local burnKey = string.format("%s:%d", tostring(entry.Id), player.UserId)
+		local now = os.clock()
+		local nextAllowedAt = self._slingFoodHitCooldown[burnKey] or 0
+		if now >= nextAllowedAt then
+			self._slingFoodHitCooldown[burnKey] = now + FIRE_FOOD_BURN_COOLDOWN
+			damage += damage * FIRE_FOOD_BURN_DAMAGE_RATIO
+		end
+	end
 	local before = entry.CurrentHP
 	entry.LastHitBy = player
 	entry.CurrentHP = math.max(0, entry.CurrentHP - damage)
