@@ -163,6 +163,7 @@ function DamagePipelineService:_sendFeedback(player: Player, eventType: string, 
 end
 
 function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
+	print("ApplyDamage", victim.Name, rawDamage, attacker and attacker.Name or "nil", knockbackDirection, options)
 	if attacker and not isCombatDamageAllowed(self._context) then
 		return false
 	end

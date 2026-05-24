@@ -399,6 +399,7 @@ end
 
 function CollisionService:_bindClientCollisionReports()
 	local remote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ReportCollision)
+	print(remote)
 	if not (remote and remote:IsA("RemoteEvent")) then
 		return
 	end
