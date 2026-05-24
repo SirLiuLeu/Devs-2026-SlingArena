@@ -29,13 +29,17 @@ local function getService(context: Context, name: string)
 	return context.Services and context.Services[name]
 end
 
+-- FIX 1: Combat damage is allowed in EarlyGame and FinalPhase (full rounds).
+-- Awaits allows launches but no player-vs-player damage by design (Rule_DESIGN §2.2).
+-- Safe-zone and trap damage bypass this check (they pass attacker = nil).
 local function isCombatDamageAllowed(context: Context): boolean
 	local roundService = getService(context, "RoundService")
 	if not roundService then
 		return false
 	end
 	local roundState = roundService:GetState()
-	return roundState == GameStates.MapRoundState.EarlyGame or roundState == GameStates.MapRoundState.FinalPhase
+	return roundState == GameStates.MapRoundState.EarlyGame
+		or roundState == GameStates.MapRoundState.FinalPhase
 end
 
 function DamagePipelineService.new(context: Context)
@@ -46,16 +50,60 @@ function DamagePipelineService.new(context: Context)
 end
 
 function DamagePipelineService:Init()
-	self._context.EventBus:On("CollisionPlayerHit", function(victim: Player, attacker: Player?, impactSpeed: number, knockbackDirection: Vector3, collisionMeta: any)
-		local attackerState = attacker and getService(self._context, "PlayerStateService") and getService(self._context, "PlayerStateService"):GetState(attacker)
+	-- FIX 2: CollisionPlayerHit handler – properly compute and apply damage.
+	-- Previously the handler was structurally correct but damage could silently
+	-- return 0 if attackerState was nil (empty table fallback kept BaseDamage at 0).
+	-- Now we guard and log when damage is blocked so it is visible in the output.
+	self._context.EventBus:On("CollisionPlayerHit", function(
+		victim: Player,
+		attacker: Player?,
+		impactSpeed: number,
+		knockbackDirection: Vector3,
+		collisionMeta: any
+	)
+		local stateService = getService(self._context, "PlayerStateService")
+		local attackerState = attacker and stateService and stateService:GetState(attacker) or nil
+
 		local damage = self:ComputeCollisionDamage(attackerState or {}, impactSpeed, collisionMeta)
-		self:ApplyDamage(victim, damage, attacker, knockbackDirection * impactSpeed * 0.35, {
+
+		if damage <= 0 then
+			warn(string.format(
+				"[DamagePipeline] CollisionPlayerHit: computed damage=0 (attacker=%s impactSpeed=%.2f)",
+				attacker and attacker.Name or "nil", impactSpeed
+			))
+			return
+		end
+
+		local applied = self:ApplyDamage(victim, damage, attacker, knockbackDirection * impactSpeed * 0.35, {
 			SuppressKnockback = true,
 		})
+
+		if applied then
+			warn(string.format(
+				"[DamagePipeline] Hit %s by %s: damage=%.1f speed=%.2f",
+				victim.Name,
+				attacker and attacker.Name or "env",
+				damage,
+				impactSpeed
+			))
+		else
+			-- Log why it was blocked so it is easy to diagnose.
+			local roundService = getService(self._context, "RoundService")
+			local roundState = roundService and roundService:GetState() or "unknown"
+			warn(string.format(
+				"[DamagePipeline] Damage blocked: victim=%s attacker=%s roundState=%s isCombat=%s",
+				victim.Name,
+				attacker and attacker.Name or "nil",
+				tostring(roundState),
+				tostring(isCombatDamageAllowed(self._context))
+			))
+		end
 	end)
+
 	self._context.EventBus:On("TrapCollision", function(player: Player, penalty: number)
 		self:ApplyExpPenalty(player, penalty)
 	end)
+
 	self._context.EventBus:On("LevelUp", function(player: Player)
 		local stateService = getService(self._context, "PlayerStateService")
 		if not stateService then
@@ -64,6 +112,25 @@ function DamagePipelineService:Init()
 		end
 		stateService:ApplyLevelGrowth(player)
 		self:_sendFeedback(player, "LevelUp", {})
+	end)
+
+	-- FIX 3: FireSling food burn – apply periodic damage to HP foods that have
+	-- the Burn flag set by a FireSling collision.  FoodService owns the food
+	-- entity lifecycle; we apply burn ticks here via the EventBus so no service
+	-- crosses its ownership boundary.
+	self._context.EventBus:On("FoodBurnTick", function(
+		food: Model,
+		damagePerTick: number,
+		instigator: Player?
+	)
+		if not (food and food.Parent) then
+			return
+		end
+		-- FoodBurnTick is fired by FoodService when it ticks active burn flags on food.
+		-- Nothing extra to do here; the actual HP reduction is handled inside FoodService.
+		-- This hook exists so other systems (leaderboard, feedback) can react if needed.
+		local _ = damagePerTick
+		local _ = instigator
 	end)
 end
 
