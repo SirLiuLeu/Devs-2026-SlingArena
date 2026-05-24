@@ -1,7 +1,5 @@
 --!strict
 
-local Players = game:GetService("Players")
-
 local TeamService = {}
 TeamService.__index = TeamService
 
@@ -11,9 +9,9 @@ function TeamService.new(context)
 	return self
 end
 
-function TeamService:AssignBalancedTeam(player: Player): string
+function TeamService:AssignBalancedTeam(player: Player): string?
 	player.Team = nil
-	return string.format("Solo:%d", player.UserId)
+	return nil
 end
 
 function TeamService:IsFriendly(playerA: Player, playerB: Player): boolean
@@ -27,20 +25,8 @@ function TeamService:IsFriendly(playerA: Player, playerB: Player): boolean
 end
 
 function TeamService:Init()
-	local stateService = self._context.ServiceRegistry and self._context.ServiceRegistry:GetOptional("PlayerStateService")
-		or self._context.Services.PlayerStateService
-	if not stateService then
-		warn("[TeamService] PlayerStateService unavailable; team assignment skipped.")
-		return
-	end
-	Players.PlayerAdded:Connect(function(player)
-		local teamId = self:AssignBalancedTeam(player)
-		stateService:SetTeamId(player, teamId)
-	end)
-	for _, player in ipairs(Players:GetPlayers()) do
-		local teamId = self:AssignBalancedTeam(player)
-		stateService:SetTeamId(player, teamId)
-	end
+	-- Teams are intentionally uninitialized at startup.
+	-- Team creation/assignment will be implemented in a future feature.
 end
 
 return TeamService

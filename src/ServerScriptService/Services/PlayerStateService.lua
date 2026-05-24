@@ -78,7 +78,7 @@ local function buildDefaultState(player: Player): PlayerState
 		UserId = player.UserId,
 		CurrentMap = nil,
 		LocationState = GameStates.SessionState.Lobby,
-		TeamId = "TeamRed",
+		TeamId = nil,
 		Level = LevelConfig.StartingLevel,
 		Exp = LevelConfig.StartingExp,
 		Size = sling.Size,
@@ -506,7 +506,7 @@ function PlayerStateService:SetLocationState(player: Player, arenaStatus: string
 	self:PublishState(player)
 end
 
-function PlayerStateService:SetTeamId(player: Player, teamId: string)
+function PlayerStateService:SetTeamId(player: Player, teamId: string?)
 	local state = self._states[player]
 	if not state then
 		return

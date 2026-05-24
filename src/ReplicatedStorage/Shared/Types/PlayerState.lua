@@ -15,7 +15,7 @@ export type PlayerState = {
 	UserId: number,
 	CurrentMap: string?,
 	LocationState: string,
-	TeamId: string,
+	TeamId: string?,
 	Level: number,
 	Exp: number,
 	Size: number,
