@@ -30,6 +30,7 @@ RemoteContracts.Names = {
 	ReportFoodHit = "ReportFoodHit",
 	ReportCollision = "ReportCollision",
 	ClientDoLaunch = "ClientDoLaunch",
+	KnockbackReplication = "KnockbackReplication",
 }
 
 RemoteContracts.Validators = {
@@ -97,6 +98,9 @@ RemoteContracts.Validators = {
 			return false
 		end
 		if payload.observedSpeed ~= nil and typeof(payload.observedSpeed) ~= "number" then
+			return false
+		end
+		if payload.launchSessionId ~= nil and typeof(payload.launchSessionId) ~= "number" then
 			return false
 		end
 		return true
