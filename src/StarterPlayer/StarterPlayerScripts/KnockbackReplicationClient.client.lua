@@ -10,7 +10,7 @@ local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
 local knockbackRemote = remotes:WaitForChild(RemoteContracts.Names.KnockbackReplication) :: RemoteEvent
 
-local KNOCKBACK_MAX_DURATION = 0.15
+local KNOCKBACK_MAX_DURATION = 0.05
 local KNOCKBACK_MIN_DURATION = 0.05
 
 local function getCharacterRoot(): BasePart?
