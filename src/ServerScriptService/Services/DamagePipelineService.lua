@@ -46,6 +46,7 @@ function DamagePipelineService.new(context: Context)
 	local self = setmetatable({}, DamagePipelineService)
 	self._context = context
 	self._feedbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent
+	self._knockbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.KnockbackReplication) :: RemoteEvent
 	return self
 end
 
@@ -75,7 +76,7 @@ function DamagePipelineService:Init()
 		end
 
 		local applied = self:ApplyDamage(victim, damage, attacker, knockbackDirection * impactSpeed * 0.35, {
-			SuppressKnockback = true,
+			SuppressKnockback = false,
 		})
 
 		if applied then
@@ -221,14 +222,22 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 		local playerService = getService(self._context, "PlayerService")
 		local root = playerService and playerService:GetRoot(victim)
 		if root and knockbackDirection.Magnitude > 0 then
-			local nextVelocity = root.AssemblyLinearVelocity + knockbackDirection
-			root.AssemblyLinearVelocity = Vector3.new(
-				math.clamp(nextVelocity.X, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity),
-				nextVelocity.Y,
-				math.clamp(nextVelocity.Z, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity)
-			)
+			local planarKnockback = Vector3.new(knockbackDirection.X, 0, knockbackDirection.Z)
+			if planarKnockback.Magnitude > 0 then
+				local clamped = planarKnockback.Unit * math.min(planarKnockback.Magnitude, BalanceConfig.MaxVelocity)
+				if self._knockbackRemote then
+					self._knockbackRemote:FireClient(victim, clamped, 0.12)
+				else
+					local nextVelocity = root.AssemblyLinearVelocity + clamped
+					root.AssemblyLinearVelocity = Vector3.new(
+						math.clamp(nextVelocity.X, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity),
+						nextVelocity.Y,
+						math.clamp(nextVelocity.Z, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity)
+					)
+				end
+			end
 			if not suppressFeedback then
-				self:_sendFeedback(victim, "Impact", { Direction = knockbackDirection })
+				self:_sendFeedback(victim, "Impact", { Direction = planarKnockback })
 			end
 		end
 	end

@@ -30,6 +30,7 @@ RemoteContracts.Names = {
 	ReportFoodHit = "ReportFoodHit",
 	ReportCollision = "ReportCollision",
 	ClientDoLaunch = "ClientDoLaunch",
+	KnockbackReplication = "KnockbackReplication",
 }
 
 RemoteContracts.Validators = {

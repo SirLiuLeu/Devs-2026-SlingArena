@@ -358,8 +358,8 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	})
 	self._context.EventBus:Fire("CollisionPlayerHit", defender, player, impactSpeed, normal, {
 		LaunchEnergy = launchState.energy,
-		CollisionCount = launchState.collisions,
 		ImpactSpeed = impactSpeed,
+		CollisionCount = launchState.collisions,
 		TransferredEnergy = transferEnergy,
 	})
 end
