@@ -13,6 +13,7 @@ local reportFoodRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):Wai
 local reportCollisionRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("ReportCollision") :: RemoteEvent
 local gameplayFeedbackRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("GameplayFeedback") :: RemoteEvent
 local clientDoLaunchRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("ClientDoLaunch") :: RemoteEvent
+local knockbackReplicationRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("KnockbackReplication") :: RemoteEvent
 
 local GRID_CELL_SIZE = 48
 local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
@@ -37,6 +38,8 @@ local predictedLaunchDirection: Vector3? = nil
 local lastRootPosition: Vector3? = nil
 local sweepDebugStart: Part? = nil
 local sweepDebugEnd: Part? = nil
+local launchSessionId = 0
+local launchPlayerHitDebounce: { [number]: boolean } = {}
 
 local function isLaunching(): boolean
 	return currentMovementState == GameStates.PlayerState.Launching
@@ -263,6 +266,10 @@ local function detectCommonFoodByDistance(root: BasePart)
 end
 
 local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpeed: number?)
+	if launchPlayerHitDebounce[targetPlayer.UserId] then
+		return
+	end
+	launchPlayerHitDebounce[targetPlayer.UserId] = true
 	local now = os.clock()
 	local cooldownKey = `Player:{targetPlayer.UserId}`
 	if (lastHit[cooldownKey] or 0) > now then
@@ -276,7 +283,33 @@ local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpe
 		currPos = root.Position,
 		velocity = root.AssemblyLinearVelocity,
 		observedSpeed = observedSpeed,
+		launchSessionId = launchSessionId,
 	})
+end
+
+local function applyLocalKnockback(knockbackVelocity: Vector3)
+	local root = getRoot()
+	if not root then
+		return
+	end
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "KnockbackAttachment"
+	attachment.Parent = root
+	local linearVelocity = Instance.new("LinearVelocity")
+	linearVelocity.Name = "KnockbackLinearVelocity"
+	linearVelocity.Attachment0 = attachment
+	linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
+	linearVelocity.VectorVelocity = knockbackVelocity
+	linearVelocity.MaxForce = math.huge
+	linearVelocity.Parent = root
+	task.delay(0.08, function()
+		if linearVelocity.Parent then
+			linearVelocity:Destroy()
+		end
+		if attachment.Parent then
+			attachment:Destroy()
+		end
+	end)
 end
 
 local function reportTrapHit(trap: BasePart, root: BasePart)
@@ -424,6 +457,8 @@ clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any)
 	end
 	predictedLaunchDirection = planarDirection.Unit
 	predictedLaunchScanEndsAt = os.clock() + PREDICTED_LAUNCH_SCAN_SECONDS
+	launchSessionId += 1
+	launchPlayerHitDebounce = {}
 end)
 
 stateUpdateRemote.OnClientEvent:Connect(function(state)
@@ -443,8 +478,16 @@ stateUpdateRemote.OnClientEvent:Connect(function(state)
 		elseif wasLaunching then
 			predictedLaunchScanEndsAt = 0
 			launchScanGraceEndsAt = 0
+			launchPlayerHitDebounce = {}
 		end
 	end
+end)
+
+knockbackReplicationRemote.OnClientEvent:Connect(function(knockbackVelocity: any)
+	if typeof(knockbackVelocity) ~= "Vector3" then
+		return
+	end
+	applyLocalKnockback(knockbackVelocity)
 end)
 
 gameplayFeedbackRemote.OnClientEvent:Connect(function(message)

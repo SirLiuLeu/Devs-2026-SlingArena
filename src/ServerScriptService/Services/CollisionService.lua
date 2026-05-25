@@ -42,6 +42,7 @@ function CollisionService.new(context)
 	self._activeCollisionKeys = {}
 	self._lastTrapCollision = {}
 	self._lastWallCollision = {}
+	self._lastCollisionSession = {}
 	return self
 end
 
@@ -271,6 +272,14 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		return
 	end
 	local key = getCollisionKey(player, defender)
+	local sessionId = if typeof(payload.launchSessionId) == "number" then payload.launchSessionId else nil
+	if sessionId then
+		local sessionKey = string.format("%d:%d:%d", player.UserId, defender.UserId, sessionId)
+		if self._lastCollisionSession[sessionKey] then
+			return
+		end
+		self._lastCollisionSession[sessionKey] = true
+	end
 	local now = os.clock()
 
 	local slingService = getService(self._context, "SlingService")
@@ -361,6 +370,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		CollisionCount = launchState.collisions,
 		ImpactSpeed = impactSpeed,
 		TransferredEnergy = transferEnergy,
+		LaunchSessionId = sessionId,
 	})
 end
 

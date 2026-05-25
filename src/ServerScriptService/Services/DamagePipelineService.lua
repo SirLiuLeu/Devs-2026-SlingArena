@@ -17,6 +17,7 @@ type DamageOptions = {
 	SuppressFeedback: boolean?,
 	SuppressDeathHandling: boolean?,
 	SuppressKnockback: boolean?,
+	CollisionMeta: any?,
 }
 
 local DamagePipelineService = {}
@@ -46,6 +47,8 @@ function DamagePipelineService.new(context: Context)
 	local self = setmetatable({}, DamagePipelineService)
 	self._context = context
 	self._feedbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent
+	self._knockbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.KnockbackReplication) :: RemoteEvent
+	self._pairDamageDebounce = {}
 	return self
 end
 
@@ -75,7 +78,8 @@ function DamagePipelineService:Init()
 		end
 
 		local applied = self:ApplyDamage(victim, damage, attacker, knockbackDirection * impactSpeed * 0.35, {
-			SuppressKnockback = true,
+			SuppressKnockback = false,
+			CollisionMeta = collisionMeta,
 		})
 
 		if applied then
@@ -167,6 +171,15 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 	if attacker and not isCombatDamageAllowed(self._context) then
 		return false
 	end
+	if attacker and options and options.CollisionMeta then
+		local pairKey = string.format("%d:%d", attacker.UserId, victim.UserId)
+		local now = os.clock()
+		local lastAt = self._pairDamageDebounce[pairKey]
+		if lastAt and (now - lastAt) < 0.3 then
+			return false
+		end
+		self._pairDamageDebounce[pairKey] = now
+	end
 	local playerStateService = getService(self._context, "PlayerStateService")
 	if not playerStateService then
 		warn("[DamagePipelineService] PlayerStateService unavailable; damage skipped.")
@@ -218,17 +231,17 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 
 	local suppressKnockback = options and options.SuppressKnockback == true
 	if knockbackDirection and not suppressKnockback then
-		local playerService = getService(self._context, "PlayerService")
-		local root = playerService and playerService:GetRoot(victim)
-		if root and knockbackDirection.Magnitude > 0 then
-			local nextVelocity = root.AssemblyLinearVelocity + knockbackDirection
-			root.AssemblyLinearVelocity = Vector3.new(
-				math.clamp(nextVelocity.X, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity),
-				nextVelocity.Y,
-				math.clamp(nextVelocity.Z, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity)
+		if knockbackDirection.Magnitude > 0 then
+			local clampedKnockback = Vector3.new(
+				math.clamp(knockbackDirection.X, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity),
+				knockbackDirection.Y,
+				math.clamp(knockbackDirection.Z, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity)
 			)
+			if self._knockbackRemote then
+				self._knockbackRemote:FireClient(victim, clampedKnockback, options and options.CollisionMeta or nil)
+			end
 			if not suppressFeedback then
-				self:_sendFeedback(victim, "Impact", { Direction = knockbackDirection })
+				self:_sendFeedback(victim, "Impact", { Direction = clampedKnockback })
 			end
 		end
 	end
