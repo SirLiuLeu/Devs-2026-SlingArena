@@ -20,7 +20,7 @@ local HIT_EPSILON = PhysicsConfig.Collision.Range
 -- FIX 1 ROOT CAUSE: REPORT_COOLDOWN was 0.05s (~3 frames at 60fps), causing the same food
 -- to be reported multiple times per collision as the sphere cast re-detects each frame.
 -- Raised to 0.4s so one physical approach produces at most one report per food.
-local REPORT_COOLDOWN = 0.4
+local REPORT_COOLDOWN = 1
 local MIN_REPORT_SPEED = PhysicsConfig.Collision.MinReportSpeed
 local IMPACT_ABSORPTION = 0.6
 local HITSTOP_SECONDS = 0.05

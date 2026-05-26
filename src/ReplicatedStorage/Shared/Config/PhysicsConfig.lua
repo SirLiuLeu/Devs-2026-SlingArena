@@ -44,8 +44,8 @@ local PhysicsConfig = {
 	Launch = {
 		DirectionDeadzone = 0.01,
 		SpeedMin = 20,
-		SpeedMax = 100,
-		InitialVelocityCap = 100,
+		SpeedMax = 70,
+		InitialVelocityCap = 80,
 		EnergyMin = 18,
 		EnergyMax = 120,
 
