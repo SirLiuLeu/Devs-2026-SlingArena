@@ -51,6 +51,24 @@ function DamagePipelineService.new(context: Context)
 end
 
 function DamagePipelineService:Init()
+	self._context.EventBus:On("CollisionPlayerKnockback", function(
+		victim: Player,
+		_attacker: Player?,
+		knockbackVelocity: Vector3,
+		collisionMeta: any
+	)
+		if not (self._knockbackRemote and typeof(knockbackVelocity) == "Vector3") then
+			return
+		end
+		local planar = Vector3.new(knockbackVelocity.X, 0, knockbackVelocity.Z)
+		if planar.Magnitude <= 0 then
+			return
+		end
+		local clamped = planar.Unit * math.min(planar.Magnitude, BalanceConfig.MaxVelocity)
+		local duration = collisionMeta and collisionMeta.Duration or 0.12
+		self._knockbackRemote:FireClient(victim, clamped, duration)
+	end)
+
 	-- FIX 2: CollisionPlayerHit handler – properly compute and apply damage.
 	-- Previously the handler was structurally correct but damage could silently
 	-- return 0 if attackerState was nil (empty table fallback kept BaseDamage at 0).

@@ -6,6 +6,7 @@ local GameStates = {
 		Moving = "Moving",
 		Charging = "Charging",
 		Launching = "Launching",
+		Knockback = "Knockback",
 		Dead = "Dead",
 	},
 	PlayerFlag = {

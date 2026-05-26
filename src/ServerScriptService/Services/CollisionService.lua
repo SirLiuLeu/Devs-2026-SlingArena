@@ -27,6 +27,7 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local CollisionService = {}
 CollisionService.__index = CollisionService
+local KNOCKBACK_STATE_DURATION = 0.12
 
 local function getService(context, name)
 	if context.ServiceRegistry then
@@ -320,7 +321,6 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	-- Với player-owned root, client nhận correction sau ~1 frame.
 	-- Collision là event đặc biệt — 1 frame correction acceptable và ít thấy hơn stamp mỗi frame.
 	applyHorizontalVelocity(root, attackerOut)
-	applyHorizontalVelocity(targetRoot, defenderOut)
 
 	updateLaunchFromVelocity(
 		launchState,
@@ -331,21 +331,16 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	launchState.collisions = (launchState.collisions or 0) + 1
 
 	local transferEnergy = math.max(0, (launchState.energy or 0) * PhysicsConfig.Collision.EnergyTransferRatio)
-	if transferEnergy >= PhysicsConfig.Collision.MinTransferEnergy
+	local shouldKnockback = transferEnergy >= PhysicsConfig.Collision.MinTransferEnergy
 		and defenderOut.Magnitude > PhysicsConfig.Collision.MinPostCollisionSpeed
-	then
-		slingService:SetLaunchState(defender, {
-			direction = defenderOut.Unit,
-			initialSpeed = defenderOut.Magnitude,
-			currentSpeed = defenderOut.Magnitude,
-			energy = transferEnergy,
-			startTime = now,
-			lastSampleTime = now,
-			chargeRatio = 0,
-			collisions = launchState.collisions,
-			sourcePlayer = player,
-		})
-		stateService:SetMovementState(defender, "Launching")
+	if shouldKnockback then
+		stateService:SetMovementState(defender, "Knockback")
+		task.delay(KNOCKBACK_STATE_DURATION, function()
+			local defenderState = stateService:GetState(defender)
+			if defenderState and defenderState.MovementState == "Knockback" then
+				stateService:SetMovementState(defender, "Idle")
+			end
+		end)
 	end
 
 	self._activeCollisionKeys[key] = nil
@@ -356,12 +351,15 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		LaunchEnergy = launchState.energy,
 		CollisionCount = launchState.collisions,
 	})
-	self._context.EventBus:Fire("CollisionPlayerHit", defender, player, impactSpeed, normal, {
-		LaunchEnergy = launchState.energy,
-		ImpactSpeed = impactSpeed,
-		CollisionCount = launchState.collisions,
-		TransferredEnergy = transferEnergy,
-	})
+	if shouldKnockback then
+		self._context.EventBus:Fire("CollisionPlayerKnockback", defender, player, defenderOut, {
+			Duration = KNOCKBACK_STATE_DURATION,
+			ImpactNormal = normal,
+			ImpactSpeed = impactSpeed,
+			CollisionCount = launchState.collisions,
+			TransferredEnergy = transferEnergy,
+		})
+	end
 end
 
 function CollisionService:_resolveClientTrapHit(player: Player, payload: any)
