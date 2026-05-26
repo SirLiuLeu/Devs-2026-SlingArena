@@ -274,7 +274,6 @@ function CollisionService:_validatePlayerReport(
 end
 
 function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
-	print("CollisionService: Received player hit report from client", player.Name, payload)
 	local ok, defender, root, targetRoot, normal = self:_validatePlayerReport(player, payload)
 	if not (ok and defender and root and targetRoot) then
 		return
@@ -418,12 +417,10 @@ end
 
 function CollisionService:_bindClientCollisionReports()
 	local remote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ReportCollision)
-	print(remote)
 	if not (remote and remote:IsA("RemoteEvent")) then
 		return
 	end
 	remote.OnServerEvent:Connect(function(player, payload)
-		print("CollisionService: Received collision report from client", player.Name, payload)
 		if not RemoteContracts.Validate(RemoteContracts.Names.ReportCollision, payload) then
 			return
 		end

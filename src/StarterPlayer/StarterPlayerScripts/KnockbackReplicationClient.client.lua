@@ -10,8 +10,7 @@ local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
 local knockbackRemote = remotes:WaitForChild(RemoteContracts.Names.KnockbackReplication) :: RemoteEvent
 
-local KNOCKBACK_MAX_DURATION = 0.05
-local KNOCKBACK_MIN_DURATION = 0.05
+local DEFAULT_KNOCKBACK_DURATION = 0.12
 
 local function getCharacterRoot(): BasePart?
 	local character = player.Character
@@ -38,17 +37,29 @@ local function getCharacterRoot(): BasePart?
 end
 
 knockbackRemote.OnClientEvent:Connect(function(knockbackVelocity: any, duration: any)
+	print("[KnockbackReplication] Received from server:", "velocity=", knockbackVelocity, "duration=", duration)
+
 	if typeof(knockbackVelocity) ~= "Vector3" then
+		warn("[KnockbackReplication] Invalid knockbackVelocity type:", typeof(knockbackVelocity))
 		return
 	end
 
 	local root = getCharacterRoot()
-	if not root or root.Anchored then
+	if not root then
+		warn("[KnockbackReplication] No character root found")
+		return
+	end
+
+	if root.Anchored then
+		warn("[KnockbackReplication] Root is anchored, skipping knockback")
 		return
 	end
 
 	local planarVelocity = Vector3.new(knockbackVelocity.X, 0, knockbackVelocity.Z)
+	print("[KnockbackReplication] Planar velocity:", planarVelocity, "magnitude=", planarVelocity.Magnitude)
+
 	if planarVelocity.Magnitude <= 0 then
+		warn("[KnockbackReplication] Zero planar velocity, skipping")
 		return
 	end
 
@@ -67,10 +78,17 @@ knockbackRemote.OnClientEvent:Connect(function(knockbackVelocity: any, duration:
 	linearVelocity.MaxForce = math.max(root.AssemblyMass, 1) * 12000
 	linearVelocity.Parent = root
 
-	local durationSeconds = KNOCKBACK_MAX_DURATION
+	local durationSeconds = DEFAULT_KNOCKBACK_DURATION
 	if typeof(duration) == "number" then
-		durationSeconds = math.clamp(duration, KNOCKBACK_MIN_DURATION, KNOCKBACK_MAX_DURATION)
+		durationSeconds = math.max(0, duration)
 	end
+
+	print(
+		"[KnockbackReplication] Applying LinearVelocity:",
+		"VectorVelocity=", linearVelocity.VectorVelocity,
+		"MaxForce=", linearVelocity.MaxForce,
+		"Duration=", durationSeconds
+	)
 
 	Debris:AddItem(linearVelocity, durationSeconds)
 end)
