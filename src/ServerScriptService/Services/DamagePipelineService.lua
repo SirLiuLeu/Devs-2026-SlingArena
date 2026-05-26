@@ -17,6 +17,7 @@ type DamageOptions = {
 	SuppressFeedback: boolean?,
 	SuppressDeathHandling: boolean?,
 	SuppressKnockback: boolean?,
+	KnockbackDuration: number?,
 }
 
 local DamagePipelineService = {}
@@ -95,6 +96,7 @@ function DamagePipelineService:Init()
 
 		local applied = self:ApplyDamage(victim, damage, attacker, knockbackDirection * impactSpeed * 0.35, {
 			SuppressKnockback = false,
+			KnockbackDuration = collisionMeta and collisionMeta.Duration or nil,
 		})
 
 		if applied then
@@ -163,8 +165,11 @@ function DamagePipelineService:ComputeCollisionDamage(attackerState: any, veloci
 	local chainPenalty = math.max(0.2, 1 - (collisions * PhysicsConfig.Damage.ChainDecayPerHit))
 	local intensity = speed / math.max(PhysicsConfig.Collision.RealHitMinClosingSpeed, 1)
 	local energyScalar = energy / math.max(PhysicsConfig.Launch.EnergyMax, 1)
+	local charge = collisionMeta and math.clamp(collisionMeta.ChargeRatio or 0, 0, 1) or 0
+	local chargeScalar = 0.75 + (0.25 * charge)
 	local damage = baseDamage
 		* (1 + energyScalar)
+		* chargeScalar
 		* earlyBonus
 		* chainPenalty
 		* (intensity * PhysicsConfig.Damage.CollisionIntensityMultiplier)
@@ -244,7 +249,8 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 			if planarKnockback.Magnitude > 0 then
 				local clamped = planarKnockback.Unit * math.min(planarKnockback.Magnitude, BalanceConfig.MaxVelocity)
 				if self._knockbackRemote then
-					self._knockbackRemote:FireClient(victim, clamped, 0.12)
+					local knockbackDuration = math.max(0.05, (options and options.KnockbackDuration) or 0.12)
+					self._knockbackRemote:FireClient(victim, clamped, knockbackDuration)
 				else
 					local nextVelocity = root.AssemblyLinearVelocity + clamped
 					root.AssemblyLinearVelocity = Vector3.new(

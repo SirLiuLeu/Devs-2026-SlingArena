@@ -27,13 +27,21 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local CollisionService = {}
 CollisionService.__index = CollisionService
-local KNOCKBACK_STATE_DURATION = 0.12
 
 local function getService(context, name)
 	if context.ServiceRegistry then
 		return context.ServiceRegistry:GetOptional(name)
 	end
 	return context.Services and context.Services[name]
+end
+
+local function computeKnockbackDuration(transferSpeed: number, chargeRatio: number): number
+	local speedRatio = transferSpeed / math.max(PhysicsConfig.Collision.MaxPostCollisionSpeed, 1)
+	local speedScalar = math.clamp(speedRatio, 0, 1)
+	local chargeScalar = math.clamp(chargeRatio, 0, 1)
+	-- Scale by both transferred speed and launch charge so stronger launches keep
+	-- knockback state slightly longer while weak grazes recover faster.
+	return 0.08 + (0.18 * speedScalar) + (0.12 * chargeScalar)
 end
 
 function CollisionService.new(context)
@@ -333,9 +341,10 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	local transferEnergy = math.max(0, (launchState.energy or 0) * PhysicsConfig.Collision.EnergyTransferRatio)
 	local shouldKnockback = transferEnergy >= PhysicsConfig.Collision.MinTransferEnergy
 		and defenderOut.Magnitude > PhysicsConfig.Collision.MinPostCollisionSpeed
+	local knockbackDuration = computeKnockbackDuration(transferSpeed, launchState.chargeRatio or 0)
 	if shouldKnockback then
 		stateService:SetMovementState(defender, "Knockback")
-		task.delay(KNOCKBACK_STATE_DURATION, function()
+		task.delay(knockbackDuration, function()
 			local defenderState = stateService:GetState(defender)
 			if defenderState and defenderState.MovementState == "Knockback" then
 				stateService:SetMovementState(defender, "Idle")
@@ -350,10 +359,22 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		ImpactNormal = normal,
 		LaunchEnergy = launchState.energy,
 		CollisionCount = launchState.collisions,
+		ChargeRatio = launchState.chargeRatio or 0,
+		ElapsedLaunchTime = math.max(0, now - (launchState.startTime or now)),
+	})
+	self._context.EventBus:Fire("CollisionPlayerHit", defender, player, impactSpeed, normal, {
+		Duration = knockbackDuration,
+		ImpactNormal = normal,
+		ImpactSpeed = impactSpeed,
+		CollisionCount = launchState.collisions,
+		LaunchEnergy = launchState.energy,
+		ChargeRatio = launchState.chargeRatio or 0,
+		ElapsedLaunchTime = math.max(0, now - (launchState.startTime or now)),
+		TransferredEnergy = transferEnergy,
 	})
 	if shouldKnockback then
 		self._context.EventBus:Fire("CollisionPlayerKnockback", defender, player, defenderOut, {
-			Duration = KNOCKBACK_STATE_DURATION,
+			Duration = knockbackDuration,
 			ImpactNormal = normal,
 			ImpactSpeed = impactSpeed,
 			CollisionCount = launchState.collisions,
