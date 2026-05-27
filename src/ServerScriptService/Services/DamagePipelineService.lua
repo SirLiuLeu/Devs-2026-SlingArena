@@ -163,7 +163,9 @@ function DamagePipelineService:ComputeCollisionDamage(attackerState: any, veloci
 	local collisions = collisionMeta and math.max(0, collisionMeta.CollisionCount or 0) or 0
 	local earlyBonus = 1 / (1 + (elapsed * PhysicsConfig.Damage.LaunchTimeBias))
 	local chainPenalty = math.max(0.2, 1 - (collisions * PhysicsConfig.Damage.ChainDecayPerHit))
-	local intensity = speed / math.max(PhysicsConfig.Collision.RealHitMinClosingSpeed, 1)
+	local initialImpactSpeed = collisionMeta and math.max(0, collisionMeta.InitialImpactSpeed or speed) or speed
+	local speedDecayRatio = if initialImpactSpeed > 0 then math.clamp(speed / initialImpactSpeed, 0.3, 1) else 0.3
+	local intensity = initialImpactSpeed / math.max(PhysicsConfig.Collision.RealHitMinClosingSpeed, 1)
 	local energyScalar = energy / math.max(PhysicsConfig.Launch.EnergyMax, 1)
 	local charge = collisionMeta and math.clamp(collisionMeta.ChargeRatio or 0, 0, 1) or 0
 	local chargeScalar = 0.75 + (0.25 * charge)
@@ -173,6 +175,7 @@ function DamagePipelineService:ComputeCollisionDamage(attackerState: any, veloci
 		* earlyBonus
 		* chainPenalty
 		* (intensity * PhysicsConfig.Damage.CollisionIntensityMultiplier)
+		* speedDecayRatio
 		* PhysicsConfig.Damage.BaseMultiplier
 	return math.clamp(damage, 0, PhysicsConfig.Damage.Max)
 end

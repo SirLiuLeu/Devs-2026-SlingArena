@@ -17,7 +17,7 @@ local FOOD_HIT_RADIUS_PADDING = PhysicsConfig.Collision.Range
 local NORMAL_EPSILON = 1e-5
 local MIN_SPEED_EPSILON = 1e-3
 local REFLECTION_DAMPING = 0.88
-local LAST_HIT_VELOCITY_DAMPING = 0.75
+local LAST_HIT_VELOCITY_DAMPING = 0.9
 local GRID_CELL_SIZE = 48
 local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
@@ -26,6 +26,8 @@ local MAX_ALLOWED_SPEED = PhysicsConfig.Collision.MaxAllowedSpeed
 -- increase (0.4s). This prevents the server from processing the rare duplicate that
 -- slips through if the client fires two reports just before the cooldown resets.
 local HIT_REQUEST_COOLDOWN = 0.4
+local SAME_TARGET_FOOD_DEDUPE_SECONDS = 0.28
+local MAX_COLLISIONS_PER_LAUNCH = 3
 
 local FIRE_FOOD_BURN_COOLDOWN = 1
 local FIRE_FOOD_BURN_DAMAGE_RATIO = 0.4
@@ -154,6 +156,7 @@ function FoodService.new(context)
 	self._playerConsumeCooldown = {}
 	self._slingFoodHitCooldown = {}
 	self._hitRequestCooldown = {}
+	self._foodHitByLaunchTarget = {}
 	return self
 end
 
@@ -559,8 +562,12 @@ function FoodService:_applySlingDamage(entry: any, player: Player, velocity: num
 	if not rule or entry.CurrentHP <= 0 then
 		return
 	end
-	local clampedVelocity = math.clamp(velocity, DAMAGE_MIN_VELOCITY, DAMAGE_MAX_VELOCITY)
-	local damage = clampedVelocity * DAMAGE_BASE
+	local slingService = getService(self._context, "SlingService")
+	local launchState = slingService and slingService:GetLaunchState(player) or nil
+	local initialSpeed = launchState and math.max(launchState.initialSpeed or 0, launchState.currentSpeed or 0) or velocity
+	local initialDamage = math.clamp(initialSpeed, DAMAGE_MIN_VELOCITY, DAMAGE_MAX_VELOCITY) * DAMAGE_BASE
+	local speedRatio = if initialSpeed > 0 then math.clamp(velocity / initialSpeed, 0.3, 1) else 0.3
+	local damage = initialDamage * speedRatio
 	local stateService = getService(self._context, "PlayerStateService")
 	local abilityType = stateService and stateService:GetSlingAbilityType(player) or "NormalSling"
 	if abilityType == "FireSling" then
@@ -601,7 +608,7 @@ function FoodService:_reflectVelocity(velocity: Vector3, normal: Vector3): Vecto
 	if reflected.Magnitude <= MIN_SPEED_EPSILON then
 		return Vector3.zero
 	end
-	return reflected * REFLECTION_DAMPING
+	return reflected * math.max(REFLECTION_DAMPING, LAST_HIT_VELOCITY_DAMPING)
 end
 
 function FoodService:_resolvePenetration(root: BasePart, hitbox: BasePart, normal: Vector3)
@@ -654,6 +661,24 @@ function FoodService:Start()
 			return
 		end
 		local entry = self._foodById[payload.foodId]
+		local slingService = getService(self._context, "SlingService")
+		local launchState = slingService and slingService:GetLaunchState(player) or nil
+		local launchStart = launchState and launchState.startTime or nil
+		local launchId = (typeof(launchStart) == "number") and string.format("%d:%.6f", player.UserId, launchStart) or nil
+		if launchState then
+			launchState.collisions = launchState.collisions or 0
+			if launchState.collisions >= MAX_COLLISIONS_PER_LAUNCH then
+				return
+			end
+		end
+		if launchId and entry and entry.Id then
+			self._foodHitByLaunchTarget[launchId] = self._foodHitByLaunchTarget[launchId] or {}
+			local lastHitAt = self._foodHitByLaunchTarget[launchId][entry.Id]
+			if lastHitAt and (now - lastHitAt) < SAME_TARGET_FOOD_DEDUPE_SECONDS then
+				return
+			end
+			self._foodHitByLaunchTarget[launchId][entry.Id] = now
+		end
 
 		-- FIX 1: The IsConsumed / IsActive flags act as the authoritative one-hit guard.
 		-- _consumeFood sets IsConsumed=true and removes from _foodById atomically before
@@ -695,8 +720,11 @@ function FoodService:Start()
 				-- Common food is pass-through: no physical response from the server either.
 				-- rule.Touch == true means Common food; rule.MustHit == true means HP food.
 				if rule.MustHit and not rule.Touch then
-					local impulse = flattenXZ(root.AssemblyLinearVelocity) * -root.AssemblyMass * 0.35
+					local impulse = flattenXZ(root.AssemblyLinearVelocity) * -root.AssemblyMass * 0.18
 					root:ApplyImpulse(Vector3.new(impulse.X, 0, impulse.Z))
+				end
+				if launchState then
+					launchState.collisions = (launchState.collisions or 0) + 1
 				end
 			end
 		end
