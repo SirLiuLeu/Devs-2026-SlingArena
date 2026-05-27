@@ -37,7 +37,6 @@ local function getCharacterRoot(): BasePart?
 end
 
 knockbackRemote.OnClientEvent:Connect(function(knockbackVelocity: any, duration: any)
-	print("[KnockbackReplication] Received from server:", "velocity=", knockbackVelocity, "duration=", duration)
 
 	if typeof(knockbackVelocity) ~= "Vector3" then
 		warn("[KnockbackReplication] Invalid knockbackVelocity type:", typeof(knockbackVelocity))
@@ -56,7 +55,6 @@ knockbackRemote.OnClientEvent:Connect(function(knockbackVelocity: any, duration:
 	end
 
 	local planarVelocity = Vector3.new(knockbackVelocity.X, 0, knockbackVelocity.Z)
-	print("[KnockbackReplication] Planar velocity:", planarVelocity, "magnitude=", planarVelocity.Magnitude)
 
 	if planarVelocity.Magnitude <= 0 then
 		warn("[KnockbackReplication] Zero planar velocity, skipping")
