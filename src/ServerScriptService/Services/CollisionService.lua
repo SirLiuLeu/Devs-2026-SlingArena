@@ -245,31 +245,28 @@ function CollisionService:_validatePlayerReport(
 	if not (playerService and stateService) then
 		return false, nil, nil, nil, Vector3.new(1, 0, 0)
 	end
+
 	local defender = Players:GetPlayerByUserId(payload.targetUserId)
 	local root = playerService:GetRoot(player)
 	local targetRoot = defender and playerService:GetRoot(defender)
 	local attackerState = stateService:GetState(player)
+
 	if not (defender and defender ~= player and root and targetRoot and attackerState
 		and isLaunchValidationActive(player, attackerState.MovementState))
 	then
 		return false, nil, nil, nil, Vector3.new(1, 0, 0)
 	end
+
 	if not (playerService:IsAlive(player) and playerService:IsAlive(defender)) then
 		return false, nil, nil, nil, Vector3.new(1, 0, 0)
 	end
-	local playerRadius = math.max(root.Size.X, root.Size.Z) * 0.5
-	local targetRadius = math.max(targetRoot.Size.X, targetRoot.Size.Z) * 0.5
-	local tolerance = PhysicsConfig.Collision.ValidationTolerance
-	local range = playerRadius + targetRadius + tolerance
-	local pos = reportPosition(payload, root.Position)
-	if sqrDistanceXZ(root.Position, targetRoot.Position) > range * range
-		and sqrDistanceXZ(pos, targetRoot.Position) > range * range
-	then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0)
-	end
+
 	local offset = targetRoot.Position - root.Position
 	local planar = Vector3.new(offset.X, 0, offset.Z)
-	local normal = if planar.Magnitude > PhysicsConfig.Movement.InputDeadzone then planar.Unit else Vector3.new(1, 0, 0)
+	local normal = if planar.Magnitude > PhysicsConfig.Movement.InputDeadzone
+		then planar.Unit
+		else Vector3.new(1, 0, 0)
+
 	return true, defender, root, targetRoot, normal
 end
 
