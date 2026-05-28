@@ -78,7 +78,7 @@ function DamagePipelineService:Init()
 		victim: Player,
 		attacker: Player?,
 		impactSpeed: number,
-		knockbackDirection: Vector3,
+		_knockbackDirection: Vector3,
 		collisionMeta: any
 	)
 		local stateService = getService(self._context, "PlayerStateService")
@@ -94,9 +94,11 @@ function DamagePipelineService:Init()
 			return
 		end
 
-		local applied = self:ApplyDamage(victim, damage, attacker, knockbackDirection * impactSpeed * 0.35, {
-			SuppressKnockback = false,
-			KnockbackDuration = collisionMeta and collisionMeta.Duration or nil,
+		-- Player-vs-player collision knockback is emitted once by the
+		-- CollisionPlayerKnockback event after CollisionService resolves the hit.
+		-- Keep this ApplyDamage call damage-only so it does not produce a second impulse.
+		local applied = self:ApplyDamage(victim, damage, attacker, nil, {
+			SuppressKnockback = true,
 		})
 
 		if applied then
