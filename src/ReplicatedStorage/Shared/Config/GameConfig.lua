@@ -1,20 +1,6 @@
 --!strict
 
 local GameConfig = {
-	Match = {
-		AwaitsTime = 180,
-		EarlyPhaseTime = 480,
-		FinalPhaseTime = 120,
-		RoundEndTime = 20,
-		RespawnTime = 5,
-	},
-
-	JoinRule = {
-		AllowFromLobby = true,
-		AllowFromLoading = false,
-		AllowFromInGame = false,
-	},
-
 	FlagConfig = {
 		Ghost = { Duration = 9999, Priority = 90, BlocksCollision = true, BlocksDamage = true },
 		Invulnerable = { Duration = 5, Priority = 100, BlocksDamage = true, BlocksDot = true },

@@ -8,10 +8,6 @@ export type RewardEntry = {
 	weight: number,
 	icon: string,
 	name: string,
-	teamBonus: {
-		TeamRed: number,
-		TeamBlue: number,
-	},
 }
 
 GachaRewardConfig.Rewards = {
@@ -21,7 +17,6 @@ GachaRewardConfig.Rewards = {
 		weight = 25,
 		icon = "rbxassetid://0",
 		name = "HP Potion",
-		teamBonus = { TeamRed = 0.05, TeamBlue = 0.05 },
 	},
 	{
 		id = "sling_reward",
@@ -29,7 +24,6 @@ GachaRewardConfig.Rewards = {
 		weight = 10,
 		icon = "rbxassetid://0",
 		name = "Sling",
-		teamBonus = { TeamRed = 0.02, TeamBlue = 0.02 },
 	},
 	{
 		id = "exp_buff",
@@ -37,7 +31,6 @@ GachaRewardConfig.Rewards = {
 		weight = 16,
 		icon = "rbxassetid://0",
 		name = "EXP Buff",
-		teamBonus = { TeamRed = 0.08, TeamBlue = 0.08 },
 	},
 	{
 		id = "exp_flat",
@@ -45,7 +38,6 @@ GachaRewardConfig.Rewards = {
 		weight = 20,
 		icon = "rbxassetid://0",
 		name = "EXP",
-		teamBonus = { TeamRed = 0.06, TeamBlue = 0.06 },
 	},
 	{
 		id = "diamond",
@@ -53,7 +45,6 @@ GachaRewardConfig.Rewards = {
 		weight = 14,
 		icon = "rbxassetid://0",
 		name = "Dinamond",
-		teamBonus = { TeamRed = 0.04, TeamBlue = 0.04 },
 	},
 	{
 		id = "team_rage",
@@ -61,7 +52,6 @@ GachaRewardConfig.Rewards = {
 		weight = 15,
 		icon = "rbxassetid://0",
 		name = "Team Rage",
-		teamBonus = { TeamRed = 0.1, TeamBlue = 0.1 },
 	},
 }
 

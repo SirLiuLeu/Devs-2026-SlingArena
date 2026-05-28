@@ -6,7 +6,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
-local Config = require(ReplicatedStorage.Shared.Config.Config)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
@@ -402,8 +401,8 @@ function PlayerService:_loadSlingTemplate(): Model?
 	template.Name = PLAYER_CHARACTER_MODEL_NAME
 	template.Parent = nil
 
-	if Config.SlingScale ~= 1 then
-		template:ScaleTo(Config.SlingScale)
+	if SlingConfig.ModelScale ~= 1 then
+		template:ScaleTo(SlingConfig.ModelScale)
 	end
 
 	if not self:_prepareSlingModel(template) then
@@ -498,7 +497,7 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	self._playerToSling[player] = pawn
 	self._slingToPlayer[pawn] = player
 	self:_attachWorldUi(pawn, player)
-	pawn:SetAttribute("ScaleValue", Config.SlingScale)
+	pawn:SetAttribute("ScaleValue", SlingConfig.ModelScale)
 	for _, descendant in pawn:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = false

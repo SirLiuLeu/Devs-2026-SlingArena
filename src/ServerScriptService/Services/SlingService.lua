@@ -1,45 +1,4 @@
 --!strict
--- REFACTOR SUMMARY – Launch State Machine
---
--- ROOT CAUSE (prior bug):
---   The decay model (launchState.currentSpeed) was the only stop signal. Any time the
---   time-based speed crossed StopSpeed the server immediately transitioned to Recovering.
---   This produced two opposite failure modes:
---     A) During the grace window the server might still read server-velocity ≈ 0 and had
---        no protection against a stray rapid decay step ending launch immediately.
---     B) After the grace window the stop trigger fired as soon as the decay model said
---        the speed was low enough, even if real physics (e.g. a collision rebound) kept
---        the Sling moving visually.
---
--- REFACTOR – single server-side state machine per player:
---
---   LaunchState now carries:
---     graceEndsAt       – timestamp until which ALL physics-based stop checks are skipped.
---     stopEvidenceCount – consecutive Heartbeat frames where server-observed horizontal
---                         speed < StopSpeed. Only incremented after grace ends.
---     maxEndsAt         – hard timeout; Launch is forced to end if this is exceeded.
---
---   Stop decision logic (in order):
---     1. Hard timeout: if os.clock() >= maxEndsAt → stop unconditionally.
---     2. Grace window active (os.clock() < graceEndsAt): skip all physics checks.
---        Decay model still runs so energy/currentSpeed are kept up to date.
---     3. After grace window: observe real server-side horizontal speed.
---        If speed < StopSpeed → increment stopEvidenceCount.
---        If speed >= StopSpeed → reset stopEvidenceCount to 0.
---        If stopEvidenceCount >= StopEvidenceFramesRequired → stop.
---        Additionally, if the time-based currentSpeed has decayed to 0 (energy gone)
---        *and* the grace window has expired, that also triggers stop (decay model still
---        acts as the primary timer; physics evidence only provides early-stop correction).
---
---   What did NOT change:
---     - The decay model (time-based currentSpeed / energy) is still the main logical
---       timeline for Launch. It determines how long Launch "should" last.
---     - Physics observations (server-side AssemblyLinearVelocity) are NOT a second
---       authoritative velocity source. They are a corrective signal used only to confirm
---       the Sling has already stopped before the decay model reaches zero.
---     - Client ownership of the root is unchanged (FIX 1).
---     - The client still applies the initial launch impulse (FIX 2).
---     - Smooth brake-to-stop is unchanged (FIX 3).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -451,10 +410,6 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	local now = os.clock()
 	local launchState = LaunchMotionModel.BuildState(launchDirectionPlanar, chargeRatio, now, player)
 
-	-- ── Attach state-machine fields to the launch record ────────────────────────
-	-- graceEndsAt: until this timestamp the server ignores physics-based stop checks.
-	-- stopEvidenceCount: consecutive frames where server speed < StopSpeed (post-grace).
-	-- maxEndsAt: absolute hard timeout; Launch is forced to end regardless of model state.
 	launchState.graceEndsAt = now + PhysicsConfig.Launch.GraceWindowSeconds
 	launchState.stopEvidenceCount = 0
 	launchState.maxEndsAt = now + PhysicsConfig.Launch.MaxLaunchDuration
