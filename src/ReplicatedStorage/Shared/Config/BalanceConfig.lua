@@ -1,7 +1,7 @@
 --!strict
 
 local BalanceConfig = {
-	MaxDamagePerHit = 350,
+	MaxDamagePerHit = 5000,
 	MaxVelocity = 170,
 	SizeDamageFactor = 0.75,
 	MaxChargeSelfDamage = 18,
