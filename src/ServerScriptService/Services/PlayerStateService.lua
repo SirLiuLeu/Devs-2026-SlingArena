@@ -5,7 +5,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
-local SlingshotConfig = require(ReplicatedStorage.Shared.Config.SlingshotConfig)
 local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
 local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
@@ -73,7 +72,7 @@ function PlayerStateService:GetRequiredExp(level: number): number
 end
 
 local function buildDefaultState(player: Player): PlayerState
-	local sling = SlingshotConfig.SlingConfig
+	local sling = SlingConfig.BaseStats
 	local state: PlayerState = {
 		UserId = player.UserId,
 		CurrentMap = nil,
@@ -81,14 +80,14 @@ local function buildDefaultState(player: Player): PlayerState
 		TeamId = nil,
 		Level = LevelConfig.StartingLevel,
 		Exp = LevelConfig.StartingExp,
-		Size = sling.Size,
-		MaxHP = sling.MaxHP,
-		CurrentHP = sling.MaxHP,
-		BaseDamage = sling.BaseDamage,
-		RegenRate = sling.RegenPerSecond,
-		ReflectDamage = sling.ReflectDamagePercent,
+		Size = sling.size,
+		MaxHP = sling.maxHP,
+		CurrentHP = sling.maxHP,
+		BaseDamage = sling.baseDamage,
+		RegenRate = sling.regenPerSecond,
+		ReflectDamage = sling.reflectDamagePercent,
 		LaunchSpeed = PhysicsConfig.Launch.SpeedMax,
-		LaunchRange = sling.MaxShootRange,
+		LaunchRange = sling.maxShootRange,
 		ChargeSpeed = 1,
 		MoveSpeed = PhysicsConfig.Movement.MoveSpeed,
 		DamageMultiplier = 1,
@@ -424,7 +423,7 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	if not state then
 		return
 	end
-	local sling = SlingshotConfig.SlingConfig
+	local sling = SlingConfig.BaseStats
 	local equippedSling = SlingConfig.GetById(state.SlingshotType or "")
 	local abilityConfig = equippedSling and AbilityConfig.GetById(equippedSling.abilityType or equippedSling.id) or nil
 	local levelMultiplier = 1 + (math.max(state.Level - 1, 0) * 0.03)
@@ -434,18 +433,18 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	state.LaunchSpeedBonus = 0
 
 	state.Size = (BalanceConfig.BaseSize * levelMultiplier) * state.ScaleMultiplier
-	state.BaseDamage = (slingStats.baseDamage or sling.BaseDamage) * levelMultiplier
+	state.BaseDamage = (slingStats.baseDamage or sling.baseDamage) * levelMultiplier
 	state.DamageMultiplier = abilityConfig and abilityConfig.damageMultiplier or 1
-	state.RegenRate = sling.RegenPerSecond * (slingStats.regen or 1) * (abilityConfig and abilityConfig.regenMultiplier or 1) * levelMultiplier
-	state.ReflectDamage = math.max(sling.ReflectDamagePercent, abilityConfig and abilityConfig.reflectDamage or 0)
+	state.RegenRate = sling.regenPerSecond * (slingStats.regen or 1) * (abilityConfig and abilityConfig.regenMultiplier or 1) * levelMultiplier
+	state.ReflectDamage = math.max(sling.reflectDamagePercent, abilityConfig and abilityConfig.reflectDamage or 0)
 	state.LaunchSpeed = PhysicsConfig.Launch.SpeedMax * (slingStats.launchPower or 1) * levelMultiplier
-	state.LaunchRange = sling.MaxShootRange * (slingStats.control or 1) * levelMultiplier
+	state.LaunchRange = sling.maxShootRange * (slingStats.control or 1) * levelMultiplier
 	state.ChargeSpeed = 1
 	state.MoveSpeed = PhysicsConfig.Movement.MoveSpeed * (abilityConfig and abilityConfig.moveSpeedMultiplier or 1) * levelMultiplier
 	state.Armor = math.clamp((slingStats.armor or 0) + (abilityConfig and abilityConfig.armor or 0), 0, 0.8)
 	state.ExpBonus = abilityConfig and abilityConfig.expBonus or 0
 
-	local hp = (slingStats.maxHP or sling.MaxHP) * (abilityConfig and abilityConfig.maxHpMultiplier or 1) * levelMultiplier
+	local hp = (slingStats.maxHP or sling.maxHP) * (abilityConfig and abilityConfig.maxHpMultiplier or 1) * levelMultiplier
 	state.MaxHP = hp
 	if refillHealth then
 		state.CurrentHP = hp
@@ -460,7 +459,6 @@ function PlayerStateService:GetFinalStats(player: Player)
 	if not state then
 		return nil
 	end
-	local sling = SlingshotConfig.SlingConfig
 	return {
 		Damage = state.BaseDamage * (state.DamageMultiplier or 1),
 		HP = state.MaxHP,
