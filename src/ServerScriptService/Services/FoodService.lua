@@ -34,18 +34,6 @@ local COMMON_ALLOWED_STATES = {
 	[GameStates.PlayerState.Idle] = true,
 }
 
--- FIX 3 ROOT CAUSE: The server validation rejects hits when MovementState == "Idle" even
--- though the player has a non-zero horizontal speed. This happens because:
---   1. The client fires ReportFoodHit immediately after clientDoLaunchRemote fires.
---   2. SlingService._stepMovementStates reads root.AssemblyLinearVelocity from the SERVER,
---      which is 0 (physics replication hasn't arrived yet since the root is client-owned).
---   3. Because server-side speed == 0, shouldStop triggers immediately, transitioning
---      the state to Recovering/Idle before the food report arrives.
--- Fix: isLaunchHitValidationActive now also accepts "Idle" state when the per-player
--- LaunchValidationGraceEndsAt attribute is still active. The grace window is already
--- set by SlingService.ReleaseCharge to now + ValidationGraceSeconds * 20, so any food
--- hit reported during that window (even after the premature Idle transition) is accepted.
--- No new attribute is needed — the existing LaunchValidationGraceEndsAt covers this case.
 local function isLaunchHitValidationActive(player: Player, movementState: string?): boolean
 	if movementState == GameStates.PlayerState.Launching then
 		return true
