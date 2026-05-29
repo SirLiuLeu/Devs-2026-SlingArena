@@ -23,9 +23,9 @@ local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
 local MAX_ALLOWED_SPEED = PhysicsConfig.Collision.MaxAllowedSpeed
 -- FIX 1: Raise per-player hit request cooldown to match the client-side REPORT_COOLDOWN
--- increase (0.4s). This prevents the server from processing the rare duplicate that
+-- increase (0.1s). This prevents the server from processing the rare duplicate that
 -- slips through if the client fires two reports just before the cooldown resets.
-local HIT_REQUEST_COOLDOWN = 0.4
+local HIT_REQUEST_COOLDOWN = 0.1
 local SAME_TARGET_FOOD_DEDUPE_SECONDS = 0.28
 local MAX_COLLISIONS_PER_LAUNCH = 3
 
