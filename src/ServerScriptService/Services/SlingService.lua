@@ -638,25 +638,21 @@ function SlingService:_stepMovementStates(dt: number)
 			-- Time-based speed decay: currentSpeed is monotonically decreasing.
 			-- It is the authoritative estimate of how fast Launch should still be.
 			local previousSpeed = launchState.currentSpeed or launchState.initialSpeed or 0
-			local decayFactor = math.max(0, 1 - (PhysicsConfig.Launch.DecayPerSecond * elapsed))
+			local decayFactor = LaunchMotionModel.DecayFactor(PhysicsConfig.Launch.DecayPerSecond, elapsed)
 			local decayedSpeed = previousSpeed * decayFactor
 
 			-- Time-based energy decay.
-			local energyDecayFactor = math.max(0, 1 - (PhysicsConfig.Launch.PassiveEnergyDecayPerSecond * elapsed))
+			local energyDecayFactor = LaunchMotionModel.DecayFactor(PhysicsConfig.Launch.PassiveEnergyDecayPerSecond, elapsed)
 			local decayedEnergy = math.max(0, (launchState.energy or 0) * energyDecayFactor)
 
 			-- Clamp from above only: if the client somehow exceeds the decayed cap,
 			-- bring it down. Never set currentSpeed TO server velocity when server
 			-- reads low (lag artifact during grace or network spike).
 			local graceActive = now < (launchState.graceEndsAt or 0)
-			local targetSpeed
-			if graceActive then
-				-- Grace window: trust time-based decay exclusively.
-				targetSpeed = decayedSpeed
-			else
-				-- Post-grace: server velocity is reliable; cap if too high.
-				targetSpeed = math.min(decayedSpeed, math.max(serverHorizontalSpeed, PhysicsConfig.Launch.StopSpeed))
-			end
+			-- Baseline decay owns only time-based speed loss. Do not ratchet logical
+			-- launch speed down to transient server-observed velocity; collision handlers
+			-- explicitly reset currentSpeed when they apply a post-impact velocity.
+			local targetSpeed = decayedSpeed
 
 			-- Enforce the cap downward only (never accelerate).
 			if serverHorizontalSpeed > targetSpeed and serverHorizontalSpeed > PhysicsConfig.Movement.InputDeadzone and not graceActive then

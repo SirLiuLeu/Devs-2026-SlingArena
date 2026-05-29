@@ -49,6 +49,7 @@ local PhysicsConfig = {
 		EnergyMin = 18,
 		EnergyMax = 120,
 
+		-- Exponential decay keeps the historical one-second tuning while staying frame-rate stable.
 		DecayPerSecond = 0.2,
 		-- Launch enters recovery once horizontal speed reaches this threshold.
 		StopSpeed = 1,
@@ -94,6 +95,11 @@ local PhysicsConfig = {
 
 		EnergyTransferRatio = 0.82,
 		CollisionEnergyLossRatio = 0.16,
+
+		-- Food collision response uses the same single-step model on client and server.
+		FoodRestitution = 0.55,
+		FoodTangentialDamping = 0.92,
+
 		MinTransferEnergy = 7,
 		MinPostCollisionSpeed = 1.25,
 		MaxPostCollisionSpeed = 125,

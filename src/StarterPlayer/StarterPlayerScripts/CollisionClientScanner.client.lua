@@ -8,6 +8,7 @@ local player = Players.LocalPlayer
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameStates = require(Shared:WaitForChild("Constants"):WaitForChild("GameStates"))
 local PhysicsConfig = require(Shared:WaitForChild("Config"):WaitForChild("PhysicsConfig"))
+local CollisionResponse = require(Shared:WaitForChild("Utils"):WaitForChild("CollisionResponse"))
 local stateUpdateRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("StateUpdate") :: RemoteEvent
 local reportFoodRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
 local reportCollisionRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("ReportCollision") :: RemoteEvent
@@ -17,14 +18,8 @@ local clientDoLaunchRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
 local GRID_CELL_SIZE = 48
 local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local HIT_EPSILON = PhysicsConfig.Collision.Range
--- FIX 1 ROOT CAUSE: REPORT_COOLDOWN was 0.05s (~3 frames at 60fps), causing the same food
--- to be reported multiple times per collision as the sphere cast re-detects each frame.
--- Raised to 0.4s so one physical approach produces at most one report per food.
 local REPORT_COOLDOWN = 1
 local MIN_REPORT_SPEED = PhysicsConfig.Collision.MinReportSpeed
-local IMPACT_ABSORPTION = 0.6
-local HITSTOP_SECONDS = 0.05
-local BOUNCE_RETENTION = 0.7
 local LAUNCH_SCAN_GRACE_SECONDS = PhysicsConfig.Launch.ValidationGraceSeconds
 local PREDICTED_LAUNCH_SCAN_SECONDS = 0.35
 local EXISTING_VELOCITY_SCAN_SECONDS = 0.1
@@ -139,20 +134,24 @@ local function getTrapPartFromHit(part: Instance): BasePart?
 	return nil
 end
 
--- FIX 4 ROOT CAUSE: applyPredictedLaunchFeel was called unconditionally for all food rarities,
--- including Common. Common food must be pass-through (no bounce). The bounce logic is now
--- only called for non-common (HP) food from reportFoodHit, gated by the isCommon parameter.
-local function applyPredictedLaunchFeel(root: BasePart, normal: Vector3)
-	local velocity = root.AssemblyLinearVelocity
-	local compressed = velocity * IMPACT_ABSORPTION
-	root.AssemblyLinearVelocity = compressed
-	task.delay(HITSTOP_SECONDS, function()
-		if not root.Parent then
-			return
-		end
-		local reflected = compressed - (2 * compressed:Dot(normal) * normal)
-		root.AssemblyLinearVelocity = reflected * BOUNCE_RETENTION
-	end)
+local function resolveFoodCollisionVelocity(velocity: Vector3, normal: Vector3, rarity: any): Vector3
+	if rarity == "Common" then
+		return Vector3.new(velocity.X, 0, velocity.Z)
+	end
+	return CollisionResponse.ResolvePlanarBounce(velocity, normal, {
+		Restitution = PhysicsConfig.Collision.FoodRestitution,
+		TangentialDamping = PhysicsConfig.Collision.FoodTangentialDamping,
+		MinSpeed = PhysicsConfig.Collision.MinPostCollisionSpeed,
+		MaxSpeed = PhysicsConfig.Collision.MaxPostCollisionSpeed,
+	})
+end
+
+local function applyPredictedFoodCollision(root: BasePart, normal: Vector3, rarity: any)
+	if rarity == "Common" then
+		return
+	end
+	local resolved = resolveFoodCollisionVelocity(root.AssemblyLinearVelocity, normal, rarity)
+	root.AssemblyLinearVelocity = Vector3.new(resolved.X, root.AssemblyLinearVelocity.Y, resolved.Z)
 end
 
 local function getNearbyFood(position: Vector3): { Model }
@@ -205,11 +204,6 @@ local function markFoodPredicted(food: Model, rarity: any)
 	end
 end
 
--- FIX 1 + FIX 2 + FIX 4:
--- FIX 1: REPORT_COOLDOWN raised to 0.4s above prevents duplicate sends per food.
--- FIX 2: observedSpeed is now included in the server payload so the server can use
---         the client-measured speed when its own velocity read lags (network delay).
--- FIX 4: applyPredictedLaunchFeel is only called for non-common food (isCommon=false).
 local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitType: string, observedSpeed: number?)
 	local foodId = food:GetAttribute("FoodId")
 	local rarity = food:GetAttribute("FoodRarity")
@@ -225,22 +219,16 @@ local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitT
 	lastHit[cooldownKey] = now + REPORT_COOLDOWN
 	markFoodPredicted(food, rarity)
 
-	-- FIX 4: Only apply bounce feel for non-common (HP) food. Common food is pass-through.
-	local isCommon = (rarity == "Common")
-	if not isCommon then
-		local normal = (root.Position - hitbox.Position).Magnitude > 0.001
-			and (root.Position - hitbox.Position).Unit
-			or Vector3.new(0, 0, -1)
-		applyPredictedLaunchFeel(root, normal)
-	end
-
-	-- FIX 2: Send observedSpeed in the payload so the server can use it when its
-	-- own velocity read is stale due to client-authoritative physics replication lag.
+	local normal = (root.Position - hitbox.Position).Magnitude > 0.001
+		and (root.Position - hitbox.Position).Unit
+		or Vector3.new(0, 0, -1)
+	applyPredictedFoodCollision(root, normal, rarity)
 	print(`Reporting food hit: foodId={foodId}, hitType={hitType}, observedSpeed={reportSpeed}`)
 	reportFoodRemote:FireServer({
 		foodId = foodId,
 		hitType = hitType,
 		currPos = root.Position,
+		velocity = root.AssemblyLinearVelocity,
 		observedSpeed = reportSpeed,
 	})
 end

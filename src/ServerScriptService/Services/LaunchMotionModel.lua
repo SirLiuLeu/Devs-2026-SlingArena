@@ -6,6 +6,15 @@ local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
 local LaunchMotionModel = {}
 
+local function exponentialDecayFactor(decayPerSecond: number, dt: number): number
+	local clampedDecay = math.clamp(decayPerSecond, 0, 0.999999)
+	return (1 - clampedDecay) ^ math.max(0, dt)
+end
+
+function LaunchMotionModel.DecayFactor(decayPerSecond: number, dt: number): number
+	return exponentialDecayFactor(decayPerSecond, dt)
+end
+
 function LaunchMotionModel.ComputeChargeRatio(startedAt: number, now: number): number
 	local elapsed = math.max(0, now - startedAt)
 	local chargeWindow = math.max(PhysicsConfig.Charge.MinWindowSeconds, PhysicsConfig.Charge.MaxSeconds)
@@ -40,12 +49,12 @@ function LaunchMotionModel.Sample(state: any, now: number, currentVelocity: Vect
 
 	local elapsed = math.max(0, now - (state.startTime or now))
 
-	local rawSpeed = if currentVelocity then currentVelocity.Magnitude
-		else math.max(0, state.currentSpeed or state.initialSpeed or 0)
-	local decayFactor = math.max(0, 1 - (PhysicsConfig.Launch.DecayPerSecond * dt))
+	local fallbackVelocitySpeed = if currentVelocity then currentVelocity.Magnitude else 0
+	local rawSpeed = math.max(0, state.currentSpeed or state.initialSpeed or fallbackVelocitySpeed)
+	local decayFactor = LaunchMotionModel.DecayFactor(PhysicsConfig.Launch.DecayPerSecond, dt)
 	local speed = rawSpeed * decayFactor
 
-	local energyDecayFactor = math.max(0, 1 - (PhysicsConfig.Launch.PassiveEnergyDecayPerSecond * dt))
+	local energyDecayFactor = LaunchMotionModel.DecayFactor(PhysicsConfig.Launch.PassiveEnergyDecayPerSecond, dt)
 	local energy = math.max(0, (state.energy or 0) * energyDecayFactor)
 
 	return speed, energy, elapsed
