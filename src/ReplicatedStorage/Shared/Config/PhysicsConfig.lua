@@ -7,7 +7,7 @@ local PhysicsConfig = {
 		Density = 0.7,
 		Friction = 0.3,
 		Elasticity = 0.8,
-		FrictionWeight = 10,
+		FrictionWeight = 1,
 		ElasticityWeight = 0.1,
 	},
 
@@ -84,7 +84,7 @@ local PhysicsConfig = {
 		Range = 0.75,
 		ValidationTolerance = 10.75,
 		YTolerance = 10,
-		MaxAllowedSpeed = 450,
+		MaxAllowedSpeed = 200,
 		MinReportSpeed = 1,
 		FoodHitMinHorizontalSpeed = 1,
 		SphereCastRadiusPadding = 0.75,
@@ -93,7 +93,7 @@ local PhysicsConfig = {
 		TrapCooldown = 0.25,
 		RealHitMinClosingSpeed = 5.5,
 
-		EnergyTransferRatio = 0.82,
+		EnergyTransferRatio = 0.7,
 		CollisionEnergyLossRatio = 0.16,
 
 		-- Food collision response uses the same single-step model on client and server.
