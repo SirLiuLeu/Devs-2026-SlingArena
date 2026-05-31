@@ -1,5 +1,6 @@
 --!strict
 
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -74,8 +75,6 @@ function SlingService.BuildCooldownUiState(cooldownEndTime: number, nowTime: num
 end
 
 local MOVEMENT_STATE = GameStates.PlayerState
-local LAUNCH_BRAKE_RATE = 15
-
 function SlingService.new(context)
 	local self = setmetatable({}, SlingService)
 	self._context = context
@@ -86,6 +85,7 @@ function SlingService.new(context)
 	self._movementControllers = {}
 	self._remoteConnections = {}
 	self._clientDoLaunchRemote = nil :: RemoteEvent?
+	self._reportLaunchStoppedRemote = nil :: RemoteEvent?
 	self._heartbeatConnection = nil
 	self._warnedInvalidRoot = {}
 	self._loggedControllerRoot = {}
@@ -147,7 +147,9 @@ function SlingService:Init()
 	local startChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.StartCharge)
 	local releaseChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.ReleaseCharge)
 	local moveRequestRemote = remotes:FindFirstChild(RemoteContracts.Names.MoveRequest)
+	local requestLaunchRemote = remotes:FindFirstChild(RemoteContracts.Names.RequestLaunch)
 	local clientDoLaunchRemote = remotes:FindFirstChild(RemoteContracts.Names.ClientDoLaunch)
+	local reportLaunchStoppedRemote = remotes:FindFirstChild(RemoteContracts.Names.ReportLaunchStopped)
 
 	if startChargeRemote and startChargeRemote:IsA("RemoteEvent") then
 		self._remoteConnections.StartCharge = startChargeRemote.OnServerEvent:Connect(function(player, aimTarget)
@@ -165,10 +167,27 @@ function SlingService:Init()
 		warn(string.format("[SlingService] Missing remote %s; charge-release listener disabled.", RemoteContracts.Names.ReleaseCharge))
 	end
 
+	if requestLaunchRemote and requestLaunchRemote:IsA("RemoteEvent") then
+		self._remoteConnections.RequestLaunch = requestLaunchRemote.OnServerEvent:Connect(function(player, payload)
+			self:RequestLaunch(player, payload)
+		end)
+	else
+		warn(string.format("[SlingService] Missing remote %s; launch-request listener disabled.", RemoteContracts.Names.RequestLaunch))
+	end
+
 	if clientDoLaunchRemote and clientDoLaunchRemote:IsA("RemoteEvent") then
 		self._clientDoLaunchRemote = clientDoLaunchRemote
 	else
 		warn(string.format("[SlingService] Missing remote %s; client launch impulse disabled.", RemoteContracts.Names.ClientDoLaunch))
+	end
+
+	if reportLaunchStoppedRemote and reportLaunchStoppedRemote:IsA("RemoteEvent") then
+		self._reportLaunchStoppedRemote = reportLaunchStoppedRemote
+		self._remoteConnections.ReportLaunchStopped = reportLaunchStoppedRemote.OnServerEvent:Connect(function(player, payload)
+			self:HandleLaunchStopped(player, payload)
+		end)
+	else
+		warn(string.format("[SlingService] Missing remote %s; launch-stop cleanup relies on timeout only.", RemoteContracts.Names.ReportLaunchStopped))
 	end
 
 	if moveRequestRemote and moveRequestRemote:IsA("RemoteEvent") then
@@ -231,6 +250,77 @@ end
 function SlingService:SetLaunchState(player: Player, launchState: any?)
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 	self._activeLaunches[player] = launchState
+end
+
+function SlingService:_finishLaunch(player: Player, reason: string)
+	local now = os.clock()
+	self._activeLaunches[player] = nil
+	local recoveryEnd = now + PhysicsConfig.Launch.RecoveryDuration
+	self._releaseCooldown[player] = recoveryEnd
+	self._context.Services.PlayerStateService:SetLastReleaseDuration(player, PhysicsConfig.Launch.RecoveryDuration)
+	self._context.Services.PlayerStateService:SetCooldownEndTime(player, recoveryEnd)
+	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
+	self._context.Services.PlayerStateService:SetMovementState(player, "Recovering")
+	warn(string.format("[SlingService] State player=%s -> Recovering (%s)", player.Name, reason))
+end
+
+function SlingService:ValidateLaunchReport(player: Player, payload: any): (boolean, any?, string)
+	local launchState = self._activeLaunches[player]
+	if not launchState then
+		return false, nil, "missing_launch"
+	end
+	if type(payload) ~= "table" or payload.launchId ~= launchState.launchId then
+		return false, nil, "launch_id_mismatch"
+	end
+	local state = self._context.Services.PlayerStateService:GetState(player)
+	if not state or state.MovementState ~= "Launching" then
+		return false, nil, "not_launching"
+	end
+	local observedSpeed = if typeof(payload.observedSpeed) == "number" then payload.observedSpeed else 0
+	local reportedVelocity = if typeof(payload.velocity) == "Vector3" then payload.velocity else Vector3.zero
+	local reportedSpeed = math.max(Vector3.new(reportedVelocity.X, 0, reportedVelocity.Z).Magnitude, observedSpeed)
+	if reportedSpeed ~= reportedSpeed or reportedSpeed == math.huge or reportedSpeed == -math.huge then
+		return false, nil, "invalid_speed"
+	end
+	local ceiling = launchState.maxReportSpeed or PhysicsConfig.Collision.MaxAllowedSpeed
+	if reportedSpeed > ceiling then
+		return false, nil, "speed_above_launch_ceiling"
+	end
+	return true, launchState, "ok"
+end
+
+function SlingService:RegisterLaunchDamageTarget(player: Player, targetKey: string): boolean
+	local launchState = self._activeLaunches[player]
+	if not launchState or type(targetKey) ~= "string" or targetKey == "" then
+		return false
+	end
+	launchState.damageTargets = launchState.damageTargets or {}
+	if launchState.damageTargets[targetKey] then
+		return true
+	end
+	if (launchState.damageTargetCount or 0) >= PhysicsConfig.Launch.MaxDamageTargetsPerLaunch then
+		return false
+	end
+	launchState.damageTargets[targetKey] = true
+	launchState.damageTargetCount = (launchState.damageTargetCount or 0) + 1
+	return true
+end
+
+function SlingService:RegisterLaunchKnockbackTarget(player: Player, targetKey: string): boolean
+	local launchState = self._activeLaunches[player]
+	if not launchState or type(targetKey) ~= "string" or targetKey == "" then
+		return false
+	end
+	launchState.knockbackTargets = launchState.knockbackTargets or {}
+	if launchState.knockbackTargets[targetKey] then
+		return true
+	end
+	if (launchState.knockbackTargetCount or 0) >= PhysicsConfig.Launch.MaxKnockbackTargetsPerLaunch then
+		return false
+	end
+	launchState.knockbackTargets[targetKey] = true
+	launchState.knockbackTargetCount = (launchState.knockbackTargetCount or 0) + 1
+	return true
 end
 
 function SlingService:Start()
@@ -364,10 +454,7 @@ function SlingService:StartCharge(player: Player, aimDirection: Vector3)
 	self._context.EventBus:Fire("ChargeStarted", player)
 end
 
-function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
-	if not RemoteContracts.Validate(RemoteContracts.Names.ReleaseCharge, aimDirection) then
-		return
-	end
+function SlingService:_authorizeLaunch(player: Player, aimDirection: Vector3)
 	if not self:_canControl(player) then
 		return
 	end
@@ -381,21 +468,10 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 		self._chargeState[player] = nil
 		return
 	end
-	if not root:IsA("BasePart") then
+	if not root:IsA("BasePart") or root.Anchored or root.AssemblyMass <= 0 then
 		self._chargeState[player] = nil
 		return
 	end
-	if root.Anchored then
-		self._chargeState[player] = nil
-		return
-	end
-	local mass = root.AssemblyMass
-	if mass <= 0 then
-		self._chargeState[player] = nil
-		return
-	end
-
-	local chargeRatio = LaunchMotionModel.ComputeChargeRatio(chargeState.chargeStartTime, os.clock())
 
 	local launchDirectionPlanar = chargeState.aimDirection
 	if typeof(aimDirection) == "Vector3" then
@@ -408,11 +484,23 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	self._aimTargets[player] = launchDirectionPlanar
 
 	local now = os.clock()
+	local chargeRatio = LaunchMotionModel.ComputeChargeRatio(chargeState.chargeStartTime, now)
 	local launchState = LaunchMotionModel.BuildState(launchDirectionPlanar, chargeRatio, now, player)
+	local launchId = HttpService:GenerateGUID(false)
 
-	launchState.graceEndsAt = now + PhysicsConfig.Launch.GraceWindowSeconds
-	launchState.stopEvidenceCount = 0
+	launchState.launchId = launchId
 	launchState.maxEndsAt = now + PhysicsConfig.Launch.MaxLaunchDuration
+	launchState.maxReportSpeed = math.min(
+		PhysicsConfig.Collision.MaxAllowedSpeed,
+		math.max(
+			launchState.initialSpeed * PhysicsConfig.Launch.SpeedCeilingMultiplier,
+			launchState.initialSpeed + PhysicsConfig.Launch.SpeedCeilingPadding
+		)
+	)
+	launchState.damageTargets = {}
+	launchState.damageTargetCount = 0
+	launchState.knockbackTargets = {}
+	launchState.knockbackTargetCount = 0
 
 	local movementController = self._movementControllers[player]
 	if movementController then
@@ -423,22 +511,22 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 		root:SetNetworkOwner(player)
 	end
 
-	local launchRemote = self._clientDoLaunchRemote
-	if launchRemote then
-		launchRemote:FireClient(player, launchState.direction, launchState.initialSpeed, root.AssemblyMass)
-	end
-	player:SetAttribute("LaunchValidationGraceEndsAt", now + PhysicsConfig.Launch.ValidationGraceSeconds * 20)
-
 	self._activeLaunches[player] = launchState
-	warn(string.format("[SlingService] Launch player=%s charge=%.2f speed=%.2f energy=%.2f grace=%.2fs max=%.1fs",
-		player.Name, chargeRatio, launchState.initialSpeed, launchState.energy,
-		PhysicsConfig.Launch.GraceWindowSeconds, PhysicsConfig.Launch.MaxLaunchDuration))
-
 	state.CurrentVelocity = launchState.direction * launchState.initialSpeed
 	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
 	self._context.Services.PlayerStateService:SetMovementState(player, "Launching")
-	self._context.EventBus:Fire("SlingLaunched", player, chargeRatio, launchState)
+	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 
+	local launchRemote = self._clientDoLaunchRemote
+	if launchRemote then
+		launchRemote:FireClient(player, launchState.direction, launchState.initialSpeed, root.AssemblyMass, launchId)
+	end
+
+	warn(string.format("[SlingService] Launch approved player=%s launchId=%s charge=%.2f speed=%.2f ceiling=%.2f max=%.1fs",
+		player.Name, launchId, chargeRatio, launchState.initialSpeed, launchState.maxReportSpeed,
+		PhysicsConfig.Launch.MaxLaunchDuration))
+
+	self._context.EventBus:Fire("SlingLaunched", player, chargeRatio, launchState)
 	if chargeRatio >= PhysicsConfig.Charge.MaxChargeRatioThreshold then
 		self._context.EventBus:Fire("MaxChargeReleased", player, BalanceConfig.MaxChargeSelfDamage)
 	end
@@ -447,6 +535,35 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	self._releaseCooldown[player] = 0
 	self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
 	self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
+end
+
+function SlingService:RequestLaunch(player: Player, payload: any)
+	if not RemoteContracts.Validate(RemoteContracts.Names.RequestLaunch, payload) then
+		return
+	end
+	self:_authorizeLaunch(player, payload.aimTarget)
+end
+
+function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
+	if not RemoteContracts.Validate(RemoteContracts.Names.ReleaseCharge, aimDirection) then
+		return
+	end
+	self:_authorizeLaunch(player, aimDirection)
+end
+
+function SlingService:HandleLaunchStopped(player: Player, payload: any)
+	if not RemoteContracts.Validate(RemoteContracts.Names.ReportLaunchStopped, payload) then
+		return
+	end
+	local launchState = self._activeLaunches[player]
+	if not launchState or payload.launchId ~= launchState.launchId then
+		return
+	end
+	local observedSpeed = if typeof(payload.observedSpeed) == "number" then payload.observedSpeed else 0
+	if observedSpeed > PhysicsConfig.Launch.StopSpeed + PhysicsConfig.Launch.SpeedCeilingPadding then
+		return
+	end
+	self:_finishLaunch(player, "client_stopped")
 end
 
 function SlingService:_applyAimRotation(player: Player, root: BasePart, input: Vector3, _dt: number)
@@ -588,158 +705,23 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 end
 
 --[[
-	_stepMovementStates – authoritative Launch state machine.
-
-	One LaunchState per player. One time-based decay estimate. One physics observation
-	signal (stop evidence counter). One hard timeout fail-safe.
-
-	STEP ORDER:
-	  A. Decay model update (always runs while Launching, including during grace).
-	     – launchState.currentSpeed decays via DecayPerSecond × dt.
-	     – launchState.energy decays via PassiveEnergyDecayPerSecond × dt.
-	     – Server velocity is used ONLY to clamp excessive speed downward, never to set it.
-
-	  B. Stop evaluation (in priority order):
-	     1. Hard timeout – maxEndsAt exceeded → force stop.
-	     2. Grace window active → skip physics stop check entirely.
-	        (Decay model continues running; no stop triggered yet.)
-	     3. Post-grace physics evidence:
-	        a. Read server horizontal speed (reliable after grace window).
-	        b. If server speed < StopSpeed → increment stopEvidenceCount.
-	           Else → reset stopEvidenceCount to 0.
-	        c. If stopEvidenceCount >= StopEvidenceFramesRequired → stop early
-	           (Sling has physically stopped before decay model predicted).
-	     4. Decay model exhausted (currentSpeed ≤ StopSpeed AND energy ≤ 0 AND grace expired)
-	        → stop normally.
-
-	  C. Brake (gradual velocity ramp-down) → once fully braked, enter Recovering.
-	  D. Recovering → wait for cooldown → return to Idle.
+	_stepMovementStates keeps only server-authoritative launch lifecycle cleanup.
+	Movement decay/braking is intentionally absent: launch motion is client-impulse
+	physics, and the server verifies reports against launchId/state/speed ceilings.
 ]]
-function SlingService:_stepMovementStates(dt: number)
+function SlingService:_stepMovementStates(_dt: number)
+	local now = os.clock()
 	for _, player in self:_getTrackedPlayers() do
 		local state = self._context.Services.PlayerStateService:GetState(player)
-		local root = self._context.Services.PlayerService:GetRoot(player)
-		if not (state and root) then
+		if not state then
 			continue
 		end
 
-		local now = os.clock()
 		local launchState = self._activeLaunches[player]
-		local fullVelocity = root.AssemblyLinearVelocity
-		local horizontalVelocity = Vector3.new(fullVelocity.X, 0, fullVelocity.Z)
-		local serverHorizontalSpeed = horizontalVelocity.Magnitude
-
-		-- ── A. Decay model update ────────────────────────────────────────────────
 		if state.MovementState == "Launching" and launchState then
-			local lastSampleTime = launchState.lastSampleTime or launchState.startTime or now
-			local elapsed = math.max(0, now - lastSampleTime)
-			launchState.lastSampleTime = now
-
-			-- Time-based speed decay: currentSpeed is monotonically decreasing.
-			-- It is the authoritative estimate of how fast Launch should still be.
-			local previousSpeed = launchState.currentSpeed or launchState.initialSpeed or 0
-			local decayFactor = LaunchMotionModel.DecayFactor(PhysicsConfig.Launch.DecayPerSecond, elapsed)
-			local decayedSpeed = previousSpeed * decayFactor
-
-			-- Time-based energy decay.
-			local energyDecayFactor = LaunchMotionModel.DecayFactor(PhysicsConfig.Launch.PassiveEnergyDecayPerSecond, elapsed)
-			local decayedEnergy = math.max(0, (launchState.energy or 0) * energyDecayFactor)
-
-			-- Clamp from above only: if the client somehow exceeds the decayed cap,
-			-- bring it down. Never set currentSpeed TO server velocity when server
-			-- reads low (lag artifact during grace or network spike).
-			local graceActive = now < (launchState.graceEndsAt or 0)
-			-- Baseline decay owns only time-based speed loss. Do not ratchet logical
-			-- launch speed down to transient server-observed velocity; collision handlers
-			-- explicitly reset currentSpeed when they apply a post-impact velocity.
-			local targetSpeed = decayedSpeed
-
-			-- Enforce the cap downward only (never accelerate).
-			if serverHorizontalSpeed > targetSpeed and serverHorizontalSpeed > PhysicsConfig.Movement.InputDeadzone and not graceActive then
-				local unit = horizontalVelocity.Unit
-				local capped = unit * math.max(targetSpeed, 0)
-				root.AssemblyLinearVelocity = Vector3.new(capped.X, fullVelocity.Y, capped.Z)
-				fullVelocity = root.AssemblyLinearVelocity
-				horizontalVelocity = Vector3.new(fullVelocity.X, 0, fullVelocity.Z)
-				serverHorizontalSpeed = horizontalVelocity.Magnitude
-			end
-
-			launchState.currentSpeed = targetSpeed
-			launchState.energy = decayedEnergy
-
-			-- Update direction only when the server reading is reliable.
-			if not graceActive and serverHorizontalSpeed > PhysicsConfig.Movement.InputDeadzone then
-				launchState.direction = horizontalVelocity.Unit
-			end
-		end
-
-		-- ── B. Stop evaluation ───────────────────────────────────────────────────
-		local stopThreshold = PhysicsConfig.Launch.StopSpeed
-		local shouldStop = false
-		local stopReason = ""
-
-		if state.MovementState == "Launching" and launchState then
-			local graceActive = now < (launchState.graceEndsAt or 0)
-			local timeBasedSpeed = launchState.currentSpeed or 0
-			local timeBasedEnergy = launchState.energy or 0
-
-			-- 1. Hard timeout fail-safe.
 			if now >= (launchState.maxEndsAt or math.huge) then
-				shouldStop = true
-				stopReason = string.format("hard_timeout (max=%.1fs)", PhysicsConfig.Launch.MaxLaunchDuration)
-
-			elseif graceActive then
-				-- 2. Grace window: no physics check. Decay model runs but no stop yet.
-				-- (shouldStop stays false)
-
-			else
-				-- 3. Post-grace: observe real physics as a corrective stop signal.
-				if serverHorizontalSpeed < stopThreshold then
-					launchState.stopEvidenceCount = (launchState.stopEvidenceCount or 0) + 1
-				else
-					-- Speed is above threshold: reset evidence counter.
-					launchState.stopEvidenceCount = 0
-				end
-
-				local evidenceRequired = PhysicsConfig.Launch.StopEvidenceFramesRequired
-				if (launchState.stopEvidenceCount or 0) >= evidenceRequired then
-					shouldStop = true
-					stopReason = string.format("physics_evidence (%d frames below StopSpeed, server=%.2f)",
-						launchState.stopEvidenceCount, serverHorizontalSpeed)
-				end
-
-				-- 4. Decay model exhausted (normal end of launch timeline).
-				if not shouldStop and timeBasedSpeed <= stopThreshold and timeBasedEnergy <= 0 then
-					shouldStop = true
-					stopReason = string.format("decay_exhausted (timeSpeed=%.2f energy=%.2f)", timeBasedSpeed, timeBasedEnergy)
-				end
+				self:_finishLaunch(player, string.format("hard_timeout (max=%.1fs)", PhysicsConfig.Launch.MaxLaunchDuration))
 			end
-		end
-
-		-- ── C. Brake and transition ──────────────────────────────────────────────
-		if shouldStop then
-			local brakeFactor = math.max(0, 1 - LAUNCH_BRAKE_RATE * dt)
-			local brakedHorizontal = horizontalVelocity * brakeFactor
-			root.AssemblyLinearVelocity = Vector3.new(
-				brakedHorizontal.X,
-				fullVelocity.Y,
-				brakedHorizontal.Z
-			)
-
-			if brakedHorizontal.Magnitude <= 0.5 then
-				self._activeLaunches[player] = nil
-
-				local recoveryEnd = now + PhysicsConfig.Launch.RecoveryDuration
-				self._releaseCooldown[player] = recoveryEnd
-				self._context.Services.PlayerStateService:SetLastReleaseDuration(
-					player, PhysicsConfig.Launch.RecoveryDuration)
-				self._context.Services.PlayerStateService:SetCooldownEndTime(player, recoveryEnd)
-				player:SetAttribute("LaunchValidationGraceEndsAt", now + PhysicsConfig.Launch.ValidationGraceSeconds)
-				self._context.Services.PlayerStateService:SetMovementState(player, "Recovering")
-				warn(string.format("[SlingService] State player=%s -> Recovering (%s)", player.Name, stopReason))
-			end
-
-		-- ── D. Recovering → Idle ─────────────────────────────────────────────────
 		elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
 			self._activeLaunches[player] = nil
 			player:SetAttribute("LaunchValidationGraceEndsAt", 0)

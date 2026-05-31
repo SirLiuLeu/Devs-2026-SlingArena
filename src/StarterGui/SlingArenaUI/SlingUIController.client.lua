@@ -17,7 +17,7 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
 local startChargeRemote = remotes:WaitForChild(RemoteContracts.Names.StartCharge) :: RemoteEvent
-local releaseChargeRemote = remotes:WaitForChild(RemoteContracts.Names.ReleaseCharge) :: RemoteEvent
+local requestLaunchRemote = remotes:WaitForChild(RemoteContracts.Names.RequestLaunch) :: RemoteEvent
 local stateUpdateRemote = remotes:FindFirstChild(RemoteContracts.Names.StateUpdate) :: RemoteEvent?
 local prefabsFolder = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("Prefabs")
 
@@ -575,7 +575,9 @@ local function releaseHold(input: InputObject)
 	player:SetAttribute("PredictedLaunchDirection", currentChargeAimDirection)
 	player:SetAttribute("PredictedLaunchStartedAt", os.clock())
 	player:SetAttribute("SlingAimDirection", nil)
-	releaseChargeRemote:FireServer(currentChargeAimDirection)
+	requestLaunchRemote:FireServer({
+		aimTarget = currentChargeAimDirection,
+	})
 
 	setVisibleSafe(cachedChargeBar, false)
 	resetThumbPosition()
@@ -583,7 +585,7 @@ local function releaseHold(input: InputObject)
 	destroyArrowPreview()
 	applyJoystickVisibilityFromState(lastKnownServerState)
 
-	debugLog("[SlingUI] ReleaseCharge remote fired")
+	debugLog("[SlingUI] RequestLaunch remote fired")
 end
 
 local function bindJoystickInput()

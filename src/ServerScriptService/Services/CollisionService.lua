@@ -17,7 +17,6 @@ local function getService(context, name)
 	return context.Services and context.Services[name]
 end
 
-local MAX_COLLISIONS_PER_LAUNCH = 3
 local SAME_TARGET_DEDUPE_SECONDS = 0.28
 
 function CollisionService.new(context)
@@ -187,14 +186,6 @@ local function sqrDistanceXZ(a: Vector3, b: Vector3): number
 end
 
 
-local function isLaunchValidationActive(player: Player, movementState: string?): boolean
-	if movementState == "Launching" then
-		return true
-	end
-	local graceEndsAt = player:GetAttribute("LaunchValidationGraceEndsAt")
-	return typeof(graceEndsAt) == "number" and os.clock() <= graceEndsAt
-end
-
 function CollisionService:_validatePlayerReport(
 	player: Player, payload: any
 ): (boolean, Player?, BasePart?, BasePart?, Vector3)
@@ -210,7 +201,7 @@ function CollisionService:_validatePlayerReport(
 	local attackerState = stateService:GetState(player)
 
 	if not (defender and defender ~= player and root and targetRoot and attackerState
-		and isLaunchValidationActive(player, attackerState.MovementState))
+		and attackerState.MovementState == "Launching")
 	then
 		return false, nil, nil, nil, Vector3.new(1, 0, 0)
 	end
@@ -246,31 +237,20 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	) then
 		return
 	end
-	local launchState = slingService:GetLaunchState(player)
-	if not launchState then
-		launchState = {
-			direction = Vector3.zero,
-			initialSpeed = 0,
-			currentSpeed = 0,
-			energy = 0,
-			startTime = now,
-			lastSampleTime = now,
-			collisions = 0,
-		}
-	end
-	launchState.collisions = launchState.collisions or 0
-	launchState.startTime = launchState.startTime or now
-	if launchState.collisions >= MAX_COLLISIONS_PER_LAUNCH then
+	local validLaunch, launchState = slingService:ValidateLaunchReport(player, payload)
+	if not validLaunch or not launchState then
 		return
 	end
-	local launchId = string.format("%d:%.6f", player.UserId, launchState.startTime)
+	local launchId = launchState.launchId
+	if type(launchId) ~= "string" or launchId == "" then
+		return
+	end
 	self._lastCollisionByLaunchTarget[launchId] = self._lastCollisionByLaunchTarget[launchId] or {}
-	local launchTargetKey = tostring(defender.UserId)
+	local launchTargetKey = `Player:{defender.UserId}`
 	local lastHitAt = self._lastCollisionByLaunchTarget[launchId][launchTargetKey]
 	if lastHitAt and (now - lastHitAt) < SAME_TARGET_DEDUPE_SECONDS then
 		return
 	end
-
 	local attackerVelocity = resolveImpactVelocity(root, payload, launchState)
 	local impactSpeed = attackerVelocity.Magnitude
 	if impactSpeed < PhysicsConfig.Collision.RealHitMinClosingSpeed then
@@ -294,18 +274,26 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	-- [FIX 3 note] Server write velocity sau collision vẫn OK:
 	-- Với player-owned root, client nhận correction sau ~1 frame.
 	-- Collision là event đặc biệt — 1 frame correction acceptable và ít thấy hơn stamp mỗi frame.
-	applyHorizontalVelocity(root, attackerOut)
+	local canDamage = slingService:RegisterLaunchDamageTarget(player, launchTargetKey)
+	local canKnockback = slingService:RegisterLaunchKnockbackTarget(player, launchTargetKey)
+	if not canDamage and not canKnockback then
+		return
+	end
 
-	updateLaunchFromVelocity(
-		launchState,
-		attackerOut,
-		math.max(0, (launchState.energy or 0) * (1 - PhysicsConfig.Collision.CollisionEnergyLossRatio)),
-		now
-	)
+	if canKnockback then
+		applyHorizontalVelocity(root, attackerOut)
+		updateLaunchFromVelocity(
+			launchState,
+			attackerOut,
+			math.max(0, (launchState.energy or 0) * (1 - PhysicsConfig.Collision.CollisionEnergyLossRatio)),
+			now
+		)
+	end
 	launchState.collisions = (launchState.collisions or 0) + 1
 
 	local transferEnergy = math.max(0, (launchState.energy or 0) * transferRatio)
-	local shouldKnockback = transferEnergy >= PhysicsConfig.Collision.MinTransferEnergy
+	local shouldKnockback = canKnockback
+		and transferEnergy >= PhysicsConfig.Collision.MinTransferEnergy
 		and defenderOut.Magnitude > PhysicsConfig.Collision.MinPostCollisionSpeed
 	if shouldKnockback then
 		stateService:SetMovementState(defender, "Knockback")
@@ -325,17 +313,19 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		ChargeRatio = launchState.chargeRatio or 0,
 		ElapsedLaunchTime = math.max(0, now - (launchState.startTime or now)),
 	})
-	self._context.EventBus:Fire("CollisionPlayerHit", defender, player, impactSpeed, normal, {
-		Duration = 0.1,
-		ImpactNormal = normal,
-		ImpactSpeed = impactSpeed,
-		InitialImpactSpeed = math.max(launchState.initialSpeed or 0, impactSpeed),
-		CollisionCount = launchState.collisions,
-		LaunchEnergy = launchState.energy,
-		ChargeRatio = launchState.chargeRatio or 0,
-		ElapsedLaunchTime = math.max(0, now - (launchState.startTime or now)),
-		TransferredEnergy = transferEnergy,
-	})
+	if canDamage then
+		self._context.EventBus:Fire("CollisionPlayerHit", defender, player, impactSpeed, normal, {
+			Duration = 0.1,
+			ImpactNormal = normal,
+			ImpactSpeed = impactSpeed,
+			InitialImpactSpeed = math.max(launchState.initialSpeed or 0, impactSpeed),
+			CollisionCount = launchState.collisions,
+			LaunchEnergy = launchState.energy,
+			ChargeRatio = launchState.chargeRatio or 0,
+			ElapsedLaunchTime = math.max(0, now - (launchState.startTime or now)),
+			TransferredEnergy = transferEnergy,
+		})
+	end
 	if shouldKnockback then
 		self._context.EventBus:Fire("CollisionPlayerKnockback", defender, player, defenderOut, {
 			Duration = 0.1,

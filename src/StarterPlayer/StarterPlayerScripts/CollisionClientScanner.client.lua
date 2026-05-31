@@ -29,6 +29,7 @@ local currentMovementState = GameStates.PlayerState.Idle
 local launchScanGraceEndsAt = 0
 local predictedLaunchScanEndsAt = 0
 local predictedLaunchDirection: Vector3? = nil
+local activeLaunchId: string? = nil
 local lastRootPosition: Vector3? = nil
 local sweepDebugStart: Part? = nil
 local sweepDebugEnd: Part? = nil
@@ -226,6 +227,7 @@ local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitT
 	print(`Reporting food hit: foodId={foodId}, hitType={hitType}, observedSpeed={reportSpeed}`)
 	reportFoodRemote:FireServer({
 		foodId = foodId,
+		launchId = activeLaunchId,
 		hitType = hitType,
 		currPos = root.Position,
 		velocity = root.AssemblyLinearVelocity,
@@ -251,6 +253,9 @@ local function detectCommonFoodByDistance(root: BasePart)
 end
 
 local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpeed: number?)
+	if not activeLaunchId then
+		return
+	end
 	local now = os.clock()
 	local cooldownKey = `Player:{targetPlayer.UserId}`
 	if (lastHit[cooldownKey] or 0) > now then
@@ -260,6 +265,7 @@ local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpe
 	print(`Reporting player hit: targetUserId={targetPlayer.UserId}, observedSpeed={observedSpeed}`)
 	reportCollisionRemote:FireServer({
 		targetType = "Player",
+		launchId = activeLaunchId,
 		targetUserId = targetPlayer.UserId,
 		currPos = root.Position,
 		velocity = root.AssemblyLinearVelocity,
@@ -359,7 +365,7 @@ RunService.RenderStepped:Connect(function(dt)
 	lastRootPosition = root.Position
 end)
 
-clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any)
+clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, _initialSpeed: any, _serverMass: any, launchId: any)
 	if typeof(direction) ~= "Vector3" then
 		return
 	end
@@ -368,6 +374,9 @@ clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any)
 		return
 	end
 	predictedLaunchDirection = planarDirection.Unit
+	if typeof(launchId) == "string" then
+		activeLaunchId = launchId
+	end
 	predictedLaunchScanEndsAt = os.clock() + PREDICTED_LAUNCH_SCAN_SECONDS
 end)
 
@@ -388,6 +397,7 @@ stateUpdateRemote.OnClientEvent:Connect(function(state)
 		elseif wasLaunching then
 			predictedLaunchScanEndsAt = 0
 			launchScanGraceEndsAt = 0
+			activeLaunchId = nil
 		end
 	end
 end)

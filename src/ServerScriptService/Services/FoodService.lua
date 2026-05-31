@@ -22,7 +22,6 @@ local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
 local MAX_ALLOWED_SPEED = PhysicsConfig.Collision.MaxAllowedSpeed
 local SAME_TARGET_FOOD_DEDUPE_SECONDS = 0.28
-local MAX_COLLISIONS_PER_LAUNCH = 3
 
 local FIRE_FOOD_BURN_COOLDOWN = 1
 local FIRE_FOOD_BURN_DAMAGE_RATIO = 0.4
@@ -33,22 +32,6 @@ local COMMON_ALLOWED_STATES = {
 	[GameStates.PlayerState.Moving] = true,
 	[GameStates.PlayerState.Idle] = true,
 }
-
-local function isLaunchHitValidationActive(player: Player, movementState: string?): boolean
-	if movementState == GameStates.PlayerState.Launching then
-		return true
-	end
-	if movementState == "Recovering" then
-		return true
-	end
-	-- FIX 3: Accept hits from any state while the launch grace window is active.
-	-- This covers the premature Idle/Recovering transition caused by server-side
-	-- velocity reading 0 immediately after a client-authoritative launch.
-	local graceEndsAt = player:GetAttribute("LaunchValidationGraceEndsAt")
-	return typeof(graceEndsAt) == "number"
-		and graceEndsAt > 0
-		and os.clock() <= graceEndsAt
-end
 
 local REQUIRED_FOOD_MODELS = {
 	CommonBlue = true,
@@ -503,9 +486,7 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	end
 
 	local serverSpeed = root.AssemblyLinearVelocity.Magnitude
-	local clientObservedSpeed = (typeof(payload.observedSpeed) == "number")
-		and math.clamp(payload.observedSpeed, 0, MAX_ALLOWED_SPEED)
-		or 0
+	local clientObservedSpeed = if typeof(payload.observedSpeed) == "number" then payload.observedSpeed else 0
 	local speed = math.max(serverSpeed, clientObservedSpeed)
 	if speed > MAX_ALLOWED_SPEED then
 		return false, "speed_above_max", { speed = speed, maxAllowed = MAX_ALLOWED_SPEED }
@@ -529,7 +510,12 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	local serverHorizontalSpeed = flattenXZ(root.AssemblyLinearVelocity).Magnitude
 	local horizontalSpeed = math.max(serverHorizontalSpeed, clientObservedSpeed)
 	if (not rule.Touch) and entry.MaxHP > 0 then
-		if not isLaunchHitValidationActive(player, movementState) then
+		local slingService = getService(self._context, "SlingService")
+		local validLaunch = false
+		if slingService then
+			validLaunch = slingService:ValidateLaunchReport(player, payload)
+		end
+		if not validLaunch or movementState ~= GameStates.PlayerState.Launching then
 			return false, "invalid_launch_state", { movementState = movementState, horizontalSpeed = horizontalSpeed }
 		end
 		if horizontalSpeed < PhysicsConfig.Collision.FoodHitMinHorizontalSpeed then
@@ -539,9 +525,7 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 			}
 		end
 	elseif not COMMON_ALLOWED_STATES[movementState] then
-		if not isLaunchHitValidationActive(player, movementState) then
-			return false, "invalid_launch_state", { movementState = movementState }
-		end
+		return false, "invalid_launch_state", { movementState = movementState }
 	end
 
 	local playerRadius = math.max(root.Size.X, root.Size.Z) * 0.5
@@ -693,22 +677,11 @@ function FoodService:Start()
 		local entry = (type(payload) == "table") and self._foodById[payload.foodId] or nil
 		local slingService = getService(self._context, "SlingService")
 		local launchState = slingService and slingService:GetLaunchState(player) or nil
-		local launchStart = launchState and launchState.startTime or nil
-		local launchId = (typeof(launchStart) == "number") and string.format("%d:%.6f", player.UserId, launchStart) or nil
+		local launchId = launchState and launchState.launchId or nil
 
 		if type(payload) ~= "table" then
 			self:_rejectFoodHit(player, "invalid_payload", payload, nil)
 			return
-		end
-		if launchState then
-			launchState.collisions = launchState.collisions or 0
-			if launchState.collisions >= MAX_COLLISIONS_PER_LAUNCH then
-				self:_rejectFoodHit(player, "max_collisions_reached", payload, {
-					collisions = launchState.collisions,
-					maxCollisions = MAX_COLLISIONS_PER_LAUNCH,
-				})
-				return
-			end
 		end
 		if launchId and entry and entry.Id then
 			self._foodHitByLaunchTarget[launchId] = self._foodHitByLaunchTarget[launchId] or {}
@@ -760,13 +733,18 @@ function FoodService:Start()
 				return
 			end
 			local serverHorizontalSpeed = flattenXZ(root.AssemblyLinearVelocity).Magnitude
-			local clientObservedSpeed = (typeof(payload.observedSpeed) == "number")
-				and math.clamp(payload.observedSpeed, 0, MAX_ALLOWED_SPEED)
-				or 0
+			local clientObservedSpeed = if typeof(payload.observedSpeed) == "number" then payload.observedSpeed else 0
 			local horizontalSpeed = math.max(serverHorizontalSpeed, clientObservedSpeed)
 
-			self:_applySlingDamage(entry, player, horizontalSpeed)
-			self:_applyFoodCollisionVelocity(root, hitbox, payload, rule, launchState)
+			local targetKey = `Food:{entry.Id}`
+			local canDamage = slingService and slingService:RegisterLaunchDamageTarget(player, targetKey)
+			local canTransfer = slingService and slingService:RegisterLaunchKnockbackTarget(player, targetKey)
+			if canDamage then
+				self:_applySlingDamage(entry, player, horizontalSpeed)
+			end
+			if canTransfer then
+				self:_applyFoodCollisionVelocity(root, hitbox, payload, rule, launchState)
+			end
 			if launchState then
 				launchState.collisions = (launchState.collisions or 0) + 1
 			end

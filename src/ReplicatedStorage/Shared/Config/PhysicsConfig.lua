@@ -27,7 +27,7 @@ local PhysicsConfig = {
 		MaxArenaRadius = 300,
 		ArenaWallPadding = 6,
 		-- Drag only applies to non-Launching players (normal movement).
-		-- Launch speed decay is enforced by SlingService during the launch state update.
+		-- Launching players rely on native physics friction/bounce after the client impulse.
 		LinearDragPerSecond = 0.08,
 		StopSpeed = 0.35,
 		WallRestitution = 0.78,
@@ -49,35 +49,23 @@ local PhysicsConfig = {
 		EnergyMin = 18,
 		EnergyMax = 120,
 
-		-- Exponential decay keeps the historical one-second tuning while staying frame-rate stable.
-		DecayPerSecond = 0.2,
-		-- Launch enters recovery once horizontal speed reaches this threshold.
+		-- Launch enters recovery once the client observes native physics below this threshold.
 		StopSpeed = 1,
-
-		-- Kept for damage / force-transfer math; no longer drives movement.
-		PassiveEnergyDecayPerSecond = 0.035,
 
 		-- Fixed recovery duration after launch stops.
 		RecoveryDuration = 0.4,
 		ValidationGraceSeconds = 1,
 
-		-- GraceWindowSeconds: Duration after launch begins during which physics-based
-		-- stop checks are completely ignored. Protects against the server reading
-		-- velocity ≈ 0 immediately after a client-authoritative impulse (replication lag).
-		-- Must be long enough to survive the worst RTT, but short enough to not mask
-		-- real early stops. 0.35 s is ~2× a 150 ms RTT with margin.
-		GraceWindowSeconds = 0.35,
-
-		-- StopEvidenceFramesRequired: Number of consecutive Heartbeat frames where the
-		-- server-observed horizontal speed stays below StopSpeed before the server
-		-- accepts that the Sling has truly stopped. Prevents a single transient low
-		-- reading (network spike, brief wall clip) from ending Launch prematurely.
+		-- StopEvidenceFramesRequired: Number of consecutive client frames where native
+		-- horizontal speed stays below StopSpeed before reporting a natural stop.
 		StopEvidenceFramesRequired = 4,
 
-		-- MaxLaunchDuration: Hard timeout fail-safe. If Launch has been active for
-		-- longer than this many seconds, force it to end regardless of decay model or
-		-- physics observations. Prevents a stuck Launching state under any edge case.
+		-- MaxLaunchDuration: Server hard timeout fail-safe if the stop report is lost.
 		MaxLaunchDuration = 12,
+		SpeedCeilingMultiplier = 1.15,
+		SpeedCeilingPadding = 5,
+		MaxDamageTargetsPerLaunch = 3,
+		MaxKnockbackTargetsPerLaunch = 5,
 	},
 
 	Collision = {

@@ -2,12 +2,19 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
 local clientDoLaunchRemote = remotes:WaitForChild(RemoteContracts.Names.ClientDoLaunch) :: RemoteEvent
+local reportLaunchStoppedRemote = remotes:WaitForChild(RemoteContracts.Names.ReportLaunchStopped) :: RemoteEvent
+
+local activeLaunchId: string? = nil
+local stopEvidenceFrames = 0
+local monitorConnection: RBXScriptConnection? = nil
 
 local function getCharacterRoot(): BasePart?
 	local character = player.Character
@@ -46,9 +53,46 @@ local function resolvePlanarDirection(direction: any): Vector3?
 	return planar.Unit
 end
 
-clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, initialSpeed: any, _serverMass: any)
+local function stopMonitoring()
+	if monitorConnection then
+		monitorConnection:Disconnect()
+		monitorConnection = nil
+	end
+	stopEvidenceFrames = 0
+end
+
+local function startStopMonitor(launchId: string)
+	stopMonitoring()
+	activeLaunchId = launchId
+	monitorConnection = RunService.RenderStepped:Connect(function()
+		local root = getCharacterRoot()
+		if not root or activeLaunchId ~= launchId then
+			stopMonitoring()
+			return
+		end
+
+		local velocity = root.AssemblyLinearVelocity
+		local horizontalSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
+		if horizontalSpeed <= PhysicsConfig.Launch.StopSpeed then
+			stopEvidenceFrames += 1
+		else
+			stopEvidenceFrames = 0
+		end
+
+		if stopEvidenceFrames >= PhysicsConfig.Launch.StopEvidenceFramesRequired then
+			reportLaunchStoppedRemote:FireServer({
+				launchId = launchId,
+				observedSpeed = horizontalSpeed,
+			})
+			activeLaunchId = nil
+			stopMonitoring()
+		end
+	end)
+end
+
+clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, initialSpeed: any, _serverMass: any, launchId: any)
 	local launchDirection = resolvePlanarDirection(direction)
-	if not launchDirection or typeof(initialSpeed) ~= "number" or initialSpeed <= 0 then
+	if not launchDirection or typeof(initialSpeed) ~= "number" or initialSpeed <= 0 or typeof(launchId) ~= "string" then
 		return
 	end
 
@@ -58,9 +102,7 @@ clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, initialSpeed
 	end
 
 	local currentVelocity = root.AssemblyLinearVelocity
-	root.AssemblyLinearVelocity = Vector3.new(
-		launchDirection.X * initialSpeed,
-		currentVelocity.Y,
-		launchDirection.Z * initialSpeed
-	)
+	root.AssemblyLinearVelocity = Vector3.new(0, currentVelocity.Y, 0)
+	root:ApplyImpulse(launchDirection * initialSpeed * root.AssemblyMass)
+	startStopMonitor(launchId)
 end)
