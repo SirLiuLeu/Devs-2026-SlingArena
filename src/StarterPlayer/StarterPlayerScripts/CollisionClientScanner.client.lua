@@ -9,7 +9,6 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameStates = require(Shared:WaitForChild("Constants"):WaitForChild("GameStates"))
 local PhysicsConfig = require(Shared:WaitForChild("Config"):WaitForChild("PhysicsConfig"))
 local CollisionResponse = require(Shared:WaitForChild("Utils"):WaitForChild("CollisionResponse"))
-local VelocityDecay = require(Shared:WaitForChild("Utils"):WaitForChild("VelocityDecay"))
 local stateUpdateRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("StateUpdate") :: RemoteEvent
 local reportFoodRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
 local reportCollisionRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("ReportCollision") :: RemoteEvent
@@ -258,22 +257,6 @@ local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpe
 		return
 	end
 	lastHit[cooldownKey] = now + REPORT_COOLDOWN
-	local targetCharacter = targetPlayer.Character
-	local targetRoot = targetCharacter and targetCharacter:FindFirstChild("Hitbox", true)
-	local normal = Vector3.new(0, 0, -1)
-	if targetRoot and targetRoot:IsA("BasePart") then
-		local offset = targetRoot.Position - root.Position
-		local planar = Vector3.new(offset.X, 0, offset.Z)
-		if planar.Magnitude > PhysicsConfig.Movement.InputDeadzone then
-			normal = planar.Unit
-		end
-	end
-	local collision = VelocityDecay.ResolvePlayerCollision(root.AssemblyLinearVelocity, normal)
-	root.AssemblyLinearVelocity = Vector3.new(
-		collision.AttackerVelocity.X,
-		root.AssemblyLinearVelocity.Y,
-		collision.AttackerVelocity.Z
-	)
 	print(`Reporting player hit: targetUserId={targetPlayer.UserId}, observedSpeed={observedSpeed}`)
 	reportCollisionRemote:FireServer({
 		targetType = "Player",

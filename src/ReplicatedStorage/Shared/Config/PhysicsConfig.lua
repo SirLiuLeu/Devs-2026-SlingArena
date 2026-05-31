@@ -3,9 +3,6 @@
 -- Shared physics tuning. Server is authoritative for collision/damage, while clients may
 -- read this module for prediction/UI so visible feel stays in sync with server physics.
 local PhysicsConfig = {
-	DefaultProperties = PhysicalProperties.new(0.7, 0.3, 0.8, 1, 0.1),
-	LaunchProperties = PhysicalProperties.new(0, 0, 0, 100, 100),
-
 	PhysicalProperties = {
 		Density = 0.7,
 		Friction = 0.3,
@@ -52,10 +49,8 @@ local PhysicsConfig = {
 		EnergyMin = 18,
 		EnergyMax = 120,
 
-		-- Shared custom-decay model used by both client and server while native friction is disabled.
-		Brake = 2.0,
-		Threshold = 8,
-		HeavyBrakeMultiplier = 2.5,
+		-- Exponential decay keeps the historical one-second tuning while staying frame-rate stable.
+		DecayPerSecond = 0.2,
 		-- Launch enters recovery once horizontal speed reaches this threshold.
 		StopSpeed = 1,
 
@@ -65,9 +60,6 @@ local PhysicsConfig = {
 		-- Fixed recovery duration after launch stops.
 		RecoveryDuration = 0.4,
 		ValidationGraceSeconds = 1,
-		VelocityReportInterval = 0.1,
-		VelocityCorrectionTolerance = 6,
-		VelocityCorrectionBlendSeconds = 0.16,
 
 		-- GraceWindowSeconds: Duration after launch begins during which physics-based
 		-- stop checks are completely ignored. Protects against the server reading

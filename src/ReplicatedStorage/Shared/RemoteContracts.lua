@@ -30,8 +30,6 @@ RemoteContracts.Names = {
 	ReportFoodHit = "ReportFoodHit",
 	ReportCollision = "ReportCollision",
 	ClientDoLaunch = "ClientDoLaunch",
-	LaunchVelocityReport = "LaunchVelocityReport",
-	VelocityCorrection = "VelocityCorrection",
 	KnockbackReplication = "KnockbackReplication",
 }
 
@@ -74,21 +72,6 @@ RemoteContracts.Validators = {
 			return false
 		end
 		if payload.currPos ~= nil and typeof(payload.currPos) ~= "Vector3" then
-			return false
-		end
-		return true
-	end,
-	[RemoteContracts.Names.LaunchVelocityReport] = function(payload: any): boolean
-		if type(payload) ~= "table" then
-			return false
-		end
-		if typeof(payload.velocity) ~= "Vector3" then
-			return false
-		end
-		if payload.movementState ~= nil and typeof(payload.movementState) ~= "string" then
-			return false
-		end
-		if payload.clientTime ~= nil and typeof(payload.clientTime) ~= "number" then
 			return false
 		end
 		return true
