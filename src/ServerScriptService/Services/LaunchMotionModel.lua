@@ -3,16 +3,12 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
+local VelocityDecay = require(ReplicatedStorage.Shared.Utils.VelocityDecay)
 
 local LaunchMotionModel = {}
 
-local function exponentialDecayFactor(decayPerSecond: number, dt: number): number
-	local clampedDecay = math.clamp(decayPerSecond, 0, 0.999999)
-	return (1 - clampedDecay) ^ math.max(0, dt)
-end
-
-function LaunchMotionModel.DecayFactor(decayPerSecond: number, dt: number): number
-	return exponentialDecayFactor(decayPerSecond, dt)
+function LaunchMotionModel.DecayFactor(brake: number, dt: number): number
+	return VelocityDecay.DecayFactor(brake, dt)
 end
 
 function LaunchMotionModel.ComputeChargeRatio(startedAt: number, now: number): number
@@ -51,8 +47,7 @@ function LaunchMotionModel.Sample(state: any, now: number, currentVelocity: Vect
 
 	local fallbackVelocitySpeed = if currentVelocity then currentVelocity.Magnitude else 0
 	local rawSpeed = math.max(0, state.currentSpeed or state.initialSpeed or fallbackVelocitySpeed)
-	local decayFactor = LaunchMotionModel.DecayFactor(PhysicsConfig.Launch.DecayPerSecond, dt)
-	local speed = rawSpeed * decayFactor
+	local speed = VelocityDecay.StepSpeed(rawSpeed, dt)
 
 	local energyDecayFactor = LaunchMotionModel.DecayFactor(PhysicsConfig.Launch.PassiveEnergyDecayPerSecond, dt)
 	local energy = math.max(0, (state.energy or 0) * energyDecayFactor)

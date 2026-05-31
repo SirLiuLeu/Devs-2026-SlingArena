@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local VelocityDecay = require(ReplicatedStorage.Shared.Utils.VelocityDecay)
 
 local CollisionService = {}
 CollisionService.__index = CollisionService
@@ -282,24 +283,23 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	self._lastCollision[key] = now
 	self._lastCollisionByLaunchTarget[launchId][launchTargetKey] = now
 
-	local transferRatio = math.clamp(PhysicsConfig.Collision.EnergyTransferRatio, 0, 1)
-	local transferSpeed = math.clamp(
-		impactSpeed * transferRatio,
-		0, PhysicsConfig.Collision.MaxPostCollisionSpeed
-	)
-	local defenderOut = normal * transferSpeed
-	local attackerRetainRatio = math.clamp(1 - transferRatio, 0.15, 0.9)
-	local attackerOut = attackerVelocity * attackerRetainRatio
+	local collision = VelocityDecay.ResolvePlayerCollision(attackerVelocity, normal)
+	local transferRatio = collision.TransferredEnergyScale
+	local defenderOut = collision.DefenderVelocity
+	local attackerOut = collision.AttackerVelocity
 
 	-- [FIX 3 note] Server write velocity sau collision vẫn OK:
 	-- Với player-owned root, client nhận correction sau ~1 frame.
 	-- Collision là event đặc biệt — 1 frame correction acceptable và ít thấy hơn stamp mỗi frame.
 	applyHorizontalVelocity(root, attackerOut)
+	if typeof(slingService._sendVelocityCorrection) == "function" then
+		slingService:_sendVelocityCorrection(player, attackerOut, "collision_reduction")
+	end
 
 	updateLaunchFromVelocity(
 		launchState,
 		attackerOut,
-		math.max(0, (launchState.energy or 0) * (1 - PhysicsConfig.Collision.CollisionEnergyLossRatio)),
+		math.max(0, (launchState.energy or 0) * collision.RemainingEnergyScale),
 		now
 	)
 	launchState.collisions = (launchState.collisions or 0) + 1

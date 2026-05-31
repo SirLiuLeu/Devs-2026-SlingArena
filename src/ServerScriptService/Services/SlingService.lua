@@ -10,6 +10,7 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local SlingMovement = require(script.Parent.SlingMovement)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local LaunchMotionModel = require(script.Parent.LaunchMotionModel)
+local VelocityDecay = require(ReplicatedStorage.Shared.Utils.VelocityDecay)
 
 local SlingService = {}
 SlingService.__index = SlingService
@@ -51,15 +52,12 @@ function SlingService.ResolveLaunchDirection(root: BasePart, aimDirection: Vecto
 	return SlingService.ResolveLaunchDirectionFromRoot(root)
 end
 
-local function applyRootPhysicalProperties(root: BasePart)
-	local physical = PhysicsConfig.PhysicalProperties
-	root.CustomPhysicalProperties = PhysicalProperties.new(
-		physical.Density,
-		physical.Friction,
-		physical.Elasticity,
-		physical.FrictionWeight,
-		physical.ElasticityWeight
-	)
+local function applyDefaultPhysicalProperties(root: BasePart)
+	root.CustomPhysicalProperties = PhysicsConfig.DefaultProperties
+end
+
+local function applyLaunchPhysicalProperties(root: BasePart)
+	root.CustomPhysicalProperties = PhysicsConfig.LaunchProperties
 end
 
 function SlingService.GetCooldownRemaining(cooldownEndTime: number, nowTime: number): number
@@ -74,7 +72,6 @@ function SlingService.BuildCooldownUiState(cooldownEndTime: number, nowTime: num
 end
 
 local MOVEMENT_STATE = GameStates.PlayerState
-local LAUNCH_BRAKE_RATE = 15
 
 function SlingService.new(context)
 	local self = setmetatable({}, SlingService)
@@ -86,6 +83,7 @@ function SlingService.new(context)
 	self._movementControllers = {}
 	self._remoteConnections = {}
 	self._clientDoLaunchRemote = nil :: RemoteEvent?
+	self._velocityCorrectionRemote = nil :: RemoteEvent?
 	self._heartbeatConnection = nil
 	self._warnedInvalidRoot = {}
 	self._loggedControllerRoot = {}
@@ -148,6 +146,8 @@ function SlingService:Init()
 	local releaseChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.ReleaseCharge)
 	local moveRequestRemote = remotes:FindFirstChild(RemoteContracts.Names.MoveRequest)
 	local clientDoLaunchRemote = remotes:FindFirstChild(RemoteContracts.Names.ClientDoLaunch)
+	local launchVelocityReportRemote = remotes:FindFirstChild(RemoteContracts.Names.LaunchVelocityReport)
+	local velocityCorrectionRemote = remotes:FindFirstChild(RemoteContracts.Names.VelocityCorrection)
 
 	if startChargeRemote and startChargeRemote:IsA("RemoteEvent") then
 		self._remoteConnections.StartCharge = startChargeRemote.OnServerEvent:Connect(function(player, aimTarget)
@@ -171,6 +171,20 @@ function SlingService:Init()
 		warn(string.format("[SlingService] Missing remote %s; client launch impulse disabled.", RemoteContracts.Names.ClientDoLaunch))
 	end
 
+	if velocityCorrectionRemote and velocityCorrectionRemote:IsA("RemoteEvent") then
+		self._velocityCorrectionRemote = velocityCorrectionRemote
+	else
+		warn(string.format("[SlingService] Missing remote %s; velocity corrections disabled.", RemoteContracts.Names.VelocityCorrection))
+	end
+
+	if launchVelocityReportRemote and launchVelocityReportRemote:IsA("RemoteEvent") then
+		self._remoteConnections.LaunchVelocityReport = launchVelocityReportRemote.OnServerEvent:Connect(function(player, payload)
+			self:HandleLaunchVelocityReport(player, payload)
+		end)
+	else
+		warn(string.format("[SlingService] Missing remote %s; launch velocity validation disabled.", RemoteContracts.Names.LaunchVelocityReport))
+	end
+
 	if moveRequestRemote and moveRequestRemote:IsA("RemoteEvent") then
 		self._remoteConnections.MoveRequest = moveRequestRemote.OnServerEvent:Connect(function(player, direction, aimTarget)
 			self:HandleMoveRequest(player, direction, aimTarget)
@@ -189,6 +203,10 @@ function SlingService:Init()
 		self._loggedControllerRoot[player] = nil
 		self._aimTargets[player] = nil
 		local movementController = self._movementControllers[player]
+		local _, removingRoot = self:_resolvePawnAndRoot(player)
+		if removingRoot then
+			applyDefaultPhysicalProperties(removingRoot)
+		end
 		if movementController then
 			movementController:Destroy()
 			self._movementControllers[player] = nil
@@ -218,7 +236,7 @@ function SlingService:_resolvePawnAndRoot(player: Player): (Model?, BasePart?)
 		if pawn.PrimaryPart == nil then
 			pawn.PrimaryPart = root
 		end
-		applyRootPhysicalProperties(root)
+		applyDefaultPhysicalProperties(root)
 		return pawn, root
 	end
 	return pawn, nil
@@ -323,6 +341,52 @@ function SlingService:HandleMoveRequest(player: Player, moveInput: Vector3, aimD
 	self._moveRateState[player] = now
 end
 
+
+function SlingService:_getAuthoritativeLaunchVelocity(launchState: any): Vector3
+	local direction = launchState.direction
+	if typeof(direction) ~= "Vector3" or direction.Magnitude <= PhysicsConfig.Movement.InputDeadzone then
+		return Vector3.zero
+	end
+	local speed = math.max(0, launchState.currentSpeed or 0)
+	if speed <= PhysicsConfig.Launch.StopSpeed then
+		return Vector3.zero
+	end
+	return Vector3.new(direction.X, 0, direction.Z).Unit * speed
+end
+
+function SlingService:_sendVelocityCorrection(player: Player, authoritativeVelocity: Vector3, reason: string)
+	local remote = self._velocityCorrectionRemote
+	if not remote then
+		return
+	end
+	remote:FireClient(player, {
+		velocity = authoritativeVelocity,
+		blendSeconds = PhysicsConfig.Launch.VelocityCorrectionBlendSeconds,
+		reason = reason,
+		serverTime = os.clock(),
+	})
+end
+
+function SlingService:HandleLaunchVelocityReport(player: Player, payload: any)
+	if not RemoteContracts.Validate(RemoteContracts.Names.LaunchVelocityReport, payload) then
+		return
+	end
+	local state = self._context.Services.PlayerStateService:GetState(player)
+	local launchState = self._activeLaunches[player]
+	if not (state and state.MovementState == "Launching" and launchState) then
+		return
+	end
+
+	local reportedVelocity = VelocityDecay.FlattenXZ(payload.velocity)
+	if reportedVelocity.Magnitude > PhysicsConfig.Collision.MaxAllowedSpeed then
+		reportedVelocity = reportedVelocity.Unit * PhysicsConfig.Collision.MaxAllowedSpeed
+	end
+	local authoritativeVelocity = self:_getAuthoritativeLaunchVelocity(launchState)
+	if (reportedVelocity - authoritativeVelocity).Magnitude > PhysicsConfig.Launch.VelocityCorrectionTolerance then
+		self:_sendVelocityCorrection(player, authoritativeVelocity, "velocity_deviation")
+	end
+end
+
 function SlingService:StartCharge(player: Player, aimDirection: Vector3)
 	if not RemoteContracts.Validate(RemoteContracts.Names.StartCharge, aimDirection) then
 		return
@@ -418,6 +482,8 @@ function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	if movementController then
 		movementController:DisableLocomotion(true)
 	end
+
+	applyLaunchPhysicalProperties(root)
 
 	if root:GetNetworkOwner() ~= player then
 		root:SetNetworkOwner(player)
@@ -534,12 +600,16 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 	self._warnedInvalidRoot[player] = nil
 
 	if state.MovementState == "Launching" then
+		applyLaunchPhysicalProperties(root)
 		self:_applyAimRotation(player, root, input, dt)
+
 		if root:GetNetworkOwner() ~= player then
 			root:SetNetworkOwner(player)
 		end
 		return
 	end
+
+	applyDefaultPhysicalProperties(root)
 
 	if root:GetNetworkOwner() ~= player then
 		root:SetNetworkOwner(player)
@@ -595,7 +665,7 @@ end
 
 	STEP ORDER:
 	  A. Decay model update (always runs while Launching, including during grace).
-	     – launchState.currentSpeed decays via DecayPerSecond × dt.
+	     – launchState.currentSpeed decays via shared VelocityDecay.StepSpeed.
 	     – launchState.energy decays via PassiveEnergyDecayPerSecond × dt.
 	     – Server velocity is used ONLY to clamp excessive speed downward, never to set it.
 
@@ -638,8 +708,7 @@ function SlingService:_stepMovementStates(dt: number)
 			-- Time-based speed decay: currentSpeed is monotonically decreasing.
 			-- It is the authoritative estimate of how fast Launch should still be.
 			local previousSpeed = launchState.currentSpeed or launchState.initialSpeed or 0
-			local decayFactor = LaunchMotionModel.DecayFactor(PhysicsConfig.Launch.DecayPerSecond, elapsed)
-			local decayedSpeed = previousSpeed * decayFactor
+			local decayedSpeed = VelocityDecay.StepSpeed(previousSpeed, elapsed)
 
 			-- Time-based energy decay.
 			local energyDecayFactor = LaunchMotionModel.DecayFactor(PhysicsConfig.Launch.PassiveEnergyDecayPerSecond, elapsed)
@@ -656,12 +725,8 @@ function SlingService:_stepMovementStates(dt: number)
 
 			-- Enforce the cap downward only (never accelerate).
 			if serverHorizontalSpeed > targetSpeed and serverHorizontalSpeed > PhysicsConfig.Movement.InputDeadzone and not graceActive then
-				local unit = horizontalVelocity.Unit
-				local capped = unit * math.max(targetSpeed, 0)
-				root.AssemblyLinearVelocity = Vector3.new(capped.X, fullVelocity.Y, capped.Z)
-				fullVelocity = root.AssemblyLinearVelocity
-				horizontalVelocity = Vector3.new(fullVelocity.X, 0, fullVelocity.Z)
-				serverHorizontalSpeed = horizontalVelocity.Magnitude
+				local capped = horizontalVelocity.Unit * math.max(targetSpeed, 0)
+				self:_sendVelocityCorrection(player, capped, "server_speed_cap")
 			end
 
 			launchState.currentSpeed = targetSpeed
@@ -709,7 +774,7 @@ function SlingService:_stepMovementStates(dt: number)
 				end
 
 				-- 4. Decay model exhausted (normal end of launch timeline).
-				if not shouldStop and timeBasedSpeed <= stopThreshold and timeBasedEnergy <= 0 then
+				if not shouldStop and timeBasedSpeed <= stopThreshold then
 					shouldStop = true
 					stopReason = string.format("decay_exhausted (timeSpeed=%.2f energy=%.2f)", timeBasedSpeed, timeBasedEnergy)
 				end
@@ -718,8 +783,11 @@ function SlingService:_stepMovementStates(dt: number)
 
 		-- ── C. Brake and transition ──────────────────────────────────────────────
 		if shouldStop then
-			local brakeFactor = math.max(0, 1 - LAUNCH_BRAKE_RATE * dt)
-			local brakedHorizontal = horizontalVelocity * brakeFactor
+			local brakedHorizontal = VelocityDecay.StepVelocity(horizontalVelocity, dt, {
+				Brake = PhysicsConfig.Launch.Brake * PhysicsConfig.Launch.HeavyBrakeMultiplier,
+				Threshold = math.huge,
+				StopSpeed = 0.5,
+			})
 			root.AssemblyLinearVelocity = Vector3.new(
 				brakedHorizontal.X,
 				fullVelocity.Y,
@@ -728,6 +796,7 @@ function SlingService:_stepMovementStates(dt: number)
 
 			if brakedHorizontal.Magnitude <= 0.5 then
 				self._activeLaunches[player] = nil
+				applyDefaultPhysicalProperties(root)
 
 				local recoveryEnd = now + PhysicsConfig.Launch.RecoveryDuration
 				self._releaseCooldown[player] = recoveryEnd
@@ -742,6 +811,7 @@ function SlingService:_stepMovementStates(dt: number)
 		-- ── D. Recovering → Idle ─────────────────────────────────────────────────
 		elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
 			self._activeLaunches[player] = nil
+			applyDefaultPhysicalProperties(root)
 			player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 			self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
 			self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
