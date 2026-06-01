@@ -255,6 +255,7 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 				local clamped = planarKnockback.Unit * math.min(planarKnockback.Magnitude, BalanceConfig.MaxVelocity)
 				if self._knockbackRemote then
 					local knockbackDuration = math.max(0.05, (options and options.KnockbackDuration) or 0.12)
+					print("Applying knockback to", victim.Name, "velocity", clamped, "duration", knockbackDuration)
 					self._knockbackRemote:FireClient(victim, clamped, knockbackDuration)
 				else
 					local nextVelocity = root.AssemblyLinearVelocity + clamped

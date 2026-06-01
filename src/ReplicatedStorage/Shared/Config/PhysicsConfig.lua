@@ -5,9 +5,9 @@
 local PhysicsConfig = {
 	PhysicalProperties = {
 		Density = 0.7,
-		Friction = 0.3,
+		Friction = 0.2,
 		Elasticity = 0.8,
-		FrictionWeight = 1,
+		FrictionWeight = 15,
 		ElasticityWeight = 0.1,
 	},
 
@@ -43,9 +43,9 @@ local PhysicsConfig = {
 
 	Launch = {
 		DirectionDeadzone = 0.01,
-		SpeedMin = 20,
-		SpeedMax = 70,
-		InitialVelocityCap = 80,
+		SpeedMin = 15,
+		SpeedMax = 50,
+		InitialVelocityCap = 60,
 		EnergyMin = 18,
 		EnergyMax = 120,
 
@@ -69,7 +69,7 @@ local PhysicsConfig = {
 	},
 
 	Collision = {
-		Range = 0.75,
+		Range = 1,
 		ValidationTolerance = 10.75,
 		YTolerance = 10,
 		MaxAllowedSpeed = 200,
