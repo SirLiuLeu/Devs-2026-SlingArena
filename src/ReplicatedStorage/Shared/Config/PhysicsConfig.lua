@@ -29,7 +29,7 @@ local PhysicsConfig = {
 		-- Drag only applies to non-Launching players (normal movement).
 		-- Launching players rely on native physics friction/bounce after the client impulse.
 		LinearDragPerSecond = 0.08,
-		StopSpeed = 0.35,
+		StopSpeed = 0.5,
 		WallRestitution = 0.78,
 		WallTangentialDamping = 0.98,
 		WallCollisionCooldown = 0.2,
@@ -69,7 +69,7 @@ local PhysicsConfig = {
 	},
 
 	Collision = {
-		Range = 1,
+		Range = 0.5,
 		ValidationTolerance = 10.75,
 		YTolerance = 10,
 		MaxAllowedSpeed = 200,

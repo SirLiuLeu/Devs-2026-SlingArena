@@ -84,9 +84,9 @@ knockbackRemote.OnClientEvent:Connect(function(knockbackVelocity: any, duration:
 
 	print(
 		"[KnockbackReplication] Applying LinearVelocity:",
-		"VectorVelocity=", linearVelocity.VectorVelocity,
 		"MaxForce=", linearVelocity.MaxForce,
-		"Duration=", durationSeconds
+		"Duration=", durationSeconds,
+		"VelocityMagnitude=", planarVelocity.Magnitude
 	)
 
 	Debris:AddItem(linearVelocity, durationSeconds)
