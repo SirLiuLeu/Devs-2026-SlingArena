@@ -5,7 +5,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
-local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
 type Context = {
 	Services: any,
@@ -17,7 +16,6 @@ type DamageOptions = {
 	SuppressFeedback: boolean?,
 	SuppressDeathHandling: boolean?,
 	SuppressKnockback: boolean?,
-	KnockbackDuration: number?,
 }
 
 local DamagePipelineService = {}
@@ -56,7 +54,7 @@ function DamagePipelineService:Init()
 		victim: Player,
 		_attacker: Player?,
 		knockbackVelocity: Vector3,
-		collisionMeta: any
+		_collisionMeta: any
 	)
 		if not (self._knockbackRemote and typeof(knockbackVelocity) == "Vector3") then
 			return
@@ -66,8 +64,7 @@ function DamagePipelineService:Init()
 			return
 		end
 		local clamped = planar.Unit * math.min(planar.Magnitude, BalanceConfig.MaxVelocity)
-		local duration = collisionMeta and collisionMeta.Duration or PhysicsConfig.Collision.KnockbackImpulseDuration
-		self._knockbackRemote:FireClient(victim, clamped, duration)
+		self._knockbackRemote:FireClient(victim, clamped)
 	end)
 
 	-- FIX 2: CollisionPlayerHit handler – properly compute and apply damage.
@@ -254,9 +251,8 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 			if planarKnockback.Magnitude > 0 then
 				local clamped = planarKnockback.Unit * math.min(planarKnockback.Magnitude, BalanceConfig.MaxVelocity)
 				if self._knockbackRemote then
-					local knockbackDuration = math.max(0.05, (options and options.KnockbackDuration) or 0.12)
-					print("Applying knockback to", victim.Name, "velocity", clamped, "duration", knockbackDuration)
-					self._knockbackRemote:FireClient(victim, clamped, knockbackDuration)
+					print("Applying knockback to", victim.Name, "velocity", clamped)
+					self._knockbackRemote:FireClient(victim, clamped)
 				else
 					local nextVelocity = root.AssemblyLinearVelocity + clamped
 					root.AssemblyLinearVelocity = Vector3.new(

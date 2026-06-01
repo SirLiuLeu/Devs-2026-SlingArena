@@ -26,6 +26,7 @@ export type CollisionResult = {
 	DefenderVelocity: Vector3,
 	ClosingSpeed: number,
 	AngleFactor: number,
+	AngleScale: number,
 	NormalSpeed: number,
 	TangentialSpeed: number,
 	RemainingEnergyScale: number,
@@ -111,6 +112,7 @@ function VelocityDecay.ResolvePlayerCollision(
 		DefenderVelocity = Vector3.zero,
 		ClosingSpeed = 0,
 		AngleFactor = 0,
+		AngleScale = 0,
 		NormalSpeed = 0,
 		TangentialSpeed = 0,
 		RemainingEnergyScale = 0,
@@ -139,7 +141,9 @@ function VelocityDecay.ResolvePlayerCollision(
 		0,
 		2
 	)
-	local transferSpeed = math.clamp(closingSpeed * defenderTransferScale * angleScale, 0, maxSpeed)
+	local attackerImpactSpeedCap = math.max(0, math.min(speed, math.max(0, attackerNormalSpeed)))
+	local transferCap = math.min(maxSpeed, attackerImpactSpeedCap)
+	local transferSpeed = math.clamp(closingSpeed * defenderTransferScale * angleScale, 0, transferCap)
 
 	local normalRetention = math.clamp(
 		(params and params.AttackerNormalVelocityRetention) or PhysicsConfig.Collision.AttackerNormalVelocityRetention,
@@ -173,6 +177,7 @@ function VelocityDecay.ResolvePlayerCollision(
 		DefenderVelocity = normal * transferSpeed,
 		ClosingSpeed = closingSpeed,
 		AngleFactor = angleFactor,
+		AngleScale = angleScale,
 		NormalSpeed = math.max(0, attackerNormalSpeed),
 		TangentialSpeed = attackerTangential.Magnitude,
 		RemainingEnergyScale = 1 - (energyLossRatio * angleScale),
