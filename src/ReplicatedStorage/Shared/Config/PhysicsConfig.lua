@@ -61,7 +61,7 @@ local PhysicsConfig = {
 		StopEvidenceFramesRequired = 4,
 
 		-- MaxLaunchDuration: Server hard timeout fail-safe if the stop report is lost.
-		MaxLaunchDuration = 12,
+		MaxLaunchDuration = 3,
 		SpeedCeilingMultiplier = 1.15,
 		SpeedCeilingPadding = 5,
 		MaxDamageTargetsPerLaunch = 3,
