@@ -452,6 +452,7 @@ function FoodService:_rejectFoodHit(player: Player, reason: string, payload: any
 	local foodId = if type(payload) == "table" then payload.foodId else nil
 	local fields = {
 		`player={player.Name}`,
+		`userId={player.UserId}`,
 		`reason={reason}`,
 		`foodId={tostring(foodId)}`,
 	}
@@ -482,7 +483,10 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 		return false, "missing_player_root", nil
 	end
 	if not self:_isPlayerAlive(player) then
-		return false, "invalid_launch_state", { alive = false }
+		return false, "invalid_launch_state", {
+			validationBranch = "player_alive_check",
+			alive = false,
+		}
 	end
 
 	local serverSpeed = root.AssemblyLinearVelocity.Magnitude
@@ -504,7 +508,11 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 		return false, "missing_food_rule", { foodType = entry.FoodType }
 	end
 	if not movementState then
-		return false, "invalid_launch_state", { movementState = "nil" }
+		return false, "invalid_launch_state", {
+			validationBranch = "movement_state_present",
+			movementState = "nil",
+			requiredState = GameStates.PlayerState.Launching,
+		}
 	end
 
 	local serverHorizontalSpeed = flattenXZ(root.AssemblyLinearVelocity).Magnitude
@@ -512,11 +520,23 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	if (not rule.Touch) and entry.MaxHP > 0 then
 		local slingService = getService(self._context, "SlingService")
 		local validLaunch = false
+		local launchState = nil
+		local launchValidationReason = if slingService then "unknown" else "missing_sling_service"
 		if slingService then
-			validLaunch = slingService:ValidateLaunchReport(player, payload)
+			validLaunch, launchState, launchValidationReason = slingService:ValidateLaunchReport(player, payload)
 		end
 		if not validLaunch or movementState ~= GameStates.PlayerState.Launching then
-			return false, "invalid_launch_state", { movementState = movementState, horizontalSpeed = horizontalSpeed }
+			local branch = if not validLaunch then "sling_launch_report_validation" else "movement_state_must_be_launching"
+			return false, "invalid_launch_state", {
+				validationBranch = branch,
+				movementState = movementState,
+				requiredState = GameStates.PlayerState.Launching,
+				validLaunch = validLaunch,
+				launchValidationReason = launchValidationReason,
+				payloadLaunchId = payload.launchId,
+				activeLaunchId = launchState and launchState.launchId or "nil",
+				horizontalSpeed = horizontalSpeed,
+			}
 		end
 		if horizontalSpeed < PhysicsConfig.Collision.FoodHitMinHorizontalSpeed then
 			return false, "speed_below_threshold", {
@@ -525,7 +545,13 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 			}
 		end
 	elseif not COMMON_ALLOWED_STATES[movementState] then
-		return false, "invalid_launch_state", { movementState = movementState }
+		return false, "invalid_launch_state", {
+			validationBranch = "touch_food_allowed_movement_state",
+			movementState = movementState,
+			allowedLaunching = COMMON_ALLOWED_STATES[GameStates.PlayerState.Launching] == true,
+			allowedIdle = COMMON_ALLOWED_STATES[GameStates.PlayerState.Idle] == true,
+			allowedMoving = COMMON_ALLOWED_STATES[GameStates.PlayerState.Moving] == true,
+		}
 	end
 
 	local playerRadius = math.max(root.Size.X, root.Size.Z) * 0.5
