@@ -66,7 +66,7 @@ function DamagePipelineService:Init()
 			return
 		end
 		local clamped = planar.Unit * math.min(planar.Magnitude, BalanceConfig.MaxVelocity)
-		local duration = collisionMeta and collisionMeta.Duration or 0.12
+		local duration = collisionMeta and collisionMeta.Duration or PhysicsConfig.Collision.KnockbackImpulseDuration
 		self._knockbackRemote:FireClient(victim, clamped, duration)
 	end)
 

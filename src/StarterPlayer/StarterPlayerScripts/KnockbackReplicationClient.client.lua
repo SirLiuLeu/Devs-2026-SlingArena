@@ -4,13 +4,14 @@ local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
 local knockbackRemote = remotes:WaitForChild(RemoteContracts.Names.KnockbackReplication) :: RemoteEvent
 
-local DEFAULT_KNOCKBACK_DURATION = 0.12
+local DEFAULT_KNOCKBACK_DURATION = PhysicsConfig.Collision.KnockbackImpulseDuration
 
 local function getCharacterRoot(): BasePart?
 	local character = player.Character

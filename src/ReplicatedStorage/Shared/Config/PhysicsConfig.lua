@@ -81,8 +81,16 @@ local PhysicsConfig = {
 		TrapCooldown = 0.25,
 		RealHitMinClosingSpeed = 5.5,
 
-		EnergyTransferRatio = 0.7,
+		-- Sling-vs-Sling collision response is based on normal closing speed,
+		-- not a fixed percentage of the attacker's full travel velocity.
+		-- Direct hits use most of the normal component; glancing hits are reduced
+		-- by the collision angle before any defender knockback is emitted.
+		DefenderVelocityTransferScale = 0.7,
+		AttackerNormalVelocityRetention = 0.35,
+		AttackerTangentialVelocityRetention = 0.92,
+		CollisionAngleReductionExponent = 1.35,
 		CollisionEnergyLossRatio = 0.16,
+		KnockbackImpulseDuration = 0.1,
 
 		-- Food collision response uses the same single-step model on client and server.
 		FoodRestitution = 0.55,

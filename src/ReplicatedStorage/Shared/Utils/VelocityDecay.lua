@@ -12,7 +12,10 @@ export type DecayParams = {
 }
 
 export type CollisionParams = {
-	TransferRatio: number?,
+	DefenderVelocityTransferScale: number?,
+	AttackerNormalVelocityRetention: number?,
+	AttackerTangentialVelocityRetention: number?,
+	AngleReductionExponent: number?,
 	EnergyLossRatio: number?,
 	MinSpeed: number?,
 	MaxSpeed: number?,
@@ -21,6 +24,10 @@ export type CollisionParams = {
 export type CollisionResult = {
 	AttackerVelocity: Vector3,
 	DefenderVelocity: Vector3,
+	ClosingSpeed: number,
+	AngleFactor: number,
+	NormalSpeed: number,
+	TangentialSpeed: number,
 	RemainingEnergyScale: number,
 	TransferredEnergyScale: number,
 }
@@ -88,31 +95,66 @@ end
 
 function VelocityDecay.ResolvePlayerCollision(
 	attackerVelocity: Vector3,
+	defenderVelocity: Vector3,
 	impactNormal: Vector3,
 	params: CollisionParams?
 ): CollisionResult
 	local planarAttacker = flattenXZ(attackerVelocity)
+	local planarDefender = flattenXZ(defenderVelocity)
 	local speed = planarAttacker.Magnitude
 	local minSpeed = math.max(0, (params and params.MinSpeed) or PhysicsConfig.Collision.MinPostCollisionSpeed)
+	local normal = safeUnit(impactNormal, planarAttacker)
+	local maxSpeed = math.max(0, (params and params.MaxSpeed) or PhysicsConfig.Collision.MaxPostCollisionSpeed)
+
+	local emptyResult = {
+		AttackerVelocity = Vector3.zero,
+		DefenderVelocity = Vector3.zero,
+		ClosingSpeed = 0,
+		AngleFactor = 0,
+		NormalSpeed = 0,
+		TangentialSpeed = 0,
+		RemainingEnergyScale = 0,
+		TransferredEnergyScale = 0,
+	}
 	if speed <= minSpeed then
-		return {
-			AttackerVelocity = Vector3.zero,
-			DefenderVelocity = Vector3.zero,
-			RemainingEnergyScale = 0,
-			TransferredEnergyScale = 0,
-		}
+		return emptyResult
 	end
 
-	local transferRatio = math.clamp(
-		(params and params.TransferRatio) or PhysicsConfig.Collision.EnergyTransferRatio,
+	local relativeVelocity = planarAttacker - planarDefender
+	local closingSpeed = math.max(0, relativeVelocity:Dot(normal))
+	if closingSpeed <= minSpeed then
+		return emptyResult
+	end
+
+	local attackerNormalSpeed = planarAttacker:Dot(normal)
+	local attackerNormal = normal * attackerNormalSpeed
+	local attackerTangential = planarAttacker - attackerNormal
+	local angleFactor = math.clamp(closingSpeed / math.max(relativeVelocity.Magnitude, speed, EPSILON), 0, 1)
+	local angleExponent = math.max(0, (params and params.AngleReductionExponent)
+		or PhysicsConfig.Collision.CollisionAngleReductionExponent or 1)
+	local angleScale = angleFactor ^ angleExponent
+
+	local defenderTransferScale = math.clamp(
+		(params and params.DefenderVelocityTransferScale) or PhysicsConfig.Collision.DefenderVelocityTransferScale,
+		0,
+		2
+	)
+	local transferSpeed = math.clamp(closingSpeed * defenderTransferScale * angleScale, 0, maxSpeed)
+
+	local normalRetention = math.clamp(
+		(params and params.AttackerNormalVelocityRetention) or PhysicsConfig.Collision.AttackerNormalVelocityRetention,
 		0,
 		1
 	)
-	local maxSpeed = math.max(0, (params and params.MaxSpeed) or PhysicsConfig.Collision.MaxPostCollisionSpeed)
-	local defenderDirection = safeUnit(impactNormal, planarAttacker)
-	local transferSpeed = math.clamp(speed * transferRatio, 0, maxSpeed)
-	local attackerRetainRatio = math.clamp(1 - transferRatio, 0.15, 0.9)
-	local attackerOut = planarAttacker * attackerRetainRatio
+	local tangentialRetention = math.clamp(
+		(params and params.AttackerTangentialVelocityRetention) or PhysicsConfig.Collision.AttackerTangentialVelocityRetention,
+		0,
+		1.25
+	)
+	local retainedNormal = if attackerNormalSpeed > 0
+		then normal * (attackerNormalSpeed * normalRetention)
+		else attackerNormal
+	local attackerOut = (attackerTangential * tangentialRetention) + retainedNormal
 	if maxSpeed > 0 and attackerOut.Magnitude > maxSpeed then
 		attackerOut = attackerOut.Unit * maxSpeed
 	end
@@ -125,11 +167,16 @@ function VelocityDecay.ResolvePlayerCollision(
 		0,
 		1
 	)
+	local transferredEnergyScale = if speed > EPSILON then math.clamp(transferSpeed / speed, 0, 1) else 0
 	return {
 		AttackerVelocity = attackerOut,
-		DefenderVelocity = defenderDirection * transferSpeed,
-		RemainingEnergyScale = 1 - energyLossRatio,
-		TransferredEnergyScale = transferRatio,
+		DefenderVelocity = normal * transferSpeed,
+		ClosingSpeed = closingSpeed,
+		AngleFactor = angleFactor,
+		NormalSpeed = math.max(0, attackerNormalSpeed),
+		TangentialSpeed = attackerTangential.Magnitude,
+		RemainingEnergyScale = 1 - (energyLossRatio * angleScale),
+		TransferredEnergyScale = transferredEnergyScale,
 	}
 end
 
