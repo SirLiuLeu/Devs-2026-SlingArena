@@ -17,6 +17,7 @@ end
 local EventBus = requireSafe(ServicesFolder:WaitForChild("EventBus"), "EventBus")
 local ServiceRegistry = requireSafe(ServicesFolder:WaitForChild("ServiceRegistry"), "ServiceRegistry")
 local PlayerStateService = requireSafe(ServicesFolder:WaitForChild("PlayerStateService"), "PlayerStateService")
+local FlagService = requireSafe(ServicesFolder:WaitForChild("FlagService"), "FlagService")
 local PlayerService = requireSafe(ServicesFolder:WaitForChild("PlayerService"), "PlayerService")
 local TeamService = requireSafe(ServicesFolder:WaitForChild("TeamService"), "TeamService")
 local SlingService = requireSafe(ServicesFolder:WaitForChild("SlingService"), "SlingService")
@@ -93,6 +94,7 @@ end
 
 local serviceConstructors = {
 	PlayerStateService = PlayerStateService,
+	FlagService = FlagService,
 	TeamService = TeamService,
 	PlayerService = PlayerService,
 	SlingService = SlingService,
@@ -129,6 +131,7 @@ end
 
 local initializationOrder = {
 	"PlayerStateService",
+	"FlagService",
 	"TeamService",
 	"MapService",
 	"PlayerService",

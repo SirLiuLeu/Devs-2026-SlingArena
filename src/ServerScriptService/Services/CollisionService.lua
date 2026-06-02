@@ -268,9 +268,6 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	local defenderOut = collisionResult.DefenderVelocity
 	local attackerOut = collisionResult.AttackerVelocity
 
-	-- [FIX 3 note] Server write velocity sau collision vẫn OK:
-	-- Với player-owned root, client nhận correction sau ~1 frame.
-	-- Collision là event đặc biệt — 1 frame correction acceptable và ít thấy hơn stamp mỗi frame.
 	local canDamage = slingService:RegisterLaunchDamageTarget(player, launchTargetKey)
 	local canKnockback = slingService:RegisterLaunchKnockbackTarget(player, launchTargetKey)
 	if not canDamage and not canKnockback then
