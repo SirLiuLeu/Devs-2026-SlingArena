@@ -88,7 +88,6 @@ function SlingService.new(context)
 	self._reportLaunchStoppedRemote = nil :: RemoteEvent?
 	self._heartbeatConnection = nil
 	self._warnedInvalidRoot = {}
-	self._loggedControllerRoot = {}
 	self._aimTargets = {}
 	self._activeLaunches = {}
 	return self
@@ -205,7 +204,6 @@ function SlingService:Init()
 		self._releaseCooldown[player] = nil
 		self._activeLaunches[player] = nil
 		self._warnedInvalidRoot[player] = nil
-		self._loggedControllerRoot[player] = nil
 		self._aimTargets[player] = nil
 		local movementController = self._movementControllers[player]
 		if movementController then
@@ -261,7 +259,6 @@ function SlingService:_finishLaunch(player: Player, reason: string)
 	self._context.Services.PlayerStateService:SetCooldownEndTime(player, recoveryEnd)
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 	self._context.Services.PlayerStateService:SetMovementState(player, "Recovering")
-	warn(string.format("[SlingService] State player=%s -> Recovering (%s)", player.Name, reason))
 end
 
 function SlingService:ValidateLaunchReport(player: Player, payload: any): (boolean, any?, string)
@@ -522,10 +519,6 @@ function SlingService:_authorizeLaunch(player: Player, aimDirection: Vector3)
 		launchRemote:FireClient(player, launchState.direction, launchState.initialSpeed, root.AssemblyMass, launchId)
 	end
 
-	warn(string.format("[SlingService] Launch approved player=%s launchId=%s charge=%.2f speed=%.2f ceiling=%.2f max=%.1fs",
-		player.Name, launchId, chargeRatio, launchState.initialSpeed, launchState.maxReportSpeed,
-		PhysicsConfig.Launch.MaxLaunchDuration))
-
 	self._context.EventBus:Fire("SlingLaunched", player, chargeRatio, launchState)
 	if chargeRatio >= PhysicsConfig.Charge.MaxChargeRatioThreshold then
 		self._context.EventBus:Fire("MaxChargeReleased", player, BalanceConfig.MaxChargeSelfDamage)
@@ -614,7 +607,6 @@ function SlingService:_getMovementController(player: Player, root: BasePart)
 	end
 	if not movementController then
 		movementController = SlingMovement.new(root)
-		warn(string.format("[SlingService] movementController ready player=%s root=%s", player.Name, root:GetFullName()))
 		self._movementControllers[player] = movementController
 	end
 	return movementController
@@ -660,10 +652,6 @@ function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: 
 
 	if root:GetNetworkOwner() ~= player then
 		root:SetNetworkOwner(player)
-		if not self._loggedControllerRoot[player] then
-			self._loggedControllerRoot[player] = true
-			warn(string.format("[SlingService] SetNetworkOwner player=%s root=%s", player.Name, root:GetFullName()))
-		end
 	end
 
 	local movementController = self:_getMovementController(player, root)

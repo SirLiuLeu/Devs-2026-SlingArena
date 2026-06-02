@@ -22,9 +22,8 @@ local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
 local MAX_ALLOWED_SPEED = PhysicsConfig.Collision.MaxAllowedSpeed
 local SAME_TARGET_FOOD_DEDUPE_SECONDS = 0.28
+local DEBUG_FOOD_HIT_REJECTS = false
 
-local FIRE_FOOD_BURN_COOLDOWN = 1
-local FIRE_FOOD_BURN_DAMAGE_RATIO = 0.4
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local COMMON_ALLOWED_STATES = {
@@ -120,7 +119,6 @@ function FoodService.new(context)
 	self._foodGrid = {}
 	self._foodByInstance = {}
 	self._playerConsumeCooldown = {}
-	self._slingFoodHitCooldown = {}
 	self._foodHitByLaunchTarget = {}
 	return self
 end
@@ -193,7 +191,6 @@ function FoodService:_publishFoodHp(entry: any)
 end
 
 function FoodService:Init()
-	print("[FoodService] Init called")
 	self:_loadFoodModels()
 	self:_scanAndSpawnAllArenaMaps()
 end
@@ -449,6 +446,9 @@ function FoodService:_computeEffectiveRadius(playerRadius: number, foodRadius: n
 end
 
 function FoodService:_rejectFoodHit(player: Player, reason: string, payload: any, details: { [string]: any }?)
+	if not DEBUG_FOOD_HIT_REJECTS then
+		return
+	end
 	local foodId = if type(payload) == "table" then payload.foodId else nil
 	local fields = {
 		`player={player.Name}`,
@@ -616,27 +616,15 @@ function FoodService:_applyFoodCollisionVelocity(root: BasePart, hitbox: BasePar
 	end
 end
 
-function FoodService:_applySlingDamage(entry: any, player: Player, velocity: number)
-	local rule = FoodConfig.Foods[entry.FoodType]
-	if not rule or entry.CurrentHP <= 0 then
-		return
+function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player: Player?): boolean
+	local entry = if type(foodOrEntry) == "table" then foodOrEntry else self._foodByInstance[foodOrEntry]
+	local rule = entry and FoodConfig.Foods[entry.FoodType]
+	if not (entry and rule and player) or entry.CurrentHP <= 0 or entry.IsConsumed then
+		return false
 	end
-	local slingService = getService(self._context, "SlingService")
-	local launchState = slingService and slingService:GetLaunchState(player) or nil
-	local initialSpeed = launchState and math.max(launchState.initialSpeed or 0, launchState.currentSpeed or 0) or velocity
-	local initialDamage = math.clamp(initialSpeed, DAMAGE_MIN_VELOCITY, DAMAGE_MAX_VELOCITY) * DAMAGE_BASE
-	local speedRatio = if initialSpeed > 0 then math.clamp(velocity / initialSpeed, 0.3, 1) else 0.3
-	local damage = initialDamage * speedRatio
-	local stateService = getService(self._context, "PlayerStateService")
-	local abilityType = stateService and stateService:GetSlingAbilityType(player) or "NormalSling"
-	if abilityType == "FireSling" then
-		local burnKey = string.format("%s:%d", tostring(entry.Id), player.UserId)
-		local now = os.clock()
-		local nextAllowedAt = self._slingFoodHitCooldown[burnKey] or 0
-		if now >= nextAllowedAt then
-			self._slingFoodHitCooldown[burnKey] = now + FIRE_FOOD_BURN_COOLDOWN
-			damage += damage * FIRE_FOOD_BURN_DAMAGE_RATIO
-		end
+	local damage = math.max(0, amount)
+	if damage <= 0 then
+		return false
 	end
 	local before = entry.CurrentHP
 	entry.LastHitBy = player
@@ -651,6 +639,20 @@ function FoodService:_applySlingDamage(entry: any, player: Player, velocity: num
 		self:_rewardFoodKill(entry)
 		self:_consumeFood(entry, player)
 	end
+	return true
+end
+
+function FoodService:_applySlingDamage(entry: any, player: Player, velocity: number)
+	local rule = FoodConfig.Foods[entry.FoodType]
+	if not rule or entry.CurrentHP <= 0 then
+		return
+	end
+	local slingService = getService(self._context, "SlingService")
+	local launchState = slingService and slingService:GetLaunchState(player) or nil
+	local initialSpeed = launchState and math.max(launchState.initialSpeed or 0, launchState.currentSpeed or 0) or velocity
+	local initialDamage = math.clamp(initialSpeed, DAMAGE_MIN_VELOCITY, DAMAGE_MAX_VELOCITY) * DAMAGE_BASE
+	local speedRatio = if initialSpeed > 0 then math.clamp(velocity / initialSpeed, 0.3, 1) else 0.3
+	self:ApplyDamageToFood(entry, initialDamage * speedRatio, player)
 end
 
 function FoodService:_computeCollisionNormal(playerPosition: Vector3, foodPosition: Vector3, velocity: Vector3): Vector3
@@ -766,6 +768,7 @@ function FoodService:Start()
 			local canDamage = slingService and slingService:RegisterLaunchDamageTarget(player, targetKey)
 			local canTransfer = slingService and slingService:RegisterLaunchKnockbackTarget(player, targetKey)
 			if canDamage then
+				self._context.EventBus:Fire("CollisionDetected", "Food", player, entry.Instance, { FoodId = entry.Id })
 				self:_applySlingDamage(entry, player, horizontalSpeed)
 			end
 			if canTransfer then

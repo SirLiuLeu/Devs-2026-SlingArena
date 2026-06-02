@@ -124,7 +124,6 @@ function TrapService:OnTrapCollision(player: Player, trap: BasePart)
 		return
 	end
 	self._lastTriggeredAt[player] = now
-	print(string.format("[TrapService] Trap damage trigger: %s hit %s", player.Name, trap.Name))
 	self._context.EventBus:Fire("TrapCollision", player, TrapConfig.ExpPenalty)
 
 	local root = self._context.Services.PlayerService:GetRoot(player)
