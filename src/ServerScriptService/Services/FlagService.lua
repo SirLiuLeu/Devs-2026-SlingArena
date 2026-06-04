@@ -15,6 +15,7 @@ type ActiveFlag = {
 	ExpiresAt: number,
 	Stacks: number,
 	Source: Player?,
+	SourceUserId: number?,
 	LastTickAt: number?,
 	Data: any?,
 }
@@ -54,16 +55,56 @@ local function getEffectAttachment(root: BasePart, effectName: string): Attachme
 	return nil
 end
 
+local function isSourceScopedDot(flagName: string): boolean
+	return flagName == "Burn" or flagName == "Poison"
+end
+
+local function getSourceUserId(source: Player?): number?
+	return source and source.UserId or nil
+end
+
+local function getFlagKey(flagName: string, source: Player?): string
+	if isSourceScopedDot(flagName) then
+		local sourceUserId = getSourceUserId(source)
+		if sourceUserId then
+			return string.format("%s:%d", flagName, sourceUserId)
+		end
+	end
+	return flagName
+end
+
 local function buildFlagSnapshot(flags: { [string]: ActiveFlag }?): any
 	local snapshot = {}
 	if not flags then
 		return snapshot
 	end
-	for flagName, flag in pairs(flags) do
-		snapshot[flagName] = {
-			ExpiresAt = flag.ExpiresAt,
-			Stacks = flag.Stacks,
-		}
+	for _, flag in pairs(flags) do
+		local flagName = flag.Name
+		local existing = snapshot[flagName]
+		if existing then
+			existing.ExpiresAt = math.max(existing.ExpiresAt or 0, flag.ExpiresAt)
+			existing.Stacks = (existing.Stacks or 0) + (flag.Stacks or 1)
+			if flag.SourceUserId then
+				existing.Sources = existing.Sources or {}
+				existing.Sources[tostring(flag.SourceUserId)] = {
+					ExpiresAt = flag.ExpiresAt,
+					Stacks = flag.Stacks,
+				}
+			end
+		else
+			snapshot[flagName] = {
+				ExpiresAt = flag.ExpiresAt,
+				Stacks = flag.Stacks,
+			}
+			if flag.SourceUserId then
+				snapshot[flagName].Sources = {
+					[tostring(flag.SourceUserId)] = {
+						ExpiresAt = flag.ExpiresAt,
+						Stacks = flag.Stacks,
+					},
+				}
+			end
+		end
 	end
 	return snapshot
 end
@@ -179,20 +220,31 @@ end
 
 function FlagService:HasFlag(player: Player, flagName: string): boolean
 	local flags = self._activeFlags[player]
-	local flag = flags and flags[flagName]
-	if not flag then
+	if not flags then
 		return false
 	end
-	return flag.ExpiresAt > os.clock()
+	for _, flag in pairs(flags) do
+		if flag.Name == flagName and flag.ExpiresAt > os.clock() then
+			return true
+		end
+	end
+	return false
 end
 
 function FlagService:GetFlag(player: Player, flagName: string): ActiveFlag?
 	local flags = self._activeFlags[player]
-	local flag = flags and flags[flagName]
-	if flag and flag.ExpiresAt > os.clock() then
-		return flag
+	if not flags then
+		return nil
 	end
-	return nil
+	local newest: ActiveFlag? = nil
+	for _, flag in pairs(flags) do
+		if flag.Name == flagName and flag.ExpiresAt > os.clock() then
+			if not newest or flag.ExpiresAt > newest.ExpiresAt then
+				newest = flag
+			end
+		end
+	end
+	return newest
 end
 
 function FlagService:ApplyFlag(player: Player, flagName: string, duration: number?, source: Player?, data: any?): boolean
@@ -219,28 +271,34 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 		flags = {}
 		self._activeFlags[player] = flags
 	end
-	local existing = flags[flagName]
+	local now = os.clock()
+	local flagKey = getFlagKey(flagName, source)
+	local existing = flags[flagKey]
 	local maxStack = math.max(1, tonumber((data and data.MaxStack) or defaults.MaxStack) or 1)
 	local stackable = (data and data.Stackable) == true or defaults.Stackable == true
 	local stacks = 1
-	if existing and existing.ExpiresAt > os.clock() and stackable then
+	if existing and existing.ExpiresAt > now and stackable and not isSourceScopedDot(flagName) then
 		stacks = math.clamp((existing.Stacks or 1) + 1, 1, maxStack)
-	elseif existing and existing.ExpiresAt > os.clock() then
+	elseif existing and existing.ExpiresAt > now then
 		stacks = existing.Stacks or 1
 	end
-	flags[flagName] = {
+	local expiresAt = if isSourceScopedDot(flagName)
+		then now + resolvedDuration
+		else math.max(existing and existing.ExpiresAt or 0, now + resolvedDuration)
+	flags[flagKey] = {
 		Name = flagName,
-		ExpiresAt = math.max(existing and existing.ExpiresAt or 0, os.clock() + resolvedDuration),
+		ExpiresAt = expiresAt,
 		Stacks = stacks,
 		Source = source,
-		LastTickAt = existing and existing.LastTickAt or os.clock(),
+		SourceUserId = getSourceUserId(source),
+		LastTickAt = existing and existing.LastTickAt or now,
 		Data = data,
 	}
 	self:_applyFlagVisual(player, flagName, data)
 	if defaults.InterruptCharge or flagName == "Petrify" or flagName == "Stun" then
 		state.IsCharging = false
 		state.ChargeValue = 0
-		state.StunnedUntil = math.max(state.StunnedUntil or 0, flags[flagName].ExpiresAt)
+		state.StunnedUntil = math.max(state.StunnedUntil or 0, flags[flagKey].ExpiresAt)
 		state.MovementState = MOVEMENT_STATE.Idle
 	end
 	if flagName == "Invisible" or flagName == "Ghost" then
@@ -254,7 +312,11 @@ end
 function FlagService:RemoveFlag(player: Player, flagName: string)
 	local flags = self._activeFlags[player]
 	if flags then
-		flags[flagName] = nil
+		for flagKey, flag in pairs(flags) do
+			if flag.Name == flagName then
+				flags[flagKey] = nil
+			end
+		end
 	end
 	self:_removeFlagVisual(player, flagName)
 	local stateService = getService(self._context, "PlayerStateService")
@@ -277,10 +339,13 @@ function FlagService:TickFlags(dt: number)
 			continue
 		end
 		local changed = false
-		for flagName, flag in pairs(flags) do
+		for flagKey, flag in pairs(flags) do
+			local flagName = flag.Name
 			if flag.ExpiresAt <= now then
-				flags[flagName] = nil
-				self:_removeFlagVisual(player, flagName)
+				flags[flagKey] = nil
+				if not self:HasFlag(player, flagName) then
+					self:_removeFlagVisual(player, flagName)
+				end
 				changed = true
 				continue
 			end

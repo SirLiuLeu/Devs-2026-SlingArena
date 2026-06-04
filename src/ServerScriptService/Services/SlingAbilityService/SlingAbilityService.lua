@@ -18,7 +18,7 @@ local function getService(context, name: string)
 	return context.Services and context.Services[name]
 end
 
--- Food DoT state: tracks active Burn/Poison effects per food model and flag name.
+-- Food DoT state: tracks active Burn/Poison effects per food model, flag name, and attacker user ID.
 local _foodDotState: { [string]: any } = {}
 
 function SlingAbilityService.new(context)
@@ -115,10 +115,10 @@ end
 
 function SlingAbilityService:_applyFoodDot(food: Model, foodId: string, config: any, instigator: Player?)
 	local flagName = config.dotFlag
-	local stateKey = string.format("%s:%s", foodId, flagName)
+	local instigatorUserId = instigator and instigator.UserId or 0
+	local stateKey = string.format("%s:%s:%d", foodId, flagName, instigatorUserId)
 	local existing = _foodDotState[stateKey]
-	local maxStacks = math.max(1, config.dotMaxStack or 1)
-	local stacks = existing and math.min((existing.stacks or 0) + 1, maxStacks) or 1
+	local stacks = existing and (existing.stacks or 1) or 1
 	local now = os.clock()
 	_foodDotState[stateKey] = {
 		food = food,
@@ -130,6 +130,7 @@ function SlingAbilityService:_applyFoodDot(food: Model, foodId: string, config: 
 		lastTickAt = existing and existing.lastTickAt or now,
 		expiresAt = now + (config.dotDuration or 0),
 		instigator = instigator,
+		instigatorUserId = instigatorUserId,
 	}
 end
 
