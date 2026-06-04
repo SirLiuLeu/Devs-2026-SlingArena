@@ -17,7 +17,6 @@ type ActiveFlag = {
 	Source: Player?,
 	LastTickAt: number?,
 	Data: any?,
-	Sources: { [string]: any }?,
 }
 
 type FlagVisual = {
@@ -55,30 +54,6 @@ local function getEffectAttachment(root: BasePart, effectName: string): Attachme
 	return nil
 end
 
-
-local function getSourceKey(source: Player?): string
-	if source then
-		return tostring(source.UserId)
-	end
-	return "environment"
-end
-
-local function countActiveSources(sources: { [string]: any }?, now: number): (number, number)
-	local count = 0
-	local latestExpiry = 0
-	if not sources then
-		return count, latestExpiry
-	end
-	for key, sourceData in pairs(sources) do
-		if sourceData.ExpiresAt > now then
-			count += 1
-			latestExpiry = math.max(latestExpiry, sourceData.ExpiresAt)
-		else
-			sources[key] = nil
-		end
-	end
-	return count, latestExpiry
-end
 local function buildFlagSnapshot(flags: { [string]: ActiveFlag }?): any
 	local snapshot = {}
 	if not flags then
@@ -245,44 +220,22 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 		self._activeFlags[player] = flags
 	end
 	local existing = flags[flagName]
-	local now = os.clock()
-	if data and data.SourceScoped == true then
-		local sources = (existing and existing.Sources) or {}
-		local sourceKey = getSourceKey(source)
-		local existingSource = sources[sourceKey]
-		sources[sourceKey] = {
-			Source = source,
-			ExpiresAt = now + resolvedDuration,
-			LastTickAt = existingSource and existingSource.LastTickAt or now,
-		}
-		local activeSourceCount, latestExpiry = countActiveSources(sources, now)
-		flags[flagName] = {
-			Name = flagName,
-			ExpiresAt = latestExpiry,
-			Stacks = math.max(1, activeSourceCount),
-			Source = source,
-			LastTickAt = existing and existing.LastTickAt or now,
-			Data = data,
-			Sources = sources,
-		}
-	else
-		local maxStack = math.max(1, tonumber((data and data.MaxStack) or defaults.MaxStack) or 1)
-		local stackable = (data and data.Stackable) == true or defaults.Stackable == true
-		local stacks = 1
-		if existing and existing.ExpiresAt > now and stackable then
-			stacks = math.clamp((existing.Stacks or 1) + 1, 1, maxStack)
-		elseif existing and existing.ExpiresAt > now then
-			stacks = existing.Stacks or 1
-		end
-		flags[flagName] = {
-			Name = flagName,
-			ExpiresAt = math.max(existing and existing.ExpiresAt or 0, now + resolvedDuration),
-			Stacks = stacks,
-			Source = source,
-			LastTickAt = existing and existing.LastTickAt or now,
-			Data = data,
-		}
+	local maxStack = math.max(1, tonumber((data and data.MaxStack) or defaults.MaxStack) or 1)
+	local stackable = (data and data.Stackable) == true or defaults.Stackable == true
+	local stacks = 1
+	if existing and existing.ExpiresAt > os.clock() and stackable then
+		stacks = math.clamp((existing.Stacks or 1) + 1, 1, maxStack)
+	elseif existing and existing.ExpiresAt > os.clock() then
+		stacks = existing.Stacks or 1
 	end
+	flags[flagName] = {
+		Name = flagName,
+		ExpiresAt = math.max(existing and existing.ExpiresAt or 0, os.clock() + resolvedDuration),
+		Stacks = stacks,
+		Source = source,
+		LastTickAt = existing and existing.LastTickAt or os.clock(),
+		Data = data,
+	}
 	self:_applyFlagVisual(player, flagName, data)
 	if defaults.InterruptCharge or flagName == "Petrify" or flagName == "Stun" then
 		state.IsCharging = false
@@ -335,38 +288,15 @@ function FlagService:TickFlags(dt: number)
 			local tickInterval = (flag.Data and flag.Data.TickInterval) or defaults.TickInterval
 			local damagePerTick = (flag.Data and flag.Data.DamagePerTick) or defaults.DamagePerTick
 			if tickInterval and damagePerTick and not self:HasFlag(player, "Invulnerable") then
-				local damagePipeline = getService(self._context, "DamagePipelineService")
-				if flag.Data and flag.Data.SourceScoped == true then
-					local activeSourceCount, latestExpiry = countActiveSources(flag.Sources, now)
-					flag.Stacks = activeSourceCount
-					flag.ExpiresAt = latestExpiry
-					if activeSourceCount <= 0 then
-						flags[flagName] = nil
-						self:_removeFlagVisual(player, flagName)
-						changed = true
-						continue
-					end
-					for _, sourceData in pairs(flag.Sources or {}) do
-						if now - (sourceData.LastTickAt or now) >= tickInterval then
-							sourceData.LastTickAt = now
-							local amount = math.max(0, damagePerTick)
-							if damagePipeline and typeof(damagePipeline.ApplyDamage) == "function" then
-								damagePipeline:ApplyDamage(player, amount, sourceData.Source, nil, { SuppressKnockback = true })
-							elseif stateService then
-								stateService:ApplyDamage(player, amount)
-							end
-						end
-					end
-				else
-					local lastTickAt = flag.LastTickAt or now
-					if now - lastTickAt >= tickInterval then
-						flag.LastTickAt = now
-						local amount = damagePerTick * math.max(1, flag.Stacks or 1)
-						if damagePipeline and typeof(damagePipeline.ApplyDamage) == "function" then
-							damagePipeline:ApplyDamage(player, amount, flag.Source, nil, { SuppressKnockback = true })
-						elseif stateService then
-							stateService:ApplyDamage(player, amount)
-						end
+				local lastTickAt = flag.LastTickAt or now
+				if now - lastTickAt >= tickInterval then
+					flag.LastTickAt = now
+					local damagePipeline = getService(self._context, "DamagePipelineService")
+					local amount = damagePerTick * math.max(1, flag.Stacks or 1)
+					if damagePipeline and typeof(damagePipeline.ApplyDamage) == "function" then
+						damagePipeline:ApplyDamage(player, amount, flag.Source, nil, { SuppressKnockback = true })
+					elseif stateService then
+						stateService:ApplyDamage(player, amount)
 					end
 				end
 			end

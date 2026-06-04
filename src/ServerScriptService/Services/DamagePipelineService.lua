@@ -3,9 +3,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
-local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
 type Context = {
 	Services: any,
@@ -18,6 +18,7 @@ type DamageOptions = {
 	SuppressFeedback: boolean?,
 	SuppressDeathHandling: boolean?,
 	SuppressKnockback: boolean?,
+	KnockbackDuration: number?,
 }
 
 local DamagePipelineService = {}
@@ -54,7 +55,7 @@ function DamagePipelineService:Init()
 		victim: Player,
 		_attacker: Player?,
 		knockbackVelocity: Vector3,
-		_collisionMeta: any
+		collisionMeta: any
 	)
 		if not (self._knockbackRemote and typeof(knockbackVelocity) == "Vector3") then
 			return
@@ -64,7 +65,8 @@ function DamagePipelineService:Init()
 			return
 		end
 		local clamped = planar.Unit * math.min(planar.Magnitude, BalanceConfig.MaxVelocity)
-		self._knockbackRemote:FireClient(victim, clamped)
+		local duration = collisionMeta and collisionMeta.Duration or PhysicsConfig.Collision.KnockbackImpulseDuration
+		self._knockbackRemote:FireClient(victim, clamped, duration)
 	end)
 
 	self._context.EventBus:On("CollisionPlayerHit", function(
@@ -101,8 +103,8 @@ function DamagePipelineService:Init()
 			warn("[DamagePipelineService] PlayerStateService unavailable; level-up growth skipped.")
 			return
 		end
-		local healedAmount = stateService:ApplyLevelGrowth(player) or 0
-		self:_sendFeedback(player, "LevelUp", { HealedAmount = healedAmount })
+		stateService:ApplyLevelGrowth(player)
+		self:_sendFeedback(player, "LevelUp", {})
 	end)
 
 end

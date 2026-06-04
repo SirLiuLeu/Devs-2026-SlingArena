@@ -90,6 +90,7 @@ local PhysicsConfig = {
 		AttackerTangentialVelocityRetention = 0.92,
 		CollisionAngleReductionExponent = 1.35,
 		CollisionEnergyLossRatio = 0.16,
+		KnockbackImpulseDuration = 0.1,
 
 		-- Food collision response uses the same single-step model on client and server.
 		FoodRestitution = 0.55,

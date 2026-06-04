@@ -126,32 +126,23 @@ local function getReportedHorizontalVelocity(payload: any): Vector3
 	return Vector3.zero
 end
 
-local function getObservedSpeed(payload: any): number
-	if payload and typeof(payload.observedSpeed) == "number" then
-		return math.clamp(payload.observedSpeed, 0, PhysicsConfig.Collision.MaxAllowedSpeed)
-	end
-	return 0
-end
-
-local function resolveImpactVelocity(root: BasePart, payload: any): Vector3
+local function resolveImpactVelocity(root: BasePart, payload: any, launchState: any): Vector3
 	local rootVelocity = getHorizontalVelocity(root)
 	local reportedVelocity = getReportedHorizontalVelocity(payload)
-	local observedSpeed = getObservedSpeed(payload)
 	local velocity = if rootVelocity.Magnitude >= reportedVelocity.Magnitude then rootVelocity else reportedVelocity
 
-	-- Client-owned launching roots can be a frame ahead of the server. Trust the
-	-- validated impact report speed only in the reported/current movement direction;
-	-- never reconstruct speed from launchState initial/current values here.
-	if observedSpeed > velocity.Magnitude then
-		local directionSource = if reportedVelocity.Magnitude > PhysicsConfig.Movement.InputDeadzone
-			then reportedVelocity
-			else rootVelocity
-		if directionSource.Magnitude > PhysicsConfig.Movement.InputDeadzone then
-			return directionSource.Unit * observedSpeed
-		end
+	local observedSpeed = if payload and typeof(payload.observedSpeed) == "number"
+		then math.clamp(payload.observedSpeed, 0, PhysicsConfig.Collision.MaxAllowedSpeed)
+		else 0
+	local launchSpeed = math.max(launchState.currentSpeed or 0, launchState.initialSpeed or 0, observedSpeed)
+	if velocity.Magnitude >= launchSpeed or typeof(launchState.direction) ~= "Vector3" then
+		return velocity
 	end
-
-	return velocity
+	local direction = Vector3.new(launchState.direction.X, 0, launchState.direction.Z)
+	if direction.Magnitude < 0.001 then
+		return velocity
+	end
+	return direction.Unit * launchSpeed
 end
 
 local function clampHorizontalVelocity(velocity: Vector3): Vector3
@@ -261,18 +252,10 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	if lastHitAt and (now - lastHitAt) < SAME_TARGET_DEDUPE_SECONDS then
 		return
 	end
-	local attackerVelocity = resolveImpactVelocity(root, payload)
+	local attackerVelocity = resolveImpactVelocity(root, payload, launchState)
 	local defenderVelocity = getHorizontalVelocity(targetRoot)
 	local collisionResult = VelocityDecay.ResolvePlayerCollision(attackerVelocity, defenderVelocity, normal)
 	local impactSpeed = collisionResult.ClosingSpeed
-	print(string.format(
-		"[CollisionService] Sling impact attackerRootSpeed=%.2f observedSpeed=%.2f closingSpeed=%.2f angleScale=%.2f defenderOut=%.2f",
-		getHorizontalVelocity(root).Magnitude,
-		getObservedSpeed(payload),
-		collisionResult.ClosingSpeed,
-		collisionResult.AngleScale,
-		collisionResult.DefenderVelocity.Magnitude
-	))
 	if impactSpeed < PhysicsConfig.Collision.RealHitMinClosingSpeed then
 		return
 	end
@@ -308,7 +291,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		and defenderOut.Magnitude > PhysicsConfig.Collision.MinPostCollisionSpeed
 	if shouldKnockback then
 		stateService:SetMovementState(defender, "Knockback")
-		task.defer(function()
+		task.delay(PhysicsConfig.Collision.KnockbackImpulseDuration, function()
 			local defenderState = stateService:GetState(defender)
 			if defenderState and defenderState.MovementState == "Knockback" then
 				stateService:SetMovementState(defender, "Idle")
@@ -320,7 +303,6 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		Speed = impactSpeed,
 		ImpactNormal = normal,
 		AngleFactor = collisionResult.AngleFactor,
-		AngleScale = collisionResult.AngleScale,
 		NormalSpeed = collisionResult.NormalSpeed,
 		TangentialSpeed = collisionResult.TangentialSpeed,
 		LaunchEnergy = launchState.energy,
@@ -330,13 +312,13 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	})
 	if canDamage then
 		self._context.EventBus:Fire("CollisionPlayerHit", defender, player, impactSpeed, normal, {
+			Duration = PhysicsConfig.Collision.KnockbackImpulseDuration,
 			ImpactNormal = normal,
 			ImpactSpeed = impactSpeed,
 			AngleFactor = collisionResult.AngleFactor,
-			AngleScale = collisionResult.AngleScale,
 			NormalSpeed = collisionResult.NormalSpeed,
 			TangentialSpeed = collisionResult.TangentialSpeed,
-			InitialImpactSpeed = attackerVelocity.Magnitude,
+			InitialImpactSpeed = math.max(launchState.initialSpeed or 0, impactSpeed),
 			CollisionCount = launchState.collisions,
 			LaunchEnergy = launchState.energy,
 			ChargeRatio = launchState.chargeRatio or 0,
@@ -346,13 +328,13 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	end
 	if shouldKnockback then
 		self._context.EventBus:Fire("CollisionPlayerKnockback", defender, player, defenderOut, {
+			Duration = PhysicsConfig.Collision.KnockbackImpulseDuration,
 			ImpactNormal = normal,
 			ImpactSpeed = impactSpeed,
 			AngleFactor = collisionResult.AngleFactor,
-			AngleScale = collisionResult.AngleScale,
 			NormalSpeed = collisionResult.NormalSpeed,
 			TangentialSpeed = collisionResult.TangentialSpeed,
-			InitialImpactSpeed = attackerVelocity.Magnitude,
+			InitialImpactSpeed = math.max(launchState.initialSpeed or 0, impactSpeed),
 			CollisionCount = launchState.collisions,
 			TransferredEnergy = transferEnergy,
 		})

@@ -113,71 +113,50 @@ function SlingAbilityService:_tryApplyFoodDot(player: Player, target: any)
 	self:_applyFoodDot(target, foodId, config, player)
 end
 
-local function getDotSourceKey(instigator: Player?): string
-	if instigator then
-		return tostring(instigator.UserId)
-	end
-	return "environment"
-end
-
 function SlingAbilityService:_applyFoodDot(food: Model, foodId: string, config: any, instigator: Player?)
 	local flagName = config.dotFlag
 	local stateKey = string.format("%s:%s", foodId, flagName)
 	local existing = _foodDotState[stateKey]
+	local maxStacks = math.max(1, config.dotMaxStack or 1)
+	local stacks = existing and math.min((existing.stacks or 0) + 1, maxStacks) or 1
 	local now = os.clock()
-	local sources = (existing and existing.sources) or {}
-	local sourceKey = getDotSourceKey(instigator)
-	local existingSource = sources[sourceKey]
-	sources[sourceKey] = {
-		instigator = instigator,
-		lastTickAt = existingSource and existingSource.lastTickAt or now,
-		expiresAt = now + (config.dotDuration or 0),
-	}
 	_foodDotState[stateKey] = {
 		food = food,
 		foodId = foodId,
 		flagName = flagName,
+		stacks = stacks,
 		damagePerTick = config.dotDamagePerTick or 0,
 		tickInterval = config.dotTickInterval or 1,
-		sources = sources,
+		lastTickAt = existing and existing.lastTickAt or now,
+		expiresAt = now + (config.dotDuration or 0),
+		instigator = instigator,
 	}
 end
 
 function SlingAbilityService:_tickFoodDots()
 	local now = os.clock()
 	local toRemove = {}
-	local foodService = getService(self._context, "FoodService")
 	for stateKey, dotData in pairs(_foodDotState) do
 		local food = dotData.food
-		if not (food and food.Parent) then
+		if not (food and food.Parent) or now >= dotData.expiresAt then
 			table.insert(toRemove, stateKey)
 			continue
 		end
-		if not (foodService and typeof(foodService.ApplyDamageToFood) == "function") then
-			table.insert(toRemove, stateKey)
-			continue
-		end
-		local hasActiveSource = false
-		for sourceKey, sourceData in pairs(dotData.sources or {}) do
-			if now >= sourceData.expiresAt then
-				dotData.sources[sourceKey] = nil
+		if now - (dotData.lastTickAt or now) >= dotData.tickInterval then
+			dotData.lastTickAt = now
+			local totalDamage = math.max(0, dotData.damagePerTick or 0) * math.max(1, dotData.stacks or 1)
+			if totalDamage <= 0 then
 				continue
 			end
-			hasActiveSource = true
-			if now - (sourceData.lastTickAt or now) >= dotData.tickInterval then
-				sourceData.lastTickAt = now
-				local damage = math.max(0, dotData.damagePerTick or 0)
-				if damage > 0 then
-					local damaged = foodService:ApplyDamageToFood(food, damage, sourceData.instigator)
-					if not damaged or not food.Parent then
-						table.insert(toRemove, stateKey)
-						break
-					end
-				end
+			local foodService = getService(self._context, "FoodService")
+			if not (foodService and typeof(foodService.ApplyDamageToFood) == "function") then
+				table.insert(toRemove, stateKey)
+				continue
 			end
-		end
-		if not hasActiveSource then
-			table.insert(toRemove, stateKey)
+			local damaged = foodService:ApplyDamageToFood(food, totalDamage, dotData.instigator)
+			if not damaged or not food.Parent then
+				table.insert(toRemove, stateKey)
+			end
 		end
 	end
 	for _, stateKey in ipairs(toRemove) do
@@ -342,7 +321,6 @@ function SlingAbilityService:_handleCollision(attacker: Player, victim: Player, 
 	if config.dotFlag then
 		local dotData: any = {
 			Effect = config.dotEffect,           -- "Fire" for Burn, "Poison" for Poison
-			SourceScoped = true,
 			Stackable = true,
 			MaxStack = config.dotMaxStack,
 			TickInterval = config.dotTickInterval,
