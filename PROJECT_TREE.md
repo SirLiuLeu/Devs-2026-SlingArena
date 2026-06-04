@@ -518,25 +518,15 @@ DataModel
 │        ├─ FarmZone_Main (Model)
 │        ├─ LavaBase (Part)
 │        └─ SimulatorCircle (Model)
-│           ├── NeonRing (Model/Part)
 │           ├── GradientCylinder (MeshPart/Part)
+│           │    ├─ Decal
+│           │    ├─ Decal
+│           │    ├─ Decal
+│           │    └─ Decal
 │           └── LightCore (Part)
 │
 ## 🟪 ServerStorage
 ├─ ServerStorage [INFERRED runtime dependency]
-│  ├─ FoodTemplates
-│  │  ├─ Food1
-│  │  ├─ Food2
-│  │  ├─ Food3
-│  │  ├─ Food4
-│  │  ├─ Food5
-│  │  ├─ Food6
-│  │  └─ Food7
-│  │
-│  └─ TrapTemplates
-│     ├─ MineTrap
-│     └─ SpikeTrap
-│
 ## ⚫ Runtime Workspace
 └─ Workspace
    └─ Runtime
