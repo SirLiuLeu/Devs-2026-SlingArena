@@ -107,6 +107,43 @@ function PlayerService:ShowFloatingHpChange(adornee: BasePart?, amount: number)
 	Debris:AddItem(anchor, 0.85)
 end
 
+
+function PlayerService:ShowHpBarHealAmount(player: Player, amount: number)
+	if amount <= 0 then
+		return
+	end
+	local pawn = self:GetPawn(player)
+	local worldUi = pawn and pawn:FindFirstChild("SlingWorldUI")
+	local hpBarBackground = worldUi and worldUi:FindFirstChild("HpBarBackground")
+	if not (hpBarBackground and hpBarBackground:IsA("Frame")) then
+		return
+	end
+
+	local existing = hpBarBackground:FindFirstChild("LevelUpHealAmount")
+	if existing then
+		existing:Destroy()
+	end
+
+	local label = Instance.new("TextLabel")
+	label.Name = "LevelUpHealAmount"
+	label.BackgroundTransparency = 1
+	label.AnchorPoint = Vector2.new(0.5, 1)
+	label.Position = UDim2.new(0.5, 0, 0, -2)
+	label.Size = UDim2.new(1, 0, 0, 18)
+	label.Font = Enum.Font.GothamBold
+	label.Text = string.format("+%d HP", math.floor(amount + 0.5))
+	label.TextColor3 = Color3.fromRGB(80, 255, 120)
+	label.TextScaled = true
+	label.TextStrokeTransparency = 0.3
+	label.Parent = hpBarBackground
+
+	TweenService:Create(label, TweenInfo.new(1), {
+		Position = UDim2.new(0.5, 0, 0, -20),
+		TextTransparency = 1,
+		TextStrokeTransparency = 1,
+	}):Play()
+	Debris:AddItem(label, 1.05)
+end
 function PlayerService:_waitForPlayerReady(player: Player)
 	while player.Parent == Players and not player:FindFirstChildOfClass("PlayerGui") do
 		task.wait()

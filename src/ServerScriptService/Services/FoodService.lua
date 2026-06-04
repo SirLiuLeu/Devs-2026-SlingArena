@@ -23,6 +23,9 @@ local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
 local MAX_ALLOWED_SPEED = PhysicsConfig.Collision.MaxAllowedSpeed
 local SAME_TARGET_FOOD_DEDUPE_SECONDS = 0.28
 local DEBUG_FOOD_HIT_REJECTS = false
+local DEFAULT_ACTIVE_PER_FOOD_SPAWN = 10
+local DEFAULT_PLACEMENT_MAX_ATTEMPTS = 80
+local PLACEMENT_EPSILON = 0.05
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
@@ -113,7 +116,7 @@ function FoodService.new(context)
 	local self = setmetatable({}, FoodService)
 	self._context = context
 	self._foodModels = {}
-	self._foodSpawnsByZone = {}
+	self._foodPositionsBySpawn = {}
 	self._foodEntries = {}
 	self._foodById = {}
 	self._foodGrid = {}
@@ -234,6 +237,21 @@ function FoodService:_scanAndSpawnAllArenaMaps()
 	end
 end
 
+function FoodService:_isFoodAllowedInZone(foodName: string, zoneName: string): boolean
+	local rule = FoodConfig.Foods[foodName]
+	local zoneRules = FoodConfig.ZoneRules[zoneName]
+	if not (rule and zoneRules) then
+		return false
+	end
+	if rule.Type == "Common" then
+		return zoneRules.AllowCommon == true
+	end
+	if rule.Type == "Unique" then
+		return zoneRules.AllowUnique == true
+	end
+	return zoneRules.AllowHpFood == true
+end
+
 function FoodService:_pickWeightedType(zoneName: string): string?
 	local weights = FoodConfig.ZoneWeights[zoneName]
 	if not weights then
@@ -241,8 +259,18 @@ function FoodService:_pickWeightedType(zoneName: string): string?
 	end
 	local totalWeight = 0
 	for rarity, weight in pairs(weights) do
-		if weight > 0 and FoodConfig.TypePools[rarity] then
-			totalWeight += weight
+		local pool = FoodConfig.TypePools[rarity]
+		if weight > 0 and pool then
+			local hasAllowedFood = false
+			for _, foodName in ipairs(pool) do
+				if self:_isFoodAllowedInZone(foodName, zoneName) then
+					hasAllowedFood = true
+					break
+				end
+			end
+			if hasAllowedFood then
+				totalWeight += weight
+			end
 		end
 	end
 	if totalWeight <= 0 then
@@ -251,55 +279,102 @@ function FoodService:_pickWeightedType(zoneName: string): string?
 	local roll = math.random() * totalWeight
 	local run = 0
 	for rarity, weight in pairs(weights) do
-		if weight > 0 and FoodConfig.TypePools[rarity] then
+		local pool = FoodConfig.TypePools[rarity]
+		local candidates = {}
+		if weight > 0 and pool then
+			for _, foodName in ipairs(pool) do
+				if self:_isFoodAllowedInZone(foodName, zoneName) then
+					table.insert(candidates, foodName)
+				end
+			end
+		end
+		if #candidates > 0 then
 			run += weight
 			if roll <= run then
-				local pool = FoodConfig.TypePools[rarity]
-				if #pool > 0 then
-					return pool[math.random(1, #pool)]
-				end
+				return candidates[math.random(1, #candidates)]
 			end
 		end
 	end
 	return nil
 end
 
-function FoodService:_buildSpawnPosition(spawnPart: BasePart, usedPositions: { Vector3 }): Vector3
-	local radius = FoodConfig.SpawnRadius
-	local minDistance = FoodConfig.MinNoOverlapDistance
-	local minDistanceSq = minDistance * minDistance
-	local fallback = spawnPart.Position
-	for _ = 1, 6 do
-		local offset = Vector3.new(math.random(-radius, radius), 0, math.random(-radius, radius))
-		local candidate = spawnPart.Position + offset
-		local overlaps = false
-		for _, prior in ipairs(usedPositions) do
-			if sqrDistanceXZ(candidate, prior) < minDistanceSq then
-				overlaps = true
-				break
+function FoodService:_getFoodPlacementRadius(foodType: string): number
+	local template = self._foodModels[foodType]
+	local hitbox = template and template:FindFirstChild("Hitbox")
+	if hitbox and hitbox:IsA("BasePart") then
+		return math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5
+	end
+	return FoodConfig.MinNoOverlapDistance * 0.5
+end
+
+function FoodService:_getActiveSpawnPositions(spawnPart: BasePart): { any }
+	local positions = self._foodPositionsBySpawn[spawnPart]
+	if not positions then
+		positions = {}
+		self._foodPositionsBySpawn[spawnPart] = positions
+	end
+	return positions
+end
+
+function FoodService:_positionOverlaps(candidate: Vector3, candidateRadius: number, usedPositions: { any }): boolean
+	for _, prior in ipairs(usedPositions) do
+		local required = math.max(FoodConfig.MinNoOverlapDistance, candidateRadius + (prior.Radius or 0) + PLACEMENT_EPSILON)
+		if sqrDistanceXZ(candidate, prior.Position) <= required * required then
+			return true
+		end
+	end
+	return false
+end
+
+
+function FoodService:_overlapsActiveFood(candidate: Vector3, candidateRadius: number): boolean
+	for _, entry in ipairs(self:_collectNearbyEntries(candidate)) do
+		if entry.IsActive and not entry.IsConsumed then
+			local hitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
+			if hitbox and hitbox:IsA("BasePart") then
+				local existingRadius = entry.PlacementRadius or (math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5)
+				local required = math.max(FoodConfig.MinNoOverlapDistance, candidateRadius + existingRadius + PLACEMENT_EPSILON)
+				if sqrDistanceXZ(candidate, hitbox.Position) <= required * required then
+					return true
+				end
 			end
 		end
-		if not overlaps then
+	end
+	return false
+end
+function FoodService:_buildSpawnPosition(spawnPart: BasePart, foodType: string, usedPositions: { any }): Vector3?
+	local radius = FoodConfig.SpawnRadius
+	local candidateRadius = self:_getFoodPlacementRadius(foodType)
+	local maxAttempts = math.max(1, FoodConfig.PlacementMaxAttempts or DEFAULT_PLACEMENT_MAX_ATTEMPTS)
+	for _ = 1, maxAttempts do
+		local angle = math.random() * math.pi * 2
+		local distance = math.sqrt(math.random()) * radius
+		local offset = Vector3.new(math.cos(angle) * distance, 0, math.sin(angle) * distance)
+		local candidate = spawnPart.Position + offset
+		if not self:_positionOverlaps(candidate, candidateRadius, usedPositions)
+			and not self:_overlapsActiveFood(candidate, candidateRadius) then
 			return candidate
 		end
 	end
-	return fallback
+	return nil
 end
 
-function FoodService:_spawnFoodOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string)
+function FoodService:_spawnFoodOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string): boolean
 	local foodType = self:_pickWeightedType(zoneName)
 	if not foodType then
-		return
+		return false
 	end
 	local foodRule = FoodConfig.Foods[foodType]
 	local template = self._foodModels[foodType]
 	if not (foodRule and template) then
-		return
+		return false
 	end
-	local usedPositions = self._foodSpawnsByZone[spawnPart] or {}
-	local spawnPos = self:_buildSpawnPosition(spawnPart, usedPositions)
-	table.insert(usedPositions, spawnPos)
-	self._foodSpawnsByZone[spawnPart] = usedPositions
+	local usedPositions = self:_getActiveSpawnPositions(spawnPart)
+	local spawnPos = self:_buildSpawnPosition(spawnPart, foodType, usedPositions)
+	if not spawnPos then
+		warn(string.format("[FoodService] Failed to place %s at %s after bounded retries", foodType, spawnPart:GetFullName()))
+		return false
+	end
 
 	local clone = template:Clone()
 	clone.Name = foodType
@@ -308,7 +383,7 @@ function FoodService:_spawnFoodOnSpawn(mapModel: Model, foodContainer: Folder, s
 	local hitbox = clone:FindFirstChild("Hitbox") :: BasePart?
 	if not hitbox then
 		clone:Destroy()
-		return
+		return false
 	end
 	clone.PrimaryPart = hitbox
 	clone:PivotTo(CFrame.new(spawnPos))
@@ -323,6 +398,8 @@ function FoodService:_spawnFoodOnSpawn(mapModel: Model, foodContainer: Folder, s
 		MaxHP = math.max(0, foodRule.HP),
 		CurrentHP = math.max(0, foodRule.HP),
 		LastHitBy = nil,
+		SpawnPosition = spawnPos,
+		PlacementRadius = self:_getFoodPlacementRadius(foodType),
 	}
 	clone:SetAttribute("FoodId", entry.Id)
 	clone:SetAttribute("FoodRarity", foodRule.Type)
@@ -334,8 +411,29 @@ function FoodService:_spawnFoodOnSpawn(mapModel: Model, foodContainer: Folder, s
 	self._foodById[entry.Id] = entry
 	self._foodByInstance[clone] = entry
 	self:_addEntryToGrid(entry)
+	table.insert(usedPositions, { Position = spawnPos, Radius = entry.PlacementRadius, Entry = entry })
+	entry.SpawnPositionRecord = usedPositions[#usedPositions]
+	return true
 end
 
+
+function FoodService:_removeEntryFromSpawnPositions(entry: any)
+	local spawnPart = entry.SpawnPart
+	local positions = spawnPart and self._foodPositionsBySpawn[spawnPart]
+	if not positions then
+		return
+	end
+	for index = #positions, 1, -1 do
+		if positions[index].Entry == entry then
+			table.remove(positions, index)
+			break
+		end
+	end
+	if #positions == 0 then
+		self._foodPositionsBySpawn[spawnPart] = nil
+	end
+	entry.SpawnPositionRecord = nil
+end
 function FoodService:ClearMapFood(mapModel: Model)
 	for instance, entry in pairs(self._foodEntries) do
 		if instance and instance.Parent and instance:IsDescendantOf(mapModel) then
@@ -347,6 +445,7 @@ function FoodService:ClearMapFood(mapModel: Model)
 				self._foodById[entry.Id] = nil
 			end
 			self._foodByInstance[instance] = nil
+			self:_removeEntryFromSpawnPositions(entry)
 		end
 	end
 end
@@ -366,7 +465,16 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 		if zoneFolder:IsA("Folder") and FoodConfig.ZoneWeights[zoneFolder.Name] then
 			for _, spawnPart in ipairs(zoneFolder:GetChildren()) do
 				if spawnPart:IsA("BasePart") then
-					self:_spawnFoodOnSpawn(mapModel, foodContainer, spawnPart, zoneFolder.Name)
+					local spawned = 0
+					local targetCount = FoodConfig.ActivePerSpawn or DEFAULT_ACTIVE_PER_FOOD_SPAWN
+					for _ = 1, targetCount do
+						if self:_spawnFoodOnSpawn(mapModel, foodContainer, spawnPart, zoneFolder.Name) then
+							spawned += 1
+						end
+					end
+					if spawned ~= targetCount then
+						warn(string.format("[FoodService] Spawned %d/%d food items for %s", spawned, targetCount, spawnPart:GetFullName()))
+					end
 				end
 			end
 		end
@@ -412,6 +520,7 @@ function FoodService:_consumeFood(entry: any, player: Player)
 		self._foodById[entry.Id] = nil
 	end
 	self._foodByInstance[instance] = nil
+	self:_removeEntryFromSpawnPositions(entry)
 	if instance and instance.Parent then
 		instance:Destroy()
 	end
@@ -424,7 +533,6 @@ function FoodService:_consumeFood(entry: any, player: Player)
 		end
 		if stateService and rule.HealHP > 0 then
 			stateService:Heal(player, rule.HealHP)
-			stateService:PublishState(player)
 		end
 		local respawnDelay = rule.RespawnTime
 		task.delay(respawnDelay, function()

@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
+local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
@@ -100,8 +101,8 @@ function DamagePipelineService:Init()
 			warn("[DamagePipelineService] PlayerStateService unavailable; level-up growth skipped.")
 			return
 		end
-		stateService:ApplyLevelGrowth(player)
-		self:_sendFeedback(player, "LevelUp", {})
+		local healedAmount = stateService:ApplyLevelGrowth(player) or 0
+		self:_sendFeedback(player, "LevelUp", { HealedAmount = healedAmount })
 	end)
 
 end

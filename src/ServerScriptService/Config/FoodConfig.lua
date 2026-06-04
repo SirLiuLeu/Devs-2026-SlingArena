@@ -9,10 +9,12 @@ FoodConfig.CommonRespawnTime = 10
 FoodConfig.HpFoodRespawnTime = 30
 FoodConfig.UniqueRespawnTime = 90 -- 1m30s
 
-FoodConfig.SpawnRadius = 5
-FoodConfig.CommonActivePerSpawn = 5
-FoodConfig.HpActivePerSpawn = 1
+FoodConfig.SpawnRadius = 10
+FoodConfig.ActivePerSpawn = 10
+FoodConfig.CommonActivePerSpawn = 10
+FoodConfig.HpActivePerSpawn = 10
 FoodConfig.MinNoOverlapDistance = 3
+FoodConfig.PlacementMaxAttempts = 80
 
 --==================================================
 -- 2) FOOD DEFINITIONS (BY MODEL NAME)
@@ -244,12 +246,18 @@ FoodConfig.ZoneRules = {
 --==================================================
 -- 6) HELPERS
 --==================================================
-function FoodConfig.IsCommon(foodType: string): boolean
-	return foodType == "Common"
+function FoodConfig.IsCommon(foodName: string): boolean
+	local rule = FoodConfig.Foods[foodName]
+	return rule ~= nil and rule.Type == "Common"
 end
 
-function FoodConfig.IsHpFood(foodType: string): boolean
-	return foodType ~= "Common"
+function FoodConfig.IsHpFood(foodName: string): boolean
+	return not FoodConfig.IsCommon(foodName)
+end
+
+function FoodConfig.IsUnique(foodName: string): boolean
+	local rule = FoodConfig.Foods[foodName]
+	return rule ~= nil and rule.Type == "Unique"
 end
 
 return FoodConfig

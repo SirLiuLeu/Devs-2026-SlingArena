@@ -15,7 +15,7 @@ local targetRadius = BASE_GAMEPLAY_RADIUS
 
 local trackedMap: Model? = nil
 local trackedCircle: Model? = nil
-local basePartStates = {} :: {[BasePart]: {baseSize: Vector3, localOffset: CFrame}}
+local basePartStates = {} :: {[BasePart]: {baseSize: Vector3, localOffset: CFrame, baseTransparency: number}}
 local lightCorePart: BasePart? = nil
 local baseLightCoreCFrame: CFrame? = nil
 
@@ -46,6 +46,7 @@ local function cacheBaseStates(circle: Model)
 			basePartStates[descendant] = {
 				baseSize = descendant.Size,
 				localOffset = lightCore.CFrame:ToObjectSpace(descendant.CFrame),
+				baseTransparency = descendant.Transparency,
 			}
 		end
 	end
@@ -104,7 +105,7 @@ local function applyVisualScale(dt: number)
 
 	local replicatedRadius = trackedMap:GetAttribute(RADIUS_ATTRIBUTE_NAME)
 	if type(replicatedRadius) == "number" then
-		targetRadius = math.max(replicatedRadius, 0.1)
+		targetRadius = math.max(replicatedRadius, 0)
 	end
 
 	if math.abs(currentVisualRadius - targetRadius) > 0.001 then
@@ -138,11 +139,15 @@ local function applyVisualScale(dt: number)
 		return
 	end
 
-	local scaleXZ = currentVisualRadius / BASE_GAMEPLAY_RADIUS
+	local scaleXZ = if currentVisualRadius <= 0.001 then 0 else currentVisualRadius / BASE_GAMEPLAY_RADIUS
 	local lightCoreCFrame = centerCFrame
 
 	for part, state in pairs(basePartStates) do
 		if part.Parent then
+			part.Transparency = if scaleXZ <= 0 then 1 else state.baseTransparency
+			part.CanCollide = scaleXZ > 0
+			part.CanQuery = scaleXZ > 0
+			part.CanTouch = scaleXZ > 0
 			local localOffset = state.localOffset
 			local localPosition = localOffset.Position
 			local rotationOnly = localOffset - localPosition
