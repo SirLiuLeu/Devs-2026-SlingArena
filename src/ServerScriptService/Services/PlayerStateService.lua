@@ -351,17 +351,22 @@ function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
 	return true
 end
 
-function PlayerStateService:Heal(player: Player, amount: number)
+function PlayerStateService:Heal(player: Player, amount: number, showOnHpBar: boolean?)
 	local state = self._states[player]
-	if not state then return end
+	if not state then return 0 end
 	local before = state.CurrentHP
 	state.CurrentHP = math.min(state.MaxHP, state.CurrentHP + math.max(0, amount))
+	local restored = state.CurrentHP - before
 	local playerService = self._context.Services and self._context.Services.PlayerService
 	local root = playerService and playerService:GetRoot(player)
-	if root and state.CurrentHP ~= before then
-		playerService:ShowFloatingHpChange(root, state.CurrentHP - before)
+	if root and restored ~= 0 then
+		playerService:ShowFloatingHpChange(root, restored)
+	end
+	if showOnHpBar == true and restored > 0 and playerService and typeof(playerService.ShowHpBarRestore) == "function" then
+		playerService:ShowHpBarRestore(player, restored)
 	end
 	self:PublishState(player)
+	return restored
 end
 
 function PlayerStateService:TryConsumeHpPotion(player: Player): (boolean, string?)
@@ -504,7 +509,12 @@ function PlayerStateService:SetLastReleaseDuration(player: Player, duration: num
 end
 
 function PlayerStateService:ApplyLevelGrowth(player: Player)
-	self:RecalculateDerivedStats(player, true)
+	self:RecalculateDerivedStats(player, false)
+	local state = self._states[player]
+	if not state then
+		return
+	end
+	self:Heal(player, state.MaxHP * 0.2, true)
 end
 
 function PlayerStateService:GetBuff(player: Player): BuffState?
