@@ -23,6 +23,7 @@ local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
 local MAX_ALLOWED_SPEED = PhysicsConfig.Collision.MaxAllowedSpeed
 local SAME_TARGET_FOOD_DEDUPE_SECONDS = 0.28
 local DEBUG_FOOD_HIT_REJECTS = false
+local SPAWN_POSITION_RETRY_LIMIT = 30
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
@@ -234,14 +235,28 @@ function FoodService:_scanAndSpawnAllArenaMaps()
 	end
 end
 
+function FoodService:_isRarityAllowedInZone(zoneName: string, rarity: string): boolean
+	local rules = FoodConfig.ZoneRules[zoneName]
+	if not rules then
+		return false
+	end
+	if rarity == "Common" then
+		return rules.AllowCommon == true
+	end
+	if rarity == "Unique" then
+		return rules.AllowUnique == true
+	end
+	return rules.AllowHpFood == true
+end
+
 function FoodService:_pickWeightedType(zoneName: string): string?
 	local weights = FoodConfig.ZoneWeights[zoneName]
-	if not weights then
+	if not weights or not FoodConfig.ZoneRules[zoneName] then
 		return nil
 	end
 	local totalWeight = 0
 	for rarity, weight in pairs(weights) do
-		if weight > 0 and FoodConfig.TypePools[rarity] then
+		if weight > 0 and FoodConfig.TypePools[rarity] and self:_isRarityAllowedInZone(zoneName, rarity) then
 			totalWeight += weight
 		end
 	end
@@ -251,7 +266,7 @@ function FoodService:_pickWeightedType(zoneName: string): string?
 	local roll = math.random() * totalWeight
 	local run = 0
 	for rarity, weight in pairs(weights) do
-		if weight > 0 and FoodConfig.TypePools[rarity] then
+		if weight > 0 and FoodConfig.TypePools[rarity] and self:_isRarityAllowedInZone(zoneName, rarity) then
 			run += weight
 			if roll <= run then
 				local pool = FoodConfig.TypePools[rarity]
@@ -264,42 +279,96 @@ function FoodService:_pickWeightedType(zoneName: string): string?
 	return nil
 end
 
-function FoodService:_buildSpawnPosition(spawnPart: BasePart, usedPositions: { Vector3 }): Vector3
-	local radius = FoodConfig.SpawnRadius
-	local minDistance = FoodConfig.MinNoOverlapDistance
-	local minDistanceSq = minDistance * minDistance
-	local fallback = spawnPart.Position
-	for _ = 1, 6 do
-		local offset = Vector3.new(math.random(-radius, radius), 0, math.random(-radius, radius))
-		local candidate = spawnPart.Position + offset
-		local overlaps = false
-		for _, prior in ipairs(usedPositions) do
-			if sqrDistanceXZ(candidate, prior) < minDistanceSq then
-				overlaps = true
-				break
+function FoodService:_getZoneSpawnSetting(zoneName: string, settingName: string): number
+	local settings = FoodConfig.ZoneSpawnSettings[zoneName]
+	local value = settings and settings[settingName]
+	if type(value) == "number" then
+		return value
+	end
+	return 0
+end
+
+function FoodService:_getSpawnCountForZone(zoneName: string): number
+	return self:_getZoneSpawnSetting(zoneName, "ActivePerSpawn")
+end
+
+function FoodService:_getPlacementRadiusForZone(zoneName: string): number
+	return self:_getZoneSpawnSetting(zoneName, "PlacementRadius")
+end
+
+function FoodService:_getFoodPlacementRadius(template: Model): number
+	local hitbox = template:FindFirstChild("Hitbox")
+	if hitbox and hitbox:IsA("BasePart") then
+		return math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5
+	end
+	return 0
+end
+
+function FoodService:_isSpawnPositionValid(candidate: Vector3, foodRadius: number, batchPositions: { Vector3 }, batchRadii: { number }): boolean
+	for index, prior in ipairs(batchPositions) do
+		local spacing = foodRadius + (batchRadii[index] or 0) + FoodConfig.MinNoOverlapDistance
+		if sqrDistanceXZ(candidate, prior) <= spacing * spacing then
+			return false
+		end
+	end
+
+	for _, entry in ipairs(self:_collectNearbyEntries(candidate)) do
+		local instance = entry.Instance
+		local hitbox = instance and instance:FindFirstChild("Hitbox")
+		if hitbox and hitbox:IsA("BasePart") then
+			local otherRadius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5
+			local spacing = foodRadius + otherRadius + FoodConfig.MinNoOverlapDistance
+			if sqrDistanceXZ(candidate, hitbox.Position) <= spacing * spacing then
+				return false
 			end
 		end
-		if not overlaps then
+	end
+
+	return true
+end
+
+function FoodService:_buildSpawnPosition(spawnPart: BasePart, zoneName: string, foodRadius: number, batchPositions: { Vector3 }, batchRadii: { number }): Vector3?
+	local placementRadius = self:_getPlacementRadiusForZone(zoneName)
+	if placementRadius <= 0 then
+		local exactPosition = spawnPart.Position
+		if self:_isSpawnPositionValid(exactPosition, foodRadius, batchPositions, batchRadii) then
+			return exactPosition
+		end
+		return nil
+	end
+
+	for _ = 1, SPAWN_POSITION_RETRY_LIMIT do
+		local angle = math.random() * math.pi * 2
+		local distance = math.sqrt(math.random()) * placementRadius
+		local offset = Vector3.new(math.cos(angle) * distance, 0, math.sin(angle) * distance)
+		local candidate = spawnPart.Position + offset
+		if self:_isSpawnPositionValid(candidate, foodRadius, batchPositions, batchRadii) then
 			return candidate
 		end
 	end
-	return fallback
+
+	return nil
 end
 
-function FoodService:_spawnFoodOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string)
+function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string, batchPositions: { Vector3 }?, batchRadii: { number }?): boolean
 	local foodType = self:_pickWeightedType(zoneName)
 	if not foodType then
-		return
+		return false
 	end
 	local foodRule = FoodConfig.Foods[foodType]
 	local template = self._foodModels[foodType]
 	if not (foodRule and template) then
-		return
+		return false
 	end
-	local usedPositions = self._foodSpawnsByZone[spawnPart] or {}
-	local spawnPos = self:_buildSpawnPosition(spawnPart, usedPositions)
-	table.insert(usedPositions, spawnPos)
-	self._foodSpawnsByZone[spawnPart] = usedPositions
+
+	local activeBatchPositions = batchPositions or {}
+	local activeBatchRadii = batchRadii or {}
+	local foodRadius = self:_getFoodPlacementRadius(template)
+	local spawnPos = self:_buildSpawnPosition(spawnPart, zoneName, foodRadius, activeBatchPositions, activeBatchRadii)
+	if not spawnPos then
+		warn(string.format("[FoodService] Unable to find valid %s food position for %s", zoneName, spawnPart:GetFullName()))
+		return false
+	end
 
 	local clone = template:Clone()
 	clone.Name = foodType
@@ -326,6 +395,7 @@ function FoodService:_spawnFoodOnSpawn(mapModel: Model, foodContainer: Folder, s
 	}
 	clone:SetAttribute("FoodId", entry.Id)
 	clone:SetAttribute("FoodRarity", foodRule.Type)
+	clone:SetAttribute("FoodZone", zoneName)
 	if entry.MaxHP > 0 then
 		self:_attachFoodUI(entry, hitbox)
 	end
@@ -334,6 +404,34 @@ function FoodService:_spawnFoodOnSpawn(mapModel: Model, foodContainer: Folder, s
 	self._foodById[entry.Id] = entry
 	self._foodByInstance[clone] = entry
 	self:_addEntryToGrid(entry)
+	table.insert(activeBatchPositions, spawnPos)
+	table.insert(activeBatchRadii, foodRadius)
+	return true
+end
+
+function FoodService:_spawnFoodBatchOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string)
+	local spawnCount = self:_getSpawnCountForZone(zoneName)
+	if spawnCount <= 0 then
+		return
+	end
+
+	local batchPositions = {}
+	local batchRadii = {}
+	local spawned = 0
+	for _ = 1, spawnCount do
+		if self:_spawnSingleFoodOnSpawn(mapModel, foodContainer, spawnPart, zoneName, batchPositions, batchRadii) then
+			spawned += 1
+		end
+	end
+
+	if spawned < spawnCount then
+		warn(string.format(
+			"[FoodService] Spawned %d/%d food for %s; valid non-overlapping positions were exhausted",
+			spawned,
+			spawnCount,
+			spawnPart:GetFullName()
+		))
+	end
 end
 
 function FoodService:ClearMapFood(mapModel: Model)
@@ -366,7 +464,7 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 		if zoneFolder:IsA("Folder") and FoodConfig.ZoneWeights[zoneFolder.Name] then
 			for _, spawnPart in ipairs(zoneFolder:GetChildren()) do
 				if spawnPart:IsA("BasePart") then
-					self:_spawnFoodOnSpawn(mapModel, foodContainer, spawnPart, zoneFolder.Name)
+					self:_spawnFoodBatchOnSpawn(mapModel, foodContainer, spawnPart, zoneFolder.Name)
 				end
 			end
 		end
@@ -433,7 +531,7 @@ function FoodService:_consumeFood(entry: any, player: Player)
 				if mapModel then
 					local foodContainer = mapModel:FindFirstChild("FoodContainer")
 					if foodContainer and foodContainer:IsA("Folder") then
-						self:_spawnFoodOnSpawn(mapModel, foodContainer, entry.SpawnPart, entry.ZoneName)
+						self:_spawnSingleFoodOnSpawn(mapModel, foodContainer, entry.SpawnPart, entry.ZoneName)
 					end
 				end
 			end
