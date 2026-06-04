@@ -14,11 +14,14 @@ local LIGHT_CORE_NAME = "LightCore"
 local RADIUS_ATTRIBUTE_NAME = "CurrentRadius"
 
 local START_RADIUS = 420
-local MIN_RADIUS = 1
+local MIN_RADIUS = 0
 local SHRINK_DURATION_SECONDS = 10 * 60
 local DAMAGE_STEP_INTERVAL = 30
-local DAMAGE_START_PERCENT = 1
-local DAMAGE_MAX_PERCENT = 10
+local DAMAGE_TICK_INTERVAL = 1
+local DAMAGE_START_PERCENT = 0.5
+local DAMAGE_PERCENT_STEP = 0.5
+local DAMAGE_MAX_PERCENT = 5
+local DAMAGE_FIXED_BASE = 15000
 
 local function getPlanarPosition(position: Vector3): Vector2
 	return Vector2.new(position.X, position.Z)
@@ -49,6 +52,8 @@ function SafeZoneService.new(context)
 	self._activeArenaMap = nil :: Model?
 	self._visualCircle = nil :: Model?
 	self._lightCore = nil :: BasePart?
+	self._outsideDamageTimers = {} :: { [Player]: number }
+	self._circleBaseTransparency = {} :: { [BasePart]: number }
 	return self
 end
 
@@ -96,6 +101,12 @@ function SafeZoneService:_ensureVisualCircle(arenaMap: Model, centerPosition: Ve
 		return
 	end
 
+	for _, descendant in ipairs(circle:GetDescendants()) do
+		if descendant:IsA("BasePart") and self._circleBaseTransparency[descendant] == nil then
+			self._circleBaseTransparency[descendant] = descendant.Transparency
+		end
+	end
+
 	local lightCore = circle:FindFirstChild("LightCore", true)
 	if lightCore and lightCore:IsA("BasePart") then
 		self._lightCore = lightCore
@@ -126,9 +137,43 @@ function SafeZoneService:_updateRadius(dt: number)
 	self._radius = math.max(self._minRadius, target)
 end
 
+function SafeZoneService:_updateVisualTransparency()
+	local circle = self._visualCircle
+	if not circle then
+		return
+	end
+
+	local isCollapsed = self._radius <= 0
+	for _, descendant in ipairs(circle:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			if self._circleBaseTransparency[descendant] == nil then
+				self._circleBaseTransparency[descendant] = descendant.Transparency
+			end
+			descendant.Transparency = if isCollapsed then 1 else self._circleBaseTransparency[descendant]
+		end
+	end
+end
+
 function SafeZoneService:_getCurrentDamagePercent(): number
 	local rampSteps = math.floor(self._elapsed / DAMAGE_STEP_INTERVAL)
-	return math.clamp(DAMAGE_START_PERCENT + rampSteps, DAMAGE_START_PERCENT, DAMAGE_MAX_PERCENT)
+	return math.clamp(DAMAGE_START_PERCENT + (rampSteps * DAMAGE_PERCENT_STEP), DAMAGE_START_PERCENT, DAMAGE_MAX_PERCENT)
+end
+
+function SafeZoneService:_calculateOutsideDamage(state: any, damagePercent: number): number
+	local currentPercent = damagePercent / 100
+	local hp = if type(state.CurrentHP) == "number" then state.CurrentHP else state.MaxHP
+	return (hp * currentPercent) + (DAMAGE_FIXED_BASE * currentPercent)
+end
+
+function SafeZoneService:_isOutsideCircle(rootPosition: Vector3): boolean
+	if self._radius <= 0 then
+		return true
+	end
+
+	local flattenedCenter: Vector2 = getPlanarPosition(self._center)
+	local flattenedPlayerPos: Vector2 = getPlanarPosition(rootPosition)
+	local planarDistance = (flattenedPlayerPos - flattenedCenter).Magnitude
+	return planarDistance > self._radius
 end
 
 function SafeZoneService:_damagePlayersOutsideZone(dt: number)
@@ -139,23 +184,30 @@ function SafeZoneService:_damagePlayersOutsideZone(dt: number)
 		return
 	end
 
-	local flattenedCenter: Vector2 = getPlanarPosition(self._center)
 	local damagePercent = self:_getCurrentDamagePercent()
+	local activePlayers = {} :: { [Player]: boolean }
 
 	for _, player in ipairs(Players:GetPlayers()) do
+		activePlayers[player] = true
 		local state = playerStateService:GetState(player)
-		if state and state.IsAlive then
-			local root = playerService:GetRoot(player)
-			if root then
-				local flattenedPlayerPos: Vector2 = getPlanarPosition(root.Position)
-				local planarDistance = (flattenedPlayerPos - flattenedCenter).Magnitude
-				if planarDistance > self._radius then
-					local damage = state.MaxHP * (damagePercent / 100) * dt
-					-- Continuous systems (like safe-zone DOT on Heartbeat) must not emit per-tick RemoteEvent feedback.
-					-- GameplayFeedback is reserved for discrete events, not every frame.
-					damagePipelineService:ApplyDamage(player, damage, nil, nil, { SuppressFeedback = true })
-				end
+		local root = playerService:GetRoot(player)
+		if state and state.IsAlive and root and self:_isOutsideCircle(root.Position) then
+			local accumulated = (self._outsideDamageTimers[player] or 0) + dt
+			while accumulated >= DAMAGE_TICK_INTERVAL do
+				local damage = self:_calculateOutsideDamage(state, damagePercent)
+				-- Outside-zone damage is periodic DOT; do not emit per-tick RemoteEvent feedback.
+				damagePipelineService:ApplyDamage(player, damage, nil, nil, { SuppressFeedback = true })
+				accumulated -= DAMAGE_TICK_INTERVAL
 			end
+			self._outsideDamageTimers[player] = accumulated
+		else
+			self._outsideDamageTimers[player] = nil
+		end
+	end
+
+	for player in pairs(self._outsideDamageTimers) do
+		if not activePlayers[player] then
+			self._outsideDamageTimers[player] = nil
 		end
 	end
 end
@@ -189,6 +241,7 @@ end
 function SafeZoneService:Reset()
 	self._radius = self._startRadius
 	self._elapsed = 0
+	table.clear(self._outsideDamageTimers)
 end
 
 function SafeZoneService:_step(dt: number)
@@ -217,6 +270,7 @@ function SafeZoneService:_step(dt: number)
 			self:Reset()
 		end
 	end
+	self:_updateVisualTransparency()
 	self:_replicateRadius(arenaMap)
 	if self:_isDamageAllowed() then
 		self:_damagePlayersOutsideZone(dt)

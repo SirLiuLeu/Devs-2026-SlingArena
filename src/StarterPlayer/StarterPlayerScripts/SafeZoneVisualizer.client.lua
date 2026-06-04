@@ -15,7 +15,7 @@ local targetRadius = BASE_GAMEPLAY_RADIUS
 
 local trackedMap: Model? = nil
 local trackedCircle: Model? = nil
-local basePartStates = {} :: {[BasePart]: {baseSize: Vector3, localOffset: CFrame}}
+local basePartStates = {} :: {[BasePart]: {baseSize: Vector3, localOffset: CFrame, baseTransparency: number}}
 local lightCorePart: BasePart? = nil
 local baseLightCoreCFrame: CFrame? = nil
 
@@ -46,6 +46,7 @@ local function cacheBaseStates(circle: Model)
 			basePartStates[descendant] = {
 				baseSize = descendant.Size,
 				localOffset = lightCore.CFrame:ToObjectSpace(descendant.CFrame),
+				baseTransparency = descendant.Transparency,
 			}
 		end
 	end
@@ -104,7 +105,7 @@ local function applyVisualScale(dt: number)
 
 	local replicatedRadius = trackedMap:GetAttribute(RADIUS_ATTRIBUTE_NAME)
 	if type(replicatedRadius) == "number" then
-		targetRadius = math.max(replicatedRadius, 0.1)
+		targetRadius = math.max(replicatedRadius, 0)
 	end
 
 	if math.abs(currentVisualRadius - targetRadius) > 0.001 then
@@ -138,7 +139,8 @@ local function applyVisualScale(dt: number)
 		return
 	end
 
-	local scaleXZ = currentVisualRadius / BASE_GAMEPLAY_RADIUS
+	local scaleXZ = if BASE_GAMEPLAY_RADIUS > 0 then currentVisualRadius / BASE_GAMEPLAY_RADIUS else 0
+	local isCollapsed = targetRadius <= 0 and currentVisualRadius <= 0.001
 	local lightCoreCFrame = centerCFrame
 
 	for part, state in pairs(basePartStates) do
@@ -154,6 +156,7 @@ local function applyVisualScale(dt: number)
 				state.baseSize.Z * scaleXZ
 			)
 			part.CFrame = lightCoreCFrame * CFrame.new(scaledLocalPosition) * rotationOnly
+			part.Transparency = if isCollapsed then 1 else state.baseTransparency
 		end
 	end
 end

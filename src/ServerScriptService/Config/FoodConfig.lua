@@ -9,9 +9,9 @@ FoodConfig.CommonRespawnTime = 10
 FoodConfig.HpFoodRespawnTime = 30
 FoodConfig.UniqueRespawnTime = 90 -- 1m30s
 
-FoodConfig.SpawnRadius = 5
-FoodConfig.CommonActivePerSpawn = 5
-FoodConfig.HpActivePerSpawn = 1
+FoodConfig.SpawnRadius = 20
+FoodConfig.CommonActivePerSpawn = 10
+FoodConfig.HpActivePerSpawn = 10
 FoodConfig.MinNoOverlapDistance = 3
 
 --==================================================
@@ -181,6 +181,22 @@ FoodConfig.TypePools = {
 	Unique = {
 		"UniqueCrown",
 		"UniqueCore",
+	},
+}
+
+
+FoodConfig.ZoneSpawnSettings = {
+	CenterZones = {
+		ActivePerSpawn = 1,
+		PlacementRadius = 0,
+	},
+	MidZones = {
+		ActivePerSpawn = 10,
+		PlacementRadius = FoodConfig.SpawnRadius,
+	},
+	EdgeZones = {
+		ActivePerSpawn = 10,
+		PlacementRadius = FoodConfig.SpawnRadius,
 	},
 }
 
