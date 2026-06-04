@@ -224,7 +224,7 @@ local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitT
 		and (root.Position - hitbox.Position).Unit
 		or Vector3.new(0, 0, -1)
 	applyPredictedFoodCollision(root, normal, rarity)
-	print(`Reporting food hit: foodId={foodId}, hitType={hitType}, observedSpeed={reportSpeed}`)
+	--print(`Reporting food hit: foodId={foodId}, hitType={hitType}, observedSpeed={reportSpeed}`)
 	reportFoodRemote:FireServer({
 		foodId = foodId,
 		launchId = activeLaunchId,
@@ -262,7 +262,7 @@ local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpe
 		return
 	end
 	lastHit[cooldownKey] = now + REPORT_COOLDOWN
-	print(`Reporting player hit: targetUserId={targetPlayer.UserId}, observedSpeed={observedSpeed}`)
+	--print(`Reporting player hit: targetUserId={targetPlayer.UserId}, observedSpeed={observedSpeed}`)
 	reportCollisionRemote:FireServer({
 		targetType = "Player",
 		launchId = activeLaunchId,
