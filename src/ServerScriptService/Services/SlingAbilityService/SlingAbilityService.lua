@@ -321,8 +321,9 @@ function SlingAbilityService:_handleCollision(attacker: Player, victim: Player, 
 	-- Burn/Poison uses the same stack, refresh, tick, and duration settings as food DoT.
 	if config.dotFlag then
 		local dotData: any = {
-			Effect = config.dotEffect,           -- "Fire" for Burn, "Poison" for Poison
+			Effect = config.dotEffect,           -- "Burn" resolves to the existing Fire emitter; "Poison" uses Poison
 			Stackable = true,
+			RefreshOnly = true,
 			MaxStack = config.dotMaxStack,
 			TickInterval = config.dotTickInterval,
 			DamagePerTick = config.dotDamagePerTick,
@@ -333,9 +334,12 @@ function SlingAbilityService:_handleCollision(attacker: Player, victim: Player, 
 	-- Poison also applies a stackable slow.
 	if config.slowAmount then
 		stateService:ApplyFlag(victim, "Slow", config.slowDuration, attacker, {
+			Duration = config.slowDuration,
 			Stackable = true,
+			RefreshOnly = true,
 			MaxStack = 3,
 			SlowAmount = config.slowAmount,
+			DelayUntilStateExit = "Knockback",
 		})
 	end
 

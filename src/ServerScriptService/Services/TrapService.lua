@@ -36,6 +36,24 @@ local function getTrapFolderFromArena(arenaMap: Instance?): Folder?
 	return nil
 end
 
+local function resolveTrapType(trap: Instance?): string?
+	local current = trap
+	while current do
+		if current.Name == "SpikeTrap" then
+			return "SpikeTrap"
+		elseif current.Name == "LavaBase" then
+			return "LavaBase"
+		end
+		current = current.Parent
+	end
+	return nil
+end
+
+local function getTrapRule(trap: Instance?): any?
+	local trapType = resolveTrapType(trap)
+	return trapType and TrapConfig.Types and TrapConfig.Types[trapType] or nil
+end
+
 function TrapService.new(context)
 	local self = setmetatable({}, TrapService)
 	self._context = context
@@ -54,18 +72,22 @@ function TrapService:GetActiveTrapParts(): { BasePart }
 	local parts = {}
 	local arenaMap = getArenaMapModel()
 	local trapFolder = getTrapFolderFromArena(arenaMap)
-	self:_disconnectTrapTouched()
-	if not trapFolder then
-		return parts
-	end
-	for _, trap in ipairs(trapFolder:GetChildren()) do
-		if trap:IsA("BasePart") then
-			table.insert(parts, trap)
-		end
-		for _, trapPart in ipairs(trap:GetDescendants()) do
-			if trapPart:IsA("BasePart") then
-				table.insert(parts, trapPart)
+	if trapFolder then
+		for _, trap in ipairs(trapFolder:GetChildren()) do
+			if trap:IsA("BasePart") and getTrapRule(trap) then
+				table.insert(parts, trap)
 			end
+			for _, trapPart in ipairs(trap:GetDescendants()) do
+				if trapPart:IsA("BasePart") and getTrapRule(trapPart) then
+					table.insert(parts, trapPart)
+				end
+			end
+		end
+	end
+	if arenaMap then
+		local lavaBase = arenaMap:FindFirstChild("LavaBase")
+		if lavaBase and lavaBase:IsA("BasePart") then
+			table.insert(parts, lavaBase)
 		end
 	end
 	return parts
@@ -105,8 +127,7 @@ function TrapService:LoadMapResources(mapName: string)
 	local trapFolder = getTrapFolderFromArena(arenaMap)
 	self:_disconnectTrapTouched()
 	if not trapFolder then
-		warn("[TrapService] Missing Workspace.ArenaMap.Traps folder. Create traps manually in Studio.")
-		return
+		warn("[TrapService] Missing Workspace.ArenaMap.Traps folder. Spike traps must be created manually in Studio.")
 	end
 	for _, trapPart in ipairs(self:GetActiveTrapParts()) do
 		self:_bindTrapTouched(trapPart)
@@ -118,28 +139,47 @@ function TrapService:SpawnTrapForActiveMap(_count: number)
 end
 
 function TrapService:OnTrapCollision(player: Player, trap: BasePart)
+	local rule = getTrapRule(trap)
+	if not rule then
+		return
+	end
 	local now = os.clock()
-	local last = self._lastTriggeredAt[player] or 0
+	local key = `{player.UserId}:{trap:GetDebugId(0)}`
+	local last = self._lastTriggeredAt[key] or 0
 	if now - last < TrapConfig.TriggerCooldown then
 		return
 	end
-	self._lastTriggeredAt[player] = now
+	self._lastTriggeredAt[key] = now
 	self._context.EventBus:Fire("TrapCollision", player, TrapConfig.ExpPenalty)
 
 	local root = self._context.Services.PlayerService:GetRoot(player)
-	if root and trap then
+	if root and trap and resolveTrapType(trap) == "SpikeTrap" then
 		local away = (root.Position - trap.Position)
 		if away.Magnitude < 0.01 then
 			away = Vector3.new(1, 0, 0)
 		end
 		root.AssemblyLinearVelocity += away.Unit * 55 + Vector3.new(0, 10, 0)
 	end
-	self._context.Services.DamagePipelineService:ApplyDamage(player, 1005, nil, nil)
+
+	local stateService = self._context.Services.PlayerStateService
+	if stateService and rule.Flag then
+		stateService:ApplyFlag(player, rule.Flag, rule.Duration, trap, {
+			Duration = rule.Duration,
+			Stackable = true,
+			RefreshOnly = true,
+			MaxStack = rule.MaxStack,
+			TickInterval = rule.TickInterval,
+			DamagePerTick = rule.DamagePerTick,
+			ImmediateTick = rule.ImmediateTick == true,
+		})
+	end
 
 	local popup = self._context.Remotes:FindFirstChild("PopupMessage")
 	if popup and popup:IsA("RemoteEvent") then
-		popup:FireClient(player, { Type = "Trap", Text = "Trap hit! -15 HP" })
+		local text = if resolveTrapType(trap) == "LavaBase" then "Lava!" else "Trap hit!"
+		popup:FireClient(player, { Type = "Trap", Text = text })
 	end
 end
+
 
 return TrapService

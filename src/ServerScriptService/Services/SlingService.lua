@@ -616,8 +616,8 @@ local function resolveMovementSpeed(state): number
 	local speed = math.max(state.MoveSpeed or PhysicsConfig.Movement.MoveSpeed, 0)
 	local slowFlag = state.ActiveFlags and state.ActiveFlags.Slow
 	if slowFlag then
-		local stacks = math.max(1, slowFlag.Stacks or 1)
-		speed *= math.max(0, 1 - (PhysicsConfig.Movement.SlowPerStack * stacks))
+		local slowAmount = math.max(0, slowFlag.SlowAmount or PhysicsConfig.Movement.SlowPerStack)
+		speed *= math.max(0, 1 - slowAmount)
 	end
 	return speed
 end

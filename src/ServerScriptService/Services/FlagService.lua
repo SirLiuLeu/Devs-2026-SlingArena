@@ -14,9 +14,12 @@ type ActiveFlag = {
 	Name: string,
 	ExpiresAt: number,
 	Stacks: number,
-	Source: Player?,
+	Source: any?,
+	SourceKey: string?,
 	SourceUserId: number?,
 	LastTickAt: number?,
+	ActiveAt: number?,
+	PendingStateExit: string?,
 	Data: any?,
 }
 
@@ -37,11 +40,14 @@ local function getFlagDefaults(flagName: string): any
 end
 
 local function getParticleEmitter(effectName: string): ParticleEmitter?
-	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
-	local emittersFolder = assetsFolder and assetsFolder:FindFirstChild("ParticleEmitters")
-	local emitter = emittersFolder and emittersFolder:FindFirstChild(effectName)
-	if emitter and emitter:IsA("ParticleEmitter") then
-		return emitter
+	local resolvedEffectName = if effectName == "Burn" then "Fire" else effectName
+	for _, assetFolderName in ipairs({ "Assetts", "Assets" }) do
+		local assetsFolder = ReplicatedStorage:FindFirstChild(assetFolderName)
+		local emittersFolder = assetsFolder and assetsFolder:FindFirstChild("ParticleEmitters")
+		local emitter = emittersFolder and emittersFolder:FindFirstChild(resolvedEffectName)
+		if emitter and emitter:IsA("ParticleEmitter") then
+			return emitter
+		end
 	end
 	return nil
 end
@@ -55,19 +61,33 @@ local function getEffectAttachment(root: BasePart, effectName: string): Attachme
 	return nil
 end
 
-local function isSourceScopedDot(flagName: string): boolean
-	return flagName == "Burn" or flagName == "Poison"
+local function isSourceScopedEffect(flagName: string): boolean
+	return flagName == "Burn" or flagName == "Poison" or flagName == "PoisonTrap" or flagName == "LavaTrap" or flagName == "Slow"
 end
 
-local function getSourceUserId(source: Player?): number?
-	return source and source.UserId or nil
+local function getSourceUserId(source: any?): number?
+	return if typeof(source) == "Instance" and source:IsA("Player") then source.UserId else nil
 end
 
-local function getFlagKey(flagName: string, source: Player?): string
-	if isSourceScopedDot(flagName) then
-		local sourceUserId = getSourceUserId(source)
-		if sourceUserId then
-			return string.format("%s:%d", flagName, sourceUserId)
+local function getSourceKey(source: any?): string?
+	local sourceUserId = getSourceUserId(source)
+	if sourceUserId then
+		return tostring(sourceUserId)
+	end
+	if typeof(source) == "Instance" then
+		return source:GetDebugId(0)
+	end
+	if source ~= nil then
+		return tostring(source)
+	end
+	return nil
+end
+
+local function getFlagKey(flagName: string, source: any?): string
+	if isSourceScopedEffect(flagName) then
+		local sourceKey = getSourceKey(source)
+		if sourceKey then
+			return string.format("%s:%s", flagName, sourceKey)
 		end
 	end
 	return flagName
@@ -81,29 +101,29 @@ local function buildFlagSnapshot(flags: { [string]: ActiveFlag }?): any
 	for _, flag in pairs(flags) do
 		local flagName = flag.Name
 		local existing = snapshot[flagName]
+		local slowAmount = flag.Data and flag.Data.SlowAmount
 		if existing then
 			existing.ExpiresAt = math.max(existing.ExpiresAt or 0, flag.ExpiresAt)
 			existing.Stacks = (existing.Stacks or 0) + (flag.Stacks or 1)
-			if flag.SourceUserId then
-				existing.Sources = existing.Sources or {}
-				existing.Sources[tostring(flag.SourceUserId)] = {
-					ExpiresAt = flag.ExpiresAt,
-					Stacks = flag.Stacks,
-				}
+			if slowAmount then
+				existing.SlowAmount = math.max(existing.SlowAmount or 0, slowAmount)
 			end
 		else
 			snapshot[flagName] = {
 				ExpiresAt = flag.ExpiresAt,
 				Stacks = flag.Stacks,
 			}
-			if flag.SourceUserId then
-				snapshot[flagName].Sources = {
-					[tostring(flag.SourceUserId)] = {
-						ExpiresAt = flag.ExpiresAt,
-						Stacks = flag.Stacks,
-					},
-				}
+			if slowAmount then
+				snapshot[flagName].SlowAmount = slowAmount
 			end
+			existing = snapshot[flagName]
+		end
+		if flag.SourceKey then
+			existing.Sources = existing.Sources or {}
+			existing.Sources[flag.SourceKey] = {
+				ExpiresAt = flag.ExpiresAt,
+				Stacks = flag.Stacks,
+			}
 		end
 	end
 	return snapshot
@@ -247,7 +267,7 @@ function FlagService:GetFlag(player: Player, flagName: string): ActiveFlag?
 	return newest
 end
 
-function FlagService:ApplyFlag(player: Player, flagName: string, duration: number?, source: Player?, data: any?): boolean
+function FlagService:ApplyFlag(player: Player, flagName: string, duration: number?, source: any?, data: any?): boolean
 	local stateService = getService(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player)
 	if not state then
@@ -276,22 +296,27 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 	local existing = flags[flagKey]
 	local maxStack = math.max(1, tonumber((data and data.MaxStack) or defaults.MaxStack) or 1)
 	local stackable = (data and data.Stackable) == true or defaults.Stackable == true
+	local refreshOnly = (data and data.RefreshOnly) == true or defaults.RefreshOnly == true or isSourceScopedEffect(flagName)
 	local stacks = 1
-	if existing and existing.ExpiresAt > now and stackable and not isSourceScopedDot(flagName) then
+	if existing and existing.ExpiresAt > now and stackable and not refreshOnly then
 		stacks = math.clamp((existing.Stacks or 1) + 1, 1, maxStack)
 	elseif existing and existing.ExpiresAt > now then
 		stacks = existing.Stacks or 1
 	end
-	local expiresAt = if isSourceScopedDot(flagName)
-		then now + resolvedDuration
-		else math.max(existing and existing.ExpiresAt or 0, now + resolvedDuration)
+	local pendingStateExit = data and data.DelayUntilStateExit
+	local isPending = typeof(pendingStateExit) == "string" and state.MovementState == pendingStateExit
+	local activeAt = if isPending then nil else (existing and existing.ActiveAt) or now
+	local expiresAt = now + resolvedDuration
 	flags[flagKey] = {
 		Name = flagName,
 		ExpiresAt = expiresAt,
 		Stacks = stacks,
 		Source = source,
+		SourceKey = getSourceKey(source),
 		SourceUserId = getSourceUserId(source),
-		LastTickAt = existing and existing.LastTickAt or now,
+		LastTickAt = if data and data.ImmediateTick then now - math.max(0, (data and data.TickInterval) or defaults.TickInterval or 0) else now,
+		ActiveAt = activeAt,
+		PendingStateExit = if isPending then pendingStateExit else nil,
 		Data = data,
 	}
 	self:_applyFlagVisual(player, flagName, data)
@@ -330,6 +355,22 @@ function FlagService:RemoveFlag(player: Player, flagName: string)
 	end
 end
 
+function FlagService:_resolveDamagePerTick(player: Player, damagePerTick: any): number
+	if typeof(damagePerTick) == "number" then
+		return math.max(0, damagePerTick)
+	end
+	if type(damagePerTick) == "table" and damagePerTick.Mode == "MaxHPPercent" then
+		local stateService = getService(self._context, "PlayerStateService")
+		local state = stateService and stateService:GetState(player)
+		local maxHp = state and tonumber(state.MaxHP) or nil
+		if maxHp and maxHp > 0 then
+			return math.max(0, maxHp * math.max(0, tonumber(damagePerTick.Percent) or 0))
+		end
+		return math.max(0, tonumber(damagePerTick.Fallback) or 0)
+	end
+	return 0
+end
+
 function FlagService:TickFlags(dt: number)
 	local now = os.clock()
 	for player, flags in pairs(self._activeFlags) do
@@ -341,12 +382,24 @@ function FlagService:TickFlags(dt: number)
 		local changed = false
 		for flagKey, flag in pairs(flags) do
 			local flagName = flag.Name
-			if flag.ExpiresAt <= now then
+			if flag.PendingStateExit and state.MovementState ~= flag.PendingStateExit then
+				local defaults = getFlagDefaults(flagName)
+				local duration = (flag.Data and flag.Data.Duration) or defaults.Duration or math.max(0, flag.ExpiresAt - now)
+				flag.ActiveAt = now
+				flag.ExpiresAt = now + duration
+				flag.LastTickAt = now
+				flag.PendingStateExit = nil
+				changed = true
+			end
+			if flag.ActiveAt and flag.ExpiresAt <= now then
 				flags[flagKey] = nil
 				if not self:HasFlag(player, flagName) then
 					self:_removeFlagVisual(player, flagName)
 				end
 				changed = true
+				continue
+			end
+			if not flag.ActiveAt then
 				continue
 			end
 			local defaults = getFlagDefaults(flagName)
@@ -357,9 +410,9 @@ function FlagService:TickFlags(dt: number)
 				if now - lastTickAt >= tickInterval then
 					flag.LastTickAt = now
 					local damagePipeline = getService(self._context, "DamagePipelineService")
-					local amount = damagePerTick * math.max(1, flag.Stacks or 1)
-					if damagePipeline and typeof(damagePipeline.ApplyDamage) == "function" then
-						damagePipeline:ApplyDamage(player, amount, flag.Source, nil, { SuppressKnockback = true })
+					local amount = self:_resolveDamagePerTick(player, damagePerTick) * math.max(1, flag.Stacks or 1)
+					if damagePipeline and typeof(damagePipeline.ApplyDoTDamage) == "function" then
+						damagePipeline:ApplyDoTDamage(player, amount, flag.Source, { SuppressKnockback = true })
 					elseif stateService then
 						stateService:ApplyDamage(player, amount)
 					end

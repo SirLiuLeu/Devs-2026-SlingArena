@@ -88,7 +88,7 @@ function DamagePipelineService:Init()
 		-- Player-vs-player collision knockback is emitted once by the
 		-- CollisionPlayerKnockback event after CollisionService resolves the hit.
 		-- Keep this ApplyDamage call damage-only so it does not produce a second impulse.
-		self:ApplyDamage(victim, damage, attacker, nil, {
+		self:ApplyHitDamage(victim, damage, attacker, nil, {
 			SuppressKnockback = true,
 		})
 	end)
@@ -143,7 +143,7 @@ function DamagePipelineService:_sendFeedback(player: Player, eventType: string, 
 	end
 end
 
-function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
+function DamagePipelineService:_applyResolvedDamage(victim: Player, amount: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?, damageKind: string): boolean
 	if attacker and not isCombatDamageAllowed(self._context) then
 		return false
 	end
@@ -156,9 +156,8 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 		return false
 	end
 
+	amount = math.max(0, amount)
 	local victimStats = playerStateService:GetFinalStats(victim)
-	local armor = victimStats and math.clamp(victimStats.Armor or 0, 0, 0.8) or 0
-	local amount = math.clamp(rawDamage * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
 	local teamService = getService(self._context, "TeamService")
 	if attacker and teamService and teamService:IsFriendly(attacker, victim) then
 		amount = 0
@@ -185,14 +184,16 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 			if not suppressFeedback then
 				self:_sendFeedback(attacker, "DamageDealt", { Amount = amount })
 			end
-			if victimStats then
+			if damageKind == "Hit" and victimStats then
 				local reflectPct = math.clamp(victimStats.Reflect, 0, 0.5)
 				if reflectPct > 0 then
 					local reflected = amount * reflectPct
 					playerStateService:ApplyDamage(attacker, reflected)
 				end
 			end
-			self._context.EventBus:Fire("DamageDealt", attacker, victim, amount)
+			if damageKind == "Hit" then
+				self._context.EventBus:Fire("DamageDealt", attacker, victim, amount)
+			end
 		end
 	end
 
@@ -227,6 +228,24 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 		self:HandlePlayerDeath(victim)
 	end
 	return true
+end
+
+function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
+	local playerStateService = getService(self._context, "PlayerStateService")
+	local victimStats = playerStateService and playerStateService:GetFinalStats(victim)
+	local armor = victimStats and math.clamp(victimStats.Armor or 0, 0, 0.8) or 0
+	local amount = math.clamp(rawDamage * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
+	return self:_applyResolvedDamage(victim, amount, attacker, knockbackDirection, options, "Hit")
+end
+
+function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number, source: any?, options: DamageOptions?): boolean
+	local attacker = if typeof(source) == "Instance" and source:IsA("Player") then source else nil
+	local amount = math.max(0, rawDamage)
+	return self:_applyResolvedDamage(victim, amount, attacker, nil, options, "DoT")
+end
+
+function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
+	return self:ApplyHitDamage(victim, rawDamage, attacker, knockbackDirection, options)
 end
 
 function DamagePipelineService:ApplySelfDamage(player: Player, amount: number)
