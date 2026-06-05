@@ -37,22 +37,63 @@ local function getFlagDefaults(flagName: string): any
 end
 
 local function getParticleEmitter(effectName: string): ParticleEmitter?
-	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
-	local emittersFolder = assetsFolder and assetsFolder:FindFirstChild("ParticleEmitters")
-	local emitter = emittersFolder and emittersFolder:FindFirstChild(effectName)
-	if emitter and emitter:IsA("ParticleEmitter") then
-		return emitter
+	for _, assetsFolderName in ipairs({ "Assetts", "Assets" }) do
+		local assetsFolder = ReplicatedStorage:FindFirstChild(assetsFolderName)
+		local emittersFolder = assetsFolder and assetsFolder:FindFirstChild("ParticleEmitters")
+		local emitter = emittersFolder and emittersFolder:FindFirstChild(effectName)
+		if emitter and emitter:IsA("ParticleEmitter") then
+			return emitter
+		end
 	end
 	return nil
 end
 
-local function getEffectAttachment(root: BasePart, effectName: string): Attachment?
-	local attachmentName = if effectName == "Stun" then "EffectHead" else "EffectOrigin"
+local function getEffectAttachment(root: BasePart, attachmentName: string): Attachment?
 	local attachment = root:FindFirstChild(attachmentName)
 	if attachment and attachment:IsA("Attachment") then
 		return attachment
 	end
 	return nil
+end
+
+local function mergeVisualConfig(flagName: string, data: any?): any
+	local visualConfig = GameConfig.FlagVisualConfig and GameConfig.FlagVisualConfig[flagName] or {}
+	local merged = {}
+	for key, value in pairs(visualConfig) do
+		merged[key] = value
+	end
+	if typeof(data) == "table" then
+		for key, value in pairs(data) do
+			if value ~= nil then
+				merged[key] = value
+			end
+		end
+	end
+	return merged
+end
+
+local function getDefaultMesh(pawn: Model): BasePart?
+	local equipped = pawn:FindFirstChild("EquipedSlingModel") or pawn:FindFirstChild("EquippedSlingModel")
+	local mesh = equipped and equipped:FindFirstChild("Mesh")
+	if mesh and mesh:IsA("BasePart") then
+		return mesh
+	end
+	return nil
+end
+
+local function collectMaterialTargets(pawn: Model, materialTarget: string?): { BasePart }
+	if materialTarget == "DefaultMesh" then
+		local mesh = getDefaultMesh(pawn)
+		return if mesh then { mesh } else {}
+	end
+
+	local targets = {}
+	for _, descendant in pawn:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			table.insert(targets, descendant)
+		end
+	end
+	return targets
 end
 
 local function isSourceScopedDot(flagName: string): boolean
@@ -150,6 +191,7 @@ function FlagService:_removeFlagVisual(player: Player, flagName: string)
 		return
 	end
 	if visual.Emitter then
+		visual.Emitter.Enabled = false
 		visual.Emitter:Destroy()
 	end
 	for part, material in pairs(visual.Materials) do
@@ -171,8 +213,11 @@ function FlagService:_clearFlagVisuals(player: Player)
 end
 
 function FlagService:_applyFlagVisual(player: Player, flagName: string, data: any?)
-	local effectName = data and data.Effect
-	local material = data and data.Material
+	local visualConfig = mergeVisualConfig(flagName, data)
+	local effectName = visualConfig.Effect
+	local attachmentName = visualConfig.Attachment
+	local material = visualConfig.Material
+	local materialTarget = visualConfig.MaterialTarget
 	if not (effectName or material) then
 		return
 	end
@@ -190,22 +235,21 @@ function FlagService:_applyFlagVisual(player: Player, flagName: string, data: an
 		Emitter = nil,
 		Materials = {},
 	}
-	if typeof(effectName) == "string" then
+	if typeof(effectName) == "string" and typeof(attachmentName) == "string" then
 		local emitterTemplate = getParticleEmitter(effectName)
-		local attachment = getEffectAttachment(root, effectName)
+		local attachment = getEffectAttachment(root, attachmentName)
 		if emitterTemplate and attachment then
 			local emitter = emitterTemplate:Clone()
 			emitter.Name = flagName .. "Effect"
+			emitter.Enabled = true
 			emitter.Parent = attachment
 			visual.Emitter = emitter
 		end
 	end
 	if typeof(material) == "EnumItem" then
-		for _, descendant in pawn:GetDescendants() do
-			if descendant:IsA("BasePart") then
-				visual.Materials[descendant] = descendant.Material
-				descendant.Material = material
-			end
+		for _, part in collectMaterialTargets(pawn, materialTarget) do
+			visual.Materials[part] = part.Material
+			part.Material = material
 		end
 	end
 	if visual.Emitter or next(visual.Materials) ~= nil then
@@ -277,7 +321,7 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 	local maxStack = math.max(1, tonumber((data and data.MaxStack) or defaults.MaxStack) or 1)
 	local stackable = (data and data.Stackable) == true or defaults.Stackable == true
 	local stacks = 1
-	if existing and existing.ExpiresAt > now and stackable and not isSourceScopedDot(flagName) then
+	if existing and existing.ExpiresAt > now and stackable then
 		stacks = math.clamp((existing.Stacks or 1) + 1, 1, maxStack)
 	elseif existing and existing.ExpiresAt > now then
 		stacks = existing.Stacks or 1
@@ -299,7 +343,9 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 		state.IsCharging = false
 		state.ChargeValue = 0
 		state.StunnedUntil = math.max(state.StunnedUntil or 0, flags[flagKey].ExpiresAt)
-		state.MovementState = MOVEMENT_STATE.Idle
+		if state.MovementState ~= MOVEMENT_STATE.Knockback then
+			state.MovementState = MOVEMENT_STATE.Idle
+		end
 	end
 	if flagName == "Invisible" or flagName == "Ghost" then
 		state.IsVisible = false

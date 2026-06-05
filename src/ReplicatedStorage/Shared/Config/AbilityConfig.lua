@@ -2,7 +2,21 @@
 
 -- Sling archetype tuning from Rule_DESIGN.md section 5.
 -- Values only define the rules in the design; services own server-authoritative execution.
+local GameConfig = require(script.Parent.GameConfig)
+
 local AbilityConfig = {}
+
+local function flagDuration(flagName: string): number
+	local flagConfig = GameConfig.FlagConfig[flagName]
+	return (flagConfig and flagConfig.Duration) or 0
+end
+
+AbilityConfig.SlingFlagMap = {
+	PetrifySling = "Petrify",
+	StunSling = "Stun",
+	PoisonSling = "Poison",
+	FireSling = "Burn",
+}
 
 AbilityConfig.Types = {
 	SupportSling = {
@@ -12,9 +26,8 @@ AbilityConfig.Types = {
 	},
 	StunSling = {
 		id = "StunSling",
-		collisionFlag = "Stun",
-		collisionCCDuration = 1,
-		collisionEffect = "Stun",
+		collisionFlag = AbilityConfig.SlingFlagMap.StunSling,
+		collisionExtraDuration = flagDuration("Stun"),
 	},
 	NormalSling = {
 		id = "NormalSling",
@@ -51,31 +64,17 @@ AbilityConfig.Types = {
 	},
 	PetrifySling = {
 		id = "PetrifySling",
-		collisionFlag = "Petrify",
-		collisionCCDuration = 1.5,
-		collisionEffect = "Frost",
-		collisionMaterial = Enum.Material.Pebble,
+		collisionFlag = AbilityConfig.SlingFlagMap.PetrifySling,
+		collisionExtraDuration = flagDuration("Petrify"),
 		cannotPetrifyAbilityTypes = { FireSling = true },
 	},
 	FireSling = {
 		id = "FireSling",
-		dotFlag = "Burn",
-		dotEffect = "Fire",
-		dotDamagePerTick = 250,
-		dotTickInterval = 1,
-		dotDuration = 4,
-		dotMaxStack = 3,
+		dotFlag = AbilityConfig.SlingFlagMap.FireSling,
 	},
 	PoisonSling = {
 		id = "PoisonSling",
-		dotFlag = "Poison",
-		dotEffect = "Poison",
-		dotDamagePerTick = 150,
-		dotTickInterval = 1,
-		dotDuration = 5,
-		dotMaxStack = 5,
-		slowAmount = 0.25,
-		slowDuration = 3,
+		dotFlag = AbilityConfig.SlingFlagMap.PoisonSling,
 	},
 }
 

@@ -742,7 +742,7 @@ A player can move only if:
 - Slow: Reduce movement speed
 - Stun: Disable input and movement
 - Freeze: Strong CC, disable move + rotate
-- PoisonSpike: Damage over time
+- PoisonTrap: Damage over time
 - Invisible: Hidden from enemy UI
 - Recovering: Heal over time
 - Invulnerable: Ignore incoming damage
@@ -763,7 +763,7 @@ A player can move only if:
   + Ignore all damage sources
 - Invisible:
   + Hide UI / targeting
-- PoisonSpike:
+- PoisonTrap:
   + Apply periodic damage
 - Recovering:
   + Apply periodic healing

@@ -111,7 +111,7 @@ DataModel
 │  │  │  ├── SpeedSling (Sling_Template format)
 │  │  │  ├── BonusBuffSling (Sling_Template format)
 │  │  │  ├── FreezeSling (Sling_Template format) -- sẽ delete trong tương lai
-│  │  │  ├── PetrifyModel (Sling_Template format) -- new update, replace FreezeSling
+│  │  │  ├── PetrifySling (Sling_Template format) -- new update, replace FreezeSling
 │  │  │  ├── FireSling (Sling_Template format)
 │  │  │  └── PoisonSling (Sling_Template format)
 │  │  │

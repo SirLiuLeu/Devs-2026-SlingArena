@@ -5,6 +5,7 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
+local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local BaseAbility = require(script.Parent.BaseAbility)
 
@@ -16,6 +17,16 @@ local function getService(context, name: string)
 		return context.ServiceRegistry:GetOptional(name)
 	end
 	return context.Services and context.Services[name]
+end
+
+local function getFlagConfig(flagName: string): any
+	return GameConfig.FlagConfig[flagName] or {}
+end
+
+local function resolveKnockbackPlusFlagDuration(flagName: string, collisionMeta: any, extraDuration: number?): number
+	local knockbackDuration = if collisionMeta and typeof(collisionMeta.Duration) == "number" then collisionMeta.Duration else 0
+	local flagConfig = getFlagConfig(flagName)
+	return math.max(0, knockbackDuration) + math.max(0, extraDuration or flagConfig.Duration or 0)
 end
 
 -- Food DoT state: tracks active Burn/Poison effects per food model, flag name, and attacker user ID.
@@ -115,20 +126,22 @@ end
 
 function SlingAbilityService:_applyFoodDot(food: Model, foodId: string, config: any, instigator: Player?)
 	local flagName = config.dotFlag
+	local flagConfig = getFlagConfig(flagName)
 	local instigatorUserId = instigator and instigator.UserId or 0
 	local stateKey = string.format("%s:%s:%d", foodId, flagName, instigatorUserId)
 	local existing = _foodDotState[stateKey]
-	local stacks = existing and (existing.stacks or 1) or 1
+	local maxStack = math.max(1, flagConfig.MaxStack or 1)
+	local stacks = math.clamp((existing and (existing.stacks or 1) or 0) + 1, 1, maxStack)
 	local now = os.clock()
 	_foodDotState[stateKey] = {
 		food = food,
 		foodId = foodId,
 		flagName = flagName,
 		stacks = stacks,
-		damagePerTick = config.dotDamagePerTick or 0,
-		tickInterval = config.dotTickInterval or 1,
+		damagePerTick = flagConfig.DamagePerTick or 0,
+		tickInterval = flagConfig.TickInterval or 1,
 		lastTickAt = existing and existing.lastTickAt or now,
-		expiresAt = now + (config.dotDuration or 0),
+		expiresAt = now + (flagConfig.Duration or 0),
 		instigator = instigator,
 		instigatorUserId = instigatorUserId,
 	}
@@ -309,34 +322,32 @@ function SlingAbilityService:_handleCollision(attacker: Player, victim: Player, 
 		end
 	end
 
-	-- Hard CC flags include visual effect data for FlagService.
+	-- Hard CC flags last through knockback, then the configured flag duration.
 	if config.collisionFlag then
-		local effectData: any = {
-			Effect = config.collisionEffect,    -- e.g. "Frost" for Petrify, "Stun" for Stun
-			Material = config.collisionMaterial, -- Enum.Material.Pebble for Petrify, nil for Stun
-		}
-		stateService:ApplyFlag(victim, config.collisionFlag, config.collisionCCDuration, attacker, effectData)
+		local flagName = config.collisionFlag
+		local duration = resolveKnockbackPlusFlagDuration(flagName, collisionMeta, config.collisionExtraDuration)
+		stateService:ApplyFlag(victim, flagName, duration, attacker)
 	end
 
-	-- Burn/Poison uses the same stack, refresh, tick, and duration settings as food DoT.
+	-- Burn/Poison use centralized flag config for duration, stacking, ticks, damage, slow, and VFX.
 	if config.dotFlag then
-		local dotData: any = {
-			Effect = config.dotEffect,           -- "Fire" for Burn, "Poison" for Poison
-			Stackable = true,
-			MaxStack = config.dotMaxStack,
-			TickInterval = config.dotTickInterval,
-			DamagePerTick = config.dotDamagePerTick,
-		}
-		stateService:ApplyFlag(victim, config.dotFlag, config.dotDuration, attacker, dotData)
-	end
-
-	-- Poison also applies a stackable slow.
-	if config.slowAmount then
-		stateService:ApplyFlag(victim, "Slow", config.slowDuration, attacker, {
-			Stackable = true,
-			MaxStack = 3,
-			SlowAmount = config.slowAmount,
+		local flagName = config.dotFlag
+		local flagConfig = getFlagConfig(flagName)
+		stateService:ApplyFlag(victim, flagName, flagConfig.Duration, attacker, {
+			Stackable = flagConfig.Stackable,
+			MaxStack = flagConfig.MaxStack,
+			TickInterval = flagConfig.TickInterval,
+			DamagePerTick = flagConfig.DamagePerTick,
 		})
+
+		if flagConfig.SlowAmount then
+			local slowConfig = getFlagConfig("Slow")
+			stateService:ApplyFlag(victim, "Slow", flagConfig.SlowDuration or slowConfig.Duration, attacker, {
+				Stackable = slowConfig.Stackable,
+				MaxStack = slowConfig.MaxStack,
+				SlowAmount = flagConfig.SlowAmount,
+			})
+		end
 	end
 
 	ability:OnCollision({ TargetPlayer = victim, CollisionMeta = collisionMeta })
