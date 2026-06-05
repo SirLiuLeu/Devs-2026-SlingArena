@@ -81,8 +81,6 @@ DataModel
 │  │  │  │  ├── WeldConstraint_HitboxMesh
 │  │  │  │  ├── EquippedSlingModel (Sling_Template)
 │  │  │  │  │  └── Mesh
-│  │  │  │  │     ├── WeldConstraint
-│  │  │  │  │     └── Part
 │  │  │  │  ├── Hitbox (PrimaryPart)
 │  │  │  │  │  ├── AlignOrientation
 │  │  │  │  │  ├── Attachment (Attachment)
@@ -509,9 +507,9 @@ DataModel
 │        │  └─ SpawnPoint_04
 │        │
 │        ├─ Traps (Folder)
-│        │  ├─ Trap_01
-│        │  ├─ Trap_02
-│        │  └─ Trap_..N
+│        │  ├─ SpikeTrap
+│        │  ├─ SpikeTrap
+│        │  └─ SpikeTrap
 │        │
 │        ├─ CenterCross (Model)
 │        ├─ ContestZone_Green (Model)

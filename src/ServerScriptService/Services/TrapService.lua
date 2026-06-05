@@ -134,7 +134,7 @@ function TrapService:OnTrapCollision(player: Player, trap: BasePart)
 		end
 		root.AssemblyLinearVelocity += away.Unit * 55 + Vector3.new(0, 10, 0)
 	end
-	self._context.Services.DamagePipelineService:ApplyDamage(player, 15, nil, nil)
+	self._context.Services.DamagePipelineService:ApplyDamage(player, 1005, nil, nil)
 
 	local popup = self._context.Remotes:FindFirstChild("PopupMessage")
 	if popup and popup:IsA("RemoteEvent") then
