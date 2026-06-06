@@ -6,6 +6,7 @@ local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
+local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 
 type Context = {
 	Services: any,
@@ -21,8 +22,23 @@ type DamageOptions = {
 	KnockbackDuration: number?,
 }
 
+type EffectConfig = {
+	Flag: string,
+	Duration: number?,
+	TickInterval: number?,
+	DamagePerTick: any?,
+	SlowAmount: number?,
+	SlowDuration: number?,
+	KnockbackTailDuration: number?,
+}
+
 local DamagePipelineService = {}
 DamagePipelineService.__index = DamagePipelineService
+
+local SLING_DOT_EFFECTS: { [string]: EffectConfig } = {
+	FireSling = { Flag = "Burn" },
+	PoisonSling = { Flag = "Poison" },
+}
 
 local function getService(context: Context, name: string)
 	if context.ServiceRegistry then
@@ -47,6 +63,7 @@ function DamagePipelineService.new(context: Context)
 	self._context = context
 	self._feedbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent
 	self._knockbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.KnockbackReplication) :: RemoteEvent
+	self._pendingSlowTokens = {} :: { [Player]: { [string]: number } }
 	return self
 end
 
@@ -88,9 +105,11 @@ function DamagePipelineService:Init()
 		-- Player-vs-player collision knockback is emitted once by the
 		-- CollisionPlayerKnockback event after CollisionService resolves the hit.
 		-- Keep this ApplyDamage call damage-only so it does not produce a second impulse.
-		self:ApplyDamage(victim, damage, attacker, nil, {
+		if self:ApplyHitDamage(victim, damage, attacker, nil, {
 			SuppressKnockback = true,
-		})
+		}) then
+			self:_applySlingDotFromHit(victim, attacker, attackerState, collisionMeta)
+		end
 	end)
 
 	self._context.EventBus:On("TrapCollision", function(player: Player, penalty: number)
@@ -134,6 +153,30 @@ function DamagePipelineService:ComputeCollisionDamage(attackerState: any, veloci
 	return math.clamp(damage, 0, PhysicsConfig.Damage.Max)
 end
 
+local function getSourceId(source: any?): string
+	if typeof(source) == "Instance" then
+		if source:IsA("Player") then
+			return `Player:{source.UserId}`
+		end
+		return `{source.ClassName}:{source:GetDebugId(0)}`
+	end
+	return tostring(source or "World")
+end
+
+local function mergeEffectDefaults(effectConfig: EffectConfig): any
+	local defaults = GameConfig.FlagConfig[effectConfig.Flag] or {}
+	local merged = {}
+	for key, value in pairs(defaults) do
+		merged[key] = value
+	end
+	for key, value in pairs(effectConfig) do
+		if key ~= "Flag" and value ~= nil then
+			merged[key] = value
+		end
+	end
+	return merged
+end
+
 function DamagePipelineService:_sendFeedback(player: Player, eventType: string, payload: any)
 	if self._feedbackRemote then
 		self._feedbackRemote:FireClient(player, {
@@ -143,7 +186,7 @@ function DamagePipelineService:_sendFeedback(player: Player, eventType: string, 
 	end
 end
 
-function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
+function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
 	if attacker and not isCombatDamageAllowed(self._context) then
 		return false
 	end
@@ -227,6 +270,107 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 		self:HandlePlayerDeath(victim)
 	end
 	return true
+end
+
+function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
+	return self:ApplyHitDamage(victim, rawDamage, attacker, knockbackDirection, options)
+end
+
+function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number, source: any?, flagName: string?): boolean
+	local playerStateService = getService(self._context, "PlayerStateService")
+	if not playerStateService then
+		warn("[DamagePipelineService] PlayerStateService unavailable; DOT damage skipped.")
+		return false
+	end
+	if playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
+		return false
+	end
+	local amount = math.max(0, rawDamage)
+	if amount <= 0 then
+		return false
+	end
+	local didDamage = playerStateService:ApplyDamage(victim, amount)
+	if not didDamage then
+		return false
+	end
+	self:_sendFeedback(victim, "DamageTaken", { Amount = amount, DamageType = "DoT", Flag = flagName })
+	if typeof(source) == "Instance" and source:IsA("Player") then
+		playerStateService:SetLastAttacker(victim, source)
+		playerStateService:AddDamageDealt(source, amount)
+		self:_sendFeedback(source, "DamageDealt", { Amount = amount, DamageType = "DoT", Flag = flagName })
+		self._context.EventBus:Fire("DoTDamageDealt", source, victim, amount, flagName)
+	end
+	local state = playerStateService:GetState(victim)
+	if state and state.CurrentHP <= 0 then
+		self:HandlePlayerDeath(victim)
+	end
+	return true
+end
+
+function DamagePipelineService:_scheduleSlowAfterKnockback(victim: Player, source: Player, amount: number, duration: number)
+	local sourceId = getSourceId(source)
+	self._pendingSlowTokens[victim] = self._pendingSlowTokens[victim] or {}
+	local nextToken = (self._pendingSlowTokens[victim][sourceId] or 0) + 1
+	self._pendingSlowTokens[victim][sourceId] = nextToken
+	task.spawn(function()
+		local stateService = getService(self._context, "PlayerStateService")
+		while stateService do
+			local state = stateService:GetState(victim)
+			if not state or not state.IsAlive then
+				return
+			end
+			if state.MovementState ~= GameStates.PlayerState.Knockback then
+				break
+			end
+			task.wait(0.05)
+		end
+		if not self._pendingSlowTokens[victim] or self._pendingSlowTokens[victim][sourceId] ~= nextToken then
+			return
+		end
+		local stateService = getService(self._context, "PlayerStateService")
+		if stateService then
+			stateService:ApplyFlag(victim, "Slow", duration, source, {
+				SlowAmount = amount,
+				SourceId = sourceId,
+			})
+		end
+	end)
+end
+
+function DamagePipelineService:_applySlingDotFromHit(victim: Player, attacker: Player?, attackerState: any?, _collisionMeta: any?)
+	if not (attacker and attackerState) then
+		return
+	end
+	local effectConfig = SLING_DOT_EFFECTS[attackerState.SlingshotType or ""]
+	if not effectConfig then
+		return
+	end
+	local flagName = effectConfig.Flag
+	local merged = mergeEffectDefaults(effectConfig)
+	local stateService = getService(self._context, "PlayerStateService")
+	if not stateService then
+		return
+	end
+	local duration = math.max(0, tonumber(merged.Duration) or 0)
+	if duration <= 0 then
+		return
+	end
+	local sourceId = getSourceId(attacker)
+	stateService:ApplyFlag(victim, flagName, duration, attacker, {
+		SourceId = sourceId,
+		TickInterval = merged.TickInterval,
+		DamagePerTick = merged.DamagePerTick,
+		KnockbackTailDuration = merged.KnockbackTailDuration,
+		Stackable = false,
+		MaxStack = 1,
+	})
+	if flagName == "Poison" then
+		local slowAmount = math.max(0, tonumber(merged.SlowAmount) or 0)
+		local slowDuration = math.max(0, tonumber(merged.SlowDuration) or 0)
+		if slowAmount > 0 and slowDuration > 0 then
+			self:_scheduleSlowAfterKnockback(victim, attacker, slowAmount, slowDuration)
+		end
+	end
 end
 
 function DamagePipelineService:ApplySelfDamage(player: Player, amount: number)

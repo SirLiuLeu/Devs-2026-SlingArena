@@ -185,7 +185,7 @@ function PlayerStateService:GetFlag(player: Player, flagName: string): any?
 	return flagService and flagService:GetFlag(player, flagName) or nil
 end
 
-function PlayerStateService:ApplyFlag(player: Player, flagName: string, duration: number?, source: Player?, data: any?): boolean
+function PlayerStateService:ApplyFlag(player: Player, flagName: string, duration: number?, source: any?, data: any?): boolean
 	local flagService = getFlagService(self._context)
 	return flagService ~= nil and flagService:ApplyFlag(player, flagName, duration, source, data)
 end

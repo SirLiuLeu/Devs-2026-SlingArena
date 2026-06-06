@@ -8,12 +8,12 @@ local GameConfig = {
 		Petrify = { Duration = 1.5, Priority = 80, Stackable = false, InterruptCharge = true },
 		Stun = { Duration = 1, Priority = 70, Stackable = false, InterruptCharge = true },
 
-		Slow = { Duration = 3, Priority = 50, Stackable = true, MaxStack = 3, SlowAmount = 0.25 },
+		Slow = { Duration = 3, Priority = 50, Stackable = false, MaxStack = 1, SlowAmount = 0.25 },
 
-		Burn = { Duration = 4, Stackable = true, MaxStack = 3, TickInterval = 1, DamagePerTick = 250 },
-		Poison = { Duration = 5, Stackable = true, MaxStack = 5, TickInterval = 1, DamagePerTick = 150, SlowAmount = 0.25, SlowDuration = 3 },
+		Burn = { Duration = 4, Stackable = false, MaxStack = 1, TickInterval = 1, DamagePerTick = 250, KnockbackTailDuration = 1.5 },
+		Poison = { Duration = 5, Stackable = false, MaxStack = 1, TickInterval = 1, DamagePerTick = 150, SlowAmount = 0.25, SlowDuration = 3, KnockbackTailDuration = 1 },
 
-		PoisonTrap = { Duration = 5, Stackable = true, MaxStack = 5, TickInterval = 1, DamagePerTick = 150 },
+		PoisonTrap = { Duration = 5, Stackable = true, MaxStack = 5, TickInterval = 1, DamagePerTick = 150, SourceScoped = true },
 
 		Recovering = { Duration = 5 },
 
@@ -31,6 +31,8 @@ local GameConfig = {
 		Stun = { Effect = "Stun", Attachment = "EffectHead" },
 		Burn = { Effect = "Fire", Attachment = "EffectOrigin" },
 		Poison = { Effect = "Poison", Attachment = "EffectOrigin" },
+		PoisonTrap = { Effect = "Poison", Attachment = "EffectOrigin" },
+		LavaTrap = { Effect = "Fire", Attachment = "EffectOrigin" },
 	},
 }
 

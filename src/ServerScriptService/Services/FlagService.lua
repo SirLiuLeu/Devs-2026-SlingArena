@@ -14,7 +14,8 @@ type ActiveFlag = {
 	Name: string,
 	ExpiresAt: number,
 	Stacks: number,
-	Source: Player?,
+	Source: any?,
+	SourceId: string?,
 	SourceUserId: number?,
 	LastTickAt: number?,
 	Data: any?,
@@ -96,19 +97,40 @@ local function collectMaterialTargets(pawn: Model, materialTarget: string?): { B
 	return targets
 end
 
-local function isSourceScopedDot(flagName: string): boolean
-	return flagName == "Burn" or flagName == "Poison"
+local function isSourceScopedFlag(flagName: string, defaults: any?): boolean
+	return flagName == "Burn"
+		or flagName == "Poison"
+		or flagName == "Slow"
+		or flagName == "PoisonTrap"
+		or flagName == "LavaTrap"
+		or (defaults and defaults.SourceScoped == true)
 end
 
-local function getSourceUserId(source: Player?): number?
-	return source and source.UserId or nil
+local function getSourceUserId(source: any?): number?
+	return if typeof(source) == "Instance" and source:IsA("Player") then source.UserId else nil
 end
 
-local function getFlagKey(flagName: string, source: Player?): string
-	if isSourceScopedDot(flagName) then
-		local sourceUserId = getSourceUserId(source)
-		if sourceUserId then
-			return string.format("%s:%d", flagName, sourceUserId)
+local function getSourceId(source: any?, data: any?): string?
+	if typeof(data) == "table" and typeof(data.SourceId) == "string" then
+		return data.SourceId
+	end
+	if typeof(source) == "Instance" then
+		if source:IsA("Player") then
+			return `Player:{source.UserId}`
+		end
+		return `{source.ClassName}:{source:GetDebugId(0)}`
+	end
+	if type(source) == "string" then
+		return source
+	end
+	return nil
+end
+
+local function getFlagKey(flagName: string, source: any?, data: any?, defaults: any?): string
+	if isSourceScopedFlag(flagName, defaults) then
+		local sourceId = getSourceId(source, data)
+		if sourceId then
+			return `{flagName}:{sourceId}`
 		end
 	end
 	return flagName
@@ -125,9 +147,12 @@ local function buildFlagSnapshot(flags: { [string]: ActiveFlag }?): any
 		if existing then
 			existing.ExpiresAt = math.max(existing.ExpiresAt or 0, flag.ExpiresAt)
 			existing.Stacks = (existing.Stacks or 0) + (flag.Stacks or 1)
-			if flag.SourceUserId then
+			if flag.Data and flag.Data.SlowAmount then
+				existing.SlowAmount = math.max(existing.SlowAmount or 0, flag.Data.SlowAmount)
+			end
+			if flag.SourceId then
 				existing.Sources = existing.Sources or {}
-				existing.Sources[tostring(flag.SourceUserId)] = {
+				existing.Sources[flag.SourceId] = {
 					ExpiresAt = flag.ExpiresAt,
 					Stacks = flag.Stacks,
 				}
@@ -137,9 +162,12 @@ local function buildFlagSnapshot(flags: { [string]: ActiveFlag }?): any
 				ExpiresAt = flag.ExpiresAt,
 				Stacks = flag.Stacks,
 			}
-			if flag.SourceUserId then
+			if flag.Data and flag.Data.SlowAmount then
+				snapshot[flagName].SlowAmount = flag.Data.SlowAmount
+			end
+			if flag.SourceId then
 				snapshot[flagName].Sources = {
-					[tostring(flag.SourceUserId)] = {
+					[flag.SourceId] = {
 						ExpiresAt = flag.ExpiresAt,
 						Stacks = flag.Stacks,
 					},
@@ -275,14 +303,16 @@ function FlagService:HasFlag(player: Player, flagName: string): boolean
 	return false
 end
 
-function FlagService:GetFlag(player: Player, flagName: string): ActiveFlag?
+function FlagService:GetFlag(player: Player, flagName: string, source: any?, data: any?): ActiveFlag?
 	local flags = self._activeFlags[player]
 	if not flags then
 		return nil
 	end
 	local newest: ActiveFlag? = nil
-	for _, flag in pairs(flags) do
-		if flag.Name == flagName and flag.ExpiresAt > os.clock() then
+	local defaults = getFlagDefaults(flagName)
+	local requestedKey = if source ~= nil then getFlagKey(flagName, source, data, defaults) else nil
+	for flagKey, flag in pairs(flags) do
+		if (not requestedKey or flagKey == requestedKey) and flag.Name == flagName and flag.ExpiresAt > os.clock() then
 			if not newest or flag.ExpiresAt > newest.ExpiresAt then
 				newest = flag
 			end
@@ -291,7 +321,7 @@ function FlagService:GetFlag(player: Player, flagName: string): ActiveFlag?
 	return newest
 end
 
-function FlagService:ApplyFlag(player: Player, flagName: string, duration: number?, source: Player?, data: any?): boolean
+function FlagService:ApplyFlag(player: Player, flagName: string, duration: number?, source: any?, data: any?): boolean
 	local stateService = getService(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player)
 	if not state then
@@ -316,26 +346,29 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 		self._activeFlags[player] = flags
 	end
 	local now = os.clock()
-	local flagKey = getFlagKey(flagName, source)
+	local flagKey = getFlagKey(flagName, source, data, defaults)
 	local existing = flags[flagKey]
 	local maxStack = math.max(1, tonumber((data and data.MaxStack) or defaults.MaxStack) or 1)
 	local stackable = (data and data.Stackable) == true or defaults.Stackable == true
+	local sourceScoped = isSourceScopedFlag(flagName, defaults)
 	local stacks = 1
-	if existing and existing.ExpiresAt > now and stackable then
+	if existing and existing.ExpiresAt > now and stackable and not sourceScoped then
 		stacks = math.clamp((existing.Stacks or 1) + 1, 1, maxStack)
 	elseif existing and existing.ExpiresAt > now then
 		stacks = existing.Stacks or 1
 	end
-	local expiresAt = if isSourceScopedDot(flagName)
+	local expiresAt = if sourceScoped
 		then now + resolvedDuration
 		else math.max(existing and existing.ExpiresAt or 0, now + resolvedDuration)
+	local sourceId = getSourceId(source, data)
 	flags[flagKey] = {
 		Name = flagName,
 		ExpiresAt = expiresAt,
 		Stacks = stacks,
 		Source = source,
+		SourceId = sourceId,
 		SourceUserId = getSourceUserId(source),
-		LastTickAt = existing and existing.LastTickAt or now,
+		LastTickAt = now,
 		Data = data,
 	}
 	self:_applyFlagVisual(player, flagName, data)
@@ -396,6 +429,15 @@ function FlagService:TickFlags(dt: number)
 				continue
 			end
 			local defaults = getFlagDefaults(flagName)
+			local tailDuration = (flag.Data and flag.Data.KnockbackTailDuration) or defaults.KnockbackTailDuration
+			if tailDuration and state.MovementState == MOVEMENT_STATE.Knockback then
+				local extendedExpiresAt = math.max(flag.ExpiresAt, now + math.max(0, tailDuration))
+				if extendedExpiresAt > flag.ExpiresAt then
+					local shouldPublishExtension = extendedExpiresAt - flag.ExpiresAt >= 0.25
+					flag.ExpiresAt = extendedExpiresAt
+					changed = changed or shouldPublishExtension
+				end
+			end
 			local tickInterval = (flag.Data and flag.Data.TickInterval) or defaults.TickInterval
 			local damagePerTick = (flag.Data and flag.Data.DamagePerTick) or defaults.DamagePerTick
 			if tickInterval and damagePerTick and not self:HasFlag(player, "Invulnerable") then
@@ -403,9 +445,14 @@ function FlagService:TickFlags(dt: number)
 				if now - lastTickAt >= tickInterval then
 					flag.LastTickAt = now
 					local damagePipeline = getService(self._context, "DamagePipelineService")
-					local amount = damagePerTick * math.max(1, flag.Stacks or 1)
-					if damagePipeline and typeof(damagePipeline.ApplyDamage) == "function" then
-						damagePipeline:ApplyDamage(player, amount, flag.Source, nil, { SuppressKnockback = true })
+					local amount = 0
+					if type(damagePerTick) == "table" and damagePerTick.Mode == "MaxHPPercent" then
+						amount = math.max(tonumber(damagePerTick.Fallback) or 0, (state.MaxHP or 0) * math.max(0, tonumber(damagePerTick.Percent) or 0))
+					else
+						amount = (tonumber(damagePerTick) or 0) * math.max(1, flag.Stacks or 1)
+					end
+					if damagePipeline and typeof(damagePipeline.ApplyDoTDamage) == "function" then
+						damagePipeline:ApplyDoTDamage(player, amount, flag.Source, flagName)
 					elseif stateService then
 						stateService:ApplyDamage(player, amount)
 					end

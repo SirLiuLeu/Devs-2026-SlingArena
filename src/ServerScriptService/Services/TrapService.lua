@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local TrapConfig = require(ReplicatedStorage.Shared.Config.TrapConfig)
+local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 
 local TrapService = {}
 TrapService.__index = TrapService
@@ -34,6 +35,30 @@ local function getTrapFolderFromArena(arenaMap: Instance?): Folder?
 		return trapFolder
 	end
 	return nil
+end
+
+local function getTrapType(trap: BasePart): (string?, any?, BasePart?)
+	local current: Instance? = trap
+	while current do
+		for trapType, config in pairs(TrapConfig.Types or {}) do
+			if current.Name == config.PartName or current.Name == trapType then
+				return trapType, config, if current:IsA("BasePart") then current else trap
+			end
+		end
+		current = current.Parent
+	end
+	return nil, nil, nil
+end
+
+local function getSourceId(source: Instance, trapType: string): string
+	return `Trap:{trapType}:{source:GetDebugId(0)}`
+end
+
+local function resolveDotAmount(playerState: any, damagePerTick: any): number
+	if type(damagePerTick) == "table" and damagePerTick.Mode == "MaxHPPercent" then
+		return math.max(tonumber(damagePerTick.Fallback) or 0, (playerState.MaxHP or 0) * math.max(0, tonumber(damagePerTick.Percent) or 0))
+	end
+	return math.max(0, tonumber(damagePerTick) or 0)
 end
 
 function TrapService.new(context)
@@ -118,27 +143,61 @@ function TrapService:SpawnTrapForActiveMap(_count: number)
 end
 
 function TrapService:OnTrapCollision(player: Player, trap: BasePart)
+	local trapType, trapConfig, sourcePart = getTrapType(trap)
+	if not (trapType and trapConfig and sourcePart) then
+		return
+	end
 	local now = os.clock()
-	local last = self._lastTriggeredAt[player] or 0
+	local cooldownKey = `{player.UserId}:{trapType}:{sourcePart:GetDebugId(0)}`
+	local last = self._lastTriggeredAt[cooldownKey] or 0
 	if now - last < TrapConfig.TriggerCooldown then
 		return
 	end
-	self._lastTriggeredAt[player] = now
+	self._lastTriggeredAt[cooldownKey] = now
 	self._context.EventBus:Fire("TrapCollision", player, TrapConfig.ExpPenalty)
 
+	local flagName = trapConfig.Flag
+	local flagDefaults = GameConfig.FlagConfig[flagName] or {}
+	local sourceId = getSourceId(sourcePart, trapType)
+	local stateService = self._context.Services.PlayerStateService
+	local damagePipeline = self._context.Services.DamagePipelineService
+
+	if stateService and flagName then
+		stateService:ApplyFlag(player, flagName, flagDefaults.Duration, sourcePart, {
+			SourceId = sourceId,
+			TickInterval = flagDefaults.TickInterval,
+			DamagePerTick = flagDefaults.DamagePerTick,
+			Stackable = flagDefaults.Stackable,
+			MaxStack = flagDefaults.MaxStack,
+		})
+	end
+
+	if trapConfig.ImpactDamage and damagePipeline then
+		damagePipeline:ApplyHitDamage(player, trapConfig.ImpactDamage, nil, nil, { SuppressKnockback = true })
+	end
+
+	if trapConfig.ImmediateTick and damagePipeline and stateService then
+		local state = stateService:GetState(player)
+		if state then
+			local amount = resolveDotAmount(state, flagDefaults.DamagePerTick)
+			damagePipeline:ApplyDoTDamage(player, amount, sourcePart, flagName)
+		end
+	end
+
 	local root = self._context.Services.PlayerService:GetRoot(player)
-	if root and trap then
+	local knockback = math.max(0, tonumber(trapConfig.Knockback) or 0)
+	local upwardBoost = math.max(0, tonumber(trapConfig.UpwardBoost) or 0)
+	if root and trap and (knockback > 0 or upwardBoost > 0) then
 		local away = (root.Position - trap.Position)
 		if away.Magnitude < 0.01 then
 			away = Vector3.new(1, 0, 0)
 		end
-		root.AssemblyLinearVelocity += away.Unit * 55 + Vector3.new(0, 10, 0)
+		root.AssemblyLinearVelocity += away.Unit * knockback + Vector3.new(0, upwardBoost, 0)
 	end
-	self._context.Services.DamagePipelineService:ApplyDamage(player, 1005, nil, nil)
 
 	local popup = self._context.Remotes:FindFirstChild("PopupMessage")
-	if popup and popup:IsA("RemoteEvent") then
-		popup:FireClient(player, { Type = "Trap", Text = "Trap hit! -15 HP" })
+	if popup and popup:IsA("RemoteEvent") and trapConfig.PopupText then
+		popup:FireClient(player, { Type = "Trap", Text = trapConfig.PopupText })
 	end
 end
 
