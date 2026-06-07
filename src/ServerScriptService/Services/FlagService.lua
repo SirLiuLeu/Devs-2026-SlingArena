@@ -36,23 +36,35 @@ local function getFlagDefaults(flagName: string): any
 	return GameConfig.FlagConfig[flagName] or {}
 end
 
+-- RCA Fix B: replaces the legacy typo fallback loop with the canonical assets path.
 local function getParticleEmitter(effectName: string): ParticleEmitter?
-	for _, assetsFolderName in ipairs({ "Assetts", "Assets" }) do
-		local assetsFolder = ReplicatedStorage:FindFirstChild(assetsFolderName)
-		local emittersFolder = assetsFolder and assetsFolder:FindFirstChild("ParticleEmitters")
-		local emitter = emittersFolder and emittersFolder:FindFirstChild(effectName)
-		if emitter and emitter:IsA("ParticleEmitter") then
-			return emitter
-		end
+	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
+	local emittersFolder = assetsFolder and assetsFolder:FindFirstChild("ParticleEmitters")
+	local emitter = emittersFolder and emittersFolder:FindFirstChild(effectName)
+	if emitter and emitter:IsA("ParticleEmitter") then
+		return emitter
 	end
+
+	warn(string.format(
+		"[FlagService] ParticleEmitter '%s' not found at ReplicatedStorage/Assets/ParticleEmitters/%s",
+		effectName,
+		effectName
+	))
 	return nil
 end
 
+-- RCA Fix C: replaces silent attachment lookup failure with a diagnostic warning.
 local function getEffectAttachment(root: BasePart, attachmentName: string): Attachment?
 	local attachment = root:FindFirstChild(attachmentName)
 	if attachment and attachment:IsA("Attachment") then
 		return attachment
 	end
+
+	warn(string.format(
+		"[FlagService] Attachment '%s' missing on %s. Add it or call ensureAttachment during pawn setup.",
+		attachmentName,
+		root:GetFullName()
+	))
 	return nil
 end
 
@@ -378,6 +390,11 @@ end
 
 function FlagService:TickFlags(dt: number)
 	local now = os.clock()
+	-- RCA Fix D: inject a service-level round-state gate so DoT cannot bypass active-round rules.
+	local roundService = getService(self._context, "RoundService")
+	local roundState = roundService and roundService:GetState()
+	local dotAllowed = roundState == GameStates.MapRoundState.EarlyGame or roundState == GameStates.MapRoundState.FinalPhase
+
 	for player, flags in pairs(self._activeFlags) do
 		local stateService = getService(self._context, "PlayerStateService")
 		local state = stateService and stateService:GetState(player)
@@ -398,7 +415,7 @@ function FlagService:TickFlags(dt: number)
 			local defaults = getFlagDefaults(flagName)
 			local tickInterval = (flag.Data and flag.Data.TickInterval) or defaults.TickInterval
 			local damagePerTick = (flag.Data and flag.Data.DamagePerTick) or defaults.DamagePerTick
-			if tickInterval and damagePerTick and not self:HasFlag(player, "Invulnerable") then
+			if tickInterval and damagePerTick and not self:HasFlag(player, "Invulnerable") and dotAllowed then
 				local lastTickAt = flag.LastTickAt or now
 				if now - lastTickAt >= tickInterval then
 					flag.LastTickAt = now

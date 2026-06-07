@@ -327,6 +327,15 @@ function SlingAbilityService:_handleCollision(attacker: Player, victim: Player, 
 		local flagName = config.collisionFlag
 		local duration = resolveKnockbackPlusFlagDuration(flagName, collisionMeta, config.collisionExtraDuration)
 		stateService:ApplyFlag(victim, flagName, duration, attacker)
+
+		-- RCA Fix E: injected after hard CC application to notify the victim client explicitly.
+		local feedbackRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
+		if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
+			feedbackRemote:FireClient(victim, {
+				EventType = "CCApplied",
+				Payload = { FlagName = flagName, Duration = duration },
+			})
+		end
 	end
 
 	-- Burn/Poison use centralized flag config for duration, stacking, ticks, damage, slow, and VFX.
