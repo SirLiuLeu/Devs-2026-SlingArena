@@ -369,6 +369,22 @@ function PlayerService:_prepareSlingModel(model: Model): BasePart?
 	end
 	model.PrimaryPart = root
 
+	-- RCA Fix A: injected after root confirmation to guarantee VFX anchors exist on runtime pawn clones.
+	local function ensureAttachment(parent: BasePart, name: string): Attachment
+		local existing = parent:FindFirstChild(name)
+		if existing and existing:IsA("Attachment") then
+			return existing
+		end
+
+		local att = Instance.new("Attachment")
+		att.Name = name
+		att.Position = Vector3.zero
+		att.Parent = parent
+		return att
+	end
+	ensureAttachment(root, "EffectOrigin")
+	ensureAttachment(root, "EffectHead")
+
 	local attachment = root:FindFirstChild("Attachment")
 	local linearVelocity = root:FindFirstChild("LinearVelocity")
 	local alignOrientation = root:FindFirstChild("AlignOrientation")

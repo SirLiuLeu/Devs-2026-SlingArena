@@ -6,17 +6,20 @@ local GameConfig = require(script.Parent.GameConfig)
 
 local AbilityConfig = {}
 
-local function flagDuration(flagName: string): number
-	local flagConfig = GameConfig.FlagConfig[flagName]
-	return (flagConfig and flagConfig.Duration) or 0
-end
-
-AbilityConfig.SlingFlagMap = {
+-- RCA cleanup: define the sling-to-flag map before AbilityConfig.Types to avoid nil forward references.
+local SlingFlagMap = {
 	PetrifySling = "Petrify",
 	StunSling = "Stun",
 	PoisonSling = "Poison",
 	FireSling = "Burn",
 }
+
+AbilityConfig.SlingFlagMap = SlingFlagMap
+
+local function flagDuration(flagName: string): number
+	local flagConfig = GameConfig.FlagConfig[flagName]
+	return (flagConfig and flagConfig.Duration) or 0
+end
 
 AbilityConfig.Types = {
 	SupportSling = {
@@ -26,7 +29,7 @@ AbilityConfig.Types = {
 	},
 	StunSling = {
 		id = "StunSling",
-		collisionFlag = AbilityConfig.SlingFlagMap.StunSling,
+		collisionFlag = SlingFlagMap.StunSling,
 		collisionExtraDuration = flagDuration("Stun"),
 	},
 	NormalSling = {
@@ -64,17 +67,17 @@ AbilityConfig.Types = {
 	},
 	PetrifySling = {
 		id = "PetrifySling",
-		collisionFlag = AbilityConfig.SlingFlagMap.PetrifySling,
+		collisionFlag = SlingFlagMap.PetrifySling,
 		collisionExtraDuration = flagDuration("Petrify"),
 		cannotPetrifyAbilityTypes = { FireSling = true },
 	},
 	FireSling = {
 		id = "FireSling",
-		dotFlag = AbilityConfig.SlingFlagMap.FireSling,
+		dotFlag = SlingFlagMap.FireSling,
 	},
 	PoisonSling = {
 		id = "PoisonSling",
-		dotFlag = AbilityConfig.SlingFlagMap.PoisonSling,
+		dotFlag = SlingFlagMap.PoisonSling,
 	},
 }
 
