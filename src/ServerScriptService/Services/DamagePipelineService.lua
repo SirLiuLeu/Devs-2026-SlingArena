@@ -20,6 +20,8 @@ type DamageOptions = {
 	SuppressDeathHandling: boolean?,
 	SuppressKnockback: boolean?,
 	KnockbackDuration: number?,
+	AttackerAbsoluteSpeed: number?,
+	InitialImpactSpeed: number?,
 }
 
 type EffectConfig = {
@@ -39,6 +41,36 @@ local SLING_DOT_EFFECTS: { [string]: EffectConfig } = {
 	FireSling = { Flag = "Burn" },
 	PoisonSling = { Flag = "Poison" },
 }
+
+local function getKnockbackSpeedCap(collisionMeta: any?): number
+	local attackerAbsoluteSpeed = collisionMeta and collisionMeta.AttackerAbsoluteSpeed
+	if type(attackerAbsoluteSpeed) == "number" then
+		return math.max(0, attackerAbsoluteSpeed)
+	end
+
+	local initialImpactSpeed = collisionMeta and collisionMeta.InitialImpactSpeed
+	if type(initialImpactSpeed) == "number" then
+		return math.max(0, initialImpactSpeed)
+	end
+
+	return BalanceConfig.MaxVelocity
+end
+
+local function resolveKnockbackDirectionAndSpeed(knockbackVelocity: Vector3, collisionMeta: any?): (Vector3?, number)
+	local planar = Vector3.new(knockbackVelocity.X, 0, knockbackVelocity.Z)
+	local planarMagnitude = planar.Magnitude
+	if planarMagnitude <= 0 then
+		return nil, 0
+	end
+
+	local speedCap = math.min(BalanceConfig.MaxVelocity, getKnockbackSpeedCap(collisionMeta))
+	local speed = math.min(planarMagnitude, speedCap)
+	if speed <= 0 then
+		return nil, 0
+	end
+
+	return planar.Unit, speed
+end
 
 local function getService(context: Context, name: string)
 	if context.ServiceRegistry then
@@ -77,13 +109,12 @@ function DamagePipelineService:Init()
 		if not (self._knockbackRemote and typeof(knockbackVelocity) == "Vector3") then
 			return
 		end
-		local planar = Vector3.new(knockbackVelocity.X, 0, knockbackVelocity.Z)
-		if planar.Magnitude <= 0 then
+		local knockbackDirection, knockbackSpeed = resolveKnockbackDirectionAndSpeed(knockbackVelocity, collisionMeta)
+		if not knockbackDirection then
 			return
 		end
-		local clamped = planar.Unit * math.min(planar.Magnitude, BalanceConfig.MaxVelocity)
-		local duration = collisionMeta and collisionMeta.Duration or PhysicsConfig.Collision.KnockbackImpulseDuration
-		self._knockbackRemote:FireClient(victim, clamped, duration)
+
+		self._knockbackRemote:FireClient(victim, knockbackDirection, knockbackSpeed)
 	end)
 
 	self._context.EventBus:On("CollisionPlayerHit", function(
@@ -245,13 +276,13 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 		local root = playerService and playerService:GetRoot(victim)
 		if root and knockbackDirection.Magnitude > 0 then
 			local planarKnockback = Vector3.new(knockbackDirection.X, 0, knockbackDirection.Z)
-			if planarKnockback.Magnitude > 0 then
-				local clamped = planarKnockback.Unit * math.min(planarKnockback.Magnitude, BalanceConfig.MaxVelocity)
+			local resolvedDirection, resolvedSpeed = resolveKnockbackDirectionAndSpeed(planarKnockback, options)
+			if resolvedDirection then
+				local impulseVelocity = resolvedDirection * resolvedSpeed
 				if self._knockbackRemote then
-					local knockbackDuration = math.max(0.05, (options and options.KnockbackDuration) or 0.12)
-					self._knockbackRemote:FireClient(victim, clamped, knockbackDuration)
+					self._knockbackRemote:FireClient(victim, resolvedDirection, resolvedSpeed)
 				else
-					local nextVelocity = root.AssemblyLinearVelocity + clamped
+					local nextVelocity = root.AssemblyLinearVelocity + impulseVelocity
 					root.AssemblyLinearVelocity = Vector3.new(
 						math.clamp(nextVelocity.X, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity),
 						nextVelocity.Y,

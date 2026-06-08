@@ -1,17 +1,15 @@
 --!strict
 
-local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
 local knockbackRemote = remotes:WaitForChild(RemoteContracts.Names.KnockbackReplication) :: RemoteEvent
 
-local DEFAULT_KNOCKBACK_DURATION = PhysicsConfig.Collision.KnockbackImpulseDuration
+local MIN_ASSEMBLY_MASS = 0.001
 
 local function getCharacterRoot(): BasePart?
 	local character = player.Character
@@ -37,10 +35,13 @@ local function getCharacterRoot(): BasePart?
 	return nil
 end
 
-knockbackRemote.OnClientEvent:Connect(function(knockbackVelocity: any, duration: any)
-
-	if typeof(knockbackVelocity) ~= "Vector3" then
-		warn("[KnockbackReplication] Invalid knockbackVelocity type:", typeof(knockbackVelocity))
+knockbackRemote.OnClientEvent:Connect(function(knockbackDirection: any, knockbackSpeed: any)
+	if typeof(knockbackDirection) ~= "Vector3" then
+		warn("[KnockbackReplication] Invalid knockbackDirection type:", typeof(knockbackDirection))
+		return
+	end
+	if type(knockbackSpeed) ~= "number" then
+		warn("[KnockbackReplication] Invalid knockbackSpeed type:", type(knockbackSpeed))
 		return
 	end
 
@@ -55,39 +56,20 @@ knockbackRemote.OnClientEvent:Connect(function(knockbackVelocity: any, duration:
 		return
 	end
 
-	local planarVelocity = Vector3.new(knockbackVelocity.X, 0, knockbackVelocity.Z)
-
-	if planarVelocity.Magnitude <= 0 then
-		warn("[KnockbackReplication] Zero planar velocity, skipping")
+	local planarDirection = Vector3.new(knockbackDirection.X, 0, knockbackDirection.Z)
+	if planarDirection.Magnitude <= 0 then
+		warn("[KnockbackReplication] Zero planar direction, skipping")
 		return
 	end
 
-	local attachment = root:FindFirstChild("KnockbackAttachment")
-	if not (attachment and attachment:IsA("Attachment")) then
-		attachment = Instance.new("Attachment")
-		attachment.Name = "KnockbackAttachment"
-		attachment.Parent = root
+	local speed = math.max(0, knockbackSpeed)
+	if speed <= 0 then
+		warn("[KnockbackReplication] Non-positive knockback speed, skipping")
+		return
 	end
 
-	local linearVelocity = Instance.new("LinearVelocity")
-	linearVelocity.Name = "KnockbackLinearVelocity"
-	linearVelocity.Attachment0 = attachment
-	linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
-	linearVelocity.VectorVelocity = planarVelocity
-	linearVelocity.MaxForce = math.max(root.AssemblyMass, 1) * 12000
-	linearVelocity.Parent = root
-
-	local durationSeconds = DEFAULT_KNOCKBACK_DURATION
-	if typeof(duration) == "number" then
-		durationSeconds = math.max(0, duration)
-	end
-
-	print(
-		"[KnockbackReplication] Applying LinearVelocity:",
-		"MaxForce=", linearVelocity.MaxForce,
-		"Duration=", durationSeconds,
-		"VelocityMagnitude=", planarVelocity.Magnitude
-	)
-
-	Debris:AddItem(linearVelocity, durationSeconds)
+	local direction = planarDirection.Unit
+	local mass = math.max(root.AssemblyMass, MIN_ASSEMBLY_MASS)
+	local impulse = direction * speed * mass
+	root:ApplyImpulse(impulse)
 end)

@@ -265,7 +265,15 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	self._lastCollision[key] = now
 	self._lastCollisionByLaunchTarget[launchId][launchTargetKey] = now
 
-	local defenderOut = collisionResult.DefenderVelocity
+	local attackerAbsoluteSpeed = attackerVelocity.Magnitude
+	local defenderOutRaw = collisionResult.DefenderVelocity
+	local defenderOutRawSpeed = defenderOutRaw.Magnitude
+	local maxDefenderOutSpeed = attackerAbsoluteSpeed * PhysicsConfig.Collision.DefenderVelocityTransferScale
+	local defenderOut = if defenderOutRawSpeed <= maxDefenderOutSpeed
+		then defenderOutRaw
+		elseif maxDefenderOutSpeed <= 0
+		then Vector3.zero
+		else defenderOutRaw.Unit * maxDefenderOutSpeed
 	local attackerOut = collisionResult.AttackerVelocity
 
 	local canDamage = slingService:RegisterLaunchDamageTarget(player, launchTargetKey)
@@ -306,6 +314,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		NormalSpeed = collisionResult.NormalSpeed,
 		TangentialSpeed = collisionResult.TangentialSpeed,
 		LaunchEnergy = launchState.energy,
+		AttackerAbsoluteSpeed = attackerAbsoluteSpeed,
 		CollisionCount = launchState.collisions,
 		ChargeRatio = launchState.chargeRatio or 0,
 		ElapsedLaunchTime = math.max(0, now - (launchState.startTime or now)),
@@ -319,6 +328,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 			NormalSpeed = collisionResult.NormalSpeed,
 			TangentialSpeed = collisionResult.TangentialSpeed,
 			InitialImpactSpeed = math.max(launchState.initialSpeed or 0, impactSpeed),
+			AttackerAbsoluteSpeed = attackerAbsoluteSpeed,
 			CollisionCount = launchState.collisions,
 			LaunchEnergy = launchState.energy,
 			ChargeRatio = launchState.chargeRatio or 0,
@@ -335,6 +345,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 			NormalSpeed = collisionResult.NormalSpeed,
 			TangentialSpeed = collisionResult.TangentialSpeed,
 			InitialImpactSpeed = math.max(launchState.initialSpeed or 0, impactSpeed),
+			AttackerAbsoluteSpeed = attackerAbsoluteSpeed,
 			CollisionCount = launchState.collisions,
 			TransferredEnergy = transferEnergy,
 		})
