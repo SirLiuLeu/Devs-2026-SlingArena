@@ -83,9 +83,13 @@ DataModel
 │  │  │  │  │  └── Mesh
 │  │  │  │  ├── Hitbox (PrimaryPart)
 │  │  │  │  │  ├── AlignOrientation
-│  │  │  │  │  ├── Attachment (Attachment)
+│  │  │  │  │  ├── AttachmentOrientation (Attachment)
 │  │  │  │  │  ├── EffectHead (Attachment)
+│  │  │  │  │  │  └── Stun (ParticleEmitter)
 │  │  │  │  │  ├── EffectOrigin (Attachment)
+│  │  │  │  │  │  ├── Burn (ParticleEmitter)
+│  │  │  │  │  │  ├── Frost (ParticleEmitter)
+│  │  │  │  │  │  └── Poison (ParticleEmitter)
 │  │  │  │  │  ├── LinearVelocity
 │  │  │  │  │  ├── SlingMovementAttachment (Attachment)
 │  │  │  │  │  ├── TrailEnd (Attachment)

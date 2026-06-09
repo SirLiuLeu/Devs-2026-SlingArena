@@ -6,7 +6,7 @@ local GameConfig = {
 		Invulnerable = { Duration = 30, Priority = 100, BlocksDamage = true, BlocksDot = true },
 
 		Petrify = { Duration = 5, Priority = 80, Stackable = false, InterruptCharge = true },
-		Stun = { Duration = 3, Priority = 70, Stackable = false, InterruptCharge = true },
+		Stun = { Duration = 5, Priority = 70, Stackable = false, InterruptCharge = true },
 
 		Slow = { Duration = 3, Priority = 50, Stackable = false, MaxStack = 1, SlowAmount = 0.25 },
 
