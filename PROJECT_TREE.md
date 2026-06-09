@@ -87,9 +87,9 @@ DataModel
 │  │  │  │  │  ├── EffectHead (Attachment)
 │  │  │  │  │  │  └── Stun (ParticleEmitter)
 │  │  │  │  │  ├── EffectOrigin (Attachment)
-│  │  │  │  │  │  ├── Burn (ParticleEmitter)
+│  │  │  │  │  │  ├── Burn (Fire)
 │  │  │  │  │  │  ├── Frost (ParticleEmitter)
-│  │  │  │  │  │  └── Poison (ParticleEmitter)
+│  │  │  │  │  │  └── Poison (Smoke)
 │  │  │  │  │  ├── LinearVelocity
 │  │  │  │  │  ├── SlingMovementAttachment (Attachment)
 │  │  │  │  │  ├── TrailEnd (Attachment)
