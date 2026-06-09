@@ -334,6 +334,8 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 			ChargeRatio = launchState.chargeRatio or 0,
 			ElapsedLaunchTime = math.max(0, now - (launchState.startTime or now)),
 			TransferredEnergy = transferEnergy,
+			TransferredVelocity = defenderOut.Magnitude,
+			TransferredVelocityVector = defenderOut,
 		})
 	end
 	if shouldKnockback then

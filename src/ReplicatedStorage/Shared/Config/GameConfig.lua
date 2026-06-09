@@ -29,10 +29,10 @@ local GameConfig = {
 	FlagVisualConfig = {
 		Petrify = { Effect = "Frost", Attachment = "EffectOrigin", Material = Enum.Material.Pebble, MaterialTarget = "DefaultMesh" },
 		Stun = { Effect = "Stun", Attachment = "EffectHead" },
-		Burn = { Effect = "Fire", Attachment = "EffectOrigin" },
+		Burn = { Effect = "Burn", Attachment = "EffectOrigin" },
 		Poison = { Effect = "Poison", Attachment = "EffectOrigin" },
 		PoisonTrap = { Effect = "Poison", Attachment = "EffectOrigin" },
-		LavaTrap = { Effect = "Fire", Attachment = "EffectOrigin" },
+		LavaTrap = { Effect = "Burn", Attachment = "EffectOrigin" },
 	},
 }
 

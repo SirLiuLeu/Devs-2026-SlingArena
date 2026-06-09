@@ -256,6 +256,10 @@ local ProjectTreeSpec = {
 				Food6 = "Assets.Food.Food6",
 				Food7 = "Assets.Food.Food7",
 				BasicTrap = "Assets.Trap.BasicTrap",
+				BurnEffect = "Assets.EffectVfx.Burn",
+				FrostEffect = "Assets.EffectVfx.Frost",
+				PoisonEffect = "Assets.EffectVfx.Poison",
+				StunEffect = "Assets.EffectVfx.Stun",
 			},
 			Slings = {
 				SupportSling = "Assets.Slings.SupportSling",

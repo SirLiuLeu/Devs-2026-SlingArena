@@ -22,7 +22,7 @@ type ActiveFlag = {
 }
 
 type FlagVisual = {
-	Emitter: ParticleEmitter?,
+	Effect: Instance?,
 	Materials: { [BasePart]: Enum.Material },
 }
 
@@ -37,26 +37,39 @@ local function getFlagDefaults(flagName: string): any
 	return GameConfig.FlagConfig[flagName] or {}
 end
 
--- RCA Fix B: replaces the legacy typo fallback loop with the canonical assets path.
-local function getEffectInstance(effectName: string): Instance?
-	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
-	local effectsFolder = assetsFolder and assetsFolder:FindFirstChild("ParticleEmitters")
-	local effect = effectsFolder and effectsFolder:FindFirstChild(effectName)
+local EFFECT_VFX_PATH = "ReplicatedStorage/Assets/EffectVfx"
 
-	if effect and (
+local function isSupportedEffect(effect: Instance?): boolean
+	return effect ~= nil and (
 		effect:IsA("ParticleEmitter")
 		or effect:IsA("Fire")
 		or effect:IsA("Smoke")
-	) then
+	)
+end
+
+local function getEffectInstance(effectName: string): Instance?
+	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
+	local effectsFolder = assetsFolder and assetsFolder:FindFirstChild("EffectVfx")
+	local effect = effectsFolder and effectsFolder:FindFirstChild(effectName)
+
+	if isSupportedEffect(effect) then
 		return effect
 	end
 
 	warn(string.format(
-		"[FlagService] Effect '%s' not found at ReplicatedStorage/Assets/ParticleEmitters/%s",
+		"[FlagService] Effect '%s' not found at %s/%s",
 		effectName,
+		EFFECT_VFX_PATH,
 		effectName
 	))
 	return nil
+end
+
+local function getEffectParent(effectTemplate: Instance, attachment: Attachment): Instance
+	if effectTemplate:IsA("ParticleEmitter") then
+		return attachment
+	end
+	return attachment.Parent or attachment
 end
 
 -- RCA Fix C: replaces silent attachment lookup failure with a diagnostic warning.
@@ -235,9 +248,11 @@ function FlagService:_removeFlagVisual(player: Player, flagName: string)
 	if not visual then
 		return
 	end
-	if visual.Emitter then
-		visual.Emitter.Enabled = false
-		visual.Emitter:Destroy()
+	if visual.Effect then
+		if visual.Effect:IsA("ParticleEmitter") or visual.Effect:IsA("Fire") or visual.Effect:IsA("Smoke") then
+			(visual.Effect :: any).Enabled = false
+		end
+		visual.Effect:Destroy()
 	end
 	for part, material in pairs(visual.Materials) do
 		if part and part.Parent then
@@ -277,18 +292,18 @@ function FlagService:_applyFlagVisual(player: Player, flagName: string, data: an
 	end
 
 	local visual: FlagVisual = {
-		Emitter = nil,
+		Effect = nil,
 		Materials = {},
 	}
 	if typeof(effectName) == "string" and typeof(attachmentName) == "string" then
-		local emitterTemplate = getParticleEmitter(effectName)
+		local effectTemplate = getEffectInstance(effectName)
 		local attachment = getEffectAttachment(root, attachmentName)
-		if emitterTemplate and attachment then
-			local emitter = emitterTemplate:Clone()
-			emitter.Name = flagName .. "Effect"
-			emitter.Enabled = true
-			emitter.Parent = attachment
-			visual.Emitter = emitter
+		if effectTemplate and attachment then
+			local effect = effectTemplate:Clone()
+			effect.Name = flagName .. "Effect"
+			(effect :: any).Enabled = true
+			effect.Parent = getEffectParent(effectTemplate, attachment)
+			visual.Effect = effect
 		end
 	end
 	if typeof(material) == "EnumItem" then
@@ -297,7 +312,7 @@ function FlagService:_applyFlagVisual(player: Player, flagName: string, data: an
 			part.Material = material
 		end
 	end
-	if visual.Emitter or next(visual.Materials) ~= nil then
+	if visual.Effect or next(visual.Materials) ~= nil then
 		local playerVisuals = self._flagVisuals[player]
 		if not playerVisuals then
 			playerVisuals = {}

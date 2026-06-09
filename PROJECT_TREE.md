@@ -126,9 +126,9 @@ DataModel
 │  │  │
 │  │  ├── EffectVfx
 │  │  │   ├── Burn (Fire)
-│  │  │   ├── Frost ((Particle Emitter))
+│  │  │   ├── Frost (ParticleEmitter)
 │  │  │   ├── Poison (Smoke)
-│  │  │   └── Stun (Particle Emitter)
+│  │  │   └── Stun (ParticleEmitter)
 │  │  │
 │  │  └── UI
 │  │      ├── FloatingDamage (BillboardGui)

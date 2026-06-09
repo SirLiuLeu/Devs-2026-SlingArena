@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
+local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local BaseAbility = require(script.Parent.BaseAbility)
 
@@ -23,10 +24,21 @@ local function getFlagConfig(flagName: string): any
 	return GameConfig.FlagConfig[flagName] or {}
 end
 
-local function resolveKnockbackPlusFlagDuration(flagName: string, collisionMeta: any, extraDuration: number?): number
-	local knockbackDuration = if collisionMeta and typeof(collisionMeta.Duration) == "number" then collisionMeta.Duration else 0
+local function getCollisionTransferredVelocity(collisionMeta: any): number
+	if collisionMeta and typeof(collisionMeta.TransferredVelocity) == "number" then
+		return math.max(0, collisionMeta.TransferredVelocity)
+	end
+	if collisionMeta and typeof(collisionMeta.TransferredVelocityVector) == "Vector3" then
+		return collisionMeta.TransferredVelocityVector.Magnitude
+	end
+	return 0
+end
+
+local function resolveImpactScaledFlagDuration(flagName: string, collisionMeta: any, fallbackDuration: number?): number
 	local flagConfig = getFlagConfig(flagName)
-	return math.max(0, knockbackDuration) + math.max(0, extraDuration or flagConfig.Duration or 0)
+	local baseDuration = math.max(0, fallbackDuration or flagConfig.Duration or 0)
+	local maxLaunchSpeed = math.max(PhysicsConfig.Launch.SpeedMax or 0, 0.001)
+	return (getCollisionTransferredVelocity(collisionMeta) / maxLaunchSpeed) * baseDuration
 end
 
 -- Food DoT state: tracks active Burn/Poison effects per food model, flag name, and attacker user ID.
@@ -322,10 +334,10 @@ function SlingAbilityService:_handleCollision(attacker: Player, victim: Player, 
 		end
 	end
 
-	-- Hard CC flags last through knockback, then the configured flag duration.
+	-- Hard CC duration scales with the actual velocity transferred to the defender.
 	if config.collisionFlag then
 		local flagName = config.collisionFlag
-		local duration = resolveKnockbackPlusFlagDuration(flagName, collisionMeta, config.collisionExtraDuration)
+		local duration = resolveImpactScaledFlagDuration(flagName, collisionMeta, config.collisionExtraDuration)
 		stateService:ApplyFlag(victim, flagName, duration, attacker)
 
 		-- RCA Fix E: injected after hard CC application to notify the victim client explicitly.
