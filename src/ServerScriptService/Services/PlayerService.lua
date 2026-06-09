@@ -10,6 +10,7 @@ local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
+local StatusEffectVfx = require(ReplicatedStorage.Shared.Utils.StatusEffectVfx)
 
 local EQUIPPED_SLING_MODEL_NAME = "EquipedSlingModel"
 local LEGACY_EQUIPPED_SLING_MODEL_NAME = "EquippedSlingModel"
@@ -17,23 +18,8 @@ local PLAYER_CHARACTER_MODEL_NAME = "Player"
 local SLING_MESH_NAME = "Mesh"
 local HITBOX_MESH_WELD_NAME = "WeldConstraint_HitboxMesh"
 
-local STATUS_EFFECT_ATTACHMENTS = {
-	Stun = "EffectHead",
-	Burn = "EffectOrigin",
-	Frost = "EffectOrigin",
-	Poison = "EffectOrigin",
-}
-
 local function setPreplacedStatusEffectsEnabled(root: BasePart, enabled: boolean)
-	for effectName, attachmentName in pairs(STATUS_EFFECT_ATTACHMENTS) do
-		local attachment = root:FindFirstChild(attachmentName)
-		if attachment and attachment:IsA("Attachment") then
-			local effect = attachment:FindFirstChild(effectName)
-			if effect and effect:IsA("ParticleEmitter") then
-				effect.Enabled = enabled
-			end
-		end
-	end
+	StatusEffectVfx.SetAllStatusEffectsEnabled(root, enabled)
 end
 
 local PlayerService = {}

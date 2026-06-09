@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
+local StatusEffectVfx = require(ReplicatedStorage.Shared.Utils.StatusEffectVfx)
 
 local MOVEMENT_STATE = GameStates.PlayerState
 
@@ -38,59 +39,16 @@ local function getFlagDefaults(flagName: string): any
 	return GameConfig.FlagConfig[flagName] or {}
 end
 
-local STATUS_EFFECT_ATTACHMENTS = {
-	Stun = "EffectHead",
-	Burn = "EffectOrigin",
-	Frost = "EffectOrigin",
-	Poison = "EffectOrigin",
-}
-
 local function isStatusEffectName(effectName: any?): boolean
-	return typeof(effectName) == "string" and STATUS_EFFECT_ATTACHMENTS[effectName] ~= nil
-end
-
-local function getStatusEffect(root: BasePart, effectName: string, attachmentName: string?): ParticleEmitter?
-	local resolvedAttachmentName = attachmentName or STATUS_EFFECT_ATTACHMENTS[effectName]
-	if not resolvedAttachmentName then
-		return nil
-	end
-
-	local attachment = root:FindFirstChild(resolvedAttachmentName)
-	if not (attachment and attachment:IsA("Attachment")) then
-		warn(string.format(
-			"[FlagService] Attachment '%s' missing on %s for pre-placed %s effect.",
-			resolvedAttachmentName,
-			root:GetFullName(),
-			effectName
-		))
-		return nil
-	end
-
-	local effect = attachment:FindFirstChild(effectName)
-	if effect and effect:IsA("ParticleEmitter") then
-		return effect
-	end
-
-	warn(string.format(
-		"[FlagService] Pre-placed ParticleEmitter '%s' missing under %s.%s.",
-		effectName,
-		root:GetFullName(),
-		resolvedAttachmentName
-	))
-	return nil
+	return StatusEffectVfx.IsStatusEffectName(effectName)
 end
 
 local function setStatusEffectEnabled(root: BasePart, effectName: string, enabled: boolean, attachmentName: string?)
-	local effect = getStatusEffect(root, effectName, attachmentName)
-	if effect then
-		effect.Enabled = enabled
-	end
+	StatusEffectVfx.SetStatusEffectEnabled(root, effectName, enabled, attachmentName)
 end
 
 local function setAllStatusEffectsEnabled(root: BasePart, enabled: boolean)
-	for effectName, attachmentName in pairs(STATUS_EFFECT_ATTACHMENTS) do
-		setStatusEffectEnabled(root, effectName, enabled, attachmentName)
-	end
+	StatusEffectVfx.SetAllStatusEffectsEnabled(root, enabled)
 end
 
 local function mergeVisualConfig(flagName: string, data: any?): any
@@ -116,7 +74,7 @@ local function getConfiguredEffect(flagName: string, data: any?): (string?, stri
 	if not isStatusEffectName(effectName) then
 		return nil, nil
 	end
-	return effectName, if typeof(attachmentName) == "string" then attachmentName else STATUS_EFFECT_ATTACHMENTS[effectName]
+	return effectName, if typeof(attachmentName) == "string" then attachmentName else StatusEffectVfx.GetDefaultAttachmentName(effectName)
 end
 
 local function getDefaultMesh(pawn: Model): BasePart?
@@ -343,7 +301,7 @@ function FlagService:_applyFlagVisual(player: Player, flagName: string, data: an
 		Materials = {},
 	}
 	if isStatusEffectName(effectName) then
-		local resolvedAttachmentName = if typeof(attachmentName) == "string" then attachmentName else STATUS_EFFECT_ATTACHMENTS[effectName]
+		local resolvedAttachmentName = if typeof(attachmentName) == "string" then attachmentName else StatusEffectVfx.GetDefaultAttachmentName(effectName)
 		setStatusEffectEnabled(root, effectName, true, resolvedAttachmentName)
 		visual.EffectName = effectName
 		visual.AttachmentName = resolvedAttachmentName
