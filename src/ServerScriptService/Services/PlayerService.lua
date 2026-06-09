@@ -17,6 +17,25 @@ local PLAYER_CHARACTER_MODEL_NAME = "Player"
 local SLING_MESH_NAME = "Mesh"
 local HITBOX_MESH_WELD_NAME = "WeldConstraint_HitboxMesh"
 
+local STATUS_EFFECT_ATTACHMENTS = {
+	Stun = "EffectHead",
+	Burn = "EffectOrigin",
+	Frost = "EffectOrigin",
+	Poison = "EffectOrigin",
+}
+
+local function setPreplacedStatusEffectsEnabled(root: BasePart, enabled: boolean)
+	for effectName, attachmentName in pairs(STATUS_EFFECT_ATTACHMENTS) do
+		local attachment = root:FindFirstChild(attachmentName)
+		if attachment and attachment:IsA("Attachment") then
+			local effect = attachment:FindFirstChild(effectName)
+			if effect and effect:IsA("ParticleEmitter") then
+				effect.Enabled = enabled
+			end
+		end
+	end
+end
+
 local PlayerService = {}
 PlayerService.__index = PlayerService
 
@@ -369,21 +388,8 @@ function PlayerService:_prepareSlingModel(model: Model): BasePart?
 	end
 	model.PrimaryPart = root
 
-	-- RCA Fix A: injected after root confirmation to guarantee VFX anchors exist on runtime pawn clones.
-	local function ensureAttachment(parent: BasePart, name: string): Attachment
-		local existing = parent:FindFirstChild(name)
-		if existing and existing:IsA("Attachment") then
-			return existing
-		end
-
-		local att = Instance.new("Attachment")
-		att.Name = name
-		att.Position = Vector3.zero
-		att.Parent = parent
-		return att
-	end
-	ensureAttachment(root, "EffectOrigin")
-	ensureAttachment(root, "EffectHead")
+	-- Status VFX are pre-placed under Hitbox attachments; keep them disabled until flags enable them.
+	setPreplacedStatusEffectsEnabled(root, false)
 
 	local attachment = root:FindFirstChild("Attachment")
 	local linearVelocity = root:FindFirstChild("LinearVelocity")
@@ -544,6 +550,7 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	pawn:PivotTo(spawnCFrame)
 	pawn.Parent = self._pawnsFolder
 	player.Character = pawn
+	setPreplacedStatusEffectsEnabled(pawn.PrimaryPart, false)
 	pawn.PrimaryPart:SetNetworkOwner(player)
 	self._playerToSling[player] = pawn
 	self._slingToPlayer[pawn] = player

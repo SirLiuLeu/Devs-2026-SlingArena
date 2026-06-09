@@ -128,12 +128,6 @@ DataModel
 │  │  │   └── Slings
 │  │  │       └── Sling icons for the canonical 11 sling ids (Image)
 │  │  │
-│  │  ├── EffectVfx
-│  │  │   ├── Burn (Fire)
-│  │  │   ├── Frost (ParticleEmitter)
-│  │  │   ├── Poison (Smoke)
-│  │  │   └── Stun (ParticleEmitter)
-│  │  │
 │  │  └── UI
 │  │      ├── FloatingDamage (BillboardGui)
 │  │      │   └── Value (TextLabel)

@@ -22,7 +22,8 @@ type ActiveFlag = {
 }
 
 type FlagVisual = {
-	Effect: Instance?,
+	EffectName: string?,
+	AttachmentName: string?,
 	Materials: { [BasePart]: Enum.Material },
 }
 
@@ -37,54 +38,59 @@ local function getFlagDefaults(flagName: string): any
 	return GameConfig.FlagConfig[flagName] or {}
 end
 
-local EFFECT_VFX_PATH = "ReplicatedStorage/Assets/EffectVfx"
+local STATUS_EFFECT_ATTACHMENTS = {
+	Stun = "EffectHead",
+	Burn = "EffectOrigin",
+	Frost = "EffectOrigin",
+	Poison = "EffectOrigin",
+}
 
-local function isSupportedEffect(effect: Instance?): boolean
-	return effect ~= nil and (
-		effect:IsA("ParticleEmitter")
-		or effect:IsA("Fire")
-		or effect:IsA("Smoke")
-	)
+local function isStatusEffectName(effectName: any?): boolean
+	return typeof(effectName) == "string" and STATUS_EFFECT_ATTACHMENTS[effectName] ~= nil
 end
 
-local function getEffectInstance(effectName: string): Instance?
-	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
-	local effectsFolder = assetsFolder and assetsFolder:FindFirstChild("EffectVfx")
-	local effect = effectsFolder and effectsFolder:FindFirstChild(effectName)
+local function getStatusEffect(root: BasePart, effectName: string, attachmentName: string?): ParticleEmitter?
+	local resolvedAttachmentName = attachmentName or STATUS_EFFECT_ATTACHMENTS[effectName]
+	if not resolvedAttachmentName then
+		return nil
+	end
 
-	if isSupportedEffect(effect) then
+	local attachment = root:FindFirstChild(resolvedAttachmentName)
+	if not (attachment and attachment:IsA("Attachment")) then
+		warn(string.format(
+			"[FlagService] Attachment '%s' missing on %s for pre-placed %s effect.",
+			resolvedAttachmentName,
+			root:GetFullName(),
+			effectName
+		))
+		return nil
+	end
+
+	local effect = attachment:FindFirstChild(effectName)
+	if effect and effect:IsA("ParticleEmitter") then
 		return effect
 	end
 
 	warn(string.format(
-		"[FlagService] Effect '%s' not found at %s/%s",
+		"[FlagService] Pre-placed ParticleEmitter '%s' missing under %s.%s.",
 		effectName,
-		EFFECT_VFX_PATH,
-		effectName
+		root:GetFullName(),
+		resolvedAttachmentName
 	))
 	return nil
 end
 
-local function getEffectParent(effectTemplate: Instance, attachment: Attachment): Instance
-	if effectTemplate:IsA("ParticleEmitter") then
-		return attachment
+local function setStatusEffectEnabled(root: BasePart, effectName: string, enabled: boolean, attachmentName: string?)
+	local effect = getStatusEffect(root, effectName, attachmentName)
+	if effect then
+		effect.Enabled = enabled
 	end
-	return attachment.Parent or attachment
 end
 
--- RCA Fix C: replaces silent attachment lookup failure with a diagnostic warning.
-local function getEffectAttachment(root: BasePart, attachmentName: string): Attachment?
-	local attachment = root:FindFirstChild(attachmentName)
-	if attachment and attachment:IsA("Attachment") then
-		return attachment
+local function setAllStatusEffectsEnabled(root: BasePart, enabled: boolean)
+	for effectName, attachmentName in pairs(STATUS_EFFECT_ATTACHMENTS) do
+		setStatusEffectEnabled(root, effectName, enabled, attachmentName)
 	end
-
-	warn(string.format(
-		"[FlagService] Attachment '%s' missing on %s. Add it or call ensureAttachment during pawn setup.",
-		attachmentName,
-		root:GetFullName()
-	))
-	return nil
 end
 
 local function mergeVisualConfig(flagName: string, data: any?): any
@@ -101,6 +107,16 @@ local function mergeVisualConfig(flagName: string, data: any?): any
 		end
 	end
 	return merged
+end
+
+local function getConfiguredEffect(flagName: string, data: any?): (string?, string?)
+	local visualConfig = mergeVisualConfig(flagName, data)
+	local effectName = visualConfig.Effect
+	local attachmentName = visualConfig.Attachment
+	if not isStatusEffectName(effectName) then
+		return nil, nil
+	end
+	return effectName, if typeof(attachmentName) == "string" then attachmentName else STATUS_EFFECT_ATTACHMENTS[effectName]
 end
 
 local function getDefaultMesh(pawn: Model): BasePart?
@@ -219,10 +235,12 @@ end
 function FlagService:EnsurePlayer(player: Player)
 	self._activeFlags[player] = self._activeFlags[player] or {}
 	self._flagVisuals[player] = self._flagVisuals[player] or {}
+	self:DisablePlayerStatusEffects(player)
 end
 
 function FlagService:ClearPlayer(player: Player)
 	self:_clearFlagVisuals(player)
+	self:DisablePlayerStatusEffects(player)
 	self._activeFlags[player] = nil
 	self._flagVisuals[player] = nil
 end
@@ -231,7 +249,16 @@ function FlagService:ResetPlayer(player: Player): any
 	self:_clearFlagVisuals(player)
 	self._activeFlags[player] = {}
 	self._flagVisuals[player] = {}
+	self:DisablePlayerStatusEffects(player)
 	return buildFlagSnapshot(self._activeFlags[player])
+end
+
+function FlagService:DisablePlayerStatusEffects(player: Player)
+	local playerService = getService(self._context, "PlayerService")
+	local root = playerService and playerService:GetRoot(player)
+	if root then
+		setAllStatusEffectsEnabled(root, false)
+	end
 end
 
 function FlagService:BuildSnapshot(player: Player): any
@@ -242,17 +269,36 @@ function FlagService:GetDefaults(flagName: string): any
 	return getFlagDefaults(flagName)
 end
 
+function FlagService:_hasActiveEffect(player: Player, effectName: string, exceptFlagName: string?): boolean
+	local flags = self._activeFlags[player]
+	if not flags then
+		return false
+	end
+	local now = os.clock()
+	for _, flag in pairs(flags) do
+		if flag.Name ~= exceptFlagName and flag.ExpiresAt > now then
+			local activeEffectName = getConfiguredEffect(flag.Name, flag.Data)
+			if activeEffectName == effectName then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 function FlagService:_removeFlagVisual(player: Player, flagName: string)
 	local playerVisuals = self._flagVisuals[player]
 	local visual = playerVisuals and playerVisuals[flagName]
 	if not visual then
 		return
 	end
-	if visual.Effect then
-		if visual.Effect:IsA("ParticleEmitter") or visual.Effect:IsA("Fire") or visual.Effect:IsA("Smoke") then
-			(visual.Effect :: any).Enabled = false
+
+	if visual.EffectName and not self:_hasActiveEffect(player, visual.EffectName, flagName) then
+		local playerService = getService(self._context, "PlayerService")
+		local root = playerService and playerService:GetRoot(player)
+		if root then
+			setStatusEffectEnabled(root, visual.EffectName, false, visual.AttachmentName)
 		end
-		visual.Effect:Destroy()
 	end
 	for part, material in pairs(visual.Materials) do
 		if part and part.Parent then
@@ -292,19 +338,15 @@ function FlagService:_applyFlagVisual(player: Player, flagName: string, data: an
 	end
 
 	local visual: FlagVisual = {
-		Effect = nil,
+		EffectName = nil,
+		AttachmentName = nil,
 		Materials = {},
 	}
-	if typeof(effectName) == "string" and typeof(attachmentName) == "string" then
-		local effectTemplate = getEffectInstance(effectName)
-		local attachment = getEffectAttachment(root, attachmentName)
-		if effectTemplate and attachment then
-			local effect = effectTemplate:Clone()
-			effect.Name = flagName .. "Effect"
-			(effect :: any).Enabled = true
-			effect.Parent = getEffectParent(effectTemplate, attachment)
-			visual.Effect = effect
-		end
+	if isStatusEffectName(effectName) then
+		local resolvedAttachmentName = if typeof(attachmentName) == "string" then attachmentName else STATUS_EFFECT_ATTACHMENTS[effectName]
+		setStatusEffectEnabled(root, effectName, true, resolvedAttachmentName)
+		visual.EffectName = effectName
+		visual.AttachmentName = resolvedAttachmentName
 	end
 	if typeof(material) == "EnumItem" then
 		for _, part in collectMaterialTargets(pawn, materialTarget) do
@@ -312,7 +354,7 @@ function FlagService:_applyFlagVisual(player: Player, flagName: string, data: an
 			part.Material = material
 		end
 	end
-	if visual.Effect or next(visual.Materials) ~= nil then
+	if visual.EffectName or next(visual.Materials) ~= nil then
 		local playerVisuals = self._flagVisuals[player]
 		if not playerVisuals then
 			playerVisuals = {}
