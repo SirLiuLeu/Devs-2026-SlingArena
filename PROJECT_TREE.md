@@ -124,11 +124,11 @@ DataModel
 │  │  │   └── Slings
 │  │  │       └── Sling icons for the canonical 11 sling ids (Image)
 │  │  │
-│  │  ├── ParticleEmitters
-│  │  │   ├── Fire
-│  │  │   ├── Frost
-│  │  │   ├── Poison
-│  │  │   └── Stun
+│  │  ├── EffectVfx
+│  │  │   ├── Burn (Fire)
+│  │  │   ├── Frost ((Particle Emitter))
+│  │  │   ├── Poison (Smoke)
+│  │  │   └── Stun (Particle Emitter)
 │  │  │
 │  │  └── UI
 │  │      ├── FloatingDamage (BillboardGui)

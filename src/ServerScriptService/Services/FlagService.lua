@@ -38,16 +38,21 @@ local function getFlagDefaults(flagName: string): any
 end
 
 -- RCA Fix B: replaces the legacy typo fallback loop with the canonical assets path.
-local function getParticleEmitter(effectName: string): ParticleEmitter?
+local function getEffectInstance(effectName: string): Instance?
 	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
-	local emittersFolder = assetsFolder and assetsFolder:FindFirstChild("ParticleEmitters")
-	local emitter = emittersFolder and emittersFolder:FindFirstChild(effectName)
-	if emitter and emitter:IsA("ParticleEmitter") then
-		return emitter
+	local effectsFolder = assetsFolder and assetsFolder:FindFirstChild("ParticleEmitters")
+	local effect = effectsFolder and effectsFolder:FindFirstChild(effectName)
+
+	if effect and (
+		effect:IsA("ParticleEmitter")
+		or effect:IsA("Fire")
+		or effect:IsA("Smoke")
+	) then
+		return effect
 	end
 
 	warn(string.format(
-		"[FlagService] ParticleEmitter '%s' not found at ReplicatedStorage/Assets/ParticleEmitters/%s",
+		"[FlagService] Effect '%s' not found at ReplicatedStorage/Assets/ParticleEmitters/%s",
 		effectName,
 		effectName
 	))
