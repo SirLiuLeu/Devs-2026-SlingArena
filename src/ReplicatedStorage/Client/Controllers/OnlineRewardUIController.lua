@@ -55,13 +55,13 @@ function OnlineRewardUIController:Start()
 
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
 	local uiFolder = assets and assets:FindFirstChild("UI")
-	self._template = uiFolder and uiFolder:FindFirstChild("RewardSlotTemplate")
+	self._template = uiFolder and uiFolder:FindFirstChild("SlotRewardTemplate_OnlineRewardUI")
 
 	if not self._content then
 		warn("[ONLINE_REWARD_UI] OnlineRewardUI/Root/Content missing")
 	end
 	if not self._template then
-		warn("[ONLINE_REWARD_UI] ReplicatedStorage/Assets/UI/RewardSlotTemplate missing")
+		warn("[ONLINE_REWARD_UI] ReplicatedStorage/Assets/UI/SlotRewardTemplate_OnlineRewardUI missing")
 	end
 
 	if self._claimAllButton then

@@ -50,10 +50,10 @@ function DailyLoginUIController:Start()
 
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
 	local uiFolder = assets and assets:FindFirstChild("UI")
-	self._slotTemplate = uiFolder and uiFolder:FindFirstChild("SlotDailyLoginRewardTemplate")
+	self._slotTemplate = uiFolder and uiFolder:FindFirstChild("SlotRewardTemplate_DailyLoginUI")
 
 	if not self._slotTemplate then
-		warn("[DAILY_LOGIN_UI] ReplicatedStorage.Assets.UI.SlotDailyLoginRewardTemplate missing")
+		warn("[DAILY_LOGIN_UI] ReplicatedStorage.Assets.UI.SlotRewardTemplate_DailyLoginUI missing")
 	end
 	if not self._leftGrid then
 		warn("[DAILY_LOGIN_UI] DailyLoginUI.MainPanel.Content.LeftGrid missing")

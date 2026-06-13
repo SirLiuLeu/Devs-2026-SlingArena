@@ -27,14 +27,15 @@ local ProjectTreeSpec = {
 			TeamIndicator = "MainHUD.Root.TeamIndicator", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.TeamIndicator (TextLabel)
 			ExpProgress = {
 				Root = "MainHUD.Root.ExpProress", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress
-				Fill = "MainHUD.Root.ExpProress.ExpBarFill", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.ExpBarFill
+				Fill = "MainHUD.Root.ExpProress.ExpBar.ExpBarFill", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.ExpBar.ExpBarFill
 				ValueLabel = "MainHUD.Root.ExpProress.ExpValueLabel", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.ExpValueLabel
 				LevelLabel = "MainHUD.Root.ExpProress.LevelOnBarLabel", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.LevelOnBarLabel
 			},
+			DiamondQuantity = "MainHUD.Root.Diamond.Quantity", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.Diamond.Quantity
 			Panels = {
 				SlingStats = "SlingStatsUI", -- [ASSUMED] expected sling stats panel root ScreenGui name
 				DailyLogin = "DailyLoginUI", -- [PROJECT_TREE_SPEC] StarterGui.DailyLoginUI
-				Shop = "ShopGui", -- [PROJECT_TREE_SPEC] StarterGui.ShopGui
+				Shop = "ShopUI", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI
 				Inventory = "InventoryUI", -- [ASSUMED] expected inventory panel root ScreenGui name
 				OnlineReward = "OnlineRewardUI", -- [ASSUMED] expected online reward panel root ScreenGui name
 				Settings = "SettingsUI", -- [ASSUMED] expected settings panel root ScreenGui name
@@ -79,15 +80,15 @@ local ProjectTreeSpec = {
 			CloseButton = "OnlineRewardUI.Root.Header.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI.Root.Header.CloseButton
 		},
 		Shop = {
-			ScreenGui = "ShopGui", -- [PROJECT_TREE_SPEC] StarterGui.ShopGui
-			Main = "ShopGui.Main", -- [PROJECT_TREE_SPEC] StarterGui.ShopGui.Main
-			CloseButton = "ShopGui.Main.Close", -- [PROJECT_TREE_SPEC] StarterGui.ShopGui.Main.Close
-			ItemsTabButton = "ShopGui.Main.Buttons.Items", -- [PROJECT_TREE_SPEC] StarterGui.ShopGui.Main.Buttons.Items
-			LaunchersTabButton = "ShopGui.Main.Buttons.Launcher", -- [PROJECT_TREE_SPEC] StarterGui.ShopGui.Main.Buttons.Launcher
-			DinamondsTabButton = "ShopGui.Main.Buttons.Dinamonds", -- [PROJECT_TREE_SPEC] StarterGui.ShopGui.Main.Buttons.Dinamonds
-			ItemsScroll = "ShopGui.Main.Items.Content.ScrollingFrame", -- [PROJECT_TREE_SPEC] StarterGui.ShopGui.Main.Items.Content.ScrollingFrame
-			LaunchersScroll = "ShopGui.Main.Launcher.Content.ScrollingFrame", -- [PROJECT_TREE_SPEC] StarterGui.ShopGui.Main.Launcher.Content.ScrollingFrame
-			DinamondsScroll = "ShopGui.Main.Dinamonds.Content.ScrollingFrame", -- [PROJECT_TREE_SPEC] StarterGui.ShopGui.Main.Dinamonds.Content.ScrollingFrame
+			ScreenGui = "ShopUI", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI
+			Main = "ShopUI.Main", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main
+			CloseButton = "ShopUI.Main.Close", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Close
+			ItemsTabButton = "ShopUI.Main.Buttons.Items", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Buttons.Items
+			LaunchersTabButton = "ShopUI.Main.Buttons.Launcher", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Buttons.Launcher
+			DinamondsTabButton = "ShopUI.Main.Buttons.Dinamonds", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Buttons.Dinamonds
+			ItemsScroll = "ShopUI.Main.Items.Content.ScrollingFrame", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Items.Content.ScrollingFrame
+			LaunchersScroll = "ShopUI.Main.Launcher.Content.ScrollingFrame", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Launcher.Content.ScrollingFrame
+			DinamondsScroll = "ShopUI.Main.Dinamonds.Content.ScrollingFrame", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Dinamonds.Content.ScrollingFrame
 		},
 		DailyLogin = {
 			ScreenGui = "DailyLoginUI", -- [PROJECT_TREE_SPEC] StarterGui.DailyLoginUI
@@ -213,8 +214,8 @@ local ProjectTreeSpec = {
 		--       NormalSling (Model default)
 		--   Assets (Folder)
 		--     UI (Folder)
-		--       ItemSlotTemplate (Frame)
-		--       SlingSlotTemplate (Frame)
+		--       ItemSlotTemplate_InventoryUI (Frame)
+		--       SlingsSlotTemplate_InventoryUI (Frame)
 		--     Slings (Folder)
 		--       SupportSling, StunSling, NormalSling, VacuumSling, StealthSling, HealSling, SpeedSling, BonusBuffSling, PetrifySling, FireSling, PoisonSling
 		--     Food (Folder)
@@ -244,9 +245,13 @@ local ProjectTreeSpec = {
 		},
 		ReplicatedStorage = {
 			Assets = {
-				ItemSlotTemplate = "Assets.UI.ItemSlotTemplate",
-				SlingSlotTemplate = "Assets.UI.SlingSlotTemplate",
-				RewardSlotTemplate = "Assets.UI.RewardSlotTemplate",
+				ItemSlotTemplate_InventoryUI = "Assets.UI.ItemSlotTemplate_InventoryUI",
+				SlingsSlotTemplate_InventoryUI = "Assets.UI.SlingsSlotTemplate_InventoryUI",
+				SlotRewardTemplate_DailyLoginUI = "Assets.UI.SlotRewardTemplate_DailyLoginUI",
+				SlotItemsTemplate_ShopUI = "Assets.UI.SlotItemsTemplate_ShopUI",
+				SlotLaucherTemplate_shopUI = "Assets.UI.SlotLaucherTemplate_shopUI",
+				SlotDiamondPackTemplate_ShopUI = "Assets.UI.SlotDiamondPackTemplate_ShopUI",
+				SlotRewardTemplate_OnlineRewardUI = "Assets.UI.SlotRewardTemplate_OnlineRewardUI",
 				SlingWorldUI = "Assets.UI.SlingWorldUI",
 				Food1 = "Assets.Food.Food1",
 				Food2 = "Assets.Food.Food2",

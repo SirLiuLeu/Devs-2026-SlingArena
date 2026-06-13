@@ -96,13 +96,13 @@ function InventoryUIController:Start()
 		if not uiFolder then
 			warn("[INVENTORY_UI] ReplicatedStorage.Assets.UI missing")
 		else
-			self._itemTemplate = uiFolder:FindFirstChild("ItemSlotTemplate")
-			self._slingTemplate = uiFolder:FindFirstChild("SlingSlotTemplate")
+			self._itemTemplate = uiFolder:FindFirstChild("ItemSlotTemplate_InventoryUI")
+			self._slingTemplate = uiFolder:FindFirstChild("SlingsSlotTemplate_InventoryUI")
 			if not self._itemTemplate then
-				warn("[INVENTORY_UI] ItemSlotTemplate missing in ReplicatedStorage.Assets.UI")
+				warn("[INVENTORY_UI] ItemSlotTemplate_InventoryUI missing in ReplicatedStorage.Assets.UI")
 			end
 			if not self._slingTemplate then
-				warn("[INVENTORY_UI] SlingSlotTemplate missing in ReplicatedStorage.Assets.UI")
+				warn("[INVENTORY_UI] SlingsSlotTemplate_InventoryUI missing in ReplicatedStorage.Assets.UI")
 			end
 		end
 	end

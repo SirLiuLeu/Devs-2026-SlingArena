@@ -30,10 +30,10 @@ local function ensureAssetTemplates()
 		ui.Parent = assets
 	end
 
-	local itemTemplate = ui:FindFirstChild("ItemSlotTemplate")
+	local itemTemplate = ui:FindFirstChild("ItemSlotTemplate_InventoryUI")
 	if not itemTemplate then
 		itemTemplate = Instance.new("Frame")
-		itemTemplate.Name = "ItemSlotTemplate"
+		itemTemplate.Name = "ItemSlotTemplate_InventoryUI"
 		local icon = Instance.new("ImageLabel")
 		icon.Name = "Icon"
 		icon.Parent = itemTemplate
@@ -46,10 +46,10 @@ local function ensureAssetTemplates()
 		itemTemplate.Parent = ui
 	end
 
-	local slingTemplate = ui:FindFirstChild("SlingSlotTemplate")
+	local slingTemplate = ui:FindFirstChild("SlingsSlotTemplate_InventoryUI")
 	if not slingTemplate then
 		slingTemplate = Instance.new("Frame")
-		slingTemplate.Name = "SlingSlotTemplate"
+		slingTemplate.Name = "SlingsSlotTemplate_InventoryUI"
 		local icon = Instance.new("ImageLabel")
 		icon.Name = "Icon"
 		icon.Parent = slingTemplate
@@ -93,14 +93,14 @@ local function buildInventoryGui(): ScreenGui
 	local bodyItems = Instance.new("Frame")
 	bodyItems.Name = "BodyItems"
 	bodyItems.Parent = root
-	local itemsGrid = Instance.new("Frame")
+	local itemsGrid = Instance.new("ScrollingFrame")
 	itemsGrid.Name = "GridContainer"
 	itemsGrid.Parent = bodyItems
 
 	local bodySling = Instance.new("Frame")
 	bodySling.Name = "BodySling"
 	bodySling.Parent = root
-	local slingGrid = Instance.new("Frame")
+	local slingGrid = Instance.new("ScrollingFrame")
 	slingGrid.Name = "GridContainer"
 	slingGrid.Parent = bodySling
 	local footer = Instance.new("Frame")

@@ -299,7 +299,7 @@ DataModel
 │  │  └─ Root
 │  │     ├─ Content (ScrollingFrame)
 │  │     │  ├─ Grid (UIGridLayout)
-│  │     │  └─ RewardSlotTemplate
+│  │     │  └─ SlotRewardTemplate_OnlineRewardUI
 │  │     ├─ Footer
 │  │     │  ├─ ClaimAll (TextButton)
 │  │     │  └─ SkipAll (TextButton)
@@ -319,7 +319,7 @@ DataModel
 │  │  │  │  │  └─ Title (TextLabel)
 │  │  │  │  └─ LeftGrid (Frame)
 │  │  │  │     ├─ UIGridLayout
-│  │  │  │     └─ SlotDailyLoginRewardTemplate -- Script Spawn in run time
+│  │  │  │     └─ SlotRewardTemplate_DailyLoginUI -- Script Spawn in run time
 │  │  │  └─ Header (Frame)
 │  │  │     ├─ CloseButton (TextButton)
 │  │  │     └─ Title (TextLabel)

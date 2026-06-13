@@ -1,6 +1,6 @@
 {
   "ClassName": "Frame",
-  "Name": "ItemSlotTemplate",
+  "Name": "ItemSlotTemplate_InventoryUI",
   "Properties": {
     "Size": { "UDim2": [[0, 100], [0, 100]] },
     "BackgroundColor3": { "Color3": [0.2, 0.2, 0.25] },
