@@ -137,14 +137,14 @@ DataModel
 │  │      │       ├── UICorner
 │  │      │       └── HpBarFill (Frame)
 │  │      │
-│  │      ├── ItemSlotTemplate (Frame)
+│  │      ├── ItemSlotTemplate_InventoryUI (Frame)
 │  │      │   └── Root (Frame)
 │  │      │       ├── UICorner
 │  │      │       ├── Icon (ImageLabel)
 │  │      │       ├── Name (TextLabel)
 │  │      │       └── Quantity (TextLabel)
 │  │      │
-│  │      ├── SlingsSlotTemplate (Frame)
+│  │      ├── SlingsSlotTemplate_InventoryUI (Frame)
 │  │      │   └── Root (Frame)
 │  │      │       ├── UIStroke (RarityStroke)
 │  │      │       ├── UICorner
@@ -160,7 +160,7 @@ DataModel
 │  │      │       ├── Level (TextLabel)
 │  │      │       └── Name (TextLabel)
 │  │      │
-│  │      ├── SlotDailyLoginRewardTemplate (Frame)
+│  │      ├── SlotRewardTemplate_DailyLoginUI (Frame)
 │  │      │   ├── UICorner
 │  │      │   ├── UIStroke
 │  │      │   ├── ClaimButton (TextButton)
@@ -170,7 +170,7 @@ DataModel
 │  │      │   ├── Timer (TextLabel)
 │  │      │   └── Title (TextLabel)
 │  │      │
-│  │      ├── SlotItemsOfStoreTemplate (Frame)
+│  │      ├── SlotItemsTemplate_ShopUI (Frame)
 │  │      │   ├── UICorner
 │  │      │   ├── InfoButton (ImageButton)
 │  │      │   ├── BuyButton (TextButton/ImageButton)
@@ -178,14 +178,14 @@ DataModel
 │  │      │   ├── Quantity (TextLabel)
 │  │      │   └── Title (TextLabel)
 │  │      │
-│  │      ├── SlotLaunchersOfStoreTemplate (Frame)
+│  │      ├── SlotLaucherTemplate_shopUI (Frame)
 │  │      │   ├── UICorner
 │  │      │   ├── InfoButton (ImageButton)
 │  │      │   ├── BuyButton (TextButton/ImageButton)
 │  │      │   ├── Icon (ImageLabel)
 │  │      │   └── Title (TextLabel)
 │  │      │
-│  │      ├── SlotDinamondsOfStoreTemplate (Frame)
+│  │      ├── SlotDiamondPackTemplate_ShopUI (Frame)
 │  │      │   ├── UICorner
 │  │      │   ├── BuyButton (TextButton/ImageButton)
 │  │      │   ├── Icon (ImageLabel)
@@ -200,7 +200,7 @@ DataModel
 │  │      │   ├── NameLabel (TextLabel)
 │  │      │   └── LevelLabel (TextLabel)
 │  │      │
-│  │      └─ RewardSlotTemplate (Frame)
+│  │      └─ SlotRewardTemplate_OnlineRewardUI (Frame)
 │  │          ├─ UICorner
 │  │          ├─ ClaimButton (TextButton)
 │  │          ├─ Icon (ImageLabel)
@@ -297,7 +297,7 @@ DataModel
 │  │
 │  ├─ OnlineRewardUI (ScreenGui)
 │  │  └─ Root
-│  │     ├─ Content
+│  │     ├─ Content (ScrollingFrame)
 │  │     │  ├─ Grid (UIGridLayout)
 │  │     │  └─ RewardSlotTemplate
 │  │     ├─ Footer
@@ -325,12 +325,12 @@ DataModel
 │  │  │     └─ Title (TextLabel)
 │  │  └─ Overlay (Frame/TextButton)
 │  │
-│  ├─ ShopGui (ScreenGui)
+│  ├─ ShopUI (ScreenGui)
 │  │  └─ Main (ImageLabel)
 │  │     ├─ Buttons (Frame)
-│  │     │  ├─ Launcher (ImageButton/Frame)
-│  │     │  ├─ Dinamonds (ImageButton/Frame)
-│  │     │  └─ Items (ImageButton/Frame)
+│  │     │  ├─ Launcher (ImageButton)
+│  │     │  ├─ Dinamonds (ImageButton)
+│  │     │  └─ Items (ImageButton)
 │  │     ├─ Dinamonds (Frame)
 │  │     │  └─ Content (Frame)
 │  │     │     └─ ScrollingFrame
@@ -371,7 +371,7 @@ DataModel
 │  │  │   ├── BodySling (Frame)
 │  │  │   │   ├── Footer (Frame)
 │  │  │   │   │   └─ CapacityLabel (TextLabel)
-│  │  │   │   ├── GridContainer (Frame)
+│  │  │   │   ├── GridContainer (ScrollingFrame)
 │  │  │   │   │   └─ Slot1, Slot2, Slot3, Slot4 (Frames) -- Script Spawn in run time
 │  │  │   │   └── RightPanel (Frame)
 │  │  │   │       ├─ ActionButtons (Frame)
@@ -382,7 +382,7 @@ DataModel
 │  │  │   │       │   └─ Damage, HP, Range, Regen (TextLabels)
 │  │  │   │       └─ SelectedName (TextLabel)
 │  │  │   └── BodyItems (Frame)
-│  │  │       ├── GridContainer (Frame)
+│  │  │       ├── GridContainer (ScrollingFrame)
 │  │  │       │   └─ Slot1, Slot2, Slot3, Slot4 (Frames) -- Script Spawn in run time
 │  │  │       └── RightPanel (Frame)
 │  │  │           ├─ ActionButtons (Frame)
@@ -419,22 +419,26 @@ DataModel
 │  │     │  ├─ Buff1 (Frame)
 │  │     │  └─ Buff2 (Frame)
 │  │     ├─ ExpProress
-│  │     │  ├─ ExpBarBackground
-│  │     │  ├─ ExpBarFill
 │  │     │  ├─ ExpValueLabel
-│  │     │  └─ LevelOnBarLabel
+│  │     │  ├─ LevelOnBarLabel
+│  │     │  └─ ExpBar
+│  │     │     ├─ ExpBarBackground
+│  │     │     └─ ExpBarFill
 │  │     ├─ LeftMenu
-│  │     │  ├─ DailyButton (TextButton)
-│  │     │  ├─ InventoryButton (TextButton)
-│  │     │  ├─ OnlineRewardButton (TextButton)
-│  │     │  ├─ SettingButton (TextButton)
-│  │     │  └─ SpinButton (TextButton)
+│  │     │  ├─ DailyButton (ImageButton)
+│  │     │  ├─ InventoryButton (ImageButton)
+│  │     │  ├─ OnlineRewardButton (ImageButton)
+│  │     │  ├─ SettingButton (ImageButton)
+│  │     │  └─ ShopButton (ImageButton)
 │  │     ├─ RankFrame
 │  │     │  ├─ List
 │  │     │  │  └─ Player1
 │  │     │  └─ Title (TextLabel)
+│  │     ├─ Diamond
+│  │     │  ├─ DiamondIcon (ImageLabel)
+│  │     │  └─ Quantity (TextLabel)
 │  │     ├─ QuickHP (ImageButton)
-│  │     └─ Home (TextButton)
+│  │     └─ Home (ImageButton)
 │  │   
 │  ├─ DailyLoginUI (ScreenGui) -- [REFINED FROM NEW IMAGE]
 │  │  ├─ MainPanel (Frame)
