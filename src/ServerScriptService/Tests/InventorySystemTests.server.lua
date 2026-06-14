@@ -34,15 +34,18 @@ local function ensureAssetTemplates()
 	if not itemTemplate then
 		itemTemplate = Instance.new("Frame")
 		itemTemplate.Name = "ItemSlotTemplate_InventoryUI"
+		local itemRoot = Instance.new("Frame")
+		itemRoot.Name = "Root"
+		itemRoot.Parent = itemTemplate
 		local icon = Instance.new("ImageLabel")
 		icon.Name = "Icon"
-		icon.Parent = itemTemplate
+		icon.Parent = itemRoot
 		local name = Instance.new("TextLabel")
 		name.Name = "Name"
-		name.Parent = itemTemplate
+		name.Parent = itemRoot
 		local quantity = Instance.new("TextLabel")
 		quantity.Name = "Quantity"
-		quantity.Parent = itemTemplate
+		quantity.Parent = itemRoot
 		itemTemplate.Parent = ui
 	end
 
@@ -50,18 +53,29 @@ local function ensureAssetTemplates()
 	if not slingTemplate then
 		slingTemplate = Instance.new("Frame")
 		slingTemplate.Name = "SlingsSlotTemplate_InventoryUI"
+		local slingRoot = Instance.new("Frame")
+		slingRoot.Name = "Root"
+		slingRoot.Parent = slingTemplate
+		local stars = Instance.new("Frame")
+		stars.Name = "Stars"
+		stars.Parent = slingRoot
+		for starIndex = 1, 5 do
+			local star = Instance.new("ImageLabel")
+			star.Name = "Star" .. starIndex
+			star.Parent = stars
+		end
 		local icon = Instance.new("ImageLabel")
 		icon.Name = "Icon"
-		icon.Parent = slingTemplate
-		local name = Instance.new("TextLabel")
-		name.Name = "Name"
-		name.Parent = slingTemplate
-		local level = Instance.new("TextLabel")
-		level.Name = "Level"
-		level.Parent = slingTemplate
+		icon.Parent = slingRoot
 		local equippedTag = Instance.new("TextLabel")
 		equippedTag.Name = "EquippedTag"
-		equippedTag.Parent = slingTemplate
+		equippedTag.Parent = slingRoot
+		local level = Instance.new("TextLabel")
+		level.Name = "Level"
+		level.Parent = slingRoot
+		local name = Instance.new("TextLabel")
+		name.Name = "Name"
+		name.Parent = slingRoot
 		slingTemplate.Parent = ui
 	end
 end
@@ -136,6 +150,14 @@ local function testGiveSlingAddsAndRenders()
 	local spawnedSlingSlots = (controller :: any)._spawnedSlingSlots
 	if #spawnedSlingSlots < 2 then
 		error("Sling slots must render at least 2 entries")
+	end
+	local firstSlot = spawnedSlingSlots[1]
+	if firstSlot.Name:sub(1, 15) ~= "GeneratedSling_" then
+		error("Sling slot must be a cloned generated SlingsSlotTemplate_InventoryUI entry")
+	end
+	local root = firstSlot:FindFirstChild("Root")
+	if not root or not root:FindFirstChild("Stars") or not root:FindFirstChild("Icon") or not root:FindFirstChild("EquippedTag") or not root:FindFirstChild("Level") or not root:FindFirstChild("Name") then
+		error("Generated sling slot must preserve SlingsSlotTemplate_InventoryUI/Root hierarchy")
 	end
 
 	print(string.format("[InventorySystemTests] Rendered sling slots=%d", #spawnedSlingSlots))

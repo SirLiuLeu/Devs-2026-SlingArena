@@ -369,7 +369,7 @@ DataModel
 │  │  │   │   ├── Footer (Frame)
 │  │  │   │   │   └─ CapacityLabel (TextLabel)
 │  │  │   │   ├── GridContainer (ScrollingFrame)
-│  │  │   │   │   └─ Slot1, Slot2, Slot3, Slot4 (Frames) -- Script Spawn in run time
+│  │  │   │   │   └─ Slot1, Slot2, Slot3, Slot4 (SlingsSlotTemplate_InventoryUI Frames) -- Script Spawn in run time
 │  │  │   │   └── RightPanel (Frame)
 │  │  │   │       ├─ ActionButtons (Frame)
 │  │  │   │       │   ├─ DeleteButton (TextButton)
@@ -380,7 +380,7 @@ DataModel
 │  │  │   │       └─ SelectedName (TextLabel)
 │  │  │   └── BodyItems (Frame)
 │  │  │       ├── GridContainer (ScrollingFrame)
-│  │  │       │   └─ Slot1, Slot2, Slot3, Slot4 (Frames) -- Script Spawn in run time
+│  │  │       │   └─ Slot1, Slot2, Slot3, Slot4 (ItemSlotTemplate_InventoryUI Frames) -- Script Spawn in run time
 │  │  │       └── RightPanel (Frame)
 │  │  │           ├─ ActionButtons (Frame)
 │  │  │           │   ├─ DeleteButton (TextButton)
