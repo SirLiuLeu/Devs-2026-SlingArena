@@ -215,7 +215,7 @@ local ProjectTreeSpec = {
 		--   Assets (Folder)
 		--     UI (Folder)
 		--       ItemSlotTemplate_InventoryUI (Frame)
-		--       SlingsSlotTemplate_InventoryUI (Frame)
+		--       SlingSlotTemplate_InventoryUI (Frame)
 		--     Slings (Folder)
 		--       SupportSling, StunSling, NormalSling, VacuumSling, StealthSling, HealSling, SpeedSling, BonusBuffSling, PetrifySling, FireSling, PoisonSling
 		--     Food (Folder)
@@ -246,7 +246,7 @@ local ProjectTreeSpec = {
 		ReplicatedStorage = {
 			Assets = {
 				ItemSlotTemplate_InventoryUI = "Assets.UI.ItemSlotTemplate_InventoryUI",
-				SlingsSlotTemplate_InventoryUI = "Assets.UI.SlingsSlotTemplate_InventoryUI",
+				SlingSlotTemplate_InventoryUI = "Assets.UI.SlingSlotTemplate_InventoryUI",
 				SlotRewardTemplate_DailyLoginUI = "Assets.UI.SlotRewardTemplate_DailyLoginUI",
 				SlotItemsTemplate_ShopUI = "Assets.UI.SlotItemsTemplate_ShopUI",
 				SlotLaucherTemplate_shopUI = "Assets.UI.SlotLaucherTemplate_shopUI",

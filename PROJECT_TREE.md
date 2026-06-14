@@ -144,7 +144,7 @@ DataModel
 │  │      │       ├── Name (TextLabel)
 │  │      │       └── Quantity (TextLabel)
 │  │      │
-│  │      ├── SlingsSlotTemplate_InventoryUI (Frame)
+│  │      ├── SlingSlotTemplate_InventoryUI (Frame)
 │  │      │   └── Root (Frame)
 │  │      │       ├── Stars (Frame)
 │  │      │       │   ├── Star1 (ImageLabel)
@@ -369,7 +369,7 @@ DataModel
 │  │  │   │   ├── Footer (Frame)
 │  │  │   │   │   └─ CapacityLabel (TextLabel)
 │  │  │   │   ├── GridContainer (ScrollingFrame)
-│  │  │   │   │   └─ Slot1, Slot2, Slot3, Slot4 (SlingsSlotTemplate_InventoryUI Frames) -- Script Spawn in run time
+│  │  │   │   │   └─ Slot1, Slot2, Slot3, Slot4 (SlingSlotTemplate_InventoryUI Frames) -- Script Spawn in run time
 │  │  │   │   └── RightPanel (Frame)
 │  │  │   │       ├─ ActionButtons (Frame)
 │  │  │   │       │   ├─ DeleteButton (TextButton)

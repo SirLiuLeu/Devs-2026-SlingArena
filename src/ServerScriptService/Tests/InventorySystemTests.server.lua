@@ -49,10 +49,10 @@ local function ensureAssetTemplates()
 		itemTemplate.Parent = ui
 	end
 
-	local slingTemplate = ui:FindFirstChild("SlingsSlotTemplate_InventoryUI")
+	local slingTemplate = ui:FindFirstChild("SlingSlotTemplate_InventoryUI")
 	if not slingTemplate then
 		slingTemplate = Instance.new("Frame")
-		slingTemplate.Name = "SlingsSlotTemplate_InventoryUI"
+		slingTemplate.Name = "SlingSlotTemplate_InventoryUI"
 		local slingRoot = Instance.new("Frame")
 		slingRoot.Name = "Root"
 		slingRoot.Parent = slingTemplate
@@ -153,11 +153,11 @@ local function testGiveSlingAddsAndRenders()
 	end
 	local firstSlot = spawnedSlingSlots[1]
 	if firstSlot.Name:sub(1, 15) ~= "GeneratedSling_" then
-		error("Sling slot must be a cloned generated SlingsSlotTemplate_InventoryUI entry")
+		error("Sling slot must be a cloned generated SlingSlotTemplate_InventoryUI entry")
 	end
 	local root = firstSlot:FindFirstChild("Root")
 	if not root or not root:FindFirstChild("Stars") or not root:FindFirstChild("Icon") or not root:FindFirstChild("EquippedTag") or not root:FindFirstChild("Level") or not root:FindFirstChild("Name") then
-		error("Generated sling slot must preserve SlingsSlotTemplate_InventoryUI/Root hierarchy")
+		error("Generated sling slot must preserve SlingSlotTemplate_InventoryUI/Root hierarchy")
 	end
 
 	print(string.format("[InventorySystemTests] Rendered sling slots=%d", #spawnedSlingSlots))
