@@ -18,6 +18,8 @@ local EQUIPPED_SLING_MODEL_NAME = "EquipedSlingModel"
 local LEGACY_EQUIPPED_SLING_MODEL_NAME = "EquippedSlingModel"
 local SLING_MESH_NAME = "Mesh"
 local HITBOX_MESH_WELD_NAME = "WeldConstraint_HitboxMesh"
+local ITEM_SLOT_TEMPLATE_NAME = "ItemSlotTemplate_InventoryUI"
+local SLING_SLOT_TEMPLATE_NAME = "SlingsSlotTemplate_InventoryUI"
 
 local function resolveGui(root: Instance, path: string): GuiObject?
 	local value = PathResolver.resolvePath(root, path)
@@ -39,6 +41,31 @@ local function resolveTextButton(root: Instance, path: string): TextButton?
 	local value = PathResolver.resolvePath(root, path)
 	if value and value:IsA("TextButton") then
 		return value
+	end
+	return nil
+end
+
+local function getTemplateRoot(slot: Instance, templateName: string): GuiObject?
+	local root = slot:FindFirstChild("Root")
+	if root and root:IsA("GuiObject") then
+		return root
+	end
+	warn(string.format("[INVENTORY_UI] %s clone is missing required Root GuiObject", templateName))
+	return nil
+end
+
+local function findDirectTemplateText(root: Instance, childName: string): TextLabel?
+	local child = root:FindFirstChild(childName)
+	if child and child:IsA("TextLabel") then
+		return child
+	end
+	return nil
+end
+
+local function findDirectTemplateImage(root: Instance, childName: string): ImageLabel?
+	local child = root:FindFirstChild(childName)
+	if child and child:IsA("ImageLabel") then
+		return child
 	end
 	return nil
 end
@@ -96,13 +123,13 @@ function InventoryUIController:Start()
 		if not uiFolder then
 			warn("[INVENTORY_UI] ReplicatedStorage.Assets.UI missing")
 		else
-			self._itemTemplate = uiFolder:FindFirstChild("ItemSlotTemplate_InventoryUI")
-			self._slingTemplate = uiFolder:FindFirstChild("SlingsSlotTemplate_InventoryUI")
+			self._itemTemplate = uiFolder:FindFirstChild(ITEM_SLOT_TEMPLATE_NAME)
+			self._slingTemplate = uiFolder:FindFirstChild(SLING_SLOT_TEMPLATE_NAME)
 			if not self._itemTemplate then
-				warn("[INVENTORY_UI] ItemSlotTemplate_InventoryUI missing in ReplicatedStorage.Assets.UI")
+				warn("[INVENTORY_UI] " .. ITEM_SLOT_TEMPLATE_NAME .. " missing in ReplicatedStorage.Assets.UI")
 			end
 			if not self._slingTemplate then
-				warn("[INVENTORY_UI] SlingsSlotTemplate_InventoryUI missing in ReplicatedStorage.Assets.UI")
+				warn("[INVENTORY_UI] " .. SLING_SLOT_TEMPLATE_NAME .. " missing in ReplicatedStorage.Assets.UI")
 			end
 		end
 	end
@@ -220,14 +247,14 @@ function InventoryUIController:_clearStaticGridSlots()
 	clearGrid(self._slingsGrid)
 end
 
-function InventoryUIController:_bindCommonSlot(slot: Instance, name: string, icon: string?)
-	local nameLabel = slot:FindFirstChild("Name", true)
-	if nameLabel and nameLabel:IsA("TextLabel") then
+function InventoryUIController:_bindCommonSlot(root: GuiObject, name: string, icon: string?)
+	local nameLabel = findDirectTemplateText(root, "Name")
+	if nameLabel then
 		nameLabel.Text = name
 	end
 
-	local iconLabel = slot:FindFirstChild("Icon", true)
-	if iconLabel and iconLabel:IsA("ImageLabel") and icon then
+	local iconLabel = findDirectTemplateImage(root, "Icon")
+	if iconLabel and icon then
 		iconLabel.Image = icon
 	end
 end
@@ -297,13 +324,18 @@ function InventoryUIController:_spawnItemSlot(itemId: string, quantity: number)
 	end
 
 	local slot = self._itemTemplate:Clone()
+	local slotRoot = getTemplateRoot(slot, ITEM_SLOT_TEMPLATE_NAME)
+	if not slotRoot then
+		slot:Destroy()
+		return
+	end
 	slot.Name = string.format("GeneratedItem_%s", itemId)
 	slot.Visible = true
 	slot.Parent = self._itemsGrid
-	self:_bindCommonSlot(slot, itemDef.name, itemDef.icon)
+	self:_bindCommonSlot(slotRoot, itemDef.name, itemDef.icon)
 
-	local quantityLabel = slot:FindFirstChild("Quantity", true)
-	if quantityLabel and quantityLabel:IsA("TextLabel") then
+	local quantityLabel = findDirectTemplateText(slotRoot, "Quantity")
+	if quantityLabel then
 		quantityLabel.Text = string.format("x%d", math.max(0, quantity))
 	end
 
@@ -326,13 +358,18 @@ function InventoryUIController:_spawnSlingSlot(slingEntry)
 	end
 
 	local slot = self._slingTemplate:Clone()
+	local slotRoot = getTemplateRoot(slot, SLING_SLOT_TEMPLATE_NAME)
+	if not slotRoot then
+		slot:Destroy()
+		return
+	end
 	slot.Name = string.format("GeneratedSling_%s", slingId)
 	slot.Visible = true
 	slot.Parent = self._slingsGrid
-	self:_bindCommonSlot(slot, slingEntry.name or slingDef.name, slingEntry.icon or slingDef.icon)
+	self:_bindCommonSlot(slotRoot, slingEntry.name or slingDef.name, slingEntry.icon or slingDef.icon)
 
-	local levelLabel = slot:FindFirstChild("Level", true)
-	if levelLabel and levelLabel:IsA("TextLabel") then
+	local levelLabel = findDirectTemplateText(slotRoot, "Level")
+	if levelLabel then
 		local stats = slingEntry.stats
 		if type(stats) == "table" then
 			levelLabel.Text = string.format("Lv.%d | Dmg %.1f | HP %.0f", math.max(1, level), stats.damage or 0, stats.hp or 0)
@@ -341,9 +378,20 @@ function InventoryUIController:_spawnSlingSlot(slingEntry)
 		end
 	end
 
-	local equippedTag = slot:FindFirstChild("EquippedTag", true)
-	if equippedTag and equippedTag:IsA("TextLabel") then
+	local equippedTag = findDirectTemplateText(slotRoot, "EquippedTag")
+	if equippedTag then
 		equippedTag.Visible = isEquipped
+	end
+
+	local stars = slotRoot:FindFirstChild("Stars")
+	if stars and stars:IsA("GuiObject") then
+		local filledStars = math.clamp(math.floor(level), 1, 5)
+		for starIndex = 1, 5 do
+			local star = stars:FindFirstChild("Star" .. starIndex)
+			if star and star:IsA("ImageLabel") then
+				star.Visible = starIndex <= filledStars
+			end
+		end
 	end
 
 	self._slingSlotMap[slingId] = slot
