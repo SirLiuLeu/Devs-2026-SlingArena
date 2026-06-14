@@ -160,7 +160,6 @@ function InventoryUIController:Start()
 	end
 
 	self:SetActiveTab(self._activeTab)
-	self:_clearStaticGridSlots()
 end
 
 function InventoryUIController:SetVisible(isVisible: boolean)
@@ -202,22 +201,6 @@ function InventoryUIController:_clearGeneratedSlots()
 	table.clear(self._itemSlotMap)
 	table.clear(self._slingSlotMap)
 	self:_disconnectSlotConnections()
-end
-
-function InventoryUIController:_clearStaticGridSlots()
-	local function clearGrid(grid: GuiObject?)
-		if not grid then
-			return
-		end
-		for _, child in ipairs(grid:GetChildren()) do
-			if not child:IsA("UIGridLayout") and not child:IsA("UIListLayout") then
-				child:Destroy()
-			end
-		end
-	end
-
-	clearGrid(self._itemsGrid)
-	clearGrid(self._slingsGrid)
 end
 
 function InventoryUIController:_bindCommonSlot(slot: Instance, name: string, icon: string?)
@@ -545,7 +528,6 @@ end
 function InventoryUIController:RefreshWithData(data)
 	self._cachedSnapshot = data
 	self:_clearGeneratedSlots()
-	self:_clearStaticGridSlots()
 
 	local ownedItems = data.ownedItems or {}
 	for itemId, quantity in pairs(ownedItems) do
