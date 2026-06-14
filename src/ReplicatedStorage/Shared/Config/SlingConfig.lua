@@ -5,8 +5,8 @@ local SlingConfig = {}
 SlingConfig.DefaultSlingId = "NormalSling"
 SlingConfig.ModelScale = 1
 SlingConfig.BaseStats = {
-	maxHP = 1000,
-	baseDamage = 211000,
+	maxHP = 30000,
+	baseDamage = 1000,
 	reflectDamagePercent = 0.05,
 	regenPerSecond = 2,
 	maxShootRange = 120,
@@ -18,13 +18,13 @@ SlingConfig.Types = {
 		id = "SupportSling",
 		name = "Support Sling",
 		abilityType = "SupportSling",
-		stats = { speed = 15.5, weight = 1.0, launchPower = 1.0, control = 1.05, maxHP = 18000, baseDamage = 900, armor = 0, regen = 1 },
+		stats = { speed = 15.5, weight = 111.0, launchPower = 1.0, control = 1.05, maxHP = 18000, baseDamage = 900, armor = 0, regen = 1 },
 	},
 	{
 		id = "StunSling",
 		name = "Stun Sling",
 		abilityType = "StunSling",
-		stats = { speed = 15.5, weight = 1.05, launchPower = 1.0, control = 1.0, maxHP = 20000, baseDamage = 1000, armor = 0, regen = 1 },
+		stats = { speed = 15.5, weight = 0.5, launchPower = 1.0, control = 1.0, maxHP = 20000, baseDamage = 1000, armor = 0, regen = 1 },
 	},
 	{
 		id = "NormalSling",
@@ -42,19 +42,13 @@ SlingConfig.Types = {
 		id = "StealthSling",
 		name = "Stealth Sling",
 		abilityType = "StealthSling",
-		stats = { speed = 18, weight = 0.9, launchPower = 1.05, control = 1.15, maxHP = 13000, baseDamage = 1200, armor = 0, regen = 1 },
+		stats = { speed = 18, weight = 10.9, launchPower = 1.05, control = 1.15, maxHP = 13000, baseDamage = 1200, armor = 0, regen = 1 },
 	},
 	{
 		id = "HealSling",
 		name = "Heal Sling",
 		abilityType = "HealSling",
 		stats = { speed = 15, weight = 1.0, launchPower = 0.95, control = 1.05, maxHP = 18000, baseDamage = 800, armor = 0, regen = 1.1 },
-	},
-	{
-		id = "SpeedSling",
-		name = "Speed Sling",
-		abilityType = "SpeedSling",
-		stats = { speed = 18.5, weight = 0.85, launchPower = 1.0, control = 1.1, maxHP = 13000, baseDamage = 1000, armor = 0, regen = 1 },
 	},
 	{
 		id = "BonusBuffSling",

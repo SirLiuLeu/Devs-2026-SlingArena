@@ -146,10 +146,7 @@ DataModel
 │  │      │
 │  │      ├── SlingsSlotTemplate_InventoryUI (Frame)
 │  │      │   └── Root (Frame)
-│  │      │       ├── UIStroke (RarityStroke)
-│  │      │       ├── UICorner
 │  │      │       ├── Stars (Frame)
-│  │      │       │   ├── UIListLayout
 │  │      │       │   ├── Star1 (ImageLabel)
 │  │      │       │   ├── Star2 (ImageLabel)
 │  │      │       │   ├── Star3 (ImageLabel)
