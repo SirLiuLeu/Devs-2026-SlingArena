@@ -413,8 +413,22 @@ DataModel
 │  ├─ MainHUD (ScreenGui)
 │  │  └─ Root
 │  │     ├─ BuffContainer
-│  │     │  ├─ Buff1 (Frame)
-│  │     │  └─ Buff2 (Frame)
+│  │     │  ├─ UIGridLayout
+│  │     │  ├─ UISizeConstraint
+│  │     │  ├─ DamageBuff
+│  │     │  │  ├─ UICorner
+│  │     │  │  ├─ UISizeConstraint
+│  │     │  │  ├─ DMGIcon
+│  │     │  │  └─ ValueText
+│  │     │  ├─ ExpBuff
+│  │     │  │  ├─ UICorner
+│  │     │  │  ├─ UISizeConstraint
+│  │     │  │  ├─ ExpIcon
+│  │     │  │  └─ ValueText
+│  │     │  └─ HPRecovery
+│  │     │     ├─ UISizeConstraint
+│  │     │     ├─ HPIcon
+│  │     │     └─ Time
 │  │     ├─ ExpProress
 │  │     │  ├─ ExpValueLabel
 │  │     │  ├─ LevelOnBarLabel

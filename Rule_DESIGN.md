@@ -30,7 +30,6 @@
 - Size: 700x700 studs (Square Arena)
 - Boundary: Surrounded by walls
 - Players: 12
-- Traps: 10 (fixed)
 
 Spawn Logic:
 - Player: Random spawn near edges
@@ -41,7 +40,7 @@ Spawn Logic:
 ## 2.2 Early Game (0 → 8 minutes)
 - Mechanic: Free farming + combat
 Death:
-- Respawn after 5s
+- Respawn after 3s
 - Random position inside Safe Zone
 - -30% current EXP
 Join:
@@ -62,7 +61,7 @@ Join Rule:
 - Join after minute 8 → becomes Ghost immediately
 - Can still farm + level
 - Cannot Launch
-- Invisible
+
 ## 2.3.1 FINAL PHASE + GHOST SYSTEM (DETAIL)
 
 Ghost Activation
@@ -445,10 +444,6 @@ All collision (Hit) phases in the game must strictly follow this lifecycle:
 - SlowDuration: duration of slow effect
 
 ## 5.2 Archetypes (Passive / Type Sling)
-- SupportSling:
-  + Collision with ally heals instead of damaging
-  + HealAmount = 50% BaseDamage
-  + Cannot deal damage to allies
 
 - StunSling:
   + Collision applies 1s stun to enemies
@@ -473,13 +468,8 @@ All collision (Hit) phases in the game must strictly follow this lifecycle:
   + Heals 5% MaxHP on each launch
   + Triggered on OnLaunch
 
-- SpeedSling:
-  + Each release grants +5% MoveSpeed permanently during match
-  + Stacks per successful launch
-  + Should have cap for balance (maxSpeed 50 studs/s)
-
-- FreezeSling:
-  + Collision freezes enemy for 1.5s
+- PetrifySling:
+  + Collision petrify enemy for 1.5s
 
 - FireSling:
   + Applies burn damage over time
