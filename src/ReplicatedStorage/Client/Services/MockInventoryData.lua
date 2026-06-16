@@ -25,7 +25,8 @@ end
 function MockInventoryData.GetInventoryState()
 	local ownedSlings = {}
 	local equippedSlingInstanceId = nil
-	for index, definitionId in ipairs(SlingConfig.GetAllIds()) do
+	local initialSlingIds = { "NormalSling", "FireSling", "HealSling", "PoisonSling" }
+	for index, definitionId in ipairs(initialSlingIds) do
 		local slingDef = SlingConfig.GetById(definitionId)
 		if slingDef then
 			local instanceId = buildSlingInstanceId(definitionId, index)

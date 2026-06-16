@@ -15,7 +15,8 @@ export type SlingStats = {
 
 export type PassiveAbility = {
 	type: string,
-	params: { [string]: any },
+	params: { [string]: any }?,
+	[string]: any,
 }
 
 export type CollisionAbility = {
@@ -79,7 +80,7 @@ SlingConfig.Types = {
 			control = 1.0,
 			weight = 1.0,
 		},
-		passiveAbility = { type = "None", params = {} },
+		passiveAbility = { type = "ExpBonus", value = 0.5 },
 		collisionAbility = {},
 	},
 	VacuumSling = {
@@ -106,7 +107,7 @@ SlingConfig.Types = {
 		abilityType = "HealSling",
 		iconId = "rbxassetid://0",
 		stats = { maxHP = 18000, baseDamage = 800, armor = 0, regen = 1.1, speed = 15, launchPower = 0.95, control = 1.05, weight = 1.0 },
-		passiveAbility = { type = "RegenBoost", params = { regenMultiplier = 1.05 } },
+		passiveAbility = { type = "HealOnLaunch", percent = 0.05 },
 		collisionAbility = {},
 	},
 	BonusBuffSling = {

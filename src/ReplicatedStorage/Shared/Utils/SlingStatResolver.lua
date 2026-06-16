@@ -27,20 +27,34 @@ export type ResolvedSlingStats = {
 local STAR_MULTIPLIER_PER_RANK = 0.08
 local LEVEL_MULTIPLIER_PER_LEVEL = 0.03
 
-local function readPassiveMultiplier(passiveAbility: any?, key: string): number
-	if type(passiveAbility) ~= "table" or type(passiveAbility.params) ~= "table" then
-		return 1
+local function readPassiveValue(passiveAbility: any?, key: string): number?
+	if type(passiveAbility) ~= "table" then
+		return nil
 	end
-	local value = passiveAbility.params[key]
-	return if type(value) == "number" then value else 1
+	local directValue = passiveAbility[key]
+	if type(directValue) == "number" then
+		return directValue
+	end
+	local params = passiveAbility.params
+	if type(params) == "table" and type(params[key]) == "number" then
+		return params[key]
+	end
+	return nil
+end
+
+local function readPassiveMultiplier(passiveAbility: any?, key: string): number
+	return readPassiveValue(passiveAbility, key) or 1
 end
 
 local function readPassiveAdd(passiveAbility: any?, key: string): number
-	if type(passiveAbility) ~= "table" or type(passiveAbility.params) ~= "table" then
-		return 0
+	return readPassiveValue(passiveAbility, key) or 0
+end
+
+local function resolveExpBonus(passiveAbility: any?): number
+	if type(passiveAbility) == "table" and passiveAbility.type == "ExpBonus" then
+		return math.max(0, readPassiveValue(passiveAbility, "value") or 0)
 	end
-	local value = passiveAbility.params[key]
-	return if type(value) == "number" then value else 0
+	return readPassiveAdd(passiveAbility, "expBonus")
 end
 
 function SlingStatResolver.Resolve(definitionId: string, star: number?, level: number?): ResolvedSlingStats
@@ -75,7 +89,7 @@ function SlingStatResolver.Resolve(definitionId: string, star: number?, level: n
 		moveSpeed = speed,
 		damageMultiplier = readPassiveMultiplier(passive, "finalDamageMultiplier"),
 		reflectDamage = math.max(base.reflectDamagePercent, readPassiveAdd(passive, "reflectDamage")),
-		expBonus = readPassiveAdd(passive, "expBonus"),
+		expBonus = resolveExpBonus(passive),
 	}
 end
 

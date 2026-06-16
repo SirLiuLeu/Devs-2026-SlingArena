@@ -80,6 +80,16 @@ local function getService(context: Context, name: string)
 end
 
 -- Combat damage is allowed in active round phases; safe-zone and trap damage bypass this check.
+
+local function getDamageBoostMultiplier(playerStateService: any, attacker: Player?): number
+	if not attacker or not playerStateService or typeof(playerStateService.GetFlag) ~= "function" then
+		return 1
+	end
+	local damageFlag = playerStateService:GetFlag(attacker, "DamageBoosted")
+	local percent = damageFlag and damageFlag.Data and tonumber(damageFlag.Data.DamageBonusPercent) or 0
+	return 1 + (math.max(0, percent) / 100)
+end
+
 local function isCombatDamageAllowed(context: Context): boolean
 	local roundService = getService(context, "RoundService")
 	if not roundService then
@@ -128,6 +138,7 @@ function DamagePipelineService:Init()
 		local attackerState = attacker and stateService and stateService:GetState(attacker) or nil
 
 		local damage = self:ComputeCollisionDamage(attackerState or {}, impactSpeed, collisionMeta)
+		damage *= getDamageBoostMultiplier(stateService, attacker)
 
 		if damage <= 0 then
 			return

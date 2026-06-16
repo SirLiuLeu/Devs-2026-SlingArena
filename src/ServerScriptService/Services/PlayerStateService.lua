@@ -396,10 +396,6 @@ function PlayerStateService:TryConsumeHpPotion(player: Player): (boolean, string
 	if now < (state.NextHpPotionUseTime or 0) then
 		return false, "Cooldown"
 	end
-	if (state.CurrentHP or 0) >= (state.MaxHP or 0) then
-		return false, "AlreadyFull"
-	end
-
 	local item = ItemConfig.GetById("hp_potion")
 	local effect = item and item.effect
 	local params = effect and effect.flagParams or nil

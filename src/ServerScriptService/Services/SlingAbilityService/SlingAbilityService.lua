@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
+local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local BaseAbility = require(script.Parent.BaseAbility)
 
@@ -262,8 +263,15 @@ function SlingAbilityService:_handleLaunch(player: Player, chargeRatio: number, 
 		stateService:RemoveFlag(player, "Invisible")
 	end
 
-	if config.healOnLaunchMaxHpPercent then
-		stateService:Heal(player, state.MaxHP * config.healOnLaunchMaxHpPercent)
+	local passiveHealPercent = 0
+	local slingDef = SlingConfig.GetById(state.SlingshotType or "")
+	local passiveAbility = slingDef and slingDef.passiveAbility or nil
+	if type(passiveAbility) == "table" and passiveAbility.type == "HealOnLaunch" then
+		passiveHealPercent = math.max(0, tonumber(passiveAbility.percent) or 0)
+	end
+	local healPercent = math.max(passiveHealPercent, tonumber(config.healOnLaunchMaxHpPercent) or 0)
+	if healPercent > 0 then
+		stateService:Heal(player, state.MaxHP * healPercent)
 	end
 
 	if config.moveSpeedPerLaunchPercent then

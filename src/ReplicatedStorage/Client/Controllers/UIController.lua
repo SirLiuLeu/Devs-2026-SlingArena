@@ -59,6 +59,25 @@ local function warnMissingUiPath(path: string, className: string)
 	warn(string.format("[UI_MISSING] %s (%s) is missing. Create it manually in Studio.", path, className))
 end
 
+local function getRemainingSeconds(flag: any, now: number): number
+	if type(flag) ~= "table" or type(flag.ExpiresAt) ~= "number" then
+		return 0
+	end
+	return math.max(0, flag.ExpiresAt - now)
+end
+
+local function setBuffVisible(buffObject: Instance?, visible: boolean)
+	if buffObject and buffObject:IsA("GuiObject") then
+		buffObject.Visible = visible
+	end
+end
+
+local function setBuffText(label: Instance?, text: string)
+	if label and label:IsA("TextLabel") then
+		label.Text = text
+	end
+end
+
 function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	local self = setmetatable({}, UIController)
 	self.ClientService = dependencies.ClientService
@@ -96,6 +115,12 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.ShopButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.ShopButton)
 	self.QuickHpButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP)
 	self.QuickHpCountLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPCountLabel)
+	self.DamageBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff)
+	self.DamageBuffValueText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageValueText)
+	self.ExpBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.ExpBuff)
+	self.ExpBuffValueText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.ExpValueText)
+	self.HPRecoveryBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecovery)
+	self.HPRecoveryTimeText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecoveryTime)
 	self.HomeButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.HomeButton)
 	self.TeamIndicator = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.TeamIndicator)
 	self.DiamondQuantityLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.DiamondQuantity)
@@ -133,6 +158,12 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not self.ShopButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.ShopButton, "GuiButton") end
 	if not self.QuickHpButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHP, "GuiButton") end
 	if not self.HomeButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.HomeButton, "GuiButton") end
+	if not (self.DamageBuff and self.DamageBuff:IsA("GuiObject")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff, "GuiObject") end
+	if not (self.DamageBuffValueText and self.DamageBuffValueText:IsA("TextLabel")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.DamageValueText, "TextLabel") end
+	if not (self.ExpBuff and self.ExpBuff:IsA("GuiObject")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.ExpBuff, "GuiObject") end
+	if not (self.ExpBuffValueText and self.ExpBuffValueText:IsA("TextLabel")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.ExpValueText, "TextLabel") end
+	if not (self.HPRecoveryBuff and self.HPRecoveryBuff:IsA("GuiObject")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecovery, "GuiObject") end
+	if not (self.HPRecoveryTimeText and self.HPRecoveryTimeText:IsA("TextLabel")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecoveryTime, "TextLabel") end
 	if not (self.QuickHpCountLabel and self.QuickHpCountLabel:IsA("TextLabel")) then
 		warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHPCountLabel, "TextLabel")
 	end
@@ -180,6 +211,10 @@ function UIController:Start()
 	if self.DailyLoginUIController then
 		self.DailyLoginUIController:Start()
 	end
+	setBuffVisible(self.DamageBuff, false)
+	setBuffVisible(self.ExpBuff, false)
+	setBuffVisible(self.HPRecoveryBuff, false)
+
 	if self.InventoryDataProvider then
 		table.insert(self.Connections, self.InventoryDataProvider:BindChanged(function(snapshot)
 			if self.InventoryUIController then
@@ -314,6 +349,21 @@ function UIController:Start()
 		if self.ExpLevelLabel then
 			self.ExpLevelLabel.Text = string.format("Lv.%d", level)
 		end
+		local activeFlags = state.ActiveFlags or {}
+		local now = os.clock()
+		local damageFlag = activeFlags.DamageBoosted
+		setBuffVisible(self.DamageBuff, damageFlag ~= nil)
+		setBuffText(self.DamageBuffValueText, if damageFlag then string.format("+%d%%", math.floor((damageFlag.DamageBonusPercent or 100) + 0.5)) else "+0%")
+		local expPercent = math.floor(math.max(0, state.ExpBonus or 0) * 100 + 0.5)
+		local expFlag = activeFlags.EXPBoosted
+		if expFlag then
+			expPercent += math.floor((expFlag.ExpBonusPercent or 100) + 0.5)
+		end
+		setBuffVisible(self.ExpBuff, expPercent > 0)
+		setBuffText(self.ExpBuffValueText, string.format("+%d%%", expPercent))
+		local hpRecoveryFlag = activeFlags.HPRecovering
+		setBuffVisible(self.HPRecoveryBuff, hpRecoveryFlag ~= nil)
+		setBuffText(self.HPRecoveryTimeText, if hpRecoveryFlag then string.format("%.1fs", getRemainingSeconds(hpRecoveryFlag, now)) else "0.0s")
 		if self.TeamIndicator then
 			local teamId = tostring(state.TeamId or "NoTeam")
 			self.TeamIndicator.Text = string.format("Team: %s", teamId)

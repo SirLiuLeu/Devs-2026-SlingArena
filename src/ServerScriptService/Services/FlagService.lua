@@ -142,6 +142,17 @@ local function getFlagKey(flagName: string, source: any?, data: any?, defaults: 
 	return flagName
 end
 
+local function copySnapshotData(target: any, data: any?)
+	if type(data) ~= "table" then
+		return
+	end
+	for key, value in pairs(data) do
+		if type(value) == "number" or type(value) == "string" or type(value) == "boolean" then
+			target[key] = value
+		end
+	end
+end
+
 local function buildFlagSnapshot(flags: { [string]: ActiveFlag }?): any
 	local snapshot = {}
 	if not flags then
@@ -153,6 +164,7 @@ local function buildFlagSnapshot(flags: { [string]: ActiveFlag }?): any
 		if existing then
 			existing.ExpiresAt = math.max(existing.ExpiresAt or 0, flag.ExpiresAt)
 			existing.Stacks = (existing.Stacks or 0) + (flag.Stacks or 1)
+			copySnapshotData(existing, flag.Data)
 			if flag.Data and flag.Data.SlowAmount then
 				existing.SlowAmount = math.max(existing.SlowAmount or 0, flag.Data.SlowAmount)
 			end
@@ -168,6 +180,7 @@ local function buildFlagSnapshot(flags: { [string]: ActiveFlag }?): any
 				ExpiresAt = flag.ExpiresAt,
 				Stacks = flag.Stacks,
 			}
+			copySnapshotData(snapshot[flagName], flag.Data)
 			if flag.Data and flag.Data.SlowAmount then
 				snapshot[flagName].SlowAmount = flag.Data.SlowAmount
 			end
@@ -395,6 +408,11 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 		then now + resolvedDuration
 		else math.max(existing and existing.ExpiresAt or 0, now + resolvedDuration)
 	local sourceId = getSourceId(source, data)
+	local initialHealTickAt = now
+	local tickInterval = (data and data.TickInterval) or defaults.TickInterval
+	if flagName == "HPRecovering" and tickInterval then
+		initialHealTickAt = now - math.max(0, tonumber(tickInterval) or 0)
+	end
 	flags[flagKey] = {
 		Name = flagName,
 		ExpiresAt = expiresAt,
@@ -403,7 +421,7 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 		SourceId = sourceId,
 		SourceUserId = getSourceUserId(source),
 		LastTickAt = now,
-		LastHealTickAt = now,
+		LastHealTickAt = initialHealTickAt,
 		LastDamageTickAt = now,
 		Data = data,
 	}

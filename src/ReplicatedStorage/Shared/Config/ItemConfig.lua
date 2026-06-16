@@ -24,9 +24,9 @@ ItemConfig.Items = {
 		effect = {
 			flagName = "HPRecovering",
 			flagParams = {
-				Duration = 5,
-				TickInterval = 1,
-				HealPerTick = 100,
+				Duration = 3,
+				TickInterval = 0.5,
+				HealPerTick = 500,
 			},
 		},
 	},
@@ -38,6 +38,16 @@ ItemConfig.Items = {
 		effect = {
 			flagName = "EXPBoosted",
 			flagParams = { Duration = 300, ExpBonusPercent = 100 },
+		},
+	},
+	{
+		id = "DamagePotion",
+		name = "Damage Potion",
+		icon = "rbxassetid://0",
+		useCooldown = 1,
+		effect = {
+			flagName = "DamageBoosted",
+			flagParams = { Duration = 30, DamageBonusPercent = 100 },
 		},
 	},
 	{

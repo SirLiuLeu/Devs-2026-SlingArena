@@ -32,6 +32,15 @@ local ProjectTreeSpec = {
 				LevelLabel = "MainHUD.Root.ExpProress.LevelOnBarLabel", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.LevelOnBarLabel
 			},
 			DiamondQuantity = "MainHUD.Root.Diamond.Quantity", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.Diamond.Quantity
+			BuffContainer = {
+				Root = "MainHUD.Root.BuffContainer", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer
+				DamageBuff = "MainHUD.Root.BuffContainer.DamageBuff", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer.DamageBuff
+				DamageValueText = "MainHUD.Root.BuffContainer.DamageBuff.ValueText", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer.DamageBuff.ValueText
+				ExpBuff = "MainHUD.Root.BuffContainer.ExpBuff", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer.ExpBuff
+				ExpValueText = "MainHUD.Root.BuffContainer.ExpBuff.ValueText", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer.ExpBuff.ValueText
+				HPRecovery = "MainHUD.Root.BuffContainer.HPRecovery", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer.HPRecovery
+				HPRecoveryTime = "MainHUD.Root.BuffContainer.HPRecovery.Time", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer.HPRecovery.Time
+			},
 			Panels = {
 				SlingStats = "SlingStatsUI", -- [ASSUMED] expected sling stats panel root ScreenGui name
 				DailyLogin = "DailyLoginUI", -- [PROJECT_TREE_SPEC] StarterGui.DailyLoginUI

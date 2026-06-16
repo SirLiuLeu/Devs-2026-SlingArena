@@ -15,8 +15,9 @@ local GameConfig = {
 
 		PoisonTrap = { Duration = 5, Stackable = true, MaxStack = 5, TickInterval = 1, DamagePerTick = 150, SourceScoped = true },
 
-		HPRecovering = { Duration = 5, Stackable = false, MaxStack = 1, TickInterval = 1, HealPerTick = 100 },
+		HPRecovering = { Duration = 3, Stackable = false, MaxStack = 1, TickInterval = 0.5, HealPerTick = 500 },
 		EXPBoosted = { Duration = 300, Stackable = false, MaxStack = 1, ExpBonusPercent = 100 },
+		DamageBoosted = { Duration = 30, Stackable = false, MaxStack = 1, DamageBonusPercent = 100 },
 
 		LavaTrap = {
 			Duration = 10,
