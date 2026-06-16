@@ -7,11 +7,25 @@ ItemConfig.Items = {
 		id = "hp_potion",
 		name = "HP Potion",
 		icon = "rbxassetid://138146402871393",
+		useCooldown = 5,
+		effect = {
+			flagName = "HPRecovering",
+			flagParams = {
+				Duration = 5,
+				TickInterval = 1,
+				HealPerTick = 100,
+			},
+		},
 	},
 	{
 		id = "exp_buff_x2",
 		name = "x2 EXP Buff",
 		icon = "rbxassetid://16112286685",
+		useCooldown = 1,
+		effect = {
+			flagName = "EXPBoosted",
+			flagParams = { Duration = 300, ExpBonusPercent = 100 },
+		},
 	},
 	{
 		id = "gacha_ticket",

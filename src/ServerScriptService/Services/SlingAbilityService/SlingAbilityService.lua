@@ -198,7 +198,11 @@ function SlingAbilityService:_onAbilityTrigger(player: Player, payload)
 	end
 	if type(payload) == "table" and payload.action == "EquipSling" and typeof(payload.slingId) == "string" then
 		local stateService = getService(self._context, "PlayerStateService")
-		if stateService and stateService:SetSlingType(player, payload.slingId) then
+		local equipped = false
+		if stateService and typeof(payload.instanceId) == "string" and typeof(stateService.SetEquippedSlingInstance) == "function" then
+			equipped = stateService:SetEquippedSlingInstance(player, payload.instanceId)
+		end
+		if stateService and (equipped or stateService:SetSlingType(player, payload.slingId)) then
 			local playerService = getService(self._context, "PlayerService")
 			if playerService and typeof(playerService.EquipSlingModel) == "function" then
 				playerService:EquipSlingModel(player, payload.slingId)

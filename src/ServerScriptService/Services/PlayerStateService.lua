@@ -6,6 +6,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
+local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
+local SlingStatResolver = require(ReplicatedStorage.Shared.Utils.SlingStatResolver)
 local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
@@ -80,6 +82,15 @@ local function buildDefaultState(player: Player): PlayerState
 		RegenBonus = 0,
 		KnockbackResistance = 0,
 		SlingshotType = "NormalSling",
+		EquippedSlingInstanceId = "default_normal_sling",
+		OwnedSlings = {
+			default_normal_sling = {
+				definitionId = "NormalSling",
+				star = 1,
+				level = 1,
+				acquiredAt = os.time(),
+			},
+		},
 		ChargeValue = 0,
 		CurrentVelocity = Vector3.zero,
 		InvulnerableUntil = 0,
@@ -239,33 +250,36 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	if not state then
 		return
 	end
-	local sling = SlingConfig.BaseStats
-	local equippedSling = SlingConfig.GetById(state.SlingshotType or "")
-	local abilityConfig = equippedSling and AbilityConfig.GetById(equippedSling.abilityType or equippedSling.id) or nil
-	local levelMultiplier = 1 + (math.max(state.Level - 1, 0) * 0.03)
-	local slingStats = equippedSling and equippedSling.stats or {}
+
+	local ownedSlings = state.OwnedSlings or {}
+	local equippedInstanceId = state.EquippedSlingInstanceId
+	local equippedInstance = if equippedInstanceId then ownedSlings[equippedInstanceId] else nil
+	local definitionId = (equippedInstance and equippedInstance.definitionId) or state.SlingshotType or SlingConfig.DefaultSlingId
+	local star = (equippedInstance and equippedInstance.star) or 1
+	local slingLevel = (equippedInstance and equippedInstance.level) or math.max(state.Level, 1)
+	local resolved = SlingStatResolver.Resolve(definitionId, star, slingLevel)
+
 	state.HPBonus = 0
 	state.RegenBonus = 0
 	state.LaunchSpeedBonus = 0
-
-	state.Size = (BalanceConfig.BaseSize * levelMultiplier) * state.ScaleMultiplier
-	state.BaseDamage = (slingStats.baseDamage or sling.baseDamage) * levelMultiplier
-	state.DamageMultiplier = abilityConfig and abilityConfig.damageMultiplier or 1
-	state.RegenRate = sling.regenPerSecond * (slingStats.regen or 1) * (abilityConfig and abilityConfig.regenMultiplier or 1) * levelMultiplier
-	state.ReflectDamage = math.max(sling.reflectDamagePercent, abilityConfig and abilityConfig.reflectDamage or 0)
-	state.LaunchSpeed = PhysicsConfig.Launch.SpeedMax * (slingStats.launchPower or 1) * levelMultiplier
-	state.LaunchRange = sling.maxShootRange * (slingStats.control or 1) * levelMultiplier
+	state.Size = (BalanceConfig.BaseSize * (1 + (math.max(state.Level - 1, 0) * 0.03))) * state.ScaleMultiplier
+	state.BaseDamage = resolved.baseDamage
+	state.DamageMultiplier = resolved.damageMultiplier
+	state.RegenRate = resolved.regen
+	state.ReflectDamage = resolved.reflectDamage
+	state.LaunchSpeed = resolved.launchSpeed
+	state.LaunchRange = resolved.launchRange
 	state.ChargeSpeed = 1
-	state.MoveSpeed = PhysicsConfig.Movement.MoveSpeed * (abilityConfig and abilityConfig.moveSpeedMultiplier or 1) * levelMultiplier
-	state.Armor = math.clamp((slingStats.armor or 0) + (abilityConfig and abilityConfig.armor or 0), 0, 0.8)
-	state.ExpBonus = abilityConfig and abilityConfig.expBonus or 0
+	state.MoveSpeed = resolved.moveSpeed
+	state.Armor = resolved.armor
+	state.ExpBonus = resolved.expBonus
+	state.SlingshotType = definitionId
 
-	local hp = (slingStats.maxHP or sling.maxHP) * (abilityConfig and abilityConfig.maxHpMultiplier or 1) * levelMultiplier
-	state.MaxHP = hp
+	state.MaxHP = resolved.maxHP
 	if refillHealth then
-		state.CurrentHP = hp
+		state.CurrentHP = resolved.maxHP
 	else
-		state.CurrentHP = math.clamp(state.CurrentHP, 0, hp)
+		state.CurrentHP = math.clamp(state.CurrentHP, 0, resolved.maxHP)
 	end
 	self:PublishState(player)
 end
@@ -386,9 +400,17 @@ function PlayerStateService:TryConsumeHpPotion(player: Player): (boolean, string
 		return false, "AlreadyFull"
 	end
 
+	local item = ItemConfig.GetById("hp_potion")
+	local effect = item and item.effect
+	local params = effect and effect.flagParams or nil
+	local flagName = effect and effect.flagName or "HPRecovering"
+	local duration = params and params.Duration or nil
+	local cooldown = (item and item.useCooldown) or BalanceConfig.HpPotionCooldown
+
 	state.HpPotions = math.max(0, (state.HpPotions or 0) - 1)
-	state.NextHpPotionUseTime = now + BalanceConfig.HpPotionCooldown
-	self:Heal(player, BalanceConfig.HpPotionHealAmount)
+	state.NextHpPotionUseTime = now + cooldown
+	self:ApplyFlag(player, flagName, duration, player, params)
+	self:PublishState(player)
 	return true, nil
 end
 
@@ -407,6 +429,10 @@ function PlayerStateService:GrantExp(player: Player, amount: number)
 	local state = self._states[player]
 	if not state then return end
 	local expBonus = 1 + math.max(0, state.ExpBonus or 0)
+	local expFlag = self:GetFlag(player, "EXPBoosted")
+	if expFlag and expFlag.Data and type(expFlag.Data.ExpBonusPercent) == "number" then
+		expBonus += math.max(0, expFlag.Data.ExpBonusPercent) / 100
+	end
 	state.Exp += math.max(0, amount) * expBonus
 	while state.Level < LevelConfig.MaxLevel do
 		local requiredExp = self:GetRequiredExp(state.Level)
@@ -564,6 +590,21 @@ function PlayerStateService:SetSlingType(player: Player, slingId: string): boole
 		return false
 	end
 	state.SlingshotType = slingId
+	state.EquippedSlingInstanceId = nil
+	self._slingRuntime[player] = {}
+	self:RecalculateDerivedStats(player, true)
+	return true
+end
+
+function PlayerStateService:SetEquippedSlingInstance(player: Player, instanceId: string): boolean
+	local state = self._states[player]
+	local ownedSlings = state and state.OwnedSlings or nil
+	local slingInstance = ownedSlings and ownedSlings[instanceId] or nil
+	if not (state and slingInstance and SlingConfig.GetById(slingInstance.definitionId)) then
+		return false
+	end
+	state.EquippedSlingInstanceId = instanceId
+	state.SlingshotType = slingInstance.definitionId
 	self._slingRuntime[player] = {}
 	self:RecalculateDerivedStats(player, true)
 	return true

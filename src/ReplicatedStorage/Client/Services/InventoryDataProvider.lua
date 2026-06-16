@@ -12,7 +12,7 @@ InventoryDataProvider.__index = InventoryDataProvider
 
 export type InventorySnapshot = {
 	ownedItems: { [string]: number },
-	ownedSlings: { { id: string, level: number, equipped: boolean, name: string?, icon: string?, stats: any? } },
+	ownedSlings: { { instanceId: string, definitionId: string, id: string, star: number, level: number, equipped: boolean, name: string?, icon: string?, stats: any? } },
 	slingCapacity: number,
 	selectedItemId: string?,
 	selectedSlingId: string?,
@@ -29,16 +29,30 @@ end
 
 local function cloneSlings(slings): any
 	local result = {}
-	for _, slingEntry in ipairs(slings) do
+	local isArray = #slings > 0
+	if isArray then
+		for _, slingEntry in ipairs(slings) do
+			table.insert(result, table.clone(slingEntry))
+		end
+		return result
+	end
+	for instanceId, slingEntry in pairs(slings) do
+		local definitionId = slingEntry.definitionId or slingEntry.id
 		table.insert(result, {
-			id = slingEntry.id,
-			level = slingEntry.level,
-			equipped = slingEntry.equipped,
+			instanceId = instanceId,
+			definitionId = definitionId,
+			id = definitionId,
+			star = slingEntry.star or 1,
+			level = slingEntry.level or 1,
+			equipped = false,
 			name = slingEntry.name,
 			icon = slingEntry.icon,
 			stats = slingEntry.stats and table.clone(slingEntry.stats) or nil,
 		})
 	end
+	table.sort(result, function(a, b)
+		return tostring(a.instanceId) < tostring(b.instanceId)
+	end)
 	return result
 end
 
@@ -96,6 +110,12 @@ function InventoryDataProvider:SetFromState(state)
 		self._state.ownedSlings = cloneSlings(incomingSlings)
 	end
 
+	if type(state.EquippedSlingInstanceId) == "string" then
+		for _, slingEntry in ipairs(self._state.ownedSlings) do
+			slingEntry.equipped = slingEntry.instanceId == state.EquippedSlingInstanceId
+		end
+	end
+
 	if type(state.SlingCapacity) == "number" then
 		self._state.slingCapacity = math.max(0, math.floor(state.SlingCapacity))
 	end
@@ -109,7 +129,7 @@ end
 
 function InventoryDataProvider:_findSlingIndex(slingId: string): number?
 	for index, slingEntry in ipairs(self._state.ownedSlings) do
-		if slingEntry.id == slingId then
+		if slingEntry.instanceId == slingId or slingEntry.id == slingId then
 			return index
 		end
 	end
@@ -141,7 +161,10 @@ function InventoryDataProvider:GiveTestSling()
 		self._state.ownedSlings[existingIndex].level = self._state.ownedSlings[existingIndex].level + 1
 	else
 		table.insert(self._state.ownedSlings, {
+			instanceId = string.format("local_%s_%d", slingId, math.floor(os.clock() * 1000)),
+			definitionId = slingId,
 			id = slingId,
+			star = 1,
 			level = 1,
 			equipped = false,
 		})
@@ -216,7 +239,8 @@ function InventoryDataProvider:EquipSelectedSling(): boolean
 	if abilityTrigger and abilityTrigger:IsA("RemoteEvent") then
 		abilityTrigger:FireServer({
 			action = "EquipSling",
-			slingId = slingId,
+			slingId = self._state.ownedSlings[selectedIndex].id,
+			instanceId = self._state.ownedSlings[selectedIndex].instanceId,
 		})
 	end
 	self:_emitChanged()

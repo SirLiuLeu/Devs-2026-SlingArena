@@ -448,8 +448,11 @@ function FlagService:TickFlags(dt: number)
 	local roundState = roundService and roundService:GetState()
 	local dotAllowed = roundState == GameStates.MapRoundState.EarlyGame or roundState == GameStates.MapRoundState.FinalPhase
 
+	local stateService = getService(self._context, "PlayerStateService")
 	for player, flags in pairs(self._activeFlags) do
-		local stateService = getService(self._context, "PlayerStateService")
+		if not flags or next(flags) == nil then
+			continue
+		end
 		local state = stateService and stateService:GetState(player)
 		if not state then
 			continue
@@ -476,6 +479,16 @@ function FlagService:TickFlags(dt: number)
 				end
 			end
 			local tickInterval = (flag.Data and flag.Data.TickInterval) or defaults.TickInterval
+			local healPerTick = (flag.Data and flag.Data.HealPerTick) or defaults.HealPerTick
+			if tickInterval and healPerTick then
+				local lastTickAt = flag.LastTickAt or now
+				if now - lastTickAt >= tickInterval then
+					flag.LastTickAt = now
+					if stateService then
+						stateService:Heal(player, (tonumber(healPerTick) or 0) * math.max(1, flag.Stacks or 1), true)
+					end
+				end
+			end
 			local damagePerTick = (flag.Data and flag.Data.DamagePerTick) or defaults.DamagePerTick
 			if tickInterval and damagePerTick and not self:HasFlag(player, "Invulnerable") and dotAllowed then
 				local lastTickAt = flag.LastTickAt or now

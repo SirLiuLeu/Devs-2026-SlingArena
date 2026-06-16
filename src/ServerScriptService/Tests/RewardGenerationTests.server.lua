@@ -52,17 +52,26 @@ local function testRandomSlingRewardForPlayer()
 		if not slingId or not validSlings[slingId] then
 			error(string.format("Invalid sling id generated at iteration %d: %s", i, tostring(slingId)))
 		end
-		table.insert(fakePlayer.OwnedSlings, slingId)
+		fakePlayer.OwnedSlings[string.format("reward_%03d", i)] = {
+			definitionId = slingId,
+			star = 1,
+			level = 1,
+			acquiredAt = i,
+		}
 	end
 
-	if #fakePlayer.OwnedSlings ~= 100 then
+	local ownedSlingCount = 0
+	for _ in pairs(fakePlayer.OwnedSlings) do
+		ownedSlingCount += 1
+	end
+	if ownedSlingCount ~= 100 then
 		error("Fake player should receive exactly 100 sling rewards")
 	end
 
 	print(string.format(
 		"[RewardGenerationTests] Player %s received %d valid sling rewards",
 		fakePlayer.Name,
-		#fakePlayer.OwnedSlings
+		ownedSlingCount
 	))
 end
 

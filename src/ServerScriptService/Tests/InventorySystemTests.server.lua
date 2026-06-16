@@ -187,7 +187,11 @@ local function testMockInventoryLoadsAndUsesTemplates()
 	local snapshot = provider:GetSnapshot()
 	local mockSnapshot = MockData.GetInventoryState()
 
-	if #snapshot.ownedSlings ~= #mockSnapshot.OwnedSlings then
+	local mockSlingCount = 0
+	for _ in pairs(mockSnapshot.OwnedSlings) do
+		mockSlingCount += 1
+	end
+	if #snapshot.ownedSlings ~= mockSlingCount then
 		error("Provider mock sling count must match mock data source")
 	end
 	if (snapshot.ownedItems.gacha_ticket or 0) ~= 100 then

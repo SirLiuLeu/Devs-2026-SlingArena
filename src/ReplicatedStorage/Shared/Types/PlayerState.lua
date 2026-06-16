@@ -11,6 +11,13 @@ export type AttributesState = {
 	MoveSpeed: number,
 }
 
+export type OwnedSling = {
+	definitionId: string,
+	star: number,
+	level: number,
+	acquiredAt: number,
+}
+
 export type PlayerState = {
 	UserId: number,
 	CurrentMap: string?,
@@ -34,6 +41,8 @@ export type PlayerState = {
 	RegenBonus: number,
 	KnockbackResistance: number,
 	SlingshotType: string,
+	EquippedSlingInstanceId: string?,
+	OwnedSlings: { [string]: OwnedSling }?,
 	ChargeValue: number,
 	CurrentVelocity: Vector3,
 	InvulnerableUntil: number,

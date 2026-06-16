@@ -2,7 +2,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
+local MockInventoryData = require(ReplicatedStorage.Client.Services.MockInventoryData)
+local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 
 local MockData = {}
 
@@ -16,73 +17,6 @@ local function deepClone(value)
 	end
 	return result
 end
-
-local function cloneItems(items: { [string]: number }): { [string]: number }
-	local result = {}
-	for itemId, quantity in pairs(items) do
-		result[itemId] = quantity
-	end
-	return result
-end
-
-local function cloneStats(stats)
-	local result = {}
-	for key, value in pairs(stats or {}) do
-		result[key] = value
-	end
-	return result
-end
-
-local function cloneSlings(slings: { any }): { any }
-	local result = {}
-	for _, slingEntry in ipairs(slings) do
-		table.insert(result, {
-			id = slingEntry.id,
-			level = slingEntry.level,
-			equipped = slingEntry.equipped,
-			name = slingEntry.name,
-			icon = slingEntry.icon,
-			stats = cloneStats(slingEntry.stats),
-		})
-	end
-	return result
-end
-
-local function getDefaultOwnedSlings(): { any }
-	local slings = {}
-	for index, slingId in ipairs(SlingConfig.GetAllIds()) do
-		local slingDef = SlingConfig.GetById(slingId)
-		if slingDef then
-			table.insert(slings, {
-				id = slingId,
-				level = 1,
-				equipped = slingId == SlingConfig.DefaultSlingId,
-				name = slingDef.name,
-				icon = slingDef.icon,
-				stats = {
-					damage = slingDef.stats.baseDamage or slingDef.stats.launchPower or 1,
-					hp = slingDef.stats.maxHP or (100 + (index * 5)),
-					range = slingDef.stats.control or 1,
-					regen = slingDef.stats.regen or (1 + (index * 0.15)),
-					abilityType = slingDef.abilityType or slingDef.id,
-				},
-			})
-		else
-			warn(string.format("[MOCK_DATA] Sling id missing in SlingConfig: %s", slingId))
-		end
-	end
-	return slings
-end
-
-local MOCK_PLAYER_STATE = {
-	OwnedItems = {
-		hp_potion = 25,
-		exp_buff_x2 = 25,
-		gacha_ticket = 100,
-	},
-	OwnedSlings = getDefaultOwnedSlings(),
-	SlingCapacity = 40,
-}
 
 local MOCK_ONLINE_REWARDS = {
 	{ id = "reward_01", rewardType = "EXP", amount = 150, icon = "rbxassetid://0", duration = 20, state = "Locked" },
@@ -163,11 +97,18 @@ local function cloneRewards(entries)
 end
 
 function MockData.GetInventoryState()
+	local playerData = MockPlayerData.GetPlayerData()
+	local inventoryData = MockInventoryData.GetInventoryState()
 	return {
-		OwnedItems = cloneItems(MOCK_PLAYER_STATE.OwnedItems),
-		OwnedSlings = cloneSlings(MOCK_PLAYER_STATE.OwnedSlings),
-		SlingCapacity = MOCK_PLAYER_STATE.SlingCapacity,
+		OwnedItems = playerData.OwnedItems,
+		OwnedSlings = inventoryData.OwnedSlings,
+		EquippedSlingInstanceId = inventoryData.EquippedSlingInstanceId,
+		SlingCapacity = inventoryData.SlingCapacity,
 	}
+end
+
+function MockData.GetPlayerData()
+	return MockPlayerData.GetPlayerData()
 end
 
 function MockData.GetOnlineRewardState()
