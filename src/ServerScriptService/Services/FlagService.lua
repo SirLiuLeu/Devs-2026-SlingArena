@@ -19,6 +19,8 @@ type ActiveFlag = {
 	SourceId: string?,
 	SourceUserId: number?,
 	LastTickAt: number?,
+	LastHealTickAt: number?,
+	LastDamageTickAt: number?,
 	Data: any?,
 }
 
@@ -401,6 +403,8 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 		SourceId = sourceId,
 		SourceUserId = getSourceUserId(source),
 		LastTickAt = now,
+		LastHealTickAt = now,
+		LastDamageTickAt = now,
 		Data = data,
 	}
 	self:_applyFlagVisual(player, flagName, data)
@@ -481,9 +485,9 @@ function FlagService:TickFlags(dt: number)
 			local tickInterval = (flag.Data and flag.Data.TickInterval) or defaults.TickInterval
 			local healPerTick = (flag.Data and flag.Data.HealPerTick) or defaults.HealPerTick
 			if tickInterval and healPerTick then
-				local lastTickAt = flag.LastTickAt or now
-				if now - lastTickAt >= tickInterval then
-					flag.LastTickAt = now
+				local lastHealTickAt = flag.LastHealTickAt or flag.LastTickAt or now
+				if now - lastHealTickAt >= tickInterval then
+					flag.LastHealTickAt = now
 					if stateService then
 						stateService:Heal(player, (tonumber(healPerTick) or 0) * math.max(1, flag.Stacks or 1), true)
 					end
@@ -491,9 +495,9 @@ function FlagService:TickFlags(dt: number)
 			end
 			local damagePerTick = (flag.Data and flag.Data.DamagePerTick) or defaults.DamagePerTick
 			if tickInterval and damagePerTick and not self:HasFlag(player, "Invulnerable") and dotAllowed then
-				local lastTickAt = flag.LastTickAt or now
-				if now - lastTickAt >= tickInterval then
-					flag.LastTickAt = now
+				local lastDamageTickAt = flag.LastDamageTickAt or flag.LastTickAt or now
+				if now - lastDamageTickAt >= tickInterval then
+					flag.LastDamageTickAt = now
 					local damagePipeline = getService(self._context, "DamagePipelineService")
 					local amount = 0
 					if type(damagePerTick) == "table" and damagePerTick.Mode == "MaxHPPercent" then

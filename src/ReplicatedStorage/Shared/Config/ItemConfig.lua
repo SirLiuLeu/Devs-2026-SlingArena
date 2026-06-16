@@ -2,6 +2,19 @@
 
 local ItemConfig = {}
 
+export type ItemEffect = {
+	flagName: string,
+	flagParams: { [string]: any },
+}
+
+export type ItemDefinition = {
+	id: string,
+	name: string,
+	icon: string,
+	useCooldown: number?,
+	effect: ItemEffect?,
+}
+
 ItemConfig.Items = {
 	{
 		id = "hp_potion",
@@ -42,14 +55,14 @@ ItemConfig.Items = {
 		name = "Regen Boost",
 		icon = "rbxassetid://10000005",
 	},
-}
+} :: { ItemDefinition }
 
-local byId = {}
+local byId = {} :: { [string]: ItemDefinition }
 for _, item in ipairs(ItemConfig.Items) do
 	byId[item.id] = item
 end
 
-function ItemConfig.GetById(id: string)
+function ItemConfig.GetById(id: string): ItemDefinition?
 	return byId[id]
 end
 
