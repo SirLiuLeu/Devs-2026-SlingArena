@@ -137,7 +137,7 @@ DataModel
 │  │      │       ├── UICorner
 │  │      │       └── HpBarFill (Frame)
 │  │      │
-│  │      ├── ItemSlotTemplate_InventoryUI (Frame)
+│  │      ├── ItemotTemplate_InventoryUI (Frame)
 │  │      │   └── Root (Frame)
 │  │      │       ├── UICorner
 │  │      │       ├── Icon (ImageLabel)
