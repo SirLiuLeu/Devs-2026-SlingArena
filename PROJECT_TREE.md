@@ -447,7 +447,7 @@ DataModel
 │  │     │  └─ Title (TextLabel)
 │  │     ├─ Diamond
 │  │     │  ├─ DiamondIcon (ImageLabel)
-│  │     │  └─ ValueText (TextLabel)
+│  │     │  └─ Value (TextLabel)
 │  │     ├─ QuickHP (ImageButton)
 │  │     │  └─ Quantity (TextLabel)
 │  │     └─ Home (ImageButton)
