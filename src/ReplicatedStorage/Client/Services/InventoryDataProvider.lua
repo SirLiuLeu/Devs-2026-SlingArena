@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local MockData = require(ReplicatedStorage.Client.Services.MockData)
+local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local InventoryDataProvider = {}
@@ -72,6 +73,10 @@ function InventoryDataProvider.new()
 end
 
 function InventoryDataProvider:Destroy()
+	if self._playerDataConnection then
+		self._playerDataConnection:Disconnect()
+		self._playerDataConnection = nil
+	end
 	if self._changed then
 		self._changed:Destroy()
 	end
@@ -124,6 +129,11 @@ function InventoryDataProvider:SetFromState(state)
 end
 
 function InventoryDataProvider:LoadMockInventory()
+	if not self._playerDataConnection then
+		self._playerDataConnection = MockPlayerData.BindChanged(function()
+			self:SetFromState(MockPlayerData.GetInventoryState())
+		end)
+	end
 	self:SetFromState(MockData.GetInventoryState())
 end
 
@@ -156,23 +166,7 @@ function InventoryDataProvider:GiveTestSling()
 
 	self._state._slingGiveCursor = (self._state._slingGiveCursor % #slingIds) + 1
 	local slingId = slingIds[self._state._slingGiveCursor]
-	local existingIndex = self:_findSlingIndex(slingId)
-	if existingIndex then
-		self._state.ownedSlings[existingIndex].level = self._state.ownedSlings[existingIndex].level + 1
-	else
-		table.insert(self._state.ownedSlings, {
-			instanceId = string.format("local_%s_%d", slingId, math.floor(os.clock() * 1000)),
-			definitionId = slingId,
-			id = slingId,
-			star = 1,
-			level = 1,
-			equipped = false,
-		})
-	end
-	if #self._state.ownedSlings == 1 then
-		self._state.ownedSlings[1].equipped = true
-	end
-	self:_emitChanged()
+	MockPlayerData.AddSling(slingId, "InventoryGiveTestSling")
 end
 
 function InventoryDataProvider:GiveTestItem()
@@ -182,8 +176,7 @@ function InventoryDataProvider:GiveTestItem()
 		self:_emitChanged()
 		return
 	end
-	self._state.ownedItems[itemId] = (self._state.ownedItems[itemId] or 0) + 1
-	self:_emitChanged()
+	MockPlayerData.AddItem(itemId, 1, "InventoryGiveTestItem")
 end
 
 function InventoryDataProvider:UseSelectedItem(): boolean
@@ -193,28 +186,13 @@ function InventoryDataProvider:UseSelectedItem(): boolean
 		self:_emitChanged()
 		return false
 	end
-	local quantity = self._state.ownedItems[itemId] or 0
-	if quantity <= 0 then
-		self._state.lastUseResult = string.format("%s is out of stock", itemId)
+
+	local success, message = MockPlayerData.UseItem(itemId, "InventoryUseItem")
+	self._state.lastUseResult = message
+	if not success then
 		self:_emitChanged()
-		return false
 	end
-
-	self._state.ownedItems[itemId] = quantity - 1
-	if self._state.ownedItems[itemId] <= 0 then
-		self._state.ownedItems[itemId] = nil
-		if self._state.selectedItemId == itemId then
-			self._state.selectedItemId = nil
-		end
-	end
-
-	if itemId == "hp_potion" then
-		self._state.lastUseResult = "HP Potion used: simulated +500 HP over time"
-	else
-		self._state.lastUseResult = string.format("Used %s", itemId)
-	end
-	self:_emitChanged()
-	return true
+	return success
 end
 
 function InventoryDataProvider:EquipSelectedSling(): boolean
@@ -230,21 +208,22 @@ function InventoryDataProvider:EquipSelectedSling(): boolean
 		return false
 	end
 
-	for _, slingEntry in ipairs(self._state.ownedSlings) do
-		slingEntry.equipped = false
+	local selected = self._state.ownedSlings[selectedIndex]
+	local equipped = MockPlayerData.EquipSling(selected.instanceId, "InventoryEquipSling")
+	if equipped then
+		local remotes = ReplicatedStorage:FindFirstChild("SlingArenaRemotes")
+		local abilityTrigger = remotes and remotes:FindFirstChild(RemoteContracts.Names.AbilityTrigger)
+		if abilityTrigger and abilityTrigger:IsA("RemoteEvent") then
+			abilityTrigger:FireServer({
+				action = "EquipSling",
+				slingId = selected.id,
+				instanceId = selected.instanceId,
+			})
+		end
+	else
+		self:_emitChanged()
 	end
-	self._state.ownedSlings[selectedIndex].equipped = true
-	local remotes = ReplicatedStorage:FindFirstChild("SlingArenaRemotes")
-	local abilityTrigger = remotes and remotes:FindFirstChild(RemoteContracts.Names.AbilityTrigger)
-	if abilityTrigger and abilityTrigger:IsA("RemoteEvent") then
-		abilityTrigger:FireServer({
-			action = "EquipSling",
-			slingId = self._state.ownedSlings[selectedIndex].id,
-			instanceId = self._state.ownedSlings[selectedIndex].instanceId,
-		})
-	end
-	self:_emitChanged()
-	return true
+	return equipped
 end
 
 function InventoryDataProvider:UnequipSelectedSling(): boolean

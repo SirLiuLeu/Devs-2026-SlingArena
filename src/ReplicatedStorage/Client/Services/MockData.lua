@@ -2,7 +2,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MockInventoryData = require(ReplicatedStorage.Client.Services.MockInventoryData)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 
 local MockData = {}
@@ -98,13 +97,7 @@ end
 
 function MockData.GetInventoryState()
 	local playerData = MockPlayerData.GetPlayerData()
-	local inventoryData = MockInventoryData.GetInventoryState()
-	return {
-		OwnedItems = playerData.OwnedItems,
-		OwnedSlings = inventoryData.OwnedSlings,
-		EquippedSlingInstanceId = inventoryData.EquippedSlingInstanceId,
-		SlingCapacity = inventoryData.SlingCapacity,
-	}
+	return MockPlayerData.GetInventoryState()
 end
 
 function MockData.GetPlayerData()

@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MockData = require(ReplicatedStorage.Client.Services.MockData)
+local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 
 local OnlineRewardLogicService = {}
 OnlineRewardLogicService.__index = OnlineRewardLogicService
@@ -17,6 +18,7 @@ export type RewardSlot = {
 	duration: number,
 	remaining: number,
 	state: RewardState,
+	itemId: string?,
 }
 
 local function cloneSlot(slot: RewardSlot): RewardSlot
@@ -28,6 +30,7 @@ local function cloneSlot(slot: RewardSlot): RewardSlot
 		duration = slot.duration,
 		remaining = slot.remaining,
 		state = slot.state,
+		itemId = slot.itemId,
 	}
 end
 
@@ -90,6 +93,7 @@ function OnlineRewardLogicService:LoadMockData()
 			duration = math.max(0, math.floor(slot.duration or 0)),
 			remaining = math.max(0, math.floor(slot.duration or 0)),
 			state = startState,
+			itemId = slot.itemId,
 		}
 		self._slots[index] = normalized
 		self._indexById[normalized.id] = index
@@ -150,6 +154,7 @@ function OnlineRewardLogicService:ClaimReward(rewardId: string): boolean
 	end
 	slot.state = "Claimed"
 	slot.remaining = 0
+	MockPlayerData.GrantReward(slot.rewardType, slot.amount, slot.itemId, "OnlineRewardClaim")
 	self:_emitChanged()
 	return true
 end
@@ -160,6 +165,7 @@ function OnlineRewardLogicService:ClaimAllReady(): number
 		if slot.state == "Ready" then
 			slot.state = "Claimed"
 			slot.remaining = 0
+			MockPlayerData.GrantReward(slot.rewardType, slot.amount, slot.itemId, "OnlineRewardClaimAll")
 			claimed += 1
 		end
 	end

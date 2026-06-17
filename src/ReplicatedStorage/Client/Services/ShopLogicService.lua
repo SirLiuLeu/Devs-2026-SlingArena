@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MockData = require(ReplicatedStorage.Client.Services.MockData)
+local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 
 local ShopLogicService = {}
 ShopLogicService.__index = ShopLogicService
@@ -26,6 +27,10 @@ function ShopLogicService.new()
 end
 
 function ShopLogicService:Destroy()
+	if self._playerDataConnection then
+		self._playerDataConnection:Disconnect()
+		self._playerDataConnection = nil
+	end
 	if self._changed then
 		self._changed:Destroy()
 	end
@@ -39,7 +44,12 @@ function ShopLogicService:_emitChanged()
 	self._changed:Fire(self:GetSnapshot())
 end
 
+function ShopLogicService:_syncBalance()
+	self._balance = math.max(0, math.floor(MockPlayerData.GetPlayerData().Diamonds or 0))
+end
+
 function ShopLogicService:GetSnapshot()
+	self:_syncBalance()
 	local items = {}
 	for i, entry in ipairs(self._items) do
 		items[i] = cloneEntry(entry)
@@ -66,10 +76,15 @@ end
 
 function ShopLogicService:LoadMockData()
 	local data = MockData.GetShopState()
-	self._balance = math.max(0, math.floor(data.balance or 0))
+	self._balance = math.max(0, math.floor(MockPlayerData.GetPlayerData().Diamonds or data.balance or 0))
 	self._items = data.items or {}
 	self._launchers = data.launchers or {}
 	self._dinamondPacks = data.dinamondPacks or {}
+	if not self._playerDataConnection then
+		self._playerDataConnection = MockPlayerData.BindChanged(function()
+			self:_emitChanged()
+		end)
+	end
 	self:_emitChanged()
 end
 
@@ -95,12 +110,11 @@ function ShopLogicService:PurchaseItem(itemId: string, quantity: number): (boole
 		price = item.priceX10
 	end
 
-	if self._balance < price then
+	if not MockPlayerData.SpendDiamonds(price, "ShopPurchaseItem") then
 		return false, "NOT_ENOUGH_DINAMOND"
 	end
 
-	self._balance -= price
-	self:_emitChanged()
+	MockPlayerData.AddItem(item.id, selectedQuantity, "ShopPurchaseItem")
 	return true, string.format("Purchased %s x%d", tostring(item.name), selectedQuantity)
 end
 
@@ -109,12 +123,11 @@ function ShopLogicService:PurchaseLauncher(launcherId: string): (boolean, string
 	if not launcher then
 		return false, "LAUNCHER_NOT_FOUND"
 	end
-	if self._balance < launcher.price then
+	if not MockPlayerData.SpendDiamonds(launcher.price, "ShopPurchaseLauncher") then
 		return false, "NOT_ENOUGH_DINAMOND"
 	end
 
-	self._balance -= launcher.price
-	self:_emitChanged()
+	MockPlayerData.AddSling(launcher.id, "ShopPurchaseLauncher")
 	return true, string.format("Purchased %s", tostring(launcher.name))
 end
 
@@ -124,8 +137,7 @@ function ShopLogicService:PurchaseDinamondPack(packId: string): (boolean, string
 		return false, "PACK_NOT_FOUND"
 	end
 
-	self._balance += math.max(0, math.floor(pack.dinamondAmount or 0))
-	self:_emitChanged()
+	MockPlayerData.AddDiamonds(math.max(0, math.floor(pack.dinamondAmount or 0)), "ShopPurchaseDiamonds")
 	return true, string.format("Mock purchase success: +%d Dinamond", pack.dinamondAmount)
 end
 

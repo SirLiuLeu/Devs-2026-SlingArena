@@ -14,6 +14,7 @@ local ShopUIController = require(ReplicatedStorage.Client.Controllers.ShopUICont
 local ShopLogicService = require(ReplicatedStorage.Client.Services.ShopLogicService)
 local DailyLoginUIController = require(ReplicatedStorage.Client.Controllers.DailyLoginUIController)
 local DailyLoginLogicService = require(ReplicatedStorage.Client.Services.DailyLoginLogicService)
+local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 
 local UIController = {}
@@ -180,6 +181,29 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	return self
 end
 
+function UIController:_refreshMockHud(playerData)
+	local data = playerData or MockPlayerData.GetPlayerData()
+	if self.DiamondQuantityLabel then
+		self.DiamondQuantityLabel.Text = tostring(math.max(0, math.floor(data.Diamonds or 0)))
+	end
+	if self.QuickHpCountLabel and self.QuickHpCountLabel:IsA("TextLabel") then
+		self.QuickHpCountLabel.Text = string.format("x%d", math.max(0, math.floor((data.OwnedItems and data.OwnedItems.hp_potion) or 0)))
+	end
+	local currentExp = math.max(0, math.floor(data.Exp or 0))
+	local level = 1
+	local required = math.max(1, LevelConfig.RequiredExp(level))
+	local ratio = math.clamp(currentExp / required, 0, 1)
+	if self.ExpBarFill and self.ExpBarFill:IsA("GuiObject") then
+		self.ExpBarFill.Size = UDim2.new(ratio, 0, self.ExpBarFill.Size.Y.Scale, self.ExpBarFill.Size.Y.Offset)
+	end
+	if self.ExpValueLabel then
+		self.ExpValueLabel.Text = string.format("%d / %d", currentExp, required)
+	end
+	if self.ExpLevelLabel then
+		self.ExpLevelLabel.Text = string.format("Lv.%d", level)
+	end
+end
+
 function UIController:ShowMainHubPanel(activeKey: string)
 	for panelKey, panelGui in pairs(self.PanelMap) do
 		if panelGui then
@@ -214,6 +238,11 @@ function UIController:Start()
 	setBuffVisible(self.DamageBuff, false)
 	setBuffVisible(self.ExpBuff, false)
 	setBuffVisible(self.HPRecoveryBuff, false)
+
+	table.insert(self.Connections, MockPlayerData.BindChanged(function(playerData)
+		self:_refreshMockHud(playerData)
+	end))
+	self:_refreshMockHud(MockPlayerData.GetPlayerData())
 
 	if self.InventoryDataProvider then
 		table.insert(self.Connections, self.InventoryDataProvider:BindChanged(function(snapshot)
@@ -322,18 +351,17 @@ function UIController:Start()
 				return
 			end
 			self.LastQuickHpRequest = now
-			self.ClientService:RequestConsumeHpPotion()
+			if self.InventoryDataProvider then
+				self.InventoryDataProvider:SelectItem("hp_potion")
+				self.InventoryDataProvider:UseSelectedItem()
+			else
+				self.ClientService:RequestConsumeHpPotion()
+			end
 		end))
 	end
 
 	local stateConnection = self.ClientService:BindStateUpdate(function(state)
-		if self.QuickHpCountLabel and self.QuickHpCountLabel:IsA("TextLabel") then
-			self.QuickHpCountLabel.Text = string.format("x%d", math.max(0, math.floor(state.HpPotions or 0)))
-		end
-		if self.InventoryDataProvider then
-			self.InventoryDataProvider:SetFromState(state)
-		end
-		local currentExp = math.max(0, math.floor(state.Exp or 0))
+		local currentExp = math.max(0, math.floor(MockPlayerData.GetPlayerData().Exp or 0))
 		local level = math.max(1, math.floor(state.Level or 1))
 		local required = math.max(1, LevelConfig.RequiredExp(level))
 		local ratio = math.clamp(currentExp / required, 0, 1)
@@ -341,7 +369,7 @@ function UIController:Start()
 			self.ExpBarFill.Size = UDim2.new(ratio, 0, self.ExpBarFill.Size.Y.Scale, self.ExpBarFill.Size.Y.Offset)
 		end
 		if self.DiamondQuantityLabel then
-			self.DiamondQuantityLabel.Text = tostring(math.max(0, math.floor(state.Diamonds or 0)))
+			self.DiamondQuantityLabel.Text = tostring(math.max(0, math.floor(MockPlayerData.GetPlayerData().Diamonds or 0)))
 		end
 		if self.ExpValueLabel then
 			self.ExpValueLabel.Text = string.format("%d / %d", currentExp, required)

@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MockData = require(ReplicatedStorage.Client.Services.MockData)
+local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 
 local DailyLoginLogicService = {}
 DailyLoginLogicService.__index = DailyLoginLogicService
@@ -79,6 +80,7 @@ function DailyLoginLogicService:ClaimDay(day: number): (boolean, string)
 				return false, "NOT_CLAIMABLE"
 			end
 
+			MockPlayerData.GrantReward(entry.rewardType, entry.amount or tonumber(string.match(tostring(entry.rewardText or ""), "x(%d+)") or string.match(tostring(entry.rewardText or ""), "(%d+)")) or 1, entry.itemId or entry.slingId, "DailyLoginClaim")
 			entry.claimed = true
 			if self._dayCursor < 7 then
 				self._dayCursor += 1
