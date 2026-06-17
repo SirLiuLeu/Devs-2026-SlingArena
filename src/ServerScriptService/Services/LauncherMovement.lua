@@ -4,17 +4,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
-local SlingMovement = {}
-SlingMovement.__index = SlingMovement
+local LauncherMovement = {}
+LauncherMovement.__index = LauncherMovement
 
 local function getOrCreateAttachment(root: BasePart): Attachment
-	local attachment = root:FindFirstChild("SlingMovementAttachment")
+	local attachment = root:FindFirstChild("LauncherMovementAttachment")
 	if attachment and attachment:IsA("Attachment") then
 		return attachment
 	end
 
 	attachment = Instance.new("Attachment")
-	attachment.Name = "SlingMovementAttachment"
+	attachment.Name = "LauncherMovementAttachment"
 	attachment.Parent = root
 	return attachment
 end
@@ -47,8 +47,8 @@ local function getOrCreateLinearVelocity(root: BasePart, attachment: Attachment)
 	return linearVelocity
 end
 
-function SlingMovement.new(root: BasePart)
-	local self = setmetatable({}, SlingMovement)
+function LauncherMovement.new(root: BasePart)
+	local self = setmetatable({}, LauncherMovement)
 	self._root = root
 	self._speed = math.max(0, PhysicsConfig.Movement.MoveSpeed)
 
@@ -57,11 +57,11 @@ function SlingMovement.new(root: BasePart)
 	return self
 end
 
-function SlingMovement:SetSpeed(speed: number)
+function LauncherMovement:SetSpeed(speed: number)
 	self._speed = math.max(0, speed)
 end
 
-function SlingMovement:Move(direction: Vector3, _dt: number?)
+function LauncherMovement:Move(direction: Vector3, _dt: number?)
 	local planarInput = Vector3.new(direction.X, 0, direction.Z)
 	local desiredVelocity = Vector3.zero
 	if planarInput.Magnitude > PhysicsConfig.Movement.InputDeadzone then
@@ -72,12 +72,12 @@ function SlingMovement:Move(direction: Vector3, _dt: number?)
 	self._linearVelocity.Enabled = desiredVelocity.Magnitude > PhysicsConfig.Movement.InputDeadzone
 end
 
-function SlingMovement:Stop()
+function LauncherMovement:Stop()
 	self._linearVelocity.PlaneVelocity = Vector2.zero
 	self._linearVelocity.Enabled = false
 end
 
-function SlingMovement:DisableLocomotion(preserveMomentum: boolean?)
+function LauncherMovement:DisableLocomotion(preserveMomentum: boolean?)
 	self._linearVelocity.PlaneVelocity = Vector2.zero
 	self._linearVelocity.Enabled = false
 
@@ -94,8 +94,8 @@ function SlingMovement:DisableLocomotion(preserveMomentum: boolean?)
 	)
 end
 
-function SlingMovement:Destroy()
+function LauncherMovement:Destroy()
 	self:Stop()
 end
 
-return SlingMovement
+return LauncherMovement

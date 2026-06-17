@@ -20,7 +20,7 @@ local PlayerStateService = requireSafe(ServicesFolder:WaitForChild("PlayerStateS
 local FlagService = requireSafe(ServicesFolder:WaitForChild("FlagService"), "FlagService")
 local PlayerService = requireSafe(ServicesFolder:WaitForChild("PlayerService"), "PlayerService")
 local TeamService = requireSafe(ServicesFolder:WaitForChild("TeamService"), "TeamService")
-local SlingService = requireSafe(ServicesFolder:WaitForChild("SlingService"), "SlingService")
+local LauncherService = requireSafe(ServicesFolder:WaitForChild("LauncherService"), "LauncherService")
 local MapService = requireSafe(ServicesFolder:WaitForChild("MapService"), "MapService")
 local FoodService = requireSafe(ServicesFolder:WaitForChild("FoodService"), "FoodService")
 local CollisionService = requireSafe(ServicesFolder:WaitForChild("CollisionService"), "CollisionService")
@@ -31,17 +31,17 @@ local RoundService = requireSafe(ServicesFolder:WaitForChild("RoundService"), "R
 local SafeZoneService = requireSafe(ServicesFolder:WaitForChild("SafeZoneService"), "SafeZoneService")
 local MonetizationService = requireSafe(ServicesFolder:WaitForChild("MonetizationService"), "MonetizationService")
 local LeaderboardService = requireSafe(ServicesFolder:WaitForChild("LeaderboardService"), "LeaderboardService")
-local SlingAbilityFolder = ServicesFolder:FindFirstChild("SlingAbilityService")
-local SlingAbilityService = nil
-if SlingAbilityFolder and SlingAbilityFolder:IsA("Folder") then
-	local moduleScript = SlingAbilityFolder:FindFirstChild("SlingAbilityService")
+local LauncherAbilityFolder = ServicesFolder:FindFirstChild("LauncherAbilityService")
+local LauncherAbilityService = nil
+if LauncherAbilityFolder and LauncherAbilityFolder:IsA("Folder") then
+	local moduleScript = LauncherAbilityFolder:FindFirstChild("LauncherAbilityService")
 	if moduleScript then
-		SlingAbilityService = requireSafe(moduleScript, "SlingAbilityService")
+		LauncherAbilityService = requireSafe(moduleScript, "LauncherAbilityService")
 	else
-		warn("[Bootstrap] Missing Services.SlingAbilityService.SlingAbilityService module.")
+		warn("[Bootstrap] Missing Services.LauncherAbilityService.LauncherAbilityService module.")
 	end
 else
-	warn("[Bootstrap] Missing Services.SlingAbilityService folder.")
+	warn("[Bootstrap] Missing Services.LauncherAbilityService folder.")
 end
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
@@ -57,11 +57,11 @@ ensureCollisionGroup("Environment")
 PhysicsService:CollisionGroupSetCollidable("Players", "Players", true)
 PhysicsService:CollisionGroupSetCollidable("Players", "Environment", true)
 
-local remotesFolder = ReplicatedStorage:WaitForChild("SlingArenaRemotes") :: Folder
+local remotesFolder = ReplicatedStorage:WaitForChild("LauncherArenaRemotes") :: Folder
 for _, remoteName in pairs(RemoteContracts.Names) do
 	local remote = remotesFolder:FindFirstChild(remoteName)
 	if not remote then
-		warn(string.format("[RemoteSetup] Missing ReplicatedStorage.SlingArenaRemotes.%s (RemoteEvent). Create it in Studio.", remoteName))
+		warn(string.format("[RemoteSetup] Missing ReplicatedStorage.LauncherArenaRemotes.%s (RemoteEvent). Create it in Studio.", remoteName))
 	end
 end
 
@@ -97,7 +97,7 @@ local serviceConstructors = {
 	FlagService = FlagService,
 	TeamService = TeamService,
 	PlayerService = PlayerService,
-	SlingService = SlingService,
+	LauncherService = LauncherService,
 	MapService = MapService,
 	FoodService = FoodService,
 	CollisionService = CollisionService,
@@ -105,7 +105,7 @@ local serviceConstructors = {
 	GrowthService = GrowthService,
 	TrapService = TrapService,
 	RoundService = RoundService,
-	SlingAbilityService = SlingAbilityService,
+	LauncherAbilityService = LauncherAbilityService,
 	SafeZoneService = SafeZoneService,
 	MonetizationService = MonetizationService,
 	LeaderboardService = LeaderboardService,
@@ -136,12 +136,12 @@ local initializationOrder = {
 	"MapService",
 	"PlayerService",
 	"FoodService",
-	"SlingService",
+	"LauncherService",
 	"CollisionService",
 	"DamagePipelineService",
 	"GrowthService",
 	"TrapService",
-	"SlingAbilityService",
+	"LauncherAbilityService",
 	"SafeZoneService",
 	"MonetizationService",
 	"LeaderboardService",

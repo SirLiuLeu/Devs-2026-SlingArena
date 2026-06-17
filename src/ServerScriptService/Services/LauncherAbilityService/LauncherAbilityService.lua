@@ -7,12 +7,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
-local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local BaseAbility = require(script.Parent.BaseAbility)
 
-local SlingAbilityService = {}
-SlingAbilityService.__index = SlingAbilityService
+local LauncherAbilityService = {}
+LauncherAbilityService.__index = LauncherAbilityService
 
 local function getService(context, name: string)
 	if context.ServiceRegistry then
@@ -45,8 +45,8 @@ end
 -- Food DoT state: tracks active Burn/Poison effects per food model, flag name, and attacker user ID.
 local _foodDotState: { [string]: any } = {}
 
-function SlingAbilityService.new(context)
-	local self = setmetatable({}, SlingAbilityService)
+function LauncherAbilityService.new(context)
+	local self = setmetatable({}, LauncherAbilityService)
 	self._context = context
 	self._abilityTriggerRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.AbilityTrigger) :: RemoteEvent?
 	self._abilities = {} :: { [Player]: any }
@@ -54,7 +54,7 @@ function SlingAbilityService.new(context)
 	return self
 end
 
-function SlingAbilityService:Init()
+function LauncherAbilityService:Init()
 	if self._abilityTriggerRemote then
 		self._abilityTriggerRemote.OnServerEvent:Connect(function(player: Player, payload)
 			self:_onAbilityTrigger(player, payload)
@@ -65,7 +65,7 @@ function SlingAbilityService:Init()
 		self:_handleChargeStarted(player)
 	end)
 
-	self._context.EventBus:On("SlingLaunched", function(player: Player, chargeRatio: number, launchState: any)
+	self._context.EventBus:On("LauncherLaunched", function(player: Player, chargeRatio: number, launchState: any)
 		self:_handleLaunch(player, chargeRatio, launchState)
 	end)
 
@@ -103,7 +103,7 @@ function SlingAbilityService:Init()
 	end)
 end
 
-function SlingAbilityService:Start()
+function LauncherAbilityService:Start()
 	if self._heartbeatConnection then
 		self._heartbeatConnection:Disconnect()
 	end
@@ -121,7 +121,7 @@ end
 
 -- ── Food Burn/Poison DoT ─────────────────────────────────────────────────────
 
-function SlingAbilityService:_tryApplyFoodDot(player: Player, target: any)
+function LauncherAbilityService:_tryApplyFoodDot(player: Player, target: any)
 	local ability = self:_ensureAbility(player)
 	local config = ability.Config
 	if not (config and config.dotFlag) then
@@ -137,7 +137,7 @@ function SlingAbilityService:_tryApplyFoodDot(player: Player, target: any)
 	self:_applyFoodDot(target, foodId, config, player)
 end
 
-function SlingAbilityService:_applyFoodDot(food: Model, foodId: string, config: any, instigator: Player?)
+function LauncherAbilityService:_applyFoodDot(food: Model, foodId: string, config: any, instigator: Player?)
 	local flagName = config.dotFlag
 	local flagConfig = getFlagConfig(flagName)
 	local instigatorUserId = instigator and instigator.UserId or 0
@@ -160,7 +160,7 @@ function SlingAbilityService:_applyFoodDot(food: Model, foodId: string, config: 
 	}
 end
 
-function SlingAbilityService:_tickFoodDots()
+function LauncherAbilityService:_tickFoodDots()
 	local now = os.clock()
 	local toRemove = {}
 	for stateKey, dotData in pairs(_foodDotState) do
@@ -193,20 +193,20 @@ end
 
 -- ── Ability helpers ──────────────────────────────────────────────────────────
 
-function SlingAbilityService:_onAbilityTrigger(player: Player, payload)
+function LauncherAbilityService:_onAbilityTrigger(player: Player, payload)
 	if not RemoteContracts.Validate(RemoteContracts.Names.AbilityTrigger, payload) then
 		return
 	end
-	if type(payload) == "table" and payload.action == "EquipSling" and typeof(payload.slingId) == "string" then
+	if type(payload) == "table" and payload.action == "EquipLauncher" and typeof(payload.launcherId) == "string" then
 		local stateService = getService(self._context, "PlayerStateService")
 		local equipped = false
-		if stateService and typeof(payload.instanceId) == "string" and typeof(stateService.SetEquippedSlingInstance) == "function" then
-			equipped = stateService:SetEquippedSlingInstance(player, payload.instanceId)
+		if stateService and typeof(payload.instanceId) == "string" and typeof(stateService.SetEquippedLauncherInstance) == "function" then
+			equipped = stateService:SetEquippedLauncherInstance(player, payload.instanceId)
 		end
-		if stateService and (equipped or stateService:SetSlingType(player, payload.slingId)) then
+		if stateService and (equipped or stateService:SetLauncherType(player, payload.launcherId)) then
 			local playerService = getService(self._context, "PlayerService")
-			if playerService and typeof(playerService.EquipSlingModel) == "function" then
-				playerService:EquipSlingModel(player, payload.slingId)
+			if playerService and typeof(playerService.EquipLauncherModel) == "function" then
+				playerService:EquipLauncherModel(player, payload.launcherId)
 			end
 			self:_destroyAbility(player)
 			self:_ensureAbility(player):OnInit(nil)
@@ -214,7 +214,7 @@ function SlingAbilityService:_onAbilityTrigger(player: Player, payload)
 	end
 end
 
-function SlingAbilityService:_destroyAbility(player: Player)
+function LauncherAbilityService:_destroyAbility(player: Player)
 	local ability = self._abilities[player]
 	if ability then
 		ability:OnDestroy()
@@ -222,10 +222,10 @@ function SlingAbilityService:_destroyAbility(player: Player)
 	end
 end
 
-function SlingAbilityService:_ensureAbility(player: Player)
+function LauncherAbilityService:_ensureAbility(player: Player)
 	local stateService = getService(self._context, "PlayerStateService")
-	local abilityType = stateService and stateService:GetSlingAbilityType(player) or "NormalSling"
-	local config = AbilityConfig.GetById(abilityType) or AbilityConfig.GetById("NormalSling")
+	local abilityType = stateService and stateService:GetLauncherAbilityType(player) or "NormalLauncher"
+	local config = AbilityConfig.GetById(abilityType) or AbilityConfig.GetById("NormalLauncher")
 	local current = self._abilities[player]
 	if current and current.Config == config then
 		return current
@@ -237,7 +237,7 @@ function SlingAbilityService:_ensureAbility(player: Player)
 	return ability
 end
 
-function SlingAbilityService:_handleChargeStarted(player: Player)
+function LauncherAbilityService:_handleChargeStarted(player: Player)
 	local ability = self:_ensureAbility(player)
 	if ability.Config.invisibleWhileCharging then
 		local stateService = getService(self._context, "PlayerStateService")
@@ -247,7 +247,7 @@ function SlingAbilityService:_handleChargeStarted(player: Player)
 	end
 end
 
-function SlingAbilityService:_handleLaunch(player: Player, chargeRatio: number, launchState: any)
+function LauncherAbilityService:_handleLaunch(player: Player, chargeRatio: number, launchState: any)
 	local ability = self:_ensureAbility(player)
 	local stateService = getService(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player)
@@ -264,8 +264,8 @@ function SlingAbilityService:_handleLaunch(player: Player, chargeRatio: number, 
 	end
 
 	local passiveHealPercent = 0
-	local slingDef = SlingConfig.GetById(state.SlingshotType or "")
-	local passiveAbility = slingDef and slingDef.passiveAbility or nil
+	local launcherDef = LauncherConfig.GetById(state.LaunchershotType or "")
+	local passiveAbility = launcherDef and launcherDef.passiveAbility or nil
 	if type(passiveAbility) == "table" and passiveAbility.type == "HealOnLaunch" then
 		passiveHealPercent = math.max(0, tonumber(passiveAbility.percent) or 0)
 	end
@@ -275,7 +275,7 @@ function SlingAbilityService:_handleLaunch(player: Player, chargeRatio: number, 
 	end
 
 	if config.moveSpeedPerLaunchPercent then
-		local runtime = stateService:GetSlingRuntime(player)
+		local runtime = stateService:GetLauncherRuntime(player)
 		local maxStacks = config.maxMoveSpeedStacks or 10
 		local previousStacks = runtime.SpeedStacks or 0
 		if previousStacks < maxStacks then
@@ -297,7 +297,7 @@ function SlingAbilityService:_handleLaunch(player: Player, chargeRatio: number, 
 	ability:OnLaunch({ ChargeRatio = chargeRatio, LaunchState = launchState })
 end
 
-function SlingAbilityService:_revealIfStealth(player: Player)
+function LauncherAbilityService:_revealIfStealth(player: Player)
 	local ability = self:_ensureAbility(player)
 	if ability.Config.revealOnCollision then
 		local stateService = getService(self._context, "PlayerStateService")
@@ -308,7 +308,7 @@ function SlingAbilityService:_revealIfStealth(player: Player)
 end
 
 -- Applies collision effects to the victim. The attacker is not modified here except for ally healing.
-function SlingAbilityService:_handleCollision(attacker: Player, victim: Player, collisionMeta: any)
+function LauncherAbilityService:_handleCollision(attacker: Player, victim: Player, collisionMeta: any)
 	local stateService = getService(self._context, "PlayerStateService")
 	if not stateService then
 		return
@@ -328,7 +328,7 @@ function SlingAbilityService:_handleCollision(attacker: Player, victim: Player, 
 	local teamService = getService(self._context, "TeamService")
 	local isFriendly = teamService and teamService:IsFriendly(attacker, victim)
 
-	-- SupportSling: heal allies, no damage.
+	-- SupportLauncher: heal allies, no damage.
 	if config.healAllyOnCollision and isFriendly then
 		stateService:Heal(victim, (attackerState.BaseDamage or 0) * config.healAmountBaseDamageMultiplier)
 		return
@@ -338,9 +338,9 @@ function SlingAbilityService:_handleCollision(attacker: Player, victim: Player, 
 		return
 	end
 
-	-- Petrify cannot be applied to FireSling (immune to frost).
+	-- Petrify cannot be applied to FireLauncher (immune to frost).
 	if config.collisionFlag == "Petrify" then
-		local victimAbilityType = stateService:GetSlingAbilityType(victim)
+		local victimAbilityType = stateService:GetLauncherAbilityType(victim)
 		if config.cannotPetrifyAbilityTypes and config.cannotPetrifyAbilityTypes[victimAbilityType] then
 			return
 		end
@@ -386,4 +386,4 @@ function SlingAbilityService:_handleCollision(attacker: Player, victim: Player, 
 	ability:OnCollision({ TargetPlayer = victim, CollisionMeta = collisionMeta })
 end
 
-return SlingAbilityService
+return LauncherAbilityService

@@ -2,14 +2,14 @@
 2. Round Rules
 3. FOOD SPAWN SYSTEM
 4. PHYSICS & COMBAT
-5. SLING SYSTEM
+5. LAUNCHER SYSTEM
 6. PROGRESSION & UPGRADE
 7. ITEM & TEAM
 8. ENVIRONMENT & SAFE ZONE
 9. ECONOMY & PROGRESSION
 10. STATE SYSTEM
 11. FLAG SYSTEM
-# 🔥 SLING ARENA – MASTER GAME DESIGN SPECIFICATION (FINAL)
+# 🔥 LAUNCHER ARENA – MASTER GAME DESIGN SPECIFICATION (FINAL)
 
 # 0. DESIGN GOAL
 - Genre: Survival Physics Arena (Round-based)
@@ -18,7 +18,7 @@
 - Core Feeling: “Launch – Impact – Bounce – Slide” must feel strong and responsive
 
 # 1. CORE GAME LOOP
-1. Lobby: Select / Buy / Spin Sling, Equip Items, Upgrade Stars
+1. Lobby: Select / Buy / Spin Launcher, Equip Items, Upgrade Stars
 2. Start: Join Map, Farm Food, Level Up
 3. Mid Game: Combat, Position Control, Use Traps
 4. Late Game: Shrinking Zone, Forced Fights, Survival
@@ -35,7 +35,7 @@ Spawn Logic:
 - Player: Random spawn near edges
 - Food: Spawn in clusters (FoodSpawns)
 - Traps: Fixed positions
-- Sling/Launcher: Can Move (WASD) and Launch
+- Launcher/Launcher: Can Move (WASD) and Launch
 
 ## 2.2 Early Game (0 → 8 minutes)
 - Mechanic: Free farming + combat
@@ -286,7 +286,7 @@ Client collision and knockback should follow the same logic as the Server as clo
 - Use a fixed server check interval of `task.wait(0.1)` for broad polling
 - Use **spatial grid / zone filtering** so the server only checks nearby foods
 
-## 4.7 Collision Math (Player / Sling vs Food)
+## 4.7 Collision Math (Player / Launcher vs Food)
 
 ### A) Core Distance Check
 Let:
@@ -318,7 +318,7 @@ Where:
   + AND |Py - Fy| <= YTolerance
 
 ### C) Fast Movement / Launch Check
-- When Sling / Player moves very fast, use swept collision to avoid missing hits:
+- When Launcher / Player moves very fast, use swept collision to avoid missing hits:
   + A = previous player position
   + B = current player position
   + F = Food position
@@ -425,7 +425,7 @@ All collision (Hit) phases in the game must strictly follow this lifecycle:
   + food is not active
   + player is dead / invalid
   
-# 5. SLING SYSTEM (CHARACTERS)
+# 5. LAUNCHER SYSTEM (CHARACTERS)
 
 ## 5.1 Core Stats
 - MaxHP: 10,000 → 30,000
@@ -443,52 +443,52 @@ All collision (Hit) phases in the game must strictly follow this lifecycle:
 - SlowAmount: % movement slow
 - SlowDuration: duration of slow effect
 
-## 5.2 Archetypes (Passive / Type Sling)
+## 5.2 Archetypes (Passive / Type Launcher)
 
-- StunSling:
+- StunLauncher:
   + Collision applies 1s stun to enemies
   + Used for engage / control
 
-- NormalSling:
+- NormalLauncher:
   + +50% EXP gain
   + No special combat effect
 
-- VacuumSling:
+- VacuumLauncher:
   + Pulls nearby Mini Foods
   + Uses distance check on Client
   + Only requires tuning scan radius in existing system
   + Optimized for farming
 
-- StealthSling:
+- StealthLauncher:
   + Invisible during charge
   + Remains invisible for 1s after launch
   + Revealed on collision / dealing damage / other reveal logic
 
-- HealSling:
+- HealLauncher:
   + Heals 5% MaxHP on each launch
   + Triggered on OnLaunch
 
-- PetrifySling:
+- PetrifyLauncher:
   + Collision petrify enemy for 1.5s
 
-- FireSling:
+- FireLauncher:
   + Applies burn damage over time
   + Max 3 stacks
   + Each stack deals damage per tick
 
-- PoisonSling:
+- PoisonLauncher:
   + Applies poison damage over time
   + Max 5 stacks
   + Each stack deals damage per tick
   + Applies slow effect
 
-## 5.3 Sling Ability
+## 5.3 Launcher Ability
 
 ### 5.3.1 Trigger Type
 Each ability must define:
 
-- OnInit(slingModel):
-  + Runs once when Sling is spawned
+- OnInit(launcherModel):
+  + Runs once when Launcher is spawned
   + Used to initialize stats (HP, Speed, Armor, Damage, flags)
 
 - OnLaunch(target/direction):
@@ -510,7 +510,7 @@ Each ability must define:
   + Remove connections, timers, effects, states
 
 ### 5.3.2 Ability Rule
-- Each Sling has only ONE main type
+- Each Launcher has only ONE main type
 - Type defines core behavior
 - Buffs / modifiers can extend but NOT override core rules
 - Server is authoritative for all logic
@@ -572,9 +572,9 @@ Effects resolve in the following priority:
   + Hard CC always takes priority
 
 - Special Interaction:
-  + FreezeSling cannot freeze FireSling
-  + SupportSling heals allies, never damages
-  + VacuumSling uses client-side scan only
+  + FreezeLauncher cannot freeze FireLauncher
+  + SupportLauncher heals allies, never damages
+  + VacuumLauncher uses client-side scan only
 
 ## 5.5 Suggested Balance Rules
 - 10k–30k HP for tank / control types
@@ -582,9 +582,9 @@ Effects resolve in the following priority:
 - 500–3k damage baseline
 - Support = lower damage, higher utility
 - Control = limited CC chaining
-- SpeedSling should have cap or diminishing return
+- SpeedLauncher should have cap or diminishing return
 - CC / DoT should have limits or cooldowns
-- VacuumSling should not introduce heavy server logic
+- VacuumLauncher should not introduce heavy server logic
 
 ## 5.6 Final Resolution Order
 - OnInit → set stats
@@ -597,7 +597,7 @@ Effects resolve in the following priority:
 # 6. PROGRESSION & UPGRADE
 
 ## 6.1 Star Upgrade
-- 3 identical Slings → +1★
+- 3 identical Launchers → +1★
 - Max: 3★
 
 Balance:

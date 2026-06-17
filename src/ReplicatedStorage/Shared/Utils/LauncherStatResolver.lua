@@ -2,12 +2,12 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
-local SlingStatResolver = {}
+local LauncherStatResolver = {}
 
-export type ResolvedSlingStats = {
+export type ResolvedLauncherStats = {
 	maxHP: number,
 	baseDamage: number,
 	armor: number,
@@ -57,33 +57,33 @@ local function resolveExpBonus(passiveAbility: any?): number
 	return readPassiveAdd(passiveAbility, "expBonus")
 end
 
-function SlingStatResolver.Resolve(definitionId: string, star: number?, level: number?): ResolvedSlingStats
-	local sling = SlingConfig.GetById(definitionId) or SlingConfig.GetById(SlingConfig.DefaultSlingId)
-	local base = SlingConfig.BaseStats
-	local slingStats = sling and sling.stats or {}
+function LauncherStatResolver.Resolve(definitionId: string, star: number?, level: number?): ResolvedLauncherStats
+	local launcher = LauncherConfig.GetById(definitionId) or LauncherConfig.GetById(LauncherConfig.DefaultLauncherId)
+	local base = LauncherConfig.BaseStats
+	local launcherStats = launcher and launcher.stats or {}
 	local safeStar = math.max(1, math.floor(star or 1))
 	local safeLevel = math.max(1, math.floor(level or 1))
 	local starMultiplier = 1 + ((safeStar - 1) * STAR_MULTIPLIER_PER_RANK)
 	local levelMultiplier = 1 + ((safeLevel - 1) * LEVEL_MULTIPLIER_PER_LEVEL)
 	local growthMultiplier = starMultiplier * levelMultiplier
-	local passive = sling and sling.passiveAbility or nil
+	local passive = launcher and launcher.passiveAbility or nil
 
-	local maxHP = (slingStats.maxHP or base.maxHP) * growthMultiplier * readPassiveMultiplier(passive, "maxHpMultiplier")
-	local baseDamage = (slingStats.baseDamage or base.baseDamage) * growthMultiplier * readPassiveMultiplier(passive, "damageMultiplier")
-	local regen = (slingStats.regen or base.regenPerSecond) * growthMultiplier * readPassiveMultiplier(passive, "regenMultiplier")
-	local launchPower = (slingStats.launchPower or 1) * growthMultiplier
-	local control = (slingStats.control or 1) * growthMultiplier
-	local speed = (slingStats.speed or PhysicsConfig.Movement.MoveSpeed) * readPassiveMultiplier(passive, "moveSpeedMultiplier")
+	local maxHP = (launcherStats.maxHP or base.maxHP) * growthMultiplier * readPassiveMultiplier(passive, "maxHpMultiplier")
+	local baseDamage = (launcherStats.baseDamage or base.baseDamage) * growthMultiplier * readPassiveMultiplier(passive, "damageMultiplier")
+	local regen = (launcherStats.regen or base.regenPerSecond) * growthMultiplier * readPassiveMultiplier(passive, "regenMultiplier")
+	local launchPower = (launcherStats.launchPower or 1) * growthMultiplier
+	local control = (launcherStats.control or 1) * growthMultiplier
+	local speed = (launcherStats.speed or PhysicsConfig.Movement.MoveSpeed) * readPassiveMultiplier(passive, "moveSpeedMultiplier")
 
 	return {
 		maxHP = maxHP,
 		baseDamage = baseDamage,
-		armor = math.clamp((slingStats.armor or 0) + readPassiveAdd(passive, "armor"), 0, 0.8),
+		armor = math.clamp((launcherStats.armor or 0) + readPassiveAdd(passive, "armor"), 0, 0.8),
 		regen = regen,
 		speed = speed,
 		launchPower = launchPower,
 		control = control,
-		weight = slingStats.weight or 1,
+		weight = launcherStats.weight or 1,
 		launchSpeed = PhysicsConfig.Launch.SpeedMax * launchPower,
 		launchRange = base.maxShootRange * control,
 		moveSpeed = speed,
@@ -93,4 +93,4 @@ function SlingStatResolver.Resolve(definitionId: string, star: number?, level: n
 	}
 end
 
-return SlingStatResolver
+return LauncherStatResolver

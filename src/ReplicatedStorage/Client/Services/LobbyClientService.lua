@@ -19,7 +19,7 @@ export type LobbyClientService = {
 	RoundResultRemote: RemoteEvent?,
 	TeleportRemote: RemoteEvent?,
 	DebugSpawnFoodRemote: RemoteEvent?,
-	DebugResetSlingRemote: RemoteEvent?,
+	DebugResetLauncherRemote: RemoteEvent?,
 	AttributeUpgradeRemote: RemoteEvent?,
 	ConsumeHpPotionRemote: RemoteEvent?,
 	RequestJoinArena: (self: LobbyClientService) -> (),
@@ -27,7 +27,7 @@ export type LobbyClientService = {
 	RequestTeleport: (self: LobbyClientService, mapName: string, spawnName: string) -> (),
 	RequestStartSafeZone: (self: LobbyClientService) -> (),
 	RequestDebugSpawnFood: (self: LobbyClientService, mapName: string) -> (),
-	RequestDebugResetSling: (self: LobbyClientService) -> (),
+	RequestDebugResetLauncher: (self: LobbyClientService) -> (),
 	RequestAttributeUpgrade: (self: LobbyClientService, attributeName: string) -> (),
 	RequestConsumeHpPotion: (self: LobbyClientService) -> (),
 	BindStateUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
@@ -63,9 +63,9 @@ function LobbyClientService.new(): LobbyClientService
 		if spawnFood and spawnFood:IsA("RemoteEvent") then
 			self.DebugSpawnFoodRemote = spawnFood
 		end
-		local resetSling = self.RemotesRoot:FindFirstChild(RemoteContracts.Names.DebugResetSling)
-		if resetSling and resetSling:IsA("RemoteEvent") then
-			self.DebugResetSlingRemote = resetSling
+		local resetLauncher = self.RemotesRoot:FindFirstChild(RemoteContracts.Names.DebugResetLauncher)
+		if resetLauncher and resetLauncher:IsA("RemoteEvent") then
+			self.DebugResetLauncherRemote = resetLauncher
 		end
 	end
 	return self
@@ -106,9 +106,9 @@ print("FullName =", self.DebugSpawnFoodRemote and self.DebugSpawnFoodRemote:GetF
 	end
 end
 
-function LobbyClientService:RequestDebugResetSling()
-	if self.DebugResetSlingRemote then
-		self.DebugResetSlingRemote:FireServer()
+function LobbyClientService:RequestDebugResetLauncher()
+	if self.DebugResetLauncherRemote then
+		self.DebugResetLauncherRemote:FireServer()
 	end
 end
 

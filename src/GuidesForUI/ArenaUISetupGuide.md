@@ -41,12 +41,12 @@ Create in **StarterGui**:
 
 ---
 
-## 2) Sling touch UI
+## 2) Launcher touch UI
 
 Create in **StarterGui**:
 
-- `SlingArenaUI` (`Folder`)
-  - `SlingUI` (`ScreenGui`)
+- `LauncherArenaUI` (`Folder`)
+  - `LauncherUI` (`ScreenGui`)
     - `JoystickRoot` (`Frame`)
       - `Base` (`Frame`)
       - `Thumb` (`Frame`)
@@ -57,10 +57,10 @@ Create in **StarterGui**:
       - `Fill` (`Frame`)
 
 Paths:
-- `StarterGui.SlingArenaUI.SlingUI.JoystickRoot`
-- `StarterGui.SlingArenaUI.SlingUI.ChargeBar.Fill`
-- `StarterGui.SlingArenaUI.SlingUI.DirectionIndicator`
-- `StarterGui.SlingArenaUI.SlingUI.CooldownBar.Fill`
+- `StarterGui.LauncherArenaUI.LauncherUI.JoystickRoot`
+- `StarterGui.LauncherArenaUI.LauncherUI.ChargeBar.Fill`
+- `StarterGui.LauncherArenaUI.LauncherUI.DirectionIndicator`
+- `StarterGui.LauncherArenaUI.LauncherUI.CooldownBar.Fill`
 
 ---
 
@@ -68,7 +68,7 @@ Paths:
 
 These must already exist under:
 
-- `ReplicatedStorage.SlingArenaRemotes` (`Folder`)
+- `ReplicatedStorage.LauncherArenaRemotes` (`Folder`)
 
 Required production remotes:
 - `MoveRequest`
@@ -84,7 +84,7 @@ Required production remotes:
 - `PrestigeReset`
 - `ToggleSpecialUpgrade`
 - `DebugSpawnFood`
-- `DebugResetSling`
+- `DebugResetLauncher`
 - `StateUpdate`
 - `UIStateUpdate`
 - `GameplayFeedback`
@@ -124,5 +124,5 @@ Optional map rule markers in active map models:
 
 - Play test and confirm there are no `[UI_MISSING]` warnings for intended HUDs.
 - `JoinButton`/`LeaveButton` fire correctly.
-- Sling joystick, charge bar, cooldown bar, and direction indicator update while charging/recovering.
+- Launcher joystick, charge bar, cooldown bar, and direction indicator update while charging/recovering.
 - Round state labels (`StatusLabel`, `TimerLabel`, `AlivePlayersLabel`) update from server events.

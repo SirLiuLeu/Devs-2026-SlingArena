@@ -127,7 +127,7 @@ function ShopLogicService:PurchaseLauncher(launcherId: string): (boolean, string
 		return false, "NOT_ENOUGH_DINAMOND"
 	end
 
-	MockPlayerData.AddSling(launcher.id, "ShopPurchaseLauncher")
+	MockPlayerData.AddLauncher(launcher.id, "ShopPurchaseLauncher")
 	return true, string.format("Purchased %s", tostring(launcher.name))
 end
 

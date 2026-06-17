@@ -2,7 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local MockData = require(ReplicatedStorage.Client.Services.MockData)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
@@ -13,10 +13,10 @@ InventoryDataProvider.__index = InventoryDataProvider
 
 export type InventorySnapshot = {
 	ownedItems: { [string]: number },
-	ownedSlings: { { instanceId: string, definitionId: string, id: string, star: number, level: number, equipped: boolean, name: string?, icon: string?, stats: any? } },
-	slingCapacity: number,
+	ownedLaunchers: { { instanceId: string, definitionId: string, id: string, star: number, level: number, equipped: boolean, name: string?, icon: string?, stats: any? } },
+	launcherCapacity: number,
 	selectedItemId: string?,
-	selectedSlingId: string?,
+	selectedLauncherId: string?,
 	lastUseResult: string?,
 }
 
@@ -28,27 +28,27 @@ local function cloneItems(items: { [string]: number }): { [string]: number }
 	return result
 end
 
-local function cloneSlings(slings): any
+local function cloneLaunchers(launchers): any
 	local result = {}
-	local isArray = #slings > 0
+	local isArray = #launchers > 0
 	if isArray then
-		for _, slingEntry in ipairs(slings) do
-			table.insert(result, table.clone(slingEntry))
+		for _, launcherEntry in ipairs(launchers) do
+			table.insert(result, table.clone(launcherEntry))
 		end
 		return result
 	end
-	for instanceId, slingEntry in pairs(slings) do
-		local definitionId = slingEntry.definitionId or slingEntry.id
+	for instanceId, launcherEntry in pairs(launchers) do
+		local definitionId = launcherEntry.definitionId or launcherEntry.id
 		table.insert(result, {
 			instanceId = instanceId,
 			definitionId = definitionId,
 			id = definitionId,
-			star = slingEntry.star or 1,
-			level = slingEntry.level or 1,
+			star = launcherEntry.star or 1,
+			level = launcherEntry.level or 1,
 			equipped = false,
-			name = slingEntry.name,
-			icon = slingEntry.icon,
-			stats = slingEntry.stats and table.clone(slingEntry.stats) or nil,
+			name = launcherEntry.name,
+			icon = launcherEntry.icon,
+			stats = launcherEntry.stats and table.clone(launcherEntry.stats) or nil,
 		})
 	end
 	table.sort(result, function(a, b)
@@ -62,12 +62,12 @@ function InventoryDataProvider.new()
 	self._changed = Instance.new("BindableEvent")
 	self._state = {
 		ownedItems = {},
-		ownedSlings = {},
-		slingCapacity = 40,
+		ownedLaunchers = {},
+		launcherCapacity = 40,
 		selectedItemId = nil,
-		selectedSlingId = nil,
+		selectedLauncherId = nil,
 		lastUseResult = nil,
-		_slingGiveCursor = 0,
+		_launcherGiveCursor = 0,
 	}
 	return self
 end
@@ -85,10 +85,10 @@ end
 function InventoryDataProvider:GetSnapshot(): InventorySnapshot
 	return {
 		ownedItems = cloneItems(self._state.ownedItems),
-		ownedSlings = cloneSlings(self._state.ownedSlings),
-		slingCapacity = self._state.slingCapacity,
+		ownedLaunchers = cloneLaunchers(self._state.ownedLaunchers),
+		launcherCapacity = self._state.launcherCapacity,
 		selectedItemId = self._state.selectedItemId,
-		selectedSlingId = self._state.selectedSlingId,
+		selectedLauncherId = self._state.selectedLauncherId,
 		lastUseResult = self._state.lastUseResult,
 	}
 end
@@ -110,19 +110,19 @@ function InventoryDataProvider:SetFromState(state)
 		self._state.ownedItems = cloneItems(incomingItems)
 	end
 
-	local incomingSlings = state.OwnedSlings
-	if type(incomingSlings) == "table" then
-		self._state.ownedSlings = cloneSlings(incomingSlings)
+	local incomingLaunchers = state.OwnedLaunchers
+	if type(incomingLaunchers) == "table" then
+		self._state.ownedLaunchers = cloneLaunchers(incomingLaunchers)
 	end
 
-	if type(state.EquippedSlingInstanceId) == "string" then
-		for _, slingEntry in ipairs(self._state.ownedSlings) do
-			slingEntry.equipped = slingEntry.instanceId == state.EquippedSlingInstanceId
+	if type(state.EquippedLauncherInstanceId) == "string" then
+		for _, launcherEntry in ipairs(self._state.ownedLaunchers) do
+			launcherEntry.equipped = launcherEntry.instanceId == state.EquippedLauncherInstanceId
 		end
 	end
 
-	if type(state.SlingCapacity) == "number" then
-		self._state.slingCapacity = math.max(0, math.floor(state.SlingCapacity))
+	if type(state.LauncherCapacity) == "number" then
+		self._state.launcherCapacity = math.max(0, math.floor(state.LauncherCapacity))
 	end
 
 	self:_emitChanged()
@@ -137,9 +137,9 @@ function InventoryDataProvider:LoadMockInventory()
 	self:SetFromState(MockData.GetInventoryState())
 end
 
-function InventoryDataProvider:_findSlingIndex(slingId: string): number?
-	for index, slingEntry in ipairs(self._state.ownedSlings) do
-		if slingEntry.instanceId == slingId or slingEntry.id == slingId then
+function InventoryDataProvider:_findLauncherIndex(launcherId: string): number?
+	for index, launcherEntry in ipairs(self._state.ownedLaunchers) do
+		if launcherEntry.instanceId == launcherId or launcherEntry.id == launcherId then
 			return index
 		end
 	end
@@ -151,22 +151,22 @@ function InventoryDataProvider:SelectItem(itemId: string?)
 	self:_emitChanged()
 end
 
-function InventoryDataProvider:SelectSling(slingId: string?)
-	self._state.selectedSlingId = slingId
+function InventoryDataProvider:SelectLauncher(launcherId: string?)
+	self._state.selectedLauncherId = launcherId
 	self:_emitChanged()
 end
 
-function InventoryDataProvider:GiveTestSling()
-	local slingIds = SlingConfig.GetAllIds()
-	if #slingIds <= 0 then
-		warn("[INVENTORY_DATA] SlingConfig has no sling ids")
+function InventoryDataProvider:GiveTestLauncher()
+	local launcherIds = LauncherConfig.GetAllIds()
+	if #launcherIds <= 0 then
+		warn("[INVENTORY_DATA] LauncherConfig has no launcher ids")
 		self:_emitChanged()
 		return
 	end
 
-	self._state._slingGiveCursor = (self._state._slingGiveCursor % #slingIds) + 1
-	local slingId = slingIds[self._state._slingGiveCursor]
-	MockPlayerData.AddSling(slingId, "InventoryGiveTestSling")
+	self._state._launcherGiveCursor = (self._state._launcherGiveCursor % #launcherIds) + 1
+	local launcherId = launcherIds[self._state._launcherGiveCursor]
+	MockPlayerData.AddLauncher(launcherId, "InventoryGiveTestLauncher")
 end
 
 function InventoryDataProvider:GiveTestItem()
@@ -195,28 +195,28 @@ function InventoryDataProvider:UseSelectedItem(): boolean
 	return success
 end
 
-function InventoryDataProvider:EquipSelectedSling(): boolean
-	local slingId = self._state.selectedSlingId
-	if not slingId then
+function InventoryDataProvider:EquipSelectedLauncher(): boolean
+	local launcherId = self._state.selectedLauncherId
+	if not launcherId then
 		self:_emitChanged()
 		return false
 	end
 
-	local selectedIndex = self:_findSlingIndex(slingId)
+	local selectedIndex = self:_findLauncherIndex(launcherId)
 	if not selectedIndex then
 		self:_emitChanged()
 		return false
 	end
 
-	local selected = self._state.ownedSlings[selectedIndex]
-	local equipped = MockPlayerData.EquipSling(selected.instanceId, "InventoryEquipSling")
+	local selected = self._state.ownedLaunchers[selectedIndex]
+	local equipped = MockPlayerData.EquipLauncher(selected.instanceId, "InventoryEquipLauncher")
 	if equipped then
-		local remotes = ReplicatedStorage:FindFirstChild("SlingArenaRemotes")
+		local remotes = ReplicatedStorage:FindFirstChild("LauncherArenaRemotes")
 		local abilityTrigger = remotes and remotes:FindFirstChild(RemoteContracts.Names.AbilityTrigger)
 		if abilityTrigger and abilityTrigger:IsA("RemoteEvent") then
 			abilityTrigger:FireServer({
-				action = "EquipSling",
-				slingId = selected.id,
+				action = "EquipLauncher",
+				launcherId = selected.id,
 				instanceId = selected.instanceId,
 			})
 		end
@@ -226,18 +226,18 @@ function InventoryDataProvider:EquipSelectedSling(): boolean
 	return equipped
 end
 
-function InventoryDataProvider:UnequipSelectedSling(): boolean
-	local slingId = self._state.selectedSlingId
-	if not slingId then
+function InventoryDataProvider:UnequipSelectedLauncher(): boolean
+	local launcherId = self._state.selectedLauncherId
+	if not launcherId then
 		self:_emitChanged()
 		return false
 	end
-	local selectedIndex = self:_findSlingIndex(slingId)
+	local selectedIndex = self:_findLauncherIndex(launcherId)
 	if not selectedIndex then
 		self:_emitChanged()
 		return false
 	end
-	self._state.ownedSlings[selectedIndex].equipped = false
+	self._state.ownedLaunchers[selectedIndex].equipped = false
 	self:_emitChanged()
 	return true
 end

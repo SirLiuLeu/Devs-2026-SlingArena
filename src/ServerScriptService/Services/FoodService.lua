@@ -608,10 +608,10 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 	local serverHorizontalSpeed = flattenXZ(root.AssemblyLinearVelocity).Magnitude
 	local horizontalSpeed = math.max(serverHorizontalSpeed, clientObservedSpeed)
 	if (not rule.Touch) and entry.MaxHP > 0 then
-		local slingService = getService(self._context, "SlingService")
+		local launcherService = getService(self._context, "LauncherService")
 		local validLaunch = false
-		if slingService then
-			validLaunch = slingService:ValidateLaunchReport(player, payload)
+		if launcherService then
+			validLaunch = launcherService:ValidateLaunchReport(player, payload)
 		end
 		if not validLaunch or movementState ~= GameStates.PlayerState.Launching then
 			return false, "invalid_launch_state", { movementState = movementState, horizontalSpeed = horizontalSpeed }
@@ -714,13 +714,13 @@ function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player:
 	return true
 end
 
-function FoodService:_applySlingDamage(entry: any, player: Player, velocity: number)
+function FoodService:_applyLauncherDamage(entry: any, player: Player, velocity: number)
 	local rule = FoodConfig.Foods[entry.FoodType]
 	if not rule or entry.CurrentHP <= 0 then
 		return
 	end
-	local slingService = getService(self._context, "SlingService")
-	local launchState = slingService and slingService:GetLaunchState(player) or nil
+	local launcherService = getService(self._context, "LauncherService")
+	local launchState = launcherService and launcherService:GetLaunchState(player) or nil
 	local initialSpeed = launchState and math.max(launchState.initialSpeed or 0, launchState.currentSpeed or 0) or velocity
 	local initialDamage = math.clamp(initialSpeed, DAMAGE_MIN_VELOCITY, DAMAGE_MAX_VELOCITY) * DAMAGE_BASE
 	local speedRatio = if initialSpeed > 0 then math.clamp(velocity / initialSpeed, 0.3, 1) else 0.3
@@ -775,8 +775,8 @@ function FoodService:Start()
 	remote.OnServerEvent:Connect(function(player, payload)
 		local now = os.clock()
 		local entry = (type(payload) == "table") and self._foodById[payload.foodId] or nil
-		local slingService = getService(self._context, "SlingService")
-		local launchState = slingService and slingService:GetLaunchState(player) or nil
+		local launcherService = getService(self._context, "LauncherService")
+		local launchState = launcherService and launcherService:GetLaunchState(player) or nil
 		local launchId = launchState and launchState.launchId or nil
 
 		if type(payload) ~= "table" then
@@ -837,11 +837,11 @@ function FoodService:Start()
 			local horizontalSpeed = math.max(serverHorizontalSpeed, clientObservedSpeed)
 
 			local targetKey = `Food:{entry.Id}`
-			local canDamage = slingService and slingService:RegisterLaunchDamageTarget(player, targetKey)
-			local canTransfer = slingService and slingService:RegisterLaunchKnockbackTarget(player, targetKey)
+			local canDamage = launcherService and launcherService:RegisterLaunchDamageTarget(player, targetKey)
+			local canTransfer = launcherService and launcherService:RegisterLaunchKnockbackTarget(player, targetKey)
 			if canDamage then
 				self._context.EventBus:Fire("CollisionDetected", "Food", player, entry.Instance, { FoodId = entry.Id })
-				self:_applySlingDamage(entry, player, horizontalSpeed)
+				self:_applyLauncherDamage(entry, player, horizontalSpeed)
 			end
 			if canTransfer then
 				self:_applyFoodCollisionVelocity(root, hitbox, payload, rule, launchState)

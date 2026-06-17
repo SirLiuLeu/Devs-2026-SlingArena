@@ -5,9 +5,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
-local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
-local SlingStatResolver = require(ReplicatedStorage.Shared.Utils.SlingStatResolver)
+local LauncherStatResolver = require(ReplicatedStorage.Shared.Utils.LauncherStatResolver)
 local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
@@ -42,7 +42,7 @@ function PlayerStateService.new(context: Context)
 	self._buffs = {} :: { [Player]: BuffState }
 	self._lastAttacker = {} :: { [Player]: Player }
 	self._damageDealt = {} :: { [Player]: number }
-	self._slingRuntime = {} :: { [Player]: any }
+	self._launcherRuntime = {} :: { [Player]: any }
 	self._stateUpdateRemote = context.Remotes:FindFirstChild("StateUpdate") :: RemoteEvent
 	self._consumeHpPotionRemote = context.Remotes:FindFirstChild("ConsumeHpPotion") :: RemoteEvent?
 	self._attributeUpgradeRemote = context.Remotes:FindFirstChild("AttributeUpgrade") :: RemoteEvent?
@@ -58,7 +58,7 @@ function PlayerStateService:GetRequiredExp(level: number): number
 end
 
 local function buildDefaultState(player: Player): PlayerState
-	local sling = SlingConfig.BaseStats
+	local launcher = LauncherConfig.BaseStats
 	local state: PlayerState = {
 		UserId = player.UserId,
 		CurrentMap = nil,
@@ -66,14 +66,14 @@ local function buildDefaultState(player: Player): PlayerState
 		TeamId = nil,
 		Level = LevelConfig.StartingLevel,
 		Exp = LevelConfig.StartingExp,
-		Size = sling.size,
-		MaxHP = sling.maxHP,
-		CurrentHP = sling.maxHP,
-		BaseDamage = sling.baseDamage,
-		RegenRate = sling.regenPerSecond,
-		ReflectDamage = sling.reflectDamagePercent,
+		Size = launcher.size,
+		MaxHP = launcher.maxHP,
+		CurrentHP = launcher.maxHP,
+		BaseDamage = launcher.baseDamage,
+		RegenRate = launcher.regenPerSecond,
+		ReflectDamage = launcher.reflectDamagePercent,
 		LaunchSpeed = PhysicsConfig.Launch.SpeedMax,
-		LaunchRange = sling.maxShootRange,
+		LaunchRange = launcher.maxShootRange,
 		ChargeSpeed = 1,
 		MoveSpeed = PhysicsConfig.Movement.MoveSpeed,
 		DamageMultiplier = 1,
@@ -81,11 +81,11 @@ local function buildDefaultState(player: Player): PlayerState
 		LaunchSpeedBonus = 0,
 		RegenBonus = 0,
 		KnockbackResistance = 0,
-		SlingshotType = "NormalSling",
-		EquippedSlingInstanceId = "default_normal_sling",
-		OwnedSlings = {
-			default_normal_sling = {
-				definitionId = "NormalSling",
+		LaunchershotType = "NormalLauncher",
+		EquippedLauncherInstanceId = "default_normal_launcher",
+		OwnedLaunchers = {
+			default_normal_launcher = {
+				definitionId = "NormalLauncher",
 				star = 1,
 				level = 1,
 				acquiredAt = os.time(),
@@ -159,7 +159,7 @@ function PlayerStateService:Init()
 		if flagService then
 			flagService:EnsurePlayer(player)
 		end
-		self._slingRuntime[player] = {}
+		self._launcherRuntime[player] = {}
 		self:RecalculateDerivedStats(player, true)
 	end)
 	Players.PlayerRemoving:Connect(function(player)
@@ -171,7 +171,7 @@ function PlayerStateService:Init()
 		if flagService then
 			flagService:ClearPlayer(player)
 		end
-		self._slingRuntime[player] = nil
+		self._launcherRuntime[player] = nil
 	end)
 	for _, player in ipairs(Players:GetPlayers()) do
 		self._states[player] = buildDefaultState(player)
@@ -181,7 +181,7 @@ function PlayerStateService:Init()
 		if flagService then
 			flagService:EnsurePlayer(player)
 		end
-		self._slingRuntime[player] = {}
+		self._launcherRuntime[player] = {}
 		self:RecalculateDerivedStats(player, true)
 	end
 end
@@ -251,13 +251,13 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 		return
 	end
 
-	local ownedSlings = state.OwnedSlings or {}
-	local equippedInstanceId = state.EquippedSlingInstanceId
-	local equippedInstance = if equippedInstanceId then ownedSlings[equippedInstanceId] else nil
-	local definitionId = (equippedInstance and equippedInstance.definitionId) or state.SlingshotType or SlingConfig.DefaultSlingId
+	local ownedLaunchers = state.OwnedLaunchers or {}
+	local equippedInstanceId = state.EquippedLauncherInstanceId
+	local equippedInstance = if equippedInstanceId then ownedLaunchers[equippedInstanceId] else nil
+	local definitionId = (equippedInstance and equippedInstance.definitionId) or state.LaunchershotType or LauncherConfig.DefaultLauncherId
 	local star = (equippedInstance and equippedInstance.star) or 1
-	local slingLevel = (equippedInstance and equippedInstance.level) or math.max(state.Level, 1)
-	local resolved = SlingStatResolver.Resolve(definitionId, star, slingLevel)
+	local launcherLevel = (equippedInstance and equippedInstance.level) or math.max(state.Level, 1)
+	local resolved = LauncherStatResolver.Resolve(definitionId, star, launcherLevel)
 
 	state.HPBonus = 0
 	state.RegenBonus = 0
@@ -273,7 +273,7 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	state.MoveSpeed = resolved.moveSpeed
 	state.Armor = resolved.armor
 	state.ExpBonus = resolved.expBonus
-	state.SlingshotType = definitionId
+	state.LaunchershotType = definitionId
 
 	state.MaxHP = resolved.maxHP
 	if refillHealth then
@@ -470,7 +470,7 @@ function PlayerStateService:ResetForNewRound(player: Player)
 	state.DamageDealt = 0
 	local flagService = getFlagService(self._context)
 	state.ActiveFlags = if flagService then flagService:ResetPlayer(player) else {}
-	self._slingRuntime[player] = {}
+	self._launcherRuntime[player] = {}
 	self:RecalculateDerivedStats(player, true)
 end
 
@@ -486,7 +486,7 @@ function PlayerStateService:ResetForRespawn(player: Player)
 	state.LastReleaseDuration = 0
 	local flagService = getFlagService(self._context)
 	state.ActiveFlags = if flagService then flagService:ResetPlayer(player) else {}
-	self._slingRuntime[player] = {}
+	self._launcherRuntime[player] = {}
 	self:RecalculateDerivedStats(player, true)
 end
 
@@ -580,43 +580,43 @@ function PlayerStateService:ClearLastAttacker(victim: Player)
 	self._lastAttacker[victim] = nil
 end
 
-function PlayerStateService:SetSlingType(player: Player, slingId: string): boolean
+function PlayerStateService:SetLauncherType(player: Player, launcherId: string): boolean
 	local state = self._states[player]
-	if not state or not SlingConfig.GetById(slingId) then
+	if not state or not LauncherConfig.GetById(launcherId) then
 		return false
 	end
-	state.SlingshotType = slingId
-	state.EquippedSlingInstanceId = nil
-	self._slingRuntime[player] = {}
+	state.LaunchershotType = launcherId
+	state.EquippedLauncherInstanceId = nil
+	self._launcherRuntime[player] = {}
 	self:RecalculateDerivedStats(player, true)
 	return true
 end
 
-function PlayerStateService:SetEquippedSlingInstance(player: Player, instanceId: string): boolean
+function PlayerStateService:SetEquippedLauncherInstance(player: Player, instanceId: string): boolean
 	local state = self._states[player]
-	local ownedSlings = state and state.OwnedSlings or nil
-	local slingInstance = ownedSlings and ownedSlings[instanceId] or nil
-	if not (state and slingInstance and SlingConfig.GetById(slingInstance.definitionId)) then
+	local ownedLaunchers = state and state.OwnedLaunchers or nil
+	local launcherInstance = ownedLaunchers and ownedLaunchers[instanceId] or nil
+	if not (state and launcherInstance and LauncherConfig.GetById(launcherInstance.definitionId)) then
 		return false
 	end
-	state.EquippedSlingInstanceId = instanceId
-	state.SlingshotType = slingInstance.definitionId
-	self._slingRuntime[player] = {}
+	state.EquippedLauncherInstanceId = instanceId
+	state.LaunchershotType = launcherInstance.definitionId
+	self._launcherRuntime[player] = {}
 	self:RecalculateDerivedStats(player, true)
 	return true
 end
 
-function PlayerStateService:GetSlingAbilityType(player: Player): string
+function PlayerStateService:GetLauncherAbilityType(player: Player): string
 	local state = self._states[player]
-	local sling = state and SlingConfig.GetById(state.SlingshotType or "")
-	return (sling and (sling.abilityType or sling.id)) or "NormalSling"
+	local launcher = state and LauncherConfig.GetById(state.LaunchershotType or "")
+	return (launcher and (launcher.abilityType or launcher.id)) or "NormalLauncher"
 end
 
-function PlayerStateService:GetSlingRuntime(player: Player): any
-	local runtime = self._slingRuntime[player]
+function PlayerStateService:GetLauncherRuntime(player: Player): any
+	local runtime = self._launcherRuntime[player]
 	if not runtime then
 		runtime = {}
-		self._slingRuntime[player] = runtime
+		self._launcherRuntime[player] = runtime
 	end
 	return runtime
 end

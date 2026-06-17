@@ -6,7 +6,7 @@ local Workspace = game:GetService("Workspace")
 local PawnLocator = {}
 
 local function getPawnsFolder(): Folder?
-	local folder = Workspace:FindFirstChild("SlingPawns")
+	local folder = Workspace:FindFirstChild("LauncherPawns")
 	if folder and folder:IsA("Folder") then
 		return folder
 	end

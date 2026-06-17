@@ -1,8 +1,8 @@
 --!strict
 
-local SlingUiConstants = {
-	ScreenGuiName = "SlingUI",
-	ContainerName = "SlingArenaUI",
+local LauncherUiConstants = {
+	ScreenGuiName = "LauncherUI",
+	ContainerName = "LauncherArenaUI",
 	Elements = {
 		JoystickRoot = "JoystickRoot",
 		Base = "Base",
@@ -14,4 +14,4 @@ local SlingUiConstants = {
 	},
 }
 
-return SlingUiConstants
+return LauncherUiConstants

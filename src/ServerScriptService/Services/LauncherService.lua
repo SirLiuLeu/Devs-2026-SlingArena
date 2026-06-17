@@ -8,12 +8,12 @@ local RunService = game:GetService("RunService")
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
-local SlingMovement = require(script.Parent.SlingMovement)
+local LauncherMovement = require(script.Parent.LauncherMovement)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local LaunchMotionModel = require(script.Parent.LaunchMotionModel)
 
-local SlingService = {}
-SlingService.__index = SlingService
+local LauncherService = {}
+LauncherService.__index = LauncherService
 
 local function getService(context, name)
 	if context.ServiceRegistry then
@@ -29,7 +29,7 @@ local function sanitizeNumber(value: number, fallback: number): number
 	return value
 end
 
-function SlingService.ResolveAimDirection(aimDirection: Vector3): Vector3
+function LauncherService.ResolveAimDirection(aimDirection: Vector3): Vector3
 	local planarDirection = Vector3.new(aimDirection.X, 0, aimDirection.Z)
 	if planarDirection.Magnitude < PhysicsConfig.Movement.AimDeadzone then
 		return Vector3.new(0, 0, -1)
@@ -37,7 +37,7 @@ function SlingService.ResolveAimDirection(aimDirection: Vector3): Vector3
 	return planarDirection.Unit
 end
 
-function SlingService.ResolveLaunchDirectionFromRoot(root: BasePart): Vector3
+function LauncherService.ResolveLaunchDirectionFromRoot(root: BasePart): Vector3
 	local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
 	if forward.Magnitude < PhysicsConfig.Movement.AimDeadzone then
 		return Vector3.new(0, 0, -1)
@@ -45,11 +45,11 @@ function SlingService.ResolveLaunchDirectionFromRoot(root: BasePart): Vector3
 	return forward.Unit
 end
 
-function SlingService.ResolveLaunchDirection(root: BasePart, aimDirection: Vector3?): Vector3
+function LauncherService.ResolveLaunchDirection(root: BasePart, aimDirection: Vector3?): Vector3
 	if typeof(aimDirection) == "Vector3" then
-		return SlingService.ResolveAimDirection(aimDirection)
+		return LauncherService.ResolveAimDirection(aimDirection)
 	end
-	return SlingService.ResolveLaunchDirectionFromRoot(root)
+	return LauncherService.ResolveLaunchDirectionFromRoot(root)
 end
 
 local function applyRootPhysicalProperties(root: BasePart)
@@ -63,20 +63,20 @@ local function applyRootPhysicalProperties(root: BasePart)
 	)
 end
 
-function SlingService.GetCooldownRemaining(cooldownEndTime: number, nowTime: number): number
+function LauncherService.GetCooldownRemaining(cooldownEndTime: number, nowTime: number): number
 	local remaining = sanitizeNumber(cooldownEndTime, 0) - sanitizeNumber(nowTime, 0)
 	return math.max(0, remaining)
 end
 
-function SlingService.BuildCooldownUiState(cooldownEndTime: number, nowTime: number): { CooldownRemaining: number }
+function LauncherService.BuildCooldownUiState(cooldownEndTime: number, nowTime: number): { CooldownRemaining: number }
 	return {
-		CooldownRemaining = SlingService.GetCooldownRemaining(cooldownEndTime, nowTime),
+		CooldownRemaining = LauncherService.GetCooldownRemaining(cooldownEndTime, nowTime),
 	}
 end
 
 local MOVEMENT_STATE = GameStates.PlayerState
-function SlingService.new(context)
-	local self = setmetatable({}, SlingService)
+function LauncherService.new(context)
+	local self = setmetatable({}, LauncherService)
 	self._context = context
 	self._input = {}
 	self._moveRateState = {}
@@ -101,7 +101,7 @@ local function resolveAlignOrientation(root: BasePart): AlignOrientation?
 	return nil
 end
 
-function SlingService:_getTrackedPlayers(): { any }
+function LauncherService:_getTrackedPlayers(): { any }
 	local trackedPlayers = {}
 	local seen = {}
 
@@ -141,7 +141,7 @@ function SlingService:_getTrackedPlayers(): { any }
 	return trackedPlayers
 end
 
-function SlingService:Init()
+function LauncherService:Init()
 	local remotes = self._context.Remotes
 	local startChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.StartCharge)
 	local releaseChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.ReleaseCharge)
@@ -155,7 +155,7 @@ function SlingService:Init()
 			self:StartCharge(player, aimTarget)
 		end)
 	else
-		warn(string.format("[SlingService] Missing remote %s; charge-start listener disabled.", RemoteContracts.Names.StartCharge))
+		warn(string.format("[LauncherService] Missing remote %s; charge-start listener disabled.", RemoteContracts.Names.StartCharge))
 	end
 
 	if releaseChargeRemote and releaseChargeRemote:IsA("RemoteEvent") then
@@ -163,7 +163,7 @@ function SlingService:Init()
 			self:ReleaseCharge(player, aimTarget)
 		end)
 	else
-		warn(string.format("[SlingService] Missing remote %s; charge-release listener disabled.", RemoteContracts.Names.ReleaseCharge))
+		warn(string.format("[LauncherService] Missing remote %s; charge-release listener disabled.", RemoteContracts.Names.ReleaseCharge))
 	end
 
 	if requestLaunchRemote and requestLaunchRemote:IsA("RemoteEvent") then
@@ -171,13 +171,13 @@ function SlingService:Init()
 			self:RequestLaunch(player, payload)
 		end)
 	else
-		warn(string.format("[SlingService] Missing remote %s; launch-request listener disabled.", RemoteContracts.Names.RequestLaunch))
+		warn(string.format("[LauncherService] Missing remote %s; launch-request listener disabled.", RemoteContracts.Names.RequestLaunch))
 	end
 
 	if clientDoLaunchRemote and clientDoLaunchRemote:IsA("RemoteEvent") then
 		self._clientDoLaunchRemote = clientDoLaunchRemote
 	else
-		warn(string.format("[SlingService] Missing remote %s; client launch impulse disabled.", RemoteContracts.Names.ClientDoLaunch))
+		warn(string.format("[LauncherService] Missing remote %s; client launch impulse disabled.", RemoteContracts.Names.ClientDoLaunch))
 	end
 
 	if reportLaunchStoppedRemote and reportLaunchStoppedRemote:IsA("RemoteEvent") then
@@ -186,7 +186,7 @@ function SlingService:Init()
 			self:HandleLaunchStopped(player, payload)
 		end)
 	else
-		warn(string.format("[SlingService] Missing remote %s; launch-stop cleanup relies on timeout only.", RemoteContracts.Names.ReportLaunchStopped))
+		warn(string.format("[LauncherService] Missing remote %s; launch-stop cleanup relies on timeout only.", RemoteContracts.Names.ReportLaunchStopped))
 	end
 
 	if moveRequestRemote and moveRequestRemote:IsA("RemoteEvent") then
@@ -194,7 +194,7 @@ function SlingService:Init()
 			self:HandleMoveRequest(player, direction, aimTarget)
 		end)
 	else
-		warn(string.format("[SlingService] Missing remote %s; movement listener disabled.", RemoteContracts.Names.MoveRequest))
+		warn(string.format("[LauncherService] Missing remote %s; movement listener disabled.", RemoteContracts.Names.MoveRequest))
 	end
 
 	Players.PlayerRemoving:Connect(function(player)
@@ -213,7 +213,7 @@ function SlingService:Init()
 	end)
 end
 
-function SlingService:_resolvePawnAndRoot(player: Player): (Model?, BasePart?)
+function LauncherService:_resolvePawnAndRoot(player: Player): (Model?, BasePart?)
 	local playerService = self._context.Services.PlayerService
 	local pawn = player.Character
 	if not (pawn and pawn:IsA("Model")) and playerService then
@@ -241,16 +241,16 @@ function SlingService:_resolvePawnAndRoot(player: Player): (Model?, BasePart?)
 	return pawn, nil
 end
 
-function SlingService:GetLaunchState(player: Player): any?
+function LauncherService:GetLaunchState(player: Player): any?
 	return self._activeLaunches[player]
 end
 
-function SlingService:SetLaunchState(player: Player, launchState: any?)
+function LauncherService:SetLaunchState(player: Player, launchState: any?)
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 	self._activeLaunches[player] = launchState
 end
 
-function SlingService:_finishLaunch(player: Player, reason: string)
+function LauncherService:_finishLaunch(player: Player, reason: string)
 	local now = os.clock()
 	self._activeLaunches[player] = nil
 	local recoveryEnd = now + PhysicsConfig.Launch.RecoveryDuration
@@ -261,7 +261,7 @@ function SlingService:_finishLaunch(player: Player, reason: string)
 	self._context.Services.PlayerStateService:SetMovementState(player, "Recovering")
 end
 
-function SlingService:ValidateLaunchReport(player: Player, payload: any): (boolean, any?, string)
+function LauncherService:ValidateLaunchReport(player: Player, payload: any): (boolean, any?, string)
 	local launchState = self._activeLaunches[player]
 	if not launchState then
 		return false, nil, "missing_launch"
@@ -286,7 +286,7 @@ function SlingService:ValidateLaunchReport(player: Player, payload: any): (boole
 	return true, launchState, "ok"
 end
 
-function SlingService:RegisterLaunchDamageTarget(player: Player, targetKey: string): boolean
+function LauncherService:RegisterLaunchDamageTarget(player: Player, targetKey: string): boolean
 	local launchState = self._activeLaunches[player]
 	if not launchState or type(targetKey) ~= "string" or targetKey == "" then
 		return false
@@ -303,7 +303,7 @@ function SlingService:RegisterLaunchDamageTarget(player: Player, targetKey: stri
 	return true
 end
 
-function SlingService:RegisterLaunchKnockbackTarget(player: Player, targetKey: string): boolean
+function LauncherService:RegisterLaunchKnockbackTarget(player: Player, targetKey: string): boolean
 	local launchState = self._activeLaunches[player]
 	if not launchState or type(targetKey) ~= "string" or targetKey == "" then
 		return false
@@ -320,7 +320,7 @@ function SlingService:RegisterLaunchKnockbackTarget(player: Player, targetKey: s
 	return true
 end
 
-function SlingService:Start()
+function LauncherService:Start()
 	if self._heartbeatConnection then
 		self._heartbeatConnection:Disconnect()
 		self._heartbeatConnection = nil
@@ -332,7 +332,7 @@ function SlingService:Start()
 	end)
 end
 
-function SlingService:_isRoundPlaying(): boolean
+function LauncherService:_isRoundPlaying(): boolean
 	local roundService = getService(self._context, "RoundService")
 	if not roundService then
 		return false
@@ -341,7 +341,7 @@ function SlingService:_isRoundPlaying(): boolean
 	return roundState == GameStates.MapRoundState.EarlyGame or roundState == GameStates.MapRoundState.FinalPhase
 end
 
-function SlingService:_canControl(player: Player): boolean
+function LauncherService:_canControl(player: Player): boolean
 	local roundService = getService(self._context, "RoundService")
 	local playerService = getService(self._context, "PlayerService")
 	local stateService = getService(self._context, "PlayerStateService")
@@ -370,7 +370,7 @@ function SlingService:_canControl(player: Player): boolean
 	return true
 end
 
-function SlingService:HandleMoveRequest(player: Player, moveInput: Vector3, aimDirection: Vector3?)
+function LauncherService:HandleMoveRequest(player: Player, moveInput: Vector3, aimDirection: Vector3?)
 	if typeof(moveInput) ~= "Vector3" then
 		return
 	end
@@ -410,7 +410,7 @@ function SlingService:HandleMoveRequest(player: Player, moveInput: Vector3, aimD
 	self._moveRateState[player] = now
 end
 
-function SlingService:StartCharge(player: Player, aimDirection: Vector3)
+function LauncherService:StartCharge(player: Player, aimDirection: Vector3)
 	if not RemoteContracts.Validate(RemoteContracts.Names.StartCharge, aimDirection) then
 		return
 	end
@@ -439,7 +439,7 @@ function SlingService:StartCharge(player: Player, aimDirection: Vector3)
 		return
 	end
 
-	local direction = SlingService.ResolveLaunchDirection(root, aimDirection)
+	local direction = LauncherService.ResolveLaunchDirection(root, aimDirection)
 
 	self._chargeState[player] = {
 		chargeStartTime = now,
@@ -451,7 +451,7 @@ function SlingService:StartCharge(player: Player, aimDirection: Vector3)
 	self._context.EventBus:Fire("ChargeStarted", player)
 end
 
-function SlingService:_authorizeLaunch(player: Player, aimDirection: Vector3)
+function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3)
 	if not self:_canControl(player) then
 		return
 	end
@@ -472,7 +472,7 @@ function SlingService:_authorizeLaunch(player: Player, aimDirection: Vector3)
 
 	local launchDirectionPlanar = chargeState.aimDirection
 	if typeof(aimDirection) == "Vector3" then
-		local providedDirection = SlingService.ResolveAimDirection(aimDirection)
+		local providedDirection = LauncherService.ResolveAimDirection(aimDirection)
 		if providedDirection.Magnitude >= PhysicsConfig.Launch.DirectionDeadzone then
 			launchDirectionPlanar = providedDirection
 		end
@@ -519,7 +519,7 @@ function SlingService:_authorizeLaunch(player: Player, aimDirection: Vector3)
 		launchRemote:FireClient(player, launchState.direction, launchState.initialSpeed, root.AssemblyMass, launchId)
 	end
 
-	self._context.EventBus:Fire("SlingLaunched", player, chargeRatio, launchState)
+	self._context.EventBus:Fire("LauncherLaunched", player, chargeRatio, launchState)
 	if chargeRatio >= PhysicsConfig.Charge.MaxChargeRatioThreshold then
 		self._context.EventBus:Fire("MaxChargeReleased", player, BalanceConfig.MaxChargeSelfDamage)
 	end
@@ -530,21 +530,21 @@ function SlingService:_authorizeLaunch(player: Player, aimDirection: Vector3)
 	self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
 end
 
-function SlingService:RequestLaunch(player: Player, payload: any)
+function LauncherService:RequestLaunch(player: Player, payload: any)
 	if not RemoteContracts.Validate(RemoteContracts.Names.RequestLaunch, payload) then
 		return
 	end
 	self:_authorizeLaunch(player, payload.aimTarget)
 end
 
-function SlingService:ReleaseCharge(player: Player, aimDirection: Vector3)
+function LauncherService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	if not RemoteContracts.Validate(RemoteContracts.Names.ReleaseCharge, aimDirection) then
 		return
 	end
 	self:_authorizeLaunch(player, aimDirection)
 end
 
-function SlingService:HandleLaunchStopped(player: Player, payload: any)
+function LauncherService:HandleLaunchStopped(player: Player, payload: any)
 	if not RemoteContracts.Validate(RemoteContracts.Names.ReportLaunchStopped, payload) then
 		return
 	end
@@ -559,7 +559,7 @@ function SlingService:HandleLaunchStopped(player: Player, payload: any)
 	self:_finishLaunch(player, "client_stopped")
 end
 
-function SlingService:_applyAimRotation(player: Player, root: BasePart, input: Vector3, _dt: number)
+function LauncherService:_applyAimRotation(player: Player, root: BasePart, input: Vector3, _dt: number)
 	local alignOrientation = resolveAlignOrientation(root)
 	if not alignOrientation then
 		return
@@ -583,7 +583,7 @@ function SlingService:_applyAimRotation(player: Player, root: BasePart, input: V
 	alignOrientation.CFrame = CFrame.lookAt(root.Position, root.Position + desiredPlanar.Unit, Vector3.yAxis)
 end
 
-function SlingService:_stepMovement(dt: number)
+function LauncherService:_stepMovement(dt: number)
 	for _, player in self:_getTrackedPlayers() do
 		local root = self._context.Services.PlayerService:GetRoot(player)
 		local input = self._input[player] or Vector3.zero
@@ -599,14 +599,14 @@ function SlingService:_stepMovement(dt: number)
 	end
 end
 
-function SlingService:_getMovementController(player: Player, root: BasePart)
+function LauncherService:_getMovementController(player: Player, root: BasePart)
 	local movementController = self._movementControllers[player]
 	if movementController and movementController._root ~= root then
 		movementController:Destroy()
 		movementController = nil
 	end
 	if not movementController then
-		movementController = SlingMovement.new(root)
+		movementController = LauncherMovement.new(root)
 		self._movementControllers[player] = movementController
 	end
 	return movementController
@@ -622,13 +622,13 @@ local function resolveMovementSpeed(state): number
 	return speed
 end
 
-function SlingService:_applyRootVelocity(player: Player, root: BasePart, input: Vector3, dt: number)
+function LauncherService:_applyRootVelocity(player: Player, root: BasePart, input: Vector3, dt: number)
 	if root.Anchored then
 		root.Anchored = false
 		if root.Anchored then
 			if not self._warnedInvalidRoot[player] then
 				self._warnedInvalidRoot[player] = true
-				warn(string.format("[SlingService] Root anchored; movement blocked for %s (%s)",
+				warn(string.format("[LauncherService] Root anchored; movement blocked for %s (%s)",
 					player.Name, root:GetFullName()))
 			end
 			return
@@ -697,7 +697,7 @@ end
 	Movement decay/braking is intentionally absent: launch motion is client-impulse
 	physics, and the server verifies reports against launchId/state/speed ceilings.
 ]]
-function SlingService:_stepMovementStates(_dt: number)
+function LauncherService:_stepMovementStates(_dt: number)
 	local now = os.clock()
 	for _, player in self:_getTrackedPlayers() do
 		local state = self._context.Services.PlayerStateService:GetState(player)
@@ -720,4 +720,4 @@ function SlingService:_stepMovementStates(_dt: number)
 	end
 end
 
-return SlingService
+return LauncherService

@@ -3,7 +3,7 @@
 local Players = game:GetService("Players")
 
 local PathResolver = require(script.Parent.PathResolver)
-local SlingUiConstants = require(script.Parent.Parent.Constants.SlingUiConstants)
+local LauncherUiConstants = require(script.Parent.Parent.Constants.LauncherUiConstants)
 local ProjectTreeSpec = require(script.Parent.Parent.ProjectTreeSpec)
 
 local WaitForUI = {}
@@ -18,10 +18,10 @@ local pendingRetries: { [Player]: RBXScriptConnection } = {}
 
 local function resolveContainer(playerGui: PlayerGui, shouldWait: boolean, timeout: number): Instance?
 	if shouldWait then
-		return PathResolver.waitForPath(playerGui, ProjectTreeSpec.UI.SlingTouch.Container, timeout)
+		return PathResolver.waitForPath(playerGui, ProjectTreeSpec.UI.LauncherTouch.Container, timeout)
 	end
 
-	return PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.SlingTouch.Container, {
+	return PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.LauncherTouch.Container, {
 		shouldWarn = false,
 	})
 end
@@ -31,7 +31,7 @@ local function resolveScreenGui(container: Instance?, shouldWait: boolean, timeo
 		return nil
 	end
 
-	local screenGuiPath = SlingUiConstants.ScreenGuiName
+	local screenGuiPath = LauncherUiConstants.ScreenGuiName
 	local screenGui = if shouldWait then PathResolver.waitForPath(container, screenGuiPath, timeout) else PathResolver.resolvePath(container, screenGuiPath, {
 		shouldWarn = false,
 	})
@@ -57,7 +57,7 @@ local function getPlayerGui(player: Player, shouldWait: boolean, timeout: number
 	return nil
 end
 
-function WaitForUI.ResolveSlingUI(player: Player, options: ResolveOptions?): ScreenGui?
+function WaitForUI.ResolveLauncherUI(player: Player, options: ResolveOptions?): ScreenGui?
 	local shouldWait = if options and options.wait ~= nil then options.wait else true
 	local timeout = if options and options.timeout ~= nil then math.max(options.timeout, 0) else 5
 	local playerGui = getPlayerGui(player, shouldWait, timeout)
@@ -69,8 +69,8 @@ function WaitForUI.ResolveSlingUI(player: Player, options: ResolveOptions?): Scr
 	return resolveScreenGui(container, shouldWait, timeout)
 end
 
-function WaitForUI.ResolveSlingUIWithRetry(player: Player, options: ResolveOptions?): ScreenGui?
-	local resolved = WaitForUI.ResolveSlingUI(player, options)
+function WaitForUI.ResolveLauncherUIWithRetry(player: Player, options: ResolveOptions?): ScreenGui?
+	local resolved = WaitForUI.ResolveLauncherUI(player, options)
 	if resolved then
 		local existing = pendingRetries[player]
 		if existing then
@@ -86,7 +86,7 @@ function WaitForUI.ResolveSlingUIWithRetry(player: Player, options: ResolveOptio
 	if options and options.wait == false and options.onResolved and not pendingRetries[player] then
 		local connection: RBXScriptConnection? = nil
 		local function tryResolve()
-			local screenGui = WaitForUI.ResolveSlingUI(player, {
+			local screenGui = WaitForUI.ResolveLauncherUI(player, {
 				wait = false,
 				timeout = if options and options.timeout ~= nil then options.timeout else nil,
 			})

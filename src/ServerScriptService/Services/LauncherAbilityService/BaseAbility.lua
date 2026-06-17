@@ -12,7 +12,7 @@ function BaseAbility.new(context, player: Player, config)
 	return self
 end
 
-function BaseAbility:OnInit(_slingModel: Model?) end
+function BaseAbility:OnInit(_launcherModel: Model?) end
 function BaseAbility:OnLaunch(_contextData: any) end
 function BaseAbility:OnCollision(_contextData: any) end
 function BaseAbility:OnTick(_dt: number) end

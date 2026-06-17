@@ -1,6 +1,6 @@
 {
   "ClassName": "BillboardGui",
-  "Name": "SlingWorldUI",
+  "Name": "LauncherWorldUI",
   "Properties": {
     "AlwaysOnTop": true,
     "Size": { "UDim2": [[0, 160], [0, 48]] },

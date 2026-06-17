@@ -2,7 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 
 local RewardRoller = {}
@@ -14,8 +14,8 @@ local function randomFrom(list)
 	return list[math.random(1, #list)]
 end
 
-function RewardRoller.RollRandomSlingId(): string?
-	return randomFrom(SlingConfig.GetAllIds())
+function RewardRoller.RollRandomLauncherId(): string?
+	return randomFrom(LauncherConfig.GetAllIds())
 end
 
 function RewardRoller.RollRandomItemId(): string?

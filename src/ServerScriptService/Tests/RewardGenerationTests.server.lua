@@ -2,7 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local RewardRoller = require(ReplicatedStorage.Shared.Utils.RewardRoller)
 
@@ -35,45 +35,45 @@ local function testRandomItemGeneration()
 	print("[RewardGenerationTests] Random item generation produced valid config IDs in 100 rolls")
 end
 
-local function testRandomSlingRewardForPlayer()
-	local validSlings = {}
-	for _, id in ipairs(SlingConfig.GetAllIds()) do
-		validSlings[id] = true
+local function testRandomLauncherRewardForPlayer()
+	local validLaunchers = {}
+	for _, id in ipairs(LauncherConfig.GetAllIds()) do
+		validLaunchers[id] = true
 	end
 
 	local fakePlayer = {
 		Name = "RewardTestPlayer",
 		UserId = 999001,
-		OwnedSlings = {},
+		OwnedLaunchers = {},
 	}
 
 	for i = 1, 100 do
-		local slingId = RewardRoller.RollRandomSlingId()
-		if not slingId or not validSlings[slingId] then
-			error(string.format("Invalid sling id generated at iteration %d: %s", i, tostring(slingId)))
+		local launcherId = RewardRoller.RollRandomLauncherId()
+		if not launcherId or not validLaunchers[launcherId] then
+			error(string.format("Invalid launcher id generated at iteration %d: %s", i, tostring(launcherId)))
 		end
-		fakePlayer.OwnedSlings[string.format("reward_%03d", i)] = {
-			definitionId = slingId,
+		fakePlayer.OwnedLaunchers[string.format("reward_%03d", i)] = {
+			definitionId = launcherId,
 			star = 1,
 			level = 1,
 			acquiredAt = i,
 		}
 	end
 
-	local ownedSlingCount = 0
-	for _ in pairs(fakePlayer.OwnedSlings) do
-		ownedSlingCount += 1
+	local ownedLauncherCount = 0
+	for _ in pairs(fakePlayer.OwnedLaunchers) do
+		ownedLauncherCount += 1
 	end
-	if ownedSlingCount ~= 100 then
-		error("Fake player should receive exactly 100 sling rewards")
+	if ownedLauncherCount ~= 100 then
+		error("Fake player should receive exactly 100 launcher rewards")
 	end
 
 	print(string.format(
-		"[RewardGenerationTests] Player %s received %d valid sling rewards",
+		"[RewardGenerationTests] Player %s received %d valid launcher rewards",
 		fakePlayer.Name,
-		ownedSlingCount
+		ownedLauncherCount
 	))
 end
 
 runTest("Random item generation", testRandomItemGeneration)
-runTest("Random sling reward for player", testRandomSlingRewardForPlayer)
+runTest("Random launcher reward for player", testRandomLauncherRewardForPlayer)

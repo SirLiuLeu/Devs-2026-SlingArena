@@ -37,9 +37,9 @@ type EffectConfig = {
 local DamagePipelineService = {}
 DamagePipelineService.__index = DamagePipelineService
 
-local SLING_DOT_EFFECTS: { [string]: EffectConfig } = {
-	FireSling = { Flag = "Burn" },
-	PoisonSling = { Flag = "Poison" },
+local LAUNCHER_DOT_EFFECTS: { [string]: EffectConfig } = {
+	FireLauncher = { Flag = "Burn" },
+	PoisonLauncher = { Flag = "Poison" },
 }
 
 local function getKnockbackSpeedCap(collisionMeta: any?): number
@@ -150,7 +150,7 @@ function DamagePipelineService:Init()
 		if self:ApplyHitDamage(victim, damage, attacker, nil, {
 			SuppressKnockback = true,
 		}) then
-			self:_applySlingDotFromHit(victim, attacker, attackerState, collisionMeta)
+			self:_applyLauncherDotFromHit(victim, attacker, attackerState, collisionMeta)
 		end
 	end)
 
@@ -379,11 +379,11 @@ function DamagePipelineService:_scheduleSlowAfterKnockback(victim: Player, sourc
 	end)
 end
 
-function DamagePipelineService:_applySlingDotFromHit(victim: Player, attacker: Player?, attackerState: any?, _collisionMeta: any?)
+function DamagePipelineService:_applyLauncherDotFromHit(victim: Player, attacker: Player?, attackerState: any?, _collisionMeta: any?)
 	if not (attacker and attackerState) then
 		return
 	end
-	local effectConfig = SLING_DOT_EFFECTS[attackerState.SlingshotType or ""]
+	local effectConfig = LAUNCHER_DOT_EFFECTS[attackerState.LaunchershotType or ""]
 	if not effectConfig then
 		return
 	end

@@ -6,7 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local player = Players.LocalPlayer
-local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
+local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 local knockbackRemote = remotes:WaitForChild(RemoteContracts.Names.KnockbackReplication) :: RemoteEvent
 
 local MIN_ASSEMBLY_MASS = 0.001

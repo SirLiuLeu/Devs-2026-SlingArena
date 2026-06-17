@@ -9,13 +9,13 @@ local Debris = game:GetService("Debris")
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
-local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local StatusEffectVfx = require(ReplicatedStorage.Shared.Utils.StatusEffectVfx)
 
-local EQUIPPED_SLING_MODEL_NAME = "EquipedSlingModel"
-local LEGACY_EQUIPPED_SLING_MODEL_NAME = "EquippedSlingModel"
+local EQUIPPED_LAUNCHER_MODEL_NAME = "EquipedLauncherModel"
+local LEGACY_EQUIPPED_LAUNCHER_MODEL_NAME = "EquippedLauncherModel"
 local PLAYER_CHARACTER_MODEL_NAME = "Player"
-local SLING_MESH_NAME = "Mesh"
+local LAUNCHER_MESH_NAME = "Mesh"
 local HITBOX_MESH_WELD_NAME = "WeldConstraint_HitboxMesh"
 
 local function setPreplacedStatusEffectsEnabled(root: BasePart, enabled: boolean)
@@ -29,14 +29,14 @@ function PlayerService.new(context)
 	local self = setmetatable({}, PlayerService)
 	self._context = context
 	self._deathConnections = {}
-	self._pawnsFolder = Workspace:FindFirstChild("SlingPawns")
-	self._slingTemplate = nil
+	self._pawnsFolder = Workspace:FindFirstChild("LauncherPawns")
+	self._launcherTemplate = nil
 	self._worldUiTemplate = nil
-	self._playerToSling = {}
-	self._slingToPlayer = {}
+	self._playerToLauncher = {}
+	self._launcherToPlayer = {}
 	if not self._pawnsFolder then
 		self._pawnsFolder = Instance.new("Folder")
-		self._pawnsFolder.Name = "SlingPawns"
+		self._pawnsFolder.Name = "LauncherPawns"
 		self._pawnsFolder.Parent = Workspace
 	end
 	return self
@@ -44,7 +44,7 @@ end
 
 function PlayerService:Init()
 	Players.CharacterAutoLoads = false
-	self:_loadSlingTemplate()
+	self:_loadLauncherTemplate()
 	self:_loadWorldUiTemplate()
 
 	self._context.EventBus:On("PlayerStateUpdated", function(player: Player, state)
@@ -58,7 +58,7 @@ function PlayerService:Init()
 	Players.PlayerRemoving:Connect(function(player)
 		self:_disconnectDeathSignal(player)
 		self:_destroyPawn(player)
-		self._playerToSling[player] = nil
+		self._playerToLauncher[player] = nil
 	end)
 
 	for _, player in Players:GetPlayers() do
@@ -66,7 +66,7 @@ function PlayerService:Init()
 		self:SpawnPawn(player, 1, "LobbyMap")
 	end
 
-	local debugResetRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.DebugResetSling)
+	local debugResetRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.DebugResetLauncher)
 	if debugResetRemote and debugResetRemote:IsA("RemoteEvent") then
 		debugResetRemote.OnServerEvent:Connect(function(player)
 			self:SpawnPawn(player, nil, self._context.Services.MapService:GetActiveMap() or "LobbyMap")
@@ -118,7 +118,7 @@ function PlayerService:ShowHpBarRestore(player: Player, amount: number)
 		return
 	end
 	local pawn = self:GetPawn(player)
-	local worldUi = pawn and pawn:FindFirstChild("SlingWorldUI")
+	local worldUi = pawn and pawn:FindFirstChild("LauncherWorldUI")
 	local hpBarBackground = worldUi and worldUi:FindFirstChild("HpBarBackground")
 	if not (hpBarBackground and hpBarBackground:IsA("Frame")) then
 		return
@@ -163,14 +163,14 @@ function PlayerService:_loadWorldUiTemplate(): BillboardGui?
 	-- ReplicatedStorage
 	--   Assets (Folder)
 	--     UI (Folder)
-	--       SlingWorldUI (BillboardGui)
+	--       LauncherWorldUI (BillboardGui)
 	--         HpBarBackground (Frame)
 	--           HpBarFill (Frame)
 	--         NameLabel (TextLabel)
 	--         LevelLabel (TextLabel)
 
 	local resolved = ReplicatedStorage
-	for token in string.gmatch(ProjectTreeSpec.GameplayInstances.ReplicatedStorage.Assets.SlingWorldUI, "[^%.]+") do
+	for token in string.gmatch(ProjectTreeSpec.GameplayInstances.ReplicatedStorage.Assets.LauncherWorldUI, "[^%.]+") do
 		resolved = resolved:FindFirstChild(token)
 		if not resolved then
 			break
@@ -181,7 +181,7 @@ function PlayerService:_loadWorldUiTemplate(): BillboardGui?
 		return self._worldUiTemplate
 	end
 
-	warn("[WORLD_UI] ReplicatedStorage.Assets.UI.SlingWorldUI missing. Create it manually in Studio.")
+	warn("[WORLD_UI] ReplicatedStorage.Assets.UI.LauncherWorldUI missing. Create it manually in Studio.")
 	self._worldUiTemplate = nil
 	return nil
 end
@@ -201,13 +201,13 @@ function PlayerService:_attachWorldUi(pawn: Model, player: Player?)
 		return
 	end
 
-	local existing = pawn:FindFirstChild("SlingWorldUI")
+	local existing = pawn:FindFirstChild("LauncherWorldUI")
 	if existing and existing:IsA("BillboardGui") then
 		existing:Destroy()
 	end
 
 	local worldUi = worldUiTemplate:Clone()
-	worldUi.Name = "SlingWorldUI"
+	worldUi.Name = "LauncherWorldUI"
 	worldUi.Adornee = pawn.PrimaryPart
 	if player then
 		self:_setWorldUiPlayerName(worldUi, player)
@@ -220,10 +220,10 @@ function PlayerService:_updateWorldUi(player: Player, state)
 	if not pawn then
 		return
 	end
-	local worldUi = pawn:FindFirstChild("SlingWorldUI")
+	local worldUi = pawn:FindFirstChild("LauncherWorldUI")
 	if not (worldUi and worldUi:IsA("BillboardGui")) then
 		self:_attachWorldUi(pawn, player)
-		worldUi = pawn:FindFirstChild("SlingWorldUI")
+		worldUi = pawn:FindFirstChild("LauncherWorldUI")
 	end
 	if not (worldUi and worldUi:IsA("BillboardGui")) then
 		return
@@ -257,55 +257,55 @@ function PlayerService:_updateWorldUi(player: Player, state)
 	end
 end
 
-function PlayerService:_resolveSlingModelSource(slingId: string): Model?
+function PlayerService:_resolveLauncherModelSource(launcherId: string): Model?
 	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
-	local slingsFolder = assetsFolder and assetsFolder:FindFirstChild("Slings")
-	local slingModel = slingsFolder and slingsFolder:FindFirstChild(slingId)
-	if slingModel and slingModel:IsA("Model") then
-		return slingModel
+	local launchersFolder = assetsFolder and assetsFolder:FindFirstChild("Launchers")
+	local launcherModel = launchersFolder and launchersFolder:FindFirstChild(launcherId)
+	if launcherModel and launcherModel:IsA("Model") then
+		return launcherModel
 	end
 	return nil
 end
 
 function PlayerService:_resolvePlayerModelSource(): Model?
 	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
-	local slingsFolder = assetsFolder and assetsFolder:FindFirstChild("Slings")
-	local playerModel = slingsFolder and slingsFolder:FindFirstChild(PLAYER_CHARACTER_MODEL_NAME)
+	local launchersFolder = assetsFolder and assetsFolder:FindFirstChild("Launchers")
+	local playerModel = launchersFolder and launchersFolder:FindFirstChild(PLAYER_CHARACTER_MODEL_NAME)
 	if playerModel and playerModel:IsA("Model") then
 		return playerModel
 	end
 	return nil
 end
 
-function PlayerService:_findEquippedSlingModel(pawn: Model): Model?
-	local equipped = pawn:FindFirstChild(EQUIPPED_SLING_MODEL_NAME)
+function PlayerService:_findEquippedLauncherModel(pawn: Model): Model?
+	local equipped = pawn:FindFirstChild(EQUIPPED_LAUNCHER_MODEL_NAME)
 	if equipped and equipped:IsA("Model") then
 		return equipped
 	end
-	local legacy = pawn:FindFirstChild(LEGACY_EQUIPPED_SLING_MODEL_NAME)
+	local legacy = pawn:FindFirstChild(LEGACY_EQUIPPED_LAUNCHER_MODEL_NAME)
 	if legacy and legacy:IsA("Model") then
-		legacy.Name = EQUIPPED_SLING_MODEL_NAME
+		legacy.Name = EQUIPPED_LAUNCHER_MODEL_NAME
 		return legacy
 	end
 	return nil
 end
 
-function PlayerService:_resolveSlingMesh(model: Model): BasePart?
-	local mesh = model:FindFirstChild(SLING_MESH_NAME)
+function PlayerService:_resolveLauncherMesh(model: Model): BasePart?
+	local mesh = model:FindFirstChild(LAUNCHER_MESH_NAME)
 	if mesh and mesh:IsA("BasePart") then
 		return mesh
 	end
 	return nil
 end
 
-function PlayerService:_getOrCreateEquippedSlingModel(pawn: Model): Model
-	local equipped = self:_findEquippedSlingModel(pawn)
+function PlayerService:_getOrCreateEquippedLauncherModel(pawn: Model): Model
+	local equipped = self:_findEquippedLauncherModel(pawn)
 	if equipped then
 		return equipped
 	end
 
 	equipped = Instance.new("Model")
-	equipped.Name = EQUIPPED_SLING_MODEL_NAME
+	equipped.Name = EQUIPPED_LAUNCHER_MODEL_NAME
 	equipped.Parent = pawn
 	return equipped
 end
@@ -324,47 +324,47 @@ function PlayerService:_updateHitboxMeshWeld(pawn: Model, root: BasePart, mesh: 
 	weld.Part1 = mesh
 end
 
-function PlayerService:_applySlingVisual(pawn: Model, slingId: string): boolean
+function PlayerService:_applyLauncherVisual(pawn: Model, launcherId: string): boolean
 	local root = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
 	if not (root and root:IsA("BasePart")) then
 		return false
 	end
 	pawn.PrimaryPart = root
 
-	local slingModel = self:_resolveSlingModelSource(slingId)
-	if not slingModel then
-		warn(string.format("[PLAYER_SERVICE] Sling model missing for %s", slingId))
+	local launcherModel = self:_resolveLauncherModelSource(launcherId)
+	if not launcherModel then
+		warn(string.format("[PLAYER_SERVICE] Launcher model missing for %s", launcherId))
 		return false
 	end
 
-	local sourceMesh = self:_resolveSlingMesh(slingModel)
+	local sourceMesh = self:_resolveLauncherMesh(launcherModel)
 	if not sourceMesh then
-		warn(string.format("[PLAYER_SERVICE] Sling model %s has no Mesh", slingId))
+		warn(string.format("[PLAYER_SERVICE] Launcher model %s has no Mesh", launcherId))
 		return false
 	end
 
-	local equipped = self:_getOrCreateEquippedSlingModel(pawn)
-	local oldMesh = equipped:FindFirstChild(SLING_MESH_NAME)
+	local equipped = self:_getOrCreateEquippedLauncherModel(pawn)
+	local oldMesh = equipped:FindFirstChild(LAUNCHER_MESH_NAME)
 	local targetCFrame = if oldMesh and oldMesh:IsA("BasePart") then oldMesh.CFrame else root.CFrame
 	for _, child in ipairs(equipped:GetChildren()) do
 		child:Destroy()
 	end
 
 	local mesh = sourceMesh:Clone()
-	mesh.Name = SLING_MESH_NAME
+	mesh.Name = LAUNCHER_MESH_NAME
 	mesh.CFrame = targetCFrame
 	mesh.Anchored = false
 	mesh.CanCollide = false
 	mesh.Massless = true
 	mesh.Parent = equipped
 	equipped.PrimaryPart = mesh
-	equipped:SetAttribute("SlingId", slingId)
-	pawn:SetAttribute("SlingId", slingId)
+	equipped:SetAttribute("LauncherId", launcherId)
+	pawn:SetAttribute("LauncherId", launcherId)
 	self:_updateHitboxMeshWeld(pawn, root, mesh)
 	return true
 end
 
-function PlayerService:_prepareSlingModel(model: Model): BasePart?
+function PlayerService:_prepareLauncherModel(model: Model): BasePart?
 	local root = model:FindFirstChild("Hitbox", true) :: BasePart?
 	if not root then
 		root = model.PrimaryPart
@@ -429,14 +429,14 @@ function PlayerService:_prepareSlingModel(model: Model): BasePart?
 	return root
 end
 
-function PlayerService:_loadSlingTemplate(): Model?
-	if self._slingTemplate then
-		return self._slingTemplate
+function PlayerService:_loadLauncherTemplate(): Model?
+	if self._launcherTemplate then
+		return self._launcherTemplate
 	end
 
 	local playerModel = self:_resolvePlayerModelSource()
 	if not playerModel then
-		warn("[PLAYER_SERVICE] ReplicatedStorage/Assets/Slings/Player missing. Pawn spawn aborted.")
+		warn("[PLAYER_SERVICE] ReplicatedStorage/Assets/Launchers/Player missing. Pawn spawn aborted.")
 		return nil
 	end
 
@@ -444,42 +444,42 @@ function PlayerService:_loadSlingTemplate(): Model?
 	template.Name = PLAYER_CHARACTER_MODEL_NAME
 	template.Parent = nil
 
-	if SlingConfig.ModelScale ~= 1 then
-		template:ScaleTo(SlingConfig.ModelScale)
+	if LauncherConfig.ModelScale ~= 1 then
+		template:ScaleTo(LauncherConfig.ModelScale)
 	end
 
-	if not self:_prepareSlingModel(template) then
+	if not self:_prepareLauncherModel(template) then
 		warn("[PLAYER_SERVICE] Player model has no PrimaryPart/Hitbox. Pawn spawn aborted.")
 		return nil
 	end
-	self:_applySlingVisual(template, SlingConfig.DefaultSlingId)
+	self:_applyLauncherVisual(template, LauncherConfig.DefaultLauncherId)
 
-	self._slingTemplate = template
+	self._launcherTemplate = template
 	return template
 end
 
 function PlayerService:GetPawn(player)
-	local mapped = self._playerToSling[player]
+	local mapped = self._playerToLauncher[player]
 	if mapped and mapped.Parent then
 		return mapped
 	end
 	local byName = self._pawnsFolder:FindFirstChild(player.Name .. "_Pawn")
 	if byName and byName:IsA("Model") then
-		self._playerToSling[player] = byName
-		self._slingToPlayer[byName] = player
+		self._playerToLauncher[player] = byName
+		self._launcherToPlayer[byName] = player
 		return byName
 	end
 	return nil
 end
 
 function PlayerService:GetPlayerFromPawn(pawn: Model): Player?
-	local mapped = self._slingToPlayer[pawn]
+	local mapped = self._launcherToPlayer[pawn]
 	if mapped and mapped.Parent == Players then
 		return mapped
 	end
-	for player, playerPawn in pairs(self._playerToSling) do
+	for player, playerPawn in pairs(self._playerToLauncher) do
 		if playerPawn == pawn and player.Parent == Players then
-			self._slingToPlayer[pawn] = player
+			self._launcherToPlayer[pawn] = player
 			return player
 		end
 	end
@@ -503,18 +503,18 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	self:_disconnectDeathSignal(player)
 	self:_destroyPawn(player)
 
-	local template = self:_loadSlingTemplate()
+	local template = self:_loadLauncherTemplate()
 	if not template then
 		return nil
 	end
 	local pawn = template:Clone()
 	pawn.Name = player.Name .. "_Pawn"
 	local playerState = self._context.Services.PlayerStateService:GetState(player)
-	local currentSlingId = SlingConfig.DefaultSlingId
-	if playerState and SlingConfig.GetById(playerState.SlingshotType or "") then
-		currentSlingId = playerState.SlingshotType
+	local currentLauncherId = LauncherConfig.DefaultLauncherId
+	if playerState and LauncherConfig.GetById(playerState.LaunchershotType or "") then
+		currentLauncherId = playerState.LaunchershotType
 	end
-	pawn:SetAttribute("SlingId", currentSlingId)
+	pawn:SetAttribute("LauncherId", currentLauncherId)
 	if not pawn.PrimaryPart then
 		local root = pawn:FindFirstChild("Hitbox", true)
 		if root and root:IsA("BasePart") then
@@ -526,7 +526,7 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 		return nil
 	end
 	local index = spawnIndex or (player.UserId % 8) + 1
-	self:_applySlingVisual(pawn, currentSlingId)
+	self:_applyLauncherVisual(pawn, currentLauncherId)
 	local mapService = self._context.Services.MapService
 	local teamId = playerState and playerState.TeamId or nil
 	local spawnCFrame = CFrame.new(mapService:GetSpawnPoint(index, mapName))
@@ -538,10 +538,10 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	player.Character = pawn
 	setPreplacedStatusEffectsEnabled(pawn.PrimaryPart, false)
 	pawn.PrimaryPart:SetNetworkOwner(player)
-	self._playerToSling[player] = pawn
-	self._slingToPlayer[pawn] = player
+	self._playerToLauncher[player] = pawn
+	self._launcherToPlayer[pawn] = player
 	self:_attachWorldUi(pawn, player)
-	pawn:SetAttribute("ScaleValue", SlingConfig.ModelScale)
+	pawn:SetAttribute("ScaleValue", LauncherConfig.ModelScale)
 	for _, descendant in pawn:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = false
@@ -561,8 +561,8 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	return pawn
 end
 
-function PlayerService:EquipSlingModel(player: Player, slingId: string): boolean
-	if not SlingConfig.GetById(slingId) then
+function PlayerService:EquipLauncherModel(player: Player, launcherId: string): boolean
+	if not LauncherConfig.GetById(launcherId) then
 		return false
 	end
 
@@ -578,7 +578,7 @@ function PlayerService:EquipSlingModel(player: Player, slingId: string): boolean
 	end
 	pawn.PrimaryPart = root
 
-	if not self:_applySlingVisual(pawn, slingId) then
+	if not self:_applyLauncherVisual(pawn, launcherId) then
 		return false
 	end
 
@@ -601,10 +601,10 @@ end
 function PlayerService:_destroyPawn(player)
 	local pawn = self:GetPawn(player)
 	if pawn then
-		self._slingToPlayer[pawn] = nil
+		self._launcherToPlayer[pawn] = nil
 		pawn:Destroy()
 	end
-	self._playerToSling[player] = nil
+	self._playerToLauncher[player] = nil
 end
 
 function PlayerService:IsGrounded(player): boolean

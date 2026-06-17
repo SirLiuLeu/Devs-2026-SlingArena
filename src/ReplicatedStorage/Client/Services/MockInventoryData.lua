@@ -2,8 +2,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
-local SlingStatResolver = require(ReplicatedStorage.Shared.Utils.SlingStatResolver)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local LauncherStatResolver = require(ReplicatedStorage.Shared.Utils.LauncherStatResolver)
 
 local MockInventoryData = {}
 
@@ -18,41 +18,41 @@ local function clone(value)
 	return result
 end
 
-local function buildSlingInstanceId(definitionId: string, index: number): string
+local function buildLauncherInstanceId(definitionId: string, index: number): string
 	return string.format("mock_%s_%02d", definitionId, index)
 end
 
 function MockInventoryData.GetInventoryState()
-	local ownedSlings = {}
-	local equippedSlingInstanceId = nil
-	local initialSlingIds = { "NormalSling", "FireSling", "HealSling", "PoisonSling" }
-	for index, definitionId in ipairs(initialSlingIds) do
-		local slingDef = SlingConfig.GetById(definitionId)
-		if slingDef then
-			local instanceId = buildSlingInstanceId(definitionId, index)
-			local level = if definitionId == SlingConfig.DefaultSlingId then 3 else 1
-			local star = if definitionId == SlingConfig.DefaultSlingId then 2 else 1
-			ownedSlings[instanceId] = {
+	local ownedLaunchers = {}
+	local equippedLauncherInstanceId = nil
+	local initialLauncherIds = { "NormalLauncher", "FireLauncher", "HealLauncher", "PoisonLauncher" }
+	for index, definitionId in ipairs(initialLauncherIds) do
+		local launcherDef = LauncherConfig.GetById(definitionId)
+		if launcherDef then
+			local instanceId = buildLauncherInstanceId(definitionId, index)
+			local level = if definitionId == LauncherConfig.DefaultLauncherId then 3 else 1
+			local star = if definitionId == LauncherConfig.DefaultLauncherId then 2 else 1
+			ownedLaunchers[instanceId] = {
 				definitionId = definitionId,
 				star = star,
 				level = level,
 				acquiredAt = 1_700_000_000 + index,
-				name = slingDef.name,
-				icon = slingDef.iconId or slingDef.icon,
-				stats = SlingStatResolver.Resolve(definitionId, star, level),
+				name = launcherDef.name,
+				icon = launcherDef.iconId or launcherDef.icon,
+				stats = LauncherStatResolver.Resolve(definitionId, star, level),
 			}
-			if definitionId == SlingConfig.DefaultSlingId then
-				equippedSlingInstanceId = instanceId
+			if definitionId == LauncherConfig.DefaultLauncherId then
+				equippedLauncherInstanceId = instanceId
 			end
 		else
-			warn(string.format("[MOCK_INVENTORY_DATA] Sling id missing in SlingConfig: %s", definitionId))
+			warn(string.format("[MOCK_INVENTORY_DATA] Launcher id missing in LauncherConfig: %s", definitionId))
 		end
 	end
 
 	return {
-		OwnedSlings = clone(ownedSlings),
-		EquippedSlingInstanceId = equippedSlingInstanceId,
-		SlingCapacity = 40,
+		OwnedLaunchers = clone(ownedLaunchers),
+		EquippedLauncherInstanceId = equippedLauncherInstanceId,
+		LauncherCapacity = 40,
 	}
 end
 

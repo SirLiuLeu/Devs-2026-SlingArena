@@ -80,7 +80,7 @@ local function getConfiguredEffect(flagName: string, data: any?): (string?, stri
 end
 
 local function getDefaultMesh(pawn: Model): BasePart?
-	local equipped = pawn:FindFirstChild("EquipedSlingModel") or pawn:FindFirstChild("EquippedSlingModel")
+	local equipped = pawn:FindFirstChild("EquipedLauncherModel") or pawn:FindFirstChild("EquippedLauncherModel")
 	local mesh = equipped and equipped:FindFirstChild("Mesh")
 	if mesh and mesh:IsA("BasePart") then
 		return mesh

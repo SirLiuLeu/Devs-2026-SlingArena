@@ -44,13 +44,13 @@ DataModel
 │  │  │  ├─ GameConfig.lua
 │  │  │  ├─ ItemConfig.lua
 │  │  │  ├─ LevelConfig.lua
-│  │  │  ├─ SlingConfig.lua
-│  │  │  ├─ SlingshotConfig.lua
+│  │  │  ├─ LauncherConfig.lua
+│  │  │  ├─ LaunchershotConfig.lua
 │  │  │  └─ TrapConfig.lua
 │  │  │
 │  │  ├─ Constants
 │  │  │  ├─ GameStates.lua
-│  │  │  └─ SlingUiConstants.lua
+│  │  │  └─ LauncherUiConstants.lua
 │  │  │
 │  │  ├─ Types
 │  │  │  ├─ CombatTypes.lua
@@ -60,7 +60,7 @@ DataModel
 │  │  │  ├─ GachaSpinLogic.lua
 │  │  │  ├─ PathResolver.lua
 │  │  │  ├─ RewardRoller.lua
-│  │  │  ├─ SlingUiState.lua
+│  │  │  ├─ LauncherUiState.lua
 │  │  │  └─ WaitForUI.lua
 │  │  ├─ ProjectTreeSpec.lua
 │  │  └─ RemoteContracts.lua
@@ -72,14 +72,14 @@ DataModel
 │  │  │       ├── StartAttachment (Attachment)
 │  │  │       └── Arrow (MeshPart/Part)
 │  │  │
-│  │  ├── Slings
+│  │  ├── Launchers
 │  │  │  ├── Player (Character Default)
 │  │  │
-│  │  ├── Slings
+│  │  ├── Launchers
 │  │  │  ├── Player (Character Default)
 │  │  │  │  ├── Trail
 │  │  │  │  ├── WeldConstraint_HitboxMesh
-│  │  │  │  ├── EquippedSlingModel (Sling_Template)
+│  │  │  │  ├── EquippedLauncherModel (Launcher_Template)
 │  │  │  │  │  └── Mesh
 │  │  │  │  ├── Hitbox (PrimaryPart)
 │  │  │  │  │  ├── AlignOrientation
@@ -91,10 +91,10 @@ DataModel
 │  │  │  │  │  │  ├── Frost (ParticleEmitter)
 │  │  │  │  │  │  └── Poison (Smoke)
 │  │  │  │  │  ├── LinearVelocity
-│  │  │  │  │  ├── SlingMovementAttachment (Attachment)
+│  │  │  │  │  ├── LauncherMovementAttachment (Attachment)
 │  │  │  │  │  ├── TrailEnd (Attachment)
 │  │  │  │  │  └── TrailStart (Attachment)
-│  │  │  │  └── SlingWorldUI
+│  │  │  │  └── LauncherWorldUI
 │  │  │  │     ├── UIListLayout
 │  │  │  │     ├── HpBarBackground
 │  │  │  │     │  ├── UICorner
@@ -102,22 +102,22 @@ DataModel
 │  │  │  │     ├── LevelLabel
 │  │  │  │     └── Name
 │  │  │  │
-│  │  │  ├── Sling_Template (Model structure reference only)
+│  │  │  ├── Launcher_Template (Model structure reference only)
 │  │  │  │  └── Mesh (MeshPart)
 │  │  │  │        ├── WeldConstraint
 │  │  │  │        └── Part
-│  │  │  ├── SupportSling (Sling_Template format)
-│  │  │  ├── StunSling (Sling_Template format)
-│  │  │  ├── NormalSling (Sling_Template format; default sling)
-│  │  │  ├── VacuumSling (Sling_Template format)
-│  │  │  ├── StealthSling (Sling_Template format)
-│  │  │  ├── HealSling (Sling_Template format)
-│  │  │  ├── SpeedSling (Sling_Template format)
-│  │  │  ├── BonusBuffSling (Sling_Template format)
-│  │  │  ├── FreezeSling (Sling_Template format) -- sẽ delete trong tương lai
-│  │  │  ├── PetrifySling (Sling_Template format) -- new update, replace FreezeSling
-│  │  │  ├── FireSling (Sling_Template format)
-│  │  │  └── PoisonSling (Sling_Template format)
+│  │  │  ├── SupportLauncher (Launcher_Template format)
+│  │  │  ├── StunLauncher (Launcher_Template format)
+│  │  │  ├── NormalLauncher (Launcher_Template format; default launcher)
+│  │  │  ├── VacuumLauncher (Launcher_Template format)
+│  │  │  ├── StealthLauncher (Launcher_Template format)
+│  │  │  ├── HealLauncher (Launcher_Template format)
+│  │  │  ├── SpeedLauncher (Launcher_Template format)
+│  │  │  ├── BonusBuffLauncher (Launcher_Template format)
+│  │  │  ├── FreezeLauncher (Launcher_Template format) -- sẽ delete trong tương lai
+│  │  │  ├── PetrifyLauncher (Launcher_Template format) -- new update, replace FreezeLauncher
+│  │  │  ├── FireLauncher (Launcher_Template format)
+│  │  │  └── PoisonLauncher (Launcher_Template format)
 │  │  │
 │  │  ├── Icons
 │  │  │   ├── Items
@@ -125,8 +125,8 @@ DataModel
 │  │  │   │   ├── Gacha_Ticket (Image)
 │  │  │   │   └── EXP_Buff (Image)
 │  │  │   │
-│  │  │   └── Slings
-│  │  │       └── Sling icons for the canonical 11 sling ids (Image)
+│  │  │   └── Launchers
+│  │  │       └── Launcher icons for the canonical 11 launcher ids (Image)
 │  │  │
 │  │  └── UI
 │  │      ├── FloatingDamage (BillboardGui)
@@ -144,7 +144,7 @@ DataModel
 │  │      │       ├── Name (TextLabel)
 │  │      │       └── Quantity (TextLabel)
 │  │      │
-│  │      ├── SlingSlotTemplate_InventoryUI (Frame)
+│  │      ├── LauncherSlotTemplate_InventoryUI (Frame)
 │  │      │   └── Root (Frame)
 │  │      │       ├── Stars (Frame)
 │  │      │       │   ├── Star1 (ImageLabel)
@@ -189,7 +189,7 @@ DataModel
 │  │      │   ├── Description (TextLabel)
 │  │      │   └── Title (TextLabel)
 │  │      │
-│  │      ├── SlingWorldUI (BillboardGui)
+│  │      ├── LauncherWorldUI (BillboardGui)
 │  │      │   ├── UIListLayout
 │  │      │   ├── HpBarBackground (Frame)
 │  │      │   │   ├── UICorner
@@ -205,7 +205,7 @@ DataModel
 │  │          ├─ Quantity (TextLabel)
 │  │          └─ Timer (TextLabel)
 │  │
-│  ├─ SlingArenaRemotes
+│  ├─ LauncherArenaRemotes
 │  │  └─ (RemoteEvents from *.model.json + freeze contracts)
 │  │     ├─ MoveRequest
 │  │     ├─ StartCharge
@@ -223,7 +223,7 @@ DataModel
 │  │     ├─ PurchaseMatchBuff
 │  │     ├─ PrestigeReset
 │  │     ├─ DebugSpawnFood
-│  │     ├─ DebugResetSling
+│  │     ├─ DebugResetLauncher
 │  │     ├─ StateUpdate
 │  │     ├─ UIStateUpdate
 │  │     ├─ GameplayFeedback
@@ -242,7 +242,7 @@ DataModel
 ├─ ServerScriptService  -> src/ServerScriptService
 │  ├─ Main.server.lua
 │  ├─ MapLoader.server.lua
-│  ├─ SlingService.server.lua
+│  ├─ LauncherService.server.lua
 │  │
 │  ├─ Config
 │  │  ├─ PhysisConfig.lua
@@ -257,8 +257,8 @@ DataModel
 │     ├─ PlayerService.lua
 │     ├─ RoundService.lua
 │     ├─ MapService.lua
-│     ├─ SlingService.lua
-│     │  ├─ SlingMovement.lua (internal movement module)
+│     ├─ LauncherService.lua
+│     │  ├─ LauncherMovement.lua (internal movement module)
 │     │  └─ ChargeFlow.lua [MISSING: planned internal submodule]
 │     ├─ CollisionService.lua
 │     ├─ DamagePipelineService.lua
@@ -268,7 +268,7 @@ DataModel
 │     ├─ TeamService.lua
 │     ├─ LeaderboardService.lua
 │     ├─ MonetizationService.lua
-│     ├─ SlingAbilityService.lua [MISSING: required by freeze]
+│     ├─ LauncherAbilityService.lua [MISSING: required by freeze]
 │     ├─ SafeZoneService.lua [MISSING: required by freeze]
 │     ├─ MapLoader.server.lua (legacy helper entrypoint)
 │     └─ (SkillService removed in safe migration target)
@@ -364,12 +364,12 @@ DataModel
 │  │  │   │   └─ Title (TextLabel)
 │  │  │   ├── Tabs (Frame)
 │  │  │   │   ├─ ItemsTab (TextButton)
-│  │  │   │   └─ SlingTab (TextButton)
-│  │  │   ├── BodySling (Frame)
+│  │  │   │   └─ LauncherTab (TextButton)
+│  │  │   ├── BodyLauncher (Frame)
 │  │  │   │   ├── Footer (Frame)
 │  │  │   │   │   └─ CapacityLabel (TextLabel)
 │  │  │   │   ├── GridContainer (ScrollingFrame)
-│  │  │   │   │   └─ Slot1, Slot2, Slot3, Slot4 (SlingSlotTemplate_InventoryUI Frames) -- Script Spawn in run time
+│  │  │   │   │   └─ Slot1, Slot2, Slot3, Slot4 (LauncherSlotTemplate_InventoryUI Frames) -- Script Spawn in run time
 │  │  │   │   └── RightPanel (Frame)
 │  │  │   │       ├─ ActionButtons (Frame)
 │  │  │   │       │   ├─ DeleteButton (TextButton)
@@ -472,8 +472,8 @@ DataModel
 │  │  │  └─ Title (TextLabel)
 │  │  └─ Overlay (Frame)
 │  │
-│  └─ SlingArenaUI [INFERRED legacy / alternative UI stack]
-│        ├─ SlingUI (ScreenGui; created in Studio/manual UI asset)
+│  └─ LauncherArenaUI [INFERRED legacy / alternative UI stack]
+│        ├─ LauncherUI (ScreenGui; created in Studio/manual UI asset)
 │        │   ├─ JoystickRoot (Frame)
 │        │   │  ├─ Base (Frame)
 │        │   │  └─ Thumb (Frame)
@@ -486,7 +486,7 @@ DataModel
 │        │   │
 │        │   └─ DirectionIndicator (ImageLabel)
 │        ├─ MainUI.client.lua (deprecated)
-│        ├─ SlingUIController.client.lua (LocalScript; resolves SlingUI ScreenGui without name collision)
+│        ├─ LauncherUIController.client.lua (LocalScript; resolves LauncherUI ScreenGui without name collision)
 │        ├─ UIController.lua
 │        └─ Components/*
 │
@@ -542,11 +542,11 @@ DataModel
 ## ⚫ Runtime Workspace
 └─ Workspace
    └─ Runtime
-      └─ SlingPawns
-         └─ SlingPawns  [INFERRED auto-created by PlayerService]
+      └─ LauncherPawns
+         └─ LauncherPawns  [INFERRED auto-created by PlayerService]
 
 
 Notes:
-- All production `ReplicatedStorage.SlingArenaRemotes.*` instances are defined statically through `src/ReplicatedStorage/SlingArenaRemotes/*.model.json`.
+- All production `ReplicatedStorage.LauncherArenaRemotes.*` instances are defined statically through `src/ReplicatedStorage/LauncherArenaRemotes/*.model.json`.
 - Several runtime-critical map/template instances (e.g. `Workspace/Maps`, `ServerStorage/FoodTemplates`)
   are not present as files in the repo and must be created manually in Roblox Studio.

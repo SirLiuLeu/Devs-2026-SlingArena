@@ -228,9 +228,9 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	local key = getCollisionKey(player, defender)
 	local now = os.clock()
 
-	local slingService = getService(self._context, "SlingService")
+	local launcherService = getService(self._context, "LauncherService")
 	local stateService = getService(self._context, "PlayerStateService")
-	if not (slingService and stateService) then
+	if not (launcherService and stateService) then
 		return
 	end
 	if stateService.HasFlag and (
@@ -238,7 +238,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	) then
 		return
 	end
-	local validLaunch, launchState = slingService:ValidateLaunchReport(player, payload)
+	local validLaunch, launchState = launcherService:ValidateLaunchReport(player, payload)
 	if not validLaunch or not launchState then
 		return
 	end
@@ -276,8 +276,8 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		else defenderOutRaw.Unit * maxDefenderOutSpeed
 	local attackerOut = collisionResult.AttackerVelocity
 
-	local canDamage = slingService:RegisterLaunchDamageTarget(player, launchTargetKey)
-	local canKnockback = slingService:RegisterLaunchKnockbackTarget(player, launchTargetKey)
+	local canDamage = launcherService:RegisterLaunchDamageTarget(player, launchTargetKey)
+	local canKnockback = launcherService:RegisterLaunchKnockbackTarget(player, launchTargetKey)
 	if not canDamage and not canKnockback then
 		return
 	end
@@ -307,7 +307,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		end)
 	end
 
-	self._context.EventBus:Fire("CollisionDetected", "Sling", player, defender, {
+	self._context.EventBus:Fire("CollisionDetected", "Launcher", player, defender, {
 		Speed = impactSpeed,
 		ImpactNormal = normal,
 		AngleFactor = collisionResult.AngleFactor,

@@ -6,8 +6,8 @@
       "Shared": {
         "$path": "src/ReplicatedStorage/Shared"
       },
-      "SlingArenaRemotes": {
-        "$path": "src/ReplicatedStorage/SlingArenaRemotes"
+      "LauncherArenaRemotes": {
+        "$path": "src/ReplicatedStorage/LauncherArenaRemotes"
       },
       "Client": {
         "$path": "src/ReplicatedStorage/Client"

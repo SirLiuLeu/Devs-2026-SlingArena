@@ -1,20 +1,20 @@
 --!strict
 
--- Sling archetype tuning from Rule_DESIGN.md section 5.
+-- Launcher archetype tuning from Rule_DESIGN.md section 5.
 -- Values only define the rules in the design; services own server-authoritative execution.
 local GameConfig = require(script.Parent.GameConfig)
 
 local AbilityConfig = {}
 
--- RCA cleanup: define the sling-to-flag map before AbilityConfig.Types to avoid nil forward references.
-local SlingFlagMap = {
-	PetrifySling = "Petrify",
-	StunSling = "Stun",
-	PoisonSling = "Poison",
-	FireSling = "Burn",
+-- RCA cleanup: define the launcher-to-flag map before AbilityConfig.Types to avoid nil forward references.
+local LauncherFlagMap = {
+	PetrifyLauncher = "Petrify",
+	StunLauncher = "Stun",
+	PoisonLauncher = "Poison",
+	FireLauncher = "Burn",
 }
 
-AbilityConfig.SlingFlagMap = SlingFlagMap
+AbilityConfig.LauncherFlagMap = LauncherFlagMap
 
 local function flagDuration(flagName: string): number
 	local flagConfig = GameConfig.FlagConfig[flagName]
@@ -22,42 +22,42 @@ local function flagDuration(flagName: string): number
 end
 
 AbilityConfig.Types = {
-	SupportSling = {
-		id = "SupportSling",
+	SupportLauncher = {
+		id = "SupportLauncher",
 		healAllyOnCollision = true,
 		healAmountBaseDamageMultiplier = 0.5,
 	},
-	StunSling = {
-		id = "StunSling",
-		collisionFlag = SlingFlagMap.StunSling,
+	StunLauncher = {
+		id = "StunLauncher",
+		collisionFlag = LauncherFlagMap.StunLauncher,
 		collisionExtraDuration = flagDuration("Stun"),
 	},
-	NormalSling = {
-		id = "NormalSling",
+	NormalLauncher = {
+		id = "NormalLauncher",
 		expBonus = 0.5,
 	},
-	VacuumSling = {
-		id = "VacuumSling",
+	VacuumLauncher = {
+		id = "VacuumLauncher",
 		clientScanOnly = true,
 		scanRadius = 22,
 	},
-	StealthSling = {
-		id = "StealthSling",
+	StealthLauncher = {
+		id = "StealthLauncher",
 		invisibleWhileCharging = true,
 		postLaunchInvisibleDuration = 1,
 		revealOnCollision = true,
 	},
-	HealSling = {
-		id = "HealSling",
+	HealLauncher = {
+		id = "HealLauncher",
 		healOnLaunchMaxHpPercent = 0.05,
 	},
-	SpeedSling = {
-		id = "SpeedSling",
+	SpeedLauncher = {
+		id = "SpeedLauncher",
 		moveSpeedPerLaunchPercent = 0.05,
 		maxMoveSpeedStacks = 10,
 	},
-	BonusBuffSling = {
-		id = "BonusBuffSling",
+	BonusBuffLauncher = {
+		id = "BonusBuffLauncher",
 		maxHpMultiplier = 1.15,
 		armor = 0.15,
 		moveSpeedMultiplier = 1.1,
@@ -65,19 +65,19 @@ AbilityConfig.Types = {
 		damageMultiplier = 1.15,
 		reflectDamage = 0.1,
 	},
-	PetrifySling = {
-		id = "PetrifySling",
-		collisionFlag = SlingFlagMap.PetrifySling,
+	PetrifyLauncher = {
+		id = "PetrifyLauncher",
+		collisionFlag = LauncherFlagMap.PetrifyLauncher,
 		collisionExtraDuration = flagDuration("Petrify"),
-		cannotPetrifyAbilityTypes = { FireSling = true },
+		cannotPetrifyAbilityTypes = { FireLauncher = true },
 	},
-	FireSling = {
-		id = "FireSling",
-		dotFlag = SlingFlagMap.FireSling,
+	FireLauncher = {
+		id = "FireLauncher",
+		dotFlag = LauncherFlagMap.FireLauncher,
 	},
-	PoisonSling = {
-		id = "PoisonSling",
-		dotFlag = SlingFlagMap.PoisonSling,
+	PoisonLauncher = {
+		id = "PoisonLauncher",
+		dotFlag = LauncherFlagMap.PoisonLauncher,
 	},
 }
 

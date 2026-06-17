@@ -49,16 +49,16 @@ local function ensureAssetTemplates()
 		itemTemplate.Parent = ui
 	end
 
-	local slingTemplate = ui:FindFirstChild("SlingSlotTemplate_InventoryUI")
-	if not slingTemplate then
-		slingTemplate = Instance.new("Frame")
-		slingTemplate.Name = "SlingSlotTemplate_InventoryUI"
-		local slingRoot = Instance.new("Frame")
-		slingRoot.Name = "Root"
-		slingRoot.Parent = slingTemplate
+	local launcherTemplate = ui:FindFirstChild("LauncherSlotTemplate_InventoryUI")
+	if not launcherTemplate then
+		launcherTemplate = Instance.new("Frame")
+		launcherTemplate.Name = "LauncherSlotTemplate_InventoryUI"
+		local launcherRoot = Instance.new("Frame")
+		launcherRoot.Name = "Root"
+		launcherRoot.Parent = launcherTemplate
 		local stars = Instance.new("Frame")
 		stars.Name = "Stars"
-		stars.Parent = slingRoot
+		stars.Parent = launcherRoot
 		for starIndex = 1, 5 do
 			local star = Instance.new("ImageLabel")
 			star.Name = "Star" .. starIndex
@@ -66,17 +66,17 @@ local function ensureAssetTemplates()
 		end
 		local icon = Instance.new("ImageLabel")
 		icon.Name = "Icon"
-		icon.Parent = slingRoot
+		icon.Parent = launcherRoot
 		local equippedTag = Instance.new("TextLabel")
 		equippedTag.Name = "EquippedTag"
-		equippedTag.Parent = slingRoot
+		equippedTag.Parent = launcherRoot
 		local level = Instance.new("TextLabel")
 		level.Name = "Level"
-		level.Parent = slingRoot
+		level.Parent = launcherRoot
 		local name = Instance.new("TextLabel")
 		name.Name = "Name"
-		name.Parent = slingRoot
-		slingTemplate.Parent = ui
+		name.Parent = launcherRoot
+		launcherTemplate.Parent = ui
 	end
 end
 
@@ -100,9 +100,9 @@ local function buildInventoryGui(): ScreenGui
 	local itemsTab = Instance.new("TextButton")
 	itemsTab.Name = "ItemsTab"
 	itemsTab.Parent = tabs
-	local slingTab = Instance.new("TextButton")
-	slingTab.Name = "SlingTab"
-	slingTab.Parent = tabs
+	local launcherTab = Instance.new("TextButton")
+	launcherTab.Name = "LauncherTab"
+	launcherTab.Parent = tabs
 
 	local bodyItems = Instance.new("Frame")
 	bodyItems.Name = "BodyItems"
@@ -111,15 +111,15 @@ local function buildInventoryGui(): ScreenGui
 	itemsGrid.Name = "GridContainer"
 	itemsGrid.Parent = bodyItems
 
-	local bodySling = Instance.new("Frame")
-	bodySling.Name = "BodySling"
-	bodySling.Parent = root
-	local slingGrid = Instance.new("ScrollingFrame")
-	slingGrid.Name = "GridContainer"
-	slingGrid.Parent = bodySling
+	local bodyLauncher = Instance.new("Frame")
+	bodyLauncher.Name = "BodyLauncher"
+	bodyLauncher.Parent = root
+	local launcherGrid = Instance.new("ScrollingFrame")
+	launcherGrid.Name = "GridContainer"
+	launcherGrid.Parent = bodyLauncher
 	local footer = Instance.new("Frame")
 	footer.Name = "Footer"
-	footer.Parent = bodySling
+	footer.Parent = bodyLauncher
 	local cap = Instance.new("TextLabel")
 	cap.Name = "CapacityLabel"
 	cap.Parent = footer
@@ -127,7 +127,7 @@ local function buildInventoryGui(): ScreenGui
 	return screen
 end
 
-local function testGiveSlingAddsAndRenders()
+local function testGiveLauncherAddsAndRenders()
 	ensureAssetTemplates()
 	local playerGui = Instance.new("Folder")
 	playerGui.Name = "PlayerGui"
@@ -139,28 +139,28 @@ local function testGiveSlingAddsAndRenders()
 	controller:SetDataProvider(provider)
 	controller:Start()
 
-	provider:GiveTestSling()
-	provider:GiveTestSling()
+	provider:GiveTestLauncher()
+	provider:GiveTestLauncher()
 	local snapshot = provider:GetSnapshot()
 	controller:RefreshWithData(snapshot)
 
-	if #snapshot.ownedSlings < 2 then
-		error("GiveSling must add at least 2 slings after 2 clicks")
+	if #snapshot.ownedLaunchers < 2 then
+		error("GiveLauncher must add at least 2 launchers after 2 clicks")
 	end
-	local spawnedSlingSlots = (controller :: any)._spawnedSlingSlots
-	if #spawnedSlingSlots < 2 then
-		error("Sling slots must render at least 2 entries")
+	local spawnedLauncherSlots = (controller :: any)._spawnedLauncherSlots
+	if #spawnedLauncherSlots < 2 then
+		error("Launcher slots must render at least 2 entries")
 	end
-	local firstSlot = spawnedSlingSlots[1]
-	if firstSlot.Name:sub(1, 15) ~= "GeneratedSling_" then
-		error("Sling slot must be a cloned generated SlingSlotTemplate_InventoryUI entry")
+	local firstSlot = spawnedLauncherSlots[1]
+	if firstSlot.Name:sub(1, 15) ~= "GeneratedLauncher_" then
+		error("Launcher slot must be a cloned generated LauncherSlotTemplate_InventoryUI entry")
 	end
 	local root = firstSlot:FindFirstChild("Root")
 	if not root or not root:FindFirstChild("Stars") or not root:FindFirstChild("Icon") or not root:FindFirstChild("EquippedTag") or not root:FindFirstChild("Level") or not root:FindFirstChild("Name") then
-		error("Generated sling slot must preserve SlingSlotTemplate_InventoryUI/Root hierarchy")
+		error("Generated launcher slot must preserve LauncherSlotTemplate_InventoryUI/Root hierarchy")
 	end
 
-	print(string.format("[InventorySystemTests] Rendered sling slots=%d", #spawnedSlingSlots))
+	print(string.format("[InventorySystemTests] Rendered launcher slots=%d", #spawnedLauncherSlots))
 	controller:Destroy()
 	provider:Destroy()
 	playerGui:Destroy()
@@ -177,22 +177,22 @@ local function testMockInventoryLoadsAndUsesTemplates()
 	local staticItemSlot = Instance.new("Frame")
 	staticItemSlot.Name = "Slot1"
 	staticItemSlot.Parent = itemsGrid
-	local slingsGrid = inventoryGui.Root.BodySling.GridContainer
-	local staticSlingSlot = Instance.new("Frame")
-	staticSlingSlot.Name = "Slot1"
-	staticSlingSlot.Parent = slingsGrid
+	local launchersGrid = inventoryGui.Root.BodyLauncher.GridContainer
+	local staticLauncherSlot = Instance.new("Frame")
+	staticLauncherSlot.Name = "Slot1"
+	staticLauncherSlot.Parent = launchersGrid
 
 	local provider = InventoryDataProvider.new()
 	provider:LoadMockInventory()
 	local snapshot = provider:GetSnapshot()
 	local mockSnapshot = MockData.GetInventoryState()
 
-	local mockSlingCount = 0
-	for _ in pairs(mockSnapshot.OwnedSlings) do
-		mockSlingCount += 1
+	local mockLauncherCount = 0
+	for _ in pairs(mockSnapshot.OwnedLaunchers) do
+		mockLauncherCount += 1
 	end
-	if #snapshot.ownedSlings ~= mockSlingCount then
-		error("Provider mock sling count must match mock data source")
+	if #snapshot.ownedLaunchers ~= mockLauncherCount then
+		error("Provider mock launcher count must match mock data source")
 	end
 	if (snapshot.ownedItems.gacha_ticket or 0) ~= 100 then
 		error("Mock data must include 100 gacha tickets")
@@ -203,7 +203,7 @@ local function testMockInventoryLoadsAndUsesTemplates()
 	controller:Start()
 	controller:RefreshWithData(snapshot)
 
-	if itemsGrid:FindFirstChild("Slot1") or slingsGrid:FindFirstChild("Slot1") then
+	if itemsGrid:FindFirstChild("Slot1") or launchersGrid:FindFirstChild("Slot1") then
 		error("Inventory grids should clear pre-existing slots and use cloned templates only")
 	end
 
@@ -212,5 +212,5 @@ local function testMockInventoryLoadsAndUsesTemplates()
 	playerGui:Destroy()
 end
 
-runTest("GiveSling button behavior adds slings and renders slots", testGiveSlingAddsAndRenders)
+runTest("GiveLauncher button behavior adds launchers and renders slots", testGiveLauncherAddsAndRenders)
 runTest("Mock inventory loads and replaces static slots", testMockInventoryLoadsAndUsesTemplates)

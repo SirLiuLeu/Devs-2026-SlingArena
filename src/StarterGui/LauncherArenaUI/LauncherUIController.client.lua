@@ -7,15 +7,15 @@ local UserInputService = game:GetService("UserInputService")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
-local SlingUiConstants = require(ReplicatedStorage.Shared.Constants.SlingUiConstants)
+local LauncherUiConstants = require(ReplicatedStorage.Shared.Constants.LauncherUiConstants)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
-local SlingUiState = require(ReplicatedStorage.Shared.Utils.SlingUiState)
+local LauncherUiState = require(ReplicatedStorage.Shared.Utils.LauncherUiState)
 local WaitForUI = require(ReplicatedStorage.Shared.Utils.WaitForUI)
 local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
+local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 local startChargeRemote = remotes:WaitForChild(RemoteContracts.Names.StartCharge) :: RemoteEvent
 local requestLaunchRemote = remotes:WaitForChild(RemoteContracts.Names.RequestLaunch) :: RemoteEvent
 local stateUpdateRemote = remotes:FindFirstChild(RemoteContracts.Names.StateUpdate) :: RemoteEvent?
@@ -67,8 +67,8 @@ local cachedCooldownFill: GuiObject? = nil
 -- [UI_CREATION_GUIDE]
 -- Create in Studio:
 -- StarterGui
---   SlingArenaUI (Folder)
---     SlingUI (ScreenGui)
+--   LauncherArenaUI (Folder)
+--     LauncherUI (ScreenGui)
 --       JoystickRoot (Frame)
 --         Base (Frame)
 --         Thumb (Frame)
@@ -98,7 +98,7 @@ local function logUiResolvedOnce(screenGui: ScreenGui)
 
 	loggedUiResolved = true
 	lastResolvedPath = screenGui:GetFullName()
-	debugLog(string.format("[SlingUI] UI resolved: %s", lastResolvedPath))
+	debugLog(string.format("[LauncherUI] UI resolved: %s", lastResolvedPath))
 end
 
 local function warnMissingUiOnce(message: string)
@@ -108,7 +108,7 @@ local function warnMissingUiOnce(message: string)
 
 	warnedMissingUi = true
 	warn(message)
-	warn("[UI_CREATION_GUIDE] Required path: StarterGui.SlingArenaUI.SlingUI.JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator.")
+	warn("[UI_CREATION_GUIDE] Required path: StarterGui.LauncherArenaUI.LauncherUI.JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator.")
 end
 
 local function setVisibleSafe(instance: GuiObject?, visible: boolean)
@@ -154,7 +154,7 @@ local function ensureAnchors(joystickRoot: GuiObject?, base: GuiObject?, thumb: 
 end
 
 local function resolveDirectionIndicator(screenGui: ScreenGui): Instance?
-	return findChild(screenGui, SlingUiConstants.Elements.DirectionIndicator)
+	return findChild(screenGui, LauncherUiConstants.Elements.DirectionIndicator)
 end
 
 local function disconnectUiInputConnections()
@@ -194,7 +194,7 @@ local function resolveScreenGui(waitForUi: boolean): ScreenGui?
 		return cachedScreenGui
 	end
 
-	cachedScreenGui = WaitForUI.ResolveSlingUIWithRetry(player, {
+	cachedScreenGui = WaitForUI.ResolveLauncherUIWithRetry(player, {
 		wait = waitForUi,
 		timeout = if waitForUi then 5 else 0,
 		onResolved = function(screenGui)
@@ -218,7 +218,7 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 		if WaitForUI.IsRetryPending(player) and waitForUi ~= true then
 			return nil, nil, nil, nil, nil, nil, nil, nil, nil
 		end
-		warnMissingUiOnce("[SlingUI] Missing SlingUI ScreenGui at PlayerGui.SlingArenaUI.SlingUI.")
+		warnMissingUiOnce("[LauncherUI] Missing LauncherUI ScreenGui at PlayerGui.LauncherArenaUI.LauncherUI.")
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil
 	end
 
@@ -236,7 +236,7 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 	local cooldownFill = if cooldownBar then findChild(cooldownBar, "Fill") else nil
 
 	if not joystickRoot or not base or not thumb or not chargeBar or not chargeFill or not cooldownBar or not cooldownFill or not directionIndicator then
-		warnMissingUiOnce("[SlingUI] SlingUI hierarchy is incomplete. Expected SlingUI > JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator.")
+		warnMissingUiOnce("[LauncherUI] LauncherUI hierarchy is incomplete. Expected LauncherUI > JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator.")
 	end
 
 	cachedJoystickRoot = if joystickRoot and joystickRoot:IsA("GuiObject") then joystickRoot else nil
@@ -272,7 +272,7 @@ end
 
 local function updateChargeBar(percent: number)
 	local _, _, _, _, chargeBar, chargeFill = resolveUi(false)
-	local normalized = SlingUiState.ClampRatio(percent)
+	local normalized = LauncherUiState.ClampRatio(percent)
 	setVisibleSafe(chargeBar, isHolding or normalized > 0)
 	if chargeFill then
 		chargeFill.Size = UDim2.new(normalized, 0, 1, 0)
@@ -281,7 +281,7 @@ end
 
 local function updateCooldownBar(percent: number)
 	local _, _, _, _, _, _, _, cooldownBar, cooldownFill = resolveUi(false)
-	local normalized = SlingUiState.ClampRatio(percent)
+	local normalized = LauncherUiState.ClampRatio(percent)
 	if cooldownFill then
 		cooldownFill.Size = UDim2.new(normalized, 0, 1, 0)
 	end
@@ -375,7 +375,7 @@ local function updateArrowPreview()
 	if not arrowPreview then
 		local arrowTemplate = prefabsFolder:FindFirstChild("ArrowModel")
 		if not arrowTemplate or not arrowTemplate:IsA("Model") then
-			warn("[SlingUI] Missing ReplicatedStorage.Assets.Prefabs.ArrowModel for local charge preview.")
+			warn("[LauncherUI] Missing ReplicatedStorage.Assets.Prefabs.ArrowModel for local charge preview.")
 			return
 		end
 
@@ -407,10 +407,10 @@ local function updateJoystickFromInput(input: InputObject)
 	local root = getCharacterRoot()
 	if root then
 		currentChargeAimDirection = resolveChargeAimDirection(root)
-		player:SetAttribute("SlingAimDirection", currentChargeAimDirection)
+		player:SetAttribute("LauncherAimDirection", currentChargeAimDirection)
 	end
 	cachedThumb.Position = UDim2.new(0.5, clampedVector.X, 0.5, clampedVector.Y)
-	updateDirectionIndicator(SlingUiState.ComputeDirectionRotation(clampedVector))
+	updateDirectionIndicator(LauncherUiState.ComputeDirectionRotation(clampedVector))
 end
 
 local function stopUiLoopIfIdle()
@@ -428,7 +428,7 @@ end
 
 local function stepUi()
 	if isHolding then
-		local chargeRatio = SlingUiState.ComputeChargeRatio(os.clock() - chargeStartTime, MAX_CHARGE_TIME)
+		local chargeRatio = LauncherUiState.ComputeChargeRatio(os.clock() - chargeStartTime, MAX_CHARGE_TIME)
 		updateChargeBar(chargeRatio)
 	else
 		updateChargeBar(0)
@@ -439,7 +439,7 @@ local function stepUi()
 
 	local cooldownRatio = 0
 	if cooldownEndTime > cooldownStartTime and os.clock() < cooldownEndTime then
-		cooldownRatio = SlingUiState.ComputeCooldownRatio(os.clock() - cooldownStartTime, cooldownDuration)
+		cooldownRatio = LauncherUiState.ComputeCooldownRatio(os.clock() - cooldownStartTime, cooldownDuration)
 	end
 	updateCooldownBar(cooldownRatio)
 	stopUiLoopIfIdle()
@@ -491,7 +491,7 @@ local function resetVisualState()
 	updateChargeBar(0)
 	destroyArrowPreview()
 	clearCooldown()
-	player:SetAttribute("SlingAimDirection", nil)
+	player:SetAttribute("LauncherAimDirection", nil)
 	applyJoystickVisibilityFromState(lastKnownServerState)
 end
 
@@ -540,12 +540,12 @@ local function startHold(input: InputObject)
 	if root then
 		chargeReferenceFrame = root.CFrame
 		currentChargeAimDirection = getLaunchDirectionFromRoot(root)
-		player:SetAttribute("SlingAimDirection", currentChargeAimDirection)
+		player:SetAttribute("LauncherAimDirection", currentChargeAimDirection)
 	end
 	updateArrowPreview()
 	ensureUiLoopRunning()
 
-	debugLog("[SlingUI] StartCharge remote fired")
+	debugLog("[LauncherUI] StartCharge remote fired")
 
 	startChargeRemote:FireServer(currentChargeAimDirection)
 end
@@ -574,7 +574,7 @@ local function releaseHold(input: InputObject)
 	inputObject = nil
 	player:SetAttribute("PredictedLaunchDirection", currentChargeAimDirection)
 	player:SetAttribute("PredictedLaunchStartedAt", os.clock())
-	player:SetAttribute("SlingAimDirection", nil)
+	player:SetAttribute("LauncherAimDirection", nil)
 	requestLaunchRemote:FireServer({
 		aimTarget = currentChargeAimDirection,
 	})
@@ -585,7 +585,7 @@ local function releaseHold(input: InputObject)
 	destroyArrowPreview()
 	applyJoystickVisibilityFromState(lastKnownServerState)
 
-	debugLog("[SlingUI] RequestLaunch remote fired")
+	debugLog("[LauncherUI] RequestLaunch remote fired")
 end
 
 local function bindJoystickInput()
@@ -670,7 +670,7 @@ if stateUpdateRemote then
 	end)
 end
 
-workspace:WaitForChild("SlingPawns").ChildAdded:Connect(function(child)
+workspace:WaitForChild("LauncherPawns").ChildAdded:Connect(function(child)
 	if child.Name ~= player.Name and child.Name ~= (player.Name .. "_Pawn") then
 		return
 	end
@@ -680,7 +680,7 @@ workspace:WaitForChild("SlingPawns").ChildAdded:Connect(function(child)
 end)
 
 playerGui.ChildAdded:Connect(function(child)
-	if child.Name ~= "SlingArenaUI" and child.Name ~= SlingUiConstants.ScreenGuiName then
+	if child.Name ~= "LauncherArenaUI" and child.Name ~= LauncherUiConstants.ScreenGuiName then
 		return
 	end
 

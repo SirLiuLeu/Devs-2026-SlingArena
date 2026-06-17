@@ -19,11 +19,11 @@ GachaRewardConfig.Rewards = {
 		name = "HP Potion",
 	},
 	{
-		id = "sling_reward",
-		type = "Sling",
+		id = "launcher_reward",
+		type = "Launcher",
 		weight = 10,
 		icon = "rbxassetid://0",
-		name = "Sling",
+		name = "Launcher",
 	},
 	{
 		id = "exp_buff",

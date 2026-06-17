@@ -2,14 +2,14 @@
 
 | RemoteName | Direction | OwnerService | PayloadSchema | Description |
 |---|---|---|---|---|
-| MoveRequest | C->S | SlingService | `{ direction: Vector3 }` | Continuous movement intent input from client. |
-| StartCharge | C->S | SlingService | `{ aimTarget: Vector3 }` | Begin charge sequence for sling launch. |
-| ReleaseCharge | C->S | SlingService | `{ aimTarget: Vector3 }` | Release charged sling launch. |
-| RequestLaunch | C->S | SlingService | `{ aimTarget: Vector3, chargeRatio?: number }` | Canonical alias for launch request contract (freeze-required; map to StartCharge/ReleaseCharge flow). |
+| MoveRequest | C->S | LauncherService | `{ direction: Vector3 }` | Continuous movement intent input from client. |
+| StartCharge | C->S | LauncherService | `{ aimTarget: Vector3 }` | Begin charge sequence for launcher launch. |
+| ReleaseCharge | C->S | LauncherService | `{ aimTarget: Vector3 }` | Release charged launcher launch. |
+| RequestLaunch | C->S | LauncherService | `{ aimTarget: Vector3, chargeRatio?: number }` | Canonical alias for launch request contract (freeze-required; map to StartCharge/ReleaseCharge flow). |
 | JoinArena | C->S | RoundService | `{}` | Player requests arena participation. |
 | LeaveArena | C->S | RoundService | `{}` | Player exits arena participation. |
 | TeleportRequest | C->S | MapService | `{ mapName: string, spawnName: string }` | Admin/debug teleport request. |
-| AbilityTrigger | C->S | SlingAbilityService | `{ abilityId: string, phase: "Start"\|"Commit"\|"Cancel", target?: Vector3, contextId?: string }` | Ability activation intent routed to ability orchestrator. |
+| AbilityTrigger | C->S | LauncherAbilityService | `{ abilityId: string, phase: "Start"\|"Commit"\|"Cancel", target?: Vector3, contextId?: string }` | Ability activation intent routed to ability orchestrator. |
 | AttributeUpgrade | C->S | PlayerStateService | `{ attributeName: string }` | Spend attribute point on selected stat. |
 | ConsumeHpPotion | C->S | PlayerStateService | `{}` | Consume HP potion request. |
 | RequestRespawn | C->S | MonetizationService | `{ mode: "Free" }` | Request free respawn flow. |
@@ -17,7 +17,7 @@
 | PurchaseMatchBuff | C->S | MonetizationService | `{}` | Purchase in-match buff with diamonds. |
 | PrestigeReset | C->S | MonetizationService | `{}` | Prestige reset request. |
 | DebugSpawnFood | C->S | MapService | `{ mapName: string }` | Debug force food spawn for map. |
-| DebugResetSling | C->S | PlayerService | `{}` | Debug reset player sling pawn/state. |
+| DebugResetLauncher | C->S | PlayerService | `{}` | Debug reset player launcher pawn/state. |
 
 # Server → Client (Sync / Feedback)
 
@@ -37,9 +37,9 @@
 |---|---|---|
 | `InputController.client.lua` | Captures keyboard/touch movement input, right-mouse hold state, computes camera-relative movement direction, and sends `MoveRequest` with aim target. | Input |
 | `CameraController.client.lua` | Keeps the local camera in `Custom` mode and sets camera subject to the local pawn root when available. | Input |
-| `SlingUIController.client.lua` | Runs sling joystick/charge/cooldown HUD behavior and sends `StartCharge` / `ReleaseCharge` remotes from UI input. | UI |
+| `LauncherUIController.client.lua` | Runs launcher joystick/charge/cooldown HUD behavior and sends `StartCharge` / `ReleaseCharge` remotes from UI input. | UI |
 | `UIController.lua` | Composes and starts feature UI controllers, wires top-level hub toggles, and routes snapshot updates into UI. | UI |
-| `InventoryUIController.lua` | Renders and updates inventory UI (items/slings), slot interactions, and equipped sling preview model. | UI |
+| `InventoryUIController.lua` | Renders and updates inventory UI (items/launchers), slot interactions, and equipped launcher preview model. | UI |
 | `ShopUIController.lua` | Renders shop tabs/slots and binds buy actions through shop logic service snapshots. | UI |
 | `OnlineRewardUIController.lua` | Renders online reward slots/timers and reward-claim UI states from logic snapshots. | UI |
 | `DailyLoginUIController.lua` | Renders daily login reward slots and claim/locked/completed states from logic snapshots. | UI |
@@ -48,18 +48,18 @@
 
 # Config Data (`ReplicatedStorage/Shared/Config`)
 
-Config modules store shared tuning and content tables (movement/combat constants, level progression formulas, item/sling catalogs, trap/gameplay values, and gacha reward pools). They are required by both client and server code to keep gameplay math and UI/content lookups consistent across systems.
+Config modules store shared tuning and content tables (movement/combat constants, level progression formulas, item/launcher catalogs, trap/gameplay values, and gacha reward pools). They are required by both client and server code to keep gameplay math and UI/content lookups consistent across systems.
 
 | Config file | Data it contains | Known users |
 |---|---|---|
 | `AbilityConfig.lua` | No runtime table currently present (empty file). | usage unclear |
-| `BalanceConfig.lua` | Core balance constants for combat, collisions, growth, launch, respawn, food, and economy values. | `SlingService`, `GrowthService`, `PlayerStateService`, `CollisionService`, `DamagePipelineService`, `FoodService`, `LevelConfig` |
-| `Config.lua` | Base gameplay constants (force/charge/physics/arena/player defaults and movement speed). | `SlingService`, `PlayerService`, `SafeZoneService`, `CollisionService` |
+| `BalanceConfig.lua` | Core balance constants for combat, collisions, growth, launch, respawn, food, and economy values. | `LauncherService`, `GrowthService`, `PlayerStateService`, `CollisionService`, `DamagePipelineService`, `FoodService`, `LevelConfig` |
+| `Config.lua` | Base gameplay constants (force/charge/physics/arena/player defaults and movement speed). | `LauncherService`, `PlayerService`, `SafeZoneService`, `CollisionService` |
 | `FoodConfig.lua` | Placeholder comments for food design fields (EXP/HP/respawn/drop-rate); no exported config table. | usage unclear |
 | `GachaRewardConfig.lua` | Gacha reward entries (id/type/weight/icon/name/teamBonus) and reward accessor. | `GachaSpinLogic`, `SpinUIController`, `GachaSpinLogicTests` |
 | `GameConfig.lua` | Placeholder comments for player cap/phase/respawn/join rules; no exported config table. | usage unclear |
 | `ItemConfig.lua` | Item catalog (`Items`) with metadata (`id`, `name`, `effect`, `icon`, `stackable`) and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
 | `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
-| `SlingConfig.lua` | Canonical 11-sling catalog (`Types`) with `NormalSling` as `DefaultSlingId`, per-sling `modelPath` values under `ReplicatedStorage/Assets/Slings`, rarity/stats, and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
-| `SlingshotConfig.lua` | Launch/charge/recovery constants, slingshot modifiers, and sling combat baseline values. | `SlingService`, `PlayerStateService`, `SlingUIController` |
+| `LauncherConfig.lua` | Canonical 11-launcher catalog (`Types`) with `NormalLauncher` as `DefaultLauncherId`, per-launcher `modelPath` values under `ReplicatedStorage/Assets/Launchers`, rarity/stats, and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
+| `LaunchershotConfig.lua` | Launch/charge/recovery constants, launchershot modifiers, and launcher combat baseline values. | `LauncherService`, `PlayerStateService`, `LauncherUIController` |
 | `TrapConfig.lua` | Trap tuning constants (EXP penalty, cooldown, count, color). | `TrapService` |

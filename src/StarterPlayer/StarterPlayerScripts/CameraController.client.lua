@@ -4,15 +4,15 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
-local slingPawns = Workspace:WaitForChild("SlingPawns")
+local launcherPawns = Workspace:WaitForChild("LauncherPawns")
 
 local function findPawnModel(): Model?
-	local bySuffix = slingPawns:FindFirstChild(player.Name .. "_Pawn")
+	local bySuffix = launcherPawns:FindFirstChild(player.Name .. "_Pawn")
 	if bySuffix and bySuffix:IsA("Model") then
 		return bySuffix
 	end
 
-	local byName = slingPawns:FindFirstChild(player.Name)
+	local byName = launcherPawns:FindFirstChild(player.Name)
 	if byName and byName:IsA("Model") then
 		return byName
 	end
@@ -72,7 +72,7 @@ end
 
 Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(applyDefaultCamera)
 
-slingPawns.ChildAdded:Connect(function(child)
+launcherPawns.ChildAdded:Connect(function(child)
 	if child.Name == player.Name or child.Name == (player.Name .. "_Pawn") then
 		applyDefaultCamera()
 	end

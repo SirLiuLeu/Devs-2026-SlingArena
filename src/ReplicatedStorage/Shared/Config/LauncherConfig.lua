@@ -1,8 +1,8 @@
 --!strict
 
-local SlingConfig = {}
+local LauncherConfig = {}
 
-export type SlingStats = {
+export type LauncherStats = {
 	maxHP: number,
 	baseDamage: number,
 	armor: number,
@@ -25,19 +25,19 @@ export type CollisionAbility = {
 	[string]: any,
 }
 
-export type SlingDefinition = {
+export type LauncherDefinition = {
 	id: string,
 	name: string,
 	abilityType: string?,
 	iconId: string,
-	stats: SlingStats,
+	stats: LauncherStats,
 	passiveAbility: PassiveAbility,
 	collisionAbility: CollisionAbility,
 }
 
-SlingConfig.DefaultSlingId = "NormalSling"
-SlingConfig.ModelScale = 1
-SlingConfig.BaseStats = {
+LauncherConfig.DefaultLauncherId = "NormalLauncher"
+LauncherConfig.ModelScale = 1
+LauncherConfig.BaseStats = {
 	maxHP = 30000,
 	baseDamage = 1000,
 	reflectDamagePercent = 0.05,
@@ -46,30 +46,30 @@ SlingConfig.BaseStats = {
 	size = 1,
 }
 
-SlingConfig.Types = {
-	SupportSling = {
-		id = "SupportSling",
-		name = "Support Sling",
-		abilityType = "SupportSling",
+LauncherConfig.Types = {
+	SupportLauncher = {
+		id = "SupportLauncher",
+		name = "Support Launcher",
+		abilityType = "SupportLauncher",
 		iconId = "rbxassetid://0",
 		stats = { maxHP = 18000, baseDamage = 900, armor = 0, regen = 1, speed = 15.5, launchPower = 1.0, control = 1.05, weight = 111.0 },
 		passiveAbility = { type = "None", params = {} },
 		collisionAbility = {},
 	},
-	StunSling = {
-		id = "StunSling",
-		name = "Stun Sling",
-		abilityType = "StunSling",
+	StunLauncher = {
+		id = "StunLauncher",
+		name = "Stun Launcher",
+		abilityType = "StunLauncher",
 		iconId = "rbxassetid://0",
 		stats = { maxHP = 20000, baseDamage = 1000, armor = 0, regen = 1, speed = 15.5, launchPower = 1.0, control = 1.0, weight = 0.5 },
 		passiveAbility = { type = "None", params = {} },
 		collisionAbility = { flagName = "Stun", durationBase = 1.25 },
 	},
-	NormalSling = {
-		id = "NormalSling",
-		name = "Normal Sling",
+	NormalLauncher = {
+		id = "NormalLauncher",
+		name = "Normal Launcher",
 		iconId = "rbxassetid://0",
-		abilityType = "NormalSling",
+		abilityType = "NormalLauncher",
 		stats = {
 			maxHP = 16000,
 			baseDamage = 1000,
@@ -83,82 +83,82 @@ SlingConfig.Types = {
 		passiveAbility = { type = "ExpBonus", value = 0.5 },
 		collisionAbility = {},
 	},
-	VacuumSling = {
-		id = "VacuumSling",
-		name = "Vacuum Sling",
-		abilityType = "VacuumSling",
+	VacuumLauncher = {
+		id = "VacuumLauncher",
+		name = "Vacuum Launcher",
+		abilityType = "VacuumLauncher",
 		iconId = "rbxassetid://0",
 		stats = { maxHP = 15000, baseDamage = 800, armor = 0, regen = 1, speed = 16.2, launchPower = 0.95, control = 1.1, weight = 0.98 },
 		passiveAbility = { type = "None", params = {} },
 		collisionAbility = {},
 	},
-	StealthSling = {
-		id = "StealthSling",
-		name = "Stealth Sling",
-		abilityType = "StealthSling",
+	StealthLauncher = {
+		id = "StealthLauncher",
+		name = "Stealth Launcher",
+		abilityType = "StealthLauncher",
 		iconId = "rbxassetid://0",
 		stats = { maxHP = 13000, baseDamage = 1200, armor = 0, regen = 1, speed = 18, launchPower = 1.05, control = 1.15, weight = 10.9 },
 		passiveAbility = { type = "None", params = {} },
 		collisionAbility = {},
 	},
-	HealSling = {
-		id = "HealSling",
-		name = "Heal Sling",
-		abilityType = "HealSling",
+	HealLauncher = {
+		id = "HealLauncher",
+		name = "Heal Launcher",
+		abilityType = "HealLauncher",
 		iconId = "rbxassetid://0",
 		stats = { maxHP = 18000, baseDamage = 800, armor = 0, regen = 1.1, speed = 15, launchPower = 0.95, control = 1.05, weight = 1.0 },
 		passiveAbility = { type = "HealOnLaunch", percent = 0.05 },
 		collisionAbility = {},
 	},
-	BonusBuffSling = {
-		id = "BonusBuffSling",
-		name = "Bonus Buff Sling",
-		abilityType = "BonusBuffSling",
+	BonusBuffLauncher = {
+		id = "BonusBuffLauncher",
+		name = "Bonus Buff Launcher",
+		abilityType = "BonusBuffLauncher",
 		iconId = "rbxassetid://0",
 		stats = { maxHP = 22000, baseDamage = 1200, armor = 0.15, regen = 1.1, speed = 17, launchPower = 1.1, control = 1.05, weight = 1.0 },
 		passiveAbility = { type = "ExpBoost", params = { expBonus = 0.1 } },
 		collisionAbility = {},
 	},
-	PetrifySling = {
-		id = "PetrifySling",
-		name = "Petrify Sling",
-		abilityType = "PetrifySling",
+	PetrifyLauncher = {
+		id = "PetrifyLauncher",
+		name = "Petrify Launcher",
+		abilityType = "PetrifyLauncher",
 		iconId = "rbxassetid://0",
 		stats = { maxHP = 20000, baseDamage = 900, armor = 0, regen = 1, speed = 15, launchPower = 1.0, control = 1.1, weight = 1.05 },
 		passiveAbility = { type = "None", params = {} },
 		collisionAbility = { flagName = "Petrify", durationBase = 1.5 },
 	},
-	FireSling = {
-		id = "FireSling",
-		name = "Fire Sling",
-		abilityType = "FireSling",
+	FireLauncher = {
+		id = "FireLauncher",
+		name = "Fire Launcher",
+		abilityType = "FireLauncher",
 		iconId = "rbxassetid://0",
 		stats = { maxHP = 14000, baseDamage = 1200, armor = 0, regen = 1, speed = 17, launchPower = 1.1, control = 0.95, weight = 0.95 },
 		passiveAbility = { type = "None", params = {} },
 		collisionAbility = { flagName = "Burn", durationBase = 4, TickInterval = 1, DamagePerTick = 250 },
 	},
-	PoisonSling = {
-		id = "PoisonSling",
-		name = "Poison Sling",
-		abilityType = "PoisonSling",
+	PoisonLauncher = {
+		id = "PoisonLauncher",
+		name = "Poison Launcher",
+		abilityType = "PoisonLauncher",
 		iconId = "rbxassetid://0",
 		stats = { maxHP = 15000, baseDamage = 900, armor = 0, regen = 1, speed = 16.5, launchPower = 1.0, control = 1.05, weight = 0.95 },
 		passiveAbility = { type = "None", params = {} },
 		collisionAbility = { flagName = "Poison", durationBase = 5, TickInterval = 1, DamagePerTick = 150, SlowAmount = 0.25 },
 	},
-} :: { [string]: SlingDefinition }
+} :: { [string]: LauncherDefinition }
 
-function SlingConfig.GetById(id: string): SlingDefinition?
-	return SlingConfig.Types[id]
+function LauncherConfig.GetById(id: string): LauncherDefinition?
+	return LauncherConfig.Types[id]
 end
 
-function SlingConfig.GetAllIds(): { string }
+function LauncherConfig.GetAllIds(): { string }
 	local result = {}
-	for id in pairs(SlingConfig.Types) do
+	for id in pairs(LauncherConfig.Types) do
 		table.insert(result, id)
 	end
 	table.sort(result)
 	return result
 end
 
-return SlingConfig
+return LauncherConfig

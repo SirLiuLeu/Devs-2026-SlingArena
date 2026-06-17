@@ -1,6 +1,6 @@
 {
   "ClassName": "Model",
-  "Name": "Sling_Template",
+  "Name": "Launcher_Template",
   "Children": [
     {
       "ClassName": "Part",

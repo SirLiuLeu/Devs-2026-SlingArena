@@ -11,9 +11,9 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
 local player = Players.LocalPlayer
-local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
+local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 local moveRequestRemote = remotes:WaitForChild(RemoteContracts.Names.MoveRequest) :: RemoteEvent
-local slingPawns = Workspace:WaitForChild("SlingPawns")
+local launcherPawns = Workspace:WaitForChild("LauncherPawns")
 
 
 local keyboardState = {
@@ -66,7 +66,7 @@ local function computeMoveInput(): Vector3
 end
 
 local function computeAimDirection(): Vector3?
-	local joystickAim = player:GetAttribute("SlingAimDirection")
+	local joystickAim = player:GetAttribute("LauncherAimDirection")
 	if typeof(joystickAim) == "Vector3" then
 		local planarJoystickAim = Vector3.new(joystickAim.X, 0, joystickAim.Z)
 		if planarJoystickAim.Magnitude >= PhysicsConfig.Movement.InputDeadzone then
@@ -92,16 +92,16 @@ local function onDirectionalAction(directionName: string, state: Enum.UserInputS
 	return Enum.ContextActionResult.Pass
 end
 
-ContextActionService:BindAction("SlingForward", function(_, state)
+ContextActionService:BindAction("LauncherForward", function(_, state)
 	return onDirectionalAction("forward", state)
 end, false, Enum.PlayerActions.CharacterForward)
-ContextActionService:BindAction("SlingBackward", function(_, state)
+ContextActionService:BindAction("LauncherBackward", function(_, state)
 	return onDirectionalAction("backward", state)
 end, false, Enum.PlayerActions.CharacterBackward)
-ContextActionService:BindAction("SlingLeft", function(_, state)
+ContextActionService:BindAction("LauncherLeft", function(_, state)
 	return onDirectionalAction("left", state)
 end, false, Enum.PlayerActions.CharacterLeft)
-ContextActionService:BindAction("SlingRight", function(_, state)
+ContextActionService:BindAction("LauncherRight", function(_, state)
 	return onDirectionalAction("right", state)
 end, false, Enum.PlayerActions.CharacterRight)
 
@@ -128,7 +128,7 @@ UserInputService.InputEnded:Connect(function(input)
 	end
 end)
 
-slingPawns.ChildAdded:Connect(function(child)
+launcherPawns.ChildAdded:Connect(function(child)
 	if child.Name ~= player.Name and child.Name ~= (player.Name .. "_Pawn") then
 		return
 	end

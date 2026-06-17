@@ -107,7 +107,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.WinnerPopup = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.WinnerPopup)
 	self.DebugFoodButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugFoodButton)
 	self.DebugResetButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugResetButton)
-	self.SlingStatsButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.SlingStatsButton)
+	self.LauncherStatsButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.LauncherStatsButton)
 	self.DailyButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.DailyButton)
 	self.InventoryButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.InventoryButton)
 	self.OnlineRewardButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.OnlineRewardButton)
@@ -115,7 +115,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.SpinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.SpinButton)
 	self.ShopButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.ShopButton)
 	self.QuickHpButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP)
-	self.QuickHpCountLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPCountLabel)
+	self.QuickHpQuantityLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPQuantity)
 	self.DamageBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff)
 	self.DamageBuffValueText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageValueText)
 	self.ExpBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.ExpBuff)
@@ -124,13 +124,13 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.HPRecoveryTimeText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecoveryTime)
 	self.HomeButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.HomeButton)
 	self.TeamIndicator = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.TeamIndicator)
-	self.DiamondQuantityLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.DiamondQuantity)
+	self.DiamondValueLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.DiamondValue)
 	self.ExpBarFill = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.Fill)
 	self.ExpValueLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.ValueLabel)
 	self.ExpLevelLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.LevelLabel)
 
 	self.PanelMap = {
-		SlingStats = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.SlingStats),
+		LauncherStats = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.LauncherStats),
 		DailyLogin = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.DailyLogin),
 		Shop = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Shop) or resolveScreenGui(playerGui, "ShopUI"),
 		Inventory = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Inventory),
@@ -150,7 +150,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not self.WinnerPopup then warnMissingUiPath(ProjectTreeSpec.UI.Match.WinnerPopup, "TextLabel") end
 	if not self.DebugFoodButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.DebugFoodButton, "TextButton") end
 	if not self.DebugResetButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.DebugResetButton, "TextButton") end
-	if not self.SlingStatsButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SlingStatsButton, "TextButton") end
+	if not self.LauncherStatsButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.LauncherStatsButton, "TextButton") end
 	if not self.DailyButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.DailyButton, "GuiButton") end
 	if not self.InventoryButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.InventoryButton, "GuiButton") end
 	if not self.OnlineRewardButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.OnlineRewardButton, "GuiButton") end
@@ -165,12 +165,12 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not (self.ExpBuffValueText and self.ExpBuffValueText:IsA("TextLabel")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.ExpValueText, "TextLabel") end
 	if not (self.HPRecoveryBuff and self.HPRecoveryBuff:IsA("GuiObject")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecovery, "GuiObject") end
 	if not (self.HPRecoveryTimeText and self.HPRecoveryTimeText:IsA("TextLabel")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecoveryTime, "TextLabel") end
-	if not (self.QuickHpCountLabel and self.QuickHpCountLabel:IsA("TextLabel")) then
-		warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHPCountLabel, "TextLabel")
+	if not (self.QuickHpQuantityLabel and self.QuickHpQuantityLabel:IsA("TextLabel")) then
+		warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHPQuantity, "TextLabel")
 	end
 	if not self.TeamIndicator then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.TeamIndicator, "TextLabel") end
-	if not self.DiamondQuantityLabel then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.DiamondQuantity, "TextLabel") end
-	if not self.PanelMap.SlingStats then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.SlingStats, "ScreenGui") end
+	if not self.DiamondValueLabel then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.DiamondValue, "TextLabel") end
+	if not self.PanelMap.LauncherStats then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.LauncherStats, "ScreenGui") end
 	if not self.PanelMap.DailyLogin then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.DailyLogin, "ScreenGui") end
 	if not self.PanelMap.Shop then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Shop, "ScreenGui") end
 	if not self.PanelMap.Inventory then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Inventory, "ScreenGui") end
@@ -183,11 +183,11 @@ end
 
 function UIController:_refreshMockHud(playerData)
 	local data = playerData or MockPlayerData.GetPlayerData()
-	if self.DiamondQuantityLabel then
-		self.DiamondQuantityLabel.Text = tostring(math.max(0, math.floor(data.Diamonds or 0)))
+	if self.DiamondValueLabel then
+		self.DiamondValueLabel.Text = tostring(math.max(0, math.floor(data.Diamonds or 0)))
 	end
-	if self.QuickHpCountLabel and self.QuickHpCountLabel:IsA("TextLabel") then
-		self.QuickHpCountLabel.Text = string.format("x%d", math.max(0, math.floor((data.OwnedItems and data.OwnedItems.hp_potion) or 0)))
+	if self.QuickHpQuantityLabel and self.QuickHpQuantityLabel:IsA("TextLabel") then
+		self.QuickHpQuantityLabel.Text = string.format("x%d", math.max(0, math.floor((data.OwnedItems and data.OwnedItems.hp_potion) or 0)))
 	end
 	local currentExp = math.max(0, math.floor(data.Exp or 0))
 	local level = 1
@@ -283,12 +283,12 @@ function UIController:Start()
 	end
 	if self.DebugResetButton then
 		table.insert(self.Connections, self.DebugResetButton.MouseButton1Click:Connect(function()
-			self.ClientService:RequestDebugResetSling()
+			self.ClientService:RequestDebugResetLauncher()
 		end))
 	end
-	if self.SlingStatsButton then
-		table.insert(self.Connections, self.SlingStatsButton.MouseButton1Click:Connect(function()
-			self:ToggleMainHubPanel("SlingStats")
+	if self.LauncherStatsButton then
+		table.insert(self.Connections, self.LauncherStatsButton.MouseButton1Click:Connect(function()
+			self:ToggleMainHubPanel("LauncherStats")
 		end))
 	end
 	if self.DailyButton then
@@ -368,8 +368,11 @@ function UIController:Start()
 		if self.ExpBarFill and self.ExpBarFill:IsA("GuiObject") then
 			self.ExpBarFill.Size = UDim2.new(ratio, 0, self.ExpBarFill.Size.Y.Scale, self.ExpBarFill.Size.Y.Offset)
 		end
-		if self.DiamondQuantityLabel then
-			self.DiamondQuantityLabel.Text = tostring(math.max(0, math.floor(MockPlayerData.GetPlayerData().Diamonds or 0)))
+		if self.DiamondValueLabel then
+			self.DiamondValueLabel.Text = tostring(math.max(0, math.floor(state.Diamonds or MockPlayerData.GetPlayerData().Diamonds or 0)))
+		end
+		if self.QuickHpQuantityLabel and self.QuickHpQuantityLabel:IsA("TextLabel") then
+			self.QuickHpQuantityLabel.Text = string.format("x%d", math.max(0, math.floor(state.HpPotions or 0)))
 		end
 		if self.ExpValueLabel then
 			self.ExpValueLabel.Text = string.format("%d / %d", currentExp, required)

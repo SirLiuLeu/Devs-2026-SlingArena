@@ -6,7 +6,7 @@ local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
-local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 
 local InventoryUIController = {}
 InventoryUIController.__index = InventoryUIController
@@ -14,13 +14,13 @@ InventoryUIController.__index = InventoryUIController
 local NORMAL_COLOR = Color3.fromRGB(41, 43, 53)
 local HOVER_COLOR = Color3.fromRGB(62, 66, 82)
 local SELECTED_COLOR = Color3.fromRGB(88, 102, 132)
-local EQUIPPED_SLING_MODEL_NAME = "EquipedSlingModel"
-local LEGACY_EQUIPPED_SLING_MODEL_NAME = "EquippedSlingModel"
-local SLING_MESH_NAME = "Mesh"
+local EQUIPPED_LAUNCHER_MODEL_NAME = "EquipedLauncherModel"
+local LEGACY_EQUIPPED_LAUNCHER_MODEL_NAME = "EquippedLauncherModel"
+local LAUNCHER_MESH_NAME = "Mesh"
 local HITBOX_MESH_WELD_NAME = "WeldConstraint_HitboxMesh"
 local ITEM_SLOT_TEMPLATE_NAME = "ItemSlotTemplate_InventoryUI"
-local SLING_SLOT_TEMPLATE_NAME = "SlingSlotTemplate_InventoryUI"
-local LEGACY_SLING_SLOT_TEMPLATE_NAME = "SlingsSlotTemplate_InventoryUI"
+local LAUNCHER_SLOT_TEMPLATE_NAME = "LauncherSlotTemplate_InventoryUI"
+local LEGACY_LAUNCHER_SLOT_TEMPLATE_NAME = "LaunchersSlotTemplate_InventoryUI"
 
 local function resolveGui(root: Instance, path: string): GuiObject?
 	local value = PathResolver.resolvePath(root, path)
@@ -91,14 +91,14 @@ function InventoryUIController.new(playerGui: PlayerGui)
 	local self = setmetatable({}, InventoryUIController)
 	self._playerGui = playerGui
 	self._spawnedItemSlots = {}
-	self._spawnedSlingSlots = {}
+	self._spawnedLauncherSlots = {}
 	self._connections = {}
 	self._activeTab = "Items"
 	self._slotConnections = {}
 	self._itemSlotMap = {}
-	self._slingSlotMap = {}
+	self._launcherSlotMap = {}
 	self._selectedItemId = nil
-	self._selectedSlingId = nil
+	self._selectedLauncherId = nil
 	self._cachedSnapshot = nil
 	return self
 end
@@ -110,13 +110,13 @@ end
 function InventoryUIController:Start()
 	self._inventoryGui = PathResolver.resolvePath(self._playerGui, ProjectTreeSpec.UI.Inventory.ScreenGui)
 	self._itemsGrid = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsGridContainer)
-	self._slingsGrid = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingsGridContainer)
+	self._launchersGrid = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.LaunchersGridContainer)
 	self._itemsBody = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.BodyItems)
-	self._slingBody = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.BodySling)
+	self._launcherBody = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.BodyLauncher)
 	self._itemsTab = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsTab)
-	self._slingTab = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingTab)
+	self._launcherTab = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherTab)
 	self._closeButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.CloseButton)
-	self._slingCapacityLabel = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingCapacityLabel)
+	self._launcherCapacityLabel = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherCapacityLabel)
 
 	self._itemSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsSelectedName)
 	self._itemStat1 = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsStat1)
@@ -124,13 +124,13 @@ function InventoryUIController:Start()
 	self._itemStat3 = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsStat3)
 	self._itemUseButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsUseButton)
 
-	self._slingSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingSelectedName)
-	self._slingStatDamage = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingStatDamage)
-	self._slingStatHP = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingStatHP)
-	self._slingStatRange = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingStatRange)
-	self._slingStatRegen = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingStatRegen)
-	self._slingEquipButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingEquipButton)
-	self._slingDeleteButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.SlingDeleteButton)
+	self._launcherSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherSelectedName)
+	self._launcherStatDamage = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherStatDamage)
+	self._launcherStatHP = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherStatHP)
+	self._launcherStatRange = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherStatRange)
+	self._launcherStatRegen = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherStatRegen)
+	self._launcherEquipButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherEquipButton)
+	self._launcherDeleteButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherDeleteButton)
 
 	local assets = ReplicatedStorage:WaitForChild("Assets", 5)
 	if not assets then
@@ -141,23 +141,23 @@ function InventoryUIController:Start()
 			warn("[INVENTORY_UI] ReplicatedStorage.Assets.UI missing")
 		else
 			self._itemTemplate = findUiTemplate(uiFolder, ITEM_SLOT_TEMPLATE_NAME, nil)
-			self._slingTemplate = findUiTemplate(uiFolder, SLING_SLOT_TEMPLATE_NAME, LEGACY_SLING_SLOT_TEMPLATE_NAME)
+			self._launcherTemplate = findUiTemplate(uiFolder, LAUNCHER_SLOT_TEMPLATE_NAME, LEGACY_LAUNCHER_SLOT_TEMPLATE_NAME)
 			if not self._itemTemplate then
 				warn("[INVENTORY_UI] " .. ITEM_SLOT_TEMPLATE_NAME .. " missing in ReplicatedStorage.Assets.UI")
 			end
-			if not self._slingTemplate then
-				warn("[INVENTORY_UI] " .. SLING_SLOT_TEMPLATE_NAME .. " missing in ReplicatedStorage.Assets.UI")
+			if not self._launcherTemplate then
+				warn("[INVENTORY_UI] " .. LAUNCHER_SLOT_TEMPLATE_NAME .. " missing in ReplicatedStorage.Assets.UI")
 			end
 		end
 	end
 
 	if not self._inventoryGui then warn("[INVENTORY_UI] InventoryUI ScreenGui missing") end
 	if not self._itemsGrid then warn("[INVENTORY_UI] Items grid container missing") end
-	if not self._slingsGrid then warn("[INVENTORY_UI] Slings grid container missing") end
+	if not self._launchersGrid then warn("[INVENTORY_UI] Launchers grid container missing") end
 	if not self._itemsBody then warn("[INVENTORY_UI] Items body frame missing") end
-	if not self._slingBody then warn("[INVENTORY_UI] Sling body frame missing") end
+	if not self._launcherBody then warn("[INVENTORY_UI] Launcher body frame missing") end
 	if not self._itemsTab then warn("[INVENTORY_UI] ItemsTab button missing") end
-	if not self._slingTab then warn("[INVENTORY_UI] SlingTab button missing") end
+	if not self._launcherTab then warn("[INVENTORY_UI] LauncherTab button missing") end
 	if not self._closeButton then warn("[INVENTORY_UI] CloseButton missing") end
 
 	if self._itemsTab then
@@ -165,9 +165,9 @@ function InventoryUIController:Start()
 			self:SetActiveTab("Items")
 		end))
 	end
-	if self._slingTab then
-		table.insert(self._connections, self._slingTab.MouseButton1Click:Connect(function()
-			self:SetActiveTab("Sling")
+	if self._launcherTab then
+		table.insert(self._connections, self._launcherTab.MouseButton1Click:Connect(function()
+			self:SetActiveTab("Launcher")
 		end))
 	end
 	if self._closeButton then
@@ -184,23 +184,23 @@ function InventoryUIController:Start()
 	else
 		warn("[INVENTORY_UI] " .. ProjectTreeSpec.UI.Inventory.ItemsUseButton .. " missing")
 	end
-	if self._slingEquipButton then
-		table.insert(self._connections, self._slingEquipButton.MouseButton1Click:Connect(function()
+	if self._launcherEquipButton then
+		table.insert(self._connections, self._launcherEquipButton.MouseButton1Click:Connect(function()
 			if self._dataProvider then
-				self._dataProvider:EquipSelectedSling()
+				self._dataProvider:EquipSelectedLauncher()
 			end
 		end))
 	else
-		warn("[INVENTORY_UI] " .. ProjectTreeSpec.UI.Inventory.SlingEquipButton .. " missing")
+		warn("[INVENTORY_UI] " .. ProjectTreeSpec.UI.Inventory.LauncherEquipButton .. " missing")
 	end
-	if self._slingDeleteButton then
-		table.insert(self._connections, self._slingDeleteButton.MouseButton1Click:Connect(function()
+	if self._launcherDeleteButton then
+		table.insert(self._connections, self._launcherDeleteButton.MouseButton1Click:Connect(function()
 			if self._dataProvider then
-				self._dataProvider:UnequipSelectedSling()
+				self._dataProvider:UnequipSelectedLauncher()
 			end
 		end))
 	else
-		warn("[INVENTORY_UI] " .. ProjectTreeSpec.UI.Inventory.SlingDeleteButton .. " missing")
+		warn("[INVENTORY_UI] " .. ProjectTreeSpec.UI.Inventory.LauncherDeleteButton .. " missing")
 	end
 
 	self:SetActiveTab(self._activeTab)
@@ -213,12 +213,12 @@ function InventoryUIController:SetVisible(isVisible: boolean)
 end
 
 function InventoryUIController:SetActiveTab(tabName: string)
-	self._activeTab = tabName == "Sling" and "Sling" or "Items"
+	self._activeTab = tabName == "Launcher" and "Launcher" or "Items"
 	if self._itemsBody then
 		self._itemsBody.Visible = self._activeTab == "Items"
 	end
-	if self._slingBody then
-		self._slingBody.Visible = self._activeTab == "Sling"
+	if self._launcherBody then
+		self._launcherBody.Visible = self._activeTab == "Launcher"
 	end
 end
 
@@ -237,8 +237,8 @@ function InventoryUIController:_clearGeneratedSlots()
 			end
 		end
 	end
-	if self._slingsGrid then
-		for _, child in ipairs(self._slingsGrid:GetChildren()) do
+	if self._launchersGrid then
+		for _, child in ipairs(self._launchersGrid:GetChildren()) do
 			if child:IsA("GuiObject") then
 				child:Destroy()
 			end
@@ -249,15 +249,15 @@ function InventoryUIController:_clearGeneratedSlots()
 			slot:Destroy()
 		end
 	end
-	for _, slot in ipairs(self._spawnedSlingSlots) do
+	for _, slot in ipairs(self._spawnedLauncherSlots) do
 		if slot and slot.Parent then
 			slot:Destroy()
 		end
 	end
 	table.clear(self._spawnedItemSlots)
-	table.clear(self._spawnedSlingSlots)
+	table.clear(self._spawnedLauncherSlots)
 	table.clear(self._itemSlotMap)
-	table.clear(self._slingSlotMap)
+	table.clear(self._launcherSlotMap)
 	self:_disconnectSlotConnections()
 end
 
@@ -298,12 +298,12 @@ function InventoryUIController:_bindSlotState(slot: GuiObject, listType: string,
 
 	table.insert(self._slotConnections, clickTarget.MouseEnter:Connect(function()
 		hoverState = true
-		local selected = (listType == "Item" and self._selectedItemId == id) or (listType == "Sling" and self._selectedSlingId == id)
+		local selected = (listType == "Item" and self._selectedItemId == id) or (listType == "Launcher" and self._selectedLauncherId == id)
 		self:_applySlotVisual(slot, hoverState, selected)
 	end))
 	table.insert(self._slotConnections, clickTarget.MouseLeave:Connect(function()
 		hoverState = false
-		local selected = (listType == "Item" and self._selectedItemId == id) or (listType == "Sling" and self._selectedSlingId == id)
+		local selected = (listType == "Item" and self._selectedItemId == id) or (listType == "Launcher" and self._selectedLauncherId == id)
 		self:_applySlotVisual(slot, hoverState, selected)
 	end))
 	table.insert(self._slotConnections, clickTarget.InputBegan:Connect(function(input)
@@ -315,10 +315,10 @@ function InventoryUIController:_bindSlotState(slot: GuiObject, listType: string,
 			if self._dataProvider then
 				self._dataProvider:SelectItem(id)
 			end
-		elseif listType == "Sling" then
-			self._selectedSlingId = id
+		elseif listType == "Launcher" then
+			self._selectedLauncherId = id
 			if self._dataProvider then
-				self._dataProvider:SelectSling(id)
+				self._dataProvider:SelectLauncher(id)
 			end
 		end
 		if self._cachedSnapshot then
@@ -358,33 +358,33 @@ function InventoryUIController:_spawnItemSlot(itemId: string, quantity: number)
 	table.insert(self._spawnedItemSlots, slot)
 end
 
-function InventoryUIController:_spawnSlingSlot(slingEntry)
-	if not self._slingsGrid or not self._slingTemplate or not self._slingTemplate:IsA("GuiObject") then
+function InventoryUIController:_spawnLauncherSlot(launcherEntry)
+	if not self._launchersGrid or not self._launcherTemplate or not self._launcherTemplate:IsA("GuiObject") then
 		return
 	end
-	local slingId = slingEntry.id
-	local level = slingEntry.level or 1
-	local isEquipped = slingEntry.equipped == true
-	local slingDef = SlingConfig.GetById(slingId)
-	if not slingDef then
-		warn(string.format("[INVENTORY_UI] Unknown sling id in owned data: %s", slingId))
+	local launcherId = launcherEntry.id
+	local level = launcherEntry.level or 1
+	local isEquipped = launcherEntry.equipped == true
+	local launcherDef = LauncherConfig.GetById(launcherId)
+	if not launcherDef then
+		warn(string.format("[INVENTORY_UI] Unknown launcher id in owned data: %s", launcherId))
 		return
 	end
 
-	local slot = self._slingTemplate:Clone()
-	local slotRoot = getTemplateRoot(slot, SLING_SLOT_TEMPLATE_NAME)
+	local slot = self._launcherTemplate:Clone()
+	local slotRoot = getTemplateRoot(slot, LAUNCHER_SLOT_TEMPLATE_NAME)
 	if not slotRoot then
 		slot:Destroy()
 		return
 	end
-	slot.Name = string.format("GeneratedSling_%s", slingId)
+	slot.Name = string.format("GeneratedLauncher_%s", launcherId)
 	slot.Visible = true
-	slot.Parent = self._slingsGrid
-	self:_bindCommonSlot(slotRoot, slingEntry.name or slingDef.name, slingEntry.icon or slingDef.icon)
+	slot.Parent = self._launchersGrid
+	self:_bindCommonSlot(slotRoot, launcherEntry.name or launcherDef.name, launcherEntry.icon or launcherDef.icon)
 
 	local levelLabel = findDirectTemplateText(slotRoot, "Level")
 	if levelLabel then
-		local stats = slingEntry.stats
+		local stats = launcherEntry.stats
 		if type(stats) == "table" then
 			levelLabel.Text = string.format("Lv.%d | Dmg %.1f | HP %.0f", math.max(1, level), stats.damage or 0, stats.hp or 0)
 		else
@@ -408,15 +408,15 @@ function InventoryUIController:_spawnSlingSlot(slingEntry)
 		end
 	end
 
-	self._slingSlotMap[slingId] = slot
-	self:_bindSlotState(slot, "Sling", slingId)
-	table.insert(self._spawnedSlingSlots, slot)
+	self._launcherSlotMap[launcherId] = slot
+	self:_bindSlotState(slot, "Launcher", launcherId)
+	table.insert(self._spawnedLauncherSlots, slot)
 end
 
-function InventoryUIController:_findSlingEntry(ownedSlings, slingId)
-	for _, slingEntry in ipairs(ownedSlings) do
-		if slingEntry.id == slingId then
-			return slingEntry
+function InventoryUIController:_findLauncherEntry(ownedLaunchers, launcherId)
+	for _, launcherEntry in ipairs(ownedLaunchers) do
+		if launcherEntry.id == launcherId then
+			return launcherEntry
 		end
 	end
 	return nil
@@ -441,31 +441,31 @@ function InventoryUIController:_refreshItemPanel(data)
 	end
 end
 
-function InventoryUIController:_refreshSlingPanel(data)
-	local slingId = data.selectedSlingId or self._selectedSlingId
-	self._selectedSlingId = slingId
-	local slingDef = slingId and SlingConfig.GetById(slingId) or nil
-	local slingEntry = slingId and self:_findSlingEntry(data.ownedSlings, slingId) or nil
+function InventoryUIController:_refreshLauncherPanel(data)
+	local launcherId = data.selectedLauncherId or self._selectedLauncherId
+	self._selectedLauncherId = launcherId
+	local launcherDef = launcherId and LauncherConfig.GetById(launcherId) or nil
+	local launcherEntry = launcherId and self:_findLauncherEntry(data.ownedLaunchers, launcherId) or nil
 
-	if self._slingSelectedName then
-		self._slingSelectedName.Text = (slingEntry and slingEntry.name) or (slingDef and slingDef.name) or "No sling selected"
+	if self._launcherSelectedName then
+		self._launcherSelectedName.Text = (launcherEntry and launcherEntry.name) or (launcherDef and launcherDef.name) or "No launcher selected"
 	end
-	if self._slingStatDamage then
-		local value = slingEntry and slingEntry.stats and slingEntry.stats.damage
-		self._slingStatDamage.Text = string.format("Power: %.2f", value or (slingDef and slingDef.stats.launchPower or 0))
+	if self._launcherStatDamage then
+		local value = launcherEntry and launcherEntry.stats and launcherEntry.stats.damage
+		self._launcherStatDamage.Text = string.format("Power: %.2f", value or (launcherDef and launcherDef.stats.launchPower or 0))
 	end
-	if self._slingStatHP then
-		local hpValue = slingEntry and slingEntry.stats and slingEntry.stats.hp
-		self._slingStatHP.Text = hpValue and string.format("HP: %.0f", hpValue) or (slingEntry and string.format("Level: %d", slingEntry.level or 1) or "Level: -")
+	if self._launcherStatHP then
+		local hpValue = launcherEntry and launcherEntry.stats and launcherEntry.stats.hp
+		self._launcherStatHP.Text = hpValue and string.format("HP: %.0f", hpValue) or (launcherEntry and string.format("Level: %d", launcherEntry.level or 1) or "Level: -")
 	end
-	if self._slingStatRange then
-		local rangeValue = slingEntry and slingEntry.stats and slingEntry.stats.range
-		self._slingStatRange.Text = string.format("Range: %.2f", rangeValue or (slingDef and slingDef.stats.control or 0))
+	if self._launcherStatRange then
+		local rangeValue = launcherEntry and launcherEntry.stats and launcherEntry.stats.range
+		self._launcherStatRange.Text = string.format("Range: %.2f", rangeValue or (launcherDef and launcherDef.stats.control or 0))
 	end
-	if self._slingStatRegen then
-		local regenValue = slingEntry and slingEntry.stats and slingEntry.stats.regen
-		local isEquipped = slingEntry and slingEntry.equipped == true
-		self._slingStatRegen.Text = string.format("Regen: %.2f | %s", regenValue or 0, isEquipped and "Equipped" or "Unequipped")
+	if self._launcherStatRegen then
+		local regenValue = launcherEntry and launcherEntry.stats and launcherEntry.stats.regen
+		local isEquipped = launcherEntry and launcherEntry.equipped == true
+		self._launcherStatRegen.Text = string.format("Regen: %.2f | %s", regenValue or 0, isEquipped and "Equipped" or "Unequipped")
 	end
 end
 
@@ -475,73 +475,73 @@ function InventoryUIController:_refreshAllSlotVisuals()
 			self:_applySlotVisual(slot, false, self._selectedItemId == itemId)
 		end
 	end
-	for slingId, slot in pairs(self._slingSlotMap) do
+	for launcherId, slot in pairs(self._launcherSlotMap) do
 		if slot and slot.Parent then
-			self:_applySlotVisual(slot, false, self._selectedSlingId == slingId)
+			self:_applySlotVisual(slot, false, self._selectedLauncherId == launcherId)
 		end
 	end
 end
 
-function InventoryUIController:_resolveSlingModelSource(slingId: string): Model?
+function InventoryUIController:_resolveLauncherModelSource(launcherId: string): Model?
 	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
 	if assetsFolder then
-		local assetsSling = assetsFolder:FindFirstChild("Sling")
-		if assetsSling then
-			local model = assetsSling:FindFirstChild(slingId)
+		local assetsLauncher = assetsFolder:FindFirstChild("Launcher")
+		if assetsLauncher then
+			local model = assetsLauncher:FindFirstChild(launcherId)
 			if model and model:IsA("Model") then
 				return model
 			end
 		end
-		local assetsSlings = assetsFolder:FindFirstChild("Slings")
-		if assetsSlings then
-			local model = assetsSlings:FindFirstChild(slingId)
+		local assetsLaunchers = assetsFolder:FindFirstChild("Launchers")
+		if assetsLaunchers then
+			local model = assetsLaunchers:FindFirstChild(launcherId)
 			if model and model:IsA("Model") then
 				return model
 			end
 		end
 	end
 
-	local slingsFolder = ReplicatedStorage:FindFirstChild("Slings")
-	if slingsFolder then
-		local model = slingsFolder:FindFirstChild(slingId)
+	local launchersFolder = ReplicatedStorage:FindFirstChild("Launchers")
+	if launchersFolder then
+		local model = launchersFolder:FindFirstChild(launcherId)
 		if model and model:IsA("Model") then
 			return model
 		end
 	end
 
-	warn(string.format("[INVENTORY_UI] Sling model missing for %s in ReplicatedStorage/Assets/Slings", slingId))
+	warn(string.format("[INVENTORY_UI] Launcher model missing for %s in ReplicatedStorage/Assets/Launchers", launcherId))
 	return nil
 end
 
-function InventoryUIController:_findEquippedSlingModel(pawn: Model): Model?
-	local direct = pawn:FindFirstChild(EQUIPPED_SLING_MODEL_NAME)
+function InventoryUIController:_findEquippedLauncherModel(pawn: Model): Model?
+	local direct = pawn:FindFirstChild(EQUIPPED_LAUNCHER_MODEL_NAME)
 	if direct and direct:IsA("Model") then
 		return direct
 	end
 
-	local legacy = pawn:FindFirstChild(LEGACY_EQUIPPED_SLING_MODEL_NAME)
+	local legacy = pawn:FindFirstChild(LEGACY_EQUIPPED_LAUNCHER_MODEL_NAME)
 	if legacy and legacy:IsA("Model") then
-		legacy.Name = EQUIPPED_SLING_MODEL_NAME
+		legacy.Name = EQUIPPED_LAUNCHER_MODEL_NAME
 		return legacy
 	end
 
 	return nil
 end
 
-function InventoryUIController:_getOrCreateEquippedSlingModel(pawn: Model): Model
-	local existingModel = self:_findEquippedSlingModel(pawn)
+function InventoryUIController:_getOrCreateEquippedLauncherModel(pawn: Model): Model
+	local existingModel = self:_findEquippedLauncherModel(pawn)
 	if existingModel then
 		return existingModel
 	end
 
 	local equippedModel = Instance.new("Model")
-	equippedModel.Name = EQUIPPED_SLING_MODEL_NAME
+	equippedModel.Name = EQUIPPED_LAUNCHER_MODEL_NAME
 	equippedModel.Parent = pawn
 	return equippedModel
 end
 
-function InventoryUIController:_resolveSlingMesh(model: Model): BasePart?
-	local mesh = model:FindFirstChild(SLING_MESH_NAME)
+function InventoryUIController:_resolveLauncherMesh(model: Model): BasePart?
+	local mesh = model:FindFirstChild(LAUNCHER_MESH_NAME)
 	if mesh and mesh:IsA("BasePart") then
 		return mesh
 	end
@@ -562,45 +562,45 @@ function InventoryUIController:_updateHitboxMeshWeld(pawn: Model, root: BasePart
 	weld.Part1 = mesh
 end
 
-function InventoryUIController:_applyEquippedSlingModel(slingId: string)
-	local modelTemplate = self:_resolveSlingModelSource(slingId)
+function InventoryUIController:_applyEquippedLauncherModel(launcherId: string)
+	local modelTemplate = self:_resolveLauncherModelSource(launcherId)
 	if not modelTemplate then
 		return
 	end
 	local pawn = PawnLocator.GetLocalPawn()
 	if not pawn then
-		warn("[INVENTORY_UI] Sling pawn missing while equipping sling")
+		warn("[INVENTORY_UI] Launcher pawn missing while equipping launcher")
 		return
 	end
 	local root = PawnLocator.GetRootPart(pawn)
 	if not root or not root:IsA("BasePart") then
-		warn("[INVENTORY_UI] Sling pawn root (Hitbox/PrimaryPart) missing while equipping sling")
+		warn("[INVENTORY_UI] Launcher pawn root (Hitbox/PrimaryPart) missing while equipping launcher")
 		return
 	end
 
-	local sourceMesh = self:_resolveSlingMesh(modelTemplate)
+	local sourceMesh = self:_resolveLauncherMesh(modelTemplate)
 	if not sourceMesh then
-		warn(string.format("[INVENTORY_UI] Sling model %s has no Mesh", slingId))
+		warn(string.format("[INVENTORY_UI] Launcher model %s has no Mesh", launcherId))
 		return
 	end
 
-	local equippedModel = self:_getOrCreateEquippedSlingModel(pawn)
-	local oldMesh = equippedModel:FindFirstChild(SLING_MESH_NAME)
+	local equippedModel = self:_getOrCreateEquippedLauncherModel(pawn)
+	local oldMesh = equippedModel:FindFirstChild(LAUNCHER_MESH_NAME)
 	local targetCFrame = if oldMesh and oldMesh:IsA("BasePart") then oldMesh.CFrame else root.CFrame
 	for _, child in ipairs(equippedModel:GetChildren()) do
 		child:Destroy()
 	end
 
 	local mesh = sourceMesh:Clone()
-	mesh.Name = SLING_MESH_NAME
+	mesh.Name = LAUNCHER_MESH_NAME
 	mesh.CFrame = targetCFrame
 	mesh.Anchored = false
 	mesh.CanCollide = false
 	mesh.Massless = true
 	mesh.Parent = equippedModel
 	equippedModel.PrimaryPart = mesh
-	equippedModel:SetAttribute("SlingId", slingId)
-	pawn:SetAttribute("SlingId", slingId)
+	equippedModel:SetAttribute("LauncherId", launcherId)
+	pawn:SetAttribute("LauncherId", launcherId)
 	self:_updateHitboxMeshWeld(pawn, root, mesh)
 end
 
@@ -613,17 +613,17 @@ function InventoryUIController:RefreshWithData(data)
 		self:_spawnItemSlot(itemId, quantity)
 	end
 
-	local ownedSlings = data.ownedSlings or {}
-	for _, slingEntry in ipairs(ownedSlings) do
-		self:_spawnSlingSlot(slingEntry)
+	local ownedLaunchers = data.ownedLaunchers or {}
+	for _, launcherEntry in ipairs(ownedLaunchers) do
+		self:_spawnLauncherSlot(launcherEntry)
 	end
 
-	if self._slingCapacityLabel then
-		self._slingCapacityLabel.Text = string.format("Capacity: %d/%d", #ownedSlings, data.slingCapacity or 0)
+	if self._launcherCapacityLabel then
+		self._launcherCapacityLabel.Text = string.format("Capacity: %d/%d", #ownedLaunchers, data.launcherCapacity or 0)
 	end
 
 	self:_refreshItemPanel(data)
-	self:_refreshSlingPanel(data)
+	self:_refreshLauncherPanel(data)
 	self:_refreshAllSlotVisuals()
 end
 

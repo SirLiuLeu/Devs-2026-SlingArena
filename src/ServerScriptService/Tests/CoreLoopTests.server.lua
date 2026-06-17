@@ -34,7 +34,7 @@ local function buildMockPlayer()
 	}
 end
 
-local function buildMockSling()
+local function buildMockLauncher()
 	return {
 		MaxCharge = 1,
 		MinLaunchSpeed = 12,
@@ -58,9 +58,9 @@ local function simulateMovement(player, inputDirection: Vector3, deltaTime: numb
 	player.Position = player.Position + (inputDirection * deltaTime)
 end
 
-local function chargeAndLaunch(player, sling, chargeRatio: number, aimDirection: Vector3)
-	local clampedRatio = math.clamp(chargeRatio, 0, sling.MaxCharge)
-	local launchSpeed = sling.MinLaunchSpeed + (sling.MaxLaunchSpeed - sling.MinLaunchSpeed) * clampedRatio
+local function chargeAndLaunch(player, launcher, chargeRatio: number, aimDirection: Vector3)
+	local clampedRatio = math.clamp(chargeRatio, 0, launcher.MaxCharge)
+	local launchSpeed = launcher.MinLaunchSpeed + (launcher.MaxLaunchSpeed - launcher.MinLaunchSpeed) * clampedRatio
 	local direction = if aimDirection.Magnitude > 0 then aimDirection.Unit else Vector3.new(1, 0, 0)
 	player.Velocity = direction * launchSpeed
 	return launchSpeed
@@ -102,13 +102,13 @@ end
 local function testChargeLaunchFlowChangesVelocity()
 	-- Setup
 	local player = buildMockPlayer()
-	local sling = buildMockSling()
+	local launcher = buildMockLauncher()
 
 	-- Action
-	local launchSpeed = chargeAndLaunch(player, sling, 0.5, Vector3.new(0, 0, -1))
+	local launchSpeed = chargeAndLaunch(player, launcher, 0.5, Vector3.new(0, 0, -1))
 
 	-- Assertion
-	assertTrue(launchSpeed > sling.MinLaunchSpeed, "Charge should scale launch speed")
+	assertTrue(launchSpeed > launcher.MinLaunchSpeed, "Charge should scale launch speed")
 	assertTrue(player.Velocity.Magnitude > 0, "Launch must assign non-zero velocity")
 	assertEqual(player.Velocity.Unit, Vector3.new(0, 0, -1), "Launch direction should follow aim")
 end

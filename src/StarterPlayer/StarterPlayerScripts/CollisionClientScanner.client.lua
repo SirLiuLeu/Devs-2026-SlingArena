@@ -9,11 +9,11 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameStates = require(Shared:WaitForChild("Constants"):WaitForChild("GameStates"))
 local PhysicsConfig = require(Shared:WaitForChild("Config"):WaitForChild("PhysicsConfig"))
 local CollisionResponse = require(Shared:WaitForChild("Utils"):WaitForChild("CollisionResponse"))
-local stateUpdateRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("StateUpdate") :: RemoteEvent
-local reportFoodRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
-local reportCollisionRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("ReportCollision") :: RemoteEvent
-local gameplayFeedbackRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("GameplayFeedback") :: RemoteEvent
-local clientDoLaunchRemote = ReplicatedStorage:WaitForChild("SlingArenaRemotes"):WaitForChild("ClientDoLaunch") :: RemoteEvent
+local stateUpdateRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("StateUpdate") :: RemoteEvent
+local reportFoodRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
+local reportCollisionRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportCollision") :: RemoteEvent
+local gameplayFeedbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("GameplayFeedback") :: RemoteEvent
+local clientDoLaunchRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClientDoLaunch") :: RemoteEvent
 
 local GRID_CELL_SIZE = 48
 local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance

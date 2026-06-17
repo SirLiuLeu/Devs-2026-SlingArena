@@ -8,7 +8,7 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
 local player = Players.LocalPlayer
-local remotes = ReplicatedStorage:WaitForChild("SlingArenaRemotes")
+local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 local clientDoLaunchRemote = remotes:WaitForChild(RemoteContracts.Names.ClientDoLaunch) :: RemoteEvent
 local reportLaunchStoppedRemote = remotes:WaitForChild(RemoteContracts.Names.ReportLaunchStopped) :: RemoteEvent
 

@@ -11,7 +11,7 @@ export type AttributesState = {
 	MoveSpeed: number,
 }
 
-export type OwnedSling = {
+export type OwnedLauncher = {
 	definitionId: string,
 	star: number,
 	level: number,
@@ -40,9 +40,9 @@ export type PlayerState = {
 	LaunchSpeedBonus: number,
 	RegenBonus: number,
 	KnockbackResistance: number,
-	SlingshotType: string,
-	EquippedSlingInstanceId: string?,
-	OwnedSlings: { [string]: OwnedSling }?,
+	LaunchershotType: string,
+	EquippedLauncherInstanceId: string?,
+	OwnedLaunchers: { [string]: OwnedLauncher }?,
 	ChargeValue: number,
 	CurrentVelocity: Vector3,
 	InvulnerableUntil: number,

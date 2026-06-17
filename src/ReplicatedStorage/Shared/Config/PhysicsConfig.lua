@@ -81,7 +81,7 @@ local PhysicsConfig = {
 		TrapCooldown = 0.25,
 		RealHitMinClosingSpeed = 5.5,
 
-		-- Sling-vs-Sling collision response is based on normal closing speed,
+		-- Launcher-vs-Launcher collision response is based on normal closing speed,
 		-- not a fixed percentage of the attacker's full travel velocity.
 		-- Direct hits use most of the normal component; glancing hits are reduced
 		-- by the collision angle before any defender knockback is emitted.

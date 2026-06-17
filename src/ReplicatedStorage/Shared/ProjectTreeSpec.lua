@@ -14,7 +14,7 @@ local ProjectTreeSpec = {
 		MainHub = {
 			ScreenGui = "MainHUD", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD
 			Root = "MainHUD.Root", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root
-			SlingStatsButton = "MainHUD.Root.SlingStatsButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.SlingStatsButton
+			LauncherStatsButton = "MainHUD.Root.LauncherStatsButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LauncherStatsButton
 			DailyButton = "MainHUD.Root.LeftMenu.DailyButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.DailyButton
 			InventoryButton = "MainHUD.Root.LeftMenu.InventoryButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.InventoryButton
 			OnlineRewardButton = "MainHUD.Root.LeftMenu.OnlineRewardButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.OnlineRewardButton
@@ -22,7 +22,7 @@ local ProjectTreeSpec = {
 			SpinButton = "MainHUD.Root.LeftMenu.SpinButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.SpinButton
 			ShopButton = "MainHUD.Root.LeftMenu.ShopButton", -- [ASSUMED] StarterGui.MainHUD.Root.LeftMenu.ShopButton
 			QuickHP = "MainHUD.Root.QuickHP", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuickHP
-			QuickHPCountLabel = "MainHUD.Root.QuickHP.CountLabel", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuickHP.CountLabel (TextLabel)
+			QuickHPQuantity = "MainHUD.Root.QuickHP.Quantity", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuickHP.Quantity (TextLabel)
 			HomeButton = "MainHUD.Root.Home", -- [INFERRED from PROJECT_TREE.md] StarterGui.MainHUD.Root.Home
 			TeamIndicator = "MainHUD.Root.TeamIndicator", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.TeamIndicator (TextLabel)
 			ExpProgress = {
@@ -31,7 +31,7 @@ local ProjectTreeSpec = {
 				ValueLabel = "MainHUD.Root.ExpProress.ExpValueLabel", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.ExpValueLabel
 				LevelLabel = "MainHUD.Root.ExpProress.LevelOnBarLabel", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.LevelOnBarLabel
 			},
-			DiamondQuantity = "MainHUD.Root.Diamond.Quantity", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.Diamond.Quantity
+			DiamondValue = "MainHUD.Root.Diamond.Value", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.Diamond.Value
 			BuffContainer = {
 				Root = "MainHUD.Root.BuffContainer", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer
 				DamageBuff = "MainHUD.Root.BuffContainer.DamageBuff", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer.DamageBuff
@@ -42,7 +42,7 @@ local ProjectTreeSpec = {
 				HPRecoveryTime = "MainHUD.Root.BuffContainer.HPRecovery.Time", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer.HPRecovery.Time
 			},
 			Panels = {
-				SlingStats = "SlingStatsUI", -- [ASSUMED] expected sling stats panel root ScreenGui name
+				LauncherStats = "LauncherStatsUI", -- [ASSUMED] expected launcher stats panel root ScreenGui name
 				DailyLogin = "DailyLoginUI", -- [PROJECT_TREE_SPEC] StarterGui.DailyLoginUI
 				Shop = "ShopUI", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI
 				Inventory = "InventoryUI", -- [ASSUMED] expected inventory panel root ScreenGui name
@@ -59,26 +59,26 @@ local ProjectTreeSpec = {
 			ScreenGui = "InventoryUI", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI
 			Root = "InventoryUI.Root", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root
 			BodyItems = "InventoryUI.Root.BodyItems", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems
-			BodySling = "InventoryUI.Root.BodySling", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling
+			BodyLauncher = "InventoryUI.Root.BodyLauncher", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher
 			ItemsTab = "InventoryUI.Root.Tabs.ItemsTab", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Tabs.ItemsTab
-			SlingTab = "InventoryUI.Root.Tabs.SlingTab", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Tabs.SlingTab
+			LauncherTab = "InventoryUI.Root.Tabs.LauncherTab", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Tabs.LauncherTab
 			CloseButton = "InventoryUI.Root.Header.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Header.CloseButton
 			ItemsGridContainer = "InventoryUI.Root.BodyItems.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.GridContainer
-			SlingsGridContainer = "InventoryUI.Root.BodySling.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.GridContainer
-			BodySlingGridContainer = "InventoryUI.Root.BodySling.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.GridContainer
-			SlingCapacityLabel = "InventoryUI.Root.BodySling.Footer.CapacityLabel", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.Footer.CapacityLabel
+			LaunchersGridContainer = "InventoryUI.Root.BodyLauncher.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.GridContainer
+			BodyLauncherGridContainer = "InventoryUI.Root.BodyLauncher.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.GridContainer
+			LauncherCapacityLabel = "InventoryUI.Root.BodyLauncher.Footer.CapacityLabel", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.Footer.CapacityLabel
 			ItemsSelectedName = "InventoryUI.Root.BodyItems.RightPanel.SelectedName", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.SelectedName
 			ItemsUseButton = "InventoryUI.Root.BodyItems.RightPanel.ActionButtons.UseButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.ActionButtons.UseButton
 			ItemsStat1 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat1", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat1
 			ItemsStat2 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat2", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat2
 			ItemsStat3 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat3", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat3
-			SlingSelectedName = "InventoryUI.Root.BodySling.RightPanel.SelectedName", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.SelectedName
-			SlingEquipButton = "InventoryUI.Root.BodySling.RightPanel.ActionButtons.EquipButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.ActionButtons.EquipButton
-			SlingDeleteButton = "InventoryUI.Root.BodySling.RightPanel.ActionButtons.DeleteButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.ActionButtons.DeleteButton
-			SlingStatDamage = "InventoryUI.Root.BodySling.RightPanel.Stats.Damage", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.Stats.Damage
-			SlingStatHP = "InventoryUI.Root.BodySling.RightPanel.Stats.HP", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.Stats.HP
-			SlingStatRange = "InventoryUI.Root.BodySling.RightPanel.Stats.Range", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.Stats.Range
-			SlingStatRegen = "InventoryUI.Root.BodySling.RightPanel.Stats.Regen", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodySling.RightPanel.Stats.Regen
+			LauncherSelectedName = "InventoryUI.Root.BodyLauncher.RightPanel.SelectedName", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.RightPanel.SelectedName
+			LauncherEquipButton = "InventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.EquipButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.EquipButton
+			LauncherDeleteButton = "InventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.DeleteButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.DeleteButton
+			LauncherStatDamage = "InventoryUI.Root.BodyLauncher.RightPanel.Stats.Damage", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.RightPanel.Stats.Damage
+			LauncherStatHP = "InventoryUI.Root.BodyLauncher.RightPanel.Stats.HP", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.RightPanel.Stats.HP
+			LauncherStatRange = "InventoryUI.Root.BodyLauncher.RightPanel.Stats.Range", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.RightPanel.Stats.Range
+			LauncherStatRegen = "InventoryUI.Root.BodyLauncher.RightPanel.Stats.Regen", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.RightPanel.Stats.Regen
 		},
 		OnlineReward = {
 			ScreenGui = "OnlineRewardUI", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI
@@ -124,48 +124,48 @@ local ProjectTreeSpec = {
 			AlivePlayersLabel = "MatchUI.RootFrame.AlivePlayersLabel", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI.RootFrame.AlivePlayersLabel
 			WinnerPopup = "MatchUI.RootFrame.WinnerPopup", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI.RootFrame.WinnerPopup
 		},
-		SlingTouch = {
-			Container = "SlingArenaUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI
-			ScreenGui = "SlingArenaUI.SlingUI", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI
-			JoystickRoot = "SlingArenaUI.SlingUI.JoystickRoot", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.JoystickRoot
-			JoystickBase = "SlingArenaUI.SlingUI.JoystickRoot.Base", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.JoystickRoot.Base
-			JoystickThumb = "SlingArenaUI.SlingUI.JoystickRoot.Thumb", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.JoystickRoot.Thumb
-			ChargeBar = "SlingArenaUI.SlingUI.ChargeBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.ChargeBar
-			ChargeFill = "SlingArenaUI.SlingUI.ChargeBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.ChargeBar.Fill
-			DirectionIndicator = "SlingArenaUI.SlingUI.DirectionIndicator", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.DirectionIndicator
-			CooldownBar = "SlingArenaUI.SlingUI.CooldownBar", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.CooldownBar
-			CooldownFill = "SlingArenaUI.SlingUI.CooldownBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.SlingArenaUI.SlingUI.CooldownBar.Fill
+		LauncherTouch = {
+			Container = "LauncherArenaUI", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI
+			ScreenGui = "LauncherArenaUI.LauncherUI", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI
+			JoystickRoot = "LauncherArenaUI.LauncherUI.JoystickRoot", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.JoystickRoot
+			JoystickBase = "LauncherArenaUI.LauncherUI.JoystickRoot.Base", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.JoystickRoot.Base
+			JoystickThumb = "LauncherArenaUI.LauncherUI.JoystickRoot.Thumb", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.JoystickRoot.Thumb
+			ChargeBar = "LauncherArenaUI.LauncherUI.ChargeBar", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.ChargeBar
+			ChargeFill = "LauncherArenaUI.LauncherUI.ChargeBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.ChargeBar.Fill
+			DirectionIndicator = "LauncherArenaUI.LauncherUI.DirectionIndicator", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.DirectionIndicator
+			CooldownBar = "LauncherArenaUI.LauncherUI.CooldownBar", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.CooldownBar
+			CooldownFill = "LauncherArenaUI.LauncherUI.CooldownBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.CooldownBar.Fill
 		},
 	},
 	Remotes = {
-		Folder = "SlingArenaRemotes", -- [PROJECT_TREE_SPEC] ReplicatedStorage.SlingArenaRemotes
-		MoveRequest = "SlingArenaRemotes.MoveRequest", -- [PROJECT_TREE_SPEC]
-		StartCharge = "SlingArenaRemotes.StartCharge", -- [PROJECT_TREE_SPEC]
-		ReleaseCharge = "SlingArenaRemotes.ReleaseCharge", -- [PROJECT_TREE_SPEC]
-		RequestLaunch = "SlingArenaRemotes.RequestLaunch", -- [PROJECT_TREE_SPEC]
-		AbilityTrigger = "SlingArenaRemotes.AbilityTrigger", -- [PROJECT_TREE_SPEC]
-		JoinArena = "SlingArenaRemotes.JoinArena", -- [PROJECT_TREE_SPEC]
-		LeaveArena = "SlingArenaRemotes.LeaveArena", -- [PROJECT_TREE_SPEC]
-		StartSafeZone = "SlingArenaRemotes.StartSafeZone", -- [PROJECT_TREE_SPEC]
-		TeleportRequest = "SlingArenaRemotes.TeleportRequest", -- [PROJECT_TREE_SPEC]
-		AttributeUpgrade = "SlingArenaRemotes.AttributeUpgrade", -- [PROJECT_TREE_SPEC]
-		RequestRespawn = "SlingArenaRemotes.RequestRespawn", -- [PROJECT_TREE_SPEC]
-		PurchaseRespawn = "SlingArenaRemotes.PurchaseRespawn", -- [PROJECT_TREE_SPEC]
-		PurchaseMatchBuff = "SlingArenaRemotes.PurchaseMatchBuff", -- [PROJECT_TREE_SPEC]
-		PrestigeReset = "SlingArenaRemotes.PrestigeReset", -- [PROJECT_TREE_SPEC]
-		DebugSpawnFood = "SlingArenaRemotes.DebugSpawnFood", -- [PROJECT_TREE_SPEC]
-		DebugResetSling = "SlingArenaRemotes.DebugResetSling", -- [PROJECT_TREE_SPEC]
-		ConsumeHpPotion = "SlingArenaRemotes.ConsumeHpPotion", -- [PROJECT_TREE_SPEC]
-		ReportFoodHit = "SlingArenaRemotes.ReportFoodHit", -- [PROJECT_TREE_SPEC]
-		ReportCollision = "SlingArenaRemotes.ReportCollision", -- [PROJECT_TREE_SPEC]
-		ClientDoLaunch = "SlingArenaRemotes.ClientDoLaunch", -- [PROJECT_TREE_SPEC]
-		StateUpdate = "SlingArenaRemotes.StateUpdate", -- [PROJECT_TREE_SPEC]
-		UIStateUpdate = "SlingArenaRemotes.UIStateUpdate", -- [PROJECT_TREE_SPEC]
-		GameplayFeedback = "SlingArenaRemotes.GameplayFeedback", -- [PROJECT_TREE_SPEC]
-		MatchStateUpdate = "SlingArenaRemotes.MatchStateUpdate", -- [PROJECT_TREE_SPEC]
-		RoundResult = "SlingArenaRemotes.RoundResult", -- [PROJECT_TREE_SPEC]
-		PopupMessage = "SlingArenaRemotes.PopupMessage", -- [PROJECT_TREE_SPEC]
-		ZoneUpdate = "SlingArenaRemotes.ZoneUpdate", -- [PROJECT_TREE_SPEC]
+		Folder = "LauncherArenaRemotes", -- [PROJECT_TREE_SPEC] ReplicatedStorage.LauncherArenaRemotes
+		MoveRequest = "LauncherArenaRemotes.MoveRequest", -- [PROJECT_TREE_SPEC]
+		StartCharge = "LauncherArenaRemotes.StartCharge", -- [PROJECT_TREE_SPEC]
+		ReleaseCharge = "LauncherArenaRemotes.ReleaseCharge", -- [PROJECT_TREE_SPEC]
+		RequestLaunch = "LauncherArenaRemotes.RequestLaunch", -- [PROJECT_TREE_SPEC]
+		AbilityTrigger = "LauncherArenaRemotes.AbilityTrigger", -- [PROJECT_TREE_SPEC]
+		JoinArena = "LauncherArenaRemotes.JoinArena", -- [PROJECT_TREE_SPEC]
+		LeaveArena = "LauncherArenaRemotes.LeaveArena", -- [PROJECT_TREE_SPEC]
+		StartSafeZone = "LauncherArenaRemotes.StartSafeZone", -- [PROJECT_TREE_SPEC]
+		TeleportRequest = "LauncherArenaRemotes.TeleportRequest", -- [PROJECT_TREE_SPEC]
+		AttributeUpgrade = "LauncherArenaRemotes.AttributeUpgrade", -- [PROJECT_TREE_SPEC]
+		RequestRespawn = "LauncherArenaRemotes.RequestRespawn", -- [PROJECT_TREE_SPEC]
+		PurchaseRespawn = "LauncherArenaRemotes.PurchaseRespawn", -- [PROJECT_TREE_SPEC]
+		PurchaseMatchBuff = "LauncherArenaRemotes.PurchaseMatchBuff", -- [PROJECT_TREE_SPEC]
+		PrestigeReset = "LauncherArenaRemotes.PrestigeReset", -- [PROJECT_TREE_SPEC]
+		DebugSpawnFood = "LauncherArenaRemotes.DebugSpawnFood", -- [PROJECT_TREE_SPEC]
+		DebugResetLauncher = "LauncherArenaRemotes.DebugResetLauncher", -- [PROJECT_TREE_SPEC]
+		ConsumeHpPotion = "LauncherArenaRemotes.ConsumeHpPotion", -- [PROJECT_TREE_SPEC]
+		ReportFoodHit = "LauncherArenaRemotes.ReportFoodHit", -- [PROJECT_TREE_SPEC]
+		ReportCollision = "LauncherArenaRemotes.ReportCollision", -- [PROJECT_TREE_SPEC]
+		ClientDoLaunch = "LauncherArenaRemotes.ClientDoLaunch", -- [PROJECT_TREE_SPEC]
+		StateUpdate = "LauncherArenaRemotes.StateUpdate", -- [PROJECT_TREE_SPEC]
+		UIStateUpdate = "LauncherArenaRemotes.UIStateUpdate", -- [PROJECT_TREE_SPEC]
+		GameplayFeedback = "LauncherArenaRemotes.GameplayFeedback", -- [PROJECT_TREE_SPEC]
+		MatchStateUpdate = "LauncherArenaRemotes.MatchStateUpdate", -- [PROJECT_TREE_SPEC]
+		RoundResult = "LauncherArenaRemotes.RoundResult", -- [PROJECT_TREE_SPEC]
+		PopupMessage = "LauncherArenaRemotes.PopupMessage", -- [PROJECT_TREE_SPEC]
+		ZoneUpdate = "LauncherArenaRemotes.ZoneUpdate", -- [PROJECT_TREE_SPEC]
 	},
 	Services = {
 		Client = {
@@ -219,14 +219,14 @@ local ProjectTreeSpec = {
 		--
 		-- ReplicatedStorage
 		--   Assets (Folder)
-		--     Slings (Folder)
-		--       NormalSling (Model default)
+		--     Launchers (Folder)
+		--       NormalLauncher (Model default)
 		--   Assets (Folder)
 		--     UI (Folder)
 		--       ItemSlotTemplate_InventoryUI (Frame)
-		--       SlingSlotTemplate_InventoryUI (Frame)
-		--     Slings (Folder)
-		--       SupportSling, StunSling, NormalSling, VacuumSling, StealthSling, HealSling, SpeedSling, BonusBuffSling, PetrifySling, FireSling, PoisonSling
+		--       LauncherSlotTemplate_InventoryUI (Frame)
+		--     Launchers (Folder)
+		--       SupportLauncher, StunLauncher, NormalLauncher, VacuumLauncher, StealthLauncher, HealLauncher, SpeedLauncher, BonusBuffLauncher, PetrifyLauncher, FireLauncher, PoisonLauncher
 		--     Food (Folder)
 		--       BasicFood (Model) [fallback]
 		--		 Food1, Food2, Food3, ...Food7 (Model)
@@ -237,7 +237,7 @@ local ProjectTreeSpec = {
 		--   TeamRed (Team)
 		--   TeamBlue (Team)
 		Workspace = {
-			SlingPawns = "SlingPawns",
+			LauncherPawns = "LauncherPawns",
 			Maps = {
 				Root = "Maps",
 				LobbyMap = "Maps.LobbyMap",
@@ -255,13 +255,13 @@ local ProjectTreeSpec = {
 		ReplicatedStorage = {
 			Assets = {
 				ItemSlotTemplate_InventoryUI = "Assets.UI.ItemSlotTemplate_InventoryUI",
-				SlingSlotTemplate_InventoryUI = "Assets.UI.SlingSlotTemplate_InventoryUI",
+				LauncherSlotTemplate_InventoryUI = "Assets.UI.LauncherSlotTemplate_InventoryUI",
 				SlotRewardTemplate_DailyLoginUI = "Assets.UI.SlotRewardTemplate_DailyLoginUI",
 				SlotItemsTemplate_ShopUI = "Assets.UI.SlotItemsTemplate_ShopUI",
 				SlotLaucherTemplate_shopUI = "Assets.UI.SlotLaucherTemplate_shopUI",
 				SlotDiamondPackTemplate_ShopUI = "Assets.UI.SlotDiamondPackTemplate_ShopUI",
 				SlotRewardTemplate_OnlineRewardUI = "Assets.UI.SlotRewardTemplate_OnlineRewardUI",
-				SlingWorldUI = "Assets.UI.SlingWorldUI",
+				LauncherWorldUI = "Assets.UI.LauncherWorldUI",
 				Food1 = "Assets.Food.Food1",
 				Food2 = "Assets.Food.Food2",
 				Food3 = "Assets.Food.Food3",
@@ -270,23 +270,23 @@ local ProjectTreeSpec = {
 				Food6 = "Assets.Food.Food6",
 				Food7 = "Assets.Food.Food7",
 				BasicTrap = "Assets.Trap.BasicTrap",
-				StunEffect = "Assets.Slings.Player.Hitbox.EffectHead.Stun",
-				BurnEffect = "Assets.Slings.Player.Hitbox.EffectOrigin.Burn",
-				FrostEffect = "Assets.Slings.Player.Hitbox.EffectOrigin.Frost",
-				PoisonEffect = "Assets.Slings.Player.Hitbox.EffectOrigin.Poison",
+				StunEffect = "Assets.Launchers.Player.Hitbox.EffectHead.Stun",
+				BurnEffect = "Assets.Launchers.Player.Hitbox.EffectOrigin.Burn",
+				FrostEffect = "Assets.Launchers.Player.Hitbox.EffectOrigin.Frost",
+				PoisonEffect = "Assets.Launchers.Player.Hitbox.EffectOrigin.Poison",
 			},
-			Slings = {
-				SupportSling = "Assets.Slings.SupportSling",
-				StunSling = "Assets.Slings.StunSling",
-				NormalSling = "Assets.Slings.NormalSling",
-				VacuumSling = "Assets.Slings.VacuumSling",
-				StealthSling = "Assets.Slings.StealthSling",
-				HealSling = "Assets.Slings.HealSling",
-				SpeedSling = "Assets.Slings.SpeedSling",
-				BonusBuffSling = "Assets.Slings.BonusBuffSling",
-				PetrifySling = "Assets.Slings.PetrifySling",
-				FireSling = "Assets.Slings.FireSling",
-				PoisonSling = "Assets.Slings.PoisonSling",
+			Launchers = {
+				SupportLauncher = "Assets.Launchers.SupportLauncher",
+				StunLauncher = "Assets.Launchers.StunLauncher",
+				NormalLauncher = "Assets.Launchers.NormalLauncher",
+				VacuumLauncher = "Assets.Launchers.VacuumLauncher",
+				StealthLauncher = "Assets.Launchers.StealthLauncher",
+				HealLauncher = "Assets.Launchers.HealLauncher",
+				SpeedLauncher = "Assets.Launchers.SpeedLauncher",
+				BonusBuffLauncher = "Assets.Launchers.BonusBuffLauncher",
+				PetrifyLauncher = "Assets.Launchers.PetrifyLauncher",
+				FireLauncher = "Assets.Launchers.FireLauncher",
+				PoisonLauncher = "Assets.Launchers.PoisonLauncher",
 			}
 		},
 	},

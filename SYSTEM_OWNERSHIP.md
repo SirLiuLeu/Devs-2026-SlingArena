@@ -1,4 +1,4 @@
-# Sling Arena – SYSTEM FREEZE Architecture Ownership (Final)
+# Launcher Arena – SYSTEM FREEZE Architecture Ownership (Final)
 
 This document is the frozen ownership reference for server-side architecture.
 All services are categorized and constrained to prevent overlap, God Objects, and circular dependencies.
@@ -8,7 +8,7 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - No circular dependencies between services.
 - One service = one clear ownership boundary.
 - Cross-service orchestration must use `EventBus` (direct calls allowed only for owned APIs that do not create cycles).
-- `SlingService` must stay movement/launch focused and internally modularized (e.g., movement/charge submodules).
+- `LauncherService` must stay movement/launch focused and internally modularized (e.g., movement/charge submodules).
 - Friendly Fire validation must be centralized in `DamagePipelineService` and use `TeamService` relationship queries.
 - `MapLoader` is **not** a service; it remains a helper/legacy entrypoint under `MapService` ownership.
 
@@ -23,11 +23,11 @@ Cross-service communication must use `EventBus` for decoupled flow.
   - Publish `StateUpdate` snapshots.
   - Apply stat recalculation and derived values.
   - Provide state-query APIs to all gameplay systems.
-- **Called by:** SlingService, DamagePipelineService, GrowthService, TeamService, RoundService, PlayerService, SlingAbilityService, LeaderboardService, Meta services.
+- **Called by:** LauncherService, DamagePipelineService, GrowthService, TeamService, RoundService, PlayerService, LauncherAbilityService, LeaderboardService, Meta services.
 - **Dependencies:** Shared config/constants, EventBus.
 
 ### PlayerService
-- **Owns:** Sling pawn lifecycle and player-to-pawn mapping.
+- **Owns:** Launcher pawn lifecycle and player-to-pawn mapping.
 - **Responsibilities:** Spawn/despawn/respawn pawns, root accessors, alive checks, teleport support, avatar enforcement.
 - **Called by:** RoundService, DamagePipelineService, MapService, MonetizationService.
 - **Dependencies:** MapService, PlayerStateService.
@@ -48,12 +48,12 @@ Cross-service communication must use `EventBus` for decoupled flow.
 
 ## 2) Simulation Services
 
-### SlingService
+### LauncherService
 - **Owns:** Authoritative movement/charge/release input pipeline and launch state.
 - **Responsibilities:**
   - Validate `MoveRequest`, `StartCharge`, `ReleaseCharge`.
   - Manage movement/charge/recovery state transitions.
-  - Emit launch/collision-relevant signals on EventBus (e.g., `SlingLaunched`).
+  - Emit launch/collision-relevant signals on EventBus (e.g., `LauncherLaunched`).
   - Keep movement and charge logic internally modularized (submodules); absorb removed MovementService/ChargeService logic.
 - **Called by:** Client movement/launch remotes.
 - **Dependencies:** PlayerService, PlayerStateService, RoundService, internal movement helper modules.
@@ -78,7 +78,7 @@ Cross-service communication must use `EventBus` for decoupled flow.
   - Enforce Friendly Fire OFF via TeamService checks.
   - Handle kill attribution, assist context emission, and downstream EXP context events.
   - Apply knockback/effects and publish combat feedback.
-- **Called by:** CollisionService, TrapService, SafeZoneService, SlingAbilityService.
+- **Called by:** CollisionService, TrapService, SafeZoneService, LauncherAbilityService.
 - **Dependencies:** PlayerStateService, PlayerService, CombatService, TeamService, EventBus.
 
 ### SafeZoneService
@@ -94,15 +94,15 @@ Cross-service communication must use `EventBus` for decoupled flow.
 
 ## 3) Gameplay Services
 
-### SlingAbilityService
-- **Owns:** Sling passive/trigger ability orchestration.
+### LauncherAbilityService
+- **Owns:** Launcher passive/trigger ability orchestration.
 - **Responsibilities (orchestrator only):**
-  - Listen to SlingService/EventBus signals (e.g., launch/hit events).
+  - Listen to LauncherService/EventBus signals (e.g., launch/hit events).
   - Delegate invisibility/clone and EXP buff state effects to `PlayerStateService`.
   - Delegate stun/heal/damage-side effects to `DamagePipelineService` or state APIs.
   - Never execute direct combat/state mutation outside delegated service APIs.
-- **Called by:** EventBus signals from SlingService and collision/damage flow.
-- **Dependencies:** SlingService signals, PlayerStateService, DamagePipelineService, EventBus.
+- **Called by:** EventBus signals from LauncherService and collision/damage flow.
+- **Dependencies:** LauncherService signals, PlayerStateService, DamagePipelineService, EventBus.
 - **Constraint:** MUST NOT directly modify combat or player state bypassing owner services.
 
 ### FoodService
@@ -252,12 +252,12 @@ Cross-service communication must use `EventBus` for decoupled flow.
 ---
 
 ## Frozen Consolidation Decisions
-- SlingshotService ownership merged into SlingService.
-- MovementService removed (absorbed by SlingService internal module).
-- ChargeService removed (absorbed by SlingService internal module).
+- LaunchershotService ownership merged into LauncherService.
+- MovementService removed (absorbed by LauncherService internal module).
+- ChargeService removed (absorbed by LauncherService internal module).
 - SkillService removed:
   - Attribute upgrade ownership → PlayerStateService/GrowthService boundary.
-  - Ability toggle ownership → SlingAbilityService.
+  - Ability toggle ownership → LauncherAbilityService.
 
 
 ---
@@ -271,5 +271,5 @@ Cross-service communication must use `EventBus` for decoupled flow.
 
 ### Pending Review
 - Runtime still contains legacy `SkillService.lua` and wiring in `Main.server.lua`; remove after remote-owner reassignment.
-- SafeZoneService/SlingAbilityService are not yet implemented as runtime modules.
+- SafeZoneService/LauncherAbilityService are not yet implemented as runtime modules.
 - Ghost/Spectating state machine is not yet enforced in runtime constants/services.

@@ -4,11 +4,11 @@ local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
-local SlingConfig = require(ReplicatedStorage.Shared.Config.SlingConfig)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 
 local MockPlayerData = {}
 
-export type SlingEntry = {
+export type LauncherEntry = {
 	instanceId: string,
 	definitionId: string,
 	id: string,
@@ -30,21 +30,21 @@ local MOCK_PLAYER_DATA = {
 		exp_buff_x2 = 25,
 		gacha_ticket = 100,
 	},
-	OwnedSlings = {
+	OwnedLaunchers = {
 		{
-			instanceId = "mock_NormalSling_1",
-			definitionId = "NormalSling",
-			id = "NormalSling",
+			instanceId = "mock_NormalLauncher_1",
+			definitionId = "NormalLauncher",
+			id = "NormalLauncher",
 			star = 1,
 			level = 1,
 			equipped = true,
 		},
 	},
 	Equipped = {
-		SlingInstanceId = "mock_NormalSling_1",
+		LauncherInstanceId = "mock_NormalLauncher_1",
 		ActiveItems = {},
 	},
-	SlingCapacity = 40,
+	LauncherCapacity = 40,
 }
 
 local ITEM_ALIASES = {
@@ -70,17 +70,17 @@ local function normalizeItemId(itemId: string): string
 	return ITEM_ALIASES[itemId] or itemId
 end
 
-local function findSlingIndex(instanceOrDefinitionId: string): number?
-	for index, sling in ipairs(MOCK_PLAYER_DATA.OwnedSlings) do
-		if sling.instanceId == instanceOrDefinitionId or sling.definitionId == instanceOrDefinitionId or sling.id == instanceOrDefinitionId then
+local function findLauncherIndex(instanceOrDefinitionId: string): number?
+	for index, launcher in ipairs(MOCK_PLAYER_DATA.OwnedLaunchers) do
+		if launcher.instanceId == instanceOrDefinitionId or launcher.definitionId == instanceOrDefinitionId or launcher.id == instanceOrDefinitionId then
 			return index
 		end
 	end
 	return nil
 end
 
-local function makeSling(definitionId: string): SlingEntry
-	local definition = SlingConfig.GetById(definitionId)
+local function makeLauncher(definitionId: string): LauncherEntry
+	local definition = LauncherConfig.GetById(definitionId)
 	return {
 		instanceId = string.format("mock_%s_%s", definitionId, HttpService:GenerateGUID(false)),
 		definitionId = definitionId,
@@ -109,9 +109,9 @@ end
 function MockPlayerData.GetInventoryState()
 	return {
 		OwnedItems = deepClone(MOCK_PLAYER_DATA.OwnedItems),
-		OwnedSlings = deepClone(MOCK_PLAYER_DATA.OwnedSlings),
-		EquippedSlingInstanceId = MOCK_PLAYER_DATA.Equipped.SlingInstanceId,
-		SlingCapacity = MOCK_PLAYER_DATA.SlingCapacity,
+		OwnedLaunchers = deepClone(MOCK_PLAYER_DATA.OwnedLaunchers),
+		EquippedLauncherInstanceId = MOCK_PLAYER_DATA.Equipped.LauncherInstanceId,
+		LauncherCapacity = MOCK_PLAYER_DATA.LauncherCapacity,
 	}
 end
 
@@ -163,35 +163,35 @@ function MockPlayerData.UseItem(itemId: string, reason: string?): (boolean, stri
 	return true, if definition then string.format("Used %s", definition.name) else string.format("Used %s", normalizedId)
 end
 
-function MockPlayerData.AddSling(definitionId: string, reason: string?): SlingEntry
-	local existingIndex = findSlingIndex(definitionId)
+function MockPlayerData.AddLauncher(definitionId: string, reason: string?): LauncherEntry
+	local existingIndex = findLauncherIndex(definitionId)
 	if existingIndex then
-		MOCK_PLAYER_DATA.OwnedSlings[existingIndex].level += 1
-		emitChanged(reason or "SlingUpgraded")
-		return deepClone(MOCK_PLAYER_DATA.OwnedSlings[existingIndex])
+		MOCK_PLAYER_DATA.OwnedLaunchers[existingIndex].level += 1
+		emitChanged(reason or "LauncherUpgraded")
+		return deepClone(MOCK_PLAYER_DATA.OwnedLaunchers[existingIndex])
 	end
-	local sling = makeSling(definitionId)
-	table.insert(MOCK_PLAYER_DATA.OwnedSlings, sling)
-	if #MOCK_PLAYER_DATA.OwnedSlings == 1 then
-		MockPlayerData.EquipSling(sling.instanceId, reason or "SlingAdded")
+	local launcher = makeLauncher(definitionId)
+	table.insert(MOCK_PLAYER_DATA.OwnedLaunchers, launcher)
+	if #MOCK_PLAYER_DATA.OwnedLaunchers == 1 then
+		MockPlayerData.EquipLauncher(launcher.instanceId, reason or "LauncherAdded")
 	else
-		emitChanged(reason or "SlingAdded")
+		emitChanged(reason or "LauncherAdded")
 	end
-	return deepClone(sling)
+	return deepClone(launcher)
 end
 
-function MockPlayerData.EquipSling(instanceOrDefinitionId: string, reason: string?): boolean
-	local index = findSlingIndex(instanceOrDefinitionId)
+function MockPlayerData.EquipLauncher(instanceOrDefinitionId: string, reason: string?): boolean
+	local index = findLauncherIndex(instanceOrDefinitionId)
 	if not index then
 		return false
 	end
-	for _, sling in ipairs(MOCK_PLAYER_DATA.OwnedSlings) do
-		sling.equipped = false
+	for _, launcher in ipairs(MOCK_PLAYER_DATA.OwnedLaunchers) do
+		launcher.equipped = false
 	end
-	local equipped = MOCK_PLAYER_DATA.OwnedSlings[index]
+	local equipped = MOCK_PLAYER_DATA.OwnedLaunchers[index]
 	equipped.equipped = true
-	MOCK_PLAYER_DATA.Equipped.SlingInstanceId = equipped.instanceId
-	emitChanged(reason or "SlingEquipped")
+	MOCK_PLAYER_DATA.Equipped.LauncherInstanceId = equipped.instanceId
+	emitChanged(reason or "LauncherEquipped")
 	return true
 end
 
@@ -203,8 +203,8 @@ function MockPlayerData.GrantReward(rewardType: string, amount: number?, itemId:
 		MockPlayerData.AddDiamonds(amount or 0, reason or "RewardDiamonds")
 	elseif normalizedType == "item" then
 		MockPlayerData.AddItem(itemId or "hp_potion", amount or 1, reason or "RewardItem")
-	elseif normalizedType == "sling" or normalizedType == "launcher" then
-		MockPlayerData.AddSling(itemId or "NormalSling", reason or "RewardSling")
+	elseif normalizedType == "launcher" or normalizedType == "launcher" then
+		MockPlayerData.AddLauncher(itemId or "NormalLauncher", reason or "RewardLauncher")
 	end
 end
 
