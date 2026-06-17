@@ -6,7 +6,7 @@ local LevelConfig = {
 	MaxLevel = 200,
 	StartingLevel = 1,
 	StartingExp = 0,
-	StartingDiamonds = 0,
+	StartingDiamonds = 300,
 	StartingAttributePoints = 0,
 	StartingSize = 1,
 }

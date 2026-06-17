@@ -10,7 +10,7 @@ local BalanceConfig = {
 	BaseExp = 100,
 	ExpExponent = 1.3,
 	KillExp = 120,
-	DefaultHpPotions = 3,
+	DefaultHpPotions = 25,
 	HpPotionHealAmount = 120,
 	HpPotionCooldown = 1.5,
 }

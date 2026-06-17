@@ -79,6 +79,29 @@ local function setBuffText(label: Instance?, text: string)
 	end
 end
 
+local function getRequiredExp(level: number): number
+	return math.max(1, LevelConfig.RequiredExp(math.max(1, math.floor(level))))
+end
+
+local function getHpPotionCountFromMock(data): number
+	local ownedItems = data and data.OwnedItems
+	if type(ownedItems) ~= "table" then
+		return 0
+	end
+	return math.max(0, math.floor(ownedItems.hp_potion or 0))
+end
+
+local function getActiveFlagData(activeFlags: any, flagName: string): any?
+	if type(activeFlags) ~= "table" then
+		return nil
+	end
+	local flag = activeFlags[flagName]
+	if type(flag) == "table" and type(flag.Data) == "table" then
+		return flag.Data
+	end
+	return flag
+end
+
 function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	local self = setmetatable({}, UIController)
 	self.ClientService = dependencies.ClientService
@@ -140,6 +163,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	}
 
 	self.LastQuickHpRequest = 0
+	self.LastAuthoritativeState = nil
 
 	if not self.JoinButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.JoinButton, "TextButton") end
 	if not self.LeaveButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.LeaveButton, "TextButton") end
@@ -181,18 +205,18 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	return self
 end
 
-function UIController:_refreshMockHud(playerData)
-	local data = playerData or MockPlayerData.GetPlayerData()
-	if self.DiamondValueLabel then
-		self.DiamondValueLabel.Text = tostring(math.max(0, math.floor(data.Diamonds or 0)))
-	end
-	if self.QuickHpQuantityLabel and self.QuickHpQuantityLabel:IsA("TextLabel") then
-		self.QuickHpQuantityLabel.Text = string.format("x%d", math.max(0, math.floor((data.OwnedItems and data.OwnedItems.hp_potion) or 0)))
-	end
-	local currentExp = math.max(0, math.floor(data.Exp or 0))
-	local level = 1
-	local required = math.max(1, LevelConfig.RequiredExp(level))
+function UIController:_renderHudValues(diamonds: number?, hpPotions: number?, exp: number?, level: number?)
+	local resolvedLevel = math.max(1, math.floor(level or 1))
+	local currentExp = math.max(0, math.floor(exp or 0))
+	local required = getRequiredExp(resolvedLevel)
 	local ratio = math.clamp(currentExp / required, 0, 1)
+
+	if self.DiamondValueLabel and diamonds ~= nil then
+		self.DiamondValueLabel.Text = tostring(math.max(0, math.floor(diamonds)))
+	end
+	if self.QuickHpQuantityLabel and self.QuickHpQuantityLabel:IsA("TextLabel") and hpPotions ~= nil then
+		self.QuickHpQuantityLabel.Text = string.format("x%d", math.max(0, math.floor(hpPotions)))
+	end
 	if self.ExpBarFill and self.ExpBarFill:IsA("GuiObject") then
 		self.ExpBarFill.Size = UDim2.new(ratio, 0, self.ExpBarFill.Size.Y.Scale, self.ExpBarFill.Size.Y.Offset)
 	end
@@ -200,8 +224,16 @@ function UIController:_refreshMockHud(playerData)
 		self.ExpValueLabel.Text = string.format("%d / %d", currentExp, required)
 	end
 	if self.ExpLevelLabel then
-		self.ExpLevelLabel.Text = string.format("Lv.%d", level)
+		self.ExpLevelLabel.Text = string.format("Lv.%d", resolvedLevel)
 	end
+end
+
+function UIController:_refreshMockHud(playerData)
+	if self.LastAuthoritativeState then
+		return
+	end
+	local data = playerData or MockPlayerData.GetPlayerData()
+	self:_renderHudValues(data.Diamonds or 0, getHpPotionCountFromMock(data), data.Exp or 0, data.Level or 1)
 end
 
 function UIController:ShowMainHubPanel(activeKey: string)
@@ -235,8 +267,10 @@ function UIController:Start()
 	if self.DailyLoginUIController then
 		self.DailyLoginUIController:Start()
 	end
-	setBuffVisible(self.DamageBuff, false)
-	setBuffVisible(self.ExpBuff, false)
+	setBuffVisible(self.DamageBuff, true)
+	setBuffText(self.DamageBuffValueText, "100%")
+	setBuffVisible(self.ExpBuff, true)
+	setBuffText(self.ExpBuffValueText, "100%")
 	setBuffVisible(self.HPRecoveryBuff, false)
 
 	table.insert(self.Connections, MockPlayerData.BindChanged(function(playerData)
@@ -337,11 +371,9 @@ function UIController:Start()
 		end))
 	end
 	if self.HomeButton then
+		self.HomeButton.Active = true
 		table.insert(self.Connections, self.HomeButton.MouseButton1Click:Connect(function()
-			self.ClientService:RequestTeleport(
-				ProjectTreeSpec.UI.MainHub.LobbyTeleport.MapName,
-				ProjectTreeSpec.UI.MainHub.LobbyTeleport.SpawnName
-			)
+			self.ClientService:RequestLeaveArena()
 		end))
 	end
 	if self.QuickHpButton then
@@ -361,37 +393,27 @@ function UIController:Start()
 	end
 
 	local stateConnection = self.ClientService:BindStateUpdate(function(state)
-		local currentExp = math.max(0, math.floor(MockPlayerData.GetPlayerData().Exp or 0))
-		local level = math.max(1, math.floor(state.Level or 1))
-		local required = math.max(1, LevelConfig.RequiredExp(level))
-		local ratio = math.clamp(currentExp / required, 0, 1)
-		if self.ExpBarFill and self.ExpBarFill:IsA("GuiObject") then
-			self.ExpBarFill.Size = UDim2.new(ratio, 0, self.ExpBarFill.Size.Y.Scale, self.ExpBarFill.Size.Y.Offset)
-		end
-		if self.DiamondValueLabel then
-			self.DiamondValueLabel.Text = tostring(math.max(0, math.floor(state.Diamonds or MockPlayerData.GetPlayerData().Diamonds or 0)))
-		end
-		if self.QuickHpQuantityLabel and self.QuickHpQuantityLabel:IsA("TextLabel") then
-			self.QuickHpQuantityLabel.Text = string.format("x%d", math.max(0, math.floor(state.HpPotions or 0)))
-		end
-		if self.ExpValueLabel then
-			self.ExpValueLabel.Text = string.format("%d / %d", currentExp, required)
-		end
-		if self.ExpLevelLabel then
-			self.ExpLevelLabel.Text = string.format("Lv.%d", level)
-		end
+		self.LastAuthoritativeState = state
+		self:_renderHudValues(state.Diamonds or 0, state.HpPotions or 0, state.Exp or 0, state.Level or 1)
+
 		local activeFlags = state.ActiveFlags or {}
 		local now = os.clock()
-		local damageFlag = activeFlags.DamageBoosted
-		setBuffVisible(self.DamageBuff, damageFlag ~= nil)
-		setBuffText(self.DamageBuffValueText, if damageFlag then string.format("+%d%%", math.floor((damageFlag.DamageBonusPercent or 100) + 0.5)) else "+0%")
-		local expPercent = math.floor(math.max(0, state.ExpBonus or 0) * 100 + 0.5)
-		local expFlag = activeFlags.EXPBoosted
-		if expFlag then
-			expPercent += math.floor((expFlag.ExpBonusPercent or 100) + 0.5)
+		local damageFlag = getActiveFlagData(activeFlags, "DamageBoosted")
+		local damageTotalPercent = 100 * math.max(0, state.DamageMultiplier or 1)
+		if damageFlag and type(damageFlag.DamageBonusPercent) == "number" then
+			damageTotalPercent += math.max(0, damageFlag.DamageBonusPercent)
 		end
-		setBuffVisible(self.ExpBuff, expPercent > 0)
-		setBuffText(self.ExpBuffValueText, string.format("+%d%%", expPercent))
+		setBuffVisible(self.DamageBuff, true)
+		setBuffText(self.DamageBuffValueText, string.format("%d%%", math.floor(damageTotalPercent + 0.5)))
+
+		local expTotalPercent = 100 + math.max(0, state.ExpBonus or 0) * 100
+		local expFlag = getActiveFlagData(activeFlags, "EXPBoosted")
+		if expFlag and type(expFlag.ExpBonusPercent) == "number" then
+			expTotalPercent += math.max(0, expFlag.ExpBonusPercent)
+		end
+		setBuffVisible(self.ExpBuff, true)
+		setBuffText(self.ExpBuffValueText, string.format("%d%%", math.floor(expTotalPercent + 0.5)))
+
 		local hpRecoveryFlag = activeFlags.HPRecovering
 		setBuffVisible(self.HPRecoveryBuff, hpRecoveryFlag ~= nil)
 		setBuffText(self.HPRecoveryTimeText, if hpRecoveryFlag then string.format("%.1fs", getRemainingSeconds(hpRecoveryFlag, now)) else "0.0s")
