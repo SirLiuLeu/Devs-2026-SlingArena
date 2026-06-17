@@ -447,8 +447,9 @@ DataModel
 │  │     │  └─ Title (TextLabel)
 │  │     ├─ Diamond
 │  │     │  ├─ DiamondIcon (ImageLabel)
-│  │     │  └─ Quantity (TextLabel)
+│  │     │  └─ ValueText (TextLabel)
 │  │     ├─ QuickHP (ImageButton)
+│  │     │  └─ Quantity (TextLabel)
 │  │     └─ Home (ImageButton)
 │  │   
 │  ├─ DailyLoginUI (ScreenGui) -- [REFINED FROM NEW IMAGE]
