@@ -433,8 +433,8 @@ DataModel
 │  │     │  ├─ ExpValueLabel
 │  │     │  ├─ LevelOnBarLabel
 │  │     │  └─ ExpBar
-│  │     │     ├─ ExpBarBackground
-│  │     │     └─ ExpBarFill
+│  │     │     ├─ ExpBarBackground (Frame)
+│  │     │     └─ ExpBarFill (Frame)
 │  │     ├─ LeftMenu
 │  │     │  ├─ DailyButton (ImageButton)
 │  │     │  ├─ InventoryButton (ImageButton)
