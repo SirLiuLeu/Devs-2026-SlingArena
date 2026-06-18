@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 
 local MockPlayerData = {}
 
@@ -24,7 +25,8 @@ local changedEvent = Instance.new("BindableEvent")
 
 local MOCK_PLAYER_DATA = {
 	Diamonds = 300,
-	Exp = 0,
+	Level = LevelConfig.StartingLevel,
+	Exp = LevelConfig.StartingExp,
 	OwnedItems = {
 		hp_potion = 25,
 		exp_buff_x2 = 25,
@@ -131,8 +133,36 @@ function MockPlayerData.SpendDiamonds(amount: number, reason: string?): boolean
 	return true
 end
 
+local function applyExpOverflow()
+	MOCK_PLAYER_DATA.Level = math.max(1, math.floor(MOCK_PLAYER_DATA.Level or LevelConfig.StartingLevel))
+	MOCK_PLAYER_DATA.Exp = math.max(0, math.floor(MOCK_PLAYER_DATA.Exp or LevelConfig.StartingExp))
+
+	while MOCK_PLAYER_DATA.Level < LevelConfig.MaxLevel do
+		local requiredExp = math.max(1, math.floor(LevelConfig.RequiredExp(MOCK_PLAYER_DATA.Level)))
+		if MOCK_PLAYER_DATA.Exp < requiredExp then
+			break
+		end
+		MOCK_PLAYER_DATA.Exp -= requiredExp
+		MOCK_PLAYER_DATA.Level += 1
+	end
+end
+
+function MockPlayerData.SetProgress(level: number?, exp: number?, reason: string?, shouldEmit: boolean?)
+	if level ~= nil then
+		MOCK_PLAYER_DATA.Level = math.max(1, math.floor(level))
+	end
+	if exp ~= nil then
+		MOCK_PLAYER_DATA.Exp = math.max(0, math.floor(exp))
+	end
+	applyExpOverflow()
+	if shouldEmit ~= false then
+		emitChanged(reason or "ProgressChanged")
+	end
+end
+
 function MockPlayerData.AddExp(amount: number, reason: string?): number
-	MOCK_PLAYER_DATA.Exp = math.max(0, MOCK_PLAYER_DATA.Exp + math.floor(amount))
+	MOCK_PLAYER_DATA.Exp = math.max(0, math.floor((MOCK_PLAYER_DATA.Exp or 0) + math.floor(amount)))
+	applyExpOverflow()
 	emitChanged(reason or "ExpChanged")
 	return MOCK_PLAYER_DATA.Exp
 end

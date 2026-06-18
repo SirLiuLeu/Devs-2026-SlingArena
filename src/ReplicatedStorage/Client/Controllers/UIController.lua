@@ -128,14 +128,11 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.TimerLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel)
 	self.AlivePlayersLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.AlivePlayersLabel)
 	self.WinnerPopup = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.WinnerPopup)
-	self.DebugFoodButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugFoodButton)
 	self.DebugResetButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugResetButton)
-	self.LauncherStatsButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.LauncherStatsButton)
 	self.DailyButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.DailyButton)
 	self.InventoryButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.InventoryButton)
 	self.OnlineRewardButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.OnlineRewardButton)
 	self.SettingButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.SettingButton)
-	self.SpinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.MainHub.SpinButton)
 	self.ShopButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.ShopButton)
 	self.QuickHpButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP)
 	self.QuickHpQuantityLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPQuantity)
@@ -146,14 +143,12 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.HPRecoveryBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecovery)
 	self.HPRecoveryTimeText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecoveryTime)
 	self.HomeButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.HomeButton)
-	self.TeamIndicator = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.TeamIndicator)
 	self.DiamondValueLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.DiamondValue)
 	self.ExpBarFill = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.Fill)
 	self.ExpValueLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.ValueLabel)
 	self.ExpLevelLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.LevelLabel)
 
 	self.PanelMap = {
-		LauncherStats = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.LauncherStats),
 		DailyLogin = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.DailyLogin),
 		Shop = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Shop) or resolveScreenGui(playerGui, "ShopUI"),
 		Inventory = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Inventory),
@@ -172,14 +167,11 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not self.TimerLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.TimerLabel, "TextLabel") end
 	if not self.AlivePlayersLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.AlivePlayersLabel, "TextLabel") end
 	if not self.WinnerPopup then warnMissingUiPath(ProjectTreeSpec.UI.Match.WinnerPopup, "TextLabel") end
-	if not self.DebugFoodButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.DebugFoodButton, "TextButton") end
 	if not self.DebugResetButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.DebugResetButton, "TextButton") end
-	if not self.LauncherStatsButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.LauncherStatsButton, "TextButton") end
 	if not self.DailyButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.DailyButton, "GuiButton") end
 	if not self.InventoryButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.InventoryButton, "GuiButton") end
 	if not self.OnlineRewardButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.OnlineRewardButton, "GuiButton") end
 	if not self.SettingButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SettingButton, "GuiButton") end
-	if not self.SpinButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SpinButton, "TextButton") end
 	if not self.ShopButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.ShopButton, "GuiButton") end
 	if not self.QuickHpButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHP, "GuiButton") end
 	if not self.HomeButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.HomeButton, "GuiButton") end
@@ -192,9 +184,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not (self.QuickHpQuantityLabel and self.QuickHpQuantityLabel:IsA("TextLabel")) then
 		warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHPQuantity, "TextLabel")
 	end
-	if not self.TeamIndicator then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.TeamIndicator, "TextLabel") end
 	if not self.DiamondValueLabel then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.DiamondValue, "TextLabel") end
-	if not self.PanelMap.LauncherStats then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.LauncherStats, "ScreenGui") end
 	if not self.PanelMap.DailyLogin then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.DailyLogin, "ScreenGui") end
 	if not self.PanelMap.Shop then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Shop, "ScreenGui") end
 	if not self.PanelMap.Inventory then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Inventory, "ScreenGui") end
@@ -229,9 +219,6 @@ function UIController:_renderHudValues(diamonds: number?, hpPotions: number?, ex
 end
 
 function UIController:_refreshMockHud(playerData)
-	if self.LastAuthoritativeState then
-		return
-	end
 	local data = playerData or MockPlayerData.GetPlayerData()
 	self:_renderHudValues(data.Diamonds or 0, getHpPotionCountFromMock(data), data.Exp or 0, data.Level or 1)
 end
@@ -310,19 +297,9 @@ function UIController:Start()
 			self.ClientService:RequestStartSafeZone()
 		end))
 	end
-	if self.DebugFoodButton then
-		table.insert(self.Connections, self.DebugFoodButton.MouseButton1Click:Connect(function()
-			self.ClientService:RequestDebugSpawnFood("ArenaMap")
-		end))
-	end
 	if self.DebugResetButton then
 		table.insert(self.Connections, self.DebugResetButton.MouseButton1Click:Connect(function()
 			self.ClientService:RequestDebugResetLauncher()
-		end))
-	end
-	if self.LauncherStatsButton then
-		table.insert(self.Connections, self.LauncherStatsButton.MouseButton1Click:Connect(function()
-			self:ToggleMainHubPanel("LauncherStats")
 		end))
 	end
 	if self.DailyButton then
@@ -365,11 +342,6 @@ function UIController:Start()
 			self:ShowMainHubPanel("Settings")
 		end))
 	end
-	if self.SpinButton then
-		table.insert(self.Connections, self.SpinButton.MouseButton1Click:Connect(function()
-			self:ShowMainHubPanel("Spin")
-		end))
-	end
 	if self.HomeButton then
 		self.HomeButton.Active = true
 		table.insert(self.Connections, self.HomeButton.MouseButton1Click:Connect(function()
@@ -393,8 +365,13 @@ function UIController:Start()
 	end
 
 	local stateConnection = self.ClientService:BindStateUpdate(function(state)
+		local previousState = self.LastAuthoritativeState
 		self.LastAuthoritativeState = state
-		self:_renderHudValues(state.Diamonds or 0, state.HpPotions or 0, state.Exp or 0, state.Level or 1)
+		if not previousState or previousState.Level ~= state.Level or previousState.Exp ~= state.Exp then
+			MockPlayerData.SetProgress(state.Level or 1, state.Exp or 0, "AuthoritativeProgress", false)
+		end
+		local playerData = MockPlayerData.GetPlayerData()
+		self:_renderHudValues(playerData.Diamonds or 0, getHpPotionCountFromMock(playerData), playerData.Exp or 0, playerData.Level or 1)
 
 		local activeFlags = state.ActiveFlags or {}
 		local now = os.clock()
@@ -417,15 +394,6 @@ function UIController:Start()
 		local hpRecoveryFlag = activeFlags.HPRecovering
 		setBuffVisible(self.HPRecoveryBuff, hpRecoveryFlag ~= nil)
 		setBuffText(self.HPRecoveryTimeText, if hpRecoveryFlag then string.format("%.1fs", getRemainingSeconds(hpRecoveryFlag, now)) else "0.0s")
-		if self.TeamIndicator then
-			local teamId = tostring(state.TeamId or "NoTeam")
-			self.TeamIndicator.Text = string.format("Team: %s", teamId)
-			if teamId == "TeamRed" then
-				self.TeamIndicator.TextColor3 = Color3.fromRGB(255, 80, 80)
-			elseif teamId == "TeamBlue" then
-				self.TeamIndicator.TextColor3 = Color3.fromRGB(80, 160, 255)
-			end
-		end
 	end)
 	if stateConnection then
 		table.insert(self.Connections, stateConnection)
