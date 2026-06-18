@@ -175,7 +175,8 @@ DataModel
 │  │      │   ├── Quantity (TextLabel)
 │  │      │   └── Title (TextLabel)
 │  │      │
-│  │      ├── SlotLaucherTemplate_shopUI (Frame)
+│  │      ├── SlotLaun
+cherTemplate_shopUI (Frame)
 │  │      │   ├── UICorner
 │  │      │   ├── InfoButton (ImageButton)
 │  │      │   ├── BuyButton (TextButton/ImageButton)

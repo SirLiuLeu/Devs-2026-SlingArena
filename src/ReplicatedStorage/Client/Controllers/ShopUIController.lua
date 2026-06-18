@@ -62,12 +62,12 @@ function ShopUIController:Start()
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
 	local uiFolder = assets and assets:FindFirstChild("UI")
 	self._itemTemplate = uiFolder and uiFolder:FindFirstChild("SlotItemsTemplate_ShopUI")
-	self._launcherTemplate = uiFolder and uiFolder:FindFirstChild("SlotLaucherTemplate_shopUI")
+	self._launcherTemplate = uiFolder and uiFolder:FindFirstChild("SlotLauncherTemplate_shopUI")
 	self._dinamondTemplate = uiFolder and uiFolder:FindFirstChild("SlotDiamondPackTemplate_ShopUI")
 
 	if not self._screenGui then warn("[SHOP_UI] ShopUI missing.") end
 	if not self._itemTemplate then warn("[SHOP_UI] ReplicatedStorage.Assets.UI.SlotItemsTemplate_ShopUI missing") end
-	if not self._launcherTemplate then warn("[SHOP_UI] ReplicatedStorage.Assets.UI.SlotLaucherTemplate_shopUI missing") end
+	if not self._launcherTemplate then warn("[SHOP_UI] ReplicatedStorage.Assets.UI.SlotLauncherTemplate_shopUI missing") end
 	if not self._dinamondTemplate then warn("[SHOP_UI] ReplicatedStorage.Assets.UI.SlotDiamondPackTemplate_ShopUI missing") end
 
 	if self._closeButton then
