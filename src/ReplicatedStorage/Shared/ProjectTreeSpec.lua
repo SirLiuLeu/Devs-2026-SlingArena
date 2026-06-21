@@ -188,7 +188,7 @@ local ProjectTreeSpec = {
 		--         BlueSpawn (SpawnLocation | Part)
 		--       FoodContainer (Folder)
 		--       Traps (Folder)
-		--         Trap_01..N (Part | Model)
+		--         LavaTrap (Model) / SpikeTrap (Model) instances
 		--       FoodSpawns (Folder)
 		--         EdgeZones (Folder)
 		--           FoodSpawn_01..N (Part)
@@ -210,7 +210,7 @@ local ProjectTreeSpec = {
 		--     BerryFood (Model)
 		--   TrapTemplates (Folder)
 		--     SpikeTrap (Model)
-		--     MineTrap (Model)
+		--     LavaTrap (Model)
 		--
 		-- ReplicatedStorage
 		--   Assets (Folder)
@@ -226,7 +226,7 @@ local ProjectTreeSpec = {
 		--       BasicFood (Model) [fallback]
 		--		 Food1, Food2, Food3, ...Food7 (Model)
 		--     Trap (Folder)
-		--       BasicTrap (Model) [fallback]
+		--       LavaTrap (Model) / SpikeTrap (Model)
 		--
 		-- Teams
 		--   TeamRed (Team)
@@ -240,7 +240,7 @@ local ProjectTreeSpec = {
 				Arena01 = "Maps.Arena_01",
 				Arena02 = "Maps.Arena_02",
 				ArenaMapDirect = "ArenaMap",
-				ArenaMapTraps = "ArenaMap.Traps",
+				ArenaMapTraps = "Maps.ArenaMap.Traps",
 			},
 		},
 		ServerStorage = {
@@ -264,7 +264,8 @@ local ProjectTreeSpec = {
 				Food5 = "Assets.Food.Food5",
 				Food6 = "Assets.Food.Food6",
 				Food7 = "Assets.Food.Food7",
-				BasicTrap = "Assets.Trap.BasicTrap",
+				SpikeTrap = "Assets.Trap.SpikeTrap",
+				LavaTrap = "Assets.Trap.LavaTrap",
 				StunEffect = "Assets.Launchers.Player.Hitbox.EffectHead.Stun",
 				BurnEffect = "Assets.Launchers.Player.Hitbox.EffectOrigin.Burn",
 				FrostEffect = "Assets.Launchers.Player.Hitbox.EffectOrigin.Frost",

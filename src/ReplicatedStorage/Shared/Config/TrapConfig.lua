@@ -3,19 +3,21 @@
 return {
 	ExpPenalty = 40,
 	TriggerCooldown = 1.5,
+	SpikeTriggerCooldown = 1.5,
 	Types = {
 		SpikeTrap = {
-			PartName = "SpikeTrap",
-			Flag = "SpikeTrap",
-			ImpactDamage = 15,
-			PopupText = "Trap hit! -15 HP",
+			PartNames = { "Core", "Spike" },
+			ImpactDamage = 1500,
+			TriggerCooldown = 1.5,
+			PopupText = "Spike hit! -1500 HP",
 			Knockback = 55,
 			UpwardBoost = 10,
 		},
 		LavaTrap = {
-			PartName = "LavaBase",
+			Enabled = true,
+			PartNames = { "LavaFloor", "Lava" },
 			Flag = "LavaTrap",
-			ImmediateTick = true,
+			UsesDot = true,
 			PopupText = "Lava burn!",
 			Knockback = 0,
 			UpwardBoost = 0,

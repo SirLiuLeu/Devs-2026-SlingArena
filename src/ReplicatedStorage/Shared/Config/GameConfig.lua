@@ -20,11 +20,14 @@ local GameConfig = {
 		DamageBoosted = { Duration = 30, Stackable = false, MaxStack = 1, DamageBonusPercent = 100 },
 
 		LavaTrap = {
-			Duration = 9999,
-			Stackable = true,
-			MaxStack = 9999,
+			Duration = 0.75,
+			Stackable = false,
+			MaxStack = 1,
 			TickInterval = 0.5,
-			DamagePerTick = { Mode = "MaxHPPercent", Percent = 0.1, Fallback = 1000 SlowAmount = 0.25},
+			DamagePerTick = { Mode = "MaxHPPercent", Percent = 0.1, Fallback = 1000 },
+			SlowAmount = 0.25,
+			SlowDuration = 0.75,
+			SourceScoped = true,
 		},
 	},
 

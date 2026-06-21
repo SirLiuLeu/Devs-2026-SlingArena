@@ -297,7 +297,7 @@ function MapService:Generate()
 		if descendant:IsA("BasePart") then
 			if descendant.Name == "Gate" then
 				table.insert(self._gates, descendant)
-			elseif descendant.Name == "Trap" or descendant.Name == "SpikeTrap" or descendant.Name == "LavaBase" then
+			elseif descendant.Name == "Core" or descendant.Name == "Spike" or descendant.Name == "LavaFloor" or descendant.Name == "Lava" then
 				table.insert(self._traps, descendant)
 			elseif descendant.Name == "SpawnPoint" then
 				table.insert(self._spawnPoints, descendant)
