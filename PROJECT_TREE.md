@@ -175,8 +175,7 @@ DataModel
 │  │      │   ├── Quantity (TextLabel)
 │  │      │   └── Title (TextLabel)
 │  │      │
-│  │      ├── SlotLaun
-cherTemplate_shopUI (Frame)
+│  │      ├── SlotLauncherTemplate_shopUI (Frame)
 │  │      │   ├── UICorner
 │  │      │   ├── InfoButton (ImageButton)
 │  │      │   ├── BuyButton (TextButton/ImageButton)
@@ -522,21 +521,25 @@ cherTemplate_shopUI (Frame)
 │        │  └─ SpawnPoint_04
 │        │
 │        ├─ Traps (Folder)
-│        │  ├─ SpikeTrap
-│        │  ├─ SpikeTrap
-│        │  └─ SpikeTrap
+│        │  ├─ LavaTrap (Model)
+│        │  │  ├─ LavaFloor
+│        │  │  └─ Lava
+│        │  ├─ SpikeTrap (Model)
+│        │  │  ├─ Core
+│        │  │  └─ Spike
+│        │  ├─ SpikeTrap (Model)
+│        │  └─ SpikeTrap (Model)
 │        │
 │        ├─ CenterCross (Model)
 │        ├─ ContestZone_Green (Model)
 │        ├─ FarmZone_Main (Model)
-│        ├─ LavaBase (Part)
 │        └─ SimulatorCircle (Model)
-│           ├── GradientCylinder (MeshPart/Part)
+│           ├── GradientCylinder (Mesh)
 │           │    ├─ Decal
 │           │    ├─ Decal
 │           │    ├─ Decal
 │           │    └─ Decal
-│           └── LightCore (Part)
+│           └── Core (Part)
 │
 ## 🟪 ServerStorage
 ├─ ServerStorage [INFERRED runtime dependency]

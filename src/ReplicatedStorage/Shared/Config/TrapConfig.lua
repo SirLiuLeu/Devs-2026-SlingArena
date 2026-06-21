@@ -6,7 +6,7 @@ return {
 	Types = {
 		SpikeTrap = {
 			PartName = "SpikeTrap",
-			Flag = "PoisonTrap",
+			Flag = "SpikeTrap",
 			ImpactDamage = 15,
 			PopupText = "Trap hit! -15 HP",
 			Knockback = 55,

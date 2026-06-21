@@ -2,7 +2,7 @@
 
 local GameConfig = {
 	FlagConfig = {
-		Ghost = { Duration = 999, Priority = 90, BlocksCollision = true, BlocksDamage = true },
+		Ghost = { Duration = 9999, Priority = 90, BlocksCollision = true, BlocksDamage = true },
 		Invulnerable = { Duration = 30, Priority = 100, BlocksDamage = true, BlocksDot = true },
 
 		Petrify = { Duration = 5, Priority = 80, Stackable = false, InterruptCharge = true },
@@ -20,11 +20,11 @@ local GameConfig = {
 		DamageBoosted = { Duration = 30, Stackable = false, MaxStack = 1, DamageBonusPercent = 100 },
 
 		LavaTrap = {
-			Duration = 10,
+			Duration = 9999,
 			Stackable = true,
-			MaxStack = 10,
+			MaxStack = 9999,
 			TickInterval = 0.5,
-			DamagePerTick = { Mode = "MaxHPPercent", Percent = 0.2, Fallback = 2000 },
+			DamagePerTick = { Mode = "MaxHPPercent", Percent = 0.1, Fallback = 1000 SlowAmount = 0.25},
 		},
 	},
 
