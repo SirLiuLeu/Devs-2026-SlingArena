@@ -442,11 +442,13 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 	return true
 end
 
-function FlagService:RemoveFlag(player: Player, flagName: string)
+function FlagService:RemoveFlag(player: Player, flagName: string, source: any?, data: any?)
 	local flags = self._activeFlags[player]
 	if flags then
+		local defaults = getFlagDefaults(flagName)
+		local requestedKey = if source ~= nil then getFlagKey(flagName, source, data, defaults) else nil
 		for flagKey, flag in pairs(flags) do
-			if flag.Name == flagName then
+			if flag.Name == flagName and (not requestedKey or flagKey == requestedKey) then
 				flags[flagKey] = nil
 			end
 		end

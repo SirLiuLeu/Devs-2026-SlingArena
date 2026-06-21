@@ -201,10 +201,10 @@ function PlayerStateService:ApplyFlag(player: Player, flagName: string, duration
 	return flagService ~= nil and flagService:ApplyFlag(player, flagName, duration, source, data)
 end
 
-function PlayerStateService:RemoveFlag(player: Player, flagName: string)
+function PlayerStateService:RemoveFlag(player: Player, flagName: string, source: any?, data: any?)
 	local flagService = getFlagService(self._context)
 	if flagService then
-		flagService:RemoveFlag(player, flagName)
+		flagService:RemoveFlag(player, flagName, source, data)
 	end
 end
 
