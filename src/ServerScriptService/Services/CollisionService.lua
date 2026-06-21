@@ -25,7 +25,6 @@ function CollisionService.new(context)
 	self._context = context
 	self._lastCollision = {}
 	self._lastCollisionByLaunchTarget = {}
-	self._lastTrapCollision = {}
 	self._lastWallCollision = {}
 	return self
 end
@@ -178,12 +177,6 @@ local function updateLaunchFromVelocity(launchState, velocity: Vector3, energy: 
 	launchState.energy = energy
 	launchState.startTime = now
 	launchState.lastSampleTime = now
-end
-
-local function sqrDistanceXZ(a: Vector3, b: Vector3): number
-	local dx = a.X - b.X
-	local dz = a.Z - b.Z
-	return dx * dx + dz * dz
 end
 
 
@@ -354,38 +347,6 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	end
 end
 
-function CollisionService:_resolveClientTrapHit(player: Player, payload: any)
-	local playerService = getService(self._context, "PlayerService")
-	local mapService = getService(self._context, "MapService")
-	if not (playerService and mapService and typeof(mapService.GetTrapBlocks) == "function") then
-		return
-	end
-	local root = playerService:GetRoot(player)
-	if not (root and playerService:IsAlive(player)) then
-		return
-	end
-	local reported = payload.targetPosition
-	local tolerance = PhysicsConfig.Collision.ValidationTolerance
-	for _, trap in mapService:GetTrapBlocks() do
-		local halfRange = math.max(trap.Size.X, trap.Size.Z) * 0.5
-			+ math.max(root.Size.X, root.Size.Z) * 0.5
-			+ tolerance
-		if sqrDistanceXZ(reported, trap.Position) <= halfRange * halfRange
-			or sqrDistanceXZ(root.Position, trap.Position) <= halfRange * halfRange
-		then
-			local key = `{player.UserId}:{trap:GetDebugId(0)}`
-			local now = os.clock()
-			if not self._lastTrapCollision[key]
-				or now - self._lastTrapCollision[key] > PhysicsConfig.Collision.TrapCooldown
-			then
-				self._lastTrapCollision[key] = now
-				self._context.EventBus:Fire("CollisionDetected", "Trap", player, trap, {})
-				self._context.EventBus:Fire("TrapCollisionCandidate", player, trap)
-			end
-			return
-		end
-	end
-end
 
 function CollisionService:_bindClientCollisionReports()
 	local remote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ReportCollision)
@@ -398,8 +359,6 @@ function CollisionService:_bindClientCollisionReports()
 		end
 		if payload.targetType == "Player" then
 			self:_resolveClientPlayerHit(player, payload)
-		elseif payload.targetType == "Trap" then
-			self:_resolveClientTrapHit(player, payload)
 		end
 	end)
 end

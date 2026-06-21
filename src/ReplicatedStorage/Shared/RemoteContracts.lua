@@ -90,18 +90,13 @@ RemoteContracts.Validators = {
 		if type(payload) ~= "table" or typeof(payload.targetType) ~= "string" then
 			return false
 		end
-		if payload.targetType == "Player" then
-			if typeof(payload.launchId) ~= "string" or #payload.launchId == 0 then
-				return false
-			end
-			if typeof(payload.targetUserId) ~= "number" then
-				return false
-			end
-		elseif payload.targetType == "Trap" then
-			if typeof(payload.targetPosition) ~= "Vector3" then
-				return false
-			end
-		else
+		if payload.targetType ~= "Player" then
+			return false
+		end
+		if typeof(payload.launchId) ~= "string" or #payload.launchId == 0 then
+			return false
+		end
+		if typeof(payload.targetUserId) ~= "number" then
 			return false
 		end
 		if payload.currPos ~= nil and typeof(payload.currPos) ~= "Vector3" then

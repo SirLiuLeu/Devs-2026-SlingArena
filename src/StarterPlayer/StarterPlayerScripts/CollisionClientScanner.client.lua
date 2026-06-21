@@ -128,12 +128,6 @@ local function getPlayerFromHit(part: Instance): Player?
 	return Players:GetPlayerFromCharacter(model)
 end
 
-local function getTrapPartFromHit(part: Instance): BasePart?
-	if part:IsA("BasePart") and part:FindFirstAncestor("Traps") then
-		return part
-	end
-	return nil
-end
 
 local function resolveFoodCollisionVelocity(velocity: Vector3, normal: Vector3, rarity: any): Vector3
 	if rarity == "Common" then
@@ -273,20 +267,6 @@ local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpe
 	})
 end
 
-local function reportTrapHit(trap: BasePart, root: BasePart)
-	local now = os.clock()
-	local cooldownKey = `Trap:{trap:GetDebugId(0)}`
-	if (lastHit[cooldownKey] or 0) > now then
-		return
-	end
-	lastHit[cooldownKey] = now + REPORT_COOLDOWN
-	reportCollisionRemote:FireServer({
-		targetType = "Trap",
-		targetPosition = trap.Position,
-		currPos = root.Position,
-		velocity = root.AssemblyLinearVelocity,
-	})
-end
 
 
 local function sphereCastLaunching(root: BasePart, dt: number, previousPosition: Vector3?)
@@ -340,10 +320,6 @@ local function sphereCastLaunching(root: BasePart, dt: number, previousPosition:
 	if targetPlayer then
 		reportPlayerHit(targetPlayer, root, observedSpeed)
 		return
-	end
-	local trap = getTrapPartFromHit(part)
-	if trap then
-		reportTrapHit(trap, root)
 	end
 end
 

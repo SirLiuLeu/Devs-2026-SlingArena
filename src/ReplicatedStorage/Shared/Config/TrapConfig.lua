@@ -1,26 +1,26 @@
 --!strict
 
 return {
-	ExpPenalty = 40,
 	Types = {
 		SpikeTrap = {
 			Behavior = "HitCooldown",
-			PartNames = { "Core", "Spike" },
 			Damage = 1500,
 			Cooldown = 1.5,
+			ExpPenaltyOnHit = 40,
 			PopupText = "Spike hit! -1500 HP",
 			Knockback = 55,
 			UpwardBoost = 10,
+			KnockbackDirection = "AwayFromTrap",
 		},
 		LavaTrap = {
 			Behavior = "ContactDot",
-			Enabled = true,
-			PartNames = { "LavaFloor", "Lava" },
 			Flag = "LavaTrap",
 			TickInterval = 0.5,
-			DamagePerTick = { Mode = "MaxHPPercent", Percent = 0.1, Fallback = 1000 },
-			Slow = 0.25,
-			EffectDuration = 0.75,
+			DamagePerTick = 0.1,
+			ExpPenaltyOnHit = 40,
+			ContactSlowAmount = 0.25,
+			ContactSlowDuration = 0.75,
+			MaxStack = 1,
 			PopupText = "Lava burn!",
 		},
 	},

@@ -35,39 +35,16 @@ local function getTrapFolderFromArena(arenaMap: Instance?): Folder?
 	return nil
 end
 
-local function nameMatchesTrapConfig(instanceName: string, trapType: string, config: any): boolean
-	if instanceName == trapType or instanceName == config.PartName then
-		return true
-	end
-	for _, partName in ipairs(config.PartNames or {}) do
-		if instanceName == partName then
-			return true
-		end
-	end
-	return false
-end
-
-local function findTrapRoot(instance: Instance, trapType: string): Instance
-	local current: Instance? = instance
-	local bestMatch: Instance? = nil
+local function getAttributedTrapModel(part: BasePart): (Model?, string?, any?)
+	local current: Instance? = part
 	while current do
-		if current.Name == trapType then
-			bestMatch = current
-		end
-		if current.Name == "Traps" then
-			break
-		end
-		current = current.Parent
-	end
-	return bestMatch or instance
-end
-
-local function getTrapInfo(trapPart: BasePart): (string?, any?, Instance?)
-	local current: Instance? = trapPart
-	while current do
-		for trapType, config in pairs(TrapConfig.Types or {}) do
-			if config.Enabled ~= false and nameMatchesTrapConfig(current.Name, trapType, config) then
-				return trapType, config, findTrapRoot(current, trapType)
+		if current:IsA("Model") then
+			local trapTypeAttribute = current:GetAttribute("TrapType")
+			if type(trapTypeAttribute) == "string" then
+				local trapConfig = (TrapConfig.Types or {})[trapTypeAttribute]
+				if trapConfig then
+					return current, trapTypeAttribute, trapConfig
+				end
 			end
 		end
 		current = current.Parent
@@ -75,19 +52,26 @@ local function getTrapInfo(trapPart: BasePart): (string?, any?, Instance?)
 	return nil, nil, nil
 end
 
-local function getTrapSourceId(sourceRoot: Instance, trapType: string): string
-	return `Trap:{trapType}:{sourceRoot:GetDebugId(0)}`
+local function getTrapInfo(trapPart: BasePart): (string?, any?, Model?)
+	local trapModel, trapType, trapConfig = getAttributedTrapModel(trapPart)
+	return trapType, trapConfig, trapModel
 end
 
-local function resolveDamageAmount(playerState: any, damageConfig: any): number
-	if type(damageConfig) == "table" and damageConfig.Mode == "MaxHPPercent" then
-		local maxHp = tonumber(playerState.MaxHP) or 0
-		if maxHp > 0 then
-			return maxHp * math.max(0, tonumber(damageConfig.Percent) or 0)
-		end
-		return math.max(0, tonumber(damageConfig.Fallback) or 0)
+local function getTrapSourceId(sourceRoot: Model, trapType: string): string
+	local trapId = sourceRoot:GetAttribute("TrapId")
+	if type(trapId) == "string" and trapId ~= "" then
+		return `Trap:{trapType}:{trapId}`
 	end
-	return math.max(0, tonumber(damageConfig) or 0)
+	return `Trap:{trapType}:{sourceRoot:GetFullName()}`
+end
+
+local function resolveLavaDamageAmount(playerState: any, trapConfig: any): number
+	local maxHp = tonumber(playerState.MaxHP) or 0
+	local percent = math.max(0, tonumber(trapConfig.DamagePerTick) or 0)
+	if maxHp > 0 then
+		return maxHp * percent
+	end
+	return 0
 end
 
 function TrapService.new(context)
@@ -96,14 +80,13 @@ function TrapService.new(context)
 	self._lastTriggeredAt = {} :: { [string]: number }
 	self._trapTouchedConnections = {}
 	self._activeContacts = {} :: { [string]: boolean }
-	self._contactHits = {} :: { [string]: { [Instance]: boolean } }
+	self._contactCounts = {} :: { [string]: number }
+	self._boundTrapParts = {} :: { [BasePart]: boolean }
 	return self
 end
 
 function TrapService:Init()
-	self._context.EventBus:On("TrapCollisionCandidate", function(player: Player, trap: BasePart)
-		self:OnTrapCollision(player, trap)
-	end)
+	-- TrapService owns trap collision exclusively through server Touched/TouchEnded events.
 end
 
 function TrapService:GetActiveTrapParts(): { BasePart }
@@ -132,7 +115,8 @@ function TrapService:_disconnectTrapTouched()
 	end
 	table.clear(self._trapTouchedConnections)
 	table.clear(self._activeContacts)
-	table.clear(self._contactHits)
+	table.clear(self._contactCounts)
+	table.clear(self._boundTrapParts)
 end
 
 function TrapService:_getPlayerFromHit(hit: Instance): Player?
@@ -145,18 +129,31 @@ function TrapService:_getPlayerFromHit(hit: Instance): Player?
 end
 
 function TrapService:_bindTrapTouched(trapPart: BasePart)
+	if self._boundTrapParts[trapPart] then
+		return
+	end
+	if not getTrapInfo(trapPart) then
+		return
+	end
+	self._boundTrapParts[trapPart] = true
 	table.insert(self._trapTouchedConnections, trapPart.Touched:Connect(function(hit)
 		local player = self:_getPlayerFromHit(hit)
 		if player then
-			self:_beginTrapContact(player, trapPart, hit)
+			self:_beginTrapContact(player, trapPart)
 		end
 	end))
 	table.insert(self._trapTouchedConnections, trapPart.TouchEnded:Connect(function(hit)
 		local player = self:_getPlayerFromHit(hit)
 		if player then
-			self:_endTrapContact(player, trapPart, hit)
+			self:_endTrapContact(player, trapPart)
 		end
 	end))
+end
+
+function TrapService:_bindTrapDescendant(instance: Instance)
+	if instance:IsA("BasePart") then
+		self:_bindTrapTouched(instance)
+	end
 end
 
 function TrapService:LoadMapResources(mapName: string)
@@ -173,13 +170,23 @@ function TrapService:LoadMapResources(mapName: string)
 	for _, trapPart in ipairs(self:GetActiveTrapParts()) do
 		self:_bindTrapTouched(trapPart)
 	end
+	table.insert(self._trapTouchedConnections, trapFolder.DescendantAdded:Connect(function(descendant)
+		self:_bindTrapDescendant(descendant)
+	end))
+	task.defer(function()
+		if trapFolder.Parent then
+			for _, trapPart in ipairs(self:GetActiveTrapParts()) do
+				self:_bindTrapTouched(trapPart)
+			end
+		end
+	end)
 end
 
 function TrapService:SpawnTrapForActiveMap(_count: number)
 	self:LoadMapResources("ArenaMap")
 end
 
-function TrapService:_getContactKey(player: Player, trapType: string, sourceRoot: Instance): string
+function TrapService:_getContactKey(player: Player, trapType: string, sourceRoot: Model): string
 	return `{player.UserId}:{getTrapSourceId(sourceRoot, trapType)}`
 end
 
@@ -190,7 +197,33 @@ function TrapService:_emitPopup(player: Player, trapConfig: any)
 	end
 end
 
-function TrapService:_applySpikeTrap(player: Player, trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Instance)
+function TrapService:_fireTrapPenalty(player: Player, trapConfig: any)
+	local penalty = math.max(0, tonumber(trapConfig.ExpPenaltyOnHit) or 0)
+	if penalty > 0 then
+		self._context.EventBus:Fire("TrapCollision", player, penalty)
+	end
+end
+
+function TrapService:_resolveKnockbackDirection(player: Player, trapPart: BasePart, trapConfig: any): Vector3
+	local playerService = self._context.Services.PlayerService
+	local root = playerService and playerService:GetRoot(player)
+	local mode = trapConfig.KnockbackDirection or "AwayFromTrap"
+	if mode == "TrapForward" then
+		return trapPart.CFrame.LookVector
+	end
+	if mode == "TrapBackward" then
+		return -trapPart.CFrame.LookVector
+	end
+	if root then
+		local away = root.Position - trapPart.Position
+		if away.Magnitude >= 0.01 then
+			return away.Unit
+		end
+	end
+	return Vector3.new(1, 0, 0)
+end
+
+function TrapService:_applyHitCooldownTrap(player: Player, trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Model)
 	local now = os.clock()
 	local cooldown = math.max(0, tonumber(trapConfig.Cooldown) or 0)
 	local cooldownKey = self:_getContactKey(player, trapType, sourceRoot)
@@ -198,29 +231,30 @@ function TrapService:_applySpikeTrap(player: Player, trapPart: BasePart, trapTyp
 	if now - last < cooldown then
 		return
 	end
-	self._lastTriggeredAt[cooldownKey] = now
-	self._context.EventBus:Fire("TrapCollision", player, TrapConfig.ExpPenalty)
 
+	local damageApplied = false
 	local damagePipeline = self._context.Services.DamagePipelineService
 	if trapConfig.Damage and damagePipeline then
-		damagePipeline:ApplyHitDamage(player, trapConfig.Damage, nil, nil, { SuppressKnockback = true })
+		damageApplied = damagePipeline:ApplyHitDamage(player, trapConfig.Damage, nil, nil, { SuppressKnockback = true }) == true
 	end
+	if not damageApplied then
+		return
+	end
+	self._lastTriggeredAt[cooldownKey] = now
+	self:_fireTrapPenalty(player, trapConfig)
 
 	local playerService = self._context.Services.PlayerService
 	local root = playerService and playerService:GetRoot(player)
 	local knockback = math.max(0, tonumber(trapConfig.Knockback) or 0)
 	local upwardBoost = math.max(0, tonumber(trapConfig.UpwardBoost) or 0)
 	if root and (knockback > 0 or upwardBoost > 0) then
-		local away = root.Position - trapPart.Position
-		if away.Magnitude < 0.01 then
-			away = Vector3.new(1, 0, 0)
-		end
-		root.AssemblyLinearVelocity += away.Unit * knockback + Vector3.new(0, upwardBoost, 0)
+		local direction = self:_resolveKnockbackDirection(player, trapPart, trapConfig)
+		root.AssemblyLinearVelocity += direction.Unit * knockback + Vector3.new(0, upwardBoost, 0)
 	end
 	self:_emitPopup(player, trapConfig)
 end
 
-function TrapService:_applyLavaTrapTick(player: Player, trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Instance)
+function TrapService:_applyContactDotTrapTick(player: Player, trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Model)
 	local flagName = trapConfig.Flag
 	local stateService = self._context.Services.PlayerStateService
 	local damagePipeline = self._context.Services.DamagePipelineService
@@ -233,28 +267,28 @@ function TrapService:_applyLavaTrapTick(player: Player, trapPart: BasePart, trap
 	end
 
 	local sourceId = getTrapSourceId(sourceRoot, trapType)
-	local duration = math.max((tonumber(trapConfig.TickInterval) or 0.5) + 0.25, tonumber(trapConfig.EffectDuration) or 0)
+	local tickInterval = math.max(0.05, tonumber(trapConfig.TickInterval) or 0.5)
+	local duration = math.max(tickInterval + 0.25, tonumber(trapConfig.ContactSlowDuration) or 0)
 	stateService:ApplyFlag(player, flagName, duration, sourceRoot, {
 		SourceId = sourceId,
 		Stackable = false,
-		MaxStack = 1,
+		MaxStack = math.max(1, tonumber(trapConfig.MaxStack) or 1),
 	})
-	local slowAmount = math.max(0, tonumber(trapConfig.Slow) or 0)
+	local slowAmount = math.max(0, tonumber(trapConfig.ContactSlowAmount) or 0)
 	if slowAmount > 0 then
 		stateService:ApplyFlag(player, "Slow", duration, sourceRoot, {
 			SourceId = `{sourceId}:Slow`,
 			SlowAmount = slowAmount,
 		})
 	end
-	local amount = resolveDamageAmount(state, trapConfig.DamagePerTick)
-	if amount > 0 then
-		damagePipeline:ApplyDoTDamage(player, amount, trapPart, flagName)
+	local amount = resolveLavaDamageAmount(state, trapConfig)
+	if amount > 0 and damagePipeline:ApplyDoTDamage(player, amount, trapPart, flagName) then
+		self:_fireTrapPenalty(player, trapConfig)
+		self:_emitPopup(player, trapConfig)
 	end
-	self._context.EventBus:Fire("TrapCollision", player, TrapConfig.ExpPenalty)
-	self:_emitPopup(player, trapConfig)
 end
 
-function TrapService:_stopLavaEffects(player: Player, trapType: string, trapConfig: any, sourceRoot: Instance)
+function TrapService:_stopContactDotTrap(player: Player, trapType: string, trapConfig: any, sourceRoot: Model)
 	local stateService = self._context.Services.PlayerStateService
 	if not stateService then
 		return
@@ -266,63 +300,61 @@ function TrapService:_stopLavaEffects(player: Player, trapType: string, trapConf
 	stateService:RemoveFlag(player, "Slow", sourceRoot, { SourceId = `{sourceId}:Slow` })
 end
 
-function TrapService:_beginTrapContact(player: Player, trapPart: BasePart, hit: Instance?)
-	local trapType, trapConfig, sourceRoot = getTrapInfo(trapPart)
-	if not (trapType and trapConfig and sourceRoot) then
-		return
-	end
-
-	local contactKey = self:_getContactKey(player, trapType, sourceRoot)
-	if hit then
-		local hits = self._contactHits[contactKey]
-		if not hits then
-			hits = {}
-			self._contactHits[contactKey] = hits
-		end
-		hits[hit] = true
-	end
-
-	if trapConfig.Behavior == "ContactDot" then
-		if self._activeContacts[contactKey] then
-			return
-		end
-		self._activeContacts[contactKey] = true
-		task.spawn(function()
-			while self._activeContacts[contactKey] do
-				self:_applyLavaTrapTick(player, trapPart, trapType, trapConfig, sourceRoot)
-				task.wait(math.max(0.05, tonumber(trapConfig.TickInterval) or 0.5))
+TrapService._behaviorHandlers = {
+	HitCooldown = {
+		Begin = function(self, player: Player, trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Model)
+			self:_applyHitCooldownTrap(player, trapPart, trapType, trapConfig, sourceRoot)
+		end,
+	},
+	ContactDot = {
+		Begin = function(self, player: Player, trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Model, contactKey: string)
+			if self._activeContacts[contactKey] then
+				return
 			end
-		end)
-		return
-	end
+			self._activeContacts[contactKey] = true
+			task.spawn(function()
+				while self._activeContacts[contactKey] do
+					self:_applyContactDotTrapTick(player, trapPart, trapType, trapConfig, sourceRoot)
+					task.wait(math.max(0.05, tonumber(trapConfig.TickInterval) or 0.5))
+				end
+			end)
+		end,
+		End = function(self, player: Player, _trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Model, contactKey: string)
+			self._activeContacts[contactKey] = nil
+			self:_stopContactDotTrap(player, trapType, trapConfig, sourceRoot)
+		end,
+	},
+}
 
-	self:_applySpikeTrap(player, trapPart, trapType, trapConfig, sourceRoot)
-end
-
-function TrapService:_endTrapContact(player: Player, trapPart: BasePart, hit: Instance?)
+function TrapService:_updateContactCount(player: Player, trapPart: BasePart, delta: number)
 	local trapType, trapConfig, sourceRoot = getTrapInfo(trapPart)
 	if not (trapType and trapConfig and sourceRoot) then
 		return
 	end
 	local contactKey = self:_getContactKey(player, trapType, sourceRoot)
-	local hits = self._contactHits[contactKey]
-	if hits and hit then
-		hits[hit] = nil
-		if next(hits) ~= nil then
-			return
-		end
+	local previous = self._contactCounts[contactKey] or 0
+	local nextCount = math.max(0, previous + delta)
+	local handler = self._behaviorHandlers[trapConfig.Behavior]
+
+	if nextCount == 0 then
+		self._contactCounts[contactKey] = nil
+	else
+		self._contactCounts[contactKey] = nextCount
 	end
-	self._contactHits[contactKey] = nil
-	self._activeContacts[contactKey] = nil
-	if trapConfig.Behavior == "ContactDot" then
-		self:_stopLavaEffects(player, trapType, trapConfig, sourceRoot)
+
+	if delta > 0 and previous == 0 and handler and handler.Begin then
+		handler.Begin(self, player, trapPart, trapType, trapConfig, sourceRoot, contactKey)
+	elseif delta < 0 and previous > 0 and nextCount == 0 and handler and handler.End then
+		handler.End(self, player, trapPart, trapType, trapConfig, sourceRoot, contactKey)
 	end
 end
 
-function TrapService:OnTrapCollision(player: Player, trap: BasePart)
-	-- Client-reported trap hits are edge-triggered fallback signals. Server touch
-	-- events own contact end tracking for lava, while spike uses its cooldown key.
-	self:_beginTrapContact(player, trap, nil)
+function TrapService:_beginTrapContact(player: Player, trapPart: BasePart)
+	self:_updateContactCount(player, trapPart, 1)
+end
+
+function TrapService:_endTrapContact(player: Player, trapPart: BasePart)
+	self:_updateContactCount(player, trapPart, -1)
 end
 
 return TrapService
