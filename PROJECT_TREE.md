@@ -167,6 +167,16 @@ DataModel
 │  │      │   ├── Timer (TextLabel)
 │  │      │   └── Title (TextLabel)
 │  │      │
+│  │      ├── PlayerRowTemplate_MatchScoreboardUI (Frame)
+│  │      │   ├── UICorner
+│  │      │   ├── UIListLayout
+│  │      │   ├── DeadValue (TextLabel)
+│  │      │   ├── KillValue (TextLabel)
+│  │      │   ├── LevelValue (TextLabel)
+│  │      │   ├── NameValue (TextLabel)
+│  │      │   ├── PointValue (TextLabel)
+│  │      │   └── StateValue (TextLabel)
+│  │      │
 │  │      ├── SlotItemsTemplate_ShopUI (Frame)
 │  │      │   ├── UICorner
 │  │      │   ├── InfoButton (ImageButton)
@@ -292,6 +302,27 @@ DataModel
 │  │     ├─ LeaveButton
 │  │     └─ StartSafeZoneButton
 │  │
+│  ├─ MatchScoreboardUI (ScreenGui)
+│  │  ├─ MainPanel (Frame)
+│  │  │  ├─ UICorner
+│  │  │  ├─ UIPadding
+│  │  │  ├─ ColumnHeader (Frame)
+│  │  │  │  ├─ UICorner
+│  │  │  │  ├─ UIListLayout
+│  │  │  │  ├─ DeadHeader (TextLabel)
+│  │  │  │  ├─ KillHeader (TextLabel)
+│  │  │  │  ├─ LevelHeader (TextLabel)
+│  │  │  │  ├─ NameHeader (TextLabel)
+│  │  │  │  ├─ PointHeader (TextLabel)
+│  │  │  │  └─ StateHeader (TextLabel)
+│  │  │  ├─ Header (Frame)
+│  │  │  │  ├─ CloseButton (TextButton)
+│  │  │  │  └─ Title (TextLabel)
+│  │  │  └─ PlayerList (ScrollingFrame)
+│  │  │     ├─ UIListLayout
+│  │  │     ├─ UIPadding
+│  │  │     └─ PlayerRowTemplate_MatchScoreboardUI (Frame)
+│  │  └─ Overlay (Frame)
 │  ├─ OnlineRewardUI (ScreenGui)
 │  │  └─ Root
 │  │     ├─ Content (ScrollingFrame)
@@ -450,6 +481,7 @@ DataModel
 │  │     │  └─ Value (TextLabel)
 │  │     ├─ QuickHP (ImageButton)
 │  │     │  └─ Quantity (TextLabel)
+│  │     ├─ TabScore (ImageButton)
 │  │     └─ Home (ImageButton)
 │  │   
 │  ├─ DailyLoginUI (ScreenGui) -- [REFINED FROM NEW IMAGE]
