@@ -154,9 +154,6 @@ function DamagePipelineService:Init()
 		end
 	end)
 
-	self._context.EventBus:On("TrapCollision", function(player: Player, penalty: number)
-		self:ApplyExpPenalty(player, penalty)
-	end)
 
 	self._context.EventBus:On("LevelUp", function(player: Player)
 		local stateService = getService(self._context, "PlayerStateService")

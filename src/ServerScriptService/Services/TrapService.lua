@@ -1,6 +1,8 @@
 --!strict
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local TrapConfig = require(ReplicatedStorage.Shared.Config.TrapConfig)
@@ -9,16 +11,13 @@ TrapService.__index = TrapService
 
 local function getArenaMapModel(): Model?
 	local mapsRoot = Workspace:FindFirstChild("Maps")
-	if mapsRoot and mapsRoot:IsA("Folder") then
-		local nestedArena = mapsRoot:FindFirstChild("ArenaMap")
-		if nestedArena and nestedArena:IsA("Model") then
-			return nestedArena
-		end
+	if not (mapsRoot and mapsRoot:IsA("Folder")) then
+		return nil
 	end
 
-	local directArena = Workspace:FindFirstChild("ArenaMap")
-	if directArena and directArena:IsA("Model") then
-		return directArena
+	local arenaMap = mapsRoot:FindFirstChild("ArenaMap")
+	if arenaMap and arenaMap:IsA("Model") then
+		return arenaMap
 	end
 
 	return nil
@@ -35,26 +34,49 @@ local function getTrapFolderFromArena(arenaMap: Instance?): Folder?
 	return nil
 end
 
-local function getAttributedTrapModel(part: BasePart): (Model?, string?, any?)
-	local current: Instance? = part
-	while current do
-		if current:IsA("Model") then
-			local trapTypeAttribute = current:GetAttribute("TrapType")
-			if type(trapTypeAttribute) == "string" then
-				local trapConfig = (TrapConfig.Types or {})[trapTypeAttribute]
-				if trapConfig then
-					return current, trapTypeAttribute, trapConfig
-				end
-			end
-		end
+local function getTrapInfo(trapPart: BasePart): (string?, any?, Model?)
+	local arenaMap = getArenaMapModel()
+	local trapFolder = getTrapFolderFromArena(arenaMap)
+	if not trapFolder then
+		return nil, nil, nil
+	end
+
+	local current: Instance? = trapPart
+	while current and current.Parent ~= trapFolder do
 		current = current.Parent
+	end
+	if not (current and current:IsA("Model")) then
+		return nil, nil, nil
+	end
+
+	local trapConfig = (TrapConfig.Types or {})[current.Name]
+	if trapConfig then
+		return current.Name, trapConfig, current
 	end
 	return nil, nil, nil
 end
 
-local function getTrapInfo(trapPart: BasePart): (string?, any?, Model?)
-	local trapModel, trapType, trapConfig = getAttributedTrapModel(trapPart)
-	return trapType, trapConfig, trapModel
+local function getDetectionRadius(trapPart: BasePart, trapConfig: any): number
+	local explicitRadius = tonumber(trapConfig.DetectionRadius)
+	if explicitRadius and explicitRadius > 0 then
+		return explicitRadius
+	end
+	local padding = math.max(0, tonumber(trapConfig.DetectionPadding) or 3)
+	return (math.max(trapPart.Size.X, trapPart.Size.Y, trapPart.Size.Z) * 0.5) + padding
+end
+
+local function isRootInTrapRange(root: BasePart, trapPart: BasePart, trapConfig: any): boolean
+	local localPosition = trapPart.CFrame:PointToObjectSpace(root.Position)
+	local halfSize = trapPart.Size * 0.5
+	local closest = Vector3.new(
+		math.clamp(localPosition.X, -halfSize.X, halfSize.X),
+		math.clamp(localPosition.Y, -halfSize.Y, halfSize.Y),
+		math.clamp(localPosition.Z, -halfSize.Z, halfSize.Z)
+	)
+	local distance = (localPosition - closest).Magnitude
+	local rootRadius = math.max(root.Size.X, root.Size.Z) * 0.5
+	local padding = math.max(0, tonumber(trapConfig.DetectionPadding) or 3)
+	return distance <= rootRadius + padding
 end
 
 local function getTrapSourceId(sourceRoot: Model, trapType: string): string
@@ -78,15 +100,20 @@ function TrapService.new(context)
 	local self = setmetatable({}, TrapService)
 	self._context = context
 	self._lastTriggeredAt = {} :: { [string]: number }
-	self._trapTouchedConnections = {}
+	self._trapConnections = {}
 	self._activeContacts = {} :: { [string]: boolean }
 	self._contactCounts = {} :: { [string]: number }
-	self._boundTrapParts = {} :: { [BasePart]: boolean }
+	self._activeTrapParts = {} :: { BasePart }
+	self._contactTrapParts = {} :: { [string]: BasePart }
+	self._scanAccumulator = 0
 	return self
 end
 
 function TrapService:Init()
-	-- TrapService owns trap collision exclusively through server Touched/TouchEnded events.
+	-- TrapService owns trap collision exclusively through server-side distance checks.
+	table.insert(self._trapConnections, RunService.Heartbeat:Connect(function(dt)
+		self:_scanTrapContacts(dt)
+	end))
 end
 
 function TrapService:GetActiveTrapParts(): { BasePart }
@@ -109,51 +136,19 @@ function TrapService:GetActiveTrapParts(): { BasePart }
 	return parts
 end
 
-function TrapService:_disconnectTrapTouched()
-	for _, connection in ipairs(self._trapTouchedConnections) do
+function TrapService:_disconnectTrapResources()
+	for _, connection in ipairs(self._trapConnections) do
 		connection:Disconnect()
 	end
-	table.clear(self._trapTouchedConnections)
+	table.clear(self._trapConnections)
 	table.clear(self._activeContacts)
 	table.clear(self._contactCounts)
-	table.clear(self._boundTrapParts)
+	table.clear(self._activeTrapParts)
+	table.clear(self._contactTrapParts)
 end
 
-function TrapService:_getPlayerFromHit(hit: Instance): Player?
-	local pawn = hit:FindFirstAncestorOfClass("Model")
-	if not pawn then
-		return nil
-	end
-	local playerService = self._context.Services.PlayerService
-	return playerService and playerService:GetPlayerFromPawn(pawn) or nil
-end
-
-function TrapService:_bindTrapTouched(trapPart: BasePart)
-	if self._boundTrapParts[trapPart] then
-		return
-	end
-	if not getTrapInfo(trapPart) then
-		return
-	end
-	self._boundTrapParts[trapPart] = true
-	table.insert(self._trapTouchedConnections, trapPart.Touched:Connect(function(hit)
-		local player = self:_getPlayerFromHit(hit)
-		if player then
-			self:_beginTrapContact(player, trapPart)
-		end
-	end))
-	table.insert(self._trapTouchedConnections, trapPart.TouchEnded:Connect(function(hit)
-		local player = self:_getPlayerFromHit(hit)
-		if player then
-			self:_endTrapContact(player, trapPart)
-		end
-	end))
-end
-
-function TrapService:_bindTrapDescendant(instance: Instance)
-	if instance:IsA("BasePart") then
-		self:_bindTrapTouched(instance)
-	end
+function TrapService:_refreshActiveTrapParts()
+	self._activeTrapParts = self:GetActiveTrapParts()
 end
 
 function TrapService:LoadMapResources(mapName: string)
@@ -166,20 +161,19 @@ function TrapService:LoadMapResources(mapName: string)
 		warn("[TrapService] Missing Workspace.Maps.ArenaMap.Traps folder. Create traps manually in Studio.")
 		return
 	end
-	self:_disconnectTrapTouched()
-	for _, trapPart in ipairs(self:GetActiveTrapParts()) do
-		self:_bindTrapTouched(trapPart)
-	end
-	table.insert(self._trapTouchedConnections, trapFolder.DescendantAdded:Connect(function(descendant)
-		self:_bindTrapDescendant(descendant)
+	self:_disconnectTrapResources()
+	self:_refreshActiveTrapParts()
+	table.insert(self._trapConnections, trapFolder.DescendantAdded:Connect(function()
+		self:_refreshActiveTrapParts()
 	end))
-	task.defer(function()
-		if trapFolder.Parent then
-			for _, trapPart in ipairs(self:GetActiveTrapParts()) do
-				self:_bindTrapTouched(trapPart)
-			end
-		end
-	end)
+	table.insert(self._trapConnections, trapFolder.DescendantRemoving:Connect(function()
+		task.defer(function()
+			self:_refreshActiveTrapParts()
+		end)
+	end))
+	table.insert(self._trapConnections, RunService.Heartbeat:Connect(function(dt)
+		self:_scanTrapContacts(dt)
+	end))
 end
 
 function TrapService:SpawnTrapForActiveMap(_count: number)
@@ -194,13 +188,6 @@ function TrapService:_emitPopup(player: Player, trapConfig: any)
 	local popup = self._context.Remotes:FindFirstChild("PopupMessage")
 	if popup and popup:IsA("RemoteEvent") and trapConfig.PopupText then
 		popup:FireClient(player, { Type = "Trap", Text = trapConfig.PopupText })
-	end
-end
-
-function TrapService:_fireTrapPenalty(player: Player, trapConfig: any)
-	local penalty = math.max(0, tonumber(trapConfig.ExpPenaltyOnHit) or 0)
-	if penalty > 0 then
-		self._context.EventBus:Fire("TrapCollision", player, penalty)
 	end
 end
 
@@ -241,7 +228,6 @@ function TrapService:_applyHitCooldownTrap(player: Player, trapPart: BasePart, t
 		return
 	end
 	self._lastTriggeredAt[cooldownKey] = now
-	self:_fireTrapPenalty(player, trapConfig)
 
 	local playerService = self._context.Services.PlayerService
 	local root = playerService and playerService:GetRoot(player)
@@ -283,7 +269,6 @@ function TrapService:_applyContactDotTrapTick(player: Player, trapPart: BasePart
 	end
 	local amount = resolveLavaDamageAmount(state, trapConfig)
 	if amount > 0 and damagePipeline:ApplyDoTDamage(player, amount, trapPart, flagName) then
-		self:_fireTrapPenalty(player, trapConfig)
 		self:_emitPopup(player, trapConfig)
 	end
 end
@@ -326,12 +311,64 @@ TrapService._behaviorHandlers = {
 	},
 }
 
-function TrapService:_updateContactCount(player: Player, trapPart: BasePart, delta: number)
-	local trapType, trapConfig, sourceRoot = getTrapInfo(trapPart)
-	if not (trapType and trapConfig and sourceRoot) then
+function TrapService:_scanTrapContacts(dt: number)
+	self._scanAccumulator += dt
+	local interval = math.max(0.05, tonumber(TrapConfig.ScanInterval) or 0.1)
+	if self._scanAccumulator < interval then
 		return
 	end
-	local contactKey = self:_getContactKey(player, trapType, sourceRoot)
+	self._scanAccumulator = 0
+
+	local playerService = self._context.Services.PlayerService
+	if not playerService then
+		return
+	end
+
+	local observedContacts = {} :: { [string]: boolean }
+	for _, player in ipairs(Players:GetPlayers()) do
+		local root = playerService:GetRoot(player)
+		if not (root and playerService:IsAlive(player)) then
+			continue
+		end
+		for _, trapPart in ipairs(self._activeTrapParts) do
+			if not trapPart.Parent then
+				continue
+			end
+			local trapType, trapConfig, sourceRoot = getTrapInfo(trapPart)
+			if not (trapType and trapConfig and sourceRoot) then
+				continue
+			end
+			if (root.Position - trapPart.Position).Magnitude > getDetectionRadius(trapPart, trapConfig) then
+				continue
+			end
+			if isRootInTrapRange(root, trapPart, trapConfig) then
+				local contactKey = self:_getContactKey(player, trapType, sourceRoot)
+				observedContacts[contactKey] = true
+				if not self._contactCounts[contactKey] then
+					self._contactTrapParts[contactKey] = trapPart
+					self:_beginTrapContact(player, trapPart)
+				end
+			end
+		end
+	end
+
+	for contactKey in pairs(self._contactCounts) do
+		if not observedContacts[contactKey] then
+			local trapPart = self._contactTrapParts[contactKey]
+			if trapPart then
+				local trapType, trapConfig, sourceRoot = getTrapInfo(trapPart)
+				if trapType and trapConfig and sourceRoot then
+					self:_updateContactCountFromKey(contactKey, trapPart, trapType, trapConfig, sourceRoot, -1)
+				end
+			end
+			self._contactCounts[contactKey] = nil
+			self._contactTrapParts[contactKey] = nil
+			self._activeContacts[contactKey] = nil
+		end
+	end
+end
+
+function TrapService:_updateContactCountFromKey(contactKey: string, trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Model, delta: number)
 	local previous = self._contactCounts[contactKey] or 0
 	local nextCount = math.max(0, previous + delta)
 	local handler = self._behaviorHandlers[trapConfig.Behavior]
@@ -343,10 +380,28 @@ function TrapService:_updateContactCount(player: Player, trapPart: BasePart, del
 	end
 
 	if delta > 0 and previous == 0 and handler and handler.Begin then
-		handler.Begin(self, player, trapPart, trapType, trapConfig, sourceRoot, contactKey)
+		local userId = tonumber(string.match(contactKey, "^(%-?%d+):"))
+		local player = userId and Players:GetPlayerByUserId(userId)
+		if player then
+			handler.Begin(self, player, trapPart, trapType, trapConfig, sourceRoot, contactKey)
+		end
 	elseif delta < 0 and previous > 0 and nextCount == 0 and handler and handler.End then
-		handler.End(self, player, trapPart, trapType, trapConfig, sourceRoot, contactKey)
+		local userId = tonumber(string.match(contactKey, "^(%-?%d+):"))
+		local player = userId and Players:GetPlayerByUserId(userId)
+		if player then
+			handler.End(self, player, trapPart, trapType, trapConfig, sourceRoot, contactKey)
+		end
 	end
+end
+
+function TrapService:_updateContactCount(player: Player, trapPart: BasePart, delta: number)
+	local trapType, trapConfig, sourceRoot = getTrapInfo(trapPart)
+	if not (trapType and trapConfig and sourceRoot) then
+		return
+	end
+	local contactKey = self:_getContactKey(player, trapType, sourceRoot)
+	self._contactTrapParts[contactKey] = trapPart
+	self:_updateContactCountFromKey(contactKey, trapPart, trapType, trapConfig, sourceRoot, delta)
 end
 
 function TrapService:_beginTrapContact(player: Player, trapPart: BasePart)
