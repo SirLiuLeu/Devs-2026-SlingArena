@@ -18,6 +18,8 @@ local ProjectTreeSpec = {
 			OnlineRewardButton = "MainHUD.Root.LeftMenu.OnlineRewardButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.OnlineRewardButton
 			SettingButton = "MainHUD.Root.LeftMenu.SettingButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.SettingButton
 			ShopButton = "MainHUD.Root.LeftMenu.ShopButton", -- [ASSUMED] StarterGui.MainHUD.Root.LeftMenu.ShopButton
+			TabCore = "MainHUD.Root.TabCore", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.TabCore
+			TabScore = "MainHUD.Root.TabScore", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.TabScore fallback
 			QuickHP = "MainHUD.Root.QuickHP", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuickHP
 			QuickHPQuantity = "MainHUD.Root.QuickHP.Quantity", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuickHP.Quantity (TextLabel)
 			HomeButton = "MainHUD.Root.Home", -- [INFERRED from PROJECT_TREE.md] StarterGui.MainHUD.Root.Home
@@ -119,6 +121,13 @@ local ProjectTreeSpec = {
 			AlivePlayersLabel = "MatchUI.RootFrame.AlivePlayersLabel", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI.RootFrame.AlivePlayersLabel
 			WinnerPopup = "MatchUI.RootFrame.WinnerPopup", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI.RootFrame.WinnerPopup
 		},
+		MatchScoreboard = {
+			ScreenGui = "MatchScoreboardUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchScoreboardUI
+			CloseButton = "MatchScoreboardUI.MainPanel.Header.CloseButton", -- [PROJECT_TREE_SPEC]
+			Overlay = "MatchScoreboardUI.Overlay", -- [PROJECT_TREE_SPEC]
+			PlayerList = "MatchScoreboardUI.MainPanel.PlayerList", -- [PROJECT_TREE_SPEC]
+			RowTemplate = "MatchScoreboardUI.MainPanel.PlayerList.PlayerRowTemplate_MatchScoreboardUI", -- [PROJECT_TREE_SPEC]
+		},
 		LauncherTouch = {
 			Container = "LauncherArenaUI", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI
 			ScreenGui = "LauncherArenaUI.LauncherUI", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI
@@ -161,6 +170,7 @@ local ProjectTreeSpec = {
 		RoundResult = "LauncherArenaRemotes.RoundResult", -- [PROJECT_TREE_SPEC]
 		PopupMessage = "LauncherArenaRemotes.PopupMessage", -- [PROJECT_TREE_SPEC]
 		ZoneUpdate = "LauncherArenaRemotes.ZoneUpdate", -- [PROJECT_TREE_SPEC]
+		MatchScoreboardUpdate = "LauncherArenaRemotes.MatchScoreboardUpdate", -- [PROJECT_TREE_SPEC]
 	},
 	Services = {
 		Client = {

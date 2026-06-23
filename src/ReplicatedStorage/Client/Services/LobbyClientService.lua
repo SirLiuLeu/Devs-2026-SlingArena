@@ -17,6 +17,7 @@ export type LobbyClientService = {
 	StateUpdateRemote: RemoteEvent?,
 	UIStateUpdateRemote: RemoteEvent?,
 	RoundResultRemote: RemoteEvent?,
+	MatchScoreboardUpdateRemote: RemoteEvent?,
 	TeleportRemote: RemoteEvent?,
 	DebugSpawnFoodRemote: RemoteEvent?,
 	DebugResetLauncherRemote: RemoteEvent?,
@@ -33,6 +34,7 @@ export type LobbyClientService = {
 	BindStateUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 	BindUIStateUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 	BindRoundResult: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
+	BindMatchScoreboardUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 }
 
 local function resolveRemote(path: string): RemoteEvent?
@@ -52,6 +54,7 @@ function LobbyClientService.new(): LobbyClientService
 	self.StateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.StateUpdate)
 	self.UIStateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.UIStateUpdate)
 	self.RoundResultRemote = resolveRemote(ProjectTreeSpec.Remotes.RoundResult)
+	self.MatchScoreboardUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.MatchScoreboardUpdate)
 	self.AttributeUpgradeRemote = resolveRemote(ProjectTreeSpec.Remotes.AttributeUpgrade)
 	self.ConsumeHpPotionRemote = resolveRemote(ProjectTreeSpec.Remotes.ConsumeHpPotion)
 	if self.RemotesRoot then
@@ -149,6 +152,13 @@ function LobbyClientService:BindRoundResult(handler: (any) -> ()): RBXScriptConn
 		return nil
 	end
 	return self.RoundResultRemote.OnClientEvent:Connect(handler)
+end
+
+function LobbyClientService:BindMatchScoreboardUpdate(handler: (any) -> ()): RBXScriptConnection?
+	if self.MatchScoreboardUpdateRemote == nil then
+		return nil
+	end
+	return self.MatchScoreboardUpdateRemote.OnClientEvent:Connect(handler)
 end
 
 return LobbyClientService

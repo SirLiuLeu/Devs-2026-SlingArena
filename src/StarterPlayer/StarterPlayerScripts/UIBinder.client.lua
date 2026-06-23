@@ -22,6 +22,7 @@ local watchedGuiNames = {
 	["MainHUD"] = true,
 	["UnitTestUI"] = true,
 	["MatchUI"] = true,
+	["MatchScoreboardUI"] = true,
 	["InventoryUI"] = true,
 	["OnlineRewardUI"] = true,
 	["SpinUI"] = true,

@@ -120,4 +120,16 @@ function MockData.GetDailyLoginState()
 	return deepClone(MOCK_DAILY_LOGIN_STATE)
 end
 
+function MockData.GetMatchScoreboardState()
+	local playerData = MockPlayerData.GetPlayerData()
+	return {
+		Rows = {
+			{ UserId = 1, Name = playerData.DisplayName or playerData.Name or "You", Level = playerData.Level or 1, Points = playerData.RankPoints or 0, Kills = 0, Deaths = 0, State = "Idle" },
+			{ UserId = 2, Name = "Mock Rival", Level = 8, Points = 250, Kills = 3, Deaths = 1, State = "Moving" },
+			{ UserId = 3, Name = "Mock Guest", Level = 3, Points = 75, Kills = 1, Deaths = 2, State = "Dead" },
+		},
+		Limit = 100,
+	}
+end
+
 return MockData

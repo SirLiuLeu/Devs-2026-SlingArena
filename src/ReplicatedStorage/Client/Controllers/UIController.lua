@@ -14,6 +14,7 @@ local ShopUIController = require(ReplicatedStorage.Client.Controllers.ShopUICont
 local ShopLogicService = require(ReplicatedStorage.Client.Services.ShopLogicService)
 local DailyLoginUIController = require(ReplicatedStorage.Client.Controllers.DailyLoginUIController)
 local DailyLoginLogicService = require(ReplicatedStorage.Client.Services.DailyLoginLogicService)
+local MatchScoreboardUIController = require(ReplicatedStorage.Client.Controllers.MatchScoreboardUIController)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 
@@ -112,6 +113,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.OnlineRewardUIController = OnlineRewardUIController.new(playerGui)
 	self.ShopUIController = ShopUIController.new(playerGui)
 	self.DailyLoginUIController = DailyLoginUIController.new(playerGui)
+	self.MatchScoreboardUIController = MatchScoreboardUIController.new(playerGui)
 	self.InventoryDataProvider = InventoryDataProvider.GetDefault()
 	self.OnlineRewardLogicService = OnlineRewardLogicService.GetDefault()
 	self.ShopLogicService = ShopLogicService.GetDefault()
@@ -134,6 +136,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.OnlineRewardButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.OnlineRewardButton)
 	self.SettingButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.SettingButton)
 	self.ShopButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.ShopButton)
+	self.TabCoreButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabCore) or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabScore)
 	self.QuickHpButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP)
 	self.QuickHpQuantityLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPQuantity)
 	self.DamageBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff)
@@ -173,6 +176,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not self.OnlineRewardButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.OnlineRewardButton, "GuiButton") end
 	if not self.SettingButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SettingButton, "GuiButton") end
 	if not self.ShopButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.ShopButton, "GuiButton") end
+	if not self.TabCoreButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.TabCore, "GuiButton") end
 	if not self.QuickHpButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHP, "GuiButton") end
 	if not self.HomeButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.HomeButton, "GuiButton") end
 	if not (self.DamageBuff and self.DamageBuff:IsA("GuiObject")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff, "GuiObject") end
@@ -253,6 +257,9 @@ function UIController:Start()
 	end
 	if self.DailyLoginUIController then
 		self.DailyLoginUIController:Start()
+	end
+	if self.MatchScoreboardUIController then
+		self.MatchScoreboardUIController:LoadMockData()
 	end
 	setBuffVisible(self.DamageBuff, true)
 	setBuffText(self.DamageBuffValueText, "100%")
@@ -342,6 +349,23 @@ function UIController:Start()
 			self:ShowMainHubPanel("Settings")
 		end))
 	end
+	if self.TabCoreButton then
+		table.insert(self.Connections, self.TabCoreButton.MouseButton1Click:Connect(function()
+			if self.MatchScoreboardUIController then
+				self.MatchScoreboardUIController:ToggleVisible()
+			end
+		end))
+	end
+	if self.MatchScoreboardUIController and self.MatchScoreboardUIController.CloseButton then
+		table.insert(self.Connections, self.MatchScoreboardUIController.CloseButton.MouseButton1Click:Connect(function()
+			self.MatchScoreboardUIController:SetVisible(false)
+		end))
+	end
+	if self.MatchScoreboardUIController and self.MatchScoreboardUIController.Overlay and self.MatchScoreboardUIController.Overlay:IsA("GuiButton") then
+		table.insert(self.Connections, self.MatchScoreboardUIController.Overlay.MouseButton1Click:Connect(function()
+			self.MatchScoreboardUIController:SetVisible(false)
+		end))
+	end
 	if self.HomeButton then
 		self.HomeButton.Active = true
 		table.insert(self.Connections, self.HomeButton.MouseButton1Click:Connect(function()
@@ -417,6 +441,15 @@ function UIController:Start()
 		table.insert(self.Connections, uiStateConnection)
 	end
 
+	local scoreboardConnection = self.ClientService:BindMatchScoreboardUpdate(function(payload)
+		if self.MatchScoreboardUIController then
+			self.MatchScoreboardUIController:Refresh(payload)
+		end
+	end)
+	if scoreboardConnection then
+		table.insert(self.Connections, scoreboardConnection)
+	end
+
 	local resultConnection = self.ClientService:BindRoundResult(function(payload)
 		if self.WinnerPopup then
 			self.WinnerPopup.Visible = true
@@ -443,6 +476,9 @@ function UIController:Destroy()
 	end
 	if self.DailyLoginUIController then
 		self.DailyLoginUIController:Destroy()
+	end
+	if self.MatchScoreboardUIController then
+		self.MatchScoreboardUIController:Destroy()
 	end
 	for _, connection in ipairs(self.Connections) do
 		connection:Disconnect()
