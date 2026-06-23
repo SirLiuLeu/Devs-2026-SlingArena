@@ -70,6 +70,7 @@ export type PlayerState = {
 	ActiveFlags: any?,
 	Armor: number?,
 	ExpBonus: number?,
+	RankPoints: number?,
 }
 
 return {}

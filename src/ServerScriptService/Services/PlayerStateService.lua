@@ -127,6 +127,7 @@ local function buildDefaultState(player: Player): PlayerState
 		ActiveFlags = {},
 		Armor = 0,
 		ExpBonus = 0,
+		RankPoints = 0,
 	}
 
 	return state
