@@ -364,6 +364,9 @@ function LauncherService:_canControl(player: Player): boolean
 	if not playerService:IsAlive(player) then
 		return false
 	end
+	if stateService:IsHuman(player) then
+		return false
+	end
 	if stateService:IsStunned(player) then
 		return false
 	end
@@ -701,7 +704,7 @@ function LauncherService:_stepMovementStates(_dt: number)
 	local now = os.clock()
 	for _, player in self:_getTrackedPlayers() do
 		local state = self._context.Services.PlayerStateService:GetState(player)
-		if not state then
+		if not state or state.ActivePlayerMode == GameStates.PlayerMode.Human then
 			continue
 		end
 

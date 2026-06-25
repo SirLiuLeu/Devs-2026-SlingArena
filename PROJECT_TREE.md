@@ -240,6 +240,7 @@ DataModel
 │  │     ├─ MatchStateUpdate
 │  │     ├─ RoundResult
 │  │     ├─ PopupMessage
+│  │     ├─ SetPlayerMode
 │  │     └─ ZoneUpdate [freeze-required]
 │  │
 │  └─ Client  -> src/ReplicatedStorage/Client

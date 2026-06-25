@@ -122,6 +122,10 @@ end
 -- ── Food Burn/Poison DoT ─────────────────────────────────────────────────────
 
 function LauncherAbilityService:_tryApplyFoodDot(player: Player, target: any)
+	local stateServiceForMode = getService(self._context, "PlayerStateService")
+	if stateServiceForMode and stateServiceForMode:IsHuman(player) then
+		return
+	end
 	local ability = self:_ensureAbility(player)
 	local config = ability.Config
 	if not (config and config.dotFlag) then
@@ -195,6 +199,10 @@ end
 
 function LauncherAbilityService:_onAbilityTrigger(player: Player, payload)
 	if not RemoteContracts.Validate(RemoteContracts.Names.AbilityTrigger, payload) then
+		return
+	end
+	local stateServiceForMode = getService(self._context, "PlayerStateService")
+	if stateServiceForMode and stateServiceForMode:IsHuman(player) then
 		return
 	end
 	if type(payload) == "table" and payload.action == "EquipLauncher" and typeof(payload.launcherId) == "string" then
@@ -313,7 +321,7 @@ function LauncherAbilityService:_handleCollision(attacker: Player, victim: Playe
 	if not stateService then
 		return
 	end
-	if stateService:HasFlag(attacker, "Ghost") or stateService:HasFlag(victim, "Ghost") then
+	if stateService:IsHuman(attacker) or stateService:IsHuman(victim) or stateService:HasFlag(attacker, "Ghost") or stateService:HasFlag(victim, "Ghost") then
 		return
 	end
 	local ability = self:_ensureAbility(attacker)

@@ -226,15 +226,15 @@ function DamagePipelineService:_sendFeedback(player: Player, eventType: string, 
 end
 
 function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
-	if attacker and not isCombatDamageAllowed(self._context) then
-		return false
-	end
 	local playerStateService = getService(self._context, "PlayerStateService")
 	if not playerStateService then
 		warn("[DamagePipelineService] PlayerStateService unavailable; damage skipped.")
 		return false
 	end
-	if playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
+	if attacker and (not isCombatDamageAllowed(self._context) or (playerStateService.IsHuman and playerStateService:IsHuman(attacker))) then
+		return false
+	end
+	if (playerStateService.IsHuman and playerStateService:IsHuman(victim)) or playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
 		return false
 	end
 
@@ -321,7 +321,7 @@ function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number,
 		warn("[DamagePipelineService] PlayerStateService unavailable; DOT damage skipped.")
 		return false
 	end
-	if playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
+	if (playerStateService.IsHuman and playerStateService:IsHuman(victim)) or playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
 		return false
 	end
 	local amount = math.max(0, rawDamage)
@@ -439,8 +439,18 @@ function DamagePipelineService:HandlePlayerDeath(player: Player)
 	if not state or not state.IsAlive then
 		return
 	end
+	local roundService = getService(self._context, "RoundService")
+	local roundState = roundService and roundService:GetState() or nil
+	local convertToHuman = playerStateService:RecordDeath(player, roundState)
 	playerStateService:SetAlive(player, false)
 	self._context.EventBus:Fire("PlayerDied", player)
+	if convertToHuman then
+		local playerService = getService(self._context, "PlayerService")
+		local mapName = state.CurrentMap or (roundService and self._context.Services.MapService:GetActiveMap()) or "ArenaMap"
+		if playerService and typeof(playerService.SpawnForActiveMode) == "function" then
+			playerService:SpawnForActiveMode(player, nil, mapName, GameStates.PlayerMode.Human)
+		end
+	end
 
 	local killer = playerStateService:GetLastAttacker(player)
 	if killer then

@@ -8,6 +8,7 @@ local GameStates = {
 		Launching = "Launching",
 		Knockback = "Knockback",
 		Dead = "Dead",
+		Human = "Human",
 	},
 	PlayerFlag = {
 		Ghost = "Ghost",
@@ -18,6 +19,10 @@ local GameStates = {
 		Invisible = "Invisible",
 		Recovering = "Recovering",
 		Invulnerable = "Invulnerable",
+	},
+	PlayerMode = {
+		Launcher = "Launcher",
+		Human = "Human",
 	},
 	SessionState = {
 		Lobby = "Lobby",

@@ -46,6 +46,7 @@ function PlayerStateService.new(context: Context)
 	self._stateUpdateRemote = context.Remotes:FindFirstChild("StateUpdate") :: RemoteEvent
 	self._consumeHpPotionRemote = context.Remotes:FindFirstChild("ConsumeHpPotion") :: RemoteEvent?
 	self._attributeUpgradeRemote = context.Remotes:FindFirstChild("AttributeUpgrade") :: RemoteEvent?
+	self._setPlayerModeRemote = context.Remotes:FindFirstChild("SetPlayerMode") :: RemoteEvent?
 	return self
 end
 
@@ -100,6 +101,11 @@ local function buildDefaultState(player: Player): PlayerState
 		HpPotions = BalanceConfig.DefaultHpPotions,
 		NextHpPotionUseTime = 0,
 		RespawnCountThisMatch = 0,
+		DeathCountThisMatch = 0,
+		SelectedPlayerMode = GameStates.PlayerMode.Launcher,
+		ActivePlayerMode = GameStates.PlayerMode.Launcher,
+		ForcedHuman = false,
+		FinalPhaseDeathConverted = false,
 		AttributePoints = LevelConfig.StartingAttributePoints,
 		DamageDealt = 0,
 		IsTeleporting = false,
@@ -149,6 +155,11 @@ function PlayerStateService:Init()
 	if self._attributeUpgradeRemote then
 		self._attributeUpgradeRemote.OnServerEvent:Connect(function(player: Player, attributeName: string)
 			self:TrySpendAttribute(player, attributeName)
+		end)
+	end
+	if self._setPlayerModeRemote then
+		self._setPlayerModeRemote.OnServerEvent:Connect(function(player: Player, modeName: string)
+			self:SetSelectedPlayerMode(player, modeName)
 		end)
 	end
 
@@ -220,6 +231,78 @@ end
 
 function PlayerStateService:IsGhost(player: Player): boolean
 	return self:HasFlag(player, "Ghost")
+end
+
+function PlayerStateService:GetActivePlayerMode(player: Player): string
+	local state = self._states[player]
+	return (state and state.ActivePlayerMode) or GameStates.PlayerMode.Launcher
+end
+
+function PlayerStateService:IsHuman(player: Player): boolean
+	local state = self._states[player]
+	return state ~= nil and state.ActivePlayerMode == GameStates.PlayerMode.Human
+end
+
+function PlayerStateService:IsLauncher(player: Player): boolean
+	local state = self._states[player]
+	return state == nil or state.ActivePlayerMode ~= GameStates.PlayerMode.Human
+end
+
+function PlayerStateService:IsCombatParticipant(player: Player): boolean
+	local state = self._states[player]
+	return state ~= nil and state.IsAlive == true and state.LocationState ~= GameStates.SessionState.Lobby and state.ActivePlayerMode == GameStates.PlayerMode.Launcher
+end
+
+function PlayerStateService:SetSelectedPlayerMode(player: Player, modeName: string): boolean
+	if modeName ~= GameStates.PlayerMode.Launcher and modeName ~= GameStates.PlayerMode.Human then
+		return false
+	end
+	local state = self._states[player]
+	if not state then
+		return false
+	end
+	-- Lobby selection is client-driven UI, but server-authoritative and only accepted in Lobby.
+	if state.LocationState ~= GameStates.SessionState.Lobby then
+		self:PublishState(player)
+		return false
+	end
+	state.SelectedPlayerMode = modeName
+	self:PublishState(player)
+	return true
+end
+
+function PlayerStateService:SetActivePlayerMode(player: Player, modeName: string, forced: boolean?): boolean
+	if modeName ~= GameStates.PlayerMode.Launcher and modeName ~= GameStates.PlayerMode.Human then
+		return false
+	end
+	local state = self._states[player]
+	if not state then
+		return false
+	end
+	state.ActivePlayerMode = modeName
+	state.MovementState = if modeName == GameStates.PlayerMode.Human then GameStates.PlayerState.Human else GameStates.PlayerState.Idle
+	state.IsCharging = false
+	state.ChargeValue = 0
+	state.CurrentVelocity = Vector3.zero
+	state.CooldownEndTime = 0
+	if forced == true and modeName == GameStates.PlayerMode.Human then
+		state.ForcedHuman = true
+	end
+	self:PublishState(player)
+	return true
+end
+
+function PlayerStateService:ShouldForceHuman(player: Player): boolean
+	local state = self._states[player]
+	return state ~= nil and (state.ForcedHuman == true or (state.DeathCountThisMatch or 0) >= 3 or state.FinalPhaseDeathConverted == true)
+end
+
+function PlayerStateService:ResolveArenaSpawnMode(player: Player): string
+	local state = self._states[player]
+	if state and self:ShouldForceHuman(player) then
+		return GameStates.PlayerMode.Human
+	end
+	return (state and state.SelectedPlayerMode) or GameStates.PlayerMode.Launcher
 end
 
 function PlayerStateService:ApplyStun(player: Player, duration: number)
@@ -321,6 +404,37 @@ function PlayerStateService:SetAlive(player: Player, alive: boolean)
 	self:PublishState(player)
 end
 
+function PlayerStateService:ClearHumanQualification(player: Player)
+	local state = self._states[player]
+	if not state then
+		return
+	end
+	state.DeathCountThisMatch = 0
+	state.RespawnCountThisMatch = 0
+	state.ForcedHuman = false
+	state.FinalPhaseDeathConverted = false
+	self:PublishState(player)
+end
+
+function PlayerStateService:RecordDeath(player: Player, roundState: string?): boolean
+	local state = self._states[player]
+	if not state then
+		return false
+	end
+	state.DeathCountThisMatch = (state.DeathCountThisMatch or 0) + 1
+	state.RespawnCountThisMatch = state.DeathCountThisMatch
+	local shouldConvert = state.DeathCountThisMatch >= 3
+	if roundState == GameStates.MapRoundState.FinalPhase then
+		state.FinalPhaseDeathConverted = true
+		shouldConvert = true
+	end
+	if shouldConvert then
+		state.ForcedHuman = true
+	end
+	self:PublishState(player)
+	return shouldConvert
+end
+
 function PlayerStateService:SetCurrentMap(player: Player, mapName: string)
 	local state = self._states[player]
 	if not state then return end
@@ -353,7 +467,7 @@ end
 
 function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
 	local state = self._states[player]
-	if not state or not state.IsAlive or self:IsInvulnerable(player) or self:HasFlag(player, "Ghost") then return false end
+	if not state or not state.IsAlive or self:IsHuman(player) or self:IsInvulnerable(player) or self:HasFlag(player, "Ghost") then return false end
 	local before = state.CurrentHP
 	state.CurrentHP = math.max(0, state.CurrentHP - math.max(0, amount))
 	local playerService = self._context.Services and self._context.Services.PlayerService
@@ -462,11 +576,16 @@ function PlayerStateService:ResetForNewRound(player: Player)
 	if not state then return end
 	state.IsAlive = true
 	state.IsCharging = false
-	state.MovementState = MOVEMENT_STATE.Idle
+	state.ActivePlayerMode = state.SelectedPlayerMode or GameStates.PlayerMode.Launcher
+	state.MovementState = if state.ActivePlayerMode == GameStates.PlayerMode.Human then MOVEMENT_STATE.Human else MOVEMENT_STATE.Idle
 	state.CurrentVelocity = Vector3.zero
 	state.ChargeValue = 0
 	state.CooldownEndTime = 0
 	state.LastReleaseDuration = 0
+	state.DeathCountThisMatch = 0
+	state.RespawnCountThisMatch = 0
+	state.ForcedHuman = false
+	state.FinalPhaseDeathConverted = false
 	self._damageDealt[player] = 0
 	state.DamageDealt = 0
 	local flagService = getFlagService(self._context)
@@ -480,7 +599,7 @@ function PlayerStateService:ResetForRespawn(player: Player)
 	if not state then return end
 	state.IsAlive = true
 	state.IsCharging = false
-	state.MovementState = MOVEMENT_STATE.Idle
+	state.MovementState = if state.ActivePlayerMode == GameStates.PlayerMode.Human then MOVEMENT_STATE.Human else MOVEMENT_STATE.Idle
 	state.CurrentVelocity = Vector3.zero
 	state.ChargeValue = 0
 	state.CooldownEndTime = 0

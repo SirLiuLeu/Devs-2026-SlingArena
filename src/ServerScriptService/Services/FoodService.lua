@@ -31,6 +31,7 @@ local COMMON_ALLOWED_STATES = {
 	[GameStates.PlayerState.Launching] = true,
 	[GameStates.PlayerState.Moving] = true,
 	[GameStates.PlayerState.Idle] = true,
+	[GameStates.PlayerState.Human] = true,
 }
 
 local REQUIRED_FOOD_MODELS = {
@@ -607,6 +608,9 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 
 	local serverHorizontalSpeed = flattenXZ(root.AssemblyLinearVelocity).Magnitude
 	local horizontalSpeed = math.max(serverHorizontalSpeed, clientObservedSpeed)
+	if stateService and stateService:IsHuman(player) and (not rule.Touch or entry.MaxHP > 0) then
+		return false, "human_blocked_combat_food", { movementState = movementState }
+	end
 	if (not rule.Touch) and entry.MaxHP > 0 then
 		local launcherService = getService(self._context, "LauncherService")
 		local validLaunch = false
@@ -691,7 +695,8 @@ end
 function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player: Player?): boolean
 	local entry = if type(foodOrEntry) == "table" then foodOrEntry else self._foodByInstance[foodOrEntry]
 	local rule = entry and FoodConfig.Foods[entry.FoodType]
-	if not (entry and rule and player) or entry.CurrentHP <= 0 or entry.IsConsumed then
+	local stateService = getService(self._context, "PlayerStateService")
+	if (stateService and stateService:IsHuman(player)) or not (entry and rule and player) or entry.CurrentHP <= 0 or entry.IsConsumed then
 		return false
 	end
 	local damage = math.max(0, amount)

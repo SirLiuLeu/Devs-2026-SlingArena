@@ -11,6 +11,7 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local StatusEffectVfx = require(ReplicatedStorage.Shared.Utils.StatusEffectVfx)
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 
 local EQUIPPED_LAUNCHER_MODEL_NAME = "EquipedLauncherModel"
 local LEGACY_EQUIPPED_LAUNCHER_MODEL_NAME = "EquippedLauncherModel"
@@ -499,9 +500,59 @@ function PlayerService:_disconnectDeathSignal(player)
 	end
 end
 
+function PlayerService:SpawnForActiveMode(player: Player, spawnIndex: number?, mapName: string?, modeName: string?)
+	local stateService = self._context.Services.PlayerStateService
+	local resolvedMode = modeName or (stateService and stateService:GetActivePlayerMode(player)) or GameStates.PlayerMode.Launcher
+	if resolvedMode == GameStates.PlayerMode.Human then
+		return self:SpawnHumanCharacter(player, spawnIndex, mapName)
+	end
+	return self:SpawnPawn(player, spawnIndex, mapName)
+end
+
+function PlayerService:SpawnHumanCharacter(player: Player, spawnIndex: number?, mapName: string?)
+	self:_disconnectDeathSignal(player)
+	self:_destroyPawn(player)
+	local stateService = self._context.Services.PlayerStateService
+	if stateService then
+		stateService:SetActivePlayerMode(player, GameStates.PlayerMode.Human)
+		stateService:SetAlive(player, true)
+	end
+	player:LoadCharacter()
+	local character = player.Character
+	if not character then
+		return nil
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		self._deathConnections[player] = humanoid.Died:Connect(function()
+			local damageService = self._context.Services.DamagePipelineService
+			if damageService then
+				damageService:HandlePlayerDeath(player)
+			end
+		end)
+	end
+	local root = character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart
+	local mapService = self._context.Services.MapService
+	if root and root:IsA("BasePart") and mapService then
+		local playerState = stateService and stateService:GetState(player) or nil
+		local teamId = playerState and playerState.TeamId or nil
+		local index = spawnIndex or (player.UserId % 8) + 1
+		local spawnCFrame = CFrame.new(mapService:GetSpawnPoint(index, mapName))
+		if type(mapService.GetSpawnCFrame) == "function" then
+			spawnCFrame = mapService:GetSpawnCFrame(index, mapName, teamId)
+		end
+		character:PivotTo(spawnCFrame)
+	end
+	return character
+end
+
 function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	self:_disconnectDeathSignal(player)
 	self:_destroyPawn(player)
+	local stateServiceForMode = self._context.Services.PlayerStateService
+	if stateServiceForMode then
+		stateServiceForMode:SetActivePlayerMode(player, GameStates.PlayerMode.Launcher)
+	end
 
 	local template = self:_loadLauncherTemplate()
 	if not template then
@@ -617,6 +668,12 @@ function PlayerService:IsGrounded(player): boolean
 end
 
 function PlayerService:GetRoot(player)
+	local stateService = self._context.Services.PlayerStateService
+	if stateService and stateService:IsHuman(player) then
+		local character = player.Character
+		local root = character and (character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart)
+		return if root and root:IsA("BasePart") then root else nil
+	end
 	local pawn = self:GetPawn(player)
 	if not pawn then
 		return nil
@@ -653,11 +710,11 @@ function PlayerService:TeleportCharacterToSpawn(player: Player, spawn: BasePart?
 	if not spawn then
 		return false
 	end
-	local pawn = self:GetPawn(player)
-	if not pawn then
+	local model = self:GetPawn(player) or player.Character
+	if not (model and model:IsA("Model")) then
 		return false
 	end
-	pawn:PivotTo(spawn.CFrame)
+	model:PivotTo(spawn.CFrame)
 	return true
 end
 

@@ -226,7 +226,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	if not (launcherService and stateService) then
 		return
 	end
-	if stateService.HasFlag and (
+	if (stateService.IsHuman and (stateService:IsHuman(player) or stateService:IsHuman(defender))) or stateService.HasFlag and (
 		stateService:HasFlag(player, "Ghost") or stateService:HasFlag(defender, "Ghost")
 	) then
 		return

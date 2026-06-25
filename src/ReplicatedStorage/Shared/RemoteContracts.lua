@@ -33,6 +33,7 @@ RemoteContracts.Names = {
 	ReportLaunchStopped = "ReportLaunchStopped",
 	KnockbackReplication = "KnockbackReplication",
 	MatchScoreboardUpdate = "MatchScoreboardUpdate",
+	SetPlayerMode = "SetPlayerMode",
 }
 
 RemoteContracts.Validators = {
@@ -110,6 +111,9 @@ RemoteContracts.Validators = {
 			return false
 		end
 		return true
+	end,
+	[RemoteContracts.Names.SetPlayerMode] = function(modeName: any): boolean
+		return modeName == "Launcher" or modeName == "Human"
 	end,
 	[RemoteContracts.Names.ReportLaunchStopped] = function(payload: any): boolean
 		if type(payload) ~= "table" then
