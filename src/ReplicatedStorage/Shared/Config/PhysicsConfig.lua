@@ -12,7 +12,7 @@ local PhysicsConfig = {
 	},
 
 	Movement = {
-		MoveSpeed = 15,
+		MoveSpeed = 10,
 		MaxForce = 10,
 		InputDeadzone = 0.001,
 		AimDeadzone = 0.01,

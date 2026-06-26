@@ -136,7 +136,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.OnlineRewardButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.OnlineRewardButton)
 	self.SettingButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.SettingButton)
 	self.ShopButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.ShopButton)
-	self.TabCoreButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabCore) or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabScore)
+	self.TabScoreButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabScore) or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabScore)
 	self.QuickHpButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP)
 	self.QuickHpQuantityLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPQuantity)
 	self.DamageBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff)
@@ -176,7 +176,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not self.OnlineRewardButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.OnlineRewardButton, "GuiButton") end
 	if not self.SettingButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SettingButton, "GuiButton") end
 	if not self.ShopButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.ShopButton, "GuiButton") end
-	if not self.TabCoreButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.TabCore, "GuiButton") end
+	if not self.TabScoreButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.TabScore, "GuiButton") end
 	if not self.QuickHpButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHP, "GuiButton") end
 	if not self.HomeButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.HomeButton, "GuiButton") end
 	if not (self.DamageBuff and self.DamageBuff:IsA("GuiObject")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff, "GuiObject") end
@@ -349,8 +349,8 @@ function UIController:Start()
 			self:ShowMainHubPanel("Settings")
 		end))
 	end
-	if self.TabCoreButton then
-		table.insert(self.Connections, self.TabCoreButton.MouseButton1Click:Connect(function()
+	if self.TabScoreButton then
+		table.insert(self.Connections, self.TabScoreButton.MouseButton1Click:Connect(function()
 			if self.MatchScoreboardUIController then
 				self.MatchScoreboardUIController:ToggleVisible()
 			end
