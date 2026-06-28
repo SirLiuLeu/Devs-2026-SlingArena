@@ -4,7 +4,7 @@
 -- read this module for prediction/UI so visible feel stays in sync with server physics.
 local PhysicsConfig = {
 	PhysicalProperties = {
-		Density = 0.7,
+		Density = 0.5,
 		Friction = 0.1,
 		Elasticity = 0.8,
 		FrictionWeight = 15,
@@ -12,8 +12,8 @@ local PhysicsConfig = {
 	},
 
 	Movement = {
-		MoveSpeed = 10,
-		MaxForce = 10,
+		MoveSpeed = 15,
+		MaxForce = 1000,
 		InputDeadzone = 0.001,
 		AimDeadzone = 0.01,
 		MoveRequestCooldown = 0.03,
@@ -44,7 +44,7 @@ local PhysicsConfig = {
 	Launch = {
 		DirectionDeadzone = 0.01,
 		SpeedMin = 15,
-		SpeedMax = 50,
+		SpeedMax = 70,
 		InitialVelocityCap = 60,
 		EnergyMin = 18,
 		EnergyMax = 120,
@@ -110,7 +110,7 @@ local PhysicsConfig = {
 	},
 
 	Stability = {
-		UseInfiniteForce = true,
+		UseInfiniteForce = false,
 	},
 }
 
