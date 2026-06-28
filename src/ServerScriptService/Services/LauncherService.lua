@@ -93,6 +93,22 @@ function LauncherService.new(context)
 	return self
 end
 
+
+function LauncherService:ResetPlayerRuntime(player: Player)
+	self._input[player] = nil
+	self._chargeState[player] = nil
+	self._activeLaunches[player] = nil
+	self._aimTargets[player] = nil
+	self._releaseCooldown[player] = nil
+	self._moveRateState[player] = nil
+
+	local movementController = self._movementControllers[player]
+	if movementController then
+		movementController:Destroy()
+		self._movementControllers[player] = nil
+	end
+end
+
 local function resolveAlignOrientation(root: BasePart): AlignOrientation?
 	local alignOrientation = root:FindFirstChild("AlignOrientation")
 	if alignOrientation and alignOrientation:IsA("AlignOrientation") then
@@ -485,7 +501,8 @@ function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3)
 
 	local now = os.clock()
 	local chargeRatio = LaunchMotionModel.ComputeChargeRatio(chargeState.chargeStartTime, now)
-	local launchState = LaunchMotionModel.BuildState(launchDirectionPlanar, chargeRatio, now, player)
+	local launchSpeed = state.LaunchSpeed or PhysicsConfig.Launch.SpeedMax
+	local launchState = LaunchMotionModel.BuildState(launchDirectionPlanar, chargeRatio, now, player, launchSpeed)
 	local launchId = HttpService:GenerateGUID(false)
 
 	launchState.launchId = launchId

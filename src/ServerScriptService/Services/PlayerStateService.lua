@@ -159,7 +159,12 @@ function PlayerStateService:Init()
 	end
 	if self._setPlayerModeRemote then
 		self._setPlayerModeRemote.OnServerEvent:Connect(function(player: Player, modeName: string)
-			self:SetSelectedPlayerMode(player, modeName)
+			local playerService = self._context.Services and self._context.Services.PlayerService
+			if playerService and typeof(playerService.SwitchPlayerModeInLobby) == "function" then
+				playerService:SwitchPlayerModeInLobby(player, modeName)
+			else
+				self:SetSelectedPlayerMode(player, modeName)
+			end
 		end)
 	end
 

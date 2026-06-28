@@ -90,9 +90,9 @@ local function startStopMonitor(launchId: string)
 	end)
 end
 
-clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, initialSpeed: any, _serverMass: any, launchId: any)
+clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, launchSpeed: any, _serverMass: any, launchId: any)
 	local launchDirection = resolvePlanarDirection(direction)
-	if not launchDirection or typeof(initialSpeed) ~= "number" or initialSpeed <= 0 or typeof(launchId) ~= "string" then
+	if not launchDirection or typeof(launchSpeed) ~= "number" or launchSpeed <= 0 or typeof(launchId) ~= "string" then
 		return
 	end
 
@@ -103,7 +103,7 @@ clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, initialSpeed
 
 	local currentVelocity = root.AssemblyLinearVelocity
 	root.AssemblyLinearVelocity = Vector3.new(0, currentVelocity.Y, 0)
-	root:ApplyImpulse(launchDirection * initialSpeed * root.AssemblyMass)
-	print("Client applied launch impulse:", launchDirection , initialSpeed , root.AssemblyMass)
+	root:ApplyImpulse(launchDirection.Unit * launchSpeed * root.AssemblyMass)
+	print("Client applied launch impulse:", launchDirection , launchSpeed , root.AssemblyMass)
 	startStopMonitor(launchId)
 end)

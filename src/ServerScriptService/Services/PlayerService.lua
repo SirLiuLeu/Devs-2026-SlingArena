@@ -500,6 +500,44 @@ function PlayerService:_disconnectDeathSignal(player)
 	end
 end
 
+
+function PlayerService:SwitchPlayerModeInLobby(player: Player, modeName: string): boolean
+	if modeName ~= GameStates.PlayerMode.Launcher and modeName ~= GameStates.PlayerMode.Human then
+		return false
+	end
+
+	local stateService = self._context.Services.PlayerStateService
+	local state = stateService and stateService:GetState(player) or nil
+	if not state or state.LocationState ~= GameStates.SessionState.Lobby then
+		if stateService then
+			stateService:PublishState(player)
+		end
+		return false
+	end
+
+	if not stateService:SetSelectedPlayerMode(player, modeName) then
+		return false
+	end
+
+	local launcherService = self._context.Services.LauncherService
+	if modeName == GameStates.PlayerMode.Human and launcherService and typeof(launcherService.ResetPlayerRuntime) == "function" then
+		launcherService:ResetPlayerRuntime(player)
+	end
+
+	self:_disconnectDeathSignal(player)
+	self:_destroyPawn(player)
+	local character = player.Character
+	if character then
+		player.Character = nil
+		character:Destroy()
+	end
+
+	if modeName == GameStates.PlayerMode.Human then
+		return self:SpawnHumanCharacter(player, 1, "LobbyMap") ~= nil
+	end
+	return self:SpawnPawn(player, 1, "LobbyMap") ~= nil
+end
+
 function PlayerService:SpawnForActiveMode(player: Player, spawnIndex: number?, mapName: string?, modeName: string?)
 	local stateService = self._context.Services.PlayerStateService
 	local resolvedMode = modeName or (stateService and stateService:GetActivePlayerMode(player)) or GameStates.PlayerMode.Launcher

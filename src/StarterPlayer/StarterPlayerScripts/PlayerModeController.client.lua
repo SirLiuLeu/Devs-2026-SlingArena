@@ -67,10 +67,9 @@ function HumanLauncherToggleController:_setVisibleForState()
 	end
 	local locationState = player:GetAttribute("LocationState")
 	local roundState = player:GetAttribute("RoundState")
-	local activeMode = player:GetAttribute("ActivePlayerMode")
 	local inLobby = locationState == nil or locationState == GameStates.SessionState.Lobby
 	local roundIsLobby = roundState == nil or roundState == GameStates.MapRoundState.Lobby
-	toggleFrame.Visible = inLobby and roundIsLobby and activeMode ~= HumanMode
+	toggleFrame.Visible = inLobby and roundIsLobby
 end
 
 function HumanLauncherToggleController:_applyVisual(optionName: string)

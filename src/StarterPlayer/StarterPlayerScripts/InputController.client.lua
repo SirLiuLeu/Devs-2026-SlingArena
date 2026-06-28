@@ -8,6 +8,7 @@ local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
 local player = Players.LocalPlayer
@@ -33,6 +34,21 @@ local actionState = {
 local lastSentVector = Vector3.zero
 local lastSentAt = 0
 
+local function isLauncherMode(): boolean
+	return player:GetAttribute("ActivePlayerMode") ~= GameStates.PlayerMode.Human
+end
+
+local function resetLauncherInput()
+	for keyCode in pairs(keyboardState) do
+		keyboardState[keyCode] = false
+	end
+	actionState.forward = 0
+	actionState.backward = 0
+	actionState.left = 0
+	actionState.right = 0
+	lastSentVector = Vector3.zero
+	lastSentAt = 0
+end
 
 local function composeInput2D(): Vector2
 	local x = 0
@@ -87,6 +103,10 @@ local function computeAimDirection(): Vector3?
 end
 
 local function onDirectionalAction(directionName: string, state: Enum.UserInputState): Enum.ContextActionResult
+	if not isLauncherMode() then
+		actionState[directionName] = 0
+		return Enum.ContextActionResult.Pass
+	end
 	local pressed = state == Enum.UserInputState.Begin or state == Enum.UserInputState.Change
 	actionState[directionName] = if pressed then 1 else 0
 	return Enum.ContextActionResult.Pass
@@ -113,7 +133,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then
 		return
 	end
-	if keyboardState[input.KeyCode] ~= nil then
+	if isLauncherMode() and keyboardState[input.KeyCode] ~= nil then
 		keyboardState[input.KeyCode] = true
 	end
 end)
@@ -132,19 +152,22 @@ launcherPawns.ChildAdded:Connect(function(child)
 	if child.Name ~= player.Name and child.Name ~= (player.Name .. "_Pawn") then
 		return
 	end
-	for keyCode in pairs(keyboardState) do
-		keyboardState[keyCode] = false
-	end
-	actionState.forward = 0
-	actionState.backward = 0
-	actionState.left = 0
-	actionState.right = 0
+	resetLauncherInput()
 	player:SetAttribute("CameraRotateHeld", false)
-	lastSentVector = Vector3.zero
-	lastSentAt = 0
+end)
+
+player:GetAttributeChangedSignal("ActivePlayerMode"):Connect(function()
+	if not isLauncherMode() then
+		resetLauncherInput()
+		player:SetAttribute("CameraRotateHeld", false)
+	end
 end)
 
 RunService.RenderStepped:Connect(function()
+	if not isLauncherMode() then
+		return
+	end
+
 	local now = os.clock()
 	if now - lastSentAt < PhysicsConfig.Movement.MoveSendInterval then
 		return

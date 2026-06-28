@@ -12,11 +12,9 @@ function LaunchMotionModel.ComputeChargeRatio(startedAt: number, now: number): n
 	return math.clamp(elapsed / chargeWindow, 0, 1)
 end
 
-function LaunchMotionModel.BuildState(direction: Vector3, chargeRatio: number, now: number, sourcePlayer: Player?): any
+function LaunchMotionModel.BuildState(direction: Vector3, chargeRatio: number, now: number, sourcePlayer: Player?, launchSpeed: number): any
 	local d = if direction.Magnitude > PhysicsConfig.Launch.DirectionDeadzone then direction.Unit else Vector3.new(0, 0, -1)
-	local uncappedSpeed = PhysicsConfig.Launch.SpeedMin
-		+ ((PhysicsConfig.Launch.SpeedMax - PhysicsConfig.Launch.SpeedMin) * chargeRatio)
-	local speed = math.min(uncappedSpeed, PhysicsConfig.Launch.InitialVelocityCap or PhysicsConfig.Launch.SpeedMax)
+	local speed = math.clamp(launchSpeed, PhysicsConfig.Launch.SpeedMin, PhysicsConfig.Launch.SpeedMax)
 	local energy = PhysicsConfig.Launch.EnergyMin
 		+ ((PhysicsConfig.Launch.EnergyMax - PhysicsConfig.Launch.EnergyMin) * chargeRatio)
 	return {
