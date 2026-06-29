@@ -621,6 +621,26 @@ function PlayerService:SpawnHumanCharacter(player: Player, spawnIndex: number?, 
 	if stateService then
 		stateService:SetAlive(player, true)
 	end
+	local state = stateService and stateService:GetState(player) or nil
+	local networkOwner = nil
+	if root then
+		local ok, owner = pcall(function()
+			return root:GetNetworkOwner()
+		end)
+		networkOwner = if ok and owner then owner.Name else nil
+	end
+	print(string.format(
+		"[Human Debug] Server Human Spawn: player=%s character=%s playerCharacter=%s mode=%s isAlive=%s humanoid=%s root=%s rootAnchored=%s networkOwner=%s",
+		player.Name,
+		character.Name,
+		tostring(player.Character == character),
+		tostring(state and state.ActivePlayerMode),
+		tostring(state and state.IsAlive),
+		tostring(humanoid ~= nil),
+		tostring(root ~= nil),
+		tostring(root and root.Anchored),
+		tostring(networkOwner)
+	))
 	return character
 end
 

@@ -88,6 +88,7 @@ function LauncherService.new(context)
 	self._reportLaunchStoppedRemote = nil :: RemoteEvent?
 	self._heartbeatConnection = nil
 	self._warnedInvalidRoot = {}
+	self._warnedHumanLauncherInterference = {}
 	self._aimTargets = {}
 	self._activeLaunches = {}
 	return self
@@ -630,6 +631,16 @@ end
 
 function LauncherService:_getMovementController(player: Player, root: BasePart)
 	if not self:_isLauncherMode(player) then
+		if not self._warnedHumanLauncherInterference[player] then
+			self._warnedHumanLauncherInterference[player] = true
+			print(string.format(
+				"[Human Debug] Unexpected LauncherMovement Creation Path: player=%s mode=%s root=%s constraints=%s",
+				player.Name,
+				tostring(player:GetAttribute("ActivePlayerMode")),
+				root:GetFullName(),
+				tostring(root:FindFirstChild("LauncherMovementAttachment") ~= nil or root:FindFirstChild("LinearVelocity") ~= nil)
+			))
+		end
 		return nil
 	end
 	local movementController = self._movementControllers[player]
@@ -656,6 +667,18 @@ end
 
 function LauncherService:_applyRootVelocity(player: Player, root: BasePart, input: Vector3, dt: number)
 	if not self:_isLauncherMode(player) then
+		if not self._warnedHumanLauncherInterference[player] then
+			self._warnedHumanLauncherInterference[player] = true
+			print(string.format(
+				"[Human Debug] Unexpected Launcher Velocity Path: player=%s mode=%s root=%s input=%s velocity=%s constraints=%s",
+				player.Name,
+				tostring(player:GetAttribute("ActivePlayerMode")),
+				root:GetFullName(),
+				tostring(input),
+				tostring(root.AssemblyLinearVelocity),
+				tostring(root:FindFirstChild("LauncherMovementAttachment") ~= nil or root:FindFirstChild("LinearVelocity") ~= nil)
+			))
+		end
 		self:ResetPlayerRuntime(player)
 		return
 	end
