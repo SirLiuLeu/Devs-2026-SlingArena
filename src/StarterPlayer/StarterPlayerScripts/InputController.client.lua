@@ -53,10 +53,11 @@ local printedHumanInput = false
 local printedHumanPhysics = false
 
 local function getPlayerControls(): any
+	
 	if controls then
 		return controls
 	end
-
+	print("[InputController] Resolving native controls...")
 	local playerScripts = player:WaitForChild("PlayerScripts", PLAYER_MODULE_TIMEOUT_SECONDS)
 	if not playerScripts then
 		warn("[InputController] PlayerScripts missing; native controls could not be resolved")
@@ -65,17 +66,20 @@ local function getPlayerControls(): any
 
 	local playerModule = playerScripts:WaitForChild("PlayerModule", PLAYER_MODULE_TIMEOUT_SECONDS)
 	if not playerModule then
+		print("[InputController] PlayerModule missing; native controls could not be resolved")
 		warn("[InputController] PlayerModule missing; native controls could not be resolved")
 		return nil
 	end
-
+	print("3", playerModule)
 	local module = require(playerModule)
+	print("4", "module")
 	if type(module) ~= "table" or type(module.GetControls) ~= "function" then
 		warn("[InputController] PlayerModule did not expose GetControls")
 		return nil
 	end
 
 	controls = module:GetControls()
+	print("[InputController] Native controls resolved", controls)
 	return controls
 end
 
