@@ -109,6 +109,11 @@ function LauncherService:ResetPlayerRuntime(player: Player)
 	end
 end
 
+function LauncherService:_isLauncherMode(player: Player): boolean
+	local stateService = getService(self._context, "PlayerStateService")
+	return stateService == nil or not stateService:IsHuman(player)
+end
+
 local function resolveAlignOrientation(root: BasePart): AlignOrientation?
 	local alignOrientation = root:FindFirstChild("AlignOrientation")
 	if alignOrientation and alignOrientation:IsA("AlignOrientation") then
@@ -230,11 +235,11 @@ function LauncherService:Init()
 end
 
 function LauncherService:_resolvePawnAndRoot(player: Player): (Model?, BasePart?)
-	local playerService = self._context.Services.PlayerService
-	local pawn = player.Character
-	if not (pawn and pawn:IsA("Model")) and playerService then
-		pawn = playerService:GetPawn(player)
+	if not self:_isLauncherMode(player) then
+		return nil, nil
 	end
+	local playerService = self._context.Services.PlayerService
+	local pawn = if playerService then playerService:GetPawn(player) else nil
 	if not (pawn and pawn:IsA("Model")) then
 		return nil, nil
 	end
@@ -605,6 +610,10 @@ end
 
 function LauncherService:_stepMovement(dt: number)
 	for _, player in self:_getTrackedPlayers() do
+		if not self:_isLauncherMode(player) then
+			self:ResetPlayerRuntime(player)
+			continue
+		end
 		local root = self._context.Services.PlayerService:GetRoot(player)
 		local input = self._input[player] or Vector3.zero
 		if root then
@@ -620,6 +629,9 @@ function LauncherService:_stepMovement(dt: number)
 end
 
 function LauncherService:_getMovementController(player: Player, root: BasePart)
+	if not self:_isLauncherMode(player) then
+		return nil
+	end
 	local movementController = self._movementControllers[player]
 	if movementController and movementController._root ~= root then
 		movementController:Destroy()
@@ -643,6 +655,11 @@ local function resolveMovementSpeed(state): number
 end
 
 function LauncherService:_applyRootVelocity(player: Player, root: BasePart, input: Vector3, dt: number)
+	if not self:_isLauncherMode(player) then
+		self:ResetPlayerRuntime(player)
+		return
+	end
+
 	if root.Anchored then
 		root.Anchored = false
 		if root.Anchored then
@@ -656,7 +673,8 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 	end
 
 	local state = self._context.Services.PlayerStateService:GetState(player)
-	if not state then
+	if not state or state.ActivePlayerMode == GameStates.PlayerMode.Human then
+		self:ResetPlayerRuntime(player)
 		return
 	end
 
@@ -675,6 +693,9 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 	end
 
 	local movementController = self:_getMovementController(player, root)
+	if not movementController then
+		return
+	end
 	local moveDirection = Vector3.zero
 	if input.Magnitude > PhysicsConfig.Movement.InputDeadzone then
 		local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)

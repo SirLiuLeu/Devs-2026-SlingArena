@@ -547,20 +547,57 @@ function PlayerService:SpawnForActiveMode(player: Player, spawnIndex: number?, m
 	return self:SpawnPawn(player, spawnIndex, mapName)
 end
 
+function PlayerService:_waitForLoadedCharacter(player: Player): Model?
+	local previousCharacter = player.Character
+	local characterAdded = player.CharacterAdded
+	player:LoadCharacter()
+
+	local character = player.Character
+	if character and character ~= previousCharacter and character:IsA("Model") then
+		return character
+	end
+
+	character = characterAdded:Wait()
+	if character and character:IsA("Model") then
+		return character
+	end
+	return nil
+end
+
+function PlayerService:_waitForHumanoidCharacterParts(character: Model): (Humanoid?, BasePart?)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		local foundHumanoid = character:WaitForChild("Humanoid")
+		humanoid = if foundHumanoid and foundHumanoid:IsA("Humanoid") then foundHumanoid else nil
+	end
+
+	local root = character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart
+	if not root then
+		local foundRoot = character:WaitForChild("HumanoidRootPart")
+		root = if foundRoot and foundRoot:IsA("BasePart") then foundRoot else character.PrimaryPart
+	end
+
+	return humanoid, if root and root:IsA("BasePart") then root else nil
+end
+
 function PlayerService:SpawnHumanCharacter(player: Player, spawnIndex: number?, mapName: string?)
 	self:_disconnectDeathSignal(player)
 	self:_destroyPawn(player)
+	local launcherService = self._context.Services.LauncherService
+	if launcherService and typeof(launcherService.ResetPlayerRuntime) == "function" then
+		launcherService:ResetPlayerRuntime(player)
+	end
 	local stateService = self._context.Services.PlayerStateService
 	if stateService then
-		stateService:SetActivePlayerMode(player, GameStates.PlayerMode.Human)
-		stateService:SetAlive(player, true)
+		stateService:SetActivePlayerMode(player, GameStates.PlayerMode.Human, nil, false)
 	end
-	player:LoadCharacter()
-	local character = player.Character
+
+	local character = self:_waitForLoadedCharacter(player)
 	if not character then
 		return nil
 	end
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+	local humanoid, root = self:_waitForHumanoidCharacterParts(character)
 	if humanoid then
 		self._deathConnections[player] = humanoid.Died:Connect(function()
 			local damageService = self._context.Services.DamagePipelineService
@@ -569,9 +606,9 @@ function PlayerService:SpawnHumanCharacter(player: Player, spawnIndex: number?, 
 			end
 		end)
 	end
-	local root = character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart
+
 	local mapService = self._context.Services.MapService
-	if root and root:IsA("BasePart") and mapService then
+	if root and mapService then
 		local playerState = stateService and stateService:GetState(player) or nil
 		local teamId = playerState and playerState.TeamId or nil
 		local index = spawnIndex or (player.UserId % 8) + 1
@@ -580,6 +617,9 @@ function PlayerService:SpawnHumanCharacter(player: Player, spawnIndex: number?, 
 			spawnCFrame = mapService:GetSpawnCFrame(index, mapName, teamId)
 		end
 		character:PivotTo(spawnCFrame)
+	end
+	if stateService then
+		stateService:SetAlive(player, true)
 	end
 	return character
 end
@@ -671,10 +711,13 @@ function PlayerService:EquipLauncherModel(player: Player, launcherId: string): b
 		return false
 	end
 
-	player.Character = pawn
+	local stateService = self._context.Services.PlayerStateService
+	if not (stateService and stateService:IsHuman(player)) then
+		player.Character = pawn
+	end
 	root:SetNetworkOwner(player)
 
-	local state = self._context.Services.PlayerStateService:GetState(player)
+	local state = stateService and stateService:GetState(player) or nil
 	if state then
 		self:_updateWorldUi(player, state)
 	end

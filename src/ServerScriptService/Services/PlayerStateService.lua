@@ -276,7 +276,7 @@ function PlayerStateService:SetSelectedPlayerMode(player: Player, modeName: stri
 	return true
 end
 
-function PlayerStateService:SetActivePlayerMode(player: Player, modeName: string, forced: boolean?): boolean
+function PlayerStateService:SetActivePlayerMode(player: Player, modeName: string, forced: boolean?, publishNow: boolean?): boolean
 	if modeName ~= GameStates.PlayerMode.Launcher and modeName ~= GameStates.PlayerMode.Human then
 		return false
 	end
@@ -293,7 +293,9 @@ function PlayerStateService:SetActivePlayerMode(player: Player, modeName: string
 	if forced == true and modeName == GameStates.PlayerMode.Human then
 		state.ForcedHuman = true
 	end
-	self:PublishState(player)
+	if publishNow ~= false then
+		self:PublishState(player)
+	end
 	return true
 end
 
