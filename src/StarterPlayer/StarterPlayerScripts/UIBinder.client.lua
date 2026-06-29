@@ -67,13 +67,33 @@ playerGui.ChildRemoved:Connect(function(child)
 	end
 end)
 
+local function isLocalLauncherPawn(child: Instance): boolean
+	return child.Name == player.Name or child.Name == (player.Name .. "_Pawn")
+end
+
 workspace:WaitForChild("LauncherPawns").ChildAdded:Connect(function(child)
-	if child.Name ~= player.Name then
+	if not isLocalLauncherPawn(child) then
 		return
 	end
 	task.wait()
 	scheduleRebuild()
 end)
+
+workspace:WaitForChild("LauncherPawns").ChildRemoved:Connect(function(child)
+	if isLocalLauncherPawn(child) then
+		scheduleRebuild()
+	end
+end)
+
+player.CharacterAdded:Connect(function()
+	scheduleRebuild()
+end)
+
+player.CharacterRemoving:Connect(function()
+	scheduleRebuild()
+end)
+
+player:GetAttributeChangedSignal("ActivePlayerMode"):Connect(scheduleRebuild)
 
 RunService.Heartbeat:Connect(function()
 	if controller == nil then

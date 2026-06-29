@@ -1,7 +1,10 @@
 --!strict
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 
 local PawnLocator = {}
 
@@ -13,11 +16,7 @@ local function getPawnsFolder(): Folder?
 	return nil
 end
 
-function PawnLocator.GetPawnByPlayer(player: Player): Model?
-	if player.Character and player.Character:IsA("Model") then
-		return player.Character
-	end
-
+local function getLauncherPawnByPlayer(player: Player): Model?
 	local pawnsFolder = getPawnsFolder()
 	if not pawnsFolder then
 		return nil
@@ -33,6 +32,18 @@ function PawnLocator.GetPawnByPlayer(player: Player): Model?
 	return nil
 end
 
+function PawnLocator.GetPawnByPlayer(player: Player): Model?
+	if player:GetAttribute("ActivePlayerMode") == GameStates.PlayerMode.Human then
+		return if player.Character and player.Character:IsA("Model") then player.Character else nil
+	end
+
+	local launcherPawn = getLauncherPawnByPlayer(player)
+	if launcherPawn then
+		return launcherPawn
+	end
+	return if player.Character and player.Character:IsA("Model") then player.Character else nil
+end
+
 function PawnLocator.GetLocalPawn(): Model?
 	local localPlayer = Players.LocalPlayer
 	if not localPlayer then
@@ -45,6 +56,10 @@ function PawnLocator.GetRootPart(pawn: Model?): BasePart?
 	if not pawn then
 		return nil
 	end
+	local humanoidRoot = pawn:FindFirstChild("HumanoidRootPart")
+	if humanoidRoot and humanoidRoot:IsA("BasePart") then
+		return humanoidRoot
+	end
 	local root = pawn:FindFirstChild("Hitbox", true)
 	if root and root:IsA("BasePart") then
 		return root
@@ -53,6 +68,14 @@ function PawnLocator.GetRootPart(pawn: Model?): BasePart?
 		return pawn.PrimaryPart
 	end
 	return pawn:FindFirstChildWhichIsA("BasePart")
+end
+
+function PawnLocator.GetLauncherPawnByPlayer(player: Player): Model?
+	return getLauncherPawnByPlayer(player)
+end
+
+function PawnLocator.GetHumanCharacterByPlayer(player: Player): Model?
+	return if player.Character and player.Character:IsA("Model") then player.Character else nil
 end
 
 return PawnLocator

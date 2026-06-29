@@ -9,6 +9,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameStates = require(Shared:WaitForChild("Constants"):WaitForChild("GameStates"))
 local PhysicsConfig = require(Shared:WaitForChild("Config"):WaitForChild("PhysicsConfig"))
 local CollisionResponse = require(Shared:WaitForChild("Utils"):WaitForChild("CollisionResponse"))
+local PawnLocator = require(Shared:WaitForChild("Utils"):WaitForChild("PawnLocator"))
 local stateUpdateRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("StateUpdate") :: RemoteEvent
 local reportFoodRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
 local reportCollisionRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportCollision") :: RemoteEvent
@@ -104,9 +105,19 @@ local function gridKey(pos: Vector3): string
 	return string.format("%d:%d", math.floor(pos.X / GRID_CELL_SIZE), math.floor(pos.Z / GRID_CELL_SIZE))
 end
 
+local function isHumanMode(): boolean
+	return player:GetAttribute("ActivePlayerMode") == GameStates.PlayerMode.Human
+end
+
+local function getActiveCharacter(): Model?
+	if isHumanMode() then
+		return PawnLocator.GetHumanCharacterByPlayer(player)
+	end
+	return PawnLocator.GetLauncherPawnByPlayer(player) or PawnLocator.GetHumanCharacterByPlayer(player)
+end
+
 local function getRoot(): BasePart?
-	local character = player.Character
-	return character and character:FindFirstChild("Hitbox", true) :: BasePart?
+	return PawnLocator.GetRootPart(getActiveCharacter())
 end
 
 local function getFoodModelFromPart(part: Instance): Model?
@@ -122,7 +133,7 @@ end
 
 local function getPlayerFromHit(part: Instance): Player?
 	local model = part:FindFirstAncestorOfClass("Model")
-	if not model or player.Character == model then
+	if not model or getActiveCharacter() == model then
 		return nil
 	end
 	return Players:GetPlayerFromCharacter(model)
@@ -301,7 +312,8 @@ local function sphereCastLaunching(root: BasePart, dt: number, previousPosition:
 
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { player.Character }
+	local activeCharacter = getActiveCharacter()
+	params.FilterDescendantsInstances = if activeCharacter then { activeCharacter } else {}
 	params.IgnoreWater = true
 	local result = workspace:Spherecast(castStart, radius, direction * castDistance, params)
 	if not result then
@@ -324,6 +336,12 @@ local function sphereCastLaunching(root: BasePart, dt: number, previousPosition:
 end
 
 RunService.RenderStepped:Connect(function(dt)
+	if isHumanMode() then
+		lastRootPosition = nil
+		setSweepDebugVisible(false, nil, nil, nil)
+		return
+	end
+
 	local root = getRoot()
 	if not root then
 		lastRootPosition = nil

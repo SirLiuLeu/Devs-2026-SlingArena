@@ -2,7 +2,10 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+
+local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 
 local player = Players.LocalPlayer
 local NEAR_DISTANCE = 20
@@ -34,9 +37,9 @@ local function updateUiForFood(foodModel: Model, rootPos: Vector3)
 end
 
 RunService.RenderStepped:Connect(function()
-	local character = player.Character
-	local root = character and character:FindFirstChild("Hitbox", true)
-	if not (root and root:IsA("BasePart")) then
+	local character = PawnLocator.GetLocalPawn()
+	local root = PawnLocator.GetRootPart(character)
+	if not root then
 		return
 	end
 	local maps = Workspace:FindFirstChild("Maps")

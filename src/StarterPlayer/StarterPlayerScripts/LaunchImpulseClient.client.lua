@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
 local player = Players.LocalPlayer
@@ -17,27 +18,7 @@ local stopEvidenceFrames = 0
 local monitorConnection: RBXScriptConnection? = nil
 
 local function getCharacterRoot(): BasePart?
-	local character = player.Character
-	if not character then
-		return nil
-	end
-
-	local root = character:FindFirstChild("HumanoidRootPart")
-	if root and root:IsA("BasePart") then
-		return root
-	end
-
-	local primaryPart = character.PrimaryPart
-	if primaryPart and primaryPart:IsA("BasePart") then
-		return primaryPart
-	end
-
-	local hitbox = character:FindFirstChild("Hitbox", true)
-	if hitbox and hitbox:IsA("BasePart") then
-		return hitbox
-	end
-
-	return nil
+	return PawnLocator.GetRootPart(PawnLocator.GetLocalPawn())
 end
 
 local function resolvePlanarDirection(direction: any): Vector3?

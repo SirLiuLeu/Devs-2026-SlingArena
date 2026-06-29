@@ -5,48 +5,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
+local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 
 local player = Players.LocalPlayer
 local launcherPawns = Workspace:WaitForChild("LauncherPawns")
-
-local function findPawnModel(): Model?
-	local bySuffix = launcherPawns:FindFirstChild(player.Name .. "_Pawn")
-	if bySuffix and bySuffix:IsA("Model") then
-		return bySuffix
-	end
-
-	local byName = launcherPawns:FindFirstChild(player.Name)
-	if byName and byName:IsA("Model") then
-		return byName
-	end
-
-	return nil
-end
-
-local function resolveLauncherRoot(): BasePart?
-	local pawn = findPawnModel()
-	if not pawn then
-		return nil
-	end
-	local root = pawn:FindFirstChild("Hitbox", true) or pawn.PrimaryPart
-	if root and root:IsA("BasePart") then
-		if pawn.PrimaryPart == nil then
-			pawn.PrimaryPart = root
-		end
-		return root
-	end
-
-	local fallback = pawn:FindFirstChildWhichIsA("BasePart")
-	if fallback then
-		pawn.PrimaryPart = fallback
-		return fallback
-	end
-
-	return nil
-end
+local cameraResolveGeneration = 0
 
 local function resolveHumanSubject(): Instance?
-	local character = player.Character
+	local character = PawnLocator.GetHumanCharacterByPlayer(player)
 	if not character then
 		return nil
 	end
@@ -56,46 +22,55 @@ local function resolveHumanSubject(): Instance?
 		return humanoid
 	end
 
-	local root = character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart
-	if root and root:IsA("BasePart") then
-		return root
-	end
+	return PawnLocator.GetRootPart(character)
+end
 
-	return nil
+local function resolveLauncherSubject(): Instance?
+	local pawn = PawnLocator.GetLauncherPawnByPlayer(player)
+	return PawnLocator.GetRootPart(pawn)
 end
 
 local function resolveCameraSubject(): Instance?
 	if player:GetAttribute("ActivePlayerMode") == GameStates.PlayerMode.Human then
 		return resolveHumanSubject()
 	end
-	return resolveLauncherRoot()
+	return resolveLauncherSubject()
 end
 
 local function applyDefaultCamera()
-	local camera = Workspace.CurrentCamera
-	if not camera then
-		return
-	end
+	cameraResolveGeneration += 1
+	local generation = cameraResolveGeneration
 
-	camera.CameraType = Enum.CameraType.Custom
+	local function tryResolve(attempt: number)
+		if generation ~= cameraResolveGeneration then
+			return
+		end
 
-	local maxAttempts = 20
-	local attempt = 0
+		local camera = Workspace.CurrentCamera
+		if not camera then
+			if attempt < 20 then
+				task.delay(0.1, function()
+					tryResolve(attempt + 1)
+				end)
+			end
+			return
+		end
 
-	local function tryResolve()
+		camera.CameraType = Enum.CameraType.Custom
 		local subject = resolveCameraSubject()
 		if subject then
 			camera.CameraSubject = subject
 			return
 		end
 
-		attempt += 1
-		if attempt < maxAttempts then
-			task.delay(0.1, tryResolve)
+		if attempt < 20 then
+			task.delay(0.1, function()
+				tryResolve(attempt + 1)
+			end)
 		end
 	end
 
-	tryResolve()
+	tryResolve(1)
 end
 
 Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(applyDefaultCamera)
@@ -106,7 +81,17 @@ launcherPawns.ChildAdded:Connect(function(child)
 	end
 end)
 
+launcherPawns.ChildRemoved:Connect(function(child)
+	if child.Name == player.Name or child.Name == (player.Name .. "_Pawn") then
+		applyDefaultCamera()
+	end
+end)
+
 player.CharacterAdded:Connect(function()
+	applyDefaultCamera()
+end)
+
+player.CharacterRemoving:Connect(function()
 	applyDefaultCamera()
 end)
 

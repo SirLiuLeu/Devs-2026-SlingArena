@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
@@ -12,27 +13,7 @@ local knockbackRemote = remotes:WaitForChild(RemoteContracts.Names.KnockbackRepl
 local MIN_ASSEMBLY_MASS = 0.001
 
 local function getCharacterRoot(): BasePart?
-	local character = player.Character
-	if not character then
-		return nil
-	end
-
-	local root = character:FindFirstChild("HumanoidRootPart")
-	if root and root:IsA("BasePart") then
-		return root
-	end
-
-	local primaryPart = character.PrimaryPart
-	if primaryPart and primaryPart:IsA("BasePart") then
-		return primaryPart
-	end
-
-	local hitbox = character:FindFirstChild("Hitbox", true)
-	if hitbox and hitbox:IsA("BasePart") then
-		return hitbox
-	end
-
-	return nil
+	return PawnLocator.GetRootPart(PawnLocator.GetLocalPawn())
 end
 
 knockbackRemote.OnClientEvent:Connect(function(knockbackDirection: any, knockbackSpeed: any)
