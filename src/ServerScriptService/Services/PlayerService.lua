@@ -44,7 +44,7 @@ function PlayerService.new(context)
 end
 
 function PlayerService:Init()
-	Players.CharacterAutoLoads = false
+	-- Players.CharacterAutoLoads = false
 	self:_loadLauncherTemplate()
 	self:_loadWorldUiTemplate()
 
