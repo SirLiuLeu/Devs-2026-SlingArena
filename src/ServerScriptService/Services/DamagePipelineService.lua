@@ -444,12 +444,14 @@ function DamagePipelineService:HandlePlayerDeath(player: Player)
 	local convertToHuman = playerStateService:RecordDeath(player, roundState)
 	playerStateService:SetAlive(player, false)
 	self._context.EventBus:Fire("PlayerDied", player)
+
+	local playerService = getService(self._context, "PlayerService")
+	local mapName = state.CurrentMap or self._context.Services.MapService:GetActiveMap() or "ArenaMap"
 	if convertToHuman then
-		local playerService = getService(self._context, "PlayerService")
-		local mapName = state.CurrentMap or (roundService and self._context.Services.MapService:GetActiveMap()) or "ArenaMap"
-		if playerService and typeof(playerService.SpawnForActiveMode) == "function" then
-			playerService:SpawnForActiveMode(player, nil, mapName, GameStates.PlayerMode.Human)
-		end
+		playerStateService:SetActivePlayerMode(player, GameStates.PlayerMode.Human)
+	end
+	if playerService and typeof(playerService.RespawnAfterDelay) == "function" then
+		playerService:RespawnAfterDelay(player, 3, nil, mapName)
 	end
 
 	local killer = playerStateService:GetLastAttacker(player)

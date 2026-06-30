@@ -36,8 +36,9 @@ function MonetizationService:Init()
 end
 
 function MonetizationService:HandleRespawnRequest(player: Player)
-	self._context.Services.PlayerService:SpawnPawn(player)
-	self._context.Services.PlayerStateService:ResetForRespawn(player)
+	local state = self._context.Services.PlayerStateService:GetState(player)
+	local mapName = state and state.CurrentMap or self._context.Services.MapService:GetActiveMap() or "LobbyMap"
+	self._context.Services.PlayerService:RespawnCurrentMode(player, nil, mapName)
 end
 
 return MonetizationService

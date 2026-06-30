@@ -102,8 +102,8 @@ local function buildDefaultState(player: Player): PlayerState
 		NextHpPotionUseTime = 0,
 		RespawnCountThisMatch = 0,
 		DeathCountThisMatch = 0,
-		SelectedPlayerMode = GameStates.PlayerMode.Launcher,
-		ActivePlayerMode = GameStates.PlayerMode.Launcher,
+		SelectedPlayerMode = GameStates.PlayerMode.Human,
+		ActivePlayerMode = GameStates.PlayerMode.Human,
 		ForcedHuman = false,
 		FinalPhaseDeathConverted = false,
 		AttributePoints = LevelConfig.StartingAttributePoints,
@@ -301,7 +301,7 @@ end
 
 function PlayerStateService:ShouldForceHuman(player: Player): boolean
 	local state = self._states[player]
-	return state ~= nil and (state.ForcedHuman == true or (state.DeathCountThisMatch or 0) >= 3 or state.FinalPhaseDeathConverted == true)
+	return state ~= nil and (state.ForcedHuman == true or state.FinalPhaseDeathConverted == true)
 end
 
 function PlayerStateService:ResolveArenaSpawnMode(player: Player): string
@@ -309,7 +309,7 @@ function PlayerStateService:ResolveArenaSpawnMode(player: Player): string
 	if state and self:ShouldForceHuman(player) then
 		return GameStates.PlayerMode.Human
 	end
-	return (state and state.SelectedPlayerMode) or GameStates.PlayerMode.Launcher
+	return GameStates.PlayerMode.Launcher
 end
 
 function PlayerStateService:ApplyStun(player: Player, duration: number)
@@ -336,11 +336,34 @@ function PlayerStateService:GetAllStates(): { [Player]: PlayerState }
 	return self._states
 end
 
+function PlayerStateService:_ensureDefaultLauncher(player: Player)
+	local state = self._states[player]
+	if not state then
+		return
+	end
+	state.OwnedLaunchers = state.OwnedLaunchers or {}
+	local equippedInstanceId = state.EquippedLauncherInstanceId
+	local equippedInstance = equippedInstanceId and state.OwnedLaunchers[equippedInstanceId] or nil
+	if equippedInstance and LauncherConfig.GetById(equippedInstance.definitionId) then
+		return
+	end
+	local defaultInstanceId = "default_normal_launcher"
+	state.OwnedLaunchers[defaultInstanceId] = state.OwnedLaunchers[defaultInstanceId] or {
+		definitionId = LauncherConfig.DefaultLauncherId,
+		star = 1,
+		level = 1,
+		acquiredAt = os.time(),
+	}
+	state.EquippedLauncherInstanceId = defaultInstanceId
+	state.LaunchershotType = LauncherConfig.DefaultLauncherId
+end
+
 function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth: boolean?)
 	local state = self._states[player]
 	if not state then
 		return
 	end
+	self:_ensureDefaultLauncher(player)
 
 	local ownedLaunchers = state.OwnedLaunchers or {}
 	local equippedInstanceId = state.EquippedLauncherInstanceId
@@ -428,15 +451,18 @@ function PlayerStateService:RecordDeath(player: Player, roundState: string?): bo
 	if not state then
 		return false
 	end
+	local diedAsLauncher = state.ActivePlayerMode == GameStates.PlayerMode.Launcher
 	state.DeathCountThisMatch = (state.DeathCountThisMatch or 0) + 1
 	state.RespawnCountThisMatch = state.DeathCountThisMatch
-	local shouldConvert = state.DeathCountThisMatch >= 3
+	local shouldConvert = diedAsLauncher
 	if roundState == GameStates.MapRoundState.FinalPhase then
 		state.FinalPhaseDeathConverted = true
 		shouldConvert = true
 	end
 	if shouldConvert then
 		state.ForcedHuman = true
+		state.ActivePlayerMode = GameStates.PlayerMode.Human
+		state.MovementState = MOVEMENT_STATE.Human
 	end
 	self:PublishState(player)
 	return shouldConvert
@@ -583,8 +609,8 @@ function PlayerStateService:ResetForNewRound(player: Player)
 	if not state then return end
 	state.IsAlive = true
 	state.IsCharging = false
-	state.ActivePlayerMode = state.SelectedPlayerMode or GameStates.PlayerMode.Launcher
-	state.MovementState = if state.ActivePlayerMode == GameStates.PlayerMode.Human then MOVEMENT_STATE.Human else MOVEMENT_STATE.Idle
+	state.ActivePlayerMode = GameStates.PlayerMode.Launcher
+	state.MovementState = MOVEMENT_STATE.Idle
 	state.CurrentVelocity = Vector3.zero
 	state.ChargeValue = 0
 	state.CooldownEndTime = 0

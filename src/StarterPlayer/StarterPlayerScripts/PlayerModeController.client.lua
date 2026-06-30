@@ -17,7 +17,7 @@ HumanLauncherToggleController.__index = HumanLauncherToggleController
 
 local LauncherMode = GameStates.PlayerMode.Launcher
 local HumanMode = GameStates.PlayerMode.Human
-local SelectedPlayerMode = LauncherMode
+local SelectedPlayerMode = HumanMode
 
 local HUMAN_ON = "On"
 local LAUNCHER_OFF = "Off"

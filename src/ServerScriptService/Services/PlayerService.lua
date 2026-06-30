@@ -44,7 +44,7 @@ function PlayerService.new(context)
 end
 
 function PlayerService:Init()
-	-- Players.CharacterAutoLoads = false
+	Players.CharacterAutoLoads = false
 	self:_loadLauncherTemplate()
 	self:_loadWorldUiTemplate()
 
@@ -54,7 +54,7 @@ function PlayerService:Init()
 
 	Players.PlayerAdded:Connect(function(player)
 		self:_waitForPlayerReady(player)
-		self:SpawnPawn(player, 1, "LobbyMap")
+		self:SpawnForActiveMode(player, 1, "LobbyMap", GameStates.PlayerMode.Human)
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		self:_disconnectDeathSignal(player)
@@ -64,13 +64,13 @@ function PlayerService:Init()
 
 	for _, player in Players:GetPlayers() do
 		self:_waitForPlayerReady(player)
-		self:SpawnPawn(player, 1, "LobbyMap")
+		self:SpawnForActiveMode(player, 1, "LobbyMap", GameStates.PlayerMode.Human)
 	end
 
 	local debugResetRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.DebugResetLauncher)
 	if debugResetRemote and debugResetRemote:IsA("RemoteEvent") then
 		debugResetRemote.OnServerEvent:Connect(function(player)
-			self:SpawnPawn(player, nil, self._context.Services.MapService:GetActiveMap() or "LobbyMap")
+			self:RespawnCurrentMode(player, nil, self._context.Services.MapService:GetActiveMap() or "LobbyMap")
 		end)
 	end
 end
@@ -547,6 +547,27 @@ function PlayerService:SpawnForActiveMode(player: Player, spawnIndex: number?, m
 	return self:SpawnPawn(player, spawnIndex, mapName)
 end
 
+function PlayerService:RespawnCurrentMode(player: Player, spawnIndex: number?, mapName: string?)
+	local stateService = self._context.Services.PlayerStateService
+	local state = stateService and stateService:GetState(player) or nil
+	local modeName = (state and state.ActivePlayerMode) or GameStates.PlayerMode.Human
+	return self:SpawnForActiveMode(player, spawnIndex, mapName or (state and state.CurrentMap) or "LobbyMap", modeName)
+end
+
+function PlayerService:RespawnAfterDelay(player: Player, delaySeconds: number?, spawnIndex: number?, mapName: string?)
+	local stateService = self._context.Services.PlayerStateService
+	local expectedMode = (stateService and stateService:GetActivePlayerMode(player)) or GameStates.PlayerMode.Human
+	task.delay(delaySeconds or 3, function()
+		if player.Parent ~= Players then
+			return
+		end
+		local state = stateService and stateService:GetState(player) or nil
+		local respawnMap = mapName or (state and state.CurrentMap) or self._context.Services.MapService:GetActiveMap() or "LobbyMap"
+		local modeName = (state and state.ActivePlayerMode) or expectedMode
+		self:SpawnForActiveMode(player, spawnIndex, respawnMap, modeName)
+	end)
+end
+
 function PlayerService:_waitForLoadedCharacter(player: Player): Model?
 	local previousCharacter = player.Character
 	local characterAdded = player.CharacterAdded
@@ -621,32 +642,17 @@ function PlayerService:SpawnHumanCharacter(player: Player, spawnIndex: number?, 
 	if stateService then
 		stateService:SetAlive(player, true)
 	end
-	local state = stateService and stateService:GetState(player) or nil
-	local networkOwner = nil
-	if root then
-		local ok, owner = pcall(function()
-			return root:GetNetworkOwner()
-		end)
-		networkOwner = if ok and owner then owner.Name else nil
-	end
-	print(string.format(
-		"[Human Debug] Server Human Spawn: player=%s character=%s playerCharacter=%s mode=%s isAlive=%s humanoid=%s root=%s rootAnchored=%s networkOwner=%s",
-		player.Name,
-		character.Name,
-		tostring(player.Character == character),
-		tostring(state and state.ActivePlayerMode),
-		tostring(state and state.IsAlive),
-		tostring(humanoid ~= nil),
-		tostring(root ~= nil),
-		tostring(root and root.Anchored),
-		tostring(networkOwner)
-	))
 	return character
 end
 
 function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	self:_disconnectDeathSignal(player)
 	self:_destroyPawn(player)
+	local existingCharacter = player.Character
+	if existingCharacter then
+		player.Character = nil
+		existingCharacter:Destroy()
+	end
 	local stateServiceForMode = self._context.Services.PlayerStateService
 	if stateServiceForMode then
 		stateServiceForMode:SetActivePlayerMode(player, GameStates.PlayerMode.Launcher)

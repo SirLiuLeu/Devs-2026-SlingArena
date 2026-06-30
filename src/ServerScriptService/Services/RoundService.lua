@@ -111,7 +111,8 @@ end
 
 function RoundService:LeaveArena(player: Player)
 	self._lastLeaveByUserId[player.UserId] = os.clock()
-	self._context.Services.PlayerService:SpawnForActiveMode(player, 1, "LobbyMap", GameStates.PlayerMode.Launcher)
+	local lobbyMode = self._context.Services.PlayerStateService:GetState(player) and self._context.Services.PlayerStateService:GetState(player).SelectedPlayerMode or GameStates.PlayerMode.Human
+	self._context.Services.PlayerService:SpawnForActiveMode(player, 1, "LobbyMap", lobbyMode)
 	self._context.Services.PlayerStateService:SetCurrentMap(player, "LobbyMap")
 	self._context.Services.PlayerStateService:SetLocationState(player, GameStates.SessionState.Lobby)
 	local rankService = self._context.Services.RankService
@@ -265,7 +266,8 @@ function RoundService:_startPostRound()
 		safeZoneService:Reset()
 	end
 	for _, player in ipairs(Players:GetPlayers()) do
-		self._context.Services.PlayerService:SpawnForActiveMode(player, 1, "LobbyMap", GameStates.PlayerMode.Launcher)
+		local lobbyMode = stateService and stateService:GetState(player) and stateService:GetState(player).SelectedPlayerMode or GameStates.PlayerMode.Human
+		self._context.Services.PlayerService:SpawnForActiveMode(player, 1, "LobbyMap", lobbyMode)
 		if stateService then
 			stateService:ClearHumanQualification(player)
 			stateService:SetCurrentMap(player, "LobbyMap")
