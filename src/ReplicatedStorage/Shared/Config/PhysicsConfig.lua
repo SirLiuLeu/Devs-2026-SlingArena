@@ -4,7 +4,7 @@
 -- read this module for prediction/UI so visible feel stays in sync with server physics.
 local PhysicsConfig = {
 	PhysicalProperties = {
-		Density = 0.5,
+		Density = 0.7,
 		Friction = 0.1,
 		Elasticity = 0.8,
 		FrictionWeight = 15,
