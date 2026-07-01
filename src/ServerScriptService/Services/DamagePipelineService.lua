@@ -22,6 +22,7 @@ type DamageOptions = {
 	KnockbackDuration: number?,
 	AttackerAbsoluteSpeed: number?,
 	InitialImpactSpeed: number?,
+	SourceType: string?,
 }
 
 type EffectConfig = {
@@ -90,6 +91,10 @@ local function getDamageBoostMultiplier(playerStateService: any, attacker: Playe
 	return 1 + (math.max(0, percent) / 100)
 end
 
+local function isHumanDamageAllowed(sourceType: string?): boolean
+	return sourceType == "Environment" or sourceType == "PhysicalLauncherCollision" or sourceType == "Trap" or sourceType == "SafeZone"
+end
+
 local function isCombatDamageAllowed(context: Context): boolean
 	local roundService = getService(context, "RoundService")
 	if not roundService then
@@ -149,6 +154,7 @@ function DamagePipelineService:Init()
 		-- Keep this ApplyDamage call damage-only so it does not produce a second impulse.
 		if self:ApplyHitDamage(victim, damage, attacker, nil, {
 			SuppressKnockback = true,
+			SourceType = "PhysicalLauncherCollision",
 		}) then
 			self:_applyLauncherDotFromHit(victim, attacker, attackerState, collisionMeta)
 		end
@@ -231,10 +237,14 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 		warn("[DamagePipelineService] PlayerStateService unavailable; damage skipped.")
 		return false
 	end
+	local sourceType = options and options.SourceType or (if attacker then "LauncherCombat" else "Environment")
 	if attacker and (not isCombatDamageAllowed(self._context) or (playerStateService.IsHuman and playerStateService:IsHuman(attacker))) then
 		return false
 	end
-	if (playerStateService.IsHuman and playerStateService:IsHuman(victim)) or playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
+	if playerStateService.IsHuman and playerStateService:IsHuman(victim) and not isHumanDamageAllowed(sourceType) then
+		return false
+	end
+	if playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
 		return false
 	end
 
@@ -321,7 +331,11 @@ function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number,
 		warn("[DamagePipelineService] PlayerStateService unavailable; DOT damage skipped.")
 		return false
 	end
-	if (playerStateService.IsHuman and playerStateService:IsHuman(victim)) or playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
+	local sourceIsPlayer = typeof(source) == "Instance" and source:IsA("Player")
+	if playerStateService.IsHuman and playerStateService:IsHuman(victim) and sourceIsPlayer then
+		return false
+	end
+	if playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
 		return false
 	end
 	local amount = math.max(0, rawDamage)
@@ -417,7 +431,7 @@ function DamagePipelineService:ApplySelfDamage(player: Player, amount: number)
 	if clamped <= 0 then
 		return
 	end
-	self:ApplyDamage(player, clamped, nil, nil)
+	self:ApplyDamage(player, clamped, nil, nil, { SourceType = "LauncherAbility" })
 	self:_sendFeedback(player, "SelfDamage", { Amount = clamped })
 end
 

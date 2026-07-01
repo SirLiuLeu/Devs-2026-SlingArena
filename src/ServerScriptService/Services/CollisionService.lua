@@ -49,6 +49,9 @@ function CollisionService:_applyDragAndBounce(dt: number)
 		end
 
 		local stateService = getService(self._context, "PlayerStateService")
+		if stateService and stateService.IsHuman and stateService:IsHuman(player) then
+			continue
+		end
 		local playerState = stateService and stateService:GetState(player)
 		local isLaunching = playerState and playerState.MovementState == "Launching"
 
@@ -226,7 +229,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	if not (launcherService and stateService) then
 		return
 	end
-	if (stateService.IsHuman and (stateService:IsHuman(player) or stateService:IsHuman(defender))) or stateService.HasFlag and (
+	if (stateService.IsHuman and stateService:IsHuman(player)) or stateService.HasFlag and (
 		stateService:HasFlag(player, "Ghost") or stateService:HasFlag(defender, "Ghost")
 	) then
 		return
@@ -314,6 +317,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	})
 	if canDamage then
 		self._context.EventBus:Fire("CollisionPlayerHit", defender, player, impactSpeed, normal, {
+			SourceType = "PhysicalLauncherCollision",
 			Duration = PhysicsConfig.Collision.KnockbackImpulseDuration,
 			ImpactNormal = normal,
 			ImpactSpeed = impactSpeed,

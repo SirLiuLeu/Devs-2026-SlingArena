@@ -539,9 +539,11 @@ function PlayerStateService:TryConsumeHpPotion(player: Player): (boolean, string
 
 	local now = os.clock()
 	if (state.HpPotions or 0) <= 0 then
+		self:_sendPotionFeedback(player, "NoPotion")
 		return false, "NoPotion"
 	end
 	if now < (state.NextHpPotionUseTime or 0) then
+		self:_sendPotionFeedback(player, "Cooldown", { RetryAt = state.NextHpPotionUseTime })
 		return false, "Cooldown"
 	end
 	local item = ItemConfig.GetById("hp_potion")
@@ -551,11 +553,30 @@ function PlayerStateService:TryConsumeHpPotion(player: Player): (boolean, string
 	local duration = params and params.Duration or nil
 	local cooldown = (item and item.useCooldown) or BalanceConfig.HpPotionCooldown
 
+	local applied = self:ApplyFlag(player, flagName, duration, player, params)
+	if not applied then
+		self:_sendPotionFeedback(player, "Rejected")
+		self:PublishState(player)
+		return false, "Rejected"
+	end
+
 	state.HpPotions = math.max(0, (state.HpPotions or 0) - 1)
 	state.NextHpPotionUseTime = now + cooldown
-	self:ApplyFlag(player, flagName, duration, player, params)
 	self:PublishState(player)
+	self:_sendPotionFeedback(player, "Consumed", { Count = state.HpPotions, CooldownEndTime = state.NextHpPotionUseTime })
 	return true, nil
+end
+
+function PlayerStateService:_sendPotionFeedback(player: Player, result: string, payload: any?)
+	local feedbackRemote = self._context.Remotes:FindFirstChild("GameplayFeedback") :: RemoteEvent?
+	if feedbackRemote then
+		local message = payload or {}
+		message.Result = result
+		feedbackRemote:FireClient(player, {
+			EventType = "HpPotionUseResult",
+			Payload = message,
+		})
+	end
 end
 
 function PlayerStateService:MarkInvulnerable(player: Player, duration: number)

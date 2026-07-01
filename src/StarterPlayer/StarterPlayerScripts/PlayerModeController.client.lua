@@ -67,8 +67,8 @@ function HumanLauncherToggleController:_setVisibleForState()
 	end
 	local locationState = player:GetAttribute("LocationState")
 	local roundState = player:GetAttribute("RoundState")
-	local inLobby = locationState == nil or locationState == GameStates.SessionState.Lobby
-	local roundIsLobby = roundState == nil or roundState == GameStates.MapRoundState.Lobby
+	local inLobby = locationState == GameStates.SessionState.Lobby
+	local roundIsLobby = roundState == GameStates.MapRoundState.Lobby
 	toggleFrame.Visible = inLobby and roundIsLobby
 end
 
@@ -130,6 +130,12 @@ function HumanLauncherToggleController:Bind()
 		self:SetSelectedPlayerMode(LauncherMode, true)
 	end))
 	self:SetSelectedPlayerMode(SelectedPlayerMode, false)
+	table.insert(self.Connections, player:GetAttributeChangedSignal("LocationState"):Connect(function()
+		self:_setVisibleForState()
+	end))
+	table.insert(self.Connections, player:GetAttributeChangedSignal("RoundState"):Connect(function()
+		self:_setVisibleForState()
+	end))
 	self:_setVisibleForState()
 end
 

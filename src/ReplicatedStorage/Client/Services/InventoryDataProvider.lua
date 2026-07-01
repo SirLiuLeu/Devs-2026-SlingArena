@@ -8,6 +8,9 @@ local MockData = require(ReplicatedStorage.Client.Services.MockData)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
+local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
+local consumeHpPotionRemote = remotes:FindFirstChild(RemoteContracts.Names.ConsumeHpPotion) :: RemoteEvent?
+
 local InventoryDataProvider = {}
 InventoryDataProvider.__index = InventoryDataProvider
 
@@ -185,6 +188,19 @@ function InventoryDataProvider:UseSelectedItem(): boolean
 		self._state.lastUseResult = "Select an item first"
 		self:_emitChanged()
 		return false
+	end
+
+	if itemId == "hp_potion" and consumeHpPotionRemote then
+		local quantity = math.max(0, math.floor(self._state.ownedItems.hp_potion or 0))
+		if quantity <= 0 then
+			self._state.lastUseResult = "NoPotion"
+			self:_emitChanged()
+			return false
+		end
+		consumeHpPotionRemote:FireServer()
+		self._state.lastUseResult = "Requested"
+		self:_emitChanged()
+		return true
 	end
 
 	local success, message = MockPlayerData.UseItem(itemId, "InventoryUseItem")

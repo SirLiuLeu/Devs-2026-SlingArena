@@ -117,7 +117,23 @@ local function setVisibleSafe(instance: GuiObject?, visible: boolean)
 	end
 end
 
+local function isLauncherMode(state: { [string]: any }?): boolean
+	local mode = if state and typeof(state.ActivePlayerMode) == "string" then state.ActivePlayerMode else player:GetAttribute("ActivePlayerMode")
+	return mode ~= GameStates.PlayerMode.Human
+end
+
+local function destroyArrowPreview()
+	if arrowPreview then
+		arrowPreview:Destroy()
+		arrowPreview = nil
+	end
+end
+
 local function shouldShowJoystickByState(state: { [string]: any }?): boolean
+	if not isLauncherMode(state) then
+		return false
+	end
+
 	if state and state.IsAlive == false then
 		return false
 	end
@@ -135,9 +151,15 @@ local function shouldShowJoystickByState(state: { [string]: any }?): boolean
 end
 
 local function applyJoystickVisibilityFromState(state: { [string]: any }?)
+	local launcherMode = isLauncherMode(state)
 	local showJoystick = shouldShowJoystickByState(state)
 	setVisibleSafe(cachedJoystickRoot, showJoystick)
 	setVisibleSafe(cachedDirectionIndicator, showJoystick)
+	if not launcherMode then
+		setVisibleSafe(cachedChargeBar, false)
+		setVisibleSafe(cachedCooldownBar, false)
+		destroyArrowPreview()
+	end
 end
 
 local function ensureAnchors(joystickRoot: GuiObject?, base: GuiObject?, thumb: GuiObject?)
@@ -273,7 +295,7 @@ end
 local function updateChargeBar(percent: number)
 	local _, _, _, _, chargeBar, chargeFill = resolveUi(false)
 	local normalized = LauncherUiState.ClampRatio(percent)
-	setVisibleSafe(chargeBar, isHolding or normalized > 0)
+	setVisibleSafe(chargeBar, isLauncherMode(lastKnownServerState) and (isHolding or normalized > 0))
 	if chargeFill then
 		chargeFill.Size = UDim2.new(normalized, 0, 1, 0)
 	end
@@ -285,7 +307,7 @@ local function updateCooldownBar(percent: number)
 	if cooldownFill then
 		cooldownFill.Size = UDim2.new(normalized, 0, 1, 0)
 	end
-	setVisibleSafe(cooldownBar, normalized > 0 and normalized < 1)
+	setVisibleSafe(cooldownBar, isLauncherMode(lastKnownServerState) and normalized > 0 and normalized < 1)
 end
 
 local function resetThumbPosition()
@@ -351,13 +373,6 @@ local function resolveChargeAimDirection(root: BasePart): Vector3
 	end
 
 	return planarDirection.Unit
-end
-
-local function destroyArrowPreview()
-	if arrowPreview then
-		arrowPreview:Destroy()
-		arrowPreview = nil
-	end
 end
 
 local function updateArrowPreview()
@@ -510,6 +525,9 @@ local function syncCooldownFromServerState(state: { [string]: any })
 end
 
 local function startHold(input: InputObject)
+	if not isLauncherMode(lastKnownServerState) then
+		return
+	end
 	if isHolding then
 		return
 	end
@@ -648,8 +666,11 @@ if stateUpdateRemote then
 		if not state then
 			return
 		end
+		if typeof(state.ActivePlayerMode) == "string" then
+			player:SetAttribute("ActivePlayerMode", state.ActivePlayerMode)
+		end
 
-		if state.IsAlive == false then
+		if state.IsAlive == false or not isLauncherMode(state) then
 			resetVisualState()
 			return
 		end

@@ -17,6 +17,7 @@ local DailyLoginLogicService = require(ReplicatedStorage.Client.Services.DailyLo
 local MatchScoreboardUIController = require(ReplicatedStorage.Client.Controllers.MatchScoreboardUIController)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local UIController = {}
 UIController.__index = UIController
@@ -82,14 +83,6 @@ end
 
 local function getRequiredExp(level: number): number
 	return math.max(1, LevelConfig.RequiredExp(math.max(1, math.floor(level))))
-end
-
-local function getHpPotionCountFromMock(data): number
-	local ownedItems = data and data.OwnedItems
-	if type(ownedItems) ~= "table" then
-		return 0
-	end
-	return math.max(0, math.floor(ownedItems.hp_potion or 0))
 end
 
 local function getActiveFlagData(activeFlags: any, flagName: string): any?
@@ -161,6 +154,8 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	}
 
 	self.LastQuickHpRequest = 0
+	self.AuthoritativeHpPotions = 0
+	self.NextHpPotionUseTime = 0
 	self.LastAuthoritativeState = nil
 
 	if not self.JoinButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.JoinButton, "TextButton") end
@@ -224,7 +219,21 @@ end
 
 function UIController:_refreshMockHud(playerData)
 	local data = playerData or MockPlayerData.GetPlayerData()
-	self:_renderHudValues(data.Diamonds or 0, getHpPotionCountFromMock(data), data.Exp or 0, data.Level or 1)
+	self:_renderHudValues(data.Diamonds or 0, self.AuthoritativeHpPotions or 0, data.Exp or 0, data.Level or 1)
+end
+
+function UIController:_showHpPotionUseFeedback(result: string, retryAt: number?)
+	if not self.QuickHpQuantityLabel or not self.QuickHpQuantityLabel:IsA("TextLabel") then
+		return
+	end
+	if result == "Cooldown" then
+		local remaining = math.max(0, (retryAt or self.NextHpPotionUseTime or 0) - os.clock())
+		self.QuickHpQuantityLabel.Text = string.format("%.1fs", remaining)
+	elseif result == "NoPotion" then
+		self.QuickHpQuantityLabel.Text = "Empty"
+	elseif result == "Rejected" then
+		self.QuickHpQuantityLabel.Text = "Wait"
+	end
 end
 
 function UIController:ShowMainHubPanel(activeKey: string)
@@ -379,12 +388,15 @@ function UIController:Start()
 				return
 			end
 			self.LastQuickHpRequest = now
-			if self.InventoryDataProvider then
-				self.InventoryDataProvider:SelectItem("hp_potion")
-				self.InventoryDataProvider:UseSelectedItem()
-			else
-				self.ClientService:RequestConsumeHpPotion()
+			if (self.AuthoritativeHpPotions or 0) <= 0 then
+				self:_showHpPotionUseFeedback("NoPotion")
+				return
 			end
+			if now < (self.NextHpPotionUseTime or 0) then
+				self:_showHpPotionUseFeedback("Cooldown", self.NextHpPotionUseTime)
+				return
+			end
+			self.ClientService:RequestConsumeHpPotion()
 		end))
 	end
 
@@ -394,8 +406,16 @@ function UIController:Start()
 		if not previousState or previousState.Level ~= state.Level or previousState.Exp ~= state.Exp then
 			MockPlayerData.SetProgress(state.Level or 1, state.Exp or 0, "AuthoritativeProgress", false)
 		end
-		local playerData = MockPlayerData.GetPlayerData()
-		self:_renderHudValues(playerData.Diamonds or 0, getHpPotionCountFromMock(playerData), playerData.Exp or 0, playerData.Level or 1)
+		if typeof(state.HpPotions) == "number" then
+			self.AuthoritativeHpPotions = math.max(0, math.floor(state.HpPotions))
+			if self.InventoryDataProvider then
+				self.InventoryDataProvider:SetFromState({ OwnedItems = { hp_potion = self.AuthoritativeHpPotions } })
+			end
+		end
+		if typeof(state.NextHpPotionUseTime) == "number" then
+			self.NextHpPotionUseTime = state.NextHpPotionUseTime
+		end
+		self:_renderHudValues(state.Diamonds or 0, self.AuthoritativeHpPotions or 0, state.Exp or 0, state.Level or 1)
 
 		local activeFlags = state.ActiveFlags or {}
 		local now = os.clock()
@@ -448,6 +468,20 @@ function UIController:Start()
 	end)
 	if scoreboardConnection then
 		table.insert(self.Connections, scoreboardConnection)
+	end
+
+	local feedbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
+	if feedbackRemote then
+		table.insert(self.Connections, feedbackRemote.OnClientEvent:Connect(function(message)
+			if type(message) ~= "table" or message.EventType ~= "HpPotionUseResult" then
+				return
+			end
+			local payload = message.Payload or {}
+			local result = tostring(payload.Result or "Rejected")
+			if result ~= "Consumed" then
+				self:_showHpPotionUseFeedback(result, payload.RetryAt)
+			end
+		end))
 	end
 
 	local resultConnection = self.ClientService:BindRoundResult(function(payload)
