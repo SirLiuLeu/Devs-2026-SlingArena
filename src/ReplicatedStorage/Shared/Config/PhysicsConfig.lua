@@ -6,9 +6,9 @@ local PhysicsConfig = {
 	PhysicalProperties = {
 		Density = 0.7,
 		Friction = 0.1,
-		Elasticity = 0.8,
+		Elasticity = 0.1,
 		FrictionWeight = 15,
-		ElasticityWeight = 0.1,
+		ElasticityWeight = 10,
 	},
 
 	Movement = {
