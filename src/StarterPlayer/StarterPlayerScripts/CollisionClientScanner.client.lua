@@ -336,18 +336,20 @@ local function sphereCastLaunching(root: BasePart, dt: number, previousPosition:
 end
 
 RunService.RenderStepped:Connect(function(dt)
-	if isHumanMode() then
-		lastRootPosition = nil
-		setSweepDebugVisible(false, nil, nil, nil)
-		return
-	end
-
 	local root = getRoot()
 	if not root then
 		lastRootPosition = nil
 		setSweepDebugVisible(false, nil, nil, nil)
 		return
 	end
+
+	if isHumanMode() then
+		lastRootPosition = nil
+		setSweepDebugVisible(false, nil, nil, nil)
+		detectCommonFoodByDistance(root)
+		return
+	end
+
 	local previousPosition = lastRootPosition
 	refreshExistingLaunchVelocity(root)
 	if isLaunchHitScanActive() then
