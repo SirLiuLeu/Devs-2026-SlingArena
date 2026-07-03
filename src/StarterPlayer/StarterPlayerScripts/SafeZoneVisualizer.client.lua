@@ -4,11 +4,12 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local SAFE_ZONE_MODEL_NAME = "SimulatorCircle"
-local LIGHT_CORE_NAME = "LightCore"
+local CORE_NAME = "Core"
+local LEGACY_CORE_NAME = "Light" .. "Core"
 local RADIUS_ATTRIBUTE_NAME = "CurrentRadius"
+local CENTER_ATTRIBUTE_NAME = "CurrentCenter"
 
 local BASE_GAMEPLAY_RADIUS = 420
-local SMOOTH_SPEED = 10
 
 local currentVisualRadius = BASE_GAMEPLAY_RADIUS
 local targetRadius = BASE_GAMEPLAY_RADIUS
@@ -16,13 +17,13 @@ local targetRadius = BASE_GAMEPLAY_RADIUS
 local trackedMap: Model? = nil
 local trackedCircle: Model? = nil
 local basePartStates = {} :: {[BasePart]: {baseSize: Vector3, localOffset: CFrame, baseTransparency: number}}
-local lightCorePart: BasePart? = nil
-local baseLightCoreCFrame: CFrame? = nil
+local corePart: BasePart? = nil
+local baseCoreCFrame: CFrame? = nil
 
 local function resetTracking()
 	basePartStates = {}
-	lightCorePart = nil
-	baseLightCoreCFrame = nil
+	corePart = nil
+	baseCoreCFrame = nil
 	trackedCircle = nil
 end
 
@@ -30,22 +31,28 @@ local function cacheBaseStates(circle: Model)
 	resetTracking()
 	trackedCircle = circle
 
-	local lightCore = circle:FindFirstChild("LightCore", true)
-	if not (lightCore and lightCore:IsA("BasePart")) then
-		return
+	local core = circle:FindFirstChild(CORE_NAME, true)
+	if not (core and core:IsA("BasePart")) then
+		local legacyCore = circle:FindFirstChild(LEGACY_CORE_NAME, true)
+		if legacyCore and legacyCore:IsA("BasePart") then
+			legacyCore.Name = CORE_NAME
+			core = legacyCore
+		else
+			return
+		end
 	end
 
-	if circle.PrimaryPart ~= lightCore then
-		circle.PrimaryPart = lightCore
+	if circle.PrimaryPart ~= core then
+		circle.PrimaryPart = core
 	end
-	lightCorePart = lightCore
-	baseLightCoreCFrame = lightCore.CFrame
+	corePart = core
+	baseCoreCFrame = core.CFrame
 
 	for _, descendant in ipairs(circle:GetDescendants()) do
 		if descendant:IsA("BasePart") then
 			basePartStates[descendant] = {
 				baseSize = descendant.Size,
-				localOffset = lightCore.CFrame:ToObjectSpace(descendant.CFrame),
+				localOffset = core.CFrame:ToObjectSpace(descendant.CFrame),
 				baseTransparency = descendant.Transparency,
 			}
 		end
@@ -88,7 +95,8 @@ local function updateMapTracking()
 		return
 	end
 
-	targetRadius = trackedMap:GetAttribute(RADIUS_ATTRIBUTE_NAME) or BASE_GAMEPLAY_RADIUS
+	local initialRadius = trackedMap:GetAttribute(RADIUS_ATTRIBUTE_NAME)
+	targetRadius = if type(initialRadius) == "number" then initialRadius else BASE_GAMEPLAY_RADIUS
 	currentVisualRadius = targetRadius
 
 	local circle = trackedMap:FindFirstChild(SAFE_ZONE_MODEL_NAME)
@@ -97,7 +105,7 @@ local function updateMapTracking()
 	end
 end
 
-local function applyVisualScale(dt: number)
+local function applyVisualScale(_dt: number)
 	updateMapTracking()
 	if not trackedMap then
 		return
@@ -108,14 +116,9 @@ local function applyVisualScale(dt: number)
 		targetRadius = math.max(replicatedRadius, 0)
 	end
 
-	if math.abs(currentVisualRadius - targetRadius) > 0.001 then
-		local alpha = 1 - math.exp(-SMOOTH_SPEED * dt)
-		currentVisualRadius = currentVisualRadius + ((targetRadius - currentVisualRadius) * alpha)
-	else
-		currentVisualRadius = targetRadius
-	end
+	currentVisualRadius = targetRadius
 
-	if not trackedCircle or not lightCorePart or not trackedCircle.Parent then
+	if not trackedCircle or not corePart or not trackedCircle.Parent then
 		local circle = trackedMap:FindFirstChild(SAFE_ZONE_MODEL_NAME)
 		if circle and circle:IsA("Model") then
 			cacheBaseStates(circle)
@@ -124,15 +127,19 @@ local function applyVisualScale(dt: number)
 		end
 	end
 
-	local centerCFrame = baseLightCoreCFrame
-	if not centerCFrame and lightCorePart then
-		centerCFrame = lightCorePart.CFrame
+	local centerCFrame = baseCoreCFrame
+	local replicatedCenter = trackedMap:GetAttribute(CENTER_ATTRIBUTE_NAME)
+	if typeof(replicatedCenter) == "Vector3" then
+		local rotationSource = centerCFrame or (corePart and corePart.CFrame) or CFrame.identity
+		centerCFrame = CFrame.new(replicatedCenter) * (rotationSource - rotationSource.Position)
+	elseif not centerCFrame and corePart then
+		centerCFrame = corePart.CFrame
 	end
 	if not centerCFrame and trackedMap then
 		local circle = trackedMap:FindFirstChild(SAFE_ZONE_MODEL_NAME)
-		local lightCore = circle and circle:FindFirstChild(LIGHT_CORE_NAME, true)
-		if lightCore and lightCore:IsA("BasePart") then
-			centerCFrame = lightCore.CFrame
+		local core = circle and circle:FindFirstChild(CORE_NAME, true)
+		if core and core:IsA("BasePart") then
+			centerCFrame = core.CFrame
 		end
 	end
 	if not centerCFrame then
@@ -141,7 +148,7 @@ local function applyVisualScale(dt: number)
 
 	local scaleXZ = if BASE_GAMEPLAY_RADIUS > 0 then currentVisualRadius / BASE_GAMEPLAY_RADIUS else 0
 	local isCollapsed = targetRadius <= 0 and currentVisualRadius <= 0.001
-	local lightCoreCFrame = centerCFrame
+	local coreCFrame = centerCFrame
 
 	for part, state in pairs(basePartStates) do
 		if part.Parent then
@@ -155,7 +162,7 @@ local function applyVisualScale(dt: number)
 				state.baseSize.Y,
 				state.baseSize.Z * scaleXZ
 			)
-			part.CFrame = lightCoreCFrame * CFrame.new(scaledLocalPosition) * rotationOnly
+			part.CFrame = coreCFrame * CFrame.new(scaledLocalPosition) * rotationOnly
 			part.Transparency = if isCollapsed then 1 else state.baseTransparency
 		end
 	end

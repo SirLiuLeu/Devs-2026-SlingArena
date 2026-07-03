@@ -10,11 +10,17 @@ local SafeZoneService = {}
 SafeZoneService.__index = SafeZoneService
 
 local SAFE_ZONE_MODEL_NAME = "SimulatorCircle"
-local LIGHT_CORE_NAME = "LightCore"
+local CORE_NAME = "Core"
+local LEGACY_CORE_NAME = "Light" .. "Core"
 local RADIUS_ATTRIBUTE_NAME = "CurrentRadius"
+local SCALE_ATTRIBUTE_NAME = "CurrentScale"
+local CENTER_ATTRIBUTE_NAME = "CurrentCenter"
+local IS_RELOCATING_ATTRIBUTE_NAME = "IsRelocating"
 
 local START_RADIUS = 420
 local MIN_RADIUS = 0
+local RELOCATION_SCALE_THRESHOLD = 0.7
+local RELOCATION_DURATION_SECONDS = 10
 local SHRINK_DURATION_SECONDS = 10 * 60
 local DAMAGE_STEP_INTERVAL = 30
 local DAMAGE_TICK_INTERVAL = 1
@@ -51,7 +57,14 @@ function SafeZoneService.new(context)
 	self._center = Vector3.zero
 	self._activeArenaMap = nil :: Model?
 	self._visualCircle = nil :: Model?
-	self._lightCore = nil :: BasePart?
+	self._core = nil :: BasePart?
+	self._initialCenter = nil :: Vector3?
+	self._initialPivot = nil :: CFrame?
+	self._relocationTriggered = false
+	self._relocating = false
+	self._relocationElapsed = 0
+	self._relocationStart = nil :: Vector3?
+	self._relocationTarget = nil :: Vector3?
 	self._outsideDamageTimers = {} :: { [Player]: number }
 	self._circleBaseTransparency = {} :: { [BasePart]: number }
 	return self
@@ -83,16 +96,40 @@ function SafeZoneService:_getArenaMap(): Model?
 	return nil
 end
 
-function SafeZoneService:_ensureVisualCircle(arenaMap: Model, centerPosition: Vector3)
+local function findCore(circle: Model): BasePart?
+	local core = circle:FindFirstChild(CORE_NAME, true)
+	if core and core:IsA("BasePart") then
+		return core
+	end
+
+	local legacyCore = circle:FindFirstChild(LEGACY_CORE_NAME, true)
+	if legacyCore and legacyCore:IsA("BasePart") then
+		legacyCore.Name = CORE_NAME
+		return legacyCore
+	end
+
+	return nil
+end
+
+function SafeZoneService:_ensureVisualCircle(arenaMap: Model)
 	if self._visualCircle and self._visualCircle.Parent ~= arenaMap then
 		self._visualCircle = nil
+		self._core = nil
+		self._initialCenter = nil
+		self._initialPivot = nil
+		table.clear(self._circleBaseTransparency)
 	end
 
 	local circle = self._visualCircle
 	if not circle then
-		local existingCircle = arenaMap:FindFirstChild(SAFE_ZONE_MODEL_NAME)
-		if existingCircle and existingCircle:IsA("Model") then
-			circle = existingCircle
+		for _, child in ipairs(arenaMap:GetChildren()) do
+			if child.Name == SAFE_ZONE_MODEL_NAME and child:IsA("Model") then
+				if not circle then
+					circle = child
+				else
+					child:Destroy()
+				end
+			end
 		end
 		self._visualCircle = circle
 	end
@@ -107,27 +144,100 @@ function SafeZoneService:_ensureVisualCircle(arenaMap: Model, centerPosition: Ve
 		end
 	end
 
-	local lightCore = circle:FindFirstChild("LightCore", true)
-	if lightCore and lightCore:IsA("BasePart") then
-		self._lightCore = lightCore
-		if circle.PrimaryPart ~= lightCore then
-			circle.PrimaryPart = lightCore
+	local core = findCore(circle)
+	if core then
+		self._core = core
+		if circle.PrimaryPart ~= core then
+			circle.PrimaryPart = core
 		end
-		-- Do not re-pivot the model using LightCore's own position as the target center.
-		-- Reapplying PivotTo each heartbeat with a non-zero model-pivot offset causes cumulative drift.
+		if not self._initialCenter then
+			self._initialCenter = core.Position
+		end
+		if not self._initialPivot then
+			self._initialPivot = circle:GetPivot()
+		end
 	end
 end
 
 function SafeZoneService:_resolveCenter(arenaMap: Model): Vector3?
-	local circle = arenaMap:FindFirstChild(SAFE_ZONE_MODEL_NAME)
-	if not (circle and circle:IsA("Model")) then
+	self:_ensureVisualCircle(arenaMap)
+	return getCenterPosition(self._core)
+end
+
+function SafeZoneService:_getLavaPart(arenaMap: Model): BasePart?
+	local traps = arenaMap:FindFirstChild("Traps")
+	local lavaTrap = traps and traps:FindFirstChild("LavaTrap")
+	local lava = lavaTrap and lavaTrap:FindFirstChild("Lava")
+	if lava and lava:IsA("BasePart") then
+		return lava
+	end
+	return nil
+end
+
+function SafeZoneService:_getRandomPointInLavaBounds(arenaMap: Model, y: number): Vector3?
+	local lava = self:_getLavaPart(arenaMap)
+	if not lava then
 		return nil
 	end
-	local lightCore = circle:FindFirstChild(LIGHT_CORE_NAME, true)
-	if not lightCore then
-		return nil
+	local halfX = lava.Size.X * 0.5
+	local halfZ = lava.Size.Z * 0.5
+	local localPoint = Vector3.new((math.random() * 2 - 1) * halfX, 0, (math.random() * 2 - 1) * halfZ)
+	local worldPoint = lava.CFrame:PointToWorldSpace(localPoint)
+	return Vector3.new(worldPoint.X, y, worldPoint.Z)
+end
+
+function SafeZoneService:_currentScale(): number
+	if self._startRadius <= 0 then
+		return 0
 	end
-	return getCenterPosition(lightCore)
+	return math.clamp(self._radius / self._startRadius, 0, 1)
+end
+
+function SafeZoneService:_beginRelocation(arenaMap: Model)
+	if self._relocationTriggered then
+		return
+	end
+	local startCenter = self._center
+	local targetCenter = self:_getRandomPointInLavaBounds(arenaMap, startCenter.Y)
+	if not targetCenter then
+		return
+	end
+	self._relocationTriggered = true
+	self._relocating = true
+	self._relocationElapsed = 0
+	self._relocationStart = startCenter
+	self._relocationTarget = targetCenter
+end
+
+function SafeZoneService:_updateRelocation(dt: number)
+	if not self._relocating then
+		return
+	end
+	local startCenter = self._relocationStart
+	local targetCenter = self._relocationTarget
+	if not startCenter or not targetCenter then
+		self._relocating = false
+		return
+	end
+
+	self._relocationElapsed += dt
+	local alpha = math.clamp(self._relocationElapsed / RELOCATION_DURATION_SECONDS, 0, 1)
+	self._center = startCenter:Lerp(targetCenter, alpha)
+	if alpha >= 1 then
+		self._relocating = false
+	end
+end
+
+function SafeZoneService:_moveCircleToCenter()
+	local circle = self._visualCircle
+	local core = self._core
+	if not circle or not core then
+		return
+	end
+	local delta = self._center - core.Position
+	if delta.Magnitude > 0.0001 then
+		circle:PivotTo(circle:GetPivot() + delta)
+	end
 end
 
 function SafeZoneService:_updateRadius(dt: number)
@@ -212,8 +322,11 @@ function SafeZoneService:_damagePlayersOutsideZone(dt: number)
 	end
 end
 
-function SafeZoneService:_replicateRadius(arenaMap: Model)
+function SafeZoneService:_replicateState(arenaMap: Model)
 	arenaMap:SetAttribute(RADIUS_ATTRIBUTE_NAME, self._radius)
+	arenaMap:SetAttribute(SCALE_ATTRIBUTE_NAME, self:_currentScale())
+	arenaMap:SetAttribute(CENTER_ATTRIBUTE_NAME, self._center)
+	arenaMap:SetAttribute(IS_RELOCATING_ATTRIBUTE_NAME, self._relocating)
 end
 
 function SafeZoneService:IsAtMinimumRadius(): boolean
@@ -241,7 +354,24 @@ end
 function SafeZoneService:Reset()
 	self._radius = self._startRadius
 	self._elapsed = 0
+	self._relocationTriggered = false
+	self._relocating = false
+	self._relocationElapsed = 0
+	self._relocationStart = nil
+	self._relocationTarget = nil
+	if self._visualCircle and self._initialPivot then
+		self._visualCircle:PivotTo(self._initialPivot)
+	end
+	if self._initialCenter then
+		self._center = self._initialCenter
+	elseif self._core then
+		self._center = self._core.Position
+	end
 	table.clear(self._outsideDamageTimers)
+	local arenaMap = self:_getArenaMap()
+	if arenaMap then
+		self:_replicateState(arenaMap)
+	end
 end
 
 function SafeZoneService:_step(dt: number)
@@ -253,17 +383,28 @@ function SafeZoneService:_step(dt: number)
 	if self._activeArenaMap ~= arenaMap then
 		self._activeArenaMap = arenaMap
 		self._visualCircle = nil
+		self._core = nil
+		self._initialCenter = nil
+		self._initialPivot = nil
+		table.clear(self._circleBaseTransparency)
 	end
 
 	local centerPosition = self:_resolveCenter(arenaMap)
 	if not centerPosition then
 		return
 	end
-	self._center = centerPosition
+	if not self._relocating then
+		self._center = centerPosition
+	end
 
-	self:_ensureVisualCircle(arenaMap, centerPosition)
+	self:_ensureVisualCircle(arenaMap)
 	if self:_isShrinkAllowed() then
 		self:_updateRadius(dt)
+		if not self._relocationTriggered and self:_currentScale() <= RELOCATION_SCALE_THRESHOLD then
+			self:_beginRelocation(arenaMap)
+		end
+		self:_updateRelocation(dt)
+		self:_moveCircleToCenter()
 	else
 		local roundService = self._context.Services.RoundService
 		if roundService and roundService:GetState() == GameStates.MapRoundState.Lobby then
@@ -271,7 +412,7 @@ function SafeZoneService:_step(dt: number)
 		end
 	end
 	self:_updateVisualTransparency()
-	self:_replicateRadius(arenaMap)
+	self:_replicateState(arenaMap)
 	if self:_isDamageAllowed() then
 		self:_damagePlayersOutsideZone(dt)
 	end
