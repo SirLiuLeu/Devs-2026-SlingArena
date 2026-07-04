@@ -570,6 +570,7 @@ DataModel
 │        ├─ Traps (Folder)
 │        │  ├─ LavaTrap (Model)
 │        │  │  ├─ LavaFloor
+│        │  │  ├─ LavaCenter
 │        │  │  └─ Lava
 │        │  ├─ SpikeTrap (Model)
 │        │  │  ├─ Core
