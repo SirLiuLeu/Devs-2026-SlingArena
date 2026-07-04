@@ -20,6 +20,11 @@ end
 
 local SAME_TARGET_DEDUPE_SECONDS = 0.28
 
+local function isLauncherMovementControlling(root: BasePart): boolean
+	local linearVelocity = root:FindFirstChild("LinearVelocity")
+	return linearVelocity ~= nil and linearVelocity:IsA("LinearVelocity") and linearVelocity.Enabled
+end
+
 function CollisionService.new(context)
 	local self = setmetatable({}, CollisionService)
 	self._context = context
@@ -53,14 +58,20 @@ function CollisionService:_applyDragAndBounce(dt: number)
 			continue
 		end
 		local playerState = stateService and stateService:GetState(player)
-		local isLaunching = playerState and playerState.MovementState == "Launching"
+		local movementState = playerState and playerState.MovementState
+		local isLaunching = movementState == "Launching"
+		local isNormalLocomotion = movementState == "Moving" or movementState == "Idle"
+
+		if isNormalLocomotion or isLauncherMovementControlling(root) then
+			continue
+		end
 
 		local velocity = root.AssemblyLinearVelocity
 		local pos = root.Position
 		local arenaLimit = PhysicsConfig.World.MaxArenaRadius - PhysicsConfig.World.ArenaWallPadding
 		local horizontal = Vector3.new(velocity.X, 0, velocity.Z)
 
-		-- Wall bounce is checked for all players so collision events still fire.
+		-- Wall bounce only applies while locomotion is not actively controlling velocity.
 		local hitWall = false
 		if math.abs(pos.X) > arenaLimit then
 			horizontal = Vector3.new(
@@ -91,12 +102,12 @@ function CollisionService:_applyDragAndBounce(dt: number)
 			continue
 		end
 
-		-- Launching players remain client-owned; only normal movement gets server drag.
+		-- Launching players remain client-owned; only uncontrolled movement gets server drag.
 		if isLaunching then
 			continue
 		end
 
-		-- Normal movement drag (unchanged).
+		-- Drag is reserved for physics-driven states after locomotion releases velocity control.
 		local dragFactor = math.max(0, 1 - (PhysicsConfig.World.LinearDragPerSecond * dt))
 		horizontal = horizontal * dragFactor
 		if horizontal.Magnitude < PhysicsConfig.World.StopSpeed then

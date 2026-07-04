@@ -53,6 +53,7 @@ function LauncherService.ResolveLaunchDirection(root: BasePart, aimDirection: Ve
 end
 
 local function applyRootPhysicalProperties(root: BasePart)
+	root.Massless = false
 	local physical = PhysicsConfig.PhysicalProperties
 	root.CustomPhysicalProperties = PhysicalProperties.new(
 		physical.Density,

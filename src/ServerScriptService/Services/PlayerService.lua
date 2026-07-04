@@ -374,6 +374,7 @@ function PlayerService:_prepareLauncherModel(model: Model): BasePart?
 		return nil
 	end
 	model.PrimaryPart = root
+	root.Massless = false
 
 	-- Status VFX are pre-placed under Hitbox attachments; keep them disabled until flags enable them.
 	setPreplacedStatusEffectsEnabled(root, false)
@@ -680,6 +681,7 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 		warn("[PLAYER_SERVICE] Player clone missing PrimaryPart. Pawn spawn aborted.")
 		return nil
 	end
+	pawn.PrimaryPart.Massless = false
 	local index = spawnIndex or (player.UserId % 8) + 1
 	self:_applyLauncherVisual(pawn, currentLauncherId)
 	local mapService = self._context.Services.MapService
@@ -692,6 +694,7 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	pawn.Parent = self._pawnsFolder
 	player.Character = pawn
 	setPreplacedStatusEffectsEnabled(pawn.PrimaryPart, false)
+	pawn.PrimaryPart.Massless = false
 	pawn.PrimaryPart:SetNetworkOwner(player)
 	self._playerToLauncher[player] = pawn
 	self._launcherToPlayer[pawn] = player
