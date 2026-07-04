@@ -1,24 +1,35 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+
+local SafeZoneConfig = require(ReplicatedStorage.Shared.Config.SafeZoneConfig)
 
 local SAFE_ZONE_MODEL_NAME = "SimulatorCircle"
 local CORE_NAME = "Core"
 local LEGACY_CORE_NAME = "Light" .. "Core"
-local RADIUS_ATTRIBUTE_NAME = "CurrentRadius"
-local CENTER_ATTRIBUTE_NAME = "CurrentCenter"
+local RADIUS_ATTRIBUTE_NAME = SafeZoneConfig.Attributes.CurrentRadius
+local SCALE_ATTRIBUTE_NAME = SafeZoneConfig.Attributes.CurrentScale
+local CENTER_ATTRIBUTE_NAME = SafeZoneConfig.Attributes.CurrentCenter
+local IS_RELOCATING_ATTRIBUTE_NAME = SafeZoneConfig.Attributes.IsRelocating
+local GRADIENT_CYLINDER_NAME = "GradientCylinder"
+local GRADIENT_CYLINDER_BASE_SIZE = SafeZoneConfig.GradientCylinderBaseSize
 
-local BASE_GAMEPLAY_RADIUS = 420
-
-local currentVisualRadius = BASE_GAMEPLAY_RADIUS
-local targetRadius = BASE_GAMEPLAY_RADIUS
+local targetScale = 1
 
 local trackedMap: Model? = nil
 local trackedCircle: Model? = nil
 local basePartStates = {} :: {[BasePart]: {baseSize: Vector3, localOffset: CFrame, baseTransparency: number}}
 local corePart: BasePart? = nil
 local baseCoreCFrame: CFrame? = nil
+
+local function configureGradientCylinder(circle: Model)
+	local gradientCylinder = circle:FindFirstChild(GRADIENT_CYLINDER_NAME, true)
+	if gradientCylinder and gradientCylinder:IsA("BasePart") then
+		gradientCylinder.Size = GRADIENT_CYLINDER_BASE_SIZE
+	end
+end
 
 local function resetTracking()
 	basePartStates = {}
@@ -30,6 +41,7 @@ end
 local function cacheBaseStates(circle: Model)
 	resetTracking()
 	trackedCircle = circle
+	configureGradientCylinder(circle)
 
 	local core = circle:FindFirstChild(CORE_NAME, true)
 	if not (core and core:IsA("BasePart")) then
@@ -95,9 +107,8 @@ local function updateMapTracking()
 		return
 	end
 
-	local initialRadius = trackedMap:GetAttribute(RADIUS_ATTRIBUTE_NAME)
-	targetRadius = if type(initialRadius) == "number" then initialRadius else BASE_GAMEPLAY_RADIUS
-	currentVisualRadius = targetRadius
+	local initialScale = trackedMap:GetAttribute(SCALE_ATTRIBUTE_NAME)
+	targetScale = if type(initialScale) == "number" then math.clamp(initialScale, 0, 1) else 1
 
 	local circle = trackedMap:FindFirstChild(SAFE_ZONE_MODEL_NAME)
 	if circle and circle:IsA("Model") then
@@ -111,12 +122,15 @@ local function applyVisualScale(_dt: number)
 		return
 	end
 
-	local replicatedRadius = trackedMap:GetAttribute(RADIUS_ATTRIBUTE_NAME)
-	if type(replicatedRadius) == "number" then
-		targetRadius = math.max(replicatedRadius, 0)
+	local replicatedScale = trackedMap:GetAttribute(SCALE_ATTRIBUTE_NAME)
+	if type(replicatedScale) == "number" then
+		targetScale = math.clamp(replicatedScale, 0, 1)
+	elseif type(trackedMap:GetAttribute(RADIUS_ATTRIBUTE_NAME)) == "number" then
+		-- Backward-compatible fallback for maps that have not received CurrentScale yet.
+		targetScale = 1
 	end
 
-	currentVisualRadius = targetRadius
+	local _isRelocating = trackedMap:GetAttribute(IS_RELOCATING_ATTRIBUTE_NAME) == true
 
 	if not trackedCircle or not corePart or not trackedCircle.Parent then
 		local circle = trackedMap:FindFirstChild(SAFE_ZONE_MODEL_NAME)
@@ -146,8 +160,8 @@ local function applyVisualScale(_dt: number)
 		return
 	end
 
-	local scaleXZ = if BASE_GAMEPLAY_RADIUS > 0 then currentVisualRadius / BASE_GAMEPLAY_RADIUS else 0
-	local isCollapsed = targetRadius <= 0 and currentVisualRadius <= 0.001
+	local scaleXZ = targetScale
+	local isCollapsed = targetScale <= 0.001
 	local coreCFrame = centerCFrame
 
 	for part, state in pairs(basePartStates) do

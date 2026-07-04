@@ -5,6 +5,7 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
+local SafeZoneConfig = require(ReplicatedStorage.Shared.Config.SafeZoneConfig)
 
 local SafeZoneService = {}
 SafeZoneService.__index = SafeZoneService
@@ -12,16 +13,18 @@ SafeZoneService.__index = SafeZoneService
 local SAFE_ZONE_MODEL_NAME = "SimulatorCircle"
 local CORE_NAME = "Core"
 local LEGACY_CORE_NAME = "Light" .. "Core"
-local RADIUS_ATTRIBUTE_NAME = "CurrentRadius"
-local SCALE_ATTRIBUTE_NAME = "CurrentScale"
-local CENTER_ATTRIBUTE_NAME = "CurrentCenter"
-local IS_RELOCATING_ATTRIBUTE_NAME = "IsRelocating"
+local RADIUS_ATTRIBUTE_NAME = SafeZoneConfig.Attributes.CurrentRadius
+local SCALE_ATTRIBUTE_NAME = SafeZoneConfig.Attributes.CurrentScale
+local CENTER_ATTRIBUTE_NAME = SafeZoneConfig.Attributes.CurrentCenter
+local IS_RELOCATING_ATTRIBUTE_NAME = SafeZoneConfig.Attributes.IsRelocating
+local GRADIENT_CYLINDER_NAME = "GradientCylinder"
+local GRADIENT_CYLINDER_BASE_SIZE = SafeZoneConfig.GradientCylinderBaseSize
 
-local START_RADIUS = 420
-local MIN_RADIUS = 0
-local RELOCATION_SCALE_THRESHOLD = 0.7
-local RELOCATION_DURATION_SECONDS = 10
-local SHRINK_DURATION_SECONDS = 10 * 60
+local START_RADIUS = SafeZoneConfig.StartRadius
+local MIN_RADIUS = SafeZoneConfig.MinRadius
+local RELOCATION_SCALE_THRESHOLD = SafeZoneConfig.RelocationScaleThreshold
+local RELOCATION_DURATION_SECONDS = SafeZoneConfig.RelocationDurationSeconds
+local SHRINK_DURATION_SECONDS = SafeZoneConfig.ShrinkDurationSeconds
 local DAMAGE_STEP_INTERVAL = 30
 local DAMAGE_TICK_INTERVAL = 1
 local DAMAGE_START_PERCENT = 0.5
@@ -111,6 +114,14 @@ local function findCore(circle: Model): BasePart?
 	return nil
 end
 
+
+function SafeZoneService:_configureGradientCylinder(circle: Model)
+	local gradientCylinder = circle:FindFirstChild(GRADIENT_CYLINDER_NAME, true)
+	if gradientCylinder and gradientCylinder:IsA("BasePart") then
+		gradientCylinder.Size = GRADIENT_CYLINDER_BASE_SIZE
+	end
+end
+
 function SafeZoneService:_ensureVisualCircle(arenaMap: Model)
 	if self._visualCircle and self._visualCircle.Parent ~= arenaMap then
 		self._visualCircle = nil
@@ -138,6 +149,8 @@ function SafeZoneService:_ensureVisualCircle(arenaMap: Model)
 		return
 	end
 
+	self:_configureGradientCylinder(circle)
+
 	for _, descendant in ipairs(circle:GetDescendants()) do
 		if descendant:IsA("BasePart") and self._circleBaseTransparency[descendant] == nil then
 			self._circleBaseTransparency[descendant] = descendant.Transparency
@@ -164,25 +177,25 @@ function SafeZoneService:_resolveCenter(arenaMap: Model): Vector3?
 	return getCenterPosition(self._core)
 end
 
-function SafeZoneService:_getLavaPart(arenaMap: Model): BasePart?
+function SafeZoneService:_getLavaCenter(arenaMap: Model): BasePart?
 	local traps = arenaMap:FindFirstChild("Traps")
 	local lavaTrap = traps and traps:FindFirstChild("LavaTrap")
-	local lava = lavaTrap and lavaTrap:FindFirstChild("Lava")
-	if lava and lava:IsA("BasePart") then
-		return lava
+	local lavaCenter = lavaTrap and lavaTrap:FindFirstChild("LavaCenter")
+	if lavaCenter and lavaCenter:IsA("BasePart") then
+		return lavaCenter
 	end
 	return nil
 end
 
-function SafeZoneService:_getRandomPointInLavaBounds(arenaMap: Model, y: number): Vector3?
-	local lava = self:_getLavaPart(arenaMap)
-	if not lava then
+function SafeZoneService:_getRandomPointInLavaCenterBounds(arenaMap: Model, y: number): Vector3?
+	local lavaCenter = self:_getLavaCenter(arenaMap)
+	if not lavaCenter then
 		return nil
 	end
-	local halfX = lava.Size.X * 0.5
-	local halfZ = lava.Size.Z * 0.5
+	local halfX = lavaCenter.Size.X * 0.5
+	local halfZ = lavaCenter.Size.Z * 0.5
 	local localPoint = Vector3.new((math.random() * 2 - 1) * halfX, 0, (math.random() * 2 - 1) * halfZ)
-	local worldPoint = lava.CFrame:PointToWorldSpace(localPoint)
+	local worldPoint = lavaCenter.CFrame:PointToWorldSpace(localPoint)
 	return Vector3.new(worldPoint.X, y, worldPoint.Z)
 end
 
@@ -198,7 +211,7 @@ function SafeZoneService:_beginRelocation(arenaMap: Model)
 		return
 	end
 	local startCenter = self._center
-	local targetCenter = self:_getRandomPointInLavaBounds(arenaMap, startCenter.Y)
+	local targetCenter = self:_getRandomPointInLavaCenterBounds(arenaMap, startCenter.Y)
 	if not targetCenter then
 		return
 	end
@@ -352,6 +365,10 @@ function SafeZoneService:_isDamageAllowed(): boolean
 end
 
 function SafeZoneService:Reset()
+	local arenaMap = self:_getArenaMap()
+	if arenaMap then
+		self:_ensureVisualCircle(arenaMap)
+	end
 	self._radius = self._startRadius
 	self._elapsed = 0
 	self._relocationTriggered = false
@@ -368,7 +385,6 @@ function SafeZoneService:Reset()
 		self._center = self._core.Position
 	end
 	table.clear(self._outsideDamageTimers)
-	local arenaMap = self:_getArenaMap()
 	if arenaMap then
 		self:_replicateState(arenaMap)
 	end
