@@ -306,13 +306,13 @@ function PlayerService:_resolveLauncherVisualRoot(model: Model): BasePart?
 	return nil
 end
 
-function PlayerService:_getOrCreateEquippedLauncherModel(pawn: Model): Model
-	local equipped = self:_findEquippedLauncherModel(pawn)
-	if equipped then
-		return equipped
+function PlayerService:_cloneEquippedLauncherModel(pawn: Model, launcherModel: Model): Model
+	local existing = self:_findEquippedLauncherModel(pawn)
+	if existing then
+		existing:Destroy()
 	end
 
-	equipped = Instance.new("Model")
+	local equipped = launcherModel:Clone()
 	equipped.Name = EQUIPPED_LAUNCHER_MODEL_NAME
 	equipped.Parent = pawn
 	return equipped
@@ -349,6 +349,25 @@ function PlayerService:_configureVisualRig(rig: Model)
 	end
 end
 
+function PlayerService:_validateLauncherMotor6Ds(rig: Model, launcherId: string): boolean
+	local isValid = true
+	for _, descendant in rig:GetDescendants() do
+		if descendant:IsA("Motor6D") then
+			local part0 = descendant.Part0
+			local part1 = descendant.Part1
+			if not (part0 and part0:IsDescendantOf(rig)) then
+				isValid = false
+				warn(string.format("[PLAYER_SERVICE] Launcher %s Motor6D %s has invalid Part0 after cloning", launcherId, descendant:GetFullName()))
+			end
+			if not (part1 and part1:IsDescendantOf(rig)) then
+				isValid = false
+				warn(string.format("[PLAYER_SERVICE] Launcher %s Motor6D %s has invalid Part1 after cloning", launcherId, descendant:GetFullName()))
+			end
+		end
+	end
+	return isValid
+end
+
 function PlayerService:_applyLauncherVisual(pawn: Model, launcherId: string): boolean
 	local hitbox = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
 	if not (hitbox and hitbox:IsA("BasePart")) then
@@ -368,17 +387,10 @@ function PlayerService:_applyLauncherVisual(pawn: Model, launcherId: string): bo
 		return false
 	end
 
-	local equipped = self:_getOrCreateEquippedLauncherModel(pawn)
-	local oldRoot = equipped.PrimaryPart or equipped:FindFirstChild(LAUNCHER_ROOT_PART_NAME)
+	local existingEquipped = self:_findEquippedLauncherModel(pawn)
+	local oldRoot = existingEquipped and (existingEquipped.PrimaryPart or existingEquipped:FindFirstChild(LAUNCHER_ROOT_PART_NAME))
 	local targetCFrame = if oldRoot and oldRoot:IsA("BasePart") then oldRoot.CFrame else hitbox.CFrame
-	for _, child in ipairs(equipped:GetChildren()) do
-		child:Destroy()
-	end
-
-	for _, child in ipairs(launcherModel:GetChildren()) do
-		local clone = child:Clone()
-		clone.Parent = equipped
-	end
+	local equipped = self:_cloneEquippedLauncherModel(pawn, launcherModel)
 	local visualRoot = self:_resolveLauncherVisualRoot(equipped)
 	if not visualRoot then
 		warn(string.format("[PLAYER_SERVICE] Cloned launcher model %s has no RootPart/PrimaryPart", launcherId))
@@ -388,6 +400,7 @@ function PlayerService:_applyLauncherVisual(pawn: Model, launcherId: string): bo
 	equipped.PrimaryPart = visualRoot
 	equipped:PivotTo(targetCFrame)
 	self:_configureVisualRig(equipped)
+	self:_validateLauncherMotor6Ds(equipped, launcherId)
 	equipped:SetAttribute("LauncherId", launcherId)
 	pawn:SetAttribute("LauncherId", launcherId)
 	self:_updateHitboxRootPartWeld(pawn, hitbox, visualRoot)

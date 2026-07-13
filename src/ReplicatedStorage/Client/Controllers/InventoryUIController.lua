@@ -529,13 +529,13 @@ function InventoryUIController:_findEquippedLauncherModel(pawn: Model): Model?
 	return nil
 end
 
-function InventoryUIController:_getOrCreateEquippedLauncherModel(pawn: Model): Model
+function InventoryUIController:_cloneEquippedLauncherModel(pawn: Model, modelTemplate: Model): Model
 	local existingModel = self:_findEquippedLauncherModel(pawn)
 	if existingModel then
-		return existingModel
+		existingModel:Destroy()
 	end
 
-	local equippedModel = Instance.new("Model")
+	local equippedModel = modelTemplate:Clone()
 	equippedModel.Name = EQUIPPED_LAUNCHER_MODEL_NAME
 	equippedModel.Parent = pawn
 	return equippedModel
@@ -562,6 +562,25 @@ function InventoryUIController:_configureVisualRig(rig: Model)
 			descendant.Massless = true
 		end
 	end
+end
+
+function InventoryUIController:_validateLauncherMotor6Ds(rig: Model, launcherId: string): boolean
+	local isValid = true
+	for _, descendant in rig:GetDescendants() do
+		if descendant:IsA("Motor6D") then
+			local part0 = descendant.Part0
+			local part1 = descendant.Part1
+			if not (part0 and part0:IsDescendantOf(rig)) then
+				isValid = false
+				warn(string.format("[INVENTORY_UI] Launcher %s Motor6D %s has invalid Part0 after cloning", launcherId, descendant:GetFullName()))
+			end
+			if not (part1 and part1:IsDescendantOf(rig)) then
+				isValid = false
+				warn(string.format("[INVENTORY_UI] Launcher %s Motor6D %s has invalid Part1 after cloning", launcherId, descendant:GetFullName()))
+			end
+		end
+	end
+	return isValid
 end
 
 function InventoryUIController:_updateHitboxRootPartWeld(pawn: Model, hitbox: BasePart, visualRoot: BasePart)
@@ -605,17 +624,10 @@ function InventoryUIController:_applyEquippedLauncherModel(launcherId: string)
 		return
 	end
 
-	local equippedModel = self:_getOrCreateEquippedLauncherModel(pawn)
-	local oldRoot = equippedModel.PrimaryPart or equippedModel:FindFirstChild(LAUNCHER_ROOT_PART_NAME)
+	local existingModel = self:_findEquippedLauncherModel(pawn)
+	local oldRoot = existingModel and (existingModel.PrimaryPart or existingModel:FindFirstChild(LAUNCHER_ROOT_PART_NAME))
 	local targetCFrame = if oldRoot and oldRoot:IsA("BasePart") then oldRoot.CFrame else root.CFrame
-	for _, child in ipairs(equippedModel:GetChildren()) do
-		child:Destroy()
-	end
-
-	for _, child in ipairs(modelTemplate:GetChildren()) do
-		local clone = child:Clone()
-		clone.Parent = equippedModel
-	end
+	local equippedModel = self:_cloneEquippedLauncherModel(pawn, modelTemplate)
 	local visualRoot = self:_resolveLauncherVisualRoot(equippedModel)
 	if not visualRoot then
 		warn(string.format("[INVENTORY_UI] Cloned launcher model %s has no RootPart/PrimaryPart", launcherId))
@@ -625,6 +637,7 @@ function InventoryUIController:_applyEquippedLauncherModel(launcherId: string)
 	equippedModel.PrimaryPart = visualRoot
 	equippedModel:PivotTo(targetCFrame)
 	self:_configureVisualRig(equippedModel)
+	self:_validateLauncherMotor6Ds(equippedModel, launcherId)
 	equippedModel:SetAttribute("LauncherId", launcherId)
 	pawn:SetAttribute("LauncherId", launcherId)
 	self:_updateHitboxRootPartWeld(pawn, root, visualRoot)
