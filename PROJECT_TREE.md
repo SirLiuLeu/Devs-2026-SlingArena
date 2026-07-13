@@ -78,8 +78,9 @@ DataModel
 │  │  ├── Launchers
 │  │  │  ├── Player (Character Default)
 │  │  │  │  ├── Trail
-│  │  │  │  ├── WeldConstraint_HitboxMesh
+│  │  │  │  ├── WeldConstraint_HitboxRootPart
 │  │  │  │  ├── EquippedLauncherModel (Launcher_Template)
+│  │  │  │  │  ├── RootPart
 │  │  │  │  │  └── Mesh
 │  │  │  │  ├── Hitbox (PrimaryPart)
 │  │  │  │  │  ├── AlignOrientation
@@ -103,9 +104,9 @@ DataModel
 │  │  │  │     └── Name
 │  │  │  │
 │  │  │  ├── Launcher_Template (Model structure reference only)
+│  │  │  │  ├── RootPart
 │  │  │  │  └── Mesh (MeshPart)
-│  │  │  │        ├── WeldConstraint
-│  │  │  │        └── Part
+│  │  │  │  
 │  │  │  ├── SupportLauncher (Launcher_Template format)
 │  │  │  ├── StunLauncher (Launcher_Template format)
 │  │  │  ├── NormalLauncher (Launcher_Template format; default launcher)
