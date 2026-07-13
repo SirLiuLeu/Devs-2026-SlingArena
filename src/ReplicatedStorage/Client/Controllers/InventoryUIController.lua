@@ -14,10 +14,11 @@ InventoryUIController.__index = InventoryUIController
 local NORMAL_COLOR = Color3.fromRGB(41, 43, 53)
 local HOVER_COLOR = Color3.fromRGB(62, 66, 82)
 local SELECTED_COLOR = Color3.fromRGB(88, 102, 132)
-local EQUIPPED_LAUNCHER_MODEL_NAME = "EquipedLauncherModel"
-local LEGACY_EQUIPPED_LAUNCHER_MODEL_NAME = "EquippedLauncherModel"
-local LAUNCHER_MESH_NAME = "Mesh"
-local HITBOX_MESH_WELD_NAME = "WeldConstraint_HitboxMesh"
+local EQUIPPED_LAUNCHER_MODEL_NAME = "EquippedLauncherModel"
+local TYPO_EQUIPPED_LAUNCHER_MODEL_NAME = "EquipedLauncherModel"
+local LAUNCHER_ROOT_PART_NAME = "RootPart"
+local HITBOX_ROOT_WELD_NAME = "WeldConstraint_HitboxRootPart"
+local LEGACY_HITBOX_MESH_WELD_NAME = "WeldConstraint_HitboxMesh"
 local ITEM_SLOT_TEMPLATE_NAME = "ItemSlotTemplate_InventoryUI"
 local LAUNCHER_SLOT_TEMPLATE_NAME = "LauncherSlotTemplate_InventoryUI"
 local LEGACY_LAUNCHER_SLOT_TEMPLATE_NAME = "LaunchersSlotTemplate_InventoryUI"
@@ -519,7 +520,7 @@ function InventoryUIController:_findEquippedLauncherModel(pawn: Model): Model?
 		return direct
 	end
 
-	local legacy = pawn:FindFirstChild(LEGACY_EQUIPPED_LAUNCHER_MODEL_NAME)
+	local legacy = pawn:FindFirstChild(TYPO_EQUIPPED_LAUNCHER_MODEL_NAME)
 	if legacy and legacy:IsA("Model") then
 		legacy.Name = EQUIPPED_LAUNCHER_MODEL_NAME
 		return legacy
@@ -540,26 +541,46 @@ function InventoryUIController:_getOrCreateEquippedLauncherModel(pawn: Model): M
 	return equippedModel
 end
 
-function InventoryUIController:_resolveLauncherMesh(model: Model): BasePart?
-	local mesh = model:FindFirstChild(LAUNCHER_MESH_NAME)
-	if mesh and mesh:IsA("BasePart") then
-		return mesh
+function InventoryUIController:_resolveLauncherVisualRoot(model: Model): BasePart?
+	local rootPart = model:FindFirstChild(LAUNCHER_ROOT_PART_NAME)
+	if rootPart and rootPart:IsA("BasePart") then
+		return rootPart
+	end
+	if model.PrimaryPart and model.PrimaryPart:IsA("BasePart") then
+		return model.PrimaryPart
 	end
 	return nil
 end
 
-function InventoryUIController:_updateHitboxMeshWeld(pawn: Model, root: BasePart, mesh: BasePart)
-	local weld = pawn:FindFirstChild(HITBOX_MESH_WELD_NAME)
+function InventoryUIController:_configureVisualRig(rig: Model)
+	for _, descendant in rig:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = false
+			descendant.CanCollide = false
+			descendant.CanTouch = false
+			descendant.CanQuery = false
+			descendant.Massless = true
+		end
+	end
+end
+
+function InventoryUIController:_updateHitboxRootPartWeld(pawn: Model, hitbox: BasePart, visualRoot: BasePart)
+	local legacyWeld = pawn:FindFirstChild(LEGACY_HITBOX_MESH_WELD_NAME)
+	if legacyWeld then
+		legacyWeld:Destroy()
+	end
+
+	local weld = pawn:FindFirstChild(HITBOX_ROOT_WELD_NAME)
 	if not (weld and weld:IsA("WeldConstraint")) then
 		if weld then
 			weld:Destroy()
 		end
 		weld = Instance.new("WeldConstraint")
-		weld.Name = HITBOX_MESH_WELD_NAME
+		weld.Name = HITBOX_ROOT_WELD_NAME
 		weld.Parent = pawn
 	end
-	weld.Part0 = root
-	weld.Part1 = mesh
+	weld.Part0 = hitbox
+	weld.Part1 = visualRoot
 end
 
 function InventoryUIController:_applyEquippedLauncherModel(launcherId: string)
@@ -578,30 +599,35 @@ function InventoryUIController:_applyEquippedLauncherModel(launcherId: string)
 		return
 	end
 
-	local sourceMesh = self:_resolveLauncherMesh(modelTemplate)
-	if not sourceMesh then
-		warn(string.format("[INVENTORY_UI] Launcher model %s has no Mesh", launcherId))
+	local sourceRoot = self:_resolveLauncherVisualRoot(modelTemplate)
+	if not sourceRoot then
+		warn(string.format("[INVENTORY_UI] Launcher model %s has no RootPart/PrimaryPart", launcherId))
 		return
 	end
 
 	local equippedModel = self:_getOrCreateEquippedLauncherModel(pawn)
-	local oldMesh = equippedModel:FindFirstChild(LAUNCHER_MESH_NAME)
-	local targetCFrame = if oldMesh and oldMesh:IsA("BasePart") then oldMesh.CFrame else root.CFrame
+	local oldRoot = equippedModel.PrimaryPart or equippedModel:FindFirstChild(LAUNCHER_ROOT_PART_NAME)
+	local targetCFrame = if oldRoot and oldRoot:IsA("BasePart") then oldRoot.CFrame else root.CFrame
 	for _, child in ipairs(equippedModel:GetChildren()) do
 		child:Destroy()
 	end
 
-	local mesh = sourceMesh:Clone()
-	mesh.Name = LAUNCHER_MESH_NAME
-	mesh.CFrame = targetCFrame
-	mesh.Anchored = false
-	mesh.CanCollide = false
-	mesh.Massless = true
-	mesh.Parent = equippedModel
-	equippedModel.PrimaryPart = mesh
+	for _, child in ipairs(modelTemplate:GetChildren()) do
+		local clone = child:Clone()
+		clone.Parent = equippedModel
+	end
+	local visualRoot = self:_resolveLauncherVisualRoot(equippedModel)
+	if not visualRoot then
+		warn(string.format("[INVENTORY_UI] Cloned launcher model %s has no RootPart/PrimaryPart", launcherId))
+		return
+	end
+	visualRoot.Name = LAUNCHER_ROOT_PART_NAME
+	equippedModel.PrimaryPart = visualRoot
+	equippedModel:PivotTo(targetCFrame)
+	self:_configureVisualRig(equippedModel)
 	equippedModel:SetAttribute("LauncherId", launcherId)
 	pawn:SetAttribute("LauncherId", launcherId)
-	self:_updateHitboxMeshWeld(pawn, root, mesh)
+	self:_updateHitboxRootPartWeld(pawn, root, visualRoot)
 end
 
 function InventoryUIController:RefreshWithData(data)

@@ -79,19 +79,26 @@ local function getConfiguredEffect(flagName: string, data: any?): (string?, stri
 	return effectName, if typeof(attachmentName) == "string" then attachmentName else StatusEffectVfx.GetDefaultAttachmentName(effectName)
 end
 
-local function getDefaultMesh(pawn: Model): BasePart?
-	local equipped = pawn:FindFirstChild("EquipedLauncherModel") or pawn:FindFirstChild("EquippedLauncherModel")
-	local mesh = equipped and equipped:FindFirstChild("Mesh")
-	if mesh and mesh:IsA("BasePart") then
-		return mesh
+local function collectLauncherVisualParts(pawn: Model): { BasePart }
+	local equipped = pawn:FindFirstChild("EquippedLauncherModel") or pawn:FindFirstChild("EquipedLauncherModel")
+	if not (equipped and equipped:IsA("Model")) then
+		return {}
 	end
-	return nil
+	local parts = {}
+	for _, descendant in equipped:GetDescendants() do
+		if descendant:IsA("BasePart") and descendant.Name ~= "RootPart" then
+			table.insert(parts, descendant)
+		end
+	end
+	if #parts == 0 and equipped.PrimaryPart then
+		table.insert(parts, equipped.PrimaryPart)
+	end
+	return parts
 end
 
 local function collectMaterialTargets(pawn: Model, materialTarget: string?): { BasePart }
 	if materialTarget == "DefaultMesh" then
-		local mesh = getDefaultMesh(pawn)
-		return if mesh then { mesh } else {}
+		return collectLauncherVisualParts(pawn)
 	end
 
 	local targets = {}

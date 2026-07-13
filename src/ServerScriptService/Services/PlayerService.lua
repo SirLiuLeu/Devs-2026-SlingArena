@@ -12,12 +12,14 @@ local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local StatusEffectVfx = require(ReplicatedStorage.Shared.Utils.StatusEffectVfx)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
+local LauncherAnimationController = require(script.Parent.LauncherAnimationController)
 
-local EQUIPPED_LAUNCHER_MODEL_NAME = "EquipedLauncherModel"
-local LEGACY_EQUIPPED_LAUNCHER_MODEL_NAME = "EquippedLauncherModel"
+local EQUIPPED_LAUNCHER_MODEL_NAME = "EquippedLauncherModel"
+local TYPO_EQUIPPED_LAUNCHER_MODEL_NAME = "EquipedLauncherModel"
 local PLAYER_CHARACTER_MODEL_NAME = "Player"
-local LAUNCHER_MESH_NAME = "Mesh"
-local HITBOX_MESH_WELD_NAME = "WeldConstraint_HitboxMesh"
+local LAUNCHER_ROOT_PART_NAME = "RootPart"
+local HITBOX_ROOT_WELD_NAME = "WeldConstraint_HitboxRootPart"
+local LEGACY_HITBOX_MESH_WELD_NAME = "WeldConstraint_HitboxMesh"
 
 local function setPreplacedStatusEffectsEnabled(root: BasePart, enabled: boolean)
 	StatusEffectVfx.SetAllStatusEffectsEnabled(root, enabled)
@@ -35,6 +37,7 @@ function PlayerService.new(context)
 	self._worldUiTemplate = nil
 	self._playerToLauncher = {}
 	self._launcherToPlayer = {}
+	self._animationControllers = {}
 	if not self._pawnsFolder then
 		self._pawnsFolder = Instance.new("Folder")
 		self._pawnsFolder.Name = "LauncherPawns"
@@ -50,6 +53,7 @@ function PlayerService:Init()
 
 	self._context.EventBus:On("PlayerStateUpdated", function(player: Player, state)
 		self:_updateWorldUi(player, state)
+		self:_updateLauncherAnimations(player, state)
 	end)
 
 	Players.PlayerAdded:Connect(function(player)
@@ -283,7 +287,7 @@ function PlayerService:_findEquippedLauncherModel(pawn: Model): Model?
 	if equipped and equipped:IsA("Model") then
 		return equipped
 	end
-	local legacy = pawn:FindFirstChild(LEGACY_EQUIPPED_LAUNCHER_MODEL_NAME)
+	local legacy = pawn:FindFirstChild(TYPO_EQUIPPED_LAUNCHER_MODEL_NAME)
 	if legacy and legacy:IsA("Model") then
 		legacy.Name = EQUIPPED_LAUNCHER_MODEL_NAME
 		return legacy
@@ -291,10 +295,13 @@ function PlayerService:_findEquippedLauncherModel(pawn: Model): Model?
 	return nil
 end
 
-function PlayerService:_resolveLauncherMesh(model: Model): BasePart?
-	local mesh = model:FindFirstChild(LAUNCHER_MESH_NAME)
-	if mesh and mesh:IsA("BasePart") then
-		return mesh
+function PlayerService:_resolveLauncherVisualRoot(model: Model): BasePart?
+	local rootPart = model:FindFirstChild(LAUNCHER_ROOT_PART_NAME)
+	if rootPart and rootPart:IsA("BasePart") then
+		return rootPart
+	end
+	if model.PrimaryPart and model.PrimaryPart:IsA("BasePart") then
+		return model.PrimaryPart
 	end
 	return nil
 end
@@ -311,26 +318,43 @@ function PlayerService:_getOrCreateEquippedLauncherModel(pawn: Model): Model
 	return equipped
 end
 
-function PlayerService:_updateHitboxMeshWeld(pawn: Model, root: BasePart, mesh: BasePart)
-	local weld = pawn:FindFirstChild(HITBOX_MESH_WELD_NAME)
+function PlayerService:_updateHitboxRootPartWeld(pawn: Model, hitbox: BasePart, visualRoot: BasePart)
+	local legacyWeld = pawn:FindFirstChild(LEGACY_HITBOX_MESH_WELD_NAME)
+	if legacyWeld then
+		legacyWeld:Destroy()
+	end
+
+	local weld = pawn:FindFirstChild(HITBOX_ROOT_WELD_NAME)
 	if not (weld and weld:IsA("WeldConstraint")) then
 		if weld then
 			weld:Destroy()
 		end
 		weld = Instance.new("WeldConstraint")
-		weld.Name = HITBOX_MESH_WELD_NAME
+		weld.Name = HITBOX_ROOT_WELD_NAME
 		weld.Parent = pawn
 	end
-	weld.Part0 = root
-	weld.Part1 = mesh
+	weld.Part0 = hitbox
+	weld.Part1 = visualRoot
+end
+
+function PlayerService:_configureVisualRig(rig: Model)
+	for _, descendant in rig:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = false
+			descendant.CanCollide = false
+			descendant.CanTouch = false
+			descendant.CanQuery = false
+			descendant.Massless = true
+		end
+	end
 end
 
 function PlayerService:_applyLauncherVisual(pawn: Model, launcherId: string): boolean
-	local root = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
-	if not (root and root:IsA("BasePart")) then
+	local hitbox = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
+	if not (hitbox and hitbox:IsA("BasePart")) then
 		return false
 	end
-	pawn.PrimaryPart = root
+	pawn.PrimaryPart = hitbox
 
 	local launcherModel = self:_resolveLauncherModelSource(launcherId)
 	if not launcherModel then
@@ -338,30 +362,35 @@ function PlayerService:_applyLauncherVisual(pawn: Model, launcherId: string): bo
 		return false
 	end
 
-	local sourceMesh = self:_resolveLauncherMesh(launcherModel)
-	if not sourceMesh then
-		warn(string.format("[PLAYER_SERVICE] Launcher model %s has no Mesh", launcherId))
+	local sourceRoot = self:_resolveLauncherVisualRoot(launcherModel)
+	if not sourceRoot then
+		warn(string.format("[PLAYER_SERVICE] Launcher model %s has no RootPart/PrimaryPart", launcherId))
 		return false
 	end
 
 	local equipped = self:_getOrCreateEquippedLauncherModel(pawn)
-	local oldMesh = equipped:FindFirstChild(LAUNCHER_MESH_NAME)
-	local targetCFrame = if oldMesh and oldMesh:IsA("BasePart") then oldMesh.CFrame else root.CFrame
+	local oldRoot = equipped.PrimaryPart or equipped:FindFirstChild(LAUNCHER_ROOT_PART_NAME)
+	local targetCFrame = if oldRoot and oldRoot:IsA("BasePart") then oldRoot.CFrame else hitbox.CFrame
 	for _, child in ipairs(equipped:GetChildren()) do
 		child:Destroy()
 	end
 
-	local mesh = sourceMesh:Clone()
-	mesh.Name = LAUNCHER_MESH_NAME
-	mesh.CFrame = targetCFrame
-	mesh.Anchored = false
-	mesh.CanCollide = false
-	mesh.Massless = true
-	mesh.Parent = equipped
-	equipped.PrimaryPart = mesh
+	for _, child in ipairs(launcherModel:GetChildren()) do
+		local clone = child:Clone()
+		clone.Parent = equipped
+	end
+	local visualRoot = self:_resolveLauncherVisualRoot(equipped)
+	if not visualRoot then
+		warn(string.format("[PLAYER_SERVICE] Cloned launcher model %s has no RootPart/PrimaryPart", launcherId))
+		return false
+	end
+	visualRoot.Name = LAUNCHER_ROOT_PART_NAME
+	equipped.PrimaryPart = visualRoot
+	equipped:PivotTo(targetCFrame)
+	self:_configureVisualRig(equipped)
 	equipped:SetAttribute("LauncherId", launcherId)
 	pawn:SetAttribute("LauncherId", launcherId)
-	self:_updateHitboxMeshWeld(pawn, root, mesh)
+	self:_updateHitboxRootPartWeld(pawn, hitbox, visualRoot)
 	return true
 end
 
@@ -379,7 +408,7 @@ function PlayerService:_prepareLauncherModel(model: Model): BasePart?
 	-- Status VFX are pre-placed under Hitbox attachments; keep them disabled until flags enable them.
 	setPreplacedStatusEffectsEnabled(root, false)
 
-	local attachment = root:FindFirstChild("Attachment")
+	local attachment = root:FindFirstChild("LauncherMovementAttachment") or root:FindFirstChild("AttachmentOrientation") or root:FindFirstChild("Attachment")
 	local linearVelocity = root:FindFirstChild("LinearVelocity")
 	local alignOrientation = root:FindFirstChild("AlignOrientation")
 	local body = model:FindFirstChild("Body", true)
@@ -402,9 +431,9 @@ function PlayerService:_prepareLauncherModel(model: Model): BasePart?
 		end
 	end
 
-	if trail and trail:IsA("Trail") and attachments then
-		local trailStart = attachments:FindFirstChild("TrailStart")
-		local trailEnd = attachments:FindFirstChild("TrailEnd")
+	if trail and trail:IsA("Trail") then
+		local trailStart = (attachments and attachments:FindFirstChild("TrailStart")) or root:FindFirstChild("TrailStart")
+		local trailEnd = (attachments and attachments:FindFirstChild("TrailEnd")) or root:FindFirstChild("TrailEnd")
 		if trailStart and trailStart:IsA("Attachment") then
 			trail.Attachment0 = trailStart
 		end
@@ -646,6 +675,45 @@ function PlayerService:SpawnHumanCharacter(player: Player, spawnIndex: number?, 
 	return character
 end
 
+function PlayerService:_destroyLauncherAnimationController(pawn: Model?)
+	if not pawn then
+		return
+	end
+	local controller = self._animationControllers[pawn]
+	if controller then
+		controller:Destroy()
+		self._animationControllers[pawn] = nil
+	end
+end
+
+function PlayerService:_initializeLauncherAnimations(player: Player, pawn: Model)
+	self:_destroyLauncherAnimationController(pawn)
+	local equipped = self:_findEquippedLauncherModel(pawn)
+	if not equipped then
+		return
+	end
+	self._animationControllers[pawn] = LauncherAnimationController.new(pawn, equipped)
+	local state = self._context.Services.PlayerStateService:GetState(player)
+	if state then
+		self._animationControllers[pawn]:ApplyState(state)
+	end
+end
+
+function PlayerService:_updateLauncherAnimations(player: Player, state)
+	local pawn = self:GetPawn(player)
+	if not pawn then
+		return
+	end
+	local controller = self._animationControllers[pawn]
+	if not controller then
+		self:_initializeLauncherAnimations(player, pawn)
+		controller = self._animationControllers[pawn]
+	end
+	if controller then
+		controller:ApplyState(state)
+	end
+end
+
 function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	self:_disconnectDeathSignal(player)
 	self:_destroyPawn(player)
@@ -699,6 +767,7 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	self._playerToLauncher[player] = pawn
 	self._launcherToPlayer[pawn] = player
 	self:_attachWorldUi(pawn, player)
+	self:_initializeLauncherAnimations(player, pawn)
 	pawn:SetAttribute("ScaleValue", LauncherConfig.ModelScale)
 	for _, descendant in pawn:GetDescendants() do
 		if descendant:IsA("BasePart") then
@@ -739,6 +808,7 @@ function PlayerService:EquipLauncherModel(player: Player, launcherId: string): b
 	if not self:_applyLauncherVisual(pawn, launcherId) then
 		return false
 	end
+	self:_initializeLauncherAnimations(player, pawn)
 
 	local stateService = self._context.Services.PlayerStateService
 	if not (stateService and stateService:IsHuman(player)) then
@@ -762,6 +832,7 @@ end
 function PlayerService:_destroyPawn(player)
 	local pawn = self:GetPawn(player)
 	if pawn then
+		self:_destroyLauncherAnimationController(pawn)
 		self._launcherToPlayer[pawn] = nil
 		pawn:Destroy()
 	end
