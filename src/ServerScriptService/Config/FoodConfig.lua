@@ -205,22 +205,22 @@ FoodConfig.ZoneSpawnSettings = {
 --==================================================
 FoodConfig.ZoneWeights = {
 	MidZones = {
-		Common = 50,
-		Uncommon = 20,
-		Rare = 10,
-		Epic = 10,
+		Common = 70,
+		Uncommon = 15,
+		Rare = 5,
+		Epic = 5,
 		Legendary = 5,
-		Mythic = 5,
+		Mythic = 0,
 		Unique = 0,
 	},
 
 	EdgeZones = {
-		Common = 0,
-		Uncommon = 30,
-		Rare = 20,
-		Epic = 20,
-		Legendary = 10,
-		Mythic = 10,
+		Common = 65,
+		Uncommon = 15,
+		Rare = 10,
+		Epic = 5,
+		Legendary = 3,
+		Mythic = 2,
 		Unique = 0,
 	},
 

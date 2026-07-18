@@ -121,12 +121,12 @@ function HumanLauncherToggleController:Bind()
 	self.Background = toggleFrame:WaitForChild("Background") :: GuiObject
 	self.Gradient = (self.Background :: Instance):WaitForChild("Gradient") :: UIGradient
 	self.Options = toggleFrame:WaitForChild("Options")
-	local onClick = self.Options:WaitForChild("On"):WaitForChild("Click") :: GuiButton
 	local offClick = self.Options:WaitForChild("Off"):WaitForChild("Click") :: GuiButton
-	table.insert(self.Connections, onClick.Activated:Connect(function()
+	local onClick = self.Options:WaitForChild("On"):WaitForChild("Click") :: GuiButton
+	table.insert(self.Connections, offClick.Activated:Connect(function()
 		self:SetSelectedPlayerMode(HumanMode, true)
 	end))
-	table.insert(self.Connections, offClick.Activated:Connect(function()
+	table.insert(self.Connections, onClick.Activated:Connect(function()
 		self:SetSelectedPlayerMode(LauncherMode, true)
 	end))
 	self:SetSelectedPlayerMode(SelectedPlayerMode, false)
