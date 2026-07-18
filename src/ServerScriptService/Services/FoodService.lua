@@ -94,6 +94,67 @@ local function anchorFoodModel(model: Model)
 	end
 end
 
+local function resolveFoodHitbox(foodModel: Model): BasePart?
+	local primaryPart = foodModel.PrimaryPart
+	if primaryPart then
+		return primaryPart
+	end
+
+	local hitbox = foodModel:FindFirstChild("Hitbox")
+	if hitbox and hitbox:IsA("BasePart") then
+		foodModel.PrimaryPart = hitbox
+		return hitbox
+	end
+
+	return nil
+end
+
+local function getAnchorSurfacePosition(foodModel: Model, spawnAnchor: BasePart, horizontalPosition: Vector3?): Vector3?
+	local hitbox = resolveFoodHitbox(foodModel)
+	if not hitbox then
+		warn(string.format("[FoodService] Food model %s is missing a PrimaryPart/Hitbox", foodModel:GetFullName()))
+		return nil
+	end
+
+	local floorY = spawnAnchor.Position.Y + (spawnAnchor.Size.Y / 2)
+	local targetY = floorY + (hitbox.Size.Y / 2)
+	local xzPosition = horizontalPosition
+
+	if not xzPosition then
+		local localX = (math.random() - 0.5) * spawnAnchor.Size.X
+		local localZ = (math.random() - 0.5) * spawnAnchor.Size.Z
+		xzPosition = spawnAnchor.CFrame:PointToWorldSpace(Vector3.new(localX, 0, localZ))
+	end
+
+	return Vector3.new(xzPosition.X, targetY, xzPosition.Z)
+end
+
+local function pivotFoodToAnchorSurface(foodModel: Model, spawnAnchor: BasePart, horizontalPosition: Vector3?): Vector3?
+	local targetPosition = getAnchorSurfacePosition(foodModel, spawnAnchor, horizontalPosition)
+	if not targetPosition then
+		return nil
+	end
+
+	foodModel:PivotTo(CFrame.new(targetPosition))
+	return targetPosition
+end
+
+local function spawnFood(foodModel: Model, spawnAnchor: BasePart): Model?
+	local clone = foodModel:Clone()
+	if not resolveFoodHitbox(clone) then
+		clone:Destroy()
+		return nil
+	end
+
+	anchorFoodModel(clone)
+	if not pivotFoodToAnchorSurface(clone, spawnAnchor) then
+		clone:Destroy()
+		return nil
+	end
+
+	return clone
+end
+
 local function flattenXZ(v: Vector3): Vector3
 	return Vector3.new(v.X, 0, v.Z)
 end
@@ -331,9 +392,15 @@ end
 function FoodService:_buildSpawnPosition(spawnPart: BasePart, zoneName: string, foodRadius: number, batchPositions: { Vector3 }, batchRadii: { number }): Vector3?
 	local placementRadius = self:_getPlacementRadiusForZone(zoneName)
 	if placementRadius <= 0 then
-		local exactPosition = spawnPart.Position
-		if self:_isSpawnPositionValid(exactPosition, foodRadius, batchPositions, batchRadii) then
-			return exactPosition
+		for _ = 1, SPAWN_POSITION_RETRY_LIMIT do
+			local halfWidth = math.max(0, (spawnPart.Size.X / 2) - foodRadius)
+			local halfDepth = math.max(0, (spawnPart.Size.Z / 2) - foodRadius)
+			local localX = (math.random() * 2 - 1) * halfWidth
+			local localZ = (math.random() * 2 - 1) * halfDepth
+			local candidate = spawnPart.CFrame:PointToWorldSpace(Vector3.new(localX, 0, localZ))
+			if self:_isSpawnPositionValid(candidate, foodRadius, batchPositions, batchRadii) then
+				return candidate
+			end
 		end
 		return nil
 	end
@@ -371,17 +438,22 @@ function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Fol
 		return false
 	end
 
-	local clone = template:Clone()
+	local clone = spawnFood(template, spawnPart)
+	if not clone then
+		return false
+	end
 	clone.Name = foodType
 	clone.Parent = foodContainer
-	anchorFoodModel(clone)
-	local hitbox = clone:FindFirstChild("Hitbox") :: BasePart?
+	local hitbox = resolveFoodHitbox(clone)
 	if not hitbox then
 		clone:Destroy()
-		return
+		return false
 	end
-	clone.PrimaryPart = hitbox
-	clone:PivotTo(CFrame.new(spawnPos))
+	local surfaceSpawnPos = pivotFoodToAnchorSurface(clone, spawnPart, spawnPos)
+	if not surfaceSpawnPos then
+		clone:Destroy()
+		return false
+	end
 	local entry = {
 		Id = game:GetService("HttpService"):GenerateGUID(false),
 		Instance = clone,
@@ -405,7 +477,7 @@ function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Fol
 	self._foodById[entry.Id] = entry
 	self._foodByInstance[clone] = entry
 	self:_addEntryToGrid(entry)
-	table.insert(activeBatchPositions, spawnPos)
+	table.insert(activeBatchPositions, surfaceSpawnPos)
 	table.insert(activeBatchRadii, foodRadius)
 	return true
 end
