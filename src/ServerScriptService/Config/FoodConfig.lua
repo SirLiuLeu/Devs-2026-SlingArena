@@ -174,14 +174,7 @@ FoodConfig.TypePools = {
 	},
 	Legendary = {
 		"LegendaryGold",
-	},
-	Mythic = {
-		"MythicCrystal",
-	},
-	Unique = {
-		"UniqueCrown",
-		"UniqueCore",
-	},
+	}
 }
 
 
@@ -207,11 +200,9 @@ FoodConfig.ZoneWeights = {
 	MidZones = {
 		Common = 70,
 		Uncommon = 15,
-		Rare = 5,
+		Rare = 10,
 		Epic = 5,
-		Legendary = 5,
-		Mythic = 0,
-		Unique = 0,
+		Legendary = 0,
 	},
 
 	EdgeZones = {
@@ -219,19 +210,15 @@ FoodConfig.ZoneWeights = {
 		Uncommon = 15,
 		Rare = 10,
 		Epic = 5,
-		Legendary = 3,
-		Mythic = 2,
-		Unique = 0,
+		Legendary = 5,
 	},
 
 	CenterZones = {
 		Common = 0,
 		Uncommon = 0,
 		Rare = 0,
-		Epic = 0,
-		Legendary = 0,
-		Mythic = 0,
-		Unique = 100,
+		Epic = 70,
+		Legendary = 30,
 	},
 }
 
