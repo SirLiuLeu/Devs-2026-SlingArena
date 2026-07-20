@@ -111,47 +111,7 @@ FoodConfig.Foods = {
 		RespawnTime = 30,
 		Touch = false,
 		MustHit = true,
-	},
-
-	-- MYTHIC
-	MythicCrystal = {
-		Name = "MythicCrystal",
-		Type = "Mythic",
-		HP = 15000,
-		Exp = 180,
-		HealHP = 0,
-		DiamondRate = 0.25,
-		DiamondAmount = 4,
-		RespawnTime = 30,
-		Touch = false,
-		MustHit = true,
-	},
-
-	-- UNIQUE: same stats
-	UniqueCrown = {
-		Name = "UniqueCrown",
-		Type = "Unique",
-		HP = 35000,
-		Exp = 250,
-		HealHP = 0,
-		DiamondRate = 0.35,
-		DiamondAmount = 5,
-		RespawnTime = 90,
-		Touch = false,
-		MustHit = true,
-	},
-	UniqueCore = {
-		Name = "UniqueCore",
-		Type = "Unique",
-		HP = 35000,
-		Exp = 250,
-		HealHP = 0,
-		DiamondRate = 0.35,
-		DiamondAmount = 5,
-		RespawnTime = 90,
-		Touch = false,
-		MustHit = true,
-	},
+	}
 }
 
 --==================================================
