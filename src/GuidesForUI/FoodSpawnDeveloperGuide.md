@@ -9,7 +9,7 @@ For each arena map, place spawn centers under zone folders at:
 
 Each center must be a `BasePart` named **`FoodSpawn`** or another descriptive `BasePart` name.
 
-The runtime system uses the zone folder name, `FoodConfig.ZoneWeights`, and `FoodConfig.ZoneRules` to choose valid food rarity pools for that area.
+The runtime system uses the zone folder name and `FoodConfig.ZoneWeights` to choose valid food rarity pools for that area.
 
 ## Placement rules
 - Place each `FoodSpawn` part on the ground.

@@ -7,7 +7,6 @@ local FoodConfig = {}
 --==================================================
 FoodConfig.CommonRespawnTime = 10
 FoodConfig.HpFoodRespawnTime = 30
-FoodConfig.UniqueRespawnTime = 90 -- 1m30s
 
 FoodConfig.SpawnRadius = 20
 FoodConfig.CommonActivePerSpawn = 10
@@ -183,29 +182,7 @@ FoodConfig.ZoneWeights = {
 }
 
 --==================================================
--- 5) ZONE-SPECIFIC RULES
---==================================================
-FoodConfig.ZoneRules = {
-	MidZones = {
-		AllowCommon = true,
-		AllowHpFood = true,
-		AllowUnique = false,
-	},
-	EdgeZones = {
-		AllowCommon = true,
-		AllowHpFood = true,
-		AllowUnique = false,
-	},
-	CenterZones = {
-		AllowCommon = false,
-		AllowHpFood = true,
-		AllowUnique = true,
-		UniqueRespawnTime = 90,
-	},
-}
-
---==================================================
--- 6) HELPERS
+-- 5) HELPERS
 --==================================================
 function FoodConfig.IsCommon(foodType: string): boolean
 	return foodType == "Common"

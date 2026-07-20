@@ -176,7 +176,7 @@ Flow:
 # 3. FOOD SPAWN SYSTEM (TECHNICAL)
 
 ## 3.1 Structure
-- Foods type: Common, Uncommon, Rare, Epic, Legendary, Mythic, Unique Naming: "FoodSpawn"
+- Foods type: Common, Uncommon, Rare, Epic, Legendary. Spawn marker naming: "FoodSpawn"
 
 ## 3.2 Spawn Rule
 - Radius: ±5 studs (X, Z)
@@ -198,7 +198,7 @@ Flow:
   + Each destroyed Food → respawn exactly 1 after 10 seconds
 
 ### B) HP Food (Must Hit)
-- Type: Uncommon, Rare, Epic, Legendary, Mythic, Unique
+- Type: Uncommon, Rare, Epic, Legendary
 - Behavior:
   + Requires attack (last hit)
   + Grants EXP + chance for Diamonds
@@ -209,14 +209,13 @@ Flow:
 
 - Respawn:
   + Each destroyed Food → respawn exactly 1 after 30 seconds
-  + Each destroyed "Unique" Food → respawn exactly 1 after 90 seconds
 
 ## 3.4 Maintenance
 - No overlap within same cluster
 - Rate Spawn:
-+ MidZones: Common (20%), Uncommon(20%), Rare (20%), Epic (20%), Legendary(10%), Mythic (10%)
-+ EdgeZones: Common (40%), Uncommon(30%), Rare(30%)
-+ CenterZones: Unique (20%), Mythic(80%)
++ MidZones: Common (70%), Uncommon (15%), Rare (10%), Epic (5%), Legendary (0%)
++ EdgeZones: Common (65%), Uncommon (15%), Rare (10%), Epic (5%), Legendary (5%)
++ CenterZones: Common (0%), Uncommon (0%), Rare (0%), Epic (70%), Legendary (30%)
 # 4. PHYSICS & COMBAT
 
 ## 4.1 Core Philosophy & Architecture

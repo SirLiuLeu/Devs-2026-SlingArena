@@ -18,21 +18,12 @@ DataModel
 │  │     ├─ LegendaryGold
 │  │     │  ├─ Hitbox
 │  │     │  └─ Visual
-│  │     ├─ MythicCrystal
-│  │     │  ├─ Hitbox
-│  │     │  └─ Visual
 │  │     ├─ RareAmber
 │  │     │  ├─ Hitbox
 │  │     │  └─ Visual
 │  │     ├─ UncommonIce
 │  │     │  ├─ Hitbox
 │  │     │  └─ Visual
-│  │     ├─ UniqueCore
-│  │     │  ├─ Hitbox
-│  │     │  └─ Visual
-│  │     └─ UniqueCrown
-│  │        ├─ Hitbox
-│  │        └─ Visual
 │  │
 │  ├─ Shared  -> src/ReplicatedStorage/Shared
 │  │  ├─ Config

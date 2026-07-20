@@ -34,18 +34,13 @@ local COMMON_ALLOWED_STATES = {
 	[GameStates.PlayerState.Human] = true,
 }
 
-local REQUIRED_FOOD_MODELS = {
-	CommonBlue = true,
-	CommonGreen = true,
-	CommonRed = true,
-	UncommonIce = true,
-	RareAmber = true,
-	EpicViolet = true,
-	LegendaryGold = true,
-	MythicCrystal = true,
-	UniqueCore = true,
-	UniqueCrown = true,
-}
+local function buildRequiredFoodModels(): { [string]: boolean }
+	local required = {}
+	for foodName in pairs(FoodConfig.Foods) do
+		required[foodName] = true
+	end
+	return required
+end
 
 local FoodService = {}
 FoodService.__index = FoodService
@@ -56,8 +51,6 @@ local FOOD_TYPE_COLORS = {
 	Rare = Color3.fromRGB(90, 161, 255),
 	Epic = Color3.fromRGB(188, 119, 255),
 	Legendary = Color3.fromRGB(255, 196, 90),
-	Mythic = Color3.fromRGB(255, 122, 215),
-	Unique = Color3.fromRGB(255, 88, 88),
 }
 
 local function getService(context, name)
@@ -268,7 +261,7 @@ function FoodService:_loadFoodModels()
 		return
 	end
 	
-	for foodName in pairs(REQUIRED_FOOD_MODELS) do
+	for foodName in pairs(buildRequiredFoodModels()) do
 		local model = folder:FindFirstChild(foodName)
 		if model and model:IsA("Model") then
 			local hitbox = model:FindFirstChild("Hitbox")
@@ -297,28 +290,14 @@ function FoodService:_scanAndSpawnAllArenaMaps()
 	end
 end
 
-function FoodService:_isRarityAllowedInZone(zoneName: string, rarity: string): boolean
-	local rules = FoodConfig.ZoneRules[zoneName]
-	if not rules then
-		return false
-	end
-	if rarity == "Common" then
-		return rules.AllowCommon == true
-	end
-	if rarity == "Unique" then
-		return rules.AllowUnique == true
-	end
-	return rules.AllowHpFood == true
-end
-
 function FoodService:_pickWeightedType(zoneName: string): string?
 	local weights = FoodConfig.ZoneWeights[zoneName]
-	if not weights or not FoodConfig.ZoneRules[zoneName] then
+	if not weights then
 		return nil
 	end
 	local totalWeight = 0
 	for rarity, weight in pairs(weights) do
-		if weight > 0 and FoodConfig.TypePools[rarity] and self:_isRarityAllowedInZone(zoneName, rarity) then
+		if weight > 0 and FoodConfig.TypePools[rarity] then
 			totalWeight += weight
 		end
 	end
@@ -328,7 +307,7 @@ function FoodService:_pickWeightedType(zoneName: string): string?
 	local roll = math.random() * totalWeight
 	local run = 0
 	for rarity, weight in pairs(weights) do
-		if weight > 0 and FoodConfig.TypePools[rarity] and self:_isRarityAllowedInZone(zoneName, rarity) then
+		if weight > 0 and FoodConfig.TypePools[rarity] then
 			run += weight
 			if roll <= run then
 				local pool = FoodConfig.TypePools[rarity]
