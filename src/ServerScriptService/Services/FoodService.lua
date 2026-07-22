@@ -614,6 +614,7 @@ function FoodService:_rejectFoodHit(player: Player, reason: string, payload: any
 end
 
 function FoodService:_validateFoodHit(player: Player, entry: any, payload: any): (boolean, string?, { [string]: any }?)
+	print("Validating food hit for player:", player.Name, "entry:", entry and entry.Id, "payload:", payload)
 	if type(payload) ~= "table" then
 		return false, "invalid_payload", nil
 	end

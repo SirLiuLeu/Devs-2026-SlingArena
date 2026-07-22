@@ -281,58 +281,78 @@ end
 
 
 local function sphereCastLaunching(root: BasePart, dt: number, previousPosition: Vector3?)
-	local velocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
-	local predictedDirection = predictedLaunchDirection
-	local speed = velocity.Magnitude
-	local castStart = previousPosition or root.Position
-	local motion = root.Position - castStart
-	local planarMotion = Vector3.new(motion.X, 0, motion.Z)
-	local castVector = planarMotion
+    local currentPos = root.Position
+    local castStart = previousPosition or currentPos
+    local velocity = root.AssemblyLinearVelocity
+    local planarVelocity = Vector3.new(velocity.X, 0, velocity.Z)
+    local speed = planarVelocity.Magnitude
 
-	if predictedDirection and isPredictedLaunchScanActive() and predictedDirection.Magnitude >= 0.001 then
-		local predictedUnit = Vector3.new(predictedDirection.X, 0, predictedDirection.Z).Unit
-		local travelDistance = math.max(planarMotion.Magnitude, speed * dt, 0.1)
-		if castVector.Magnitude < 0.001 or castVector:Dot(predictedUnit) < 0 then
-			castVector = predictedUnit * travelDistance
-		end
-	elseif castVector.Magnitude < 0.001 and speed >= MIN_REPORT_SPEED then
-		castVector = velocity.Unit * math.max(speed * dt, 0.1)
-	end
+    -- 1. TÍNH QUÃNG ĐƯỜNG THỰC TẾ GIỮA 2 FRAME (CỐT LÕI CỦA CCD)
+    local motion = currentPos - castStart
+    local planarMotion = Vector3.new(motion.X, 0, motion.Z)
+    
+    local castVector: Vector3
+    
+    -- 2. XÁC ĐỊNH HƯỚNG VÀ ĐỘ DÀI TIA QUÉT
+    if planarMotion.Magnitude >= 0.001 then
+        -- TRƯỜNG HỢP CHUẨN: Nhân vật có di chuyển. 
+        -- Quét chính xác quãng đường vừa nối từ frame trước đến frame này.
+        castVector = planarMotion
+    else
+        -- FALLBACK: Frame đầu tiên chưa có chuyển động rõ rệt, 
+        -- hoặc `previousPosition` bị nil. Lúc này mới dùng đến vận tốc để quét bù.
+        if speed >= MIN_REPORT_SPEED then
+            -- Quét một đoạn ngắn bằng quãng đường dự kiến đi được trong 1 frame (V * dt)
+            castVector = planarVelocity.Unit * math.max(speed * dt, 0.1)
+        else
+            setSweepDebugVisible(false, nil, nil, nil)
+            return
+        end
+    end
 
-	local observedSpeed = math.max(speed, castVector.Magnitude / math.max(dt, 1 / 240))
-	if castVector.Magnitude < 0.001 or observedSpeed < MIN_REPORT_SPEED then
-		setSweepDebugVisible(false, nil, nil, nil)
-		return
-	end
+    local direction = castVector.Unit
+    local baseDistance = castVector.Magnitude
+    local observedSpeed = math.max(speed, baseDistance / math.max(dt, 1 / 240))
 
-	local direction = castVector.Unit
-	local castDistance = castVector.Magnitude + PhysicsConfig.Collision.SphereCastDistancePadding
-	local radius = (math.max(root.Size.X, root.Size.Z) * 0.5) + PhysicsConfig.Collision.SphereCastRadiusPadding
-	setSweepDebugVisible(true, castStart, castStart + direction * castDistance, radius)
+    if observedSpeed < MIN_REPORT_SPEED then
+        setSweepDebugVisible(false, nil, nil, nil)
+        return
+    end
 
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	local activeCharacter = getActiveCharacter()
-	params.FilterDescendantsInstances = if activeCharacter then { activeCharacter } else {}
-	params.IgnoreWater = true
-	local result = workspace:Spherecast(castStart, radius, direction * castDistance, params)
-	if not result then
-		return
-	end
-	local part = result.Instance
-	local food = getFoodModelFromPart(part)
-	if food then
-		local hitbox = food:FindFirstChild("Hitbox")
-		if hitbox and hitbox:IsA("BasePart") then
-			reportFoodHit(food, hitbox, root, "ClientLaunchSphereCast", observedSpeed)
-		end
-		return
-	end
-	local targetPlayer = getPlayerFromHit(part)
-	if targetPlayer then
-		reportPlayerHit(targetPlayer, root, observedSpeed)
-		return
-	end
+    -- 3. CỘNG PADDING VÀ THỰC HIỆN SPHERECAST
+    local castDistance = baseDistance + PhysicsConfig.Collision.SphereCastDistancePadding
+    local radius = (math.max(root.Size.X, root.Size.Z) * 0.5) + PhysicsConfig.Collision.SphereCastRadiusPadding
+    
+    setSweepDebugVisible(true, castStart, castStart + direction * castDistance, radius)
+
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    local activeCharacter = getActiveCharacter()
+    params.FilterDescendantsInstances = if activeCharacter then { activeCharacter } else {}
+    params.IgnoreWater = true
+    
+    -- Quét từ vị trí CUỐI CÙNG của frame trước, hướng tới vị trí HIỆN TẠI
+    local result = workspace:Spherecast(castStart, radius, direction * castDistance, params)
+    
+    if not result then
+        return
+    end
+    
+    local part = result.Instance
+    local food = getFoodModelFromPart(part)
+    if food then
+        local hitbox = food:FindFirstChild("Hitbox")
+        if hitbox and hitbox:IsA("BasePart") then
+            reportFoodHit(food, hitbox, root, "ClientLaunchSphereCast", observedSpeed)
+        end
+        return
+    end
+    
+    local targetPlayer = getPlayerFromHit(part)
+    if targetPlayer then
+        reportPlayerHit(targetPlayer, root, observedSpeed)
+        return
+    end
 end
 
 RunService.RenderStepped:Connect(function(dt)
