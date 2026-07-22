@@ -90,7 +90,6 @@ function LauncherService.new(context)
 	self._heartbeatConnection = nil
 	self._warnedInvalidRoot = {}
 	self._warnedHumanLauncherInterference = {}
-	self._aimTargets = {}
 	self._activeLaunches = {}
 	return self
 end
@@ -100,7 +99,6 @@ function LauncherService:ResetPlayerRuntime(player: Player)
 	self._input[player] = nil
 	self._chargeState[player] = nil
 	self._activeLaunches[player] = nil
-	self._aimTargets[player] = nil
 	self._releaseCooldown[player] = nil
 	self._moveRateState[player] = nil
 
@@ -227,7 +225,6 @@ function LauncherService:Init()
 		self._releaseCooldown[player] = nil
 		self._activeLaunches[player] = nil
 		self._warnedInvalidRoot[player] = nil
-		self._aimTargets[player] = nil
 		local movementController = self._movementControllers[player]
 		if movementController then
 			movementController:Destroy()
@@ -396,7 +393,7 @@ function LauncherService:_canControl(player: Player): boolean
 	return true
 end
 
-function LauncherService:HandleMoveRequest(player: Player, moveInput: Vector3, aimDirection: Vector3?)
+function LauncherService:HandleMoveRequest(player: Player, moveInput: Vector3, _aimDirection: Vector3?)
 	if typeof(moveInput) ~= "Vector3" then
 		return
 	end
@@ -427,12 +424,6 @@ function LauncherService:HandleMoveRequest(player: Player, moveInput: Vector3, a
 
 	local planar = Vector3.new(moveInput.X, 0, moveInput.Z)
 	self._input[player] = if planar.Magnitude > 1 then planar.Unit else planar
-	if typeof(aimDirection) == "Vector3" then
-		local planarAim = Vector3.new(aimDirection.X, 0, aimDirection.Z)
-		if planarAim.Magnitude > PhysicsConfig.Movement.InputDeadzone then
-			self._aimTargets[player] = planarAim.Unit
-		end
-	end
 	self._moveRateState[player] = now
 end
 
@@ -471,7 +462,6 @@ function LauncherService:StartCharge(player: Player, aimDirection: Vector3)
 		chargeStartTime = now,
 		aimDirection = direction,
 	}
-	self._aimTargets[player] = direction
 	self._context.Services.PlayerStateService:SetCharging(player, true, 0)
 	self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Charging)
 	self._context.EventBus:Fire("ChargeStarted", player)
@@ -504,7 +494,6 @@ function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3)
 		end
 	end
 	chargeState.aimDirection = launchDirectionPlanar
-	self._aimTargets[player] = launchDirectionPlanar
 
 	local now = os.clock()
 	local chargeRatio = LaunchMotionModel.ComputeChargeRatio(chargeState.chargeStartTime, now)
@@ -586,25 +575,23 @@ function LauncherService:HandleLaunchStopped(player: Player, payload: any)
 	self:_finishLaunch(player, "client_stopped")
 end
 
-function LauncherService:_applyAimRotation(player: Player, root: BasePart, input: Vector3, _dt: number)
+function LauncherService:_setAutomaticRotation(root: BasePart, enabled: boolean): AlignOrientation?
 	local alignOrientation = resolveAlignOrientation(root)
 	if not alignOrientation then
+		return nil
+	end
+	alignOrientation.Enabled = enabled
+	return alignOrientation
+end
+
+function LauncherService:_applyPlanarRotation(root: BasePart, direction: Vector3)
+	local desiredPlanar = Vector3.new(direction.X, 0, direction.Z)
+	if desiredPlanar.Magnitude < PhysicsConfig.Movement.AimDeadzone then
 		return
 	end
-	local aimDirection = self._aimTargets[player]
-	local desiredPlanar = Vector3.zero
-	if typeof(aimDirection) == "Vector3" then
-		desiredPlanar = Vector3.new(aimDirection.X, 0, aimDirection.Z)
-	end
-	if desiredPlanar.Magnitude < PhysicsConfig.Movement.AimDeadzone then
-		local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
-		if forward.Magnitude > PhysicsConfig.Movement.AimDeadzone then
-			desiredPlanar = forward.Unit
-		elseif input.Magnitude > PhysicsConfig.Movement.AimDeadzone then
-			desiredPlanar = input.Unit
-		end
-	end
-	if desiredPlanar.Magnitude < PhysicsConfig.Movement.AimDeadzone then
+
+	local alignOrientation = self:_setAutomaticRotation(root, true)
+	if not alignOrientation then
 		return
 	end
 	alignOrientation.CFrame = CFrame.lookAt(root.Position, root.Position + desiredPlanar.Unit, Vector3.yAxis)
@@ -705,7 +692,10 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 	self._warnedInvalidRoot[player] = nil
 
 	if state.MovementState == "Launching" then
-		self:_applyAimRotation(player, root, input, dt)
+		local launchState = self._activeLaunches[player]
+		if launchState and typeof(launchState.direction) == "Vector3" then
+			self:_applyPlanarRotation(root, launchState.direction)
+		end
 		if root:GetNetworkOwner() ~= player then
 			root:SetNetworkOwner(player)
 		end
@@ -722,27 +712,27 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 	end
 	local moveDirection = Vector3.zero
 	if input.Magnitude > PhysicsConfig.Movement.InputDeadzone then
-		local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
-		local right = Vector3.new(root.CFrame.RightVector.X, 0, root.CFrame.RightVector.Z)
-		if forward.Magnitude > PhysicsConfig.Movement.InputDeadzone and right.Magnitude > PhysicsConfig.Movement.InputDeadzone then
-			moveDirection = (forward.Unit * input.Z) + (right.Unit * input.X)
-		end
+		moveDirection = input
 	end
 
 	if state.MovementState == MOVEMENT_STATE.Charging then
 		movementController:DisableLocomotion(false)
 		return
 	end
+	if state.MovementState == MOVEMENT_STATE.Knockback then
+		movementController:DisableLocomotion(true)
+		self:_setAutomaticRotation(root, false)
+		return
+	end
+
 	if state.MovementState == "Recovering" then
 		movementController:DisableLocomotion(false)
-		self:_applyAimRotation(player, root, input, dt)
 		return
 	end
 
 	if moveDirection.Magnitude < PhysicsConfig.Movement.InputDeadzone then
 		movementController:SetSpeed(resolveMovementSpeed(state))
 		movementController:Move(Vector3.zero, dt)
-		self:_applyAimRotation(player, root, input, dt)
 		if state.MovementState ~= MOVEMENT_STATE.Idle then
 			self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
 		end
@@ -751,7 +741,7 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 
 	movementController:SetSpeed(resolveMovementSpeed(state))
 	movementController:Move(moveDirection.Unit, dt)
-	self:_applyAimRotation(player, root, input, dt)
+	self:_applyPlanarRotation(root, moveDirection.Unit)
 	if state.MovementState ~= MOVEMENT_STATE.Moving then
 		self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Moving)
 	end

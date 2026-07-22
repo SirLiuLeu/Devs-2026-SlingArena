@@ -139,28 +139,19 @@ local function computeMoveInput(): Vector3
 		return Vector3.zero
 	end
 
-	return Vector3.new(input2D.X, 0, input2D.Y)
-end
-
-local function computeAimDirection(): Vector3?
-	local joystickAim = player:GetAttribute("LauncherAimDirection")
-	if typeof(joystickAim) == "Vector3" then
-		local planarJoystickAim = Vector3.new(joystickAim.X, 0, joystickAim.Z)
-		if planarJoystickAim.Magnitude >= PhysicsConfig.Movement.InputDeadzone then
-			return planarJoystickAim.Unit
-		end
-	end
-
 	local camera = Workspace.CurrentCamera
 	if not camera then
-		return nil
+		return Vector3.new(input2D.X, 0, input2D.Y)
 	end
 
-	local planarLook = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
-	if planarLook.Magnitude < PhysicsConfig.Movement.InputDeadzone then
-		return Vector3.new(0, 0, -1)
+	local forward = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
+	local right = Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z)
+	if forward.Magnitude < PhysicsConfig.Movement.InputDeadzone or right.Magnitude < PhysicsConfig.Movement.InputDeadzone then
+		return Vector3.new(input2D.X, 0, input2D.Y)
 	end
-	return planarLook.Unit
+
+	local worldInput = (right.Unit * input2D.X) + (forward.Unit * input2D.Y)
+	return if worldInput.Magnitude > 1 then worldInput.Unit else worldInput
 end
 
 local function onLauncherAction(actionName: string, state: Enum.UserInputState): Enum.ContextActionResult
@@ -314,7 +305,7 @@ RunService.RenderStepped:Connect(function()
 		return
 	end
 
-	moveRequestRemote:FireServer(computeMoveInput(), computeAimDirection())
+	moveRequestRemote:FireServer(computeMoveInput())
 	lastSentAt = now
 end)
 

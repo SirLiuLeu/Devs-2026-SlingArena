@@ -240,7 +240,7 @@ end
 
 function PlayerStateService:GetActivePlayerMode(player: Player): string
 	local state = self._states[player]
-	return (state and state.ActivePlayerMode) or GameStates.PlayerMode.Launcher
+	return (state and state.ActivePlayerMode) or GameStates.PlayerMode.Human
 end
 
 function PlayerStateService:IsHuman(player: Player): boolean
@@ -250,7 +250,7 @@ end
 
 function PlayerStateService:IsLauncher(player: Player): boolean
 	local state = self._states[player]
-	return state == nil or state.ActivePlayerMode ~= GameStates.PlayerMode.Human
+	return state ~= nil and state.ActivePlayerMode == GameStates.PlayerMode.Launcher
 end
 
 function PlayerStateService:IsCombatParticipant(player: Player): boolean

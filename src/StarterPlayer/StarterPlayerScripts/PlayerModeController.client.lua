@@ -18,16 +18,19 @@ HumanLauncherToggleController.__index = HumanLauncherToggleController
 local LauncherMode = GameStates.PlayerMode.Launcher
 local HumanMode = GameStates.PlayerMode.Human
 local SelectedPlayerMode = HumanMode
+local ActivePlayerMode = HumanMode
+player:SetAttribute("SelectedPlayerMode", SelectedPlayerMode)
+player:SetAttribute("ActivePlayerMode", ActivePlayerMode)
 
-local HUMAN_ON = "On"
-local LAUNCHER_OFF = "Off"
+local HUMAN_OFF = "Off"
+local LAUNCHER_ON = "On"
 
 local modeColors = {
-	[LAUNCHER_OFF] = ColorSequence.new({
+	[LAUNCHER_ON] = ColorSequence.new({
 		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 75, 78)),
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(178, 54, 56)),
 	}),
-	[HUMAN_ON] = ColorSequence.new({
+	[HUMAN_OFF] = ColorSequence.new({
 		ColorSequenceKeypoint.new(0, Color3.fromRGB(79, 255, 144)),
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(45, 145, 82)),
 	}),
@@ -73,17 +76,18 @@ function HumanLauncherToggleController:_setVisibleForState()
 end
 
 function HumanLauncherToggleController:_applyVisual(optionName: string)
+	local background = self.Background
+	local gradient = self.Gradient
+	local options = self.Options
+	if not (background and gradient and options) then
+		self.CurrentVisualState = nil
+		return
+	end
 	if self.CurrentVisualState == optionName then
 		self:_setVisibleForState()
 		return
 	end
 	self.CurrentVisualState = optionName
-	local background = self.Background
-	local gradient = self.Gradient
-	local options = self.Options
-	if not (background and gradient and options) then
-		return
-	end
 	local targetOption = options:FindFirstChild(optionName)
 	if targetOption and targetOption:IsA("GuiObject") then
 		TweenService:Create(background, tweenInfo, {
@@ -95,17 +99,18 @@ function HumanLauncherToggleController:_applyVisual(optionName: string)
 	self:_setVisibleForState()
 end
 
+function HumanLauncherToggleController:RefreshFromActiveMode()
+	local visualMode = if ActivePlayerMode == LauncherMode then LAUNCHER_ON else HUMAN_OFF
+	self:_applyVisual(visualMode)
+end
+
 function HumanLauncherToggleController:SetSelectedPlayerMode(modeName: string, notifyServer: boolean)
 	if modeName ~= LauncherMode and modeName ~= HumanMode then
-		modeName = LauncherMode
-	end
-	if SelectedPlayerMode == modeName then
-		self:_applyVisual(if modeName == HumanMode then HUMAN_ON else LAUNCHER_OFF)
-		return
+		modeName = HumanMode
 	end
 	SelectedPlayerMode = modeName
 	player:SetAttribute("SelectedPlayerMode", SelectedPlayerMode)
-	self:_applyVisual(if SelectedPlayerMode == HumanMode then HUMAN_ON else LAUNCHER_OFF)
+	self:RefreshFromActiveMode()
 	if notifyServer then
 		setPlayerModeRemote:FireServer(SelectedPlayerMode)
 	end
@@ -121,6 +126,7 @@ function HumanLauncherToggleController:Bind()
 	self.Background = toggleFrame:WaitForChild("Background") :: GuiObject
 	self.Gradient = (self.Background :: Instance):WaitForChild("Gradient") :: UIGradient
 	self.Options = toggleFrame:WaitForChild("Options")
+	self.CurrentVisualState = nil
 	local offClick = self.Options:WaitForChild("Off"):WaitForChild("Click") :: GuiButton
 	local onClick = self.Options:WaitForChild("On"):WaitForChild("Click") :: GuiButton
 	table.insert(self.Connections, offClick.Activated:Connect(function()
@@ -129,7 +135,7 @@ function HumanLauncherToggleController:Bind()
 	table.insert(self.Connections, onClick.Activated:Connect(function()
 		self:SetSelectedPlayerMode(LauncherMode, true)
 	end))
-	self:SetSelectedPlayerMode(SelectedPlayerMode, false)
+	self:RefreshFromActiveMode()
 	table.insert(self.Connections, player:GetAttributeChangedSignal("LocationState"):Connect(function()
 		self:_setVisibleForState()
 	end))
@@ -159,12 +165,13 @@ local function applyStatePayload(state: any)
 		player:SetAttribute("SelectedPlayerMode", SelectedPlayerMode)
 	end
 	if typeof(state.ActivePlayerMode) == "string" then
-		player:SetAttribute("ActivePlayerMode", state.ActivePlayerMode)
+		ActivePlayerMode = state.ActivePlayerMode
+		player:SetAttribute("ActivePlayerMode", ActivePlayerMode)
 	end
 	if typeof(state.LocationState) == "string" then
 		player:SetAttribute("LocationState", state.LocationState)
 	end
-	controller:SetSelectedPlayerMode(SelectedPlayerMode, false)
+	controller:RefreshFromActiveMode()
 	controller:_setVisibleForState()
 end
 
