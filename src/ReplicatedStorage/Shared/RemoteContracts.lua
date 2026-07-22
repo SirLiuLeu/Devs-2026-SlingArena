@@ -110,6 +110,9 @@ RemoteContracts.Validators = {
 		if payload.observedSpeed ~= nil and typeof(payload.observedSpeed) ~= "number" then
 			return false
 		end
+		if payload.clientTimestamp ~= nil and typeof(payload.clientTimestamp) ~= "number" then
+			return false
+		end
 		return true
 	end,
 	[RemoteContracts.Names.SetPlayerMode] = function(modeName: any): boolean

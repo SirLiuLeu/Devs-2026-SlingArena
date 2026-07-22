@@ -31,14 +31,77 @@ function CollisionService.new(context)
 	self._lastCollision = {}
 	self._lastCollisionByLaunchTarget = {}
 	self._lastWallCollision = {}
+	self._positionHistory = {}
 	return self
 end
 
 function CollisionService:Init()
 	RunService.Heartbeat:Connect(function(dt)
+		self:_samplePositionHistory()
 		self:_applyDragAndBounce(dt)
 	end)
 	self:_bindClientCollisionReports()
+end
+
+function CollisionService:_samplePositionHistory()
+	local playerService = getService(self._context, "PlayerService")
+	if not playerService then
+		return
+	end
+	local now = os.clock()
+	local oldestAllowed = now - PhysicsConfig.Collision.PositionHistoryWindow
+	for _, player in Players:GetPlayers() do
+		local root = playerService:GetRoot(player)
+		if root then
+			local history = self._positionHistory[player]
+			if not history then
+				history = {}
+				self._positionHistory[player] = history
+			end
+			table.insert(history, {
+				timestamp = now,
+				position = root.Position,
+				velocity = root.AssemblyLinearVelocity,
+			})
+			while history[1] and history[1].timestamp < oldestAllowed do
+				table.remove(history, 1)
+			end
+		end
+	end
+	for player in pairs(self._positionHistory) do
+		if not player.Parent then
+			self._positionHistory[player] = nil
+		end
+	end
+end
+
+function CollisionService:_getClosestHistorySample(player: Player, timestamp: number): any
+	local history = self._positionHistory[player]
+	if not history or #history == 0 then
+		return nil
+	end
+	local closest = history[1]
+	local closestDelta = math.abs(closest.timestamp - timestamp)
+	for i = 2, #history do
+		local sample = history[i]
+		local delta = math.abs(sample.timestamp - timestamp)
+		if delta < closestDelta then
+			closest = sample
+			closestDelta = delta
+		end
+	end
+	return closest
+end
+
+function CollisionService:_firePvpFeedback(player: Player, eventType: string, targetUserId: number?, root: BasePart?)
+	local remote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
+	if remote and remote:IsA("RemoteEvent") then
+		remote:FireClient(player, {
+			EventType = eventType,
+			targetUserId = targetUserId,
+			authoritativeVelocity = root and root.AssemblyLinearVelocity or nil,
+		})
+	end
 end
 
 function CollisionService:_applyDragAndBounce(dt: number)
@@ -218,6 +281,16 @@ function CollisionService:_validatePlayerReport(
 		return false, nil, nil, nil, Vector3.new(1, 0, 0)
 	end
 
+	local attackerReportedPos = if typeof(payload.currPos) == "Vector3" then payload.currPos else root.Position
+	local rewindSeconds = math.clamp(player:GetNetworkPing(), 0, PhysicsConfig.Collision.PositionHistoryWindow)
+	local defenderSample = self:_getClosestHistorySample(defender, os.clock() - rewindSeconds)
+	local defenderPosition = if defenderSample then defenderSample.position else targetRoot.Position
+	local reportedOffset = Vector3.new(attackerReportedPos.X - defenderPosition.X, 0, attackerReportedPos.Z - defenderPosition.Z)
+	local maxPlanarDistance = PhysicsConfig.Collision.Range + PhysicsConfig.Collision.ValidationTolerance
+	if reportedOffset.Magnitude > maxPlanarDistance then
+		return false, defender, root, targetRoot, Vector3.new(1, 0, 0)
+	end
+
 	local offset = targetRoot.Position - root.Position
 	local planar = Vector3.new(offset.X, 0, offset.Z)
 	local normal = if planar.Magnitude > PhysicsConfig.Movement.InputDeadzone
@@ -230,33 +303,43 @@ end
 function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	local ok, defender, root, targetRoot, normal = self:_validatePlayerReport(player, payload)
 	if not (ok and defender and root and targetRoot) then
+		self:_firePvpFeedback(player, "PvpHitRejected", payload.targetUserId, root)
 		return
 	end
+	local function reject()
+		self:_firePvpFeedback(player, "PvpHitRejected", defender.UserId, root)
+	end
+
 	local key = getCollisionKey(player, defender)
 	local now = os.clock()
 
 	local launcherService = getService(self._context, "LauncherService")
 	local stateService = getService(self._context, "PlayerStateService")
 	if not (launcherService and stateService) then
+		reject()
 		return
 	end
 	if (stateService.IsHuman and stateService:IsHuman(player)) or stateService.HasFlag and (
 		stateService:HasFlag(player, "Ghost") or stateService:HasFlag(defender, "Ghost")
 	) then
+		reject()
 		return
 	end
 	local validLaunch, launchState = launcherService:ValidateLaunchReport(player, payload)
 	if not validLaunch or not launchState then
+		reject()
 		return
 	end
 	local launchId = launchState.launchId
 	if type(launchId) ~= "string" or launchId == "" then
+		reject()
 		return
 	end
 	self._lastCollisionByLaunchTarget[launchId] = self._lastCollisionByLaunchTarget[launchId] or {}
 	local launchTargetKey = `Player:{defender.UserId}`
 	local lastHitAt = self._lastCollisionByLaunchTarget[launchId][launchTargetKey]
 	if lastHitAt and (now - lastHitAt) < SAME_TARGET_DEDUPE_SECONDS then
+		reject()
 		return
 	end
 	local attackerVelocity = resolveImpactVelocity(root, payload, launchState)
@@ -264,9 +347,11 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	local collisionResult = VelocityDecay.ResolvePlayerCollision(attackerVelocity, defenderVelocity, normal)
 	local impactSpeed = collisionResult.ClosingSpeed
 	if impactSpeed < PhysicsConfig.Collision.RealHitMinClosingSpeed then
+		reject()
 		return
 	end
 	if self._lastCollision[key] and now - self._lastCollision[key] < PhysicsConfig.Collision.Cooldown then
+		reject()
 		return
 	end
 	self._lastCollision[key] = now
@@ -286,6 +371,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	local canDamage = launcherService:RegisterLaunchDamageTarget(player, launchTargetKey)
 	local canKnockback = launcherService:RegisterLaunchKnockbackTarget(player, launchTargetKey)
 	if not canDamage and not canKnockback then
+		reject()
 		return
 	end
 
@@ -360,6 +446,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 			TransferredEnergy = transferEnergy,
 		})
 	end
+	self:_firePvpFeedback(player, "PvpHitConfirmed", defender.UserId, root)
 end
 
 

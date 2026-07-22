@@ -70,7 +70,7 @@ local PhysicsConfig = {
 
 	Collision = {
 		Range = 0.5,
-		ValidationTolerance = 10.75,
+		ValidationTolerance = 3.5,
 		YTolerance = 10,
 		MaxAllowedSpeed = 200,
 		MinReportSpeed = 1,
@@ -80,6 +80,15 @@ local PhysicsConfig = {
 		Cooldown = 0.28,
 		TrapCooldown = 0.25,
 		RealHitMinClosingSpeed = 5.5,
+
+		-- Substepping parameters
+		SubstepAngleThreshold = math.rad(30),
+		SubstepSpeedDeltaRatio = 0.4,
+		SubstepDistanceFactor = 2.0,
+		MaxSubstepSegments = 4,
+
+		-- Server validation parameters
+		PositionHistoryWindow = 0.5,
 
 		-- Launcher-vs-Launcher collision response is based on normal closing speed,
 		-- not a fixed percentage of the attacker's full travel velocity.

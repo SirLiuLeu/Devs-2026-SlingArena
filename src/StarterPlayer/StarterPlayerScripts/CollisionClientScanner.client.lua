@@ -9,6 +9,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameStates = require(Shared:WaitForChild("Constants"):WaitForChild("GameStates"))
 local PhysicsConfig = require(Shared:WaitForChild("Config"):WaitForChild("PhysicsConfig"))
 local CollisionResponse = require(Shared:WaitForChild("Utils"):WaitForChild("CollisionResponse"))
+local VelocityDecay = require(Shared:WaitForChild("Utils"):WaitForChild("VelocityDecay"))
 local PawnLocator = require(Shared:WaitForChild("Utils"):WaitForChild("PawnLocator"))
 local stateUpdateRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("StateUpdate") :: RemoteEvent
 local reportFoodRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
@@ -26,12 +27,14 @@ local PREDICTED_LAUNCH_SCAN_SECONDS = 0.35
 local EXISTING_VELOCITY_SCAN_SECONDS = 0.1
 
 local lastHit: { [string]: number } = {}
+local predictedPending: { [string]: number } = {}
 local currentMovementState = GameStates.PlayerState.Idle
 local launchScanGraceEndsAt = 0
 local predictedLaunchScanEndsAt = 0
 local predictedLaunchDirection: Vector3? = nil
 local activeLaunchId: string? = nil
 local lastRootPosition: Vector3? = nil
+local lastPlanarVelocity: Vector3? = nil
 local sweepDebugStart: Part? = nil
 local sweepDebugEnd: Part? = nil
 
@@ -257,12 +260,33 @@ local function detectCommonFoodByDistance(root: BasePart)
 	end
 end
 
+local function getPlayerCooldownKey(targetPlayer: Player): string
+	return `Player:{targetPlayer.UserId}`
+end
+
+local function clearExpiredPredictions(now: number)
+	for key, expiresAt in pairs(predictedPending) do
+		if expiresAt <= now then
+			predictedPending[key] = nil
+		end
+	end
+end
+
+local function applyPredictedPlayerCollision(targetPlayer: Player, root: BasePart, targetRoot: BasePart, normal: Vector3)
+	local attackerVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
+	local defenderVelocity = Vector3.new(targetRoot.AssemblyLinearVelocity.X, 0, targetRoot.AssemblyLinearVelocity.Z)
+	local result = VelocityDecay.ResolvePlayerCollision(attackerVelocity, defenderVelocity, normal)
+	local resolved = result.AttackerVelocity
+	root.AssemblyLinearVelocity = Vector3.new(resolved.X, root.AssemblyLinearVelocity.Y, resolved.Z)
+	predictedPending[getPlayerCooldownKey(targetPlayer)] = os.clock() + REPORT_COOLDOWN
+end
+
 local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpeed: number?)
 	if not activeLaunchId then
 		return
 	end
 	local now = os.clock()
-	local cooldownKey = `Player:{targetPlayer.UserId}`
+	local cooldownKey = getPlayerCooldownKey(targetPlayer)
 	if (lastHit[cooldownKey] or 0) > now then
 		return
 	end
@@ -275,96 +299,143 @@ local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpe
 		currPos = root.Position,
 		velocity = root.AssemblyLinearVelocity,
 		observedSpeed = observedSpeed,
+		clientTimestamp = now,
 	})
 end
 
 
 
-local function sphereCastLaunching(root: BasePart, dt: number, previousPosition: Vector3?)
-    local currentPos = root.Position
-    local castStart = previousPosition or currentPos
-    local velocity = root.AssemblyLinearVelocity
-    local planarVelocity = Vector3.new(velocity.X, 0, velocity.Z)
-    local speed = planarVelocity.Magnitude
+local function handleSweepHit(part: Instance, root: BasePart, observedSpeed: number, hitType: string, resolvedSet: { [string]: boolean }?): boolean
+	local food = getFoodModelFromPart(part)
+	if food then
+		local hitbox = food:FindFirstChild("Hitbox")
+		if hitbox and hitbox:IsA("BasePart") then
+			reportFoodHit(food, hitbox, root, hitType, observedSpeed)
+		end
+		return true
+	end
 
-    -- 1. TÍNH QUÃNG ĐƯỜNG THỰC TẾ GIỮA 2 FRAME (CỐT LÕI CỦA CCD)
-    local motion = currentPos - castStart
-    local planarMotion = Vector3.new(motion.X, 0, motion.Z)
-    
-    local castVector: Vector3
-    
-    -- 2. XÁC ĐỊNH HƯỚNG VÀ ĐỘ DÀI TIA QUÉT
-    if planarMotion.Magnitude >= 0.001 then
-        -- TRƯỜNG HỢP CHUẨN: Nhân vật có di chuyển. 
-        -- Quét chính xác quãng đường vừa nối từ frame trước đến frame này.
-        castVector = planarMotion
-    else
-        -- FALLBACK: Frame đầu tiên chưa có chuyển động rõ rệt, 
-        -- hoặc `previousPosition` bị nil. Lúc này mới dùng đến vận tốc để quét bù.
-        if speed >= MIN_REPORT_SPEED then
-            -- Quét một đoạn ngắn bằng quãng đường dự kiến đi được trong 1 frame (V * dt)
-            castVector = planarVelocity.Unit * math.max(speed * dt, 0.1)
-        else
-            setSweepDebugVisible(false, nil, nil, nil)
-            return
-        end
-    end
-
-    local direction = castVector.Unit
-    local baseDistance = castVector.Magnitude
-    local observedSpeed = math.max(speed, baseDistance / math.max(dt, 1 / 240))
-
-    if observedSpeed < MIN_REPORT_SPEED then
-        setSweepDebugVisible(false, nil, nil, nil)
-        return
-    end
-
-    -- 3. CỘNG PADDING VÀ THỰC HIỆN SPHERECAST
-    local castDistance = baseDistance + PhysicsConfig.Collision.SphereCastDistancePadding
-    local radius = (math.max(root.Size.X, root.Size.Z) * 0.5) + PhysicsConfig.Collision.SphereCastRadiusPadding
-    
-    setSweepDebugVisible(true, castStart, castStart + direction * castDistance, radius)
-
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    local activeCharacter = getActiveCharacter()
-    params.FilterDescendantsInstances = if activeCharacter then { activeCharacter } else {}
-    params.IgnoreWater = true
-    
-    -- Quét từ vị trí CUỐI CÙNG của frame trước, hướng tới vị trí HIỆN TẠI
-    local result = workspace:Spherecast(castStart, radius, direction * castDistance, params)
-    
-    if not result then
-        return
-    end
-    
-    local part = result.Instance
-    local food = getFoodModelFromPart(part)
-    if food then
-        local hitbox = food:FindFirstChild("Hitbox")
-        if hitbox and hitbox:IsA("BasePart") then
-            reportFoodHit(food, hitbox, root, "ClientLaunchSphereCast", observedSpeed)
-        end
-        return
-    end
-    
-    local targetPlayer = getPlayerFromHit(part)
-    if targetPlayer then
-        reportPlayerHit(targetPlayer, root, observedSpeed)
-        return
-    end
+	local targetPlayer = getPlayerFromHit(part)
+	if targetPlayer then
+		local cooldownKey = getPlayerCooldownKey(targetPlayer)
+		if resolvedSet and resolvedSet[cooldownKey] then
+			return false
+		end
+		local targetRoot = PawnLocator.GetRootPart(targetPlayer.Character)
+		if targetRoot then
+			local delta = root.Position - targetRoot.Position
+			local normal = if delta.Magnitude > 0.001 then delta.Unit else Vector3.new(1, 0, 0)
+			applyPredictedPlayerCollision(targetPlayer, root, targetRoot, normal)
+		end
+		reportPlayerHit(targetPlayer, root, observedSpeed)
+		return true
+	end
+	return false
 end
 
+local function sphereCastSegment(startPos: Vector3, castVector: Vector3, radius: number, params: RaycastParams, root: BasePart, observedSpeed: number, resolvedSet: { [string]: boolean }): boolean
+	if castVector.Magnitude < 0.001 then
+		return false
+	end
+	local direction = castVector.Unit
+	local castDistance = castVector.Magnitude + PhysicsConfig.Collision.SphereCastDistancePadding
+	local result = workspace:Spherecast(startPos, radius, direction * castDistance, params)
+	return result ~= nil and handleSweepHit(result.Instance, root, observedSpeed, "ClientLaunchSphereCast", resolvedSet)
+end
+
+local function sphereCastLaunching(root: BasePart, dt: number, previousPosition: Vector3?)
+	local now = os.clock()
+	clearExpiredPredictions(now)
+	local currentPos = root.Position
+	local castStart = previousPosition or currentPos
+	local velocity = root.AssemblyLinearVelocity
+	local planarVelocity = Vector3.new(velocity.X, 0, velocity.Z)
+	local speed = planarVelocity.Magnitude
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local activeCharacter = getActiveCharacter()
+	params.FilterDescendantsInstances = if activeCharacter then { activeCharacter } else {}
+	params.IgnoreWater = true
+
+	local overlapParams = OverlapParams.new()
+	overlapParams.FilterType = Enum.RaycastFilterType.Exclude
+	overlapParams.FilterDescendantsInstances = params.FilterDescendantsInstances
+
+	local radius = (math.max(root.Size.X, root.Size.Z) * 0.5) + PhysicsConfig.Collision.SphereCastRadiusPadding
+	local resolvedSet: { [string]: boolean } = {}
+	for _, part in ipairs(workspace:GetPartBoundsInRadius(currentPos, radius, overlapParams)) do
+		local targetPlayer = getPlayerFromHit(part)
+		if targetPlayer then
+			local cooldownKey = getPlayerCooldownKey(targetPlayer)
+			if (predictedPending[cooldownKey] or 0) <= now then
+				resolvedSet[cooldownKey] = true
+				handleSweepHit(part, root, speed, "ClientLaunchOverlap", nil)
+				return
+			end
+		else
+			local food = getFoodModelFromPart(part)
+			if food then
+				handleSweepHit(part, root, speed, "ClientLaunchOverlap", nil)
+				return
+			end
+		end
+	end
+
+	local motion = currentPos - castStart
+	local planarMotion = Vector3.new(motion.X, 0, motion.Z)
+	local castVector: Vector3
+	if planarMotion.Magnitude >= 0.001 then
+		castVector = planarMotion
+	elseif speed >= MIN_REPORT_SPEED then
+		castVector = planarVelocity.Unit * math.max(speed * dt, 0.1)
+	else
+		setSweepDebugVisible(false, nil, nil, nil)
+		return
+	end
+
+	local baseDistance = castVector.Magnitude
+	local observedSpeed = math.max(speed, baseDistance / math.max(dt, 1 / 240))
+	if observedSpeed < MIN_REPORT_SPEED then
+		setSweepDebugVisible(false, nil, nil, nil)
+		return
+	end
+
+	local direction = castVector.Unit
+	local angleTriggered = false
+	if lastPlanarVelocity and lastPlanarVelocity.Magnitude >= 0.001 and planarVelocity.Magnitude >= 0.001 then
+		angleTriggered = math.acos(math.clamp(lastPlanarVelocity.Unit:Dot(planarVelocity.Unit), -1, 1)) > PhysicsConfig.Collision.SubstepAngleThreshold
+	end
+	local lastSpeed = if lastPlanarVelocity then lastPlanarVelocity.Magnitude else speed
+	local speedTriggered = math.abs(speed - lastSpeed) / math.max(lastSpeed, 0.1) > PhysicsConfig.Collision.SubstepSpeedDeltaRatio
+	local distanceTriggered = baseDistance > radius * PhysicsConfig.Collision.SubstepDistanceFactor
+	local shouldSubstep = angleTriggered or speedTriggered or distanceTriggered
+	local segments = if shouldSubstep then math.clamp(math.ceil(baseDistance / math.max(radius, 0.1)), 2, PhysicsConfig.Collision.MaxSubstepSegments) else 1
+
+	setSweepDebugVisible(true, castStart, castStart + direction * (baseDistance + PhysicsConfig.Collision.SphereCastDistancePadding), radius)
+	if segments <= 1 then
+		sphereCastSegment(castStart, castVector, radius, params, root, observedSpeed, resolvedSet)
+		return
+	end
+	local segmentVector = castVector / segments
+	for i = 0, segments - 1 do
+		if sphereCastSegment(castStart + segmentVector * i, segmentVector, radius, params, root, observedSpeed, resolvedSet) then
+			return
+		end
+	end
+end
 RunService.RenderStepped:Connect(function(dt)
 	local root = getRoot()
 	if not root then
 		lastRootPosition = nil
+		lastPlanarVelocity = nil
 		setSweepDebugVisible(false, nil, nil, nil)
 		return
 	end
 
 	if isHumanMode() then
 		lastRootPosition = nil
+		lastPlanarVelocity = nil
 		setSweepDebugVisible(false, nil, nil, nil)
 		detectCommonFoodByDistance(root)
 		return
@@ -379,6 +450,8 @@ RunService.RenderStepped:Connect(function(dt)
 		detectCommonFoodByDistance(root)
 	end
 	lastRootPosition = root.Position
+	local velocity = root.AssemblyLinearVelocity
+	lastPlanarVelocity = Vector3.new(velocity.X, 0, velocity.Z)
 end)
 
 clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, _initialSpeed: any, _serverMass: any, launchId: any)
@@ -419,8 +492,33 @@ stateUpdateRemote.OnClientEvent:Connect(function(state)
 end)
 
 gameplayFeedbackRemote.OnClientEvent:Connect(function(message)
-	if type(message) ~= "table" or message.EventType ~= "FoodHitRejected" then
+	if type(message) ~= "table" then
 		return
 	end
-	-- Server rejection is authoritative, but no heavy client correction is attempted.
+	if message.EventType == "PvpHitConfirmed" and typeof(message.targetUserId) == "number" then
+		predictedPending[`Player:{message.targetUserId}`] = nil
+		return
+	end
+	if message.EventType == "PvpHitRejected" and typeof(message.targetUserId) == "number" then
+		predictedPending[`Player:{message.targetUserId}`] = nil
+		local root = getRoot()
+		if root and typeof(message.authoritativeVelocity) == "Vector3" then
+			local startVelocity = root.AssemblyLinearVelocity
+			local targetVelocity = message.authoritativeVelocity
+			local startedAt = os.clock()
+			local duration = 0.125
+			local connection: RBXScriptConnection?
+			connection = RunService.RenderStepped:Connect(function()
+				local alpha = math.clamp((os.clock() - startedAt) / duration, 0, 1)
+				root.AssemblyLinearVelocity = startVelocity:Lerp(targetVelocity, alpha)
+				if alpha >= 1 and connection then
+					connection:Disconnect()
+				end
+			end)
+		end
+		return
+	end
+	if message.EventType == "FoodHitRejected" then
+		-- Server rejection is authoritative, but no heavy client correction is attempted.
+	end
 end)
