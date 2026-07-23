@@ -78,7 +78,7 @@ LauncherConfig.Types = {
 			speed = 16,
 			launchPower = 1.0,
 			control = 1.0,
-			launchSpeed = 100,
+			launchSpeed = 50,
 		},
 		passiveAbility = { type = "ExpBonus", value = 0.5 },
 		collisionAbility = {},
