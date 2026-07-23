@@ -9,11 +9,14 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameStates = require(Shared:WaitForChild("Constants"):WaitForChild("GameStates"))
 local PhysicsConfig = require(Shared:WaitForChild("Config"):WaitForChild("PhysicsConfig"))
 local CollisionResponse = require(Shared:WaitForChild("Utils"):WaitForChild("CollisionResponse"))
+local VelocityDecay = require(Shared:WaitForChild("Utils"):WaitForChild("VelocityDecay"))
 local PawnLocator = require(Shared:WaitForChild("Utils"):WaitForChild("PawnLocator"))
 local stateUpdateRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("StateUpdate") :: RemoteEvent
 local reportFoodRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
 local reportCollisionRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportCollision") :: RemoteEvent
 local gameplayFeedbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("GameplayFeedback") :: RemoteEvent
+local applySelfBounceRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ApplySelfBounce") :: RemoteEvent
+local applyKnockbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ApplyKnockback") :: RemoteEvent
 local clientDoLaunchRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClientDoLaunch") :: RemoteEvent
 
 local GRID_CELL_SIZE = 48
@@ -32,6 +35,7 @@ local predictedLaunchScanEndsAt = 0
 local predictedLaunchDirection: Vector3? = nil
 local activeLaunchId: string? = nil
 local lastRootPosition: Vector3? = nil
+local selfBounceBlendToken = 0
 local sweepDebugStart: Part? = nil
 local sweepDebugEnd: Part? = nil
 
@@ -257,24 +261,41 @@ local function detectCommonFoodByDistance(root: BasePart)
 	end
 end
 
-local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpeed: number?)
-	if not activeLaunchId then
-		return
-	end
+local function getPlayerRoot(targetPlayer: Player): BasePart?
+	return PawnLocator.GetRootPart(PawnLocator.GetLauncherPawnByPlayer(targetPlayer) or PawnLocator.GetHumanCharacterByPlayer(targetPlayer))
+end
+
+local function triggerPredictedPlayerHitFeedback(_targetPlayer: Player, _hitPosition: Vector3)
+	-- Local-only prediction hook for immediate VFX/SFX. Authoritative defender hit reactions
+	-- are played when ApplyKnockback arrives from the server.
+end
+
+local function applyPredictedPlayerBounce(targetPlayer: Player, root: BasePart): Vector3
+	local targetRoot = getPlayerRoot(targetPlayer)
+	local offset = (targetRoot and targetRoot.Position or root.Position) - root.Position
+	local planar = Vector3.new(offset.X, 0, offset.Z)
+	local normal = if planar.Magnitude > PhysicsConfig.Movement.InputDeadzone then planar.Unit else Vector3.new(1, 0, 0)
+	local attackerVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
+	local defenderVelocity = if targetRoot then Vector3.new(targetRoot.AssemblyLinearVelocity.X, 0, targetRoot.AssemblyLinearVelocity.Z) else Vector3.zero
+	local predicted = VelocityDecay.ResolvePlayerCollision(attackerVelocity, defenderVelocity, normal).AttackerVelocity
+	root.AssemblyLinearVelocity = Vector3.new(predicted.X, root.AssemblyLinearVelocity.Y, predicted.Z)
+	return if targetRoot then (root.Position + targetRoot.Position) * 0.5 else root.Position
+end
+
+local function reportPlayerHit(targetPlayer: Player, root: BasePart, _observedSpeed: number?)
 	local now = os.clock()
 	local cooldownKey = `Player:{targetPlayer.UserId}`
 	if (lastHit[cooldownKey] or 0) > now then
 		return
 	end
 	lastHit[cooldownKey] = now + REPORT_COOLDOWN
-	print(`Reporting player hit: targetUserId={targetPlayer.UserId}, observedSpeed={observedSpeed}`)
+	local hitPosition = applyPredictedPlayerBounce(targetPlayer, root)
+	triggerPredictedPlayerHitFeedback(targetPlayer, hitPosition)
+	print(`Reporting predicted player hit: targetUserId={targetPlayer.UserId}`)
 	reportCollisionRemote:FireServer({
-		targetType = "Player",
-		launchId = activeLaunchId,
 		targetUserId = targetPlayer.UserId,
-		currPos = root.Position,
-		velocity = root.AssemblyLinearVelocity,
-		observedSpeed = observedSpeed,
+		clientTimestamp = now,
+		hitPosition = hitPosition,
 	})
 end
 
@@ -423,4 +444,48 @@ gameplayFeedbackRemote.OnClientEvent:Connect(function(message)
 		return
 	end
 	-- Server rejection is authoritative, but no heavy client correction is attempted.
+end)
+
+applySelfBounceRemote.OnClientEvent:Connect(function(correctedVelocity: any)
+	if typeof(correctedVelocity) ~= "Vector3" then
+		return
+	end
+	local root = getRoot()
+	if not root then
+		return
+	end
+	selfBounceBlendToken += 1
+	local token = selfBounceBlendToken
+	local blendDuration = 0.125
+	local elapsed = 0
+	local startVelocity = root.AssemblyLinearVelocity
+	local connection: RBXScriptConnection? = nil
+	connection = RunService.Heartbeat:Connect(function(dt)
+		if token ~= selfBounceBlendToken or not root.Parent then
+			if connection then
+				connection:Disconnect()
+			end
+			return
+		end
+		elapsed += dt
+		local alpha = math.clamp(elapsed / blendDuration, 0, 1)
+		local blended = startVelocity:Lerp(Vector3.new(correctedVelocity.X, startVelocity.Y, correctedVelocity.Z), alpha)
+		root.AssemblyLinearVelocity = blended
+		if alpha >= 1 and connection then
+			connection:Disconnect()
+		end
+	end)
+end)
+
+applyKnockbackRemote.OnClientEvent:Connect(function(knockbackImpulse: any, _damage: any)
+	if typeof(knockbackImpulse) ~= "Vector3" then
+		return
+	end
+	local root = getRoot()
+	if not root then
+		return
+	end
+	root.AssemblyLinearVelocity = Vector3.new(knockbackImpulse.X, root.AssemblyLinearVelocity.Y, knockbackImpulse.Z)
+	-- Local hit reaction/VFX/SFX/damage presentation can subscribe here without allowing
+	-- the attacker to author defender physics.
 end)

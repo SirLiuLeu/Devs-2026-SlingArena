@@ -19,6 +19,8 @@ local function getService(context, name)
 end
 
 local SAME_TARGET_DEDUPE_SECONDS = 0.28
+local MAX_REPORT_AGE_SECONDS = 0.75
+local MAX_REPORT_FUTURE_SECONDS = 0.15
 
 local function isLauncherMovementControlling(root: BasePart): boolean
 	local linearVelocity = root:FindFirstChild("LinearVelocity")
@@ -129,49 +131,13 @@ local function getHorizontalVelocity(root: BasePart): Vector3
 end
 
 
-local function getReportedHorizontalVelocity(payload: any): Vector3
-	if payload and typeof(payload.velocity) == "Vector3" then
-		local velocity = Vector3.new(payload.velocity.X, 0, payload.velocity.Z)
-		if velocity.Magnitude <= PhysicsConfig.Collision.MaxAllowedSpeed then
-			return velocity
-		end
-	end
-	return Vector3.zero
-end
-
-local function resolveImpactVelocity(root: BasePart, payload: any, launchState: any): Vector3
-	local rootVelocity = getHorizontalVelocity(root)
-	local reportedVelocity = getReportedHorizontalVelocity(payload)
-	local velocity = if rootVelocity.Magnitude >= reportedVelocity.Magnitude then rootVelocity else reportedVelocity
-
-	local observedSpeed = if payload and typeof(payload.observedSpeed) == "number"
-		then math.clamp(payload.observedSpeed, 0, PhysicsConfig.Collision.MaxAllowedSpeed)
-		else 0
-	local launchSpeed = math.max(launchState.currentSpeed or 0, launchState.initialSpeed or 0, observedSpeed)
-	if velocity.Magnitude >= launchSpeed or typeof(launchState.direction) ~= "Vector3" then
-		return velocity
-	end
-	local direction = Vector3.new(launchState.direction.X, 0, launchState.direction.Z)
-	if direction.Magnitude < 0.001 then
-		return velocity
-	end
-	return direction.Unit * launchSpeed
-end
-
-local function clampHorizontalVelocity(velocity: Vector3): Vector3
-	local speed = velocity.Magnitude
-	if speed <= PhysicsConfig.Collision.MinPostCollisionSpeed then
+local function resolveImpactVelocity(_root: BasePart, launchState: any): Vector3
+	local direction = if typeof(launchState.direction) == "Vector3" then Vector3.new(launchState.direction.X, 0, launchState.direction.Z) else Vector3.zero
+	local launchSpeed = math.max(launchState.currentSpeed or 0, launchState.initialSpeed or 0)
+	if direction.Magnitude < 0.001 or launchSpeed <= 0 then
 		return Vector3.zero
 	end
-	if speed > PhysicsConfig.Collision.MaxPostCollisionSpeed then
-		return velocity.Unit * PhysicsConfig.Collision.MaxPostCollisionSpeed
-	end
-	return velocity
-end
-
-local function applyHorizontalVelocity(root: BasePart, horizontal: Vector3)
-	local clamped = clampHorizontalVelocity(horizontal)
-	root.AssemblyLinearVelocity = Vector3.new(clamped.X, root.AssemblyLinearVelocity.Y, clamped.Z)
+	return direction.Unit * math.min(launchSpeed, PhysicsConfig.Collision.MaxAllowedSpeed)
 end
 
 local function updateLaunchFromVelocity(launchState, velocity: Vector3, energy: number, now: number)
@@ -203,13 +169,22 @@ function CollisionService:_validatePlayerReport(
 		return false, nil, nil, nil, Vector3.new(1, 0, 0)
 	end
 
+	if typeof(payload.clientTimestamp) ~= "number" or typeof(payload.hitPosition) ~= "Vector3" then
+		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+	end
+	local now = os.clock()
+	if payload.clientTimestamp > now + MAX_REPORT_FUTURE_SECONDS or now - payload.clientTimestamp > MAX_REPORT_AGE_SECONDS then
+		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+	end
+
 	local defender = Players:GetPlayerByUserId(payload.targetUserId)
 	local root = playerService:GetRoot(player)
 	local targetRoot = defender and playerService:GetRoot(defender)
 	local attackerState = stateService:GetState(player)
+	local defenderState = defender and stateService:GetState(defender)
 
-	if not (defender and defender ~= player and root and targetRoot and attackerState
-		and attackerState.MovementState == "Launching")
+	if not (defender and defender ~= player and root and targetRoot and attackerState and defenderState
+		and attackerState.MovementState == "Launching" and defenderState.MovementState == "Launching")
 	then
 		return false, nil, nil, nil, Vector3.new(1, 0, 0)
 	end
@@ -218,8 +193,20 @@ function CollisionService:_validatePlayerReport(
 		return false, nil, nil, nil, Vector3.new(1, 0, 0)
 	end
 
+	local hitOffset = Vector3.new(payload.hitPosition.X, 0, payload.hitPosition.Z) - Vector3.new(root.Position.X, 0, root.Position.Z)
+	local targetHitOffset = Vector3.new(payload.hitPosition.X, 0, payload.hitPosition.Z) - Vector3.new(targetRoot.Position.X, 0, targetRoot.Position.Z)
+	local maxHitDistance = PhysicsConfig.Collision.ValidationTolerance + (math.max(root.Size.X, root.Size.Z, targetRoot.Size.X, targetRoot.Size.Z) * 0.5)
+	if hitOffset.Magnitude > maxHitDistance or targetHitOffset.Magnitude > maxHitDistance then
+		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+	end
+
 	local offset = targetRoot.Position - root.Position
 	local planar = Vector3.new(offset.X, 0, offset.Z)
+	local combinedRadius = (math.max(root.Size.X, root.Size.Z) + math.max(targetRoot.Size.X, targetRoot.Size.Z)) * 0.5
+	local maxDistance = combinedRadius + PhysicsConfig.Collision.ValidationTolerance
+	if planar.Magnitude > maxDistance or math.abs(root.Position.Y - targetRoot.Position.Y) > PhysicsConfig.Collision.YTolerance then
+		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+	end
 	local normal = if planar.Magnitude > PhysicsConfig.Movement.InputDeadzone
 		then planar.Unit
 		else Vector3.new(1, 0, 0)
@@ -245,8 +232,8 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	) then
 		return
 	end
-	local validLaunch, launchState = launcherService:ValidateLaunchReport(player, payload)
-	if not validLaunch or not launchState then
+	local launchState = launcherService:GetLaunchState(player)
+	if not launchState then
 		return
 	end
 	local launchId = launchState.launchId
@@ -259,7 +246,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	if lastHitAt and (now - lastHitAt) < SAME_TARGET_DEDUPE_SECONDS then
 		return
 	end
-	local attackerVelocity = resolveImpactVelocity(root, payload, launchState)
+	local attackerVelocity = resolveImpactVelocity(root, launchState)
 	local defenderVelocity = getHorizontalVelocity(targetRoot)
 	local collisionResult = VelocityDecay.ResolvePlayerCollision(attackerVelocity, defenderVelocity, normal)
 	local impactSpeed = collisionResult.ClosingSpeed
@@ -290,7 +277,6 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	end
 
 	if canKnockback then
-		applyHorizontalVelocity(root, attackerOut)
 		updateLaunchFromVelocity(
 			launchState,
 			attackerOut,
@@ -304,6 +290,28 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	local shouldKnockback = canKnockback
 		and transferEnergy >= PhysicsConfig.Collision.MinTransferEnergy
 		and defenderOut.Magnitude > PhysicsConfig.Collision.MinPostCollisionSpeed
+	local damagePreview = 0
+	local damageService = getService(self._context, "DamagePipelineService")
+	local attackerState = stateService:GetState(player)
+	if damageService and typeof(damageService.ComputeCollisionDamage) == "function" and attackerState then
+		damagePreview = damageService:ComputeCollisionDamage(attackerState, impactSpeed, {
+			SourceType = "PhysicalLauncherCollision",
+			InitialImpactSpeed = math.max(launchState.initialSpeed or 0, impactSpeed),
+			AttackerAbsoluteSpeed = attackerAbsoluteSpeed,
+			CollisionCount = launchState.collisions,
+			LaunchEnergy = launchState.energy,
+			ChargeRatio = launchState.chargeRatio or 0,
+			ElapsedLaunchTime = math.max(0, now - (launchState.startTime or now)),
+		})
+	end
+	local selfBounceRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ApplySelfBounce)
+	if selfBounceRemote and selfBounceRemote:IsA("RemoteEvent") then
+		selfBounceRemote:FireClient(player, attackerOut)
+	end
+	local knockbackRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ApplyKnockback)
+	if shouldKnockback and knockbackRemote and knockbackRemote:IsA("RemoteEvent") then
+		knockbackRemote:FireClient(defender, defenderOut, damagePreview)
+	end
 	if shouldKnockback then
 		stateService:SetMovementState(defender, "Knockback")
 		task.delay(PhysicsConfig.Collision.KnockbackImpulseDuration, function()
@@ -372,9 +380,7 @@ function CollisionService:_bindClientCollisionReports()
 		if not RemoteContracts.Validate(RemoteContracts.Names.ReportCollision, payload) then
 			return
 		end
-		if payload.targetType == "Player" then
-			self:_resolveClientPlayerHit(player, payload)
-		end
+		self:_resolveClientPlayerHit(player, payload)
 	end)
 end
 
