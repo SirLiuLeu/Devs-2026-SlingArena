@@ -215,6 +215,7 @@ function CollisionService:_validatePlayerReport(
 end
 
 function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
+	print(`CollisionService:_resolveClientPlayerHit from {player.Name} against {payload.targetUserId}`)
 	local ok, defender, root, targetRoot, normal = self:_validatePlayerReport(player, payload)
 	if not (ok and defender and root and targetRoot) then
 		return
@@ -273,9 +274,10 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	local canDamage = launcherService:RegisterLaunchDamageTarget(player, launchTargetKey)
 	local canKnockback = launcherService:RegisterLaunchKnockbackTarget(player, launchTargetKey)
 	if not canDamage and not canKnockback then
+		print("[Collision] Launch already processed")
 		return
 	end
-
+	print("[Collision] Launch already processed!")
 	if canKnockback then
 		updateLaunchFromVelocity(
 			launchState,
