@@ -130,6 +130,14 @@ local function getHorizontalVelocity(root: BasePart): Vector3
 	return Vector3.new(velocity.X, 0, velocity.Z)
 end
 
+local function playerName(player: Player?): string
+	return player and player.Name or "nil"
+end
+
+local function collisionLog(message: string)
+	print(`[Collision] {message}`)
+end
+
 
 local function resolveImpactVelocity(_root: BasePart, launchState: any): Vector3
 	local direction = if typeof(launchState.direction) == "Vector3" then Vector3.new(launchState.direction.X, 0, launchState.direction.Z) else Vector3.zero
@@ -162,19 +170,19 @@ end
 
 function CollisionService:_validatePlayerReport(
 	player: Player, payload: any
-): (boolean, Player?, BasePart?, BasePart?, Vector3)
+): (boolean, Player?, BasePart?, BasePart?, Vector3, string)
 	local playerService = getService(self._context, "PlayerService")
 	local stateService = getService(self._context, "PlayerStateService")
 	if not (playerService and stateService) then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+		return false, nil, nil, nil, Vector3.new(1, 0, 0), "missing PlayerService or PlayerStateService"
 	end
 
 	if typeof(payload.clientTimestamp) ~= "number" or typeof(payload.hitPosition) ~= "Vector3" then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+		return false, nil, nil, nil, Vector3.new(1, 0, 0), "invalid clientTimestamp or hitPosition"
 	end
 	local now = os.clock()
 	if payload.clientTimestamp > now + MAX_REPORT_FUTURE_SECONDS or now - payload.clientTimestamp > MAX_REPORT_AGE_SECONDS then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+		return false, nil, nil, nil, Vector3.new(1, 0, 0), `stale or future report: now={now} clientTimestamp={payload.clientTimestamp}`
 	end
 
 	local defender = Players:GetPlayerByUserId(payload.targetUserId)
@@ -186,18 +194,18 @@ function CollisionService:_validatePlayerReport(
 	if not (defender and defender ~= player and root and targetRoot and attackerState and defenderState
 		and attackerState.MovementState == "Launching" and defenderState.MovementState == "Launching")
 	then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+		return false, nil, nil, nil, Vector3.new(1, 0, 0), `invalid participants or states: defender={playerName(defender)} attackerState={attackerState and attackerState.MovementState or "nil"} defenderState={defenderState and defenderState.MovementState or "nil"}`
 	end
 
 	if not (playerService:IsAlive(player) and playerService:IsAlive(defender)) then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+		return false, nil, nil, nil, Vector3.new(1, 0, 0), `dead participant: attackerAlive={playerService:IsAlive(player)} defenderAlive={defender and playerService:IsAlive(defender) or false}`
 	end
 
 	local hitOffset = Vector3.new(payload.hitPosition.X, 0, payload.hitPosition.Z) - Vector3.new(root.Position.X, 0, root.Position.Z)
 	local targetHitOffset = Vector3.new(payload.hitPosition.X, 0, payload.hitPosition.Z) - Vector3.new(targetRoot.Position.X, 0, targetRoot.Position.Z)
 	local maxHitDistance = PhysicsConfig.Collision.ValidationTolerance + (math.max(root.Size.X, root.Size.Z, targetRoot.Size.X, targetRoot.Size.Z) * 0.5)
 	if hitOffset.Magnitude > maxHitDistance or targetHitOffset.Magnitude > maxHitDistance then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+		return false, nil, nil, nil, Vector3.new(1, 0, 0), `hitPosition outside tolerance: attackerOffset={hitOffset.Magnitude} defenderOffset={targetHitOffset.Magnitude} max={maxHitDistance}`
 	end
 
 	local offset = targetRoot.Position - root.Position
@@ -205,19 +213,21 @@ function CollisionService:_validatePlayerReport(
 	local combinedRadius = (math.max(root.Size.X, root.Size.Z) + math.max(targetRoot.Size.X, targetRoot.Size.Z)) * 0.5
 	local maxDistance = combinedRadius + PhysicsConfig.Collision.ValidationTolerance
 	if planar.Magnitude > maxDistance or math.abs(root.Position.Y - targetRoot.Position.Y) > PhysicsConfig.Collision.YTolerance then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0)
+		return false, nil, nil, nil, Vector3.new(1, 0, 0), `players outside collision tolerance: planarDistance={planar.Magnitude} maxDistance={maxDistance} yDelta={math.abs(root.Position.Y - targetRoot.Position.Y)}`
 	end
 	local normal = if planar.Magnitude > PhysicsConfig.Movement.InputDeadzone
 		then planar.Unit
 		else Vector3.new(1, 0, 0)
 
-	return true, defender, root, targetRoot, normal
+	return true, defender, root, targetRoot, normal, "ok"
 end
 
 function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
-	print(`CollisionService:_resolveClientPlayerHit from {player.Name} against {payload.targetUserId}`)
-	local ok, defender, root, targetRoot, normal = self:_validatePlayerReport(player, payload)
+	collisionLog(`enter _resolveClientPlayerHit attacker={playerName(player)} targetUserId={payload.targetUserId} launchId={payload.launchId or "nil"}`)
+	local ok, defender, root, targetRoot, normal, validationReason = self:_validatePlayerReport(player, payload)
+	collisionLog(`_validatePlayerReport result ok={ok} attacker={playerName(player)} defender={playerName(defender)} reason={validationReason}`)
 	if not (ok and defender and root and targetRoot) then
+		collisionLog(`return: validation failed attacker={playerName(player)} targetUserId={payload.targetUserId} reason={validationReason}`)
 		return
 	end
 	local key = getCollisionKey(player, defender)
@@ -226,35 +236,45 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	local launcherService = getService(self._context, "LauncherService")
 	local stateService = getService(self._context, "PlayerStateService")
 	if not (launcherService and stateService) then
+		collisionLog(`return: missing service launcherService={launcherService ~= nil} stateService={stateService ~= nil} attacker={playerName(player)} defender={playerName(defender)}`)
 		return
 	end
 	if (stateService.IsHuman and stateService:IsHuman(player)) or stateService.HasFlag and (
 		stateService:HasFlag(player, "Ghost") or stateService:HasFlag(defender, "Ghost")
 	) then
+		collisionLog(`return: attacker human or ghost flag attacker={playerName(player)} defender={playerName(defender)} attackerIsHuman={stateService.IsHuman and stateService:IsHuman(player) or false} attackerGhost={stateService.HasFlag and stateService:HasFlag(player, "Ghost") or false} defenderGhost={stateService.HasFlag and stateService:HasFlag(defender, "Ghost") or false}`)
 		return
 	end
 	local launchState = launcherService:GetLaunchState(player)
+	collisionLog(`LaunchState lookup attacker={playerName(player)} defender={playerName(defender)} exists={launchState ~= nil}`)
 	if not launchState then
+		collisionLog(`return: missing LaunchState attacker={playerName(player)} defender={playerName(defender)}`)
 		return
 	end
 	local launchId = launchState.launchId
+	collisionLog(`LaunchId validation attacker={playerName(player)} defender={playerName(defender)} launchId={tostring(launchId)} valid={type(launchId) == "string" and launchId ~= ""}`)
 	if type(launchId) ~= "string" or launchId == "" then
+		collisionLog(`return: invalid launchId attacker={playerName(player)} defender={playerName(defender)} launchId={tostring(launchId)}`)
 		return
 	end
 	self._lastCollisionByLaunchTarget[launchId] = self._lastCollisionByLaunchTarget[launchId] or {}
 	local launchTargetKey = `Player:{defender.UserId}`
 	local lastHitAt = self._lastCollisionByLaunchTarget[launchId][launchTargetKey]
 	if lastHitAt and (now - lastHitAt) < SAME_TARGET_DEDUPE_SECONDS then
+		collisionLog(`return: duplicate launch target attacker={playerName(player)} defender={playerName(defender)} launchId={launchId} elapsed={now - lastHitAt} threshold={SAME_TARGET_DEDUPE_SECONDS}`)
 		return
 	end
 	local attackerVelocity = resolveImpactVelocity(root, launchState)
 	local defenderVelocity = getHorizontalVelocity(targetRoot)
 	local collisionResult = VelocityDecay.ResolvePlayerCollision(attackerVelocity, defenderVelocity, normal)
 	local impactSpeed = collisionResult.ClosingSpeed
+	collisionLog(`Impact velocity resolved attacker={playerName(player)} defender={playerName(defender)} launchId={launchId} attackerSpeed={attackerVelocity.Magnitude} defenderSpeed={defenderVelocity.Magnitude} closingSpeed={impactSpeed} normalSpeed={collisionResult.NormalSpeed} angleFactor={collisionResult.AngleFactor}`)
 	if impactSpeed < PhysicsConfig.Collision.RealHitMinClosingSpeed then
+		collisionLog(`return: closingSpeed below minimum attacker={playerName(player)} defender={playerName(defender)} launchId={launchId} closingSpeed={impactSpeed} min={PhysicsConfig.Collision.RealHitMinClosingSpeed}`)
 		return
 	end
 	if self._lastCollision[key] and now - self._lastCollision[key] < PhysicsConfig.Collision.Cooldown then
+		collisionLog(`return: collision cooldown attacker={playerName(player)} defender={playerName(defender)} launchId={launchId} elapsed={now - self._lastCollision[key]} cooldown={PhysicsConfig.Collision.Cooldown}`)
 		return
 	end
 	self._lastCollision[key] = now
@@ -272,12 +292,13 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	local attackerOut = collisionResult.AttackerVelocity
 
 	local canDamage = launcherService:RegisterLaunchDamageTarget(player, launchTargetKey)
+	collisionLog(`RegisterLaunchDamageTarget result attacker={playerName(player)} defender={playerName(defender)} launchId={launchId} targetKey={launchTargetKey} canDamage={canDamage}`)
 	local canKnockback = launcherService:RegisterLaunchKnockbackTarget(player, launchTargetKey)
+	collisionLog(`RegisterLaunchKnockbackTarget result attacker={playerName(player)} defender={playerName(defender)} launchId={launchId} targetKey={launchTargetKey} canKnockback={canKnockback}`)
 	if not canDamage and not canKnockback then
-		print("[Collision] Launch already processed")
+		collisionLog(`return: launch target already processed for damage and knockback attacker={playerName(player)} defender={playerName(defender)} launchId={launchId} targetKey={launchTargetKey}`)
 		return
 	end
-	print("[Collision] Launch already processed!")
 	if canKnockback then
 		updateLaunchFromVelocity(
 			launchState,
@@ -306,6 +327,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 			ElapsedLaunchTime = math.max(0, now - (launchState.startTime or now)),
 		})
 	end
+	collisionLog(`Damage preview attacker={playerName(player)} defender={playerName(defender)} launchId={launchId} damagePreview={damagePreview} canDamage={canDamage} canKnockback={canKnockback} collisionCount={launchState.collisions} transferredEnergy={transferEnergy} shouldKnockback={shouldKnockback}`)
 	local selfBounceRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ApplySelfBounce)
 	if selfBounceRemote and selfBounceRemote:IsA("RemoteEvent") then
 		selfBounceRemote:FireClient(player, attackerOut)
@@ -324,6 +346,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		end)
 	end
 
+	collisionLog(`firing CollisionDetected attacker={playerName(player)} defender={playerName(defender)} launchId={launchId} impactSpeed={impactSpeed} collisionCount={launchState.collisions}`)
 	self._context.EventBus:Fire("CollisionDetected", "Launcher", player, defender, {
 		Speed = impactSpeed,
 		ImpactNormal = normal,
@@ -337,6 +360,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		ElapsedLaunchTime = math.max(0, now - (launchState.startTime or now)),
 	})
 	if canDamage then
+		collisionLog(`firing CollisionPlayerHit attacker={playerName(player)} defender={playerName(defender)} launchId={launchId} impactSpeed={impactSpeed} damagePreview={damagePreview}`)
 		self._context.EventBus:Fire("CollisionPlayerHit", defender, player, impactSpeed, normal, {
 			SourceType = "PhysicalLauncherCollision",
 			Duration = PhysicsConfig.Collision.KnockbackImpulseDuration,
@@ -357,6 +381,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		})
 	end
 	if shouldKnockback then
+		collisionLog(`firing CollisionPlayerKnockback attacker={playerName(player)} defender={playerName(defender)} launchId={launchId} transferredEnergy={transferEnergy} defenderOutSpeed={defenderOut.Magnitude}`)
 		self._context.EventBus:Fire("CollisionPlayerKnockback", defender, player, defenderOut, {
 			Duration = PhysicsConfig.Collision.KnockbackImpulseDuration,
 			ImpactNormal = normal,
@@ -376,10 +401,13 @@ end
 function CollisionService:_bindClientCollisionReports()
 	local remote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ReportCollision)
 	if not (remote and remote:IsA("RemoteEvent")) then
+		collisionLog(`return: ReportCollision remote unavailable remoteExists={remote ~= nil}`)
 		return
 	end
 	remote.OnServerEvent:Connect(function(player, payload)
+		collisionLog(`received ReportCollision remote attacker={playerName(player)} targetUserId={payload and payload.targetUserId or "nil"}`)
 		if not RemoteContracts.Validate(RemoteContracts.Names.ReportCollision, payload) then
+			collisionLog(`return: ReportCollision contract validation failed attacker={playerName(player)} targetUserId={payload and payload.targetUserId or "nil"}`)
 			return
 		end
 		self:_resolveClientPlayerHit(player, payload)

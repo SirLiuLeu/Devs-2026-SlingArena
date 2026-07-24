@@ -35,6 +35,14 @@ type Context = {
 local PlayerStateService = {}
 PlayerStateService.__index = PlayerStateService
 
+local function playerName(player: Player?): string
+	return player and player.Name or "nil"
+end
+
+local function applyDamageLog(message: string)
+	print(`[ApplyDamage] {message}`)
+end
+
 function PlayerStateService.new(context: Context)
 	local self = setmetatable({}, PlayerStateService)
 	self._context = context
@@ -273,6 +281,7 @@ function PlayerStateService:SetSelectedPlayerMode(player: Player, modeName: stri
 	end
 	state.SelectedPlayerMode = modeName
 	self:PublishState(player)
+	applyDamageLog(`PlayerStateService:ApplyDamage return true player={playerName(player)} amount={amount} beforeHP={before} afterHP={state.CurrentHP}`)
 	return true
 end
 
@@ -499,10 +508,15 @@ function PlayerStateService:SetTeleporting(player: Player, isTeleporting: boolea
 end
 
 function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
+	applyDamageLog(`PlayerStateService:ApplyDamage enter player={playerName(player)} amount={amount}`)
 	local state = self._states[player]
-	if not state or not state.IsAlive or self:IsHuman(player) or self:IsInvulnerable(player) or self:HasFlag(player, "Ghost") then return false end
+	if not state or not state.IsAlive or self:IsHuman(player) or self:IsInvulnerable(player) or self:HasFlag(player, "Ghost") then
+		applyDamageLog(`PlayerStateService:ApplyDamage return false player={playerName(player)} amount={amount} hasState={state ~= nil} isAlive={state and state.IsAlive or false} isHuman={self:IsHuman(player)} invulnerable={self:IsInvulnerable(player)} ghost={self:HasFlag(player, "Ghost")}`)
+		return false
+	end
 	local before = state.CurrentHP
 	state.CurrentHP = math.max(0, state.CurrentHP - math.max(0, amount))
+	applyDamageLog(`PlayerStateService:ApplyDamage applied player={playerName(player)} amount={amount} beforeHP={before} afterHP={state.CurrentHP}`)
 	local playerService = self._context.Services and self._context.Services.PlayerService
 	local root = playerService and playerService:GetRoot(player)
 	if root and state.CurrentHP ~= before then
@@ -510,6 +524,7 @@ function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
 	end
 	state.LastDamageTime = os.clock()
 	self:PublishState(player)
+	applyDamageLog(`PlayerStateService:ApplyDamage return true player={playerName(player)} amount={amount} beforeHP={before} afterHP={state.CurrentHP}`)
 	return true
 end
 
