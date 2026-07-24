@@ -38,11 +38,27 @@ function LauncherService.ResolveAimDirection(aimDirection: Vector3): Vector3
 end
 
 function LauncherService.ResolveLaunchDirectionFromRoot(root: BasePart): Vector3
-	local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+	local forward = Vector3.new(root.CFrame.UpVector.X, 0, root.CFrame.UpVector.Z)
 	if forward.Magnitude < PhysicsConfig.Movement.AimDeadzone then
 		return Vector3.new(0, 0, -1)
 	end
 	return forward.Unit
+end
+
+function LauncherService.GetTopForwardFacingCFrame(position: Vector3, direction: Vector3): CFrame?
+	local forward = Vector3.new(direction.X, 0, direction.Z)
+	if forward.Magnitude < PhysicsConfig.Movement.AimDeadzone then
+		return nil
+	end
+
+	local topForward = forward.Unit
+	local back = -Vector3.yAxis
+	local right = topForward:Cross(back)
+	if right.Magnitude < PhysicsConfig.Movement.AimDeadzone then
+		return nil
+	end
+
+	return CFrame.fromMatrix(position, right.Unit, topForward, back)
 end
 
 function LauncherService.ResolveLaunchDirection(root: BasePart, aimDirection: Vector3?): Vector3
@@ -594,7 +610,11 @@ function LauncherService:_applyPlanarRotation(root: BasePart, direction: Vector3
 	if not alignOrientation then
 		return
 	end
-	alignOrientation.CFrame = CFrame.lookAt(root.Position, root.Position + desiredPlanar.Unit, Vector3.yAxis)
+	local facingCFrame = LauncherService.GetTopForwardFacingCFrame(root.Position, desiredPlanar.Unit)
+	if not facingCFrame then
+		return
+	end
+	alignOrientation.CFrame = facingCFrame
 end
 
 function LauncherService:_stepMovement(dt: number)
