@@ -305,7 +305,7 @@ RunService.RenderStepped:Connect(function()
 		return
 	end
 
-	moveRequestRemote:FireServer(computeMoveInput(), player:GetAttribute("LauncherAimDirection"))
+	moveRequestRemote:FireServer(computeMoveInput())
 	lastSentAt = now
 end)
 
