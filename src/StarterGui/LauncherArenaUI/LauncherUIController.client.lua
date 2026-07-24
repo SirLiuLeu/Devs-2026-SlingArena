@@ -375,6 +375,23 @@ local function resolveChargeAimDirection(root: BasePart): Vector3
 	return planarDirection.Unit
 end
 
+local function updateLauncherFacingDirection(root: BasePart, direction: Vector3)
+	local planarDirection = Vector3.new(direction.X, 0, direction.Z)
+	if planarDirection.Magnitude < PhysicsConfig.Movement.AimDeadzone then
+		return
+	end
+
+	local facingCFrame = CFrame.lookAt(root.Position, root.Position + planarDirection.Unit, Vector3.yAxis)
+	local alignOrientation = root:FindFirstChild("AlignOrientation")
+	if alignOrientation and alignOrientation:IsA("AlignOrientation") then
+		alignOrientation.Enabled = true
+		alignOrientation.CFrame = facingCFrame
+		return
+	end
+
+	root.CFrame = facingCFrame
+end
+
 local function updateArrowPreview()
 	if not isHolding then
 		destroyArrowPreview()
@@ -386,6 +403,8 @@ local function updateArrowPreview()
 		destroyArrowPreview()
 		return
 	end
+
+	updateLauncherFacingDirection(root, currentChargeAimDirection)
 
 	if not arrowPreview then
 		local arrowTemplate = prefabsFolder:FindFirstChild("ArrowModel")
