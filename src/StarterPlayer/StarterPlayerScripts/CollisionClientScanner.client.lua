@@ -156,13 +156,6 @@ local function resolveFoodCollisionVelocity(velocity: Vector3, normal: Vector3, 
 	})
 end
 
-local function applyPredictedFoodCollision(root: BasePart, normal: Vector3, rarity: any)
-	if rarity == "Common" then
-		return
-	end
-	local resolved = resolveFoodCollisionVelocity(root.AssemblyLinearVelocity, normal, rarity)
-	root.AssemblyLinearVelocity = Vector3.new(resolved.X, root.AssemblyLinearVelocity.Y, resolved.Z)
-end
 
 local function getNearbyFood(position: Vector3): { Model }
 	local out = {}
@@ -232,7 +225,7 @@ local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitT
 	local normal = (root.Position - hitbox.Position).Magnitude > 0.001
 		and (root.Position - hitbox.Position).Unit
 		or Vector3.new(0, 0, -1)
-	applyPredictedFoodCollision(root, normal, rarity)
+		
 	print(`Reporting food hit: foodId={foodId}, hitType={hitType}, observedSpeed={reportSpeed}`)
 	reportFoodRemote:FireServer({
 		foodId = foodId,
