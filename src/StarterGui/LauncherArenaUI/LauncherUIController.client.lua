@@ -41,7 +41,6 @@ local currentDragVector = Vector2.zero
 local currentDragDistance = 0
 local currentDirection = Vector2.new(0, -1)
 local currentChargeAimDirection = Vector3.new(0, 0, -1)
-local chargeReferenceFrame: CFrame? = nil
 local chargeStartTime = 0
 local cooldownStartTime = 0
 local cooldownEndTime = 0
@@ -341,34 +340,41 @@ end
 local function getCharacterRoot(): BasePart?
 	return PawnLocator.GetRootPart(PawnLocator.GetLocalPawn())
 end
-local function getLaunchDirectionFromRoot(root: BasePart): Vector3
-	local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
-	if forward.Magnitude < 0.001 then
-		return Vector3.new(0, 0, -1)
+
+local function getCameraPlanarBasis(): (Vector3?, Vector3?)
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return nil, nil
 	end
-	return forward.Unit
+
+	local right = Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z)
+	local forward = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
+	if right.Magnitude < 0.001 or forward.Magnitude < 0.001 then
+		return nil, nil
+	end
+
+	return right.Unit, forward.Unit
 end
 
-local function resolveChargeAimDirection(root: BasePart): Vector3
-	local reference = chargeReferenceFrame
-	if not reference then
-		return getLaunchDirectionFromRoot(root)
-	end
+local function getCameraForwardDirection(): Vector3
+	local _, forward = getCameraPlanarBasis()
+	return forward or Vector3.new(0, 0, -1)
+end
 
-	local right = Vector3.new(reference.RightVector.X, 0, reference.RightVector.Z)
-	local forward = Vector3.new(reference.LookVector.X, 0, reference.LookVector.Z)
-	if right.Magnitude < 0.001 or forward.Magnitude < 0.001 then
-		return getLaunchDirectionFromRoot(root)
+local function resolveChargeAimDirection(): Vector3
+	local right, forward = getCameraPlanarBasis()
+	if not right or not forward then
+		return getCameraForwardDirection()
 	end
 
 	if currentDragDistance <= 0.001 then
-		return getLaunchDirectionFromRoot(root)
+		return forward
 	end
 
-	local worldDirection = (right.Unit * currentDirection.X) + (forward.Unit * -currentDirection.Y)
+	local worldDirection = (right * currentDirection.X) + (forward * -currentDirection.Y)
 	local planarDirection = Vector3.new(worldDirection.X, 0, worldDirection.Z)
 	if planarDirection.Magnitude < 0.001 then
-		return getLaunchDirectionFromRoot(root)
+		return forward
 	end
 
 	return planarDirection.Unit
@@ -439,7 +445,7 @@ local function updateJoystickFromInput(input: InputObject)
 	currentDirection = direction
 	local root = getCharacterRoot()
 	if root then
-		currentChargeAimDirection = resolveChargeAimDirection(root)
+		currentChargeAimDirection = resolveChargeAimDirection()
 		player:SetAttribute("LauncherAimDirection", currentChargeAimDirection)
 	end
 	cachedThumb.Position = UDim2.new(0.5, clampedVector.X, 0.5, clampedVector.Y)
@@ -461,6 +467,12 @@ end
 
 local function stepUi()
 	if isHolding then
+		local root = getCharacterRoot()
+		if root then
+			currentChargeAimDirection = resolveChargeAimDirection()
+			player:SetAttribute("LauncherAimDirection", currentChargeAimDirection)
+		end
+
 		local chargeRatio = LauncherUiState.ComputeChargeRatio(os.clock() - chargeStartTime, MAX_CHARGE_TIME)
 		updateChargeBar(chargeRatio)
 	else
@@ -517,7 +529,6 @@ local function resetVisualState()
 	currentDragDistance = 0
 	currentDirection = Vector2.new(0, -1)
 	currentChargeAimDirection = Vector3.new(0, 0, -1)
-	chargeReferenceFrame = nil
 	chargeStartTime = 0
 	setVisibleSafe(cachedChargeBar, false)
 	resetThumbPosition()
@@ -565,7 +576,6 @@ local function startHold(input: InputObject)
 	currentDragDistance = 0
 	currentChargeAimDirection = Vector3.new(0, 0, -1)
 	chargeStartTime = os.clock()
-	chargeReferenceFrame = nil
 
 	setVisibleSafe(joystickRoot, true)
 	setVisibleSafe(chargeBar, true)
@@ -574,8 +584,7 @@ local function startHold(input: InputObject)
 	applyJoystickVisibilityFromState(lastKnownServerState)
 	local root = getCharacterRoot()
 	if root then
-		chargeReferenceFrame = root.CFrame
-		currentChargeAimDirection = getLaunchDirectionFromRoot(root)
+		currentChargeAimDirection = resolveChargeAimDirection()
 		player:SetAttribute("LauncherAimDirection", currentChargeAimDirection)
 	end
 	updateArrowPreview()
