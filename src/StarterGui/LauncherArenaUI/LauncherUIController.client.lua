@@ -341,33 +341,12 @@ end
 local function getCharacterRoot(): BasePart?
 	return PawnLocator.GetRootPart(PawnLocator.GetLocalPawn())
 end
-
-local function getLauncherTopForward(rootCFrame: CFrame): Vector3
-	local forward = Vector3.new(rootCFrame.UpVector.X, 0, rootCFrame.UpVector.Z)
+local function getLaunchDirectionFromRoot(root: BasePart): Vector3
+	local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
 	if forward.Magnitude < 0.001 then
 		return Vector3.new(0, 0, -1)
 	end
 	return forward.Unit
-end
-
-local function getTopForwardFacingCFrame(position: Vector3, direction: Vector3): CFrame?
-	local forward = Vector3.new(direction.X, 0, direction.Z)
-	if forward.Magnitude < PhysicsConfig.Movement.AimDeadzone then
-		return nil
-	end
-
-	local topForward = forward.Unit
-	local back = -Vector3.yAxis
-	local right = topForward:Cross(back)
-	if right.Magnitude < 0.001 then
-		return nil
-	end
-
-	return CFrame.fromMatrix(position, right.Unit, topForward, back)
-end
-
-local function getLaunchDirectionFromRoot(root: BasePart): Vector3
-	return getLauncherTopForward(root.CFrame)
 end
 
 local function resolveChargeAimDirection(root: BasePart): Vector3
@@ -377,7 +356,7 @@ local function resolveChargeAimDirection(root: BasePart): Vector3
 	end
 
 	local right = Vector3.new(reference.RightVector.X, 0, reference.RightVector.Z)
-	local forward = getLauncherTopForward(reference)
+	local forward = Vector3.new(reference.LookVector.X, 0, reference.LookVector.Z)
 	if right.Magnitude < 0.001 or forward.Magnitude < 0.001 then
 		return getLaunchDirectionFromRoot(root)
 	end
@@ -401,10 +380,7 @@ local function updateLauncherFacingDirection(root: BasePart, direction: Vector3)
 		return
 	end
 
-	local facingCFrame = getTopForwardFacingCFrame(root.Position, planarDirection.Unit)
-	if not facingCFrame then
-		return
-	end
+	local facingCFrame = CFrame.lookAt(root.Position, root.Position + planarDirection.Unit, Vector3.yAxis)
 	local alignOrientation = root:FindFirstChild("AlignOrientation")
 	if alignOrientation and alignOrientation:IsA("AlignOrientation") then
 		alignOrientation.Enabled = true
