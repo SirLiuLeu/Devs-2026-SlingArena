@@ -417,7 +417,20 @@ function LauncherService:HandleMoveRequest(player: Player, moveInput: Vector3, _
 		self._input[player] = Vector3.zero
 		return
 	end
-	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == "Recovering" then
+	if state.MovementState == MOVEMENT_STATE.Charging then
+		self._input[player] = Vector3.zero
+		local chargeState = self._chargeState[player]
+		if chargeState and typeof(_aimDirection) == "Vector3" then
+			local direction = LauncherService.ResolveAimDirection(_aimDirection)
+			chargeState.aimDirection = direction
+			local _, root = self:_resolvePawnAndRoot(player)
+			if root then
+				self:_applyPlanarRotation(root, direction)
+			end
+		end
+		return
+	end
+	if state.MovementState == "Recovering" then
 		self._input[player] = Vector3.zero
 		return
 	end
@@ -457,6 +470,7 @@ function LauncherService:StartCharge(player: Player, aimDirection: Vector3)
 	end
 
 	local direction = LauncherService.ResolveLaunchDirection(root, aimDirection)
+	self:_applyPlanarRotation(root, direction)
 
 	self._chargeState[player] = {
 		chargeStartTime = now,
@@ -594,7 +608,17 @@ function LauncherService:_applyPlanarRotation(root: BasePart, direction: Vector3
 	if not alignOrientation then
 		return
 	end
-	alignOrientation.CFrame = CFrame.lookAt(root.Position, root.Position + desiredPlanar.Unit, Vector3.yAxis)
+
+	local forward = desiredPlanar.Unit
+	local right = forward:Cross(Vector3.yAxis)
+	if right.Magnitude < PhysicsConfig.Movement.AimDeadzone then
+		return
+	end
+
+	-- Launcher art is authored as a top-down shape: local Top/Bottom/Right/Left
+	-- represent forward/back/right/left in the arena plane. Map local Y (Top)
+	-- to the charge direction instead of relying on LookVector/camera-facing yaw.
+	alignOrientation.CFrame = CFrame.fromMatrix(root.Position, right.Unit, forward, Vector3.yAxis)
 end
 
 function LauncherService:_stepMovement(dt: number)
@@ -717,6 +741,10 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 
 	if state.MovementState == MOVEMENT_STATE.Charging then
 		movementController:DisableLocomotion(false)
+		local chargeState = self._chargeState[player]
+		if chargeState and typeof(chargeState.aimDirection) == "Vector3" then
+			self:_applyPlanarRotation(root, chargeState.aimDirection)
+		end
 		return
 	end
 	if state.MovementState == MOVEMENT_STATE.Knockback then
