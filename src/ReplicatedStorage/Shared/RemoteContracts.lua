@@ -36,6 +36,8 @@ RemoteContracts.Names = {
 	KnockbackReplication = "KnockbackReplication",
 	MatchScoreboardUpdate = "MatchScoreboardUpdate",
 	SetPlayerMode = "SetPlayerMode",
+	ClockSyncRequest = "ClockSyncRequest",
+	ClockSyncResponse = "ClockSyncResponse",
 }
 
 RemoteContracts.Validators = {
@@ -107,6 +109,9 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.SetPlayerMode] = function(modeName: any): boolean
 		return modeName == "Launcher" or modeName == "Human"
+	end,
+	[RemoteContracts.Names.ClockSyncRequest] = function(clientSendTime: any): boolean
+		return typeof(clientSendTime) == "number"
 	end,
 	[RemoteContracts.Names.ReportLaunchStopped] = function(payload: any): boolean
 		if type(payload) ~= "table" then

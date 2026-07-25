@@ -68,6 +68,14 @@ local PhysicsConfig = {
 		MaxKnockbackTargetsPerLaunch = 5,
 	},
 
+	LagCompensation = {
+		HistoryWindowSeconds = 1.5,
+		MaxAcceptedLatencySeconds = 1.25,
+		FutureToleranceSeconds = 0.15,
+		ClockSyncIntervalSeconds = 5,
+		ClockSyncSamples = 8,
+	},
+
 	Collision = {
 		Range = 0.5,
 		ValidationTolerance = 10.75,

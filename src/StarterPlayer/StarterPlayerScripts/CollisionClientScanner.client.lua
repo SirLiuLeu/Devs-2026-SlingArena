@@ -18,6 +18,8 @@ local gameplayFeedbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemo
 local applySelfBounceRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ApplySelfBounce") :: RemoteEvent
 local applyKnockbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ApplyKnockback") :: RemoteEvent
 local clientDoLaunchRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClientDoLaunch") :: RemoteEvent
+local clockSyncRequestRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClockSyncRequest") :: RemoteEvent
+local clockSyncResponseRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClockSyncResponse") :: RemoteEvent
 
 local GRID_CELL_SIZE = 48
 local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
@@ -36,8 +38,45 @@ local predictedLaunchDirection: Vector3? = nil
 local activeLaunchId: string? = nil
 local lastRootPosition: Vector3? = nil
 local selfBounceBlendToken = 0
+local serverClockOffset = 0
+local clockSyncSamples: { number } = {}
 local sweepDebugStart: Part? = nil
 local sweepDebugEnd: Part? = nil
+
+local function getSyncedServerTime(): number
+	return os.clock() + serverClockOffset
+end
+
+local function requestClockSync()
+	clockSyncRequestRemote:FireServer(os.clock())
+end
+
+clockSyncResponseRemote.OnClientEvent:Connect(function(payload)
+	if type(payload) ~= "table" or typeof(payload.ClientSendTime) ~= "number" or typeof(payload.ServerCurrentTime) ~= "number" then
+		return
+	end
+	local clientReceiveTime = os.clock()
+	local rtt = math.max(0, clientReceiveTime - payload.ClientSendTime)
+	local estimatedServerAtReceive = payload.ServerCurrentTime + (rtt * 0.5)
+	local sampleOffset = estimatedServerAtReceive - clientReceiveTime
+	table.insert(clockSyncSamples, sampleOffset)
+	local maxSamples = PhysicsConfig.LagCompensation.ClockSyncSamples
+	while #clockSyncSamples > maxSamples do
+		table.remove(clockSyncSamples, 1)
+	end
+	local total = 0
+	for _, offset in clockSyncSamples do
+		total += offset
+	end
+	serverClockOffset = total / math.max(1, #clockSyncSamples)
+end)
+
+task.spawn(function()
+	while true do
+		requestClockSync()
+		task.wait(PhysicsConfig.LagCompensation.ClockSyncIntervalSeconds)
+	end
+end)
 
 local function isLaunching(): boolean
 	return currentMovementState == GameStates.PlayerState.Launching
@@ -287,7 +326,7 @@ local function reportPlayerHit(targetPlayer: Player, root: BasePart, _observedSp
 	print(`Reporting predicted player hit: targetUserId={targetPlayer.UserId}`)
 	reportCollisionRemote:FireServer({
 		targetUserId = targetPlayer.UserId,
-		clientTimestamp = now,
+		clientTimestamp = getSyncedServerTime(),
 		hitPosition = hitPosition,
 	})
 end

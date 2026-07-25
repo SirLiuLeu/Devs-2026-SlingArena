@@ -19,8 +19,9 @@ local function getService(context, name)
 end
 
 local SAME_TARGET_DEDUPE_SECONDS = 0.28
-local MAX_REPORT_AGE_SECONDS = 0.75
-local MAX_REPORT_FUTURE_SECONDS = 0.15
+local HISTORY_WINDOW_SECONDS = PhysicsConfig.LagCompensation.HistoryWindowSeconds
+local MAX_REPORT_AGE_SECONDS = PhysicsConfig.LagCompensation.MaxAcceptedLatencySeconds
+local MAX_REPORT_FUTURE_SECONDS = PhysicsConfig.LagCompensation.FutureToleranceSeconds
 
 local function isLauncherMovementControlling(root: BasePart): boolean
 	local linearVelocity = root:FindFirstChild("LinearVelocity")
@@ -33,14 +34,105 @@ function CollisionService.new(context)
 	self._lastCollision = {}
 	self._lastCollisionByLaunchTarget = {}
 	self._lastWallCollision = {}
+	self._history = {}
 	return self
 end
 
 function CollisionService:Init()
 	RunService.Heartbeat:Connect(function(dt)
+		self:_recordWorldSnapshot()
 		self:_applyDragAndBounce(dt)
 	end)
+	self:_bindClockSync()
 	self:_bindClientCollisionReports()
+end
+
+function CollisionService:_recordWorldSnapshot()
+	local playerService = getService(self._context, "PlayerService")
+	if not playerService then
+		return
+	end
+	local now = os.clock()
+	local entityStates = {}
+	for _, player in Players:GetPlayers() do
+		local root = playerService:GetRoot(player)
+		if root then
+			entityStates[player.UserId] = {
+				CFrame = root.CFrame,
+				Position = root.Position,
+				Size = root.Size,
+			}
+		end
+	end
+	table.insert(self._history, {
+		Timestamp = now,
+		EntityStates = entityStates,
+	})
+	local cutoff = now - HISTORY_WINDOW_SECONDS
+	while self._history[1] and self._history[1].Timestamp < cutoff do
+		table.remove(self._history, 1)
+	end
+end
+
+function CollisionService:_getStatesAtTime(targetTimestamp: number, entityIds: { number }): (boolean, { [number]: any }?, string)
+	local newest = self._history[#self._history]
+	local oldest = self._history[1]
+	if not (oldest and newest) then
+		return false, nil, "history unavailable"
+	end
+	if targetTimestamp < oldest.Timestamp then
+		return false, nil, `timestamp older than history: target={targetTimestamp} oldest={oldest.Timestamp}`
+	end
+	if targetTimestamp > newest.Timestamp + MAX_REPORT_FUTURE_SECONDS then
+		return false, nil, `timestamp newer than history: target={targetTimestamp} newest={newest.Timestamp}`
+	end
+
+	local older = oldest
+	local newer = newest
+	for i = #self._history, 1, -1 do
+		local snapshot = self._history[i]
+		if snapshot.Timestamp <= targetTimestamp then
+			older = snapshot
+			newer = self._history[math.min(i + 1, #self._history)] or snapshot
+			break
+		end
+	end
+
+	local alpha = if newer.Timestamp > older.Timestamp
+		then math.clamp((targetTimestamp - older.Timestamp) / (newer.Timestamp - older.Timestamp), 0, 1)
+		else 0
+	local states = {}
+	for _, entityId in entityIds do
+		local olderState = older.EntityStates[entityId]
+		local newerState = newer.EntityStates[entityId] or olderState
+		if not (olderState and newerState) then
+			return false, nil, `missing historical state for entity={entityId}`
+		end
+		states[entityId] = {
+			CFrame = olderState.CFrame:Lerp(newerState.CFrame, alpha),
+			Position = olderState.Position:Lerp(newerState.Position, alpha),
+			Size = olderState.Size:Lerp(newerState.Size, alpha),
+		}
+	end
+	return true, states, "ok"
+end
+
+function CollisionService:_bindClockSync()
+	local requestRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ClockSyncRequest)
+	local responseRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ClockSyncResponse)
+	if not (requestRemote and requestRemote:IsA("RemoteEvent") and responseRemote and responseRemote:IsA("RemoteEvent")) then
+		print("[Collision] return: clock sync remotes unavailable")
+		return
+	end
+	requestRemote.OnServerEvent:Connect(function(player, clientSendTime)
+		if not RemoteContracts.Validate(RemoteContracts.Names.ClockSyncRequest, clientSendTime) then
+			return
+		end
+		responseRemote:FireClient(player, {
+			ClientSendTime = clientSendTime,
+			ServerCurrentTime = os.clock(),
+		})
+	end)
 end
 
 function CollisionService:_applyDragAndBounce(dt: number)
@@ -182,7 +274,7 @@ function CollisionService:_validatePlayerReport(
 	end
 	local now = os.clock()
 	if payload.clientTimestamp > now + MAX_REPORT_FUTURE_SECONDS or now - payload.clientTimestamp > MAX_REPORT_AGE_SECONDS then
-		--return false, nil, nil, nil, Vector3.new(1, 0, 0), `stale or future report: now={now} clientTimestamp={payload.clientTimestamp}`
+		return false, nil, nil, nil, Vector3.new(1, 0, 0), `stale or future report: now={now} clientTimestamp={payload.clientTimestamp}`
 	end
 
 	local defender = Players:GetPlayerByUserId(payload.targetUserId)
@@ -201,19 +293,26 @@ function CollisionService:_validatePlayerReport(
 		return false, nil, nil, nil, Vector3.new(1, 0, 0), `dead participant: attackerAlive={playerService:IsAlive(player)} defenderAlive={defender and playerService:IsAlive(defender) or false}`
 	end
 
-	local hitOffset = Vector3.new(payload.hitPosition.X, 0, payload.hitPosition.Z) - Vector3.new(root.Position.X, 0, root.Position.Z)
-	local targetHitOffset = Vector3.new(payload.hitPosition.X, 0, payload.hitPosition.Z) - Vector3.new(targetRoot.Position.X, 0, targetRoot.Position.Z)
-	local maxHitDistance = PhysicsConfig.Collision.ValidationTolerance + (math.max(root.Size.X, root.Size.Z, targetRoot.Size.X, targetRoot.Size.Z) * 0.5)
+	local okHistory, historicalStates, historyReason = self:_getStatesAtTime(payload.clientTimestamp, { player.UserId, defender.UserId })
+	if not (okHistory and historicalStates) then
+		return false, nil, nil, nil, Vector3.new(1, 0, 0), historyReason
+	end
+	local historicalAttacker = historicalStates[player.UserId]
+	local historicalDefender = historicalStates[defender.UserId]
+
+	local hitOffset = Vector3.new(payload.hitPosition.X, 0, payload.hitPosition.Z) - Vector3.new(historicalAttacker.Position.X, 0, historicalAttacker.Position.Z)
+	local targetHitOffset = Vector3.new(payload.hitPosition.X, 0, payload.hitPosition.Z) - Vector3.new(historicalDefender.Position.X, 0, historicalDefender.Position.Z)
+	local maxHitDistance = PhysicsConfig.Collision.ValidationTolerance + (math.max(historicalAttacker.Size.X, historicalAttacker.Size.Z, historicalDefender.Size.X, historicalDefender.Size.Z) * 0.5)
 	if hitOffset.Magnitude > maxHitDistance or targetHitOffset.Magnitude > maxHitDistance then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0), `hitPosition outside tolerance: attackerOffset={hitOffset.Magnitude} defenderOffset={targetHitOffset.Magnitude} max={maxHitDistance}`
+		return false, nil, nil, nil, Vector3.new(1, 0, 0), `historical hitPosition outside tolerance: attackerOffset={hitOffset.Magnitude} defenderOffset={targetHitOffset.Magnitude} max={maxHitDistance}`
 	end
 
-	local offset = targetRoot.Position - root.Position
+	local offset = historicalDefender.Position - historicalAttacker.Position
 	local planar = Vector3.new(offset.X, 0, offset.Z)
-	local combinedRadius = (math.max(root.Size.X, root.Size.Z) + math.max(targetRoot.Size.X, targetRoot.Size.Z)) * 0.5
+	local combinedRadius = (math.max(historicalAttacker.Size.X, historicalAttacker.Size.Z) + math.max(historicalDefender.Size.X, historicalDefender.Size.Z)) * 0.5
 	local maxDistance = combinedRadius + PhysicsConfig.Collision.ValidationTolerance
-	if planar.Magnitude > maxDistance or math.abs(root.Position.Y - targetRoot.Position.Y) > PhysicsConfig.Collision.YTolerance then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0), `players outside collision tolerance: planarDistance={planar.Magnitude} maxDistance={maxDistance} yDelta={math.abs(root.Position.Y - targetRoot.Position.Y)}`
+	if planar.Magnitude > maxDistance or math.abs(historicalAttacker.Position.Y - historicalDefender.Position.Y) > PhysicsConfig.Collision.YTolerance then
+		return false, nil, nil, nil, Vector3.new(1, 0, 0), `historical players outside collision tolerance: planarDistance={planar.Magnitude} maxDistance={maxDistance} yDelta={math.abs(historicalAttacker.Position.Y - historicalDefender.Position.Y)}`
 	end
 	local normal = if planar.Magnitude > PhysicsConfig.Movement.InputDeadzone
 		then planar.Unit
