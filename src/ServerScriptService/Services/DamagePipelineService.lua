@@ -88,10 +88,6 @@ local function damageLog(message: string)
 	print(`[DamagePipeline] {message}`)
 end
 
-local function applyDamageLog(message: string)
-	print(`[ApplyDamage] {message}`)
-end
-
 -- Combat damage is allowed in active round phases; safe-zone and trap damage bypass this check.
 
 local function getDamageBoostMultiplier(playerStateService: any, attacker: Player?): number
@@ -151,28 +147,24 @@ function DamagePipelineService:Init()
 		_knockbackDirection: Vector3,
 		collisionMeta: any
 	)
-		damageLog(`received CollisionPlayerHit attacker={playerName(attacker)} defender={playerName(victim)} impactSpeed={impactSpeed} collisionCount={collisionMeta and collisionMeta.CollisionCount or "nil"} transferredEnergy={collisionMeta and collisionMeta.TransferredEnergy or "nil"}`)
 		local stateService = getService(self._context, "PlayerStateService")
 		local attackerState = attacker and stateService and stateService:GetState(attacker) or nil
 
 		local damage = self:ComputeCollisionDamage(attackerState or {}, impactSpeed, collisionMeta)
 		damage *= getDamageBoostMultiplier(stateService, attacker)
-		damageLog(`computed collision damage attacker={playerName(attacker)} defender={playerName(victim)} damage={damage} sourceType={collisionMeta and collisionMeta.SourceType or "nil"}`)
 
 		if damage <= 0 then
-			damageLog(`return: computed damage <= 0 attacker={playerName(attacker)} defender={playerName(victim)} damage={damage}`)
 			return
 		end
 
 		-- Player-vs-player collision knockback is emitted once by the
 		-- CollisionPlayerKnockback event after CollisionService resolves the hit.
 		-- Keep this ApplyDamage call damage-only so it does not produce a second impulse.
-		damageLog(`calling ApplyHitDamage from CollisionPlayerHit attacker={playerName(attacker)} defender={playerName(victim)} damage={damage}`)
 		local didApply = self:ApplyHitDamage(victim, damage, attacker, nil, {
 			SuppressKnockback = true,
 			SourceType = "PhysicalLauncherCollision",
 		})
-		damageLog(`ApplyHitDamage returned attacker={playerName(attacker)} defender={playerName(victim)} damage={damage} didApply={didApply}`)
+		damageLog(`collision hit attacker={playerName(attacker)} defender={playerName(victim)} impactSpeed={impactSpeed} damage={damage} applied={didApply}`)
 		if didApply then
 			self:_applyLauncherDotFromHit(victim, attacker, attackerState, collisionMeta)
 		end
@@ -205,6 +197,9 @@ function DamagePipelineService:ComputeCollisionDamage(attackerState: any, veloci
 	local energyScalar = energy / math.max(PhysicsConfig.Launch.EnergyMax, 1)
 	local charge = collisionMeta and math.clamp(collisionMeta.ChargeRatio or 0, 0, 1) or 0
 	local chargeScalar = 0.75 + (0.25 * charge)
+	local angleFactor = collisionMeta and math.clamp(collisionMeta.AngleFactor or 1, 0, 1) or 1
+	local angleExponent = math.max(0, PhysicsConfig.Collision.CollisionAngleReductionExponent or 1)
+	local angleScalar = angleFactor ^ angleExponent
 	local damage = baseDamage
 		* (1 + energyScalar)
 		* chargeScalar
@@ -212,8 +207,9 @@ function DamagePipelineService:ComputeCollisionDamage(attackerState: any, veloci
 		* chainPenalty
 		* (intensity * PhysicsConfig.Damage.CollisionIntensityMultiplier)
 		* speedDecayRatio
+		* angleScalar
 		* PhysicsConfig.Damage.BaseMultiplier
-	return math.clamp(damage, 0, PhysicsConfig.Damage.Max)
+	return math.max(0, damage)
 end
 
 local function getSourceId(source: any?): string
@@ -250,24 +246,19 @@ function DamagePipelineService:_sendFeedback(player: Player, eventType: string, 
 end
 
 function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
-	applyDamageLog(`enter ApplyHitDamage attacker={playerName(attacker)} defender={playerName(victim)} rawDamage={rawDamage} sourceType={options and options.SourceType or "nil"}`)
 	local playerStateService = getService(self._context, "PlayerStateService")
 	if not playerStateService then
 		warn("[DamagePipelineService] PlayerStateService unavailable; damage skipped.")
-		applyDamageLog(`return: missing PlayerStateService attacker={playerName(attacker)} defender={playerName(victim)}`)
 		return false
 	end
 	local sourceType = options and options.SourceType or (if attacker then "LauncherCombat" else "Environment")
 	if attacker and (not isCombatDamageAllowed(self._context) or (playerStateService.IsHuman and playerStateService:IsHuman(attacker))) then
-		applyDamageLog(`return: combat damage not allowed or attacker human attacker={playerName(attacker)} defender={playerName(victim)} combatAllowed={isCombatDamageAllowed(self._context)} attackerIsHuman={playerStateService.IsHuman and playerStateService:IsHuman(attacker) or false}`)
 		return false
 	end
 	if playerStateService.IsHuman and playerStateService:IsHuman(victim) and not isHumanDamageAllowed(sourceType) then
-		applyDamageLog(`return: victim human blocked for sourceType attacker={playerName(attacker)} defender={playerName(victim)} sourceType={sourceType}`)
 		return false
 	end
 	if playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
-		applyDamageLog(`return: victim invulnerable or ghost attacker={playerName(attacker)} defender={playerName(victim)} invulnerable={playerStateService:IsInvulnerable(victim)} ghost={typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost") or false}`)
 		return false
 	end
 
@@ -279,17 +270,11 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 	if friendly then
 		amount = 0
 	end
-	applyDamageLog(`damage gate attacker={playerName(attacker)} defender={playerName(victim)} rawDamage={rawDamage} armor={armor} friendly={friendly} amount={amount}`)
 	local didDamage = true
 	if amount > 0 then
-		applyDamageLog(`before PlayerStateService:ApplyDamage attacker={playerName(attacker)} defender={playerName(victim)} amount={amount}`)
 		didDamage = playerStateService:ApplyDamage(victim, amount)
-		applyDamageLog(`after PlayerStateService:ApplyDamage attacker={playerName(attacker)} defender={playerName(victim)} amount={amount} didDamage={didDamage}`)
-	else
-		applyDamageLog(`skipping PlayerStateService:ApplyDamage amount <= 0 attacker={playerName(attacker)} defender={playerName(victim)} amount={amount}`)
 	end
 	if not didDamage then
-		applyDamageLog(`return: PlayerStateService:ApplyDamage returned false attacker={playerName(attacker)} defender={playerName(victim)} amount={amount}`)
 		return false
 	end
 
@@ -326,16 +311,8 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 			local planarKnockback = Vector3.new(knockbackDirection.X, 0, knockbackDirection.Z)
 			local resolvedDirection, resolvedSpeed = resolveKnockbackDirectionAndSpeed(planarKnockback, options)
 			if resolvedDirection then
-				local impulseVelocity = resolvedDirection * resolvedSpeed
 				if self._knockbackRemote then
 					self._knockbackRemote:FireClient(victim, resolvedDirection, resolvedSpeed)
-				else
-					local nextVelocity = root.AssemblyLinearVelocity + impulseVelocity
-					root.AssemblyLinearVelocity = Vector3.new(
-						math.clamp(nextVelocity.X, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity),
-						nextVelocity.Y,
-						math.clamp(nextVelocity.Z, -BalanceConfig.MaxVelocity, BalanceConfig.MaxVelocity)
-					)
 				end
 			end
 			if not suppressFeedback then
@@ -346,17 +323,13 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 
 	local state = playerStateService:GetState(victim)
 	if not suppressDeathHandling and state and state.CurrentHP <= 0 then
-		applyDamageLog(`victim reached zero HP; calling HandlePlayerDeath attacker={playerName(attacker)} defender={playerName(victim)} currentHP={state.CurrentHP}`)
 		self:HandlePlayerDeath(victim)
 	end
-	applyDamageLog(`return: ApplyHitDamage success attacker={playerName(attacker)} defender={playerName(victim)} amount={amount}`)
 	return true
 end
 
 function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
-	applyDamageLog(`enter ApplyDamage wrapper attacker={playerName(attacker)} defender={playerName(victim)} rawDamage={rawDamage}`)
 	local didApply = self:ApplyHitDamage(victim, rawDamage, attacker, knockbackDirection, options)
-	applyDamageLog(`return: ApplyDamage wrapper attacker={playerName(attacker)} defender={playerName(victim)} rawDamage={rawDamage} didApply={didApply}`)
 	return didApply
 end
 

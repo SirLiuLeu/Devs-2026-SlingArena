@@ -16,7 +16,6 @@ local reportFoodRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):
 local reportCollisionRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportCollision") :: RemoteEvent
 local gameplayFeedbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("GameplayFeedback") :: RemoteEvent
 local applySelfBounceRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ApplySelfBounce") :: RemoteEvent
-local applyKnockbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ApplyKnockback") :: RemoteEvent
 local clientDoLaunchRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClientDoLaunch") :: RemoteEvent
 local clockSyncRequestRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClockSyncRequest") :: RemoteEvent
 local clockSyncResponseRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClockSyncResponse") :: RemoteEvent
@@ -26,13 +25,11 @@ local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local HIT_EPSILON = PhysicsConfig.Collision.Range
 local REPORT_COOLDOWN = 1
 local MIN_REPORT_SPEED = PhysicsConfig.Collision.MinReportSpeed
-local LAUNCH_SCAN_GRACE_SECONDS = PhysicsConfig.Launch.ValidationGraceSeconds
 local PREDICTED_LAUNCH_SCAN_SECONDS = 0.35
 local EXISTING_VELOCITY_SCAN_SECONDS = 0.1
 
 local lastHit: { [string]: number } = {}
 local currentMovementState = GameStates.PlayerState.Idle
-local launchScanGraceEndsAt = 0
 local predictedLaunchScanEndsAt = 0
 local predictedLaunchDirection: Vector3? = nil
 local activeLaunchId: string? = nil
@@ -87,7 +84,7 @@ local function isPredictedLaunchScanActive(): boolean
 end
 
 local function isLaunchHitScanActive(): boolean
-	return isLaunching()
+	return isLaunching() or isPredictedLaunchScanActive()
 end
 
 local function refreshExistingLaunchVelocity(root: BasePart)
@@ -299,35 +296,57 @@ end
 
 local function triggerPredictedPlayerHitFeedback(_targetPlayer: Player, _hitPosition: Vector3)
 	-- Local-only prediction hook for immediate VFX/SFX. Authoritative defender hit reactions
-	-- are played when ApplyKnockback arrives from the server.
+	-- are played when KnockbackReplication arrives from the server.
 end
 
-local function applyPredictedPlayerBounce(targetPlayer: Player, root: BasePart): Vector3
+local function sanitizeSurfaceNormal(surfaceNormal: Vector3?, attackerVelocity: Vector3): Vector3?
+	if typeof(surfaceNormal) ~= "Vector3" then
+		return nil
+	end
+	local planar = Vector3.new(surfaceNormal.X, 0, surfaceNormal.Z)
+	if planar.Magnitude <= PhysicsConfig.Movement.InputDeadzone then
+		return nil
+	end
+	local normal = planar.Unit
+	local planarVelocity = Vector3.new(attackerVelocity.X, 0, attackerVelocity.Z)
+	if planarVelocity.Magnitude > PhysicsConfig.Movement.InputDeadzone and planarVelocity:Dot(normal) < 0 then
+		normal = -normal
+	end
+	return normal
+end
+
+local function applyPredictedPlayerBounce(targetPlayer: Player, root: BasePart, surfaceNormal: Vector3?): Vector3
 	local targetRoot = getPlayerRoot(targetPlayer)
-	local offset = (targetRoot and targetRoot.Position or root.Position) - root.Position
-	local planar = Vector3.new(offset.X, 0, offset.Z)
-	local normal = if planar.Magnitude > PhysicsConfig.Movement.InputDeadzone then planar.Unit else Vector3.new(1, 0, 0)
 	local attackerVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
+	local normal = sanitizeSurfaceNormal(surfaceNormal, attackerVelocity)
+	if not normal then
+		local offset = (targetRoot and targetRoot.Position or root.Position) - root.Position
+		local planar = Vector3.new(offset.X, 0, offset.Z)
+		normal = if planar.Magnitude > PhysicsConfig.Movement.InputDeadzone then planar.Unit else Vector3.new(1, 0, 0)
+	end
 	local defenderVelocity = if targetRoot then Vector3.new(targetRoot.AssemblyLinearVelocity.X, 0, targetRoot.AssemblyLinearVelocity.Z) else Vector3.zero
 	local predicted = VelocityDecay.ResolvePlayerCollision(attackerVelocity, defenderVelocity, normal).AttackerVelocity
 	root.AssemblyLinearVelocity = Vector3.new(predicted.X, root.AssemblyLinearVelocity.Y, predicted.Z)
 	return if targetRoot then (root.Position + targetRoot.Position) * 0.5 else root.Position
 end
 
-local function reportPlayerHit(targetPlayer: Player, root: BasePart, _observedSpeed: number?)
+local function reportPlayerHit(targetPlayer: Player, root: BasePart, _observedSpeed: number?, surfaceNormal: Vector3?)
 	local now = os.clock()
 	local cooldownKey = `Player:{targetPlayer.UserId}`
 	if (lastHit[cooldownKey] or 0) > now then
 		return
 	end
 	lastHit[cooldownKey] = now + REPORT_COOLDOWN
-	local hitPosition = applyPredictedPlayerBounce(targetPlayer, root)
+	local attackerVelocity = root.AssemblyLinearVelocity
+	local sanitizedNormal = sanitizeSurfaceNormal(surfaceNormal, attackerVelocity)
+	local hitPosition = applyPredictedPlayerBounce(targetPlayer, root, sanitizedNormal)
 	triggerPredictedPlayerHitFeedback(targetPlayer, hitPosition)
 	print(`Reporting predicted player hit: targetUserId={targetPlayer.UserId}`)
 	reportCollisionRemote:FireServer({
 		targetUserId = targetPlayer.UserId,
 		clientTimestamp = getSyncedServerTime(),
 		hitPosition = hitPosition,
+		surfaceNormal = sanitizedNormal,
 	})
 end
 
@@ -403,7 +422,7 @@ local function sphereCastLaunching(root: BasePart, dt: number, previousPosition:
     
     local targetPlayer = getPlayerFromHit(part)
     if targetPlayer then
-        reportPlayerHit(targetPlayer, root, observedSpeed)
+        reportPlayerHit(targetPlayer, root, observedSpeed, result.Normal)
         return
     end
 end
@@ -465,7 +484,6 @@ stateUpdateRemote.OnClientEvent:Connect(function(state)
 			predictedLaunchScanEndsAt = 0
 		elseif wasLaunching then
 			predictedLaunchScanEndsAt = 0
-			launchScanGraceEndsAt = 0
 			activeLaunchId = nil
 		end
 	end
@@ -507,17 +525,4 @@ applySelfBounceRemote.OnClientEvent:Connect(function(correctedVelocity: any)
 			connection:Disconnect()
 		end
 	end)
-end)
-
-applyKnockbackRemote.OnClientEvent:Connect(function(knockbackImpulse: any, _damage: any)
-	if typeof(knockbackImpulse) ~= "Vector3" then
-		return
-	end
-	local root = getRoot()
-	if not root then
-		return
-	end
-	root.AssemblyLinearVelocity = Vector3.new(knockbackImpulse.X, root.AssemblyLinearVelocity.Y, knockbackImpulse.Z)
-	-- Local hit reaction/VFX/SFX/damage presentation can subscribe here without allowing
-	-- the attacker to author defender physics.
 end)

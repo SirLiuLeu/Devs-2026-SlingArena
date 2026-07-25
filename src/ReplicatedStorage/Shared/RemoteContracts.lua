@@ -105,6 +105,9 @@ RemoteContracts.Validators = {
 		if typeof(payload.hitPosition) ~= "Vector3" then
 			return false
 		end
+		if payload.surfaceNormal ~= nil and typeof(payload.surfaceNormal) ~= "Vector3" then
+			return false
+		end
 		return true
 	end,
 	[RemoteContracts.Names.SetPlayerMode] = function(modeName: any): boolean

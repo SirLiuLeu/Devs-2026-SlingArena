@@ -114,7 +114,6 @@ local PhysicsConfig = {
 		LaunchTimeBias = 0.45,
 		CollisionIntensityMultiplier = 1.15,
 		ChainDecayPerHit = 0.18,
-		Max = 420,
 	},
 
 	Stability = {
