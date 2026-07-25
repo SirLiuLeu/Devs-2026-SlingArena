@@ -182,7 +182,7 @@ function CollisionService:_validatePlayerReport(
 	end
 	local now = os.clock()
 	if payload.clientTimestamp > now + MAX_REPORT_FUTURE_SECONDS or now - payload.clientTimestamp > MAX_REPORT_AGE_SECONDS then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0), `stale or future report: now={now} clientTimestamp={payload.clientTimestamp}`
+		--return false, nil, nil, nil, Vector3.new(1, 0, 0), `stale or future report: now={now} clientTimestamp={payload.clientTimestamp}`
 	end
 
 	local defender = Players:GetPlayerByUserId(payload.targetUserId)
@@ -192,7 +192,7 @@ function CollisionService:_validatePlayerReport(
 	local defenderState = defender and stateService:GetState(defender)
 
 	if not (defender and defender ~= player and root and targetRoot and attackerState and defenderState
-		and attackerState.MovementState == "Launching" and defenderState.MovementState == "Launching")
+		and attackerState.MovementState == "Launching")
 	then
 		return false, nil, nil, nil, Vector3.new(1, 0, 0), `invalid participants or states: defender={playerName(defender)} attackerState={attackerState and attackerState.MovementState or "nil"} defenderState={defenderState and defenderState.MovementState or "nil"}`
 	end
