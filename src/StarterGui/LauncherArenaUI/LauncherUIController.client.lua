@@ -536,6 +536,8 @@ local function resetVisualState()
 	destroyArrowPreview()
 	clearCooldown()
 	player:SetAttribute("LauncherAimDirection", nil)
+	player:SetAttribute("PredictedLaunchDirection", nil)
+	player:SetAttribute("PredictedLaunchStartedAt", nil)
 	applyJoystickVisibilityFromState(lastKnownServerState)
 end
 
@@ -707,7 +709,9 @@ if stateUpdateRemote then
 			updateChargeBar(0)
 		end
 
-		if state.MovementState == "Recovering" then
+		if state.MovementState == GameStates.PlayerState.Launching then
+			awaitingReleaseAck = false
+		elseif state.MovementState == "Recovering" then
 			awaitingReleaseAck = false
 			syncCooldownFromServerState(state)
 		elseif state.MovementState == GameStates.PlayerState.Idle and awaitingReleaseAck == false and state.IsCharging ~= true then

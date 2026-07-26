@@ -26,13 +26,15 @@ local HIT_EPSILON = PhysicsConfig.Collision.Range
 local REPORT_COOLDOWN = 1
 local MIN_REPORT_SPEED = PhysicsConfig.Collision.MinReportSpeed
 local PREDICTED_LAUNCH_SCAN_SECONDS = 0.35
-local EXISTING_VELOCITY_SCAN_SECONDS = 0.1
+local PREDICTED_LAUNCH_CONFIRM_TIMEOUT_SECONDS = 0.25
 
 local lastHit: { [string]: number } = {}
 local currentMovementState = GameStates.PlayerState.Idle
 local predictedLaunchScanEndsAt = 0
+local predictedLaunchStartedAt = 0
 local predictedLaunchDirection: Vector3? = nil
 local activeLaunchId: string? = nil
+local serverConfirmedLaunch = false
 local lastRootPosition: Vector3? = nil
 local selfBounceBlendToken = 0
 local serverClockOffset = 0
@@ -83,20 +85,59 @@ local function isPredictedLaunchScanActive(): boolean
 	return os.clock() <= predictedLaunchScanEndsAt
 end
 
+local function hasOptimisticRelease(): boolean
+	return predictedLaunchStartedAt > 0 and isPredictedLaunchScanActive()
+end
+
 local function isLaunchHitScanActive(): boolean
+	-- Do not open scans from Charging based on residual velocity. The only pre-server
+	-- scan permitted while the replicated state is still Charging is the explicit
+	-- local release prediction written by LauncherUIController.releaseHold().
+	if currentMovementState == GameStates.PlayerState.Charging and not hasOptimisticRelease() then
+		return false
+	end
 	return isLaunching() or isPredictedLaunchScanActive()
 end
 
-local function refreshExistingLaunchVelocity(root: BasePart)
-	if isLaunchHitScanActive() or currentMovementState ~= GameStates.PlayerState.Charging then
+local function rollbackPredictedLaunch()
+	predictedLaunchScanEndsAt = 0
+	predictedLaunchStartedAt = 0
+	predictedLaunchDirection = nil
+	serverConfirmedLaunch = false
+	player:SetAttribute("PredictedLaunchDirection", nil)
+	player:SetAttribute("PredictedLaunchStartedAt", nil)
+end
+
+local function startPredictedLaunchScan(direction: Vector3, startedAt: number)
+	local planarDirection = Vector3.new(direction.X, 0, direction.Z)
+	if planarDirection.Magnitude < 0.001 then
 		return
 	end
-	local velocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
-	if velocity.Magnitude < MIN_REPORT_SPEED then
+	predictedLaunchDirection = planarDirection.Unit
+	predictedLaunchStartedAt = startedAt
+	predictedLaunchScanEndsAt = math.max(predictedLaunchScanEndsAt, startedAt + PREDICTED_LAUNCH_SCAN_SECONDS)
+	serverConfirmedLaunch = false
+end
+
+local function syncPredictedLaunchAttributes()
+	local startedAt = player:GetAttribute("PredictedLaunchStartedAt")
+	local direction = player:GetAttribute("PredictedLaunchDirection")
+	if typeof(startedAt) ~= "number" or typeof(direction) ~= "Vector3" then
 		return
 	end
-	predictedLaunchDirection = velocity.Unit
-	predictedLaunchScanEndsAt = os.clock() + EXISTING_VELOCITY_SCAN_SECONDS
+	if startedAt <= predictedLaunchStartedAt then
+		return
+	end
+	startPredictedLaunchScan(direction, startedAt)
+end
+
+local function rollbackUnconfirmedPredictionIfExpired()
+	if serverConfirmedLaunch or predictedLaunchStartedAt <= 0 then
+		return
+	end
+	if os.clock() - predictedLaunchStartedAt >= PREDICTED_LAUNCH_CONFIRM_TIMEOUT_SECONDS then
+		rollbackPredictedLaunch()
+	end
 end
 
 local function ensureSweepDebugBall(name: string, color: Color3): Part
@@ -261,7 +302,7 @@ local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitT
 	local normal = (root.Position - hitbox.Position).Magnitude > 0.001
 		and (root.Position - hitbox.Position).Unit
 		or Vector3.new(0, 0, -1)
-		
+
 	print(`Reporting food hit: foodId={foodId}, hitType={hitType}, observedSpeed={reportSpeed}`)
 	reportFoodRemote:FireServer({
 		foodId = foodId,
@@ -352,6 +393,52 @@ end
 
 
 
+
+local function buildCollisionFilterParams(): (RaycastParams, OverlapParams)
+	local activeCharacter = getActiveCharacter()
+	local filterDescendants = if activeCharacter then { activeCharacter } else {}
+
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	raycastParams.FilterDescendantsInstances = filterDescendants
+	raycastParams.IgnoreWater = true
+
+	local overlapParams = OverlapParams.new()
+	overlapParams.FilterType = Enum.RaycastFilterType.Exclude
+	overlapParams.FilterDescendantsInstances = filterDescendants
+	overlapParams.RespectCanCollide = false
+
+	return raycastParams, overlapParams
+end
+
+local function approximateOverlapNormal(castStart: Vector3, part: BasePart, fallbackDirection: Vector3): Vector3
+	local offset = castStart - part.Position
+	local planarOffset = Vector3.new(offset.X, 0, offset.Z)
+	if planarOffset.Magnitude >= 0.001 then
+		return planarOffset.Unit
+	end
+	return -fallbackDirection
+end
+
+local function processLaunchHit(part: Instance, root: BasePart, hitType: string, observedSpeed: number, surfaceNormal: Vector3?): boolean
+	local food = getFoodModelFromPart(part)
+	if food then
+		local hitbox = food:FindFirstChild("Hitbox")
+		if hitbox and hitbox:IsA("BasePart") then
+			reportFoodHit(food, hitbox, root, hitType, observedSpeed)
+			return true
+		end
+	end
+
+	local targetPlayer = getPlayerFromHit(part)
+	if targetPlayer then
+		reportPlayerHit(targetPlayer, root, observedSpeed, surfaceNormal)
+		return true
+	end
+
+	return false
+end
+
 local function sphereCastLaunching(root: BasePart, dt: number, previousPosition: Vector3?)
     local currentPos = root.Position
     local castStart = previousPosition or currentPos
@@ -362,16 +449,16 @@ local function sphereCastLaunching(root: BasePart, dt: number, previousPosition:
     -- 1. TÍNH QUÃNG ĐƯỜNG THỰC TẾ GIỮA 2 FRAME (CỐT LÕI CỦA CCD)
     local motion = currentPos - castStart
     local planarMotion = Vector3.new(motion.X, 0, motion.Z)
-    
+
     local castVector: Vector3
-    
+
     -- 2. XÁC ĐỊNH HƯỚNG VÀ ĐỘ DÀI TIA QUÉT
     if planarMotion.Magnitude >= 0.001 then
-        -- TRƯỜNG HỢP CHUẨN: Nhân vật có di chuyển. 
+        -- TRƯỜNG HỢP CHUẨN: Nhân vật có di chuyển.
         -- Quét chính xác quãng đường vừa nối từ frame trước đến frame này.
         castVector = planarMotion
     else
-        -- FALLBACK: Frame đầu tiên chưa có chuyển động rõ rệt, 
+        -- FALLBACK: Frame đầu tiên chưa có chuyển động rõ rệt,
         -- hoặc `previousPosition` bị nil. Lúc này mới dùng đến vận tốc để quét bù.
         if speed >= MIN_REPORT_SPEED then
             -- Quét một đoạn ngắn bằng quãng đường dự kiến đi được trong 1 frame (V * dt)
@@ -394,36 +481,23 @@ local function sphereCastLaunching(root: BasePart, dt: number, previousPosition:
     -- 3. CỘNG PADDING VÀ THỰC HIỆN SPHERECAST
     local castDistance = baseDistance + PhysicsConfig.Collision.SphereCastDistancePadding
     local radius = (math.max(root.Size.X, root.Size.Z) * 0.5) + PhysicsConfig.Collision.SphereCastRadiusPadding
-    
+
     setSweepDebugVisible(true, castStart, castStart + direction * castDistance, radius)
 
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    local activeCharacter = getActiveCharacter()
-    params.FilterDescendantsInstances = if activeCharacter then { activeCharacter } else {}
-    params.IgnoreWater = true
-    
-    -- Quét từ vị trí CUỐI CÙNG của frame trước, hướng tới vị trí HIỆN TẠI
-    local result = workspace:Spherecast(castStart, radius, direction * castDistance, params)
-    
-    if not result then
-        return
-    end
-    
-    local part = result.Instance
-    local food = getFoodModelFromPart(part)
-    if food then
-        local hitbox = food:FindFirstChild("Hitbox")
-        if hitbox and hitbox:IsA("BasePart") then
-            reportFoodHit(food, hitbox, root, "ClientLaunchSphereCast", observedSpeed)
+    local raycastParams, overlapParams = buildCollisionFilterParams()
+
+    -- Static overlap catches the case where castStart is already inside a target collider.
+    for _, overlapPart in ipairs(workspace:GetPartBoundsInRadius(castStart, radius, overlapParams)) do
+        if processLaunchHit(overlapPart, root, "ClientLaunchSphereOverlap", observedSpeed, approximateOverlapNormal(castStart, overlapPart, direction)) then
+            return
         end
-        return
     end
-    
-    local targetPlayer = getPlayerFromHit(part)
-    if targetPlayer then
-        reportPlayerHit(targetPlayer, root, observedSpeed, result.Normal)
-        return
+
+    -- Quét từ vị trí CUỐI CÙNG của frame trước, hướng tới vị trí HIỆN TẠI
+    local result = workspace:Spherecast(castStart, radius, direction * castDistance, raycastParams)
+
+    if result then
+        processLaunchHit(result.Instance, root, "ClientLaunchSphereCast", observedSpeed, result.Normal)
     end
 end
 
@@ -443,7 +517,8 @@ RunService.RenderStepped:Connect(function(dt)
 	end
 
 	local previousPosition = lastRootPosition
-	refreshExistingLaunchVelocity(root)
+	syncPredictedLaunchAttributes()
+	rollbackUnconfirmedPredictionIfExpired()
 	if isLaunchHitScanActive() then
 		sphereCastLaunching(root, dt, previousPosition)
 	else
@@ -462,10 +537,14 @@ clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, _initialSpee
 		return
 	end
 	predictedLaunchDirection = planarDirection.Unit
+	serverConfirmedLaunch = true
+	predictedLaunchStartedAt = 0
 	if typeof(launchId) == "string" then
 		activeLaunchId = launchId
 	end
 	predictedLaunchScanEndsAt = os.clock() + PREDICTED_LAUNCH_SCAN_SECONDS
+	player:SetAttribute("PredictedLaunchDirection", nil)
+	player:SetAttribute("PredictedLaunchStartedAt", nil)
 end)
 
 stateUpdateRemote.OnClientEvent:Connect(function(state)
@@ -481,10 +560,15 @@ stateUpdateRemote.OnClientEvent:Connect(function(state)
 			currentMovementState = movementState
 		end
 		if currentMovementState == GameStates.PlayerState.Launching then
-			predictedLaunchScanEndsAt = 0
+			serverConfirmedLaunch = true
+			predictedLaunchStartedAt = 0
+			player:SetAttribute("PredictedLaunchDirection", nil)
+			player:SetAttribute("PredictedLaunchStartedAt", nil)
 		elseif wasLaunching then
-			predictedLaunchScanEndsAt = 0
+			rollbackPredictedLaunch()
 			activeLaunchId = nil
+		elseif predictedLaunchStartedAt > 0 and os.clock() - predictedLaunchStartedAt >= PREDICTED_LAUNCH_CONFIRM_TIMEOUT_SECONDS then
+			rollbackPredictedLaunch()
 		end
 	end
 end)
