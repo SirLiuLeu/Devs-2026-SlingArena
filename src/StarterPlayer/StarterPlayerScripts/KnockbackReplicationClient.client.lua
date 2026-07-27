@@ -44,6 +44,7 @@ knockbackRemote.OnClientEvent:Connect(function(knockbackDirection: any, knockbac
 	end
 
 	local speed = math.max(0, knockbackSpeed)
+	print("[KnockbackReplication] Applying knockback with speed:", speed, "and direction:", planarDirection)
 	if speed <= 0 then
 		warn("[KnockbackReplication] Non-positive knockback speed, skipping")
 		return

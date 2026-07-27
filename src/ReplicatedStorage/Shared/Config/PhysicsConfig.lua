@@ -43,8 +43,8 @@ PhysicalProperties = {
 
 	Launch = {
 		DirectionDeadzone = 0.01,
-		SpeedMin = 15,
-		SpeedMax = 70,
+		SpeedMin = 20,
+		SpeedMax = 110,
 		InitialVelocityCap = 60,
 		EnergyMin = 18,
 		EnergyMax = 120,
