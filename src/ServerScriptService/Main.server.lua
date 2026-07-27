@@ -24,6 +24,7 @@ local LauncherService = requireSafe(ServicesFolder:WaitForChild("LauncherService
 local MapService = requireSafe(ServicesFolder:WaitForChild("MapService"), "MapService")
 local FoodService = requireSafe(ServicesFolder:WaitForChild("FoodService"), "FoodService")
 local CollisionService = requireSafe(ServicesFolder:WaitForChild("CollisionService"), "CollisionService")
+local HitCooldownDedupeService = requireSafe(ServicesFolder:WaitForChild("HitCooldownDedupeService"), "HitCooldownDedupeService")
 local DamagePipelineService = requireSafe(ServicesFolder:WaitForChild("DamagePipelineService"), "DamagePipelineService")
 local GrowthService = requireSafe(ServicesFolder:WaitForChild("GrowthService"), "GrowthService")
 local TrapService = requireSafe(ServicesFolder:WaitForChild("TrapService"), "TrapService")
@@ -102,6 +103,7 @@ local serviceConstructors = {
 	MapService = MapService,
 	FoodService = FoodService,
 	CollisionService = CollisionService,
+	HitCooldownDedupeService = HitCooldownDedupeService,
 	DamagePipelineService = DamagePipelineService,
 	GrowthService = GrowthService,
 	TrapService = TrapService,
@@ -139,6 +141,7 @@ local initializationOrder = {
 	"PlayerService",
 	"FoodService",
 	"LauncherService",
+	"HitCooldownDedupeService",
 	"CollisionService",
 	"DamagePipelineService",
 	"GrowthService",

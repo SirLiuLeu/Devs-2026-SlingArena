@@ -186,32 +186,32 @@ end
 function DamagePipelineService:ComputeCollisionDamage(attackerState: any, velocityMagnitude: number, collisionMeta: any?): number
 	local baseDamage = math.max(attackerState.BaseDamage or BalanceConfig.BaseDamage or 0, 0)
 	local speed = math.max(0, velocityMagnitude)
-	local energy = collisionMeta and math.max(0, collisionMeta.LaunchEnergy or 0) or 0
-	local elapsed = collisionMeta and math.max(0, collisionMeta.ElapsedLaunchTime or 0) or 0
+	local launcherMaxSpeed = math.max(
+		PhysicsConfig.Launch.SpeedMin,
+		collisionMeta and tonumber(collisionMeta.LauncherMaxSpeed) or 0,
+		attackerState.LaunchSpeed or PhysicsConfig.Launch.SpeedMin
+	)
+	local speedRange = math.max(launcherMaxSpeed - PhysicsConfig.Launch.SpeedMin, 1)
+	local speedRatio = math.clamp((speed - PhysicsConfig.Launch.SpeedMin) / speedRange, 0, 1)
+	local intensity = 1 + (speedRatio * PhysicsConfig.Damage.CollisionIntensityMultiplier)
 	local collisions = collisionMeta and math.max(0, collisionMeta.CollisionCount or 0) or 0
-	local earlyBonus = 1 / (1 + (elapsed * PhysicsConfig.Damage.LaunchTimeBias))
 	local chainPenalty = math.max(0.2, 1 - (collisions * PhysicsConfig.Damage.ChainDecayPerHit))
 	local initialImpactSpeed = collisionMeta and math.max(0, collisionMeta.InitialImpactSpeed or speed) or speed
 	local speedDecayRatio = if initialImpactSpeed > 0 then math.clamp(speed / initialImpactSpeed, 0.3, 1) else 0.3
-	local intensity = initialImpactSpeed / math.max(PhysicsConfig.Collision.RealHitMinClosingSpeed, 1)
+	local energy = collisionMeta and math.max(0, collisionMeta.LaunchEnergy or 0) or 0
 	local energyScalar = energy / math.max(PhysicsConfig.Launch.EnergyMax, 1)
-	local charge = collisionMeta and math.clamp(collisionMeta.ChargeRatio or 0, 0, 1) or 0
-	local chargeScalar = 0.75 + (0.25 * charge)
 	local angleFactor = collisionMeta and math.clamp(collisionMeta.AngleFactor or 1, 0, 1) or 1
 	local angleExponent = math.max(0, PhysicsConfig.Collision.CollisionAngleReductionExponent or 1)
 	local angleScalar = angleFactor ^ angleExponent
 	local damage = baseDamage
 		* (1 + energyScalar)
-		* chargeScalar
-		* earlyBonus
 		* chainPenalty
-		* (intensity * PhysicsConfig.Damage.CollisionIntensityMultiplier)
+		* intensity
 		* speedDecayRatio
 		* angleScalar
 		* PhysicsConfig.Damage.BaseMultiplier
 	return math.max(0, damage)
 end
-
 local function getSourceId(source: any?): string
 	if typeof(source) == "Instance" then
 		if source:IsA("Player") then

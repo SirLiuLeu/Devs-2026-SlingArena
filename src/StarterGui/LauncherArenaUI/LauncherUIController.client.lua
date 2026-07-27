@@ -608,6 +608,15 @@ local function updateHold(input: InputObject)
 	updateJoystickFromInput(input)
 end
 
+local function resolveClientLaunchSpeed(chargeRatio: number): number
+	local launcherMaxSpeed = PhysicsConfig.Launch.SpeedMax
+	if lastKnownServerState and typeof(lastKnownServerState.LaunchSpeed) == "number" then
+		launcherMaxSpeed = lastKnownServerState.LaunchSpeed
+	end
+	local speed = PhysicsConfig.Launch.SpeedMin + ((math.max(PhysicsConfig.Launch.SpeedMin, launcherMaxSpeed) - PhysicsConfig.Launch.SpeedMin) * math.clamp(chargeRatio, 0, 1))
+	return math.min(speed, PhysicsConfig.Launch.SpeedMax)
+end
+
 local function releaseHold(input: InputObject)
 	if not isHolding then
 		return
@@ -622,8 +631,14 @@ local function releaseHold(input: InputObject)
 	player:SetAttribute("PredictedLaunchDirection", currentChargeAimDirection)
 	player:SetAttribute("PredictedLaunchStartedAt", os.clock())
 	player:SetAttribute("LauncherAimDirection", nil)
+	local chargeRatio = math.clamp((os.clock() - chargeStartTime) / math.max(PhysicsConfig.Charge.MinWindowSeconds, PhysicsConfig.Charge.MaxSeconds), 0, 1)
+	local launchSpeed = resolveClientLaunchSpeed(chargeRatio)
 	requestLaunchRemote:FireServer({
 		aimTarget = currentChargeAimDirection,
+		launchDirection = currentChargeAimDirection,
+		launchSpeed = launchSpeed,
+		chargeRatio = chargeRatio,
+		clientTimestamp = os.clock(),
 	})
 
 	setVisibleSafe(cachedChargeBar, false)

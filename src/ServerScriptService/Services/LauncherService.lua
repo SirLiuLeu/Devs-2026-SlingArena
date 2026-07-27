@@ -467,7 +467,7 @@ function LauncherService:StartCharge(player: Player, aimDirection: Vector3)
 	self._context.EventBus:Fire("ChargeStarted", player)
 end
 
-function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3)
+function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3, clientLaunchSpeed: number?, clientLaunchDirection: Vector3?, clientChargeRatio: number?)
 	if not self:_canControl(player) then
 		return
 	end
@@ -487,7 +487,12 @@ function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3)
 	end
 
 	local launchDirectionPlanar = chargeState.aimDirection
-	if typeof(aimDirection) == "Vector3" then
+	if typeof(clientLaunchDirection) == "Vector3" then
+		local providedDirection = LauncherService.ResolveAimDirection(clientLaunchDirection)
+		if providedDirection.Magnitude >= PhysicsConfig.Launch.DirectionDeadzone then
+			launchDirectionPlanar = providedDirection
+		end
+	elseif typeof(aimDirection) == "Vector3" then
 		local providedDirection = LauncherService.ResolveAimDirection(aimDirection)
 		if providedDirection.Magnitude >= PhysicsConfig.Launch.DirectionDeadzone then
 			launchDirectionPlanar = providedDirection
@@ -496,9 +501,14 @@ function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3)
 	chargeState.aimDirection = launchDirectionPlanar
 
 	local now = os.clock()
-	local chargeRatio = LaunchMotionModel.ComputeChargeRatio(chargeState.chargeStartTime, now)
-	local launchSpeed = state.LaunchSpeed or PhysicsConfig.Launch.SpeedMax
-	local launchState = LaunchMotionModel.BuildState(launchDirectionPlanar, chargeRatio, now, player, launchSpeed)
+	local chargeRatio = if typeof(clientChargeRatio) == "number" then math.clamp(clientChargeRatio, 0, 1) else LaunchMotionModel.ComputeChargeRatio(chargeState.chargeStartTime, now)
+	local launcherMaxSpeed = state.LaunchSpeed or PhysicsConfig.Launch.SpeedMax
+	local launchState = LaunchMotionModel.BuildState(launchDirectionPlanar, chargeRatio, now, player, launcherMaxSpeed)
+	if typeof(clientLaunchSpeed) == "number" and clientLaunchSpeed > 0 then
+		launchState.initialSpeed = math.min(clientLaunchSpeed, PhysicsConfig.Launch.SpeedMax)
+		launchState.currentSpeed = launchState.initialSpeed
+	end
+	launchState.launcherMaxSpeed = launcherMaxSpeed
 	local launchId = HttpService:GenerateGUID(false)
 
 	launchState.launchId = launchId
@@ -550,14 +560,14 @@ function LauncherService:RequestLaunch(player: Player, payload: any)
 	if not RemoteContracts.Validate(RemoteContracts.Names.RequestLaunch, payload) then
 		return
 	end
-	self:_authorizeLaunch(player, payload.aimTarget)
+	self:_authorizeLaunch(player, payload.aimTarget, payload.launchSpeed, payload.launchDirection, payload.chargeRatio)
 end
 
 function LauncherService:ReleaseCharge(player: Player, aimDirection: Vector3)
 	if not RemoteContracts.Validate(RemoteContracts.Names.ReleaseCharge, aimDirection) then
 		return
 	end
-	self:_authorizeLaunch(player, aimDirection)
+	self:_authorizeLaunch(player, aimDirection, nil, nil, nil)
 end
 
 function LauncherService:HandleLaunchStopped(player: Player, payload: any)

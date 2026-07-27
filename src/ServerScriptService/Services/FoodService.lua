@@ -21,7 +21,6 @@ local GRID_CELL_SIZE = 48
 local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
 local MAX_ALLOWED_SPEED = PhysicsConfig.Collision.MaxAllowedSpeed
-local SAME_TARGET_FOOD_DEDUPE_SECONDS = 0.28
 local DEBUG_FOOD_HIT_REJECTS = false
 local SPAWN_POSITION_RETRY_LIMIT = 30
 
@@ -664,12 +663,7 @@ function FoodService:_validateFoodHit(player: Player, entry: any, payload: any):
 		return false, "human_blocked_combat_food", { movementState = movementState }
 	end
 	if (not rule.Touch) and entry.MaxHP > 0 then
-		local launcherService = getService(self._context, "LauncherService")
-		local validLaunch = false
-		if launcherService then
-			validLaunch = launcherService:ValidateLaunchReport(player, payload)
-		end
-		if not validLaunch or movementState ~= GameStates.PlayerState.Launching then
+		if movementState ~= GameStates.PlayerState.Launching then
 			return false, "invalid_launch_state", { movementState = movementState, horizontalSpeed = horizontalSpeed }
 		end
 		if horizontalSpeed < PhysicsConfig.Collision.FoodHitMinHorizontalSpeed then
@@ -729,19 +723,12 @@ function FoodService:_resolveFoodCollisionVelocity(root: BasePart, hitbox: BaseP
 	})
 end
 
-function FoodService:_applyFoodCollisionVelocity(root: BasePart, hitbox: BasePart, payload: any, rule: any, launchState: any?)
+function FoodService:_applyFoodCollisionVelocity(root: BasePart, hitbox: BasePart, payload: any, rule: any, _launchState: any?)
 	if rule.Touch then
 		return
 	end
 	local resolved = self:_resolveFoodCollisionVelocity(root, hitbox, payload, rule)
 	root.AssemblyLinearVelocity = Vector3.new(resolved.X, root.AssemblyLinearVelocity.Y, resolved.Z)
-	if launchState then
-		launchState.direction = if resolved.Magnitude > MIN_SPEED_EPSILON then resolved.Unit else Vector3.zero
-		launchState.currentSpeed = resolved.Magnitude
-		launchState.initialSpeed = resolved.Magnitude
-		launchState.lastSampleTime = os.clock()
-		launchState.energy = math.max(0, (launchState.energy or 0) * (1 - PhysicsConfig.Collision.CollisionEnergyLossRatio))
-	end
 end
 
 function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player: Player?): boolean
@@ -776,9 +763,7 @@ function FoodService:_applyLauncherDamage(entry: any, player: Player, velocity: 
 	if not rule or entry.CurrentHP <= 0 then
 		return
 	end
-	local launcherService = getService(self._context, "LauncherService")
-	local launchState = launcherService and launcherService:GetLaunchState(player) or nil
-	local initialSpeed = launchState and math.max(launchState.initialSpeed or 0, launchState.currentSpeed or 0) or velocity
+	local initialSpeed = velocity
 	local initialDamage = math.clamp(initialSpeed, DAMAGE_MIN_VELOCITY, DAMAGE_MAX_VELOCITY) * DAMAGE_BASE
 	local speedRatio = if initialSpeed > 0 then math.clamp(velocity / initialSpeed, 0.3, 1) else 0.3
 	self:ApplyDamageToFood(entry, initialDamage * speedRatio, player)
@@ -832,25 +817,15 @@ function FoodService:Start()
 	remote.OnServerEvent:Connect(function(player, payload)
 		local now = os.clock()
 		local entry = (type(payload) == "table") and self._foodById[payload.foodId] or nil
-		local launcherService = getService(self._context, "LauncherService")
-		local launchState = launcherService and launcherService:GetLaunchState(player) or nil
-		local launchId = launchState and launchState.launchId or nil
+		local dedupeService = getService(self._context, "HitCooldownDedupeService")
 
 		if type(payload) ~= "table" then
 			self:_rejectFoodHit(player, "invalid_payload", payload, nil)
 			return
 		end
-		if launchId and entry and entry.Id then
-			self._foodHitByLaunchTarget[launchId] = self._foodHitByLaunchTarget[launchId] or {}
-			local lastHitAt = self._foodHitByLaunchTarget[launchId][entry.Id]
-			if lastHitAt and (now - lastHitAt) < SAME_TARGET_FOOD_DEDUPE_SECONDS then
-				self:_rejectFoodHit(player, "same_target_dedupe", payload, {
-					foodId = entry.Id,
-					age = now - lastHitAt,
-					dedupeSeconds = SAME_TARGET_FOOD_DEDUPE_SECONDS,
-				})
-				return
-			end
+		if entry and entry.Id and dedupeService and not dedupeService:TryAcquire("FoodHit", `{player.UserId}:{entry.Id}`, PhysicsConfig.Collision.Cooldown, now) then
+			self:_rejectFoodHit(player, "same_target_dedupe", payload, { foodId = entry.Id })
+			return
 		end
 
 		local valid, reason, details = self:_validateFoodHit(player, entry, payload)
@@ -867,11 +842,6 @@ function FoodService:Start()
 				})
 			end
 			return
-		end
-
-		if launchId and entry and entry.Id then
-			self._foodHitByLaunchTarget[launchId] = self._foodHitByLaunchTarget[launchId] or {}
-			self._foodHitByLaunchTarget[launchId][entry.Id] = now
 		end
 
 		local rule = FoodConfig.Foods[entry.FoodType]
@@ -893,19 +863,9 @@ function FoodService:Start()
 			local clientObservedSpeed = if typeof(payload.observedSpeed) == "number" then payload.observedSpeed else 0
 			local horizontalSpeed = math.max(serverHorizontalSpeed, clientObservedSpeed)
 
-			local targetKey = `Food:{entry.Id}`
-			local canDamage = launcherService and launcherService:RegisterLaunchDamageTarget(player, targetKey)
-			local canTransfer = launcherService and launcherService:RegisterLaunchKnockbackTarget(player, targetKey)
-			if canDamage then
-				self._context.EventBus:Fire("CollisionDetected", "Food", player, entry.Instance, { FoodId = entry.Id })
-				self:_applyLauncherDamage(entry, player, horizontalSpeed)
-			end
-			if canTransfer then
-				self:_applyFoodCollisionVelocity(root, hitbox, payload, rule, launchState)
-			end
-			if launchState then
-				launchState.collisions = (launchState.collisions or 0) + 1
-			end
+			self._context.EventBus:Fire("CollisionDetected", "Food", player, entry.Instance, { FoodId = entry.Id })
+			self:_applyLauncherDamage(entry, player, horizontalSpeed)
+			self:_applyFoodCollisionVelocity(root, hitbox, payload, rule, nil)
 		end
 	end)
 end

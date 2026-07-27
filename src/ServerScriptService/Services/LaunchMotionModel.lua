@@ -12,18 +12,27 @@ function LaunchMotionModel.ComputeChargeRatio(startedAt: number, now: number): n
 	return math.clamp(elapsed / chargeWindow, 0, 1)
 end
 
-function LaunchMotionModel.BuildState(direction: Vector3, chargeRatio: number, now: number, sourcePlayer: Player?, launchSpeed: number): any
+function LaunchMotionModel.ResolveLaunchSpeed(chargeRatio: number, launcherMaxSpeed: number): number
+	local safeRatio = math.clamp(chargeRatio, 0, 1)
+	local maxLauncherSpeed = math.max(PhysicsConfig.Launch.SpeedMin, launcherMaxSpeed)
+	local uncappedSpeed = PhysicsConfig.Launch.SpeedMin
+		+ ((maxLauncherSpeed - PhysicsConfig.Launch.SpeedMin) * safeRatio)
+	return math.min(uncappedSpeed, PhysicsConfig.Launch.SpeedMax)
+end
+
+function LaunchMotionModel.BuildState(direction: Vector3, chargeRatio: number, now: number, sourcePlayer: Player?, launcherMaxSpeed: number): any
 	local d = if direction.Magnitude > PhysicsConfig.Launch.DirectionDeadzone then direction.Unit else Vector3.new(0, 0, -1)
-	local speed = math.clamp(launchSpeed, PhysicsConfig.Launch.SpeedMin, PhysicsConfig.Launch.SpeedMax)
+	local safeChargeRatio = math.clamp(chargeRatio, 0, 1)
+	local speed = LaunchMotionModel.ResolveLaunchSpeed(safeChargeRatio, launcherMaxSpeed)
 	local energy = PhysicsConfig.Launch.EnergyMin
-		+ ((PhysicsConfig.Launch.EnergyMax - PhysicsConfig.Launch.EnergyMin) * chargeRatio)
+		+ ((PhysicsConfig.Launch.EnergyMax - PhysicsConfig.Launch.EnergyMin) * safeChargeRatio)
 	return {
 		direction = d,
 		initialSpeed = speed,
 		currentSpeed = speed,
 		energy = energy,
 		startTime = now,
-		chargeRatio = chargeRatio,
+		chargeRatio = safeChargeRatio,
 		collisions = 0,
 		sourcePlayer = sourcePlayer,
 	}

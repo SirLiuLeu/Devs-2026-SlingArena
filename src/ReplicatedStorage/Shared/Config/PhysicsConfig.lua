@@ -86,6 +86,7 @@ PhysicalProperties = {
 		SphereCastRadiusPadding = 0.75,
 		SphereCastDistancePadding = 2.5,
 		Cooldown = 0.28,
+		ClientReportCooldown = 0.28,
 		TrapCooldown = 0.25,
 		RealHitMinClosingSpeed = 5.5,
 

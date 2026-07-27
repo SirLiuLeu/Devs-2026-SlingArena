@@ -52,6 +52,9 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.RequestLaunch] = function(payload: any): boolean
 		return type(payload) == "table" and typeof(payload.aimTarget) == "Vector3"
+			and (payload.launchSpeed == nil or typeof(payload.launchSpeed) == "number")
+			and (payload.launchDirection == nil or typeof(payload.launchDirection) == "Vector3")
+			and (payload.clientTimestamp == nil or typeof(payload.clientTimestamp) == "number")
 	end,
 	[RemoteContracts.Names.AbilityTrigger] = function(payload: any): boolean
 		return type(payload) == "table"
@@ -106,6 +109,12 @@ RemoteContracts.Validators = {
 			return false
 		end
 		if payload.surfaceNormal ~= nil and typeof(payload.surfaceNormal) ~= "Vector3" then
+			return false
+		end
+		if payload.velocity ~= nil and typeof(payload.velocity) ~= "Vector3" then
+			return false
+		end
+		if payload.observedSpeed ~= nil and typeof(payload.observedSpeed) ~= "number" then
 			return false
 		end
 		return true

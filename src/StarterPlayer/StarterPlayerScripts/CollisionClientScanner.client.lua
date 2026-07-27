@@ -23,7 +23,7 @@ local clockSyncResponseRemote = ReplicatedStorage:WaitForChild("LauncherArenaRem
 local GRID_CELL_SIZE = 48
 local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local HIT_EPSILON = PhysicsConfig.Collision.Range
-local REPORT_COOLDOWN = 1
+local REPORT_COOLDOWN = PhysicsConfig.Collision.ClientReportCooldown or PhysicsConfig.Collision.Cooldown
 local MIN_REPORT_SPEED = PhysicsConfig.Collision.MinReportSpeed
 local PREDICTED_LAUNCH_SCAN_SECONDS = 0.35
 local PREDICTED_LAUNCH_CONFIRM_TIMEOUT_SECONDS = 0.25
@@ -96,7 +96,7 @@ local function isLaunchHitScanActive(): boolean
 	if currentMovementState == GameStates.PlayerState.Charging and not hasOptimisticRelease() then
 		return false
 	end
-	return isLaunching() or isPredictedLaunchScanActive()
+	return isLaunching()
 end
 
 local function rollbackPredictedLaunch()
@@ -115,7 +115,7 @@ local function startPredictedLaunchScan(direction: Vector3, startedAt: number)
 	end
 	predictedLaunchDirection = planarDirection.Unit
 	predictedLaunchStartedAt = startedAt
-	predictedLaunchScanEndsAt = math.max(predictedLaunchScanEndsAt, startedAt + PREDICTED_LAUNCH_SCAN_SECONDS)
+	predictedLaunchScanEndsAt = 0
 	serverConfirmedLaunch = false
 end
 
@@ -388,6 +388,8 @@ local function reportPlayerHit(targetPlayer: Player, root: BasePart, _observedSp
 		clientTimestamp = getSyncedServerTime(),
 		hitPosition = hitPosition,
 		surfaceNormal = sanitizedNormal,
+		velocity = attackerVelocity,
+		observedSpeed = attackerVelocity.Magnitude,
 	})
 end
 
