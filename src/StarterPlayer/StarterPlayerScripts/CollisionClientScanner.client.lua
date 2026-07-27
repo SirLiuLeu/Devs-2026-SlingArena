@@ -382,7 +382,7 @@ local function reportPlayerHit(targetPlayer: Player, root: BasePart, _observedSp
 	local sanitizedNormal = sanitizeSurfaceNormal(surfaceNormal, attackerVelocity)
 	local hitPosition = applyPredictedPlayerBounce(targetPlayer, root, sanitizedNormal)
 	triggerPredictedPlayerHitFeedback(targetPlayer, hitPosition)
-	print(`Reporting predicted player hit: targetUserId={targetPlayer.UserId}`)
+	print(`Reporting player hit: targetUserId={targetPlayer.UserId}, sanitizedNormal={sanitizedNormal}, speed={attackerVelocity.Magnitude}, hitPosition={hitPosition}`)
 	reportCollisionRemote:FireServer({
 		targetUserId = targetPlayer.UserId,
 		clientTimestamp = getSyncedServerTime(),

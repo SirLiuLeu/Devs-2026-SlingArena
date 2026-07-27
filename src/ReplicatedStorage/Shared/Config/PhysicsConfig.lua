@@ -3,12 +3,12 @@
 -- Shared physics tuning. Server is authoritative for collision/damage, while clients may
 -- read this module for prediction/UI so visible feel stays in sync with server physics.
 local PhysicsConfig = {
-	PhysicalProperties = {
+PhysicalProperties = {
 		Density = 0.7,
-		Friction = 0.3,
+		Friction = 0.1,
 		Elasticity = 0.5,
 		FrictionWeight = 1,
-		ElasticityWeight = 1,
+		ElasticityWeight = 3,
 	},
 
 	Movement = {
@@ -104,7 +104,7 @@ local PhysicsConfig = {
 		FoodRestitution = 0.55,
 		FoodTangentialDamping = 0.92,
 
-		MinTransferEnergy = 7,
+		MinTransferEnergy = 2,
 		MinPostCollisionSpeed = 1.25,
 		MaxPostCollisionSpeed = 125,
 	},
