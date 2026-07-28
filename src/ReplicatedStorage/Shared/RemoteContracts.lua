@@ -102,7 +102,13 @@ RemoteContracts.Validators = {
 		if typeof(payload.targetUserId) ~= "number" then
 			return false
 		end
-		if typeof(payload.clientTimestamp) ~= "number" then
+		if typeof(payload.timestamp) ~= "number" then
+			return false
+		end
+		if typeof(payload.launchId) ~= "string" or #payload.launchId == 0 then
+			return false
+		end
+		if typeof(payload.sweepStart) ~= "Vector3" or typeof(payload.sweepEnd) ~= "Vector3" then
 			return false
 		end
 		if typeof(payload.hitPosition) ~= "Vector3" then

@@ -293,6 +293,14 @@ function LauncherService:ValidateLaunchReport(player: Player, payload: any): (bo
 	if not state or state.MovementState ~= "Launching" then
 		return false, nil, "not_launching"
 	end
+	local timestamp = if typeof(payload.timestamp) == "number" then payload.timestamp else nil
+	if not timestamp then
+		return false, nil, "missing_timestamp"
+	end
+	local now = os.clock()
+	if timestamp > now + PhysicsConfig.LagCompensation.FutureToleranceSeconds or now - timestamp > PhysicsConfig.LagCompensation.MaxAcceptedLatencySeconds then
+		return false, nil, "timestamp_out_of_window"
+	end
 	local observedSpeed = if typeof(payload.observedSpeed) == "number" then payload.observedSpeed else 0
 	local reportedVelocity = if typeof(payload.velocity) == "Vector3" then payload.velocity else Vector3.zero
 	local reportedSpeed = math.max(Vector3.new(reportedVelocity.X, 0, reportedVelocity.Z).Magnitude, observedSpeed)
@@ -313,7 +321,7 @@ function LauncherService:RegisterLaunchDamageTarget(player: Player, targetKey: s
 	end
 	launchState.damageTargets = launchState.damageTargets or {}
 	if launchState.damageTargets[targetKey] then
-		return true
+		return false
 	end
 	if (launchState.damageTargetCount or 0) >= PhysicsConfig.Launch.MaxDamageTargetsPerLaunch then
 		return false
@@ -330,7 +338,7 @@ function LauncherService:RegisterLaunchKnockbackTarget(player: Player, targetKey
 	end
 	launchState.knockbackTargets = launchState.knockbackTargets or {}
 	if launchState.knockbackTargets[targetKey] then
-		return true
+		return false
 	end
 	if (launchState.knockbackTargetCount or 0) >= PhysicsConfig.Launch.MaxKnockbackTargetsPerLaunch then
 		return false
@@ -399,8 +407,8 @@ function LauncherService:HandleMoveRequest(player: Player, moveInput: Vector3, _
 	end
 
 	local now = os.clock()
-	local lastEventAt = self._moveRateState[player]
-	if lastEventAt and (now - lastEventAt) < PhysicsConfig.Movement.MoveRequestCooldown then
+	local rateLimiter = getService(self._context, "RateLimiter")
+	if rateLimiter and not rateLimiter:Allow(RemoteContracts.Names.MoveRequest, tostring(player.UserId), 1, now) then
 		return
 	end
 
@@ -629,16 +637,6 @@ end
 
 function LauncherService:_getMovementController(player: Player, root: BasePart)
 	if not self:_isLauncherMode(player) then
-		if not self._warnedHumanLauncherInterference[player] then
-			self._warnedHumanLauncherInterference[player] = true
-			print(string.format(
-				"[Human Debug] Unexpected LauncherMovement Creation Path: player=%s mode=%s root=%s constraints=%s",
-				player.Name,
-				tostring(player:GetAttribute("ActivePlayerMode")),
-				root:GetFullName(),
-				tostring(root:FindFirstChild("LauncherMovementAttachment") ~= nil or root:FindFirstChild("LinearVelocity") ~= nil)
-			))
-		end
 		return nil
 	end
 	local movementController = self._movementControllers[player]
@@ -665,18 +663,6 @@ end
 
 function LauncherService:_applyRootVelocity(player: Player, root: BasePart, input: Vector3, dt: number)
 	if not self:_isLauncherMode(player) then
-		if not self._warnedHumanLauncherInterference[player] then
-			self._warnedHumanLauncherInterference[player] = true
-			print(string.format(
-				"[Human Debug] Unexpected Launcher Velocity Path: player=%s mode=%s root=%s input=%s velocity=%s constraints=%s",
-				player.Name,
-				tostring(player:GetAttribute("ActivePlayerMode")),
-				root:GetFullName(),
-				tostring(input),
-				tostring(root.AssemblyLinearVelocity),
-				tostring(root:FindFirstChild("LauncherMovementAttachment") ~= nil or root:FindFirstChild("LinearVelocity") ~= nil)
-			))
-		end
 		self:ResetPlayerRuntime(player)
 		return
 	end

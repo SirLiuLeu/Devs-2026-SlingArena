@@ -199,13 +199,11 @@ function ShopUIController:RenderSnapshot(snapshot)
 				self:_applyIcon(slot, item.icon)
 				self:_hookBuyButton(slot, function()
 					local _, message = self._logicService:PurchaseItem(item.id, qty)
-					print("[SHOP_UI]", message)
 				end)
 
 				local infoButton = slot:FindFirstChild("InfoButton", true)
 				if infoButton and infoButton:IsA("GuiButton") then
 					table.insert(self._slotConnections, infoButton.MouseButton1Click:Connect(function()
-						print(string.format("[SHOP_UI] %s => %s", item.name, item.description or "No description"))
 					end))
 				end
 			end
@@ -224,7 +222,6 @@ function ShopUIController:RenderSnapshot(snapshot)
 			self:_applyIcon(slot, launcher.icon)
 			self:_hookBuyButton(slot, function()
 				local _, message = self._logicService:PurchaseLauncher(launcher.id)
-				print("[SHOP_UI]", message)
 			end)
 		end
 	end
@@ -245,7 +242,6 @@ function ShopUIController:RenderSnapshot(snapshot)
 			self:_applyIcon(slot, pack.icon)
 			self:_hookBuyButton(slot, function()
 				local _, message = self._logicService:PurchaseDinamondPack(pack.id)
-				print("[SHOP_UI]", message)
 			end)
 		end
 	end

@@ -14,17 +14,18 @@ local function requireSafe(moduleScript: Instance, moduleName: string)
 	return loaded
 end
 
-local EventBus = requireSafe(ServicesFolder:WaitForChild("EventBus"), "EventBus")
-local ServiceRegistry = requireSafe(ServicesFolder:WaitForChild("ServiceRegistry"), "ServiceRegistry")
+local EventBus = requireSafe(ServicesFolder:WaitForChild("Infrastructure"):WaitForChild("EventBus"), "EventBus")
+local ServiceRegistry = requireSafe(ServicesFolder:WaitForChild("Infrastructure"):WaitForChild("ServiceRegistry"), "ServiceRegistry")
+local RateLimiter = requireSafe(ServicesFolder:WaitForChild("Infrastructure"):WaitForChild("RateLimiter"), "RateLimiter")
 local PlayerStateService = requireSafe(ServicesFolder:WaitForChild("PlayerStateService"), "PlayerStateService")
 local FlagService = requireSafe(ServicesFolder:WaitForChild("FlagService"), "FlagService")
-local PlayerService = requireSafe(ServicesFolder:WaitForChild("PlayerService"), "PlayerService")
+local PlayerService = requireSafe(ServicesFolder:WaitForChild("PlayerService"):WaitForChild("PlayerService"), "PlayerService")
 local TeamService = requireSafe(ServicesFolder:WaitForChild("TeamService"), "TeamService")
-local LauncherService = requireSafe(ServicesFolder:WaitForChild("LauncherService"), "LauncherService")
+local LauncherService = requireSafe(ServicesFolder:WaitForChild("LauncherService"):WaitForChild("LauncherService"), "LauncherService")
 local MapService = requireSafe(ServicesFolder:WaitForChild("MapService"), "MapService")
 local FoodService = requireSafe(ServicesFolder:WaitForChild("FoodService"), "FoodService")
 local CollisionService = requireSafe(ServicesFolder:WaitForChild("CollisionService"), "CollisionService")
-local HitCooldownDedupeService = requireSafe(ServicesFolder:WaitForChild("HitCooldownDedupeService"), "HitCooldownDedupeService")
+local HitCooldownDedupe = requireSafe(ServicesFolder:WaitForChild("Helpers"):WaitForChild("HitCooldownDedupe"), "HitCooldownDedupe")
 local DamagePipelineService = requireSafe(ServicesFolder:WaitForChild("DamagePipelineService"), "DamagePipelineService")
 local GrowthService = requireSafe(ServicesFolder:WaitForChild("GrowthService"), "GrowthService")
 local TrapService = requireSafe(ServicesFolder:WaitForChild("TrapService"), "TrapService")
@@ -95,6 +96,7 @@ local function runServicePhase(serviceName: string, phase: "Init" | "Start")
 end
 
 local serviceConstructors = {
+	RateLimiter = RateLimiter,
 	PlayerStateService = PlayerStateService,
 	FlagService = FlagService,
 	TeamService = TeamService,
@@ -103,7 +105,7 @@ local serviceConstructors = {
 	MapService = MapService,
 	FoodService = FoodService,
 	CollisionService = CollisionService,
-	HitCooldownDedupeService = HitCooldownDedupeService,
+	HitCooldownDedupe = HitCooldownDedupe,
 	DamagePipelineService = DamagePipelineService,
 	GrowthService = GrowthService,
 	TrapService = TrapService,
@@ -134,6 +136,7 @@ for serviceName, constructor in pairs(serviceConstructors) do
 end
 
 local initializationOrder = {
+	"RateLimiter",
 	"PlayerStateService",
 	"FlagService",
 	"TeamService",
@@ -141,7 +144,7 @@ local initializationOrder = {
 	"PlayerService",
 	"FoodService",
 	"LauncherService",
-	"HitCooldownDedupeService",
+	"HitCooldownDedupe",
 	"CollisionService",
 	"DamagePipelineService",
 	"GrowthService",

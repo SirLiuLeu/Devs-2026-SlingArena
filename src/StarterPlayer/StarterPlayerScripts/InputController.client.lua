@@ -57,7 +57,6 @@ local function getPlayerControls(): any
 	if controls then
 		return controls
 	end
-	print("[InputController] Resolving native controls...")
 	local playerScripts = player:WaitForChild("PlayerScripts", PLAYER_MODULE_TIMEOUT_SECONDS)
 	if not playerScripts then
 		warn("[InputController] PlayerScripts missing; native controls could not be resolved")
@@ -66,20 +65,16 @@ local function getPlayerControls(): any
 
 	local playerModule = playerScripts:WaitForChild("PlayerModule", PLAYER_MODULE_TIMEOUT_SECONDS)
 	if not playerModule then
-		print("[InputController] PlayerModule missing; native controls could not be resolved")
 		warn("[InputController] PlayerModule missing; native controls could not be resolved")
 		return nil
 	end
-	print("3", playerModule)
 	local module = require(playerModule)
-	print("4", "module")
 	if type(module) ~= "table" or type(module.GetControls) ~= "function" then
 		warn("[InputController] PlayerModule did not expose GetControls")
 		return nil
 	end
 
 	controls = module:GetControls()
-	print("[InputController] Native controls resolved", controls)
 	return controls
 end
 
@@ -210,17 +205,6 @@ local function syncInputMode()
 		activateLauncherInput()
 	else
 		deactivateLauncherInput()
-		local character = player.Character
-		if character and not printedHumanAssignment then
-			printedHumanAssignment = true
-			print(string.format(
-				"[Human Debug] Client Human Assignment: playerCharacter=%s character=%s mode=%s launcherInputActive=%s",
-				tostring(character ~= nil),
-				character:GetFullName(),
-				tostring(player:GetAttribute("ActivePlayerMode")),
-				tostring(launcherInputActive)
-			))
-		end
 	end
 end
 
@@ -231,38 +215,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
 	if gameProcessed then
 		return
-	end
-	if not launcherInputActive and not printedHumanInput and keyboardState[input.KeyCode] ~= nil then
-		printedHumanInput = true
-		local character = player.Character
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		print(string.format(
-			"[Human Debug] Human Input Started: key=%s humanoid=%s walkSpeed=%s jumpPower=%s autoRotate=%s state=%s moveDirection=%s",
-			input.KeyCode.Name,
-			tostring(humanoid ~= nil),
-			tostring(humanoid and humanoid.WalkSpeed),
-			tostring(humanoid and humanoid.JumpPower),
-			tostring(humanoid and humanoid.AutoRotate),
-			tostring(humanoid and humanoid:GetState().Name),
-			tostring(humanoid and humanoid.MoveDirection)
-		))
-		task.delay(0.25, function()
-			if printedHumanPhysics then
-				return
-			end
-			printedHumanPhysics = true
-			local delayedCharacter = player.Character
-			local delayedHumanoid = delayedCharacter and delayedCharacter:FindFirstChildOfClass("Humanoid")
-			local root = delayedCharacter and delayedCharacter:FindFirstChild("HumanoidRootPart")
-			print(string.format(
-				"[Human Debug] First Human Movement Physics: characterParent=%s rootParent=%s rootAnchored=%s velocity=%s moveDirection=%s",
-				if delayedCharacter and delayedCharacter.Parent then delayedCharacter.Parent:GetFullName() else "nil",
-				if root and root.Parent then root.Parent:GetFullName() else "nil",
-				tostring(root and root:IsA("BasePart") and root.Anchored),
-				tostring(root and root:IsA("BasePart") and root.AssemblyLinearVelocity),
-				tostring(delayedHumanoid and delayedHumanoid.MoveDirection)
-			))
-		end)
 	end
 	if launcherInputActive and keyboardState[input.KeyCode] ~= nil then
 		keyboardState[input.KeyCode] = true

@@ -165,7 +165,6 @@ function DailyLoginUIController:RenderSnapshot(snapshot)
 				if claimButton and claimButton:IsA("GuiButton") then
 					table.insert(self._slotConnections, claimButton.MouseButton1Click:Connect(function()
 						local _, message = self._logicService:ClaimDay(reward.day)
-						print("[DAILY_LOGIN_UI]", message)
 					end))
 				end
 			end
@@ -180,7 +179,6 @@ function DailyLoginUIController:RenderSnapshot(snapshot)
 				if claimButton and claimButton:IsA("GuiButton") then
 					table.insert(self._slotConnections, claimButton.MouseButton1Click:Connect(function()
 						local _, message = self._logicService:ClaimDay(7)
-						print("[DAILY_LOGIN_UI]", message)
 					end))
 				end
 			end

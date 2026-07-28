@@ -141,7 +141,6 @@ function PathResolver.reportMissing(root: Instance, paths: { string }, options: 
 	end
 
 	if #missing == 0 then
-		print("[ProjectTreeSpec] Startup check complete. Missing instances: 0")
 	else
 		warn(string.format("[ProjectTreeSpec] Startup check complete. Missing instances: %d", #missing))
 		for _, path in ipairs(missing) do

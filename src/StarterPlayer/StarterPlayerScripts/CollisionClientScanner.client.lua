@@ -8,13 +8,11 @@ local player = Players.LocalPlayer
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameStates = require(Shared:WaitForChild("Constants"):WaitForChild("GameStates"))
 local PhysicsConfig = require(Shared:WaitForChild("Config"):WaitForChild("PhysicsConfig"))
-local CombatCollision = require(Shared:WaitForChild("Utils"):WaitForChild("CombatCollision"))
 local PawnLocator = require(Shared:WaitForChild("Utils"):WaitForChild("PawnLocator"))
 local stateUpdateRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("StateUpdate") :: RemoteEvent
 local reportFoodRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
 local reportCollisionRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportCollision") :: RemoteEvent
 local gameplayFeedbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("GameplayFeedback") :: RemoteEvent
-local applySelfBounceRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ApplySelfBounce") :: RemoteEvent
 local clientDoLaunchRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClientDoLaunch") :: RemoteEvent
 local clockSyncRequestRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClockSyncRequest") :: RemoteEvent
 local clockSyncResponseRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClockSyncResponse") :: RemoteEvent
@@ -24,8 +22,6 @@ local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local HIT_EPSILON = PhysicsConfig.Collision.Range
 local REPORT_COOLDOWN = PhysicsConfig.Collision.ClientReportCooldown or PhysicsConfig.Collision.Cooldown
 local MIN_REPORT_SPEED = PhysicsConfig.Collision.MinReportSpeed
-local PREDICTED_LAUNCH_SCAN_SECONDS = 0.35
-local PREDICTED_LAUNCH_CONFIRM_TIMEOUT_SECONDS = 0.25
 
 local lastHit: { [string]: number } = {}
 local currentMovementState = GameStates.PlayerState.Idle
@@ -35,7 +31,6 @@ local predictedLaunchDirection: Vector3? = nil
 local activeLaunchId: string? = nil
 local serverConfirmedLaunch = false
 local lastRootPosition: Vector3? = nil
-local selfBounceBlendToken = 0
 local serverClockOffset = 0
 local clockSyncSamples: { number } = {}
 local sweepDebugStart: Part? = nil
@@ -89,13 +84,7 @@ local function hasOptimisticRelease(): boolean
 end
 
 local function isLaunchHitScanActive(): boolean
-	-- Do not open scans from Charging based on residual velocity. The only pre-server
-	-- scan permitted while the replicated state is still Charging is the explicit
-	-- local release prediction written by LauncherUIController.releaseHold().
-	if currentMovementState == GameStates.PlayerState.Charging and not hasOptimisticRelease() then
-		return false
-	end
-	return isLaunching()
+	return isLaunching() and activeLaunchId ~= nil
 end
 
 local function rollbackPredictedLaunch()
@@ -133,9 +122,6 @@ end
 local function rollbackUnconfirmedPredictionIfExpired()
 	if serverConfirmedLaunch or predictedLaunchStartedAt <= 0 then
 		return
-	end
-	if os.clock() - predictedLaunchStartedAt >= PREDICTED_LAUNCH_CONFIRM_TIMEOUT_SECONDS then
-		rollbackPredictedLaunch()
 	end
 end
 
@@ -290,7 +276,6 @@ local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitT
 		and (root.Position - hitbox.Position).Unit
 		or Vector3.new(0, 0, -1)
 
-	print(`Reporting food hit: foodId={foodId}, hitType={hitType}, observedSpeed={reportSpeed}`)
 	reportFoodRemote:FireServer({
 		foodId = foodId,
 		launchId = activeLaunchId,
@@ -343,40 +328,29 @@ local function sanitizeSurfaceNormal(surfaceNormal: Vector3?, attackerVelocity: 
 	return normal
 end
 
-local function applyPredictedPlayerBounce(targetPlayer: Player, root: BasePart, surfaceNormal: Vector3?): Vector3
-	local targetRoot = getPlayerRoot(targetPlayer)
-	local attackerVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
-	local normal = sanitizeSurfaceNormal(surfaceNormal, attackerVelocity)
-	if not normal then
-		local offset = (targetRoot and targetRoot.Position or root.Position) - root.Position
-		local planar = Vector3.new(offset.X, 0, offset.Z)
-		normal = if planar.Magnitude > PhysicsConfig.Movement.InputDeadzone then planar.Unit else Vector3.new(1, 0, 0)
-	end
-	local defenderVelocity = if targetRoot then Vector3.new(targetRoot.AssemblyLinearVelocity.X, 0, targetRoot.AssemblyLinearVelocity.Z) else Vector3.zero
-	local predicted = CombatCollision.ResolveAttackerBounce(attackerVelocity, defenderVelocity, normal).AttackerVelocity
-	root.AssemblyLinearVelocity = Vector3.new(predicted.X, root.AssemblyLinearVelocity.Y, predicted.Z)
-	return if targetRoot then (root.Position + targetRoot.Position) * 0.5 else root.Position
-end
-
-local function reportPlayerHit(targetPlayer: Player, root: BasePart, _observedSpeed: number?, surfaceNormal: Vector3?)
-	local now = os.clock()
-	local cooldownKey = `Player:{targetPlayer.UserId}`
-	if (lastHit[cooldownKey] or 0) > now then
+local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpeed: number?, surfaceNormal: Vector3?, sweepStart: Vector3, sweepEnd: Vector3, hitPosition: Vector3)
+	if not activeLaunchId then
 		return
 	end
-	lastHit[cooldownKey] = now + REPORT_COOLDOWN
+	local cooldownKey = `Player:{activeLaunchId}:{targetPlayer.UserId}`
+	if lastHit[cooldownKey] then
+		return
+	end
+	lastHit[cooldownKey] = math.huge
 	local attackerVelocity = root.AssemblyLinearVelocity
 	local sanitizedNormal = sanitizeSurfaceNormal(surfaceNormal, attackerVelocity)
-	local hitPosition = applyPredictedPlayerBounce(targetPlayer, root, sanitizedNormal)
 	triggerPredictedPlayerHitFeedback(targetPlayer, hitPosition)
-	print(`Reporting player hit: targetUserId={targetPlayer.UserId}, sanitizedNormal={sanitizedNormal}, speed={attackerVelocity.Magnitude}, hitPosition={hitPosition}`)
+	print(`[Report Hit] launchId={activeLaunchId} targetUserId={targetPlayer.UserId}`)
 	reportCollisionRemote:FireServer({
 		targetUserId = targetPlayer.UserId,
-		clientTimestamp = getSyncedServerTime(),
+		launchId = activeLaunchId,
+		timestamp = getSyncedServerTime(),
+		sweepStart = sweepStart,
+		sweepEnd = sweepEnd,
 		hitPosition = hitPosition,
 		surfaceNormal = sanitizedNormal,
 		velocity = attackerVelocity,
-		observedSpeed = attackerVelocity.Magnitude,
+		observedSpeed = observedSpeed or attackerVelocity.Magnitude,
 	})
 end
 
@@ -409,7 +383,7 @@ local function approximateOverlapNormal(castStart: Vector3, part: BasePart, fall
 	return -fallbackDirection
 end
 
-local function processLaunchHit(part: Instance, root: BasePart, hitType: string, observedSpeed: number, surfaceNormal: Vector3?): boolean
+local function processLaunchHit(part: Instance, root: BasePart, hitType: string, observedSpeed: number, surfaceNormal: Vector3?, sweepStart: Vector3, sweepEnd: Vector3, hitPosition: Vector3): boolean
 	local food = getFoodModelFromPart(part)
 	if food then
 		local hitbox = food:FindFirstChild("Hitbox")
@@ -421,7 +395,7 @@ local function processLaunchHit(part: Instance, root: BasePart, hitType: string,
 
 	local targetPlayer = getPlayerFromHit(part)
 	if targetPlayer then
-		reportPlayerHit(targetPlayer, root, observedSpeed, surfaceNormal)
+		reportPlayerHit(targetPlayer, root, observedSpeed, surfaceNormal, sweepStart, sweepEnd, hitPosition)
 		return true
 	end
 
@@ -477,7 +451,7 @@ local function sphereCastLaunching(root: BasePart, dt: number, previousPosition:
 
     -- Static overlap catches the case where castStart is already inside a target collider.
     for _, overlapPart in ipairs(workspace:GetPartBoundsInRadius(castStart, radius, overlapParams)) do
-        if processLaunchHit(overlapPart, root, "ClientLaunchSphereOverlap", observedSpeed, approximateOverlapNormal(castStart, overlapPart, direction)) then
+        if processLaunchHit(overlapPart, root, "ClientLaunchSphereOverlap", observedSpeed, approximateOverlapNormal(castStart, overlapPart, direction), castStart, currentPos, overlapPart.Position) then
             return
         end
     end
@@ -486,7 +460,7 @@ local function sphereCastLaunching(root: BasePart, dt: number, previousPosition:
     local result = workspace:Spherecast(castStart, radius, direction * castDistance, raycastParams)
 
     if result then
-        processLaunchHit(result.Instance, root, "ClientLaunchSphereCast", observedSpeed, result.Normal)
+        processLaunchHit(result.Instance, root, "ClientLaunchSphereCast", observedSpeed, result.Normal, castStart, currentPos, result.Position)
     end
 end
 
@@ -531,7 +505,7 @@ clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, _initialSpee
 	if typeof(launchId) == "string" then
 		activeLaunchId = launchId
 	end
-	predictedLaunchScanEndsAt = os.clock() + PREDICTED_LAUNCH_SCAN_SECONDS
+	predictedLaunchScanEndsAt = math.huge
 	player:SetAttribute("PredictedLaunchDirection", nil)
 	player:SetAttribute("PredictedLaunchStartedAt", nil)
 end)
@@ -556,8 +530,6 @@ stateUpdateRemote.OnClientEvent:Connect(function(state)
 		elseif wasLaunching then
 			rollbackPredictedLaunch()
 			activeLaunchId = nil
-		elseif predictedLaunchStartedAt > 0 and os.clock() - predictedLaunchStartedAt >= PREDICTED_LAUNCH_CONFIRM_TIMEOUT_SECONDS then
-			rollbackPredictedLaunch()
 		end
 	end
 end)
@@ -567,47 +539,4 @@ gameplayFeedbackRemote.OnClientEvent:Connect(function(message)
 		return
 	end
 	-- Server rejection is authoritative, but no heavy client correction is attempted.
-end)
-
-local function disableLaunchLinearVelocity(root: BasePart)
-	local linearVelocity = root:FindFirstChild("LinearVelocity")
-	if linearVelocity and linearVelocity:IsA("LinearVelocity") then
-		linearVelocity.Enabled = false
-	end
-end
-
-applySelfBounceRemote.OnClientEvent:Connect(function(correctedVelocity: any, correctedPosition: any)
-	if typeof(correctedVelocity) ~= "Vector3" then
-		return
-	end
-	local root = getRoot()
-	if not root then
-		return
-	end
-	selfBounceBlendToken += 1
-	local token = selfBounceBlendToken
-	local blendDuration = 0.125
-	local elapsed = 0
-	disableLaunchLinearVelocity(root)
-	if typeof(correctedPosition) == "Vector3" then
-		root.CFrame = CFrame.new(correctedPosition) * root.CFrame.Rotation
-	end
-	local startVelocity = root.AssemblyLinearVelocity
-	local connection: RBXScriptConnection? = nil
-	connection = RunService.Heartbeat:Connect(function(dt)
-		if token ~= selfBounceBlendToken or not root.Parent then
-			if connection then
-				connection:Disconnect()
-			end
-			return
-		end
-		elapsed += dt
-		local alpha = math.clamp(elapsed / blendDuration, 0, 1)
-		local blended = startVelocity:Lerp(Vector3.new(correctedVelocity.X, startVelocity.Y, correctedVelocity.Z), alpha)
-		disableLaunchLinearVelocity(root)
-		root.AssemblyLinearVelocity = blended
-		if alpha >= 1 and connection then
-			connection:Disconnect()
-		end
-	end)
 end)

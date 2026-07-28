@@ -80,19 +80,22 @@ function CollisionValidation.ValidateAttackerTarget(context: Context, attacker: 
 	local targetPart = target.Part
 	local playerRadius = math.max(root.Size.X, root.Size.Z) * 0.5
 	local targetRadius = math.max(targetPart.Size.X, targetPart.Size.Z) * 0.5 + (target.RadiusPadding or 0)
-	local pingSec = (attacker:GetNetworkPing() or 0) * 0.5
-	local allowedDistance = playerRadius + targetRadius + (speed * pingSec) + PhysicsConfig.Collision.ValidationTolerance
 	local currPos = root.Position
-	local reportPos = if typeof(payload.currPos) == "Vector3" then payload.currPos else currPos
-	local currDistance = (CombatCollision.FlattenXZ(currPos) - CombatCollision.FlattenXZ(targetPart.Position)).Magnitude
-	local reportDistance = (CombatCollision.FlattenXZ(reportPos) - CombatCollision.FlattenXZ(targetPart.Position)).Magnitude
-	if currDistance > allowedDistance and reportDistance > allowedDistance then
-		return fail("distance_out_of_bounds", { currentDistance = currDistance, reportedDistance = reportDistance, allowedDistance = allowedDistance })
+	local sweepStart = if typeof(payload.sweepStart) == "Vector3" then payload.sweepStart else (if typeof(payload.currPos) == "Vector3" then payload.currPos else currPos)
+	local sweepEnd = if typeof(payload.sweepEnd) == "Vector3" then payload.sweepEnd else currPos
+	local segment = CombatCollision.FlattenXZ(sweepEnd) - CombatCollision.FlattenXZ(sweepStart)
+	local targetOffset = CombatCollision.FlattenXZ(targetPart.Position) - CombatCollision.FlattenXZ(sweepStart)
+	local alpha = if segment.Magnitude > 0.001 then math.clamp(targetOffset:Dot(segment) / segment:Dot(segment), 0, 1) else 0
+	local closest = CombatCollision.FlattenXZ(sweepStart) + segment * alpha
+	local sweepDistance = (closest - CombatCollision.FlattenXZ(targetPart.Position)).Magnitude
+	local allowedSweepDistance = playerRadius + targetRadius + PhysicsConfig.Collision.ValidationTolerance
+	if sweepDistance > allowedSweepDistance then
+		return fail("sweep_misses_hitbox", { sweepDistance = sweepDistance, allowedSweepDistance = allowedSweepDistance })
 	end
-	local currentY = math.abs(currPos.Y - targetPart.Position.Y)
-	local reportedY = math.abs(reportPos.Y - targetPart.Position.Y)
-	if currentY > PhysicsConfig.Collision.YTolerance and reportedY > PhysicsConfig.Collision.YTolerance then
-		return fail("y_tolerance_failure", { currentYDelta = currentY, reportedYDelta = reportedY })
+	local minSweepY = math.min(sweepStart.Y, sweepEnd.Y) - PhysicsConfig.Collision.YTolerance
+	local maxSweepY = math.max(sweepStart.Y, sweepEnd.Y) + PhysicsConfig.Collision.YTolerance
+	if targetPart.Position.Y < minSweepY or targetPart.Position.Y > maxSweepY then
+		return fail("sweep_y_tolerance_failure", { targetY = targetPart.Position.Y, minSweepY = minSweepY, maxSweepY = maxSweepY })
 	end
 	local normal = if typeof(payload.surfaceNormal) == "Vector3" then CombatCollision.SafeUnit(payload.surfaceNormal, root.Position - targetPart.Position) else CombatCollision.ResolvePlanarNormal(root.Position, targetPart.Position, reportVelocity)
 	if reportVelocity.Magnitude > PhysicsConfig.Movement.InputDeadzone and reportVelocity:Dot(normal) < 0 then

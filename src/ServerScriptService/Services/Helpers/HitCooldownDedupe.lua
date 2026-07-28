@@ -1,18 +1,18 @@
 --!strict
 
-local HitCooldownDedupeService = {}
-HitCooldownDedupeService.__index = HitCooldownDedupeService
+local HitCooldownDedupe = {}
+HitCooldownDedupe.__index = HitCooldownDedupe
 
-function HitCooldownDedupeService.new(_context: any)
-	local self = setmetatable({}, HitCooldownDedupeService)
+function HitCooldownDedupe.new(_context: any)
+	local self = setmetatable({}, HitCooldownDedupe)
 	self._expiresAt = {} :: { [string]: number }
 	return self
 end
 
-function HitCooldownDedupeService:Init() end
-function HitCooldownDedupeService:Start() end
+function HitCooldownDedupe:Init() end
+function HitCooldownDedupe:Start() end
 
-function HitCooldownDedupeService:TryAcquire(scope: string, key: string, cooldownSeconds: number, now: number?): boolean
+function HitCooldownDedupe:TryAcquire(scope: string, key: string, cooldownSeconds: number, now: number?): boolean
 	if type(scope) ~= "string" or scope == "" or type(key) ~= "string" or key == "" then
 		return false
 	end
@@ -26,7 +26,7 @@ function HitCooldownDedupeService:TryAcquire(scope: string, key: string, cooldow
 	return true
 end
 
-function HitCooldownDedupeService:ClearScope(scopePrefix: string)
+function HitCooldownDedupe:ClearScope(scopePrefix: string)
 	local prefix = `{scopePrefix}:`
 	for key in pairs(self._expiresAt) do
 		if string.sub(key, 1, #prefix) == prefix then
@@ -35,4 +35,4 @@ function HitCooldownDedupeService:ClearScope(scopePrefix: string)
 	end
 end
 
-return HitCooldownDedupeService
+return HitCooldownDedupe

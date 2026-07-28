@@ -39,8 +39,7 @@ local function playerName(player: Player?): string
 	return player and player.Name or "nil"
 end
 
-local function applyDamageLog(message: string)
-	print(`[ApplyDamage] {message}`)
+local function applyDamageLog(_message: string)
 end
 
 function PlayerStateService.new(context: Context)

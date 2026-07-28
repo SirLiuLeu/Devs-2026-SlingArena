@@ -7,7 +7,7 @@ local Workspace = game:GetService("Workspace")
 local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local CombatCollision = require(ReplicatedStorage.Shared.Utils.CombatCollision)
-local CollisionValidation = require(script.Parent.CollisionValidation)
+local CollisionValidation = require(script.Parent.Helpers.CollisionValidation)
 
 local FOOD_UI_TEMPLATE_PATH = { "Assets", "UI", "FoodWorldUI" }
 local FOOD_HIT_RADIUS_PADDING = PhysicsConfig.Collision.Range
@@ -636,11 +636,15 @@ function FoodService:_applyFoodCollisionVelocity(player: Player, root: BasePart,
 		return
 	end
 	local resolved = self:_resolveFoodCollisionVelocity(root, hitbox, payload, rule)
-	local selfBounceRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ApplySelfBounce)
-	if selfBounceRemote and selfBounceRemote:IsA("RemoteEvent") then
-		local normal = self:_computeCollisionNormal(root.Position, hitbox.Position, resolved)
-		selfBounceRemote:FireClient(player, resolved, CombatCollision.ComputeDepenetratedPosition(root, hitbox, normal, FOOD_HIT_RADIUS_PADDING))
-	end
+	local normal = self:_computeCollisionNormal(root.Position, hitbox.Position, resolved)
+	root:SetNetworkOwner(nil)
+	root.AssemblyLinearVelocity = Vector3.new(resolved.X, root.AssemblyLinearVelocity.Y, resolved.Z)
+	root.CFrame = CFrame.new(CombatCollision.ComputeDepenetratedPosition(root, hitbox, normal, FOOD_HIT_RADIUS_PADDING)) * root.CFrame.Rotation
+	task.delay(0.1, function()
+		if root.Parent then
+			root:SetNetworkOwner(player)
+		end
+	end)
 end
 
 function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player: Player?): boolean
@@ -744,8 +748,13 @@ function FoodService:Start()
 	end
 	remote.OnServerEvent:Connect(function(player, payload)
 		local now = os.clock()
+		local rateLimiter = getService(self._context, "RateLimiter")
+		if rateLimiter and not rateLimiter:Allow(RemoteContracts.Names.ReportFoodHit, tostring(player.UserId), 1, now) then
+			self:_rejectFoodHit(player, "rate_limited", payload, nil)
+			return
+		end
 		local entry = (type(payload) == "table") and self._foodById[payload.foodId] or nil
-		local dedupeService = getService(self._context, "HitCooldownDedupeService")
+		local dedupeService = getService(self._context, "HitCooldownDedupe")
 
 		if type(payload) ~= "table" then
 			self:_rejectFoodHit(player, "invalid_payload", payload, nil)

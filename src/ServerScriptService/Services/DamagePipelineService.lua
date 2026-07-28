@@ -84,8 +84,7 @@ local function playerName(player: Player?): string
 	return player and player.Name or "nil"
 end
 
-local function damageLog(message: string)
-	print(`[DamagePipeline] {message}`)
+local function damageLog(_message: string)
 end
 
 -- Combat damage is allowed in active round phases; safe-zone and trap damage bypass this check.

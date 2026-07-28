@@ -89,6 +89,5 @@ clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, launchSpeed:
 	local currentVelocity = root.AssemblyLinearVelocity
 	root.AssemblyLinearVelocity = Vector3.new(0, currentVelocity.Y, 0)
 	root:ApplyImpulse(launchDirection.Unit * launchSpeed * root.AssemblyMass)
-	print("Client applied launch impulse:", launchDirection , launchSpeed , root.AssemblyMass)
-	startStopMonitor(launchId)
+		startStopMonitor(launchId)
 end)

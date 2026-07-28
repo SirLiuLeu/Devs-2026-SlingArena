@@ -12,7 +12,7 @@ local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local StatusEffectVfx = require(ReplicatedStorage.Shared.Utils.StatusEffectVfx)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
-local LauncherAnimationController = require(script.Parent.LauncherAnimationController)
+local LauncherAnimationController = require(script.Parent.AnimationController)
 
 local EQUIPPED_LAUNCHER_MODEL_NAME = "EquippedLauncherModel"
 local TYPO_EQUIPPED_LAUNCHER_MODEL_NAME = "EquipedLauncherModel"
