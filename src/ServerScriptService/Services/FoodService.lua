@@ -6,32 +6,19 @@ local Workspace = game:GetService("Workspace")
 
 local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
-local CollisionResponse = require(ReplicatedStorage.Shared.Utils.CollisionResponse)
+local CombatCollision = require(ReplicatedStorage.Shared.Utils.CombatCollision)
+local CollisionValidation = require(script.Parent.CollisionValidation)
 
-local CONSUME_COOLDOWN = 0.12
-local DEFAULT_HIT_COOLDOWN = 0.18
 local FOOD_UI_TEMPLATE_PATH = { "Assets", "UI", "FoodWorldUI" }
-local DAMAGE_MIN_VELOCITY = 20
-local DAMAGE_MAX_VELOCITY = 170
-local DAMAGE_BASE = 100
 local FOOD_HIT_RADIUS_PADDING = PhysicsConfig.Collision.Range
 local NORMAL_EPSILON = 1e-5
 local MIN_SPEED_EPSILON = 1e-3
 local GRID_CELL_SIZE = 48
-local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
-local MAX_ALLOWED_SPEED = PhysicsConfig.Collision.MaxAllowedSpeed
 local DEBUG_FOOD_HIT_REJECTS = false
 local SPAWN_POSITION_RETRY_LIMIT = 30
 
-local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
-local COMMON_ALLOWED_STATES = {
-	[GameStates.PlayerState.Launching] = true,
-	[GameStates.PlayerState.Moving] = true,
-	[GameStates.PlayerState.Idle] = true,
-	[GameStates.PlayerState.Human] = true,
-}
 
 local function buildRequiredFoodModels(): { [string]: boolean }
 	local required = {}
@@ -522,15 +509,6 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 	end
 end
 
-function FoodService:_isPlayerAlive(player: Player): boolean
-	local stateService = getService(self._context, "PlayerStateService")
-	if not stateService then
-		return true
-	end
-	local state = stateService:GetState(player)
-	return state ~= nil and state.IsAlive == true
-end
-
 function FoodService:_rewardFoodKill(entry: any)
 	local player = entry.LastHitBy
 	local rule = FoodConfig.Foods[entry.FoodType]
@@ -590,10 +568,6 @@ function FoodService:_consumeFood(entry: any, player: Player)
 	end
 end
 
-function FoodService:_computeEffectiveRadius(playerRadius: number, foodRadius: number, speed: number, ping: number): number
-	return playerRadius + foodRadius + (speed * ping) + VALIDATION_EPSILON
-end
-
 function FoodService:_rejectFoodHit(player: Player, reason: string, payload: any, details: { [string]: any }?)
 	if not DEBUG_FOOD_HIT_REJECTS then
 		return
@@ -612,123 +586,61 @@ function FoodService:_rejectFoodHit(player: Player, reason: string, payload: any
 	warn(`[FoodHitRejected] {table.concat(fields, " ")}`)
 end
 
-function FoodService:_validateFoodHit(player: Player, entry: any, payload: any): (boolean, string?, { [string]: any }?)
-	print("Validating food hit for player:", player.Name, "entry:", entry and entry.Id, "payload:", payload)
-	if type(payload) ~= "table" then
-		return false, "invalid_payload", nil
-	end
+function FoodService:_validateFoodHit(player: Player, entry: any, payload: any): (boolean, string?, { [string]: any }?, CollisionValidation.ValidationResult?)
 	if not entry then
-		return false, "missing_or_already_consumed_target", nil
+		return false, "missing_or_already_consumed_target", nil, nil
 	end
 	if not (entry.IsActive and not entry.IsConsumed and entry.Instance and entry.Instance.Parent) then
 		return false, "missing_or_already_consumed_target", {
 			isActive = entry.IsActive,
 			isConsumed = entry.IsConsumed,
-		}
+		}, nil
 	end
-	local playerService = getService(self._context, "PlayerService")
-	local root = playerService and playerService:GetRoot(player)
-	if not root then
-		return false, "missing_player_root", nil
+	local rule = FoodConfig.Foods[entry.FoodType]
+	if not rule then
+		return false, "missing_food_rule", { foodType = entry.FoodType }, nil
 	end
-	if not self:_isPlayerAlive(player) then
-		return false, "invalid_launch_state", { alive = false }
-	end
-
-	local serverSpeed = root.AssemblyLinearVelocity.Magnitude
-	local clientObservedSpeed = if typeof(payload.observedSpeed) == "number" then payload.observedSpeed else 0
-	local speed = math.max(serverSpeed, clientObservedSpeed)
-	if speed > MAX_ALLOWED_SPEED then
-		return false, "speed_above_max", { speed = speed, maxAllowed = MAX_ALLOWED_SPEED }
-	end
-
 	local hitbox = entry.Instance:FindFirstChild("Hitbox")
 	if not (hitbox and hitbox:IsA("BasePart")) then
-		return false, "missing_or_already_consumed_target", { missingHitbox = true }
+		return false, "missing_or_already_consumed_target", { missingHitbox = true }, nil
 	end
-	local stateService = getService(self._context, "PlayerStateService")
-	local state = stateService and stateService:GetState(player)
-	local rule = FoodConfig.Foods[entry.FoodType]
-	local movementState = state and state.MovementState
-	if not rule then
-		return false, "missing_food_rule", { foodType = entry.FoodType }
+	local validation = CollisionValidation.ValidateAttackerTarget(self._context, player, {
+		Kind = "Food",
+		Player = nil,
+		Part = hitbox,
+		RadiusPadding = FOOD_HIT_RADIUS_PADDING,
+		RequiresLaunching = (not rule.Touch) and entry.MaxHP > 0,
+		AllowTouchStates = rule.Touch == true,
+	}, payload)
+	if not validation.Ok then
+		return false, validation.Reason, validation.Details, validation
 	end
-	if not movementState then
-		return false, "invalid_launch_state", { movementState = "nil" }
-	end
-
-	local serverHorizontalSpeed = flattenXZ(root.AssemblyLinearVelocity).Magnitude
-	local horizontalSpeed = math.max(serverHorizontalSpeed, clientObservedSpeed)
-	if stateService and stateService:IsHuman(player) and (not rule.Touch or entry.MaxHP > 0) then
-		return false, "human_blocked_combat_food", { movementState = movementState }
-	end
-	if (not rule.Touch) and entry.MaxHP > 0 then
-		if movementState ~= GameStates.PlayerState.Launching then
-			return false, "invalid_launch_state", { movementState = movementState, horizontalSpeed = horizontalSpeed }
-		end
-		if horizontalSpeed < PhysicsConfig.Collision.FoodHitMinHorizontalSpeed then
-			return false, "speed_below_threshold", {
-				horizontalSpeed = horizontalSpeed,
-				minSpeed = PhysicsConfig.Collision.FoodHitMinHorizontalSpeed,
-			}
-		end
-	elseif not COMMON_ALLOWED_STATES[movementState] then
-		return false, "invalid_launch_state", { movementState = movementState }
-	end
-
-	local playerRadius = math.max(root.Size.X, root.Size.Z) * 0.5
-	local foodRadius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5 + FOOD_HIT_RADIUS_PADDING
-	local pingSec = (player:GetNetworkPing() or 0) * 0.5
-	local rEffective = self:_computeEffectiveRadius(playerRadius, foodRadius, speed, pingSec)
-	local currPos = root.Position
-	local reportPos = if typeof(payload.currPos) == "Vector3" then payload.currPos else currPos
-	local currDistanceSq = sqrDistanceXZ(currPos, hitbox.Position)
-	local reportDistanceSq = sqrDistanceXZ(reportPos, hitbox.Position)
-	local radiusSq = rEffective * rEffective
-	if not (currDistanceSq <= radiusSq or reportDistanceSq <= radiusSq) then
-		return false, "distance_out_of_bounds", {
-			currentDistance = math.sqrt(currDistanceSq),
-			reportedDistance = math.sqrt(reportDistanceSq),
-			allowedDistance = rEffective,
-		}
-	end
-	local currentYDelta = math.abs(currPos.Y - hitbox.Position.Y)
-	local reportedYDelta = math.abs(reportPos.Y - hitbox.Position.Y)
-	if currentYDelta > Y_TOLERANCE and reportedYDelta > Y_TOLERANCE then
-		return false, "y_tolerance_failure", {
-			currentYDelta = currentYDelta,
-			reportedYDelta = reportedYDelta,
-			allowedYDelta = Y_TOLERANCE,
-		}
-	end
-
-	return true, nil, nil
+	return true, nil, nil, validation
 end
 
 function FoodService:_resolveFoodCollisionVelocity(root: BasePart, hitbox: BasePart, payload: any, rule: any): Vector3
-	local rootVelocity = flattenXZ(root.AssemblyLinearVelocity)
+	local rootVelocity = CombatCollision.FlattenXZ(root.AssemblyLinearVelocity)
 	local reportedVelocity = (payload and typeof(payload.velocity) == "Vector3")
-		and flattenXZ(payload.velocity)
+		and CombatCollision.FlattenXZ(payload.velocity)
 		or Vector3.zero
 	local velocity = if rootVelocity.Magnitude >= reportedVelocity.Magnitude then rootVelocity else reportedVelocity
-	local normal = self:_computeCollisionNormal(root.Position, hitbox.Position, velocity)
 	if rule.Touch then
 		return velocity
 	end
-	return CollisionResponse.ResolvePlanarBounce(velocity, normal, {
-		Restitution = PhysicsConfig.Collision.FoodRestitution,
-		TangentialDamping = PhysicsConfig.Collision.FoodTangentialDamping,
-		MinSpeed = PhysicsConfig.Collision.MinPostCollisionSpeed,
-		MaxSpeed = PhysicsConfig.Collision.MaxPostCollisionSpeed,
-	})
+	local normal = self:_computeCollisionNormal(root.Position, hitbox.Position, velocity)
+	return CombatCollision.ResolveAttackerBounce(velocity, Vector3.zero, normal).AttackerVelocity
 end
 
-function FoodService:_applyFoodCollisionVelocity(root: BasePart, hitbox: BasePart, payload: any, rule: any, _launchState: any?)
+function FoodService:_applyFoodCollisionVelocity(player: Player, root: BasePart, hitbox: BasePart, payload: any, rule: any, _launchState: any?)
 	if rule.Touch then
 		return
 	end
 	local resolved = self:_resolveFoodCollisionVelocity(root, hitbox, payload, rule)
-	root.AssemblyLinearVelocity = Vector3.new(resolved.X, root.AssemblyLinearVelocity.Y, resolved.Z)
+	local selfBounceRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ApplySelfBounce)
+	if selfBounceRemote and selfBounceRemote:IsA("RemoteEvent") then
+		local normal = self:_computeCollisionNormal(root.Position, hitbox.Position, resolved)
+		selfBounceRemote:FireClient(player, resolved, CombatCollision.ComputeDepenetratedPosition(root, hitbox, normal, FOOD_HIT_RADIUS_PADDING))
+	end
 end
 
 function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player: Player?): boolean
@@ -763,15 +675,31 @@ function FoodService:_applyLauncherDamage(entry: any, player: Player, velocity: 
 	if not rule or entry.CurrentHP <= 0 then
 		return
 	end
-	local initialSpeed = velocity
-	local initialDamage = math.clamp(initialSpeed, DAMAGE_MIN_VELOCITY, DAMAGE_MAX_VELOCITY) * DAMAGE_BASE
-	local speedRatio = if initialSpeed > 0 then math.clamp(velocity / initialSpeed, 0.3, 1) else 0.3
-	self:ApplyDamageToFood(entry, initialDamage * speedRatio, player)
+	local stateService = getService(self._context, "PlayerStateService")
+	local damagePipeline = getService(self._context, "DamagePipelineService")
+	local attackerState = stateService and stateService:GetState(player) or {}
+	local damage = if damagePipeline and typeof(damagePipeline.ComputeCollisionDamage) == "function"
+		then damagePipeline:ComputeCollisionDamage(attackerState, velocity, {
+			SourceType = "FoodLauncherCollision",
+			InitialImpactSpeed = velocity,
+			AttackerAbsoluteSpeed = velocity,
+			LaunchEnergy = velocity,
+			LauncherMaxSpeed = attackerState and attackerState.LaunchSpeed or PhysicsConfig.Launch.SpeedMin,
+			CollisionCount = 0,
+			AngleFactor = 1,
+		})
+		else 0
+	self:ApplyDamageToFood(entry, damage, player)
 end
 
 function FoodService:_computeCollisionNormal(playerPosition: Vector3, foodPosition: Vector3, velocity: Vector3): Vector3
-	local fallbackNormal = sanitizeUnit(flattenXZ(-velocity), Vector3.new(0, 0, -1))
-	return sanitizeUnit(playerPosition - foodPosition, fallbackNormal)
+	local planarVelocity = CombatCollision.FlattenXZ(velocity)
+	local fallbackNormal = sanitizeUnit(CombatCollision.FlattenXZ(-velocity), Vector3.new(0, 0, -1))
+	local normal = sanitizeUnit(playerPosition - foodPosition, fallbackNormal)
+	if planarVelocity.Magnitude > MIN_SPEED_EPSILON and planarVelocity:Dot(normal) < 0 then
+		normal = -normal
+	end
+	return normal
 end
 
 function FoodService:_resolvePenetration(root: BasePart, hitbox: BasePart, normal: Vector3)
@@ -865,7 +793,7 @@ function FoodService:Start()
 
 			self._context.EventBus:Fire("CollisionDetected", "Food", player, entry.Instance, { FoodId = entry.Id })
 			self:_applyLauncherDamage(entry, player, horizontalSpeed)
-			self:_applyFoodCollisionVelocity(root, hitbox, payload, rule, nil)
+			self:_applyFoodCollisionVelocity(player, root, hitbox, payload, rule, nil)
 		end
 	end)
 end

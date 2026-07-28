@@ -8,8 +8,7 @@ local player = Players.LocalPlayer
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameStates = require(Shared:WaitForChild("Constants"):WaitForChild("GameStates"))
 local PhysicsConfig = require(Shared:WaitForChild("Config"):WaitForChild("PhysicsConfig"))
-local CollisionResponse = require(Shared:WaitForChild("Utils"):WaitForChild("CollisionResponse"))
-local VelocityDecay = require(Shared:WaitForChild("Utils"):WaitForChild("VelocityDecay"))
+local CombatCollision = require(Shared:WaitForChild("Utils"):WaitForChild("CombatCollision"))
 local PawnLocator = require(Shared:WaitForChild("Utils"):WaitForChild("PawnLocator"))
 local stateUpdateRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("StateUpdate") :: RemoteEvent
 local reportFoodRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
@@ -221,18 +220,6 @@ local function getPlayerFromHit(part: Instance): Player?
 end
 
 
-local function resolveFoodCollisionVelocity(velocity: Vector3, normal: Vector3, rarity: any): Vector3
-	if rarity == "Common" then
-		return Vector3.new(velocity.X, 0, velocity.Z)
-	end
-	return CollisionResponse.ResolvePlanarBounce(velocity, normal, {
-		Restitution = PhysicsConfig.Collision.FoodRestitution,
-		TangentialDamping = PhysicsConfig.Collision.FoodTangentialDamping,
-		MinSpeed = PhysicsConfig.Collision.MinPostCollisionSpeed,
-		MaxSpeed = PhysicsConfig.Collision.MaxPostCollisionSpeed,
-	})
-end
-
 
 local function getNearbyFood(position: Vector3): { Model }
 	local out = {}
@@ -366,7 +353,7 @@ local function applyPredictedPlayerBounce(targetPlayer: Player, root: BasePart, 
 		normal = if planar.Magnitude > PhysicsConfig.Movement.InputDeadzone then planar.Unit else Vector3.new(1, 0, 0)
 	end
 	local defenderVelocity = if targetRoot then Vector3.new(targetRoot.AssemblyLinearVelocity.X, 0, targetRoot.AssemblyLinearVelocity.Z) else Vector3.zero
-	local predicted = VelocityDecay.ResolvePlayerCollision(attackerVelocity, defenderVelocity, normal).AttackerVelocity
+	local predicted = CombatCollision.ResolveAttackerBounce(attackerVelocity, defenderVelocity, normal).AttackerVelocity
 	root.AssemblyLinearVelocity = Vector3.new(predicted.X, root.AssemblyLinearVelocity.Y, predicted.Z)
 	return if targetRoot then (root.Position + targetRoot.Position) * 0.5 else root.Position
 end
@@ -582,7 +569,14 @@ gameplayFeedbackRemote.OnClientEvent:Connect(function(message)
 	-- Server rejection is authoritative, but no heavy client correction is attempted.
 end)
 
-applySelfBounceRemote.OnClientEvent:Connect(function(correctedVelocity: any)
+local function disableLaunchLinearVelocity(root: BasePart)
+	local linearVelocity = root:FindFirstChild("LinearVelocity")
+	if linearVelocity and linearVelocity:IsA("LinearVelocity") then
+		linearVelocity.Enabled = false
+	end
+end
+
+applySelfBounceRemote.OnClientEvent:Connect(function(correctedVelocity: any, correctedPosition: any)
 	if typeof(correctedVelocity) ~= "Vector3" then
 		return
 	end
@@ -594,6 +588,10 @@ applySelfBounceRemote.OnClientEvent:Connect(function(correctedVelocity: any)
 	local token = selfBounceBlendToken
 	local blendDuration = 0.125
 	local elapsed = 0
+	disableLaunchLinearVelocity(root)
+	if typeof(correctedPosition) == "Vector3" then
+		root.CFrame = CFrame.new(correctedPosition) * root.CFrame.Rotation
+	end
 	local startVelocity = root.AssemblyLinearVelocity
 	local connection: RBXScriptConnection? = nil
 	connection = RunService.Heartbeat:Connect(function(dt)
@@ -606,6 +604,7 @@ applySelfBounceRemote.OnClientEvent:Connect(function(correctedVelocity: any)
 		elapsed += dt
 		local alpha = math.clamp(elapsed / blendDuration, 0, 1)
 		local blended = startVelocity:Lerp(Vector3.new(correctedVelocity.X, startVelocity.Y, correctedVelocity.Z), alpha)
+		disableLaunchLinearVelocity(root)
 		root.AssemblyLinearVelocity = blended
 		if alpha >= 1 and connection then
 			connection:Disconnect()

@@ -82,6 +82,10 @@ clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, launchSpeed:
 		return
 	end
 
+	local linearVelocity = root:FindFirstChild("LinearVelocity")
+	if linearVelocity and linearVelocity:IsA("LinearVelocity") then
+		linearVelocity.Enabled = false
+	end
 	local currentVelocity = root.AssemblyLinearVelocity
 	root.AssemblyLinearVelocity = Vector3.new(0, currentVelocity.Y, 0)
 	root:ApplyImpulse(launchDirection.Unit * launchSpeed * root.AssemblyMass)

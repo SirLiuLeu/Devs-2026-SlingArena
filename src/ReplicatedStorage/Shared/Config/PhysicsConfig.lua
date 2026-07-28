@@ -108,6 +108,7 @@ PhysicalProperties = {
 		MinTransferEnergy = 2,
 		MinPostCollisionSpeed = 1.25,
 		MaxPostCollisionSpeed = 125,
+		DepenetrationSlop = 0.05,
 	},
 
 	Damage = {

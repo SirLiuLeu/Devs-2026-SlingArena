@@ -6,7 +6,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
-local VelocityDecay = require(ReplicatedStorage.Shared.Utils.VelocityDecay)
+local CombatCollision = require(ReplicatedStorage.Shared.Utils.CombatCollision)
+local CollisionValidation = require(script.Parent.CollisionValidation)
 
 local CollisionService = {}
 CollisionService.__index = CollisionService
@@ -154,84 +155,41 @@ local function collisionLog(message: string)
 	print(`[Collision] {message}`)
 end
 
-local function resolveReportNormal(payload: any, fallbackPlanar: Vector3, attackerVelocity: Vector3): Vector3
-	local normal: Vector3? = nil
-	if typeof(payload.surfaceNormal) == "Vector3" then
-		local planarNormal = Vector3.new(payload.surfaceNormal.X, 0, payload.surfaceNormal.Z)
-		if planarNormal.Magnitude > PhysicsConfig.Movement.InputDeadzone then
-			normal = planarNormal.Unit
-		end
-	end
-	if not normal then
-		normal = if fallbackPlanar.Magnitude > PhysicsConfig.Movement.InputDeadzone
-			then fallbackPlanar.Unit
-			else Vector3.new(1, 0, 0)
-	end
-	local planarVelocity = Vector3.new(attackerVelocity.X, 0, attackerVelocity.Z)
-	if planarVelocity.Magnitude > PhysicsConfig.Movement.InputDeadzone and planarVelocity:Dot(normal) < 0 then
-		normal = -normal
-	end
-	return normal
-end
-
 function CollisionService:_validatePlayerReport(
 	player: Player, payload: any
-): (boolean, Player?, BasePart?, BasePart?, Vector3, Vector3, string)
-	local playerService = getService(self._context, "PlayerService")
-	local stateService = getService(self._context, "PlayerStateService")
-	if not (playerService and stateService) then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0), Vector3.zero, "missing PlayerService or PlayerStateService"
-	end
-
+): CollisionValidation.ValidationResult
 	if typeof(payload.clientTimestamp) ~= "number" or typeof(payload.hitPosition) ~= "Vector3" then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0), Vector3.zero, "invalid clientTimestamp or hitPosition"
+		return { Ok = false, Reason = "invalid clientTimestamp or hitPosition", Details = nil, Root = nil, TargetPart = nil, TargetPlayer = nil, Normal = Vector3.new(1, 0, 0), ReportVelocity = Vector3.zero, Speed = 0 }
 	end
 
 	local now = os.clock()
 	if payload.clientTimestamp > now + MAX_REPORT_FUTURE_SECONDS or now - payload.clientTimestamp > MAX_REPORT_AGE_SECONDS then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0), Vector3.zero, `stale or future report: now={now} clientTimestamp={payload.clientTimestamp}`
+		return { Ok = false, Reason = `stale or future report: now={now} clientTimestamp={payload.clientTimestamp}`, Details = nil, Root = nil, TargetPart = nil, TargetPlayer = nil, Normal = Vector3.new(1, 0, 0), ReportVelocity = Vector3.zero, Speed = 0 }
 	end
 
+	local playerService = getService(self._context, "PlayerService")
 	local defender = Players:GetPlayerByUserId(payload.targetUserId)
-	local root = playerService:GetRoot(player)
-	local targetRoot = defender and playerService:GetRoot(defender)
-	local attackerState = stateService:GetState(player)
-	local defenderState = defender and stateService:GetState(defender)
-
-	if not (defender and defender ~= player and root and targetRoot and attackerState and defenderState
-		and attackerState.MovementState == "Launching")
-	then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0), Vector3.zero, `invalid participants or states: defender={playerName(defender)} attackerState={attackerState and attackerState.MovementState or "nil"} defenderState={defenderState and defenderState.MovementState or "nil"}`
+	local targetRoot = defender and playerService and playerService:GetRoot(defender)
+	if not (defender and targetRoot) then
+		return { Ok = false, Reason = "missing defender root", Details = nil, Root = nil, TargetPart = nil, TargetPlayer = nil, Normal = Vector3.new(1, 0, 0), ReportVelocity = Vector3.zero, Speed = 0 }
 	end
-
-	if not (playerService:IsAlive(player) and playerService:IsAlive(defender)) then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0), Vector3.zero, `dead participant: attackerAlive={playerService:IsAlive(player)} defenderAlive={defender and playerService:IsAlive(defender) or false}`
-	end
-
-	local offset = targetRoot.Position - root.Position
-	local planar = Vector3.new(offset.X, 0, offset.Z)
-	local planarDistance = planar.Magnitude
-	local combinedRadius = (math.max(root.Size.X, root.Size.Z) + math.max(targetRoot.Size.X, targetRoot.Size.Z)) * 0.5
-	local velocityBuffer = root.AssemblyLinearVelocity.Magnitude * 0.15
-	local maxAllowedDistance = combinedRadius + PhysicsConfig.Collision.ValidationTolerance + velocityBuffer
-	if planarDistance > maxAllowedDistance then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0), Vector3.zero, `players outside collision tolerance: planarDistance={planarDistance} maxDistance={maxAllowedDistance} velocityBuffer={velocityBuffer}`
-	end
-
-	local yDelta = math.abs(root.Position.Y - targetRoot.Position.Y)
-	if yDelta > PhysicsConfig.Collision.YTolerance then
-		return false, nil, nil, nil, Vector3.new(1, 0, 0), Vector3.zero, `players outside collision y tolerance: yDelta={yDelta} maxYDelta={PhysicsConfig.Collision.YTolerance}`
-	end
-
-	local reportVelocity = if typeof(payload.velocity) == "Vector3" then Vector3.new(payload.velocity.X, 0, payload.velocity.Z) else getHorizontalVelocity(root)
-	local normal = resolveReportNormal(payload, planar, reportVelocity)
-
-	return true, defender, root, targetRoot, normal, reportVelocity, "ok"
+	return CollisionValidation.ValidateAttackerTarget(self._context, player, {
+		Kind = "Player",
+		Player = defender,
+		Part = targetRoot,
+		RadiusPadding = 0,
+		RequiresLaunching = true,
+	}, payload)
 end
 
 function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
-	local ok, defender, root, targetRoot, normal, reportedVelocity, _validationReason = self:_validatePlayerReport(player, payload)
-	if not (ok and defender and root and targetRoot) then
+	local validation = self:_validatePlayerReport(player, payload)
+	local defender = validation.TargetPlayer
+	local root = validation.Root
+	local targetRoot = validation.TargetPart
+	local normal = validation.Normal
+	local reportedVelocity = validation.ReportVelocity
+	if not (validation.Ok and defender and root and targetRoot) then
 		return
 	end
 	local now = os.clock()
@@ -253,7 +211,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 
 	local attackerVelocity = reportedVelocity.Magnitude > 0 and reportedVelocity or getHorizontalVelocity(root)
 	local defenderVelocity = getHorizontalVelocity(targetRoot)
-	local collisionResult = VelocityDecay.ResolvePlayerCollision(attackerVelocity, defenderVelocity, normal)
+	local collisionResult = CombatCollision.ResolveAttackerBounce(attackerVelocity, defenderVelocity, normal)
 	local impactSpeed = math.max(collisionResult.ClosingSpeed, math.max(attackerVelocity.Magnitude, payload.observedSpeed or 0))
 	if impactSpeed < PhysicsConfig.Collision.RealHitMinClosingSpeed then
 		return
@@ -274,7 +232,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 
 	local selfBounceRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ApplySelfBounce)
 	if selfBounceRemote and selfBounceRemote:IsA("RemoteEvent") then
-		selfBounceRemote:FireClient(player, attackerOut)
+		selfBounceRemote:FireClient(player, attackerOut, CombatCollision.ComputeDepenetratedPosition(root, targetRoot, normal, PhysicsConfig.Collision.Range))
 	end
 	if shouldKnockback then
 		stateService:SetMovementState(defender, "Knockback")
