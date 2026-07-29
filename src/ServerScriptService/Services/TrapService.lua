@@ -191,25 +191,6 @@ function TrapService:_emitPopup(player: Player, trapConfig: any)
 	end
 end
 
-function TrapService:_resolveKnockbackDirection(player: Player, trapPart: BasePart, trapConfig: any): Vector3
-	local playerService = self._context.Services.PlayerService
-	local root = playerService and playerService:GetRoot(player)
-	local mode = trapConfig.KnockbackDirection or "AwayFromTrap"
-	if mode == "TrapForward" then
-		return trapPart.CFrame.LookVector
-	end
-	if mode == "TrapBackward" then
-		return -trapPart.CFrame.LookVector
-	end
-	if root then
-		local away = root.Position - trapPart.Position
-		if away.Magnitude >= 0.01 then
-			return away.Unit
-		end
-	end
-	return Vector3.new(1, 0, 0)
-end
-
 function TrapService:_applyHitCooldownTrap(player: Player, trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Model)
 	local now = os.clock()
 	local cooldown = math.max(0, tonumber(trapConfig.Cooldown) or 0)
@@ -229,14 +210,6 @@ function TrapService:_applyHitCooldownTrap(player: Player, trapPart: BasePart, t
 	end
 	self._lastTriggeredAt[cooldownKey] = now
 
-	local playerService = self._context.Services.PlayerService
-	local root = playerService and playerService:GetRoot(player)
-	local knockback = math.max(0, tonumber(trapConfig.Knockback) or 0)
-	local upwardBoost = math.max(0, tonumber(trapConfig.UpwardBoost) or 0)
-	if root and (knockback > 0 or upwardBoost > 0) then
-		--local direction = self:_resolveKnockbackDirection(player, trapPart, trapConfig)
-		--root.AssemblyLinearVelocity += direction.Unit * knockback + Vector3.new(0, upwardBoost, 0)
-	end
 	self:_emitPopup(player, trapConfig)
 end
 

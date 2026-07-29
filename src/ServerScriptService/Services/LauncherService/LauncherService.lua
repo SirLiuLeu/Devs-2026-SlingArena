@@ -122,6 +122,39 @@ local function resolveAlignOrientation(root: BasePart): AlignOrientation?
 	return nil
 end
 
+local function getOrCreateOrientationAttachment(root: BasePart): Attachment
+	local attachment = root:FindFirstChild("LauncherMovementAttachment")
+	if attachment and attachment:IsA("Attachment") then
+		return attachment
+	end
+
+	attachment = Instance.new("Attachment")
+	attachment.Name = "LauncherMovementAttachment"
+	attachment.Parent = root
+	return attachment
+end
+
+local function resolveUprightAlignOrientation(root: BasePart): AlignOrientation
+	local upright = root:FindFirstChild("UprightAlignOrientation")
+	if upright and upright:IsA("AlignOrientation") then
+		upright.Attachment0 = getOrCreateOrientationAttachment(root)
+		return upright
+	end
+
+	upright = Instance.new("AlignOrientation")
+	upright.Name = "UprightAlignOrientation"
+	upright.Attachment0 = getOrCreateOrientationAttachment(root)
+	upright.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	upright.AlignType = Enum.AlignType.PrimaryAxisParallel
+	upright.PrimaryAxis = Vector3.yAxis
+	upright.RigidityEnabled = false
+	upright.Responsiveness = 35
+	upright.MaxTorque = if PhysicsConfig.Stability.UseInfiniteForce then math.huge else 100000
+	upright.Enabled = false
+	upright.Parent = root
+	return upright
+end
+
 function LauncherService:_getTrackedPlayers(): { any }
 	local trackedPlayers = {}
 	local seen = {}
@@ -602,17 +635,29 @@ function LauncherService:_setAutomaticRotation(root: BasePart, enabled: boolean)
 	return alignOrientation
 end
 
+function LauncherService:_setUprightStabilization(root: BasePart, enabled: boolean): AlignOrientation
+	local upright = resolveUprightAlignOrientation(root)
+	upright.Enabled = enabled
+	return upright
+end
+
 function LauncherService:_applyPlanarRotation(root: BasePart, direction: Vector3)
 	local desiredPlanar = Vector3.new(direction.X, 0, direction.Z)
 	if desiredPlanar.Magnitude < PhysicsConfig.Movement.AimDeadzone then
 		return
 	end
 
+	self:_setUprightStabilization(root, false)
 	local alignOrientation = self:_setAutomaticRotation(root, true)
 	if not alignOrientation then
 		return
 	end
 	alignOrientation.CFrame = CFrame.lookAt(root.Position, root.Position + desiredPlanar.Unit, Vector3.yAxis)
+end
+
+function LauncherService:_applyUprightOnlyRotation(root: BasePart)
+	self:_setAutomaticRotation(root, false)
+	self:_setUprightStabilization(root, true)
 end
 
 function LauncherService:_stepMovement(dt: number)
@@ -688,10 +733,7 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 	self._warnedInvalidRoot[player] = nil
 
 	if state.MovementState == "Launching" then
-		local launchState = self._activeLaunches[player]
-		if launchState and typeof(launchState.direction) == "Vector3" then
-			self:_applyPlanarRotation(root, launchState.direction)
-		end
+		self:_applyUprightOnlyRotation(root)
 		if root:GetNetworkOwner() ~= player then
 			root:SetNetworkOwner(player)
 		end
@@ -717,18 +759,20 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 	end
 	if state.MovementState == MOVEMENT_STATE.Knockback then
 		movementController:DisableLocomotion(true)
-		self:_setAutomaticRotation(root, false)
+		self:_applyUprightOnlyRotation(root)
 		return
 	end
 
 	if state.MovementState == "Recovering" then
 		movementController:DisableLocomotion(false)
+		self:_setUprightStabilization(root, false)
 		return
 	end
 
 	if moveDirection.Magnitude < PhysicsConfig.Movement.InputDeadzone then
 		movementController:SetSpeed(resolveMovementSpeed(state))
 		movementController:Move(Vector3.zero, dt)
+		self:_setUprightStabilization(root, false)
 		if state.MovementState ~= MOVEMENT_STATE.Idle then
 			self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
 		end
@@ -760,6 +804,16 @@ function LauncherService:_stepMovementStates(_dt: number)
 		if state.MovementState == "Launching" and launchState then
 			if now >= (launchState.maxEndsAt or math.huge) then
 				self:_finishLaunch(player, string.format("hard_timeout (max=%.1fs)", PhysicsConfig.Launch.MaxLaunchDuration))
+			end
+		elseif state.MovementState == MOVEMENT_STATE.Knockback then
+			local root = self._context.Services.PlayerService:GetRoot(player)
+			local horizontalSpeed = 0
+			if root then
+				local velocity = root.AssemblyLinearVelocity
+				horizontalSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
+			end
+			if horizontalSpeed <= PhysicsConfig.Collision.KnockbackControlRestoreSpeed then
+				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
 			end
 		elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
 			self._activeLaunches[player] = nil

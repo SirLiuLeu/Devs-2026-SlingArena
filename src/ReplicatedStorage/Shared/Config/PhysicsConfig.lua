@@ -99,7 +99,9 @@ PhysicalProperties = {
 		AttackerTangentialVelocityRetention = 0.92,
 		CollisionAngleReductionExponent = 1.35,
 		CollisionEnergyLossRatio = 0.16,
-		KnockbackImpulseDuration = 0.1,
+		-- Knockback locomotion resumes before a full stop so players regain control while sliding naturally.
+		KnockbackControlRestoreSpeed = 10,
+		MinKnockbackStateSpeed = 10,
 
 		-- Food collision response uses the same single-step model on client and server.
 		FoodRestitution = 0.55,
