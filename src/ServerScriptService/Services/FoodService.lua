@@ -631,21 +631,6 @@ function FoodService:_resolveFoodCollisionVelocity(root: BasePart, hitbox: BaseP
 	return CombatCollision.ResolveAttackerBounce(velocity, Vector3.zero, normal).AttackerVelocity
 end
 
-function FoodService:_applyFoodCollisionVelocity(player: Player, root: BasePart, hitbox: BasePart, payload: any, rule: any, _launchState: any?)
-	if rule.Touch then
-		return
-	end
-	local resolved = self:_resolveFoodCollisionVelocity(root, hitbox, payload, rule)
-	local normal = self:_computeCollisionNormal(root.Position, hitbox.Position, resolved)
-	root:SetNetworkOwner(nil)
-	root.AssemblyLinearVelocity = Vector3.new(resolved.X, root.AssemblyLinearVelocity.Y, resolved.Z)
-	root.CFrame = CFrame.new(CombatCollision.ComputeDepenetratedPosition(root, hitbox, normal, FOOD_HIT_RADIUS_PADDING)) * root.CFrame.Rotation
-	task.delay(0.1, function()
-		if root.Parent then
-			root:SetNetworkOwner(player)
-		end
-	end)
-end
 
 function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player: Player?): boolean
 	local entry = if type(foodOrEntry) == "table" then foodOrEntry else self._foodByInstance[foodOrEntry]
@@ -802,7 +787,6 @@ function FoodService:Start()
 
 			self._context.EventBus:Fire("CollisionDetected", "Food", player, entry.Instance, { FoodId = entry.Id })
 			self:_applyLauncherDamage(entry, player, horizontalSpeed)
-			self:_applyFoodCollisionVelocity(player, root, hitbox, payload, rule, nil)
 		end
 	end)
 end

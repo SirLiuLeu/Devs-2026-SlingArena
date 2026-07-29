@@ -234,8 +234,8 @@ function TrapService:_applyHitCooldownTrap(player: Player, trapPart: BasePart, t
 	local knockback = math.max(0, tonumber(trapConfig.Knockback) or 0)
 	local upwardBoost = math.max(0, tonumber(trapConfig.UpwardBoost) or 0)
 	if root and (knockback > 0 or upwardBoost > 0) then
-		local direction = self:_resolveKnockbackDirection(player, trapPart, trapConfig)
-		root.AssemblyLinearVelocity += direction.Unit * knockback + Vector3.new(0, upwardBoost, 0)
+		--local direction = self:_resolveKnockbackDirection(player, trapPart, trapConfig)
+		--root.AssemblyLinearVelocity += direction.Unit * knockback + Vector3.new(0, upwardBoost, 0)
 	end
 	self:_emitPopup(player, trapConfig)
 end

@@ -258,14 +258,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	local transferEnergy = math.max(0, attackerAbsoluteSpeed)
 	local shouldKnockback = defenderOut.Magnitude > PhysicsConfig.Collision.MinPostCollisionSpeed
 
-	root:SetNetworkOwner(nil)
-	root.AssemblyLinearVelocity = Vector3.new(attackerOut.X, root.AssemblyLinearVelocity.Y, attackerOut.Z)
-	root.CFrame = CFrame.new(CombatCollision.ComputeDepenetratedPosition(root, targetRoot, normal, PhysicsConfig.Collision.Range)) * root.CFrame.Rotation
-	task.delay(0.1, function()
-		if root.Parent then
-			root:SetNetworkOwner(player)
-		end
-	end)
+	
 	if shouldKnockback then
 		stateService:SetMovementState(defender, "Knockback")
 		task.delay(PhysicsConfig.Collision.KnockbackImpulseDuration, function()
