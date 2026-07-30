@@ -99,8 +99,8 @@ PhysicalProperties = {
 		AttackerTangentialVelocityRetention = 0.92,
 		CollisionAngleReductionExponent = 1.35,
 		CollisionEnergyLossRatio = 0.16,
-		KnockbackStopSpeed = 10,
-		KnockbackMinActivationSpeed = 10,
+		KnockbackStopSpeed = 2,
+		KnockbackMinActivationSpeed = 2,
 
 		-- Food collision response uses the same single-step model on client and server.
 		FoodRestitution = 0.55,
