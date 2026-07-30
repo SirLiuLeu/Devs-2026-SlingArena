@@ -21,6 +21,7 @@ PhysicalProperties = {
 		MobileDeadzone = 0.15,
 		SlowPerStack = 0.25,
 		PreservedMomentumScale = 0.25,
+		AimUpdateAngleThresholdRadians = math.rad(1),
 	},
 
 	World = {
@@ -104,6 +105,10 @@ PhysicalProperties = {
 		KnockbackStopSpeed = 7,
 		KnockbackMinActivationSpeed = 7,
 		KnockbackGraceSeconds = 0.3,
+		KnockbackHardStunSeconds = 0.2,
+		KnockbackRecoveryBrakePerSecond = 3.5,
+		KnockbackRecoveryCoastPerSecond = 0.35,
+		KnockbackRecoveryAssistAcceleration = 10,
 		KnockbackStopEvidenceFramesRequired = 3,
 		KnockbackMaxTwistRadians = math.rad(15),
 		KnockbackTwistDecaySeconds = 0.6,

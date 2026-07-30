@@ -257,7 +257,9 @@ RunService.RenderStepped:Connect(function()
 		return
 	end
 
-	moveRequestRemote:FireServer(computeMoveInput())
+	local moveInput = computeMoveInput()
+	local aimInput = if moveInput.Magnitude > PhysicsConfig.Movement.InputDeadzone then moveInput else nil
+	moveRequestRemote:FireServer(moveInput, aimInput)
 	lastSentAt = now
 end)
 

@@ -94,6 +94,31 @@ function LauncherMovement:DisableLocomotion(preserveMomentum: boolean?)
 	)
 end
 
+function LauncherMovement:BrakeKnockback(inputDirection: Vector3, dt: number)
+	self._linearVelocity.PlaneVelocity = Vector2.zero
+	self._linearVelocity.Enabled = false
+
+	local velocity = self._root.AssemblyLinearVelocity
+	local planarVelocity = Vector3.new(velocity.X, 0, velocity.Z)
+	if planarVelocity.Magnitude <= PhysicsConfig.Movement.InputDeadzone then
+		return
+	end
+
+	local planarInput = Vector3.new(inputDirection.X, 0, inputDirection.Z)
+	local inputUnit = if planarInput.Magnitude > PhysicsConfig.Movement.InputDeadzone then planarInput.Unit else Vector3.zero
+	local velocityUnit = planarVelocity.Unit
+	local dot = if inputUnit.Magnitude > 0 then inputUnit:Dot(velocityUnit) else 0
+	local decayPerSecond = if dot < 0 then PhysicsConfig.Collision.KnockbackRecoveryBrakePerSecond else PhysicsConfig.Collision.KnockbackRecoveryCoastPerSecond
+	local decay = math.exp(-math.max(decayPerSecond, 0) * math.max(dt, 0))
+	local adjustedPlanar = planarVelocity * decay
+
+	if dot > 0 then
+		adjustedPlanar += inputUnit * PhysicsConfig.Collision.KnockbackRecoveryAssistAcceleration * dot * math.max(dt, 0)
+	end
+
+	self._root.AssemblyLinearVelocity = Vector3.new(adjustedPlanar.X, velocity.Y, adjustedPlanar.Z)
+end
+
 function LauncherMovement:Destroy()
 	self:Stop()
 end

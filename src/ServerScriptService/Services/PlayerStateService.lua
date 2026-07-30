@@ -17,6 +17,63 @@ type PlayerState = PlayerStateTypes.PlayerState
 
 local MOVEMENT_STATE = GameStates.PlayerState
 
+local MOVEMENT_TRANSITIONS = {
+	[MOVEMENT_STATE.Idle] = {
+		[MOVEMENT_STATE.Idle] = true,
+		[MOVEMENT_STATE.Moving] = true,
+		[MOVEMENT_STATE.Charging] = true,
+		[MOVEMENT_STATE.Launching] = true,
+		[MOVEMENT_STATE.Knockback] = true,
+		[MOVEMENT_STATE.Dead] = true,
+		[MOVEMENT_STATE.Human] = true,
+	},
+	[MOVEMENT_STATE.Moving] = {
+		[MOVEMENT_STATE.Idle] = true,
+		[MOVEMENT_STATE.Moving] = true,
+		[MOVEMENT_STATE.Charging] = true,
+		[MOVEMENT_STATE.Launching] = true,
+		[MOVEMENT_STATE.Knockback] = true,
+		[MOVEMENT_STATE.Dead] = true,
+		[MOVEMENT_STATE.Human] = true,
+	},
+	[MOVEMENT_STATE.Charging] = {
+		[MOVEMENT_STATE.Idle] = true,
+		[MOVEMENT_STATE.Launching] = true,
+		[MOVEMENT_STATE.Knockback] = true,
+		[MOVEMENT_STATE.Dead] = true,
+		[MOVEMENT_STATE.Human] = true,
+	},
+	[MOVEMENT_STATE.Launching] = {
+		Recovering = true,
+		[MOVEMENT_STATE.Knockback] = true,
+		[MOVEMENT_STATE.Dead] = true,
+		[MOVEMENT_STATE.Human] = true,
+	},
+	[MOVEMENT_STATE.Knockback] = {
+		[MOVEMENT_STATE.Knockback] = true,
+		[MOVEMENT_STATE.Idle] = true,
+		[MOVEMENT_STATE.Dead] = true,
+		[MOVEMENT_STATE.Human] = true,
+	},
+	Recovering = {
+		Recovering = true,
+		[MOVEMENT_STATE.Idle] = true,
+		[MOVEMENT_STATE.Knockback] = true,
+		[MOVEMENT_STATE.Dead] = true,
+		[MOVEMENT_STATE.Human] = true,
+	},
+	[MOVEMENT_STATE.Dead] = {
+		[MOVEMENT_STATE.Dead] = true,
+		[MOVEMENT_STATE.Idle] = true,
+		[MOVEMENT_STATE.Human] = true,
+	},
+	[MOVEMENT_STATE.Human] = {
+		[MOVEMENT_STATE.Human] = true,
+		[MOVEMENT_STATE.Idle] = true,
+		[MOVEMENT_STATE.Dead] = true,
+	},
+}
+
 type BuffState = {
 	DamageBoost: number,
 	HpBoost: number,
@@ -713,9 +770,30 @@ function PlayerStateService:SetCharging(player: Player, isCharging: boolean, cha
 end
 
 
-function PlayerStateService:SetMovementState(player: Player, movementState: string)
+function PlayerStateService:CanTransitionTo(player: Player, movementState: string): boolean
 	local state = self._states[player]
-	if not state then return end
+	if not state then
+		return false
+	end
+	local previousState = state.MovementState or MOVEMENT_STATE.Idle
+	if self:IsStunned(player)
+		and movementState ~= MOVEMENT_STATE.Knockback
+		and movementState ~= MOVEMENT_STATE.Dead
+		and movementState ~= MOVEMENT_STATE.Human
+		and not (previousState == MOVEMENT_STATE.Knockback and movementState == MOVEMENT_STATE.Idle)
+	then
+		return false
+	end
+	local allowed = MOVEMENT_TRANSITIONS[previousState]
+	return allowed ~= nil and allowed[movementState] == true
+end
+
+function PlayerStateService:SetMovementState(player: Player, movementState: string): boolean
+	local state = self._states[player]
+	if not state then return false end
+	if not self:CanTransitionTo(player, movementState) then
+		return false
+	end
 	local previousState = state.MovementState
 	state.MovementState = movementState
 	if movementState == MOVEMENT_STATE.Knockback and previousState ~= MOVEMENT_STATE.Knockback then
@@ -728,6 +806,7 @@ function PlayerStateService:SetMovementState(player: Player, movementState: stri
 		state.KnockbackHitTimestamp = 0
 	end
 	self:PublishState(player)
+	return true
 end
 
 function PlayerStateService:RecordKnockbackImpact(player: Player, impactNormal: Vector3, hitTimestamp: number?)

@@ -95,7 +95,20 @@ function LauncherService.new(context)
 end
 
 
+
+local function forceHumanoidAutoRotate(pawn: Model, enabled: boolean)
+	local humanoid = pawn:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.AutoRotate = enabled
+	end
+end
+
 function LauncherService:ResetPlayerRuntime(player: Player)
+	local character = player.Character
+	if character and character:IsA("Model") then
+		forceHumanoidAutoRotate(character, true)
+	end
+
 	self._input[player] = nil
 	self._chargeState[player] = nil
 	self._activeLaunches[player] = nil
@@ -113,6 +126,7 @@ function LauncherService:_isLauncherMode(player: Player): boolean
 	local stateService = getService(self._context, "PlayerStateService")
 	return stateService == nil or not stateService:IsHuman(player)
 end
+
 
 local function resolveAlignOrientation(root: BasePart): AlignOrientation?
 	local alignOrientation = root:FindFirstChild("AlignOrientation")
@@ -252,6 +266,7 @@ function LauncherService:_resolvePawnAndRoot(player: Player): (Model?, BasePart?
 		root = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
 	end
 	if root and root:IsA("BasePart") then
+		forceHumanoidAutoRotate(pawn, false)
 		if pawn.PrimaryPart == nil then
 			pawn.PrimaryPart = root
 		end
@@ -401,7 +416,7 @@ function LauncherService:_canControl(player: Player): boolean
 	return true
 end
 
-function LauncherService:HandleMoveRequest(player: Player, moveInput: Vector3, _aimDirection: Vector3?)
+function LauncherService:HandleMoveRequest(player: Player, moveInput: Vector3, aimDirection: Vector3?)
 	if typeof(moveInput) ~= "Vector3" then
 		return
 	end
@@ -425,7 +440,16 @@ function LauncherService:HandleMoveRequest(player: Player, moveInput: Vector3, _
 		self._input[player] = Vector3.zero
 		return
 	end
-	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == "Recovering" then
+	if state.MovementState == MOVEMENT_STATE.Charging then
+		local chargeState = self._chargeState[player]
+		if chargeState and typeof(aimDirection) == "Vector3" then
+			chargeState.aimDirection = LauncherService.ResolveAimDirection(aimDirection)
+		end
+		self._input[player] = Vector3.zero
+		return
+	end
+
+	if state.MovementState == "Recovering" then
 		self._input[player] = Vector3.zero
 		return
 	end
@@ -454,10 +478,7 @@ function LauncherService:StartCharge(player: Player, aimDirection: Vector3)
 	if not root or not state then
 		return
 	end
-	if state.MovementState == MOVEMENT_STATE.Charging
-		or state.MovementState == "Launching"
-		or state.MovementState == "Recovering"
-	then
+	if not self._context.Services.PlayerStateService:CanTransitionTo(player, MOVEMENT_STATE.Charging) then
 		return
 	end
 	if self._chargeState[player] then
@@ -470,13 +491,19 @@ function LauncherService:StartCharge(player: Player, aimDirection: Vector3)
 		chargeStartTime = now,
 		aimDirection = direction,
 	}
+	if not self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Charging) then
+		self._chargeState[player] = nil
+		return
+	end
 	self._context.Services.PlayerStateService:SetCharging(player, true, 0)
-	self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Charging)
 	self._context.EventBus:Fire("ChargeStarted", player)
 end
 
 function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3, clientLaunchSpeed: number?, clientLaunchDirection: Vector3?, clientChargeRatio: number?)
 	if not self:_canControl(player) then
+		return
+	end
+	if not self._context.Services.PlayerStateService:CanTransitionTo(player, "Launching") then
 		return
 	end
 	local chargeState = self._chargeState[player]
@@ -544,8 +571,12 @@ function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3,
 
 	self._activeLaunches[player] = launchState
 	state.CurrentVelocity = launchState.direction * launchState.initialSpeed
+	if not self._context.Services.PlayerStateService:SetMovementState(player, "Launching") then
+		self._activeLaunches[player] = nil
+		self._chargeState[player] = nil
+		return
+	end
 	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
-	self._context.Services.PlayerStateService:SetMovementState(player, "Launching")
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 
 	local launchRemote = self._clientDoLaunchRemote
@@ -642,8 +673,19 @@ function LauncherService:_applyPlanarRotation(root: BasePart, direction: Vector3
 	if not alignOrientation then
 		return
 	end
-	local baseCFrame = CFrame.lookAt(root.Position, root.Position + desiredPlanar.Unit, Vector3.yAxis)
-	alignOrientation.CFrame = baseCFrame * CFrame.Angles(0, twistRadians or 0, 0)
+	local desiredUnit = desiredPlanar.Unit
+	local currentPlanar = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+	local twist = twistRadians or 0
+	if currentPlanar.Magnitude >= PhysicsConfig.Movement.AimDeadzone and math.abs(twist) < 1e-4 then
+		local dot = math.clamp(currentPlanar.Unit:Dot(desiredUnit), -1, 1)
+		local angleDelta = math.acos(dot)
+		if angleDelta < PhysicsConfig.Movement.AimUpdateAngleThresholdRadians then
+			return
+		end
+	end
+
+	local baseCFrame = CFrame.lookAt(root.Position, root.Position + desiredUnit, Vector3.yAxis)
+	alignOrientation.CFrame = baseCFrame * CFrame.Angles(0, twist, 0)
 end
 
 function LauncherService:_stepMovement(dt: number)
@@ -751,7 +793,14 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 		return
 	end
 	if state.MovementState == MOVEMENT_STATE.Knockback then
-		movementController:DisableLocomotion(true)
+		local knockbackStartTime = if typeof(state.KnockbackStartTime) == "number" then state.KnockbackStartTime else os.clock()
+		local inHardStun = os.clock() - knockbackStartTime < PhysicsConfig.Collision.KnockbackHardStunSeconds
+		if inHardStun then
+			movementController:DisableLocomotion(true)
+		else
+			movementController:BrakeKnockback(moveDirection, dt)
+		end
+
 		local velocity = root.AssemblyLinearVelocity
 		local planarVelocity = Vector3.new(velocity.X, 0, velocity.Z)
 		if planarVelocity.Magnitude >= PhysicsConfig.Movement.AimDeadzone then
@@ -786,8 +835,9 @@ end
 
 --[[
 	_stepMovementStates keeps only server-authoritative launch lifecycle cleanup.
-	Movement decay/braking is intentionally absent: launch motion is client-impulse
-	physics, and the server verifies reports against launchId/state/speed ceilings.
+	Launch motion is client-impulse physics, and the server verifies reports against
+	launchId/state/speed ceilings. Knockback braking is handled in _applyRootVelocity
+	so it can blend player input with the current AssemblyLinearVelocity.
 ]]
 function LauncherService:_stepMovementStates(_dt: number)
 	local now = os.clock()
