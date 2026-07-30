@@ -713,11 +713,21 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 
 	if state.MovementState == MOVEMENT_STATE.Charging then
 		movementController:DisableLocomotion(false)
+		local chargeState = self._chargeState[player]
+		if chargeState and typeof(chargeState.aimDirection) == "Vector3" then
+			self:_applyPlanarRotation(root, chargeState.aimDirection)
+		end
 		return
 	end
 	if state.MovementState == MOVEMENT_STATE.Knockback then
 		movementController:DisableLocomotion(true)
-		self:_setAutomaticRotation(root, false)
+		local velocity = root.AssemblyLinearVelocity
+		local planarVelocity = Vector3.new(velocity.X, 0, velocity.Z)
+		if planarVelocity.Magnitude >= PhysicsConfig.Movement.AimDeadzone then
+			self:_applyPlanarRotation(root, planarVelocity.Unit)
+		else
+			self:_setAutomaticRotation(root, true)
+		end
 		return
 	end
 
@@ -760,6 +770,13 @@ function LauncherService:_stepMovementStates(_dt: number)
 		if state.MovementState == "Launching" and launchState then
 			if now >= (launchState.maxEndsAt or math.huge) then
 				self:_finishLaunch(player, string.format("hard_timeout (max=%.1fs)", PhysicsConfig.Launch.MaxLaunchDuration))
+			end
+		elseif state.MovementState == MOVEMENT_STATE.Knockback then
+			local root = self._context.Services.PlayerService:GetRoot(player)
+			local velocity = root and root.AssemblyLinearVelocity or Vector3.zero
+			local horizontalSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
+			if horizontalSpeed < PhysicsConfig.Collision.KnockbackStopSpeed then
+				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
 			end
 		elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
 			self._activeLaunches[player] = nil

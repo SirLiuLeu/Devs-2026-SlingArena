@@ -256,17 +256,11 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		else defenderOutRaw.Unit * maxDefenderOutSpeed
 	local attackerOut = collisionResult.AttackerVelocity
 	local transferEnergy = math.max(0, attackerAbsoluteSpeed)
-	local shouldKnockback = defenderOut.Magnitude > PhysicsConfig.Collision.MinPostCollisionSpeed
+	local shouldKnockback = defenderOut.Magnitude >= PhysicsConfig.Collision.KnockbackMinActivationSpeed
 
-	
+
 	if shouldKnockback then
 		stateService:SetMovementState(defender, "Knockback")
-		task.delay(PhysicsConfig.Collision.KnockbackImpulseDuration, function()
-			local defenderState = stateService:GetState(defender)
-			if defenderState and defenderState.MovementState == "Knockback" then
-				stateService:SetMovementState(defender, "Idle")
-			end
-		end)
 	end
 
 	local attackerState = stateService:GetState(player)
@@ -282,7 +276,6 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	})
 	self._context.EventBus:Fire("CollisionPlayerHit", defender, player, impactSpeed, normal, {
 		SourceType = "PhysicalLauncherCollision",
-		Duration = PhysicsConfig.Collision.KnockbackImpulseDuration,
 		ImpactNormal = normal,
 		ImpactSpeed = impactSpeed,
 		AngleFactor = collisionResult.AngleFactor,
@@ -299,7 +292,6 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	})
 	if shouldKnockback then
 		self._context.EventBus:Fire("CollisionPlayerKnockback", defender, player, defenderOut, {
-			Duration = PhysicsConfig.Collision.KnockbackImpulseDuration,
 			ImpactNormal = normal,
 			ImpactSpeed = impactSpeed,
 			InitialImpactSpeed = math.max(attackerAbsoluteSpeed, impactSpeed),
