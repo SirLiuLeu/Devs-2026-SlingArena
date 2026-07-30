@@ -9,6 +9,9 @@ return {
 			Cooldown = 1.5,
 			DetectionPadding = 3,
 			PopupText = "Spike hit! -1500 HP",
+			Knockback = 55,
+			UpwardBoost = 10,
+			KnockbackDirection = "AwayFromTrap",
 		},
 		LavaTrap = {
 			Behavior = "ContactDot",
