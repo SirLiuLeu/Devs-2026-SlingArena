@@ -602,7 +602,37 @@ function LauncherService:_setAutomaticRotation(root: BasePart, enabled: boolean)
 	return alignOrientation
 end
 
-function LauncherService:_applyPlanarRotation(root: BasePart, direction: Vector3)
+local function resolveKnockbackTwist(state: any, travelDirection: Vector3, now: number): number
+	local impactNormal = state.KnockbackImpactNormal
+	if typeof(impactNormal) ~= "Vector3" then
+		return 0
+	end
+
+	local planarNormal = Vector3.new(impactNormal.X, 0, impactNormal.Z)
+	local planarTravel = Vector3.new(travelDirection.X, 0, travelDirection.Z)
+	if planarNormal.Magnitude < PhysicsConfig.Movement.AimDeadzone or planarTravel.Magnitude < PhysicsConfig.Movement.AimDeadzone then
+		return 0
+	end
+
+	local normalUnit = planarNormal.Unit
+	local travelUnit = planarTravel.Unit
+	local crossY = normalUnit:Cross(travelUnit).Y
+	local dot = math.clamp(normalUnit:Dot(travelUnit), -1, 1)
+	local signedAngle = math.atan(crossY, dot)
+	local glancingScale = math.abs(math.sin(signedAngle))
+	local clampedTwist = math.clamp(
+		signedAngle * glancingScale,
+		-PhysicsConfig.Collision.KnockbackMaxTwistRadians,
+		PhysicsConfig.Collision.KnockbackMaxTwistRadians
+	)
+
+	local hitTimestamp = if typeof(state.KnockbackHitTimestamp) == "number" then state.KnockbackHitTimestamp else now
+	local decaySeconds = math.max(PhysicsConfig.Collision.KnockbackTwistDecaySeconds, 0.001)
+	local alpha = math.clamp((now - hitTimestamp) / decaySeconds, 0, 1)
+	return clampedTwist * (1 - alpha)
+end
+
+function LauncherService:_applyPlanarRotation(root: BasePart, direction: Vector3, twistRadians: number?)
 	local desiredPlanar = Vector3.new(direction.X, 0, direction.Z)
 	if desiredPlanar.Magnitude < PhysicsConfig.Movement.AimDeadzone then
 		return
@@ -612,7 +642,8 @@ function LauncherService:_applyPlanarRotation(root: BasePart, direction: Vector3
 	if not alignOrientation then
 		return
 	end
-	alignOrientation.CFrame = CFrame.lookAt(root.Position, root.Position + desiredPlanar.Unit, Vector3.yAxis)
+	local baseCFrame = CFrame.lookAt(root.Position, root.Position + desiredPlanar.Unit, Vector3.yAxis)
+	alignOrientation.CFrame = baseCFrame * CFrame.Angles(0, twistRadians or 0, 0)
 end
 
 function LauncherService:_stepMovement(dt: number)
@@ -724,7 +755,7 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 		local velocity = root.AssemblyLinearVelocity
 		local planarVelocity = Vector3.new(velocity.X, 0, velocity.Z)
 		if planarVelocity.Magnitude >= PhysicsConfig.Movement.AimDeadzone then
-			self:_applyPlanarRotation(root, planarVelocity.Unit)
+			self:_applyPlanarRotation(root, planarVelocity.Unit, resolveKnockbackTwist(state, planarVelocity.Unit, os.clock()))
 		else
 			self:_setAutomaticRotation(root, true)
 		end
@@ -772,10 +803,24 @@ function LauncherService:_stepMovementStates(_dt: number)
 				self:_finishLaunch(player, string.format("hard_timeout (max=%.1fs)", PhysicsConfig.Launch.MaxLaunchDuration))
 			end
 		elseif state.MovementState == MOVEMENT_STATE.Knockback then
+			local knockbackStartTime = if typeof(state.KnockbackStartTime) == "number" and state.KnockbackStartTime > 0 then state.KnockbackStartTime else now
+			if state.KnockbackStartTime ~= knockbackStartTime then
+				state.KnockbackStartTime = knockbackStartTime
+			end
+			if now - knockbackStartTime < PhysicsConfig.Collision.KnockbackGraceSeconds then
+				state.KnockbackStopEvidenceFrames = 0
+				continue
+			end
+
 			local root = self._context.Services.PlayerService:GetRoot(player)
 			local velocity = root and root.AssemblyLinearVelocity or Vector3.zero
 			local horizontalSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
 			if horizontalSpeed < PhysicsConfig.Collision.KnockbackStopSpeed then
+				state.KnockbackStopEvidenceFrames = (state.KnockbackStopEvidenceFrames or 0) + 1
+			else
+				state.KnockbackStopEvidenceFrames = 0
+			end
+			if (state.KnockbackStopEvidenceFrames or 0) >= PhysicsConfig.Collision.KnockbackStopEvidenceFramesRequired then
 				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
 			end
 		elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then

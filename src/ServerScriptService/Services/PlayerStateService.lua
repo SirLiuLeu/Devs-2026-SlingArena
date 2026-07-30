@@ -131,6 +131,10 @@ local function buildDefaultState(player: Player): PlayerState
 		IsAlive = true,
 		IsCharging = false,
 		MovementState = MOVEMENT_STATE.Idle,
+		KnockbackStartTime = 0,
+		KnockbackStopEvidenceFrames = 0,
+		KnockbackImpactNormal = nil,
+		KnockbackHitTimestamp = 0,
 		IsVisible = true,
 		StunnedUntil = 0,
 		ScaleMultiplier = 1,
@@ -298,6 +302,10 @@ function PlayerStateService:SetActivePlayerMode(player: Player, modeName: string
 	state.ChargeValue = 0
 	state.CurrentVelocity = Vector3.zero
 	state.CooldownEndTime = 0
+	state.KnockbackStartTime = 0
+	state.KnockbackStopEvidenceFrames = 0
+	state.KnockbackImpactNormal = nil
+	state.KnockbackHitTimestamp = 0
 	if forced == true and modeName == GameStates.PlayerMode.Human then
 		state.ForcedHuman = true
 	end
@@ -650,6 +658,10 @@ function PlayerStateService:ResetForNewRound(player: Player)
 	state.ChargeValue = 0
 	state.CooldownEndTime = 0
 	state.LastReleaseDuration = 0
+	state.KnockbackStartTime = 0
+	state.KnockbackStopEvidenceFrames = 0
+	state.KnockbackImpactNormal = nil
+	state.KnockbackHitTimestamp = 0
 	state.DeathCountThisMatch = 0
 	state.RespawnCountThisMatch = 0
 	state.ForcedHuman = false
@@ -672,6 +684,10 @@ function PlayerStateService:ResetForRespawn(player: Player)
 	state.ChargeValue = 0
 	state.CooldownEndTime = 0
 	state.LastReleaseDuration = 0
+	state.KnockbackStartTime = 0
+	state.KnockbackStopEvidenceFrames = 0
+	state.KnockbackImpactNormal = nil
+	state.KnockbackHitTimestamp = 0
 	local flagService = getFlagService(self._context)
 	state.ActiveFlags = if flagService then flagService:ResetPlayer(player) else {}
 	self._launcherRuntime[player] = {}
@@ -700,7 +716,28 @@ end
 function PlayerStateService:SetMovementState(player: Player, movementState: string)
 	local state = self._states[player]
 	if not state then return end
+	local previousState = state.MovementState
 	state.MovementState = movementState
+	if movementState == MOVEMENT_STATE.Knockback and previousState ~= MOVEMENT_STATE.Knockback then
+		state.KnockbackStartTime = os.clock()
+		state.KnockbackStopEvidenceFrames = 0
+	elseif previousState == MOVEMENT_STATE.Knockback and movementState ~= MOVEMENT_STATE.Knockback then
+		state.KnockbackStartTime = 0
+		state.KnockbackStopEvidenceFrames = 0
+		state.KnockbackImpactNormal = nil
+		state.KnockbackHitTimestamp = 0
+	end
+	self:PublishState(player)
+end
+
+function PlayerStateService:RecordKnockbackImpact(player: Player, impactNormal: Vector3, hitTimestamp: number?)
+	local state = self._states[player]
+	if not state then return end
+	local planarNormal = Vector3.new(impactNormal.X, 0, impactNormal.Z)
+	state.KnockbackStartTime = os.clock()
+	state.KnockbackStopEvidenceFrames = 0
+	state.KnockbackImpactNormal = if planarNormal.Magnitude > PhysicsConfig.Movement.AimDeadzone then planarNormal.Unit else nil
+	state.KnockbackHitTimestamp = hitTimestamp or state.KnockbackStartTime
 	self:PublishState(player)
 end
 

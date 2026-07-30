@@ -99,8 +99,14 @@ PhysicalProperties = {
 		AttackerTangentialVelocityRetention = 0.92,
 		CollisionAngleReductionExponent = 1.35,
 		CollisionEnergyLossRatio = 0.16,
-		KnockbackStopSpeed = 2,
+		-- Knockback enter/exit thresholds intentionally use hysteresis: defenders must
+		-- be hit above MinActivationSpeed, then slow below StopSpeed before exiting.
+		KnockbackStopSpeed = 1.25,
 		KnockbackMinActivationSpeed = 2,
+		KnockbackGraceSeconds = 0.3,
+		KnockbackStopEvidenceFramesRequired = 3,
+		KnockbackMaxTwistRadians = math.rad(15),
+		KnockbackTwistDecaySeconds = 0.6,
 
 		-- Food collision response uses the same single-step model on client and server.
 		FoodRestitution = 0.55,
