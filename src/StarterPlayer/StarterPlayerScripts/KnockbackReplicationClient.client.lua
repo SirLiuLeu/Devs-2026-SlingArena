@@ -51,6 +51,7 @@ knockbackRemote.OnClientEvent:Connect(function(knockbackDirection: any, knockbac
 
 	local direction = planarDirection.Unit
 	local mass = math.max(root.AssemblyMass, MIN_ASSEMBLY_MASS)
+	print("[KnockbackReplication] Applying knockback with direction:", direction, "speed:", speed, "mass:", mass)
 	local impulse = direction * speed * mass
 	root:ApplyImpulse(impulse)
 end)

@@ -275,7 +275,7 @@ local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitT
 	local normal = (root.Position - hitbox.Position).Magnitude > 0.001
 		and (root.Position - hitbox.Position).Unit
 		or Vector3.new(0, 0, -1)
-
+	print(`[Report Food Hit] launchId={activeLaunchId} foodId={foodId} speed={reportSpeed} normal={normal} hitType={hitType}`)
 	reportFoodRemote:FireServer({
 		foodId = foodId,
 		launchId = activeLaunchId,
@@ -340,7 +340,7 @@ local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpe
 	local attackerVelocity = root.AssemblyLinearVelocity
 	local sanitizedNormal = sanitizeSurfaceNormal(surfaceNormal, attackerVelocity)
 	triggerPredictedPlayerHitFeedback(targetPlayer, hitPosition)
-	print(`[Report Hit] launchId={activeLaunchId} targetUserId={targetPlayer.UserId}`)
+	print(`[Report Hit] launchId={activeLaunchId} targetUserId={targetPlayer.UserId} speed={observedSpeed or attackerVelocity.Magnitude} normal={sanitizedNormal} `)
 	reportCollisionRemote:FireServer({
 		targetUserId = targetPlayer.UserId,
 		launchId = activeLaunchId,
