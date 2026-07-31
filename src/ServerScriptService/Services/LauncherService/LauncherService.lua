@@ -278,7 +278,7 @@ function LauncherService:_finishLaunch(player: Player, reason: string)
 	self._context.Services.PlayerStateService:SetLastReleaseDuration(player, PhysicsConfig.Launch.RecoveryDuration)
 	self._context.Services.PlayerStateService:SetCooldownEndTime(player, recoveryEnd)
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
-	self._context.Services.PlayerStateService:SetMovementState(player, "Recovering")
+	self._context.Services.PlayerStateService:TrySetMovementState(player, MOVEMENT_STATE.Recovering)
 end
 
 function LauncherService:ValidateLaunchReport(player: Player, payload: any): (boolean, any?, string)
@@ -290,7 +290,7 @@ function LauncherService:ValidateLaunchReport(player: Player, payload: any): (bo
 		return false, nil, "launch_id_mismatch"
 	end
 	local state = self._context.Services.PlayerStateService:GetState(player)
-	if not state or state.MovementState ~= "Launching" then
+	if not state or state.MovementState ~= MOVEMENT_STATE.Launching then
 		return false, nil, "not_launching"
 	end
 	local timestamp = if typeof(payload.timestamp) == "number" then payload.timestamp else nil
@@ -415,23 +415,30 @@ function LauncherService:HandleMoveRequest(player: Player, moveInput: Vector3, _
 	if not RemoteContracts.Validate(RemoteContracts.Names.MoveRequest, moveInput) then
 		return
 	end
+	local state = self._context.Services.PlayerStateService:GetState(player)
+	local planar = Vector3.new(moveInput.X, 0, moveInput.Z)
+	local storedInput = if planar.Magnitude > 1 then planar.Unit else planar
+	if state and state.MovementState == MOVEMENT_STATE.Knockback then
+		self._input[player] = storedInput
+		self._moveRateState[player] = now
+		return
+	end
+
 	if not self:_canControl(player) then
 		self._input[player] = Vector3.zero
 		return
 	end
 
-	local state = self._context.Services.PlayerStateService:GetState(player)
 	if not state or state.IsTeleporting then
 		self._input[player] = Vector3.zero
 		return
 	end
-	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == "Recovering" then
+	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == MOVEMENT_STATE.Recovering then
 		self._input[player] = Vector3.zero
 		return
 	end
 
-	local planar = Vector3.new(moveInput.X, 0, moveInput.Z)
-	self._input[player] = if planar.Magnitude > 1 then planar.Unit else planar
+	self._input[player] = storedInput
 	self._moveRateState[player] = now
 end
 
@@ -455,8 +462,8 @@ function LauncherService:StartCharge(player: Player, aimDirection: Vector3)
 		return
 	end
 	if state.MovementState == MOVEMENT_STATE.Charging
-		or state.MovementState == "Launching"
-		or state.MovementState == "Recovering"
+		or state.MovementState == MOVEMENT_STATE.Launching
+		or state.MovementState == MOVEMENT_STATE.Recovering
 	then
 		return
 	end
@@ -466,12 +473,15 @@ function LauncherService:StartCharge(player: Player, aimDirection: Vector3)
 
 	local direction = LauncherService.ResolveLaunchDirection(root, aimDirection)
 
+	if not self._context.Services.PlayerStateService:TrySetMovementState(player, MOVEMENT_STATE.Charging) then
+		warn(string.format("[LauncherService] StartCharge rejected for %s from %s", player.Name, tostring(state.MovementState)))
+		return
+	end
 	self._chargeState[player] = {
 		chargeStartTime = now,
 		aimDirection = direction,
 	}
 	self._context.Services.PlayerStateService:SetCharging(player, true, 0)
-	self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Charging)
 	self._context.EventBus:Fire("ChargeStarted", player)
 end
 
@@ -542,10 +552,16 @@ function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3,
 		root:SetNetworkOwner(player)
 	end
 
+	if not self._context.Services.PlayerStateService:TrySetMovementState(player, MOVEMENT_STATE.Launching) then
+		warn(string.format("[LauncherService] Launch rejected for %s from %s", player.Name, tostring(state.MovementState)))
+		self._chargeState[player] = nil
+		self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
+		return
+	end
+
 	self._activeLaunches[player] = launchState
 	state.CurrentVelocity = launchState.direction * launchState.initialSpeed
 	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
-	self._context.Services.PlayerStateService:SetMovementState(player, "Launching")
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 
 	local launchRemote = self._clientDoLaunchRemote
@@ -633,6 +649,7 @@ local function resolveKnockbackTwist(state: any, travelDirection: Vector3, now: 
 end
 
 function LauncherService:_applyPlanarRotation(root: BasePart, direction: Vector3, twistRadians: number?)
+	-- Server-owned orientation path: this is the only code that updates AlignOrientation.CFrame.
 	local desiredPlanar = Vector3.new(direction.X, 0, direction.Z)
 	if desiredPlanar.Magnitude < PhysicsConfig.Movement.AimDeadzone then
 		return
@@ -718,7 +735,7 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 
 	self._warnedInvalidRoot[player] = nil
 
-	if state.MovementState == "Launching" then
+	if state.MovementState == MOVEMENT_STATE.Launching then
 		local launchState = self._activeLaunches[player]
 		if launchState and typeof(launchState.direction) == "Vector3" then
 			self:_applyPlanarRotation(root, launchState.direction)
@@ -754,15 +771,33 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 		movementController:DisableLocomotion(true)
 		local velocity = root.AssemblyLinearVelocity
 		local planarVelocity = Vector3.new(velocity.X, 0, velocity.Z)
-		if planarVelocity.Magnitude >= PhysicsConfig.Movement.AimDeadzone then
-			self:_applyPlanarRotation(root, planarVelocity.Unit, resolveKnockbackTwist(state, planarVelocity.Unit, os.clock()))
+		local planarSpeed = planarVelocity.Magnitude
+		if planarSpeed >= PhysicsConfig.Movement.AimDeadzone then
+			local decayPerSecond = PhysicsConfig.Knockback.PassiveDecayPerSecond
+			local now = os.clock()
+			if now >= (state.KnockbackStunEndsAt or 0) and moveDirection.Magnitude >= PhysicsConfig.Knockback.MinBrakeInputMagnitude then
+				local dot = moveDirection.Unit:Dot(planarVelocity.Unit)
+				if dot < PhysicsConfig.Knockback.OpposingDotThreshold then
+					local opposition = math.clamp(-dot, 0, 1)
+					decayPerSecond += PhysicsConfig.Knockback.ActiveBrakeDecayPerSecond * opposition
+				end
+			end
+			local decay = math.exp(-math.max(decayPerSecond, 0) * math.max(dt, 0))
+			local newPlanarVelocity = planarVelocity * decay
+			root.AssemblyLinearVelocity = Vector3.new(newPlanarVelocity.X, velocity.Y, newPlanarVelocity.Z)
+			if newPlanarVelocity.Magnitude >= PhysicsConfig.Movement.AimDeadzone then
+				local knockbackDirection = newPlanarVelocity.Unit
+				self:_applyPlanarRotation(root, knockbackDirection, resolveKnockbackTwist(state, knockbackDirection, now))
+			else
+				self:_setAutomaticRotation(root, true)
+			end
 		else
 			self:_setAutomaticRotation(root, true)
 		end
 		return
 	end
 
-	if state.MovementState == "Recovering" then
+	if state.MovementState == MOVEMENT_STATE.Recovering then
 		movementController:DisableLocomotion(false)
 		return
 	end
@@ -771,7 +806,7 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 		movementController:SetSpeed(resolveMovementSpeed(state))
 		movementController:Move(Vector3.zero, dt)
 		if state.MovementState ~= MOVEMENT_STATE.Idle then
-			self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
+			self._context.Services.PlayerStateService:TrySetMovementState(player, MOVEMENT_STATE.Idle)
 		end
 		return
 	end
@@ -780,14 +815,14 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 	movementController:Move(moveDirection.Unit, dt)
 	self:_applyPlanarRotation(root, moveDirection.Unit)
 	if state.MovementState ~= MOVEMENT_STATE.Moving then
-		self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Moving)
+		self._context.Services.PlayerStateService:TrySetMovementState(player, MOVEMENT_STATE.Moving)
 	end
 end
 
 --[[
-	_stepMovementStates keeps only server-authoritative launch lifecycle cleanup.
-	Movement decay/braking is intentionally absent: launch motion is client-impulse
-	physics, and the server verifies reports against launchId/state/speed ceilings.
+	_stepMovementStates keeps server-authoritative launch/knockback lifecycle cleanup.
+	Launch motion remains client-impulse physics; knockback exits are forced only
+	after validated timeout or stop-speed evidence.
 ]]
 function LauncherService:_stepMovementStates(_dt: number)
 	local now = os.clock()
@@ -798,11 +833,16 @@ function LauncherService:_stepMovementStates(_dt: number)
 		end
 
 		local launchState = self._activeLaunches[player]
-		if state.MovementState == "Launching" and launchState then
+		if state.MovementState == MOVEMENT_STATE.Launching and launchState then
 			if now >= (launchState.maxEndsAt or math.huge) then
 				self:_finishLaunch(player, string.format("hard_timeout (max=%.1fs)", PhysicsConfig.Launch.MaxLaunchDuration))
 			end
 		elseif state.MovementState == MOVEMENT_STATE.Knockback then
+			if typeof(state.KnockbackMaxEndsAt) == "number" and state.KnockbackMaxEndsAt > 0 and now >= state.KnockbackMaxEndsAt then
+				warn(string.format("[LauncherService] Knockback timeout for %s", player.Name))
+				self._context.Services.PlayerStateService:ForceSetMovementState(player, MOVEMENT_STATE.Idle)
+				continue
+			end
 			local knockbackStartTime = if typeof(state.KnockbackStartTime) == "number" and state.KnockbackStartTime > 0 then state.KnockbackStartTime else now
 			if state.KnockbackStartTime ~= knockbackStartTime then
 				state.KnockbackStartTime = knockbackStartTime
@@ -821,12 +861,12 @@ function LauncherService:_stepMovementStates(_dt: number)
 				state.KnockbackStopEvidenceFrames = 0
 			end
 			if (state.KnockbackStopEvidenceFrames or 0) >= PhysicsConfig.Collision.KnockbackStopEvidenceFramesRequired then
-				self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
+				self._context.Services.PlayerStateService:ForceSetMovementState(player, MOVEMENT_STATE.Idle)
 			end
-		elseif state.MovementState == "Recovering" and now >= (self._releaseCooldown[player] or 0) then
+		elseif state.MovementState == MOVEMENT_STATE.Recovering and now >= (self._releaseCooldown[player] or 0) then
 			self._activeLaunches[player] = nil
 			player:SetAttribute("LaunchValidationGraceEndsAt", 0)
-			self._context.Services.PlayerStateService:SetMovementState(player, MOVEMENT_STATE.Idle)
+			self._context.Services.PlayerStateService:ForceSetMovementState(player, MOVEMENT_STATE.Idle)
 			self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
 			self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
 		end

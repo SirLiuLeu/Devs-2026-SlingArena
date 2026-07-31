@@ -41,6 +41,17 @@ PhysicalProperties = {
 		MaxChargeRatioThreshold = 0.999,
 	},
 
+	Knockback = {
+		InitialStunSeconds = 0.18,
+		PassiveDecayPerSecond = 0.65,
+		ActiveBrakeDecayPerSecond = 3.5,
+		OpposingDotThreshold = 0,
+		MinBrakeInputMagnitude = 0.15,
+		MaxDurationMin = 0.65,
+		MaxDurationMax = 2.25,
+		MaxDurationSpeedScale = 125,
+	},
+
 	Launch = {
 		DirectionDeadzone = 0.01,
 		SpeedMin = 20,

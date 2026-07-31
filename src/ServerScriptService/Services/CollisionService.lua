@@ -260,9 +260,9 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 
 
 	if shouldKnockback then
-		stateService:SetMovementState(defender, "Knockback")
+		stateService:ForceSetMovementState(defender, "Knockback")
 		if typeof(stateService.RecordKnockbackImpact) == "function" then
-			stateService:RecordKnockbackImpact(defender, normal, now)
+			stateService:RecordKnockbackImpact(defender, normal, now, defenderOut.Magnitude)
 		end
 	end
 

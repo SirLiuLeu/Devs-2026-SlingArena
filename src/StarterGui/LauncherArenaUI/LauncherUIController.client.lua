@@ -138,7 +138,7 @@ local function shouldShowJoystickByState(state: { [string]: any }?): boolean
 	end
 
 	local movementState = if state then state.MovementState else nil
-	if movementState == "Recovering" or movementState == "Launching" then
+	if movementState == GameStates.PlayerState.Recovering or movementState == GameStates.PlayerState.Launching or movementState == GameStates.PlayerState.Knockback then
 		return false
 	end
 
@@ -380,21 +380,8 @@ local function resolveChargeAimDirection(): Vector3
 	return planarDirection.Unit
 end
 
-local function updateLauncherFacingDirection(root: BasePart, direction: Vector3)
-	local planarDirection = Vector3.new(direction.X, 0, direction.Z)
-	if planarDirection.Magnitude < PhysicsConfig.Movement.AimDeadzone then
-		return
-	end
-
-	local facingCFrame = CFrame.lookAt(root.Position, root.Position + planarDirection.Unit, Vector3.yAxis)
-	local alignOrientation = root:FindFirstChild("AlignOrientation")
-	if alignOrientation and alignOrientation:IsA("AlignOrientation") then
-		alignOrientation.Enabled = true
-		alignOrientation.CFrame = facingCFrame
-		return
-	end
-
-	root.CFrame = facingCFrame
+local function updateLauncherFacingDirection(_root: BasePart, _direction: Vector3)
+	-- Physical facing is server-owned. The client only updates UI previews.
 end
 
 local function updateArrowPreview()
@@ -565,6 +552,9 @@ local function startHold(input: InputObject)
 	if os.clock() < cooldownEndTime then
 		return
 	end
+	if lastKnownServerState and lastKnownServerState.MovementState == GameStates.PlayerState.Knockback then
+		return
+	end
 
 	local _, joystickRoot, _, _, chargeBar = resolveUi(false)
 	if not joystickRoot then
@@ -726,7 +716,7 @@ if stateUpdateRemote then
 
 		if state.MovementState == GameStates.PlayerState.Launching then
 			awaitingReleaseAck = false
-		elseif state.MovementState == "Recovering" then
+		elseif state.MovementState == GameStates.PlayerState.Recovering then
 			awaitingReleaseAck = false
 			syncCooldownFromServerState(state)
 		elseif state.MovementState == GameStates.PlayerState.Idle and awaitingReleaseAck == false and state.IsCharging ~= true then
@@ -755,7 +745,7 @@ playerGui.ChildAdded:Connect(function(child)
 	bindJoystickInput()
 	if lastKnownServerState and lastKnownServerState.IsAlive == false then
 		resetVisualState()
-	elseif lastKnownServerState and lastKnownServerState.MovementState == "Recovering" then
+	elseif lastKnownServerState and lastKnownServerState.MovementState == GameStates.PlayerState.Recovering then
 		syncCooldownFromServerState(lastKnownServerState)
 	end
 	applyJoystickVisibilityFromState(lastKnownServerState)

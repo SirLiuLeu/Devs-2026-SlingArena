@@ -51,6 +51,7 @@ local controls: any = nil
 local printedHumanAssignment = false
 local printedHumanInput = false
 local printedHumanPhysics = false
+local previousHumanoidAutoRotate: boolean? = nil
 
 local function getPlayerControls(): any
 	
@@ -88,6 +89,29 @@ local function setNativeControlsEnabled(enabled: boolean)
 		playerControls:Enable()
 	else
 		playerControls:Disable()
+	end
+end
+
+
+local function setHumanoidAutoRotateEnabled(enabled: boolean)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return
+	end
+
+	if enabled then
+		if previousHumanoidAutoRotate ~= nil then
+			humanoid.AutoRotate = previousHumanoidAutoRotate
+			previousHumanoidAutoRotate = nil
+		else
+			humanoid.AutoRotate = true
+		end
+	else
+		if previousHumanoidAutoRotate == nil then
+			previousHumanoidAutoRotate = humanoid.AutoRotate
+		end
+		humanoid.AutoRotate = false
 	end
 end
 
@@ -181,13 +205,15 @@ local function activateLauncherInput()
 	end
 	launcherInputActive = true
 	resetLauncherInput()
-	setNativeControlsEnabled(true)
+	setNativeControlsEnabled(false)
+	setHumanoidAutoRotateEnabled(false)
 	bindLauncherActions()
 end
 
 local function deactivateLauncherInput()
 	if not launcherInputActive then
 		setNativeControlsEnabled(true)
+		setHumanoidAutoRotateEnabled(true)
 		return
 	end
 	launcherInputActive = false
@@ -195,6 +221,7 @@ local function deactivateLauncherInput()
 	resetLauncherInput()
 	player:SetAttribute("CameraRotateHeld", false)
 	setNativeControlsEnabled(true)
+	setHumanoidAutoRotateEnabled(true)
 end
 
 local function syncInputMode()
