@@ -1,0 +1,54 @@
+{
+  "ClassName": "Frame",
+  "Name": "ItemSlotTemplate_InventoryUI",
+  "Properties": {
+    "Size": { "UDim2": [[0, 100], [0, 100]] },
+    "BackgroundColor3": { "Color3": [0.2, 0.2, 0.25] },
+    "BorderSizePixel": 0
+  },
+  "Children": [
+    { "ClassName": "UICorner" },
+
+    {
+      "ClassName": "ImageLabel",
+      "Name": "Icon",
+      "Properties": {
+        "Size": { "UDim2": [[1, -10], [0.7, 0]] },
+        "Position": { "UDim2": [[0, 5], [0, 5]] },
+        "BackgroundTransparency": 1,
+        "Image": ""
+      }
+    },
+
+    {
+      "ClassName": "TextLabel",
+      "Name": "Name",
+      "Properties": {
+        "Size": { "UDim2": [[1, -10], [0, 16]] },
+        "Position": { "UDim2": [[0, 5], [0.7, 0]] },
+        "BackgroundTransparency": 1,
+        "Text": "Item Name",
+        "TextScaled": true,
+        "TextColor3": { "Color3": [1, 1, 1] },
+        "Font": "GothamBold",
+        "TextXAlignment": "Left"
+      }
+    },
+
+    {
+      "ClassName": "TextLabel",
+      "Name": "Quantity",
+      "Properties": {
+        "AnchorPoint": [1, 1],
+        "Position": { "UDim2": [[1, -5], [1, -5]] },
+        "Size": { "UDim2": [[0, 30], [0, 16]] },
+        "BackgroundTransparency": 1,
+        "Text": "x1",
+        "TextScaled": true,
+        "TextColor3": { "Color3": [1, 1, 1] },
+        "Font": "GothamBold",
+        "TextXAlignment": "Right"
+      }
+    }
+  ]
+}
