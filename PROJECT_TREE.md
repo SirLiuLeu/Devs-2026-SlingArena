@@ -279,44 +279,28 @@ DataModel
 ## 🟩 StarterPlayer
 ├─ StarterPlayer
 │  └─ StarterPlayerScripts
-│  │   └─ Client  -> src/StarterPlayer
-│  │      └─ StarterPlayerScripts
-│  │         ├─ CameraController.client.lua   (Camera)
-│  │         ├─ CollisionClientScanner.client.lua
-│  │         ├─ FoodWorldUI.client.lua
-│  │         ├─ InputController.client.lua      (active input / charge script)
-│  │         ├─ KnockbackReplicationClient.client.lua
-│  │         ├─ LaunchImpulseClient.client.lua
-│  │         ├─ LauncherUIController.client.lua (LocalScript; resolves LauncherUI ScreenGui)
-│  │         ├─ PlayerModeController.client.lua
-│  │         ├─ SafeZoneVisualizer.client.lua
-│  │         ├─ UIBinder.client.lua           (active UI bootstrap; event-driven rebinding)
-│  │         └─ Components
-│  │            ├─ AttributePanel.lua
-│  │            ├─ BuffPanel.lua
-│  │            ├─ ChargeBar.lua
-│  │            ├─ CooldownOverlayComponent.lua
-│  │            ├─ CooldownTextComponent.lua
-│  │            ├─ DiamondDisplay.lua
-│  │            ├─ HUD.lua
-│  │            ├─ HealthBar.lua
-│  │            ├─ LeaderboardUI.lua
-│  │            ├─ RespawnPanel.lua
-│  │            └─ SkillButton.lua
-│  └─ LauncherUI (ScreenGui; created in Studio/manual UI asset)
-│        ├─ JoystickRoot (Frame)
-│        │  ├─ Base (Frame)
-│        │  └─ Thumb (Frame)
-│        │
-│        ├─ ChargeBar (Frame)
-│        │  └─ Fill (Frame)
-│        │
-│        ├─ CooldownBar (Frame)
-│        │  └─ Fill (Frame)
-│        │
-│        ├─ CooldownOverlay (GuiObject)
-│        ├─ CooldownText (TextLabel)
-│        └─ DirectionIndicator (ImageLabel)
+│     ├─ CameraController.client.lua                 (Camera)
+│     ├─ CollisionClientScanner.client.lua
+│     ├─ FoodWorldUI.client.lua
+│     ├─ InputController.client.lua                  (Active input / charge script)
+│     ├─ KnockbackReplicationClient.client.lua
+│     ├─ LaunchImpulseClient.client.lua
+│     ├─ LauncherUIController.client.lua             (Resolves LauncherUI ScreenGui)
+│     ├─ PlayerModeController.client.lua
+│     ├─ SafeZoneVisualizer.client.lua
+│     ├─ UIBinder.client.lua                         (UI bootstrap; event-driven rebinding)
+│     └─ Components
+│        ├─ AttributePanel.lua
+│        ├─ BuffPanel.lua
+│        ├─ ChargeBar.lua
+│        ├─ CooldownOverlayComponent.lua
+│        ├─ CooldownTextComponent.lua
+│        ├─ DiamondDisplay.lua
+│        ├─ HealthBar.lua
+│        ├─ HUD.lua
+│        ├─ LeaderboardUI.lua
+│        ├─ RespawnPanel.lua
+│        └─ SkillButton.lua
 │
 ## 🟨 StarterGui
 ├─ StarterGui  -> src/StarterGui
@@ -546,7 +530,7 @@ DataModel
 │  │
 │  └─ LauncherUI (ScreenGui)
 │     ├─ ChargeBar
-│     ├─ CooldownBar
+│     │  └─ Fill
 │     └─ JoystickRoot
 │        ├─ Base
 │        │  └─ UICorner
