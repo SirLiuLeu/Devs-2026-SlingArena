@@ -281,26 +281,42 @@ DataModel
 │  └─ StarterPlayerScripts
 │  │   └─ Client  -> src/StarterPlayer
 │  │      └─ StarterPlayerScripts
+│  │         ├─ CameraController.client.lua   (Camera)
+│  │         ├─ CollisionClientScanner.client.lua
+│  │         ├─ FoodWorldUI.client.lua
 │  │         ├─ InputController.client.lua      (active input / charge script)
+│  │         ├─ KnockbackReplicationClient.client.lua
+│  │         ├─ LaunchImpulseClient.client.lua
+│  │         ├─ LauncherUIController.client.lua (LocalScript; resolves LauncherUI ScreenGui)
+│  │         ├─ PlayerModeController.client.lua
+│  │         ├─ SafeZoneVisualizer.client.lua
 │  │         ├─ UIBinder.client.lua           (active UI bootstrap; event-driven rebinding)
-│  │         └─ CameraController.client.lua   (Camera)
-│  └─ LauncherArenaUI (Folder)
-│        ├─ LauncherUI (ScreenGui; created in Studio/manual UI asset)
-│        │   ├─ JoystickRoot (Frame)
-│        │   │  ├─ Base (Frame)
-│        │   │  └─ Thumb (Frame)
-│        │   │
-│        │   ├─ ChargeBar (Frame)
-│        │   │  └─ Fill (Frame)
-│        │   │
-│        │   ├─ CooldownBar (Frame)
-│        │   │  └─ Fill (Frame)
-│        │   │
-│        │   └─ DirectionIndicator (ImageLabel)
-│        ├─ MainUI.client.lua (deprecated)
-│        ├─ LauncherUIController.client.lua (LocalScript; resolves LauncherUI ScreenGui without name collision)
-│        ├─ UIController.lua
-│        └─ Components/*
+│  │         └─ Components
+│  │            ├─ AttributePanel.lua
+│  │            ├─ BuffPanel.lua
+│  │            ├─ ChargeBar.lua
+│  │            ├─ CooldownOverlayComponent.lua
+│  │            ├─ CooldownTextComponent.lua
+│  │            ├─ DiamondDisplay.lua
+│  │            ├─ HUD.lua
+│  │            ├─ HealthBar.lua
+│  │            ├─ LeaderboardUI.lua
+│  │            ├─ RespawnPanel.lua
+│  │            └─ SkillButton.lua
+│  └─ LauncherUI (ScreenGui; created in Studio/manual UI asset)
+│        ├─ JoystickRoot (Frame)
+│        │  ├─ Base (Frame)
+│        │  └─ Thumb (Frame)
+│        │
+│        ├─ ChargeBar (Frame)
+│        │  └─ Fill (Frame)
+│        │
+│        ├─ CooldownBar (Frame)
+│        │  └─ Fill (Frame)
+│        │
+│        ├─ CooldownOverlay (GuiObject)
+│        ├─ CooldownText (TextLabel)
+│        └─ DirectionIndicator (ImageLabel)
 │
 ## 🟨 StarterGui
 ├─ StarterGui  -> src/StarterGui

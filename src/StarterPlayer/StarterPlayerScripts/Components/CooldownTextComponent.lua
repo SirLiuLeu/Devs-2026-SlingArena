@@ -8,21 +8,24 @@ local function warnMissing(name: string)
 end
 
 function Component.new(parent: Instance)
-	-- [UI_CREATION_GUIDE]
-	-- Create this component manually as descendants under StarterGui.MainHUD (ScreenGui)
-	-- with matching names and instance types expected by your UI prefab.
-	local root = parent:FindFirstChild(script.Name)
+	local root = parent:FindFirstChild("CooldownText")
 	if not root then
-		warnMissing(script.Name)
+		warnMissing("CooldownText")
+	elseif root:IsA("GuiObject") then
+		root.Visible = false
 	end
 	return setmetatable({ Root = root }, Component)
 end
 
-function Component:Update(...)
-	if not self.Root then
+function Component:Update(visible: boolean, text: string?)
+	if not self.Root or not self.Root:IsA("GuiObject") then
 		return
 	end
-	local _ = { ... }
+	self.Root.Visible = visible
+	if text ~= nil and (self.Root:IsA("TextLabel") or self.Root:IsA("TextButton") or self.Root:IsA("TextBox")) then
+		local textObject = self.Root :: any
+		textObject.Text = text
+	end
 end
 
 function Component:Destroy()

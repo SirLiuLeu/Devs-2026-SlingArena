@@ -27,7 +27,8 @@ local watchedGuiNames = {
 	["OnlineRewardUI"] = true,
 	["SpinUI"] = true,
 	["DailyLoginUI"] = true,
-	["ShopUI"] = true
+	["ShopUI"] = true,
+	["LauncherUI"] = true,
 }
 
 local function buildController()

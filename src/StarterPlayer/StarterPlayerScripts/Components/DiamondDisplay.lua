@@ -9,7 +9,7 @@ end
 
 function Component.new(parent: Instance)
 	-- [UI_CREATION_GUIDE]
-	-- Create this component manually as descendants under StarterGui.LauncherArenaUI (ScreenGui)
+	-- Create this component manually as descendants under StarterGui.MainHUD (ScreenGui)
 	-- with matching names and instance types expected by your UI prefab.
 	local root = parent:FindFirstChild(script.Name)
 	if not root then

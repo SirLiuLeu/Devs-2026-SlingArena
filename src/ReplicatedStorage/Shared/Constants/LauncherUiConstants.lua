@@ -2,13 +2,14 @@
 
 local LauncherUiConstants = {
 	ScreenGuiName = "LauncherUI",
-	ContainerName = "LauncherArenaUI",
 	Elements = {
 		JoystickRoot = "JoystickRoot",
 		Base = "Base",
 		Thumb = "Thumb",
 		ChargeBar = "ChargeBar",
 		CooldownBar = "CooldownBar",
+		CooldownOverlay = "CooldownOverlay",
+		CooldownText = "CooldownText",
 		Fill = "Fill",
 		DirectionIndicator = "DirectionIndicator",
 	},

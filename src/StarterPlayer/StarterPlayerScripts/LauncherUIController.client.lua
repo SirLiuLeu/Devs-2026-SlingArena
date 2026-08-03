@@ -10,6 +10,9 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local LauncherUiConstants = require(ReplicatedStorage.Shared.Constants.LauncherUiConstants)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local LauncherUiState = require(ReplicatedStorage.Shared.Utils.LauncherUiState)
+local LauncherCooldownService = require(ReplicatedStorage.Shared.Utils.LauncherCooldownService)
+local CooldownOverlayComponent = require(script.Parent.Components.CooldownOverlayComponent)
+local CooldownTextComponent = require(script.Parent.Components.CooldownTextComponent)
 local WaitForUI = require(ReplicatedStorage.Shared.Utils.WaitForUI)
 local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 
@@ -22,7 +25,7 @@ local stateUpdateRemote = remotes:FindFirstChild(RemoteContracts.Names.StateUpda
 local prefabsFolder = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("Prefabs")
 
 local MAX_CHARGE_TIME = PhysicsConfig.Charge.MaxSeconds
-local DEFAULT_COOLDOWN_DURATION = PhysicsConfig.Charge.MaxSeconds
+local DEFAULT_COOLDOWN_DURATION = PhysicsConfig.Launch.RecoveryDuration
 local DEFAULT_JOYSTICK_RADIUS = 60
 local ARROW_FORWARD_OFFSET = 1
 local DEBUG_LOG = false
@@ -42,9 +45,11 @@ local currentDragDistance = 0
 local currentDirection = Vector2.new(0, -1)
 local currentChargeAimDirection = Vector3.new(0, 0, -1)
 local chargeStartTime = 0
+local cooldownService = LauncherCooldownService.new(DEFAULT_COOLDOWN_DURATION)
 local cooldownStartTime = 0
 local cooldownEndTime = 0
 local cooldownDuration = DEFAULT_COOLDOWN_DURATION
+local lastCooldownTextBucket: number? = nil
 local lastKnownServerState: { [string]: any }? = nil
 local uiUpdateConnection: RBXScriptConnection? = nil
 local arrowPreview: Model? = nil
@@ -62,12 +67,13 @@ local cachedChargeFill: GuiObject? = nil
 local cachedDirectionIndicator: GuiObject? = nil
 local cachedCooldownBar: GuiObject? = nil
 local cachedCooldownFill: GuiObject? = nil
+local cooldownOverlayComponent: any = nil
+local cooldownTextComponent: any = nil
 
 -- [UI_CREATION_GUIDE]
 -- Create in Studio:
 -- StarterGui
---   LauncherArenaUI (Folder)
---     LauncherUI (ScreenGui)
+--   LauncherUI (ScreenGui)
 --       JoystickRoot (Frame)
 --         Base (Frame)
 --         Thumb (Frame)
@@ -107,7 +113,7 @@ local function warnMissingUiOnce(message: string)
 
 	warnedMissingUi = true
 	warn(message)
-	warn("[UI_CREATION_GUIDE] Required path: StarterGui.LauncherArenaUI.LauncherUI.JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator.")
+	warn("[UI_CREATION_GUIDE] Required path: StarterGui.LauncherUI.JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator.")
 end
 
 local function setVisibleSafe(instance: GuiObject?, visible: boolean)
@@ -157,6 +163,12 @@ local function applyJoystickVisibilityFromState(state: { [string]: any }?)
 	if not launcherMode then
 		setVisibleSafe(cachedChargeBar, false)
 		setVisibleSafe(cachedCooldownBar, false)
+		if cooldownOverlayComponent then
+			cooldownOverlayComponent:Update(false)
+		end
+		if cooldownTextComponent then
+			cooldownTextComponent:Update(false)
+		end
 		destroyArrowPreview()
 	end
 end
@@ -239,7 +251,7 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 		if WaitForUI.IsRetryPending(player) and waitForUi ~= true then
 			return nil, nil, nil, nil, nil, nil, nil, nil, nil
 		end
-		warnMissingUiOnce("[LauncherUI] Missing LauncherUI ScreenGui at PlayerGui.LauncherArenaUI.LauncherUI.")
+		warnMissingUiOnce("[LauncherUI] Missing LauncherUI ScreenGui at PlayerGui.LauncherUI.")
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil
 	end
 
@@ -255,6 +267,13 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 	local thumb = if joystickRoot then findChild(joystickRoot, "Thumb") else nil
 	local chargeFill = if chargeBar then findChild(chargeBar, "Fill") else nil
 	local cooldownFill = if cooldownBar then findChild(cooldownBar, "Fill") else nil
+
+	if not cooldownOverlayComponent then
+		cooldownOverlayComponent = CooldownOverlayComponent.new(screenGui)
+	end
+	if not cooldownTextComponent then
+		cooldownTextComponent = CooldownTextComponent.new(screenGui)
+	end
 
 	if not joystickRoot or not base or not thumb or not chargeBar or not chargeFill or not cooldownBar or not cooldownFill or not directionIndicator then
 		warnMissingUiOnce("[LauncherUI] LauncherUI hierarchy is incomplete. Expected LauncherUI > JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator.")
@@ -300,13 +319,43 @@ local function updateChargeBar(percent: number)
 	end
 end
 
-local function updateCooldownBar(percent: number)
+local function formatCooldownText(remainingTime: number): (string, number)
+	if remainingTime > 1 then
+		local rounded = math.max(1, math.round(remainingTime))
+		return tostring(rounded), rounded
+	end
+
+	local rounded = math.max(0.1, math.round(remainingTime * 10) / 10)
+	local bucket = math.round(rounded * 10)
+	return string.format("%.1f", rounded), bucket
+end
+
+local function updateCooldownVisuals(percent: number, remainingTime: number?)
 	local _, _, _, _, _, _, _, cooldownBar, cooldownFill = resolveUi(false)
 	local normalized = LauncherUiState.ClampRatio(percent)
+	local launcherMode = isLauncherMode(lastKnownServerState)
+	local showCooldown = launcherMode and normalized > 0 and normalized < 1 and remainingTime ~= nil and remainingTime > 0
 	if cooldownFill then
 		cooldownFill.Size = UDim2.new(normalized, 0, 1, 0)
 	end
-	setVisibleSafe(cooldownBar, isLauncherMode(lastKnownServerState) and normalized > 0 and normalized < 1)
+	setVisibleSafe(cooldownBar, showCooldown)
+	if cooldownOverlayComponent then
+		cooldownOverlayComponent:Update(showCooldown, normalized)
+	end
+	if cooldownTextComponent then
+		if showCooldown and remainingTime then
+			local text, bucket = formatCooldownText(remainingTime)
+			if lastCooldownTextBucket ~= bucket then
+				lastCooldownTextBucket = bucket
+				cooldownTextComponent:Update(true, text)
+			else
+				cooldownTextComponent:Update(true)
+			end
+		else
+			lastCooldownTextBucket = nil
+			cooldownTextComponent:Update(false)
+		end
+	end
 end
 
 local function resetThumbPosition()
@@ -443,7 +492,7 @@ local function stopUiLoopIfIdle()
 	if isHolding then
 		return
 	end
-	if os.clock() < cooldownEndTime then
+	if cooldownService:IsActive() then
 		return
 	end
 	if uiUpdateConnection then
@@ -470,10 +519,13 @@ local function stepUi()
 	applyJoystickVisibilityFromState(lastKnownServerState)
 
 	local cooldownRatio = 0
-	if cooldownEndTime > cooldownStartTime and os.clock() < cooldownEndTime then
-		cooldownRatio = LauncherUiState.ComputeCooldownRatio(os.clock() - cooldownStartTime, cooldownDuration)
+	local remainingTime = 0
+	local now = os.clock()
+	if cooldownService:IsActive(now) then
+		cooldownRatio = cooldownService:GetRatio(now)
+		remainingTime = cooldownService:GetRemainingTime(now)
 	end
-	updateCooldownBar(cooldownRatio)
+	updateCooldownVisuals(cooldownRatio, remainingTime)
 	stopUiLoopIfIdle()
 end
 
@@ -488,23 +540,22 @@ local function ensureUiLoopRunning()
 end
 
 local function beginCooldown(duration: number, endTime: number?)
-	cooldownDuration = math.max(duration, 0)
-	if endTime and endTime > 0 then
-		cooldownEndTime = endTime
-		cooldownStartTime = cooldownEndTime - cooldownDuration
-	else
-		cooldownStartTime = os.clock()
-		cooldownEndTime = cooldownStartTime + cooldownDuration
-	end
-	updateCooldownBar(0)
+	local cooldownState = cooldownService:Begin(duration, endTime)
+	cooldownStartTime = cooldownState.cooldownStartTime
+	cooldownEndTime = cooldownState.cooldownEndTime
+	cooldownDuration = cooldownState.cooldownDuration
+	lastCooldownTextBucket = nil
+	updateCooldownVisuals(0, 0)
 	ensureUiLoopRunning()
 end
 
 local function clearCooldown()
-	cooldownStartTime = 0
-	cooldownEndTime = 0
-	cooldownDuration = DEFAULT_COOLDOWN_DURATION
-	updateCooldownBar(0)
+	local cooldownState = cooldownService:Clear()
+	cooldownStartTime = cooldownState.cooldownStartTime
+	cooldownEndTime = cooldownState.cooldownEndTime
+	cooldownDuration = cooldownState.cooldownDuration
+	lastCooldownTextBucket = nil
+	updateCooldownVisuals(0, 0)
 	stopUiLoopIfIdle()
 end
 
@@ -549,7 +600,7 @@ local function startHold(input: InputObject)
 	if isHolding then
 		return
 	end
-	if os.clock() < cooldownEndTime then
+	if cooldownService:IsActive() then
 		return
 	end
 	if lastKnownServerState and lastKnownServerState.MovementState == GameStates.PlayerState.Knockback then
@@ -749,7 +800,7 @@ workspace:WaitForChild("LauncherPawns").ChildAdded:Connect(function(child)
 end)
 
 playerGui.ChildAdded:Connect(function(child)
-	if child.Name ~= "LauncherArenaUI" and child.Name ~= LauncherUiConstants.ScreenGuiName then
+	if child.Name ~= LauncherUiConstants.ScreenGuiName then
 		return
 	end
 

@@ -3,7 +3,6 @@
 local Players = game:GetService("Players")
 
 local PathResolver = require(script.Parent.PathResolver)
-local LauncherUiConstants = require(script.Parent.Parent.Constants.LauncherUiConstants)
 local ProjectTreeSpec = require(script.Parent.Parent.ProjectTreeSpec)
 
 local WaitForUI = {}
@@ -16,23 +15,8 @@ export type ResolveOptions = {
 
 local pendingRetries: { [Player]: RBXScriptConnection } = {}
 
-local function resolveContainer(playerGui: PlayerGui, shouldWait: boolean, timeout: number): Instance?
-	if shouldWait then
-		return PathResolver.waitForPath(playerGui, ProjectTreeSpec.UI.LauncherTouch.Container, timeout)
-	end
-
-	return PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.LauncherTouch.Container, {
-		shouldWarn = false,
-	})
-end
-
-local function resolveScreenGui(container: Instance?, shouldWait: boolean, timeout: number): ScreenGui?
-	if not container then
-		return nil
-	end
-
-	local screenGuiPath = LauncherUiConstants.ScreenGuiName
-	local screenGui = if shouldWait then PathResolver.waitForPath(container, screenGuiPath, timeout) else PathResolver.resolvePath(container, screenGuiPath, {
+local function resolveScreenGui(playerGui: PlayerGui, shouldWait: boolean, timeout: number): ScreenGui?
+	local screenGui = if shouldWait then PathResolver.waitForPath(playerGui, ProjectTreeSpec.UI.LauncherTouch.ScreenGui, timeout) else PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.LauncherTouch.ScreenGui, {
 		shouldWarn = false,
 	})
 	if screenGui and screenGui:IsA("ScreenGui") then
@@ -65,8 +49,7 @@ function WaitForUI.ResolveLauncherUI(player: Player, options: ResolveOptions?): 
 		return nil
 	end
 
-	local container = resolveContainer(playerGui, shouldWait, timeout)
-	return resolveScreenGui(container, shouldWait, timeout)
+	return resolveScreenGui(playerGui, shouldWait, timeout)
 end
 
 function WaitForUI.ResolveLauncherUIWithRetry(player: Player, options: ResolveOptions?): ScreenGui?

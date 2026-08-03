@@ -129,16 +129,17 @@ local ProjectTreeSpec = {
 			RowTemplate = "MatchScoreboardUI.MainPanel.PlayerList.PlayerRowTemplate_MatchScoreboardUI", -- [PROJECT_TREE_SPEC]
 		},
 		LauncherTouch = {
-			Container = "LauncherArenaUI", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI
-			ScreenGui = "LauncherArenaUI.LauncherUI", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI
-			JoystickRoot = "LauncherArenaUI.LauncherUI.JoystickRoot", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.JoystickRoot
-			JoystickBase = "LauncherArenaUI.LauncherUI.JoystickRoot.Base", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.JoystickRoot.Base
-			JoystickThumb = "LauncherArenaUI.LauncherUI.JoystickRoot.Thumb", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.JoystickRoot.Thumb
-			ChargeBar = "LauncherArenaUI.LauncherUI.ChargeBar", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.ChargeBar
-			ChargeFill = "LauncherArenaUI.LauncherUI.ChargeBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.ChargeBar.Fill
-			DirectionIndicator = "LauncherArenaUI.LauncherUI.DirectionIndicator", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.DirectionIndicator
-			CooldownBar = "LauncherArenaUI.LauncherUI.CooldownBar", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.CooldownBar
-			CooldownFill = "LauncherArenaUI.LauncherUI.CooldownBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.LauncherArenaUI.LauncherUI.CooldownBar.Fill
+			ScreenGui = "LauncherUI", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI
+			JoystickRoot = "LauncherUI.JoystickRoot", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.JoystickRoot
+			JoystickBase = "LauncherUI.JoystickRoot.Base", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.JoystickRoot.Base
+			JoystickThumb = "LauncherUI.JoystickRoot.Thumb", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.JoystickRoot.Thumb
+			ChargeBar = "LauncherUI.ChargeBar", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.ChargeBar
+			ChargeFill = "LauncherUI.ChargeBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.ChargeBar.Fill
+			DirectionIndicator = "LauncherUI.DirectionIndicator", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.DirectionIndicator
+			CooldownBar = "LauncherUI.CooldownBar", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.CooldownBar
+			CooldownFill = "LauncherUI.CooldownBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.CooldownBar.Fill
+			CooldownOverlay = "LauncherUI.CooldownOverlay", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.CooldownOverlay
+			CooldownText = "LauncherUI.CooldownText", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.CooldownText
 		},
 	},
 	Remotes = {
