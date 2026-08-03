@@ -112,8 +112,8 @@ PhysicalProperties = {
 		CollisionEnergyLossRatio = 0.16,
 		-- Knockback enter/exit thresholds intentionally use hysteresis: defenders must
 		-- be hit above MinActivationSpeed, then slow below StopSpeed before exiting.
-		KnockbackStopSpeed = 7,
-		KnockbackMinActivationSpeed = 7,
+		KnockbackStopSpeed = 12,
+		KnockbackMinActivationSpeed = 12,
 		KnockbackGraceSeconds = 0.3,
 		KnockbackStopEvidenceFramesRequired = 3,
 		KnockbackMaxTwistRadians = math.rad(15),

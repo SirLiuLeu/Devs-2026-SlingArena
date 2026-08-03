@@ -588,14 +588,19 @@ local function startHold(input: InputObject)
 end
 
 local function updateHold(input: InputObject)
-	if not isHolding then
-		return
-	end
-	if inputObject and input ~= inputObject and input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
-		return
-	end
+    if not isHolding then
+        return
+    end
 
-	updateJoystickFromInput(input)
+    -- CHỈ xử lý ngón tay/chuột đầu tiên đã bấm vào joystick.
+    -- Bỏ qua nếu là input khác (nhưng vẫn cho phép MouseMovement vì chuột PC có object riêng)
+    if inputObject and input ~= inputObject then
+        if input.UserInputType ~= Enum.UserInputType.MouseMovement then
+            return
+        end
+    end
+
+    updateJoystickFromInput(input)
 end
 
 local function resolveClientLaunchSpeed(chargeRatio: number): number
@@ -608,36 +613,39 @@ local function resolveClientLaunchSpeed(chargeRatio: number): number
 end
 
 local function releaseHold(input: InputObject)
-	if not isHolding then
-		return
-	end
-	if inputObject and input ~= inputObject and input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-		return
-	end
+    if not isHolding then
+        return
+    end
 
-	isHolding = false
-	awaitingReleaseAck = true
-	inputObject = nil
-	player:SetAttribute("PredictedLaunchDirection", currentChargeAimDirection)
-	player:SetAttribute("PredictedLaunchStartedAt", os.clock())
-	player:SetAttribute("LauncherAimDirection", nil)
-	local chargeRatio = math.clamp((os.clock() - chargeStartTime) / math.max(PhysicsConfig.Charge.MinWindowSeconds, PhysicsConfig.Charge.MaxSeconds), 0, 1)
-	local launchSpeed = resolveClientLaunchSpeed(chargeRatio)
-	requestLaunchRemote:FireServer({
-		aimTarget = currentChargeAimDirection,
-		launchDirection = currentChargeAimDirection,
-		launchSpeed = launchSpeed,
-		chargeRatio = chargeRatio,
-		clientTimestamp = os.clock(),
-	})
+    -- CHỈ kết thúc khi đúng ngón tay đã giữ joystick thả ra (chặn ngón khác chạm/thả làm huỷ touch)
+    if inputObject and input ~= inputObject then
+        return
+    end
 
-	setVisibleSafe(cachedChargeBar, false)
-	resetThumbPosition()
-	updateChargeBar(0)
-	destroyArrowPreview()
-	applyJoystickVisibilityFromState(lastKnownServerState)
+    isHolding = false
+    awaitingReleaseAck = true
+    inputObject = nil
+    player:SetAttribute("PredictedLaunchDirection", currentChargeAimDirection)
+    player:SetAttribute("PredictedLaunchStartedAt", os.clock())
+    player:SetAttribute("LauncherAimDirection", nil)
+    
+    local chargeRatio = math.clamp((os.clock() - chargeStartTime) / math.max(PhysicsConfig.Charge.MinWindowSeconds, PhysicsConfig.Charge.MaxSeconds), 0, 1)
+    local launchSpeed = resolveClientLaunchSpeed(chargeRatio)
+    requestLaunchRemote:FireServer({
+        aimTarget = currentChargeAimDirection,
+        launchDirection = currentChargeAimDirection,
+        launchSpeed = launchSpeed,
+        chargeRatio = chargeRatio,
+        clientTimestamp = os.clock(),
+    })
 
-	debugLog("[LauncherUI] RequestLaunch remote fired")
+    setVisibleSafe(cachedChargeBar, false)
+    resetThumbPosition()
+    updateChargeBar(0)
+    destroyArrowPreview()
+    applyJoystickVisibilityFromState(lastKnownServerState)
+
+    debugLog("[LauncherUI] RequestLaunch remote fired")
 end
 
 local function bindJoystickInput()
@@ -710,9 +718,13 @@ if stateUpdateRemote then
 		end
 
 		if state.IsCharging == false and isHolding == true then
-			isHolding = false
-			updateChargeBar(0)
-		end
+            -- Chỉ huỷ bỏ charge từ server nếu Client đã bắt đầu charge hơn 0.5 giây.
+            -- Điều này tránh lỗi nhận packet cũ (chưa kịp update IsCharging = true) từ server.
+            if os.clock() - chargeStartTime > 0.5 then
+                isHolding = false
+                updateChargeBar(0)
+            end
+        end
 
 		if state.MovementState == GameStates.PlayerState.Launching then
 			awaitingReleaseAck = false

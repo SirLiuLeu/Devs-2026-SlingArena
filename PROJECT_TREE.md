@@ -279,11 +279,28 @@ DataModel
 ## 🟩 StarterPlayer
 ├─ StarterPlayer
 │  └─ StarterPlayerScripts
-│     └─ Client  -> src/StarterPlayer
-│        └─ StarterPlayerScripts
-│           ├─ InputController.client.lua      (active input / charge script)
-│           ├─ UIBinder.client.lua           (active UI bootstrap; event-driven rebinding)
-│           └─ CameraController.client.lua   (Camera)
+│  │   └─ Client  -> src/StarterPlayer
+│  │      └─ StarterPlayerScripts
+│  │         ├─ InputController.client.lua      (active input / charge script)
+│  │         ├─ UIBinder.client.lua           (active UI bootstrap; event-driven rebinding)
+│  │         └─ CameraController.client.lua   (Camera)
+│  └─ LauncherArenaUI (Folder)
+│        ├─ LauncherUI (ScreenGui; created in Studio/manual UI asset)
+│        │   ├─ JoystickRoot (Frame)
+│        │   │  ├─ Base (Frame)
+│        │   │  └─ Thumb (Frame)
+│        │   │
+│        │   ├─ ChargeBar (Frame)
+│        │   │  └─ Fill (Frame)
+│        │   │
+│        │   ├─ CooldownBar (Frame)
+│        │   │  └─ Fill (Frame)
+│        │   │
+│        │   └─ DirectionIndicator (ImageLabel)
+│        ├─ MainUI.client.lua (deprecated)
+│        ├─ LauncherUIController.client.lua (LocalScript; resolves LauncherUI ScreenGui without name collision)
+│        ├─ UIController.lua
+│        └─ Components/*
 │
 ## 🟨 StarterGui
 ├─ StarterGui  -> src/StarterGui
@@ -511,23 +528,23 @@ DataModel
 │  │  │  └─ Title (TextLabel)
 │  │  └─ Overlay (Frame)
 │  │
-│  └─ LauncherArenaUI [INFERRED legacy / alternative UI stack]
-│        ├─ LauncherUI (ScreenGui; created in Studio/manual UI asset)
-│        │   ├─ JoystickRoot (Frame)
-│        │   │  ├─ Base (Frame)
-│        │   │  └─ Thumb (Frame)
-│        │   │
-│        │   ├─ ChargeBar (Frame)
-│        │   │  └─ Fill (Frame)
-│        │   │
-│        │   ├─ CooldownBar (Frame)
-│        │   │  └─ Fill (Frame)
-│        │   │
-│        │   └─ DirectionIndicator (ImageLabel)
-│        ├─ MainUI.client.lua (deprecated)
-│        ├─ LauncherUIController.client.lua (LocalScript; resolves LauncherUI ScreenGui without name collision)
-│        ├─ UIController.lua
-│        └─ Components/*
+│  └─ LauncherUI (ScreenGui)
+│     ├─ ChargeBar
+│     ├─ CooldownBar
+│     └─ JoystickRoot
+│        ├─ Base
+│        │  └─ UICorner
+│        ├─ CooldownOverlay
+│        │  ├─ UICorner
+│        │  ├─ LeftHalf
+│        │  │  └─ Clip
+│        │  │     └─ Fill
+│        │  └─ RightHalf
+│        │     └─ Clip
+│        │        └─ Fill
+│        ├─ Thumb
+│        ├─ DirectionIndicator
+│        └─ CooldownText
 │
 ## 🟫 Workspace (Maps)
 ├─ Workspace -> src/Workspace
