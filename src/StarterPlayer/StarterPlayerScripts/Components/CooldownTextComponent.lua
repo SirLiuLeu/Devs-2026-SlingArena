@@ -7,12 +7,14 @@ local function warnMissing(name: string)
 	warn(string.format("[UI_MISSING] %s is missing. Create it manually in Studio. See ProjectTreeSpec.lua and UI guide comments.", name))
 end
 
-function Component.new(parent: Instance)
-	local root = parent:FindFirstChild("CooldownText")
+function Component.new(joystickRoot: Instance)
+	local root = joystickRoot:FindFirstChild("CooldownText")
 	if not root then
 		warnMissing("CooldownText")
 	elseif root:IsA("GuiObject") then
 		root.Visible = false
+	elseif root then
+		warn(string.format("[UI_MISSING] %s exists but is not a GuiObject.", root:GetFullName()))
 	end
 	return setmetatable({ Root = root }, Component)
 end

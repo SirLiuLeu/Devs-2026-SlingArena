@@ -45,22 +45,31 @@ Create in **StarterGui**:
 
 Create in **StarterGui**:
 
-- `LauncherArenaUI` (`Folder`)
-  - `LauncherUI` (`ScreenGui`)
-    - `JoystickRoot` (`Frame`)
-      - `Base` (`Frame`)
-      - `Thumb` (`Frame`)
-    - `ChargeBar` (`Frame`)
-      - `Fill` (`Frame`)
-    - `DirectionIndicator` (`ImageLabel`) or compatibility alias `DirectionArrow`
-    - `CooldownBar` (`Frame`)
-      - `Fill` (`Frame`)
+- `LauncherUI` (`ScreenGui`)
+  - `ChargeBar` (`Frame`)
+    - `Fill` (`Frame`)
+  - `JoystickRoot` (`Frame`)
+    - `Base` (`Frame`)
+      - `UICorner` (`UICorner`)
+    - `CooldownOverlay` (`Frame`)
+      - `UICorner` (`UICorner`)
+      - `LeftHalf` (`Frame`)
+        - `Clip` (`Frame`)
+          - `Fill` (`Frame` or `ImageLabel`)
+      - `RightHalf` (`Frame`)
+        - `Clip` (`Frame`)
+          - `Fill` (`Frame` or `ImageLabel`)
+    - `Thumb` (`Frame`)
+    - `DirectionIndicator` (`ImageLabel`)
+    - `CooldownText` (`TextLabel`)
 
 Paths:
-- `StarterGui.LauncherArenaUI.LauncherUI.JoystickRoot`
-- `StarterGui.LauncherArenaUI.LauncherUI.ChargeBar.Fill`
-- `StarterGui.LauncherArenaUI.LauncherUI.DirectionIndicator`
-- `StarterGui.LauncherArenaUI.LauncherUI.CooldownBar.Fill`
+- `StarterGui.LauncherUI.JoystickRoot`
+- `StarterGui.LauncherUI.ChargeBar.Fill`
+- `StarterGui.LauncherUI.JoystickRoot.DirectionIndicator`
+- `StarterGui.LauncherUI.JoystickRoot.CooldownOverlay.LeftHalf.Clip.Fill`
+- `StarterGui.LauncherUI.JoystickRoot.CooldownOverlay.RightHalf.Clip.Fill`
+- `StarterGui.LauncherUI.JoystickRoot.CooldownText`
 
 ---
 

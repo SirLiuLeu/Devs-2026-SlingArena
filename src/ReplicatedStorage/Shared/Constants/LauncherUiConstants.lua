@@ -7,7 +7,6 @@ local LauncherUiConstants = {
 		Base = "Base",
 		Thumb = "Thumb",
 		ChargeBar = "ChargeBar",
-		CooldownBar = "CooldownBar",
 		CooldownOverlay = "CooldownOverlay",
 		CooldownText = "CooldownText",
 		Fill = "Fill",

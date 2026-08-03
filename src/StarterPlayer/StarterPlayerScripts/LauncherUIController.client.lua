@@ -65,8 +65,6 @@ local cachedThumb: GuiObject? = nil
 local cachedChargeBar: GuiObject? = nil
 local cachedChargeFill: GuiObject? = nil
 local cachedDirectionIndicator: GuiObject? = nil
-local cachedCooldownBar: GuiObject? = nil
-local cachedCooldownFill: GuiObject? = nil
 local cooldownOverlayComponent: any = nil
 local cooldownTextComponent: any = nil
 
@@ -74,14 +72,15 @@ local cooldownTextComponent: any = nil
 -- Create in Studio:
 -- StarterGui
 --   LauncherUI (ScreenGui)
+--       ChargeBar (Frame)
+--         Fill (Frame)
 --       JoystickRoot (Frame)
 --         Base (Frame)
 --         Thumb (Frame)
---       ChargeBar (Frame)
---         Fill (Frame)
---       CooldownBar (Frame)
---         Fill (Frame)
---       DirectionIndicator (ImageLabel)
+--         CooldownOverlay (Frame)
+--           LeftHalf/Clip/Fill and RightHalf/Clip/Fill
+--         DirectionIndicator (ImageLabel)
+--         CooldownText (TextLabel)
 
 local function debugLog(message: string)
 	if DEBUG_LOG then
@@ -113,7 +112,7 @@ local function warnMissingUiOnce(message: string)
 
 	warnedMissingUi = true
 	warn(message)
-	warn("[UI_CREATION_GUIDE] Required path: StarterGui.LauncherUI.JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator.")
+	warn("[UI_CREATION_GUIDE] Required path: StarterGui.LauncherUI.ChargeBar(Fill), JoystickRoot(Base, Thumb, CooldownOverlay, DirectionIndicator, CooldownText).")
 end
 
 local function setVisibleSafe(instance: GuiObject?, visible: boolean)
@@ -162,7 +161,6 @@ local function applyJoystickVisibilityFromState(state: { [string]: any }?)
 	setVisibleSafe(cachedDirectionIndicator, showJoystick)
 	if not launcherMode then
 		setVisibleSafe(cachedChargeBar, false)
-		setVisibleSafe(cachedCooldownBar, false)
 		if cooldownOverlayComponent then
 			cooldownOverlayComponent:Update(false)
 		end
@@ -186,8 +184,8 @@ local function ensureAnchors(joystickRoot: GuiObject?, base: GuiObject?, thumb: 
 	end
 end
 
-local function resolveDirectionIndicator(screenGui: ScreenGui): Instance?
-	return findChild(screenGui, LauncherUiConstants.Elements.DirectionIndicator)
+local function resolveDirectionIndicator(joystickRoot: Instance?): Instance?
+	return findChild(joystickRoot, LauncherUiConstants.Elements.DirectionIndicator)
 end
 
 local function disconnectUiInputConnections()
@@ -245,14 +243,14 @@ local function resolveScreenGui(waitForUi: boolean): ScreenGui?
 	return cachedScreenGui
 end
 
-local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?)
+local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?)
 	local screenGui = resolveScreenGui(if waitForUi == nil then false else waitForUi)
 	if not screenGui then
 		if WaitForUI.IsRetryPending(player) and waitForUi ~= true then
-			return nil, nil, nil, nil, nil, nil, nil, nil, nil
+			return nil, nil, nil, nil, nil, nil, nil
 		end
 		warnMissingUiOnce("[LauncherUI] Missing LauncherUI ScreenGui at PlayerGui.LauncherUI.")
-		return nil, nil, nil, nil, nil, nil, nil, nil, nil
+		return nil, nil, nil, nil, nil, nil, nil
 	end
 
 	screenGui.Enabled = true
@@ -260,23 +258,22 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 
 	local joystickRoot = findChild(screenGui, "JoystickRoot")
 	local chargeBar = findChild(screenGui, "ChargeBar")
-	local cooldownBar = findChild(screenGui, "CooldownBar")
-	local directionIndicator = resolveDirectionIndicator(screenGui)
-
 	local base = if joystickRoot then findChild(joystickRoot, "Base") else nil
 	local thumb = if joystickRoot then findChild(joystickRoot, "Thumb") else nil
+	local directionIndicator = resolveDirectionIndicator(joystickRoot)
+	local cooldownOverlay = if joystickRoot then findChild(joystickRoot, LauncherUiConstants.Elements.CooldownOverlay) else nil
+	local cooldownText = if joystickRoot then findChild(joystickRoot, LauncherUiConstants.Elements.CooldownText) else nil
 	local chargeFill = if chargeBar then findChild(chargeBar, "Fill") else nil
-	local cooldownFill = if cooldownBar then findChild(cooldownBar, "Fill") else nil
 
-	if not cooldownOverlayComponent then
-		cooldownOverlayComponent = CooldownOverlayComponent.new(screenGui)
+	if joystickRoot and (not cooldownOverlayComponent or not cooldownOverlayComponent.Root or cooldownOverlayComponent.Root.Parent ~= joystickRoot) then
+		cooldownOverlayComponent = CooldownOverlayComponent.new(joystickRoot)
 	end
-	if not cooldownTextComponent then
-		cooldownTextComponent = CooldownTextComponent.new(screenGui)
+	if joystickRoot and (not cooldownTextComponent or not cooldownTextComponent.Root or cooldownTextComponent.Root.Parent ~= joystickRoot) then
+		cooldownTextComponent = CooldownTextComponent.new(joystickRoot)
 	end
 
-	if not joystickRoot or not base or not thumb or not chargeBar or not chargeFill or not cooldownBar or not cooldownFill or not directionIndicator then
-		warnMissingUiOnce("[LauncherUI] LauncherUI hierarchy is incomplete. Expected LauncherUI > JoystickRoot(Base, Thumb), ChargeBar(Fill), CooldownBar(Fill), DirectionIndicator.")
+	if not joystickRoot or not base or not thumb or not chargeBar or not chargeFill or not directionIndicator or not cooldownOverlay or not cooldownText then
+		warnMissingUiOnce("[LauncherUI] LauncherUI hierarchy is incomplete. Expected LauncherUI > ChargeBar(Fill), JoystickRoot(Base, Thumb, CooldownOverlay, DirectionIndicator, CooldownText).")
 	end
 
 	cachedJoystickRoot = if joystickRoot and joystickRoot:IsA("GuiObject") then joystickRoot else nil
@@ -285,8 +282,6 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 	cachedChargeBar = if chargeBar and chargeBar:IsA("GuiObject") then chargeBar else nil
 	cachedChargeFill = if chargeFill and chargeFill:IsA("GuiObject") then chargeFill else nil
 	cachedDirectionIndicator = if directionIndicator and directionIndicator:IsA("GuiObject") then directionIndicator else nil
-	cachedCooldownBar = if cooldownBar and cooldownBar:IsA("GuiObject") then cooldownBar else nil
-	cachedCooldownFill = if cooldownFill and cooldownFill:IsA("GuiObject") then cooldownFill else nil
 
 	ensureAnchors(cachedJoystickRoot, cachedBase, cachedThumb)
 
@@ -300,7 +295,7 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 		cachedThumb.Active = false
 	end
 
-	return cachedScreenGui, cachedJoystickRoot, cachedBase, cachedThumb, cachedChargeBar, cachedChargeFill, cachedDirectionIndicator, cachedCooldownBar, cachedCooldownFill
+	return cachedScreenGui, cachedJoystickRoot, cachedBase, cachedThumb, cachedChargeBar, cachedChargeFill, cachedDirectionIndicator
 end
 
 local function getBoundInputRegion(): GuiObject?
@@ -331,14 +326,10 @@ local function formatCooldownText(remainingTime: number): (string, number)
 end
 
 local function updateCooldownVisuals(percent: number, remainingTime: number?)
-	local _, _, _, _, _, _, _, cooldownBar, cooldownFill = resolveUi(false)
+	resolveUi(false)
 	local normalized = LauncherUiState.ClampRatio(percent)
 	local launcherMode = isLauncherMode(lastKnownServerState)
-	local showCooldown = launcherMode and normalized > 0 and normalized < 1 and remainingTime ~= nil and remainingTime > 0
-	if cooldownFill then
-		cooldownFill.Size = UDim2.new(normalized, 0, 1, 0)
-	end
-	setVisibleSafe(cooldownBar, showCooldown)
+	local showCooldown = launcherMode and normalized < 1 and remainingTime ~= nil and remainingTime > 0
 	if cooldownOverlayComponent then
 		cooldownOverlayComponent:Update(showCooldown, normalized)
 	end
@@ -545,7 +536,7 @@ local function beginCooldown(duration: number, endTime: number?)
 	cooldownEndTime = cooldownState.cooldownEndTime
 	cooldownDuration = cooldownState.cooldownDuration
 	lastCooldownTextBucket = nil
-	updateCooldownVisuals(0, 0)
+	updateCooldownVisuals(0, cooldownDuration)
 	ensureUiLoopRunning()
 end
 
