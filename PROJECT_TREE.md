@@ -531,6 +531,8 @@ DataModel
 │  └─ LauncherUI (ScreenGui)
 │     ├─ ChargeBar
 │     │  └─ Fill
+│     ├─ CancelZone
+│     │  └─ IconX
 │     └─ JoystickRoot
 │        ├─ Base
 │        │  └─ UICorner
