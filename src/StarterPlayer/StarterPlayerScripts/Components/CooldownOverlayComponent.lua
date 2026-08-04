@@ -46,12 +46,16 @@ function Component.new(joystickRoot: Instance)
 end
 
 function Component:Update(visible: boolean, progress: number?)
+	 print(self.RightFill.Rotation)
 	if not self.Root then
 		return
 	end
 
 	self.Root.Visible = visible
-
+	print(
+    "Visible before:", self.Root.Visible,
+    " arg:", visible
+)
 	local normalized = math.clamp(progress or 0, 0, 1)
 	local sweepDegrees = normalized * FULL_SWEEP_DEGREES
 	local rightDegrees = math.clamp(sweepDegrees, 0, HALF_SWEEP_DEGREES)

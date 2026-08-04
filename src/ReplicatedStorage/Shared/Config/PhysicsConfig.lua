@@ -64,7 +64,7 @@ PhysicalProperties = {
 		StopSpeed = 1,
 
 		-- Fixed recovery duration after launch stops.
-		RecoveryDuration = 3,
+		RecoveryDuration = 1,
 		ValidationGraceSeconds = 1,
 
 		-- StopEvidenceFramesRequired: Number of consecutive client frames where native
