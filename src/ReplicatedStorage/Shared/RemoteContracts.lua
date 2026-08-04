@@ -6,6 +6,7 @@ RemoteContracts.Names = {
 	MoveRequest = "MoveRequest",
 	StartCharge = "StartCharge",
 	ReleaseCharge = "ReleaseCharge",
+	CancelCharge = "CancelCharge",
 	RequestLaunch = "RequestLaunch",
 	AbilityTrigger = "AbilityTrigger",
 	GameplayFeedback = "GameplayFeedback",
@@ -49,6 +50,9 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.ReleaseCharge] = function(aimTarget: any): boolean
 		return typeof(aimTarget) == "Vector3"
+	end,
+	[RemoteContracts.Names.CancelCharge] = function(): boolean
+		return true
 	end,
 	[RemoteContracts.Names.RequestLaunch] = function(payload: any): boolean
 		return type(payload) == "table" and typeof(payload.aimTarget) == "Vector3"

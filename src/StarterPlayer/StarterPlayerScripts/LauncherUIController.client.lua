@@ -21,6 +21,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 local startChargeRemote = remotes:WaitForChild(RemoteContracts.Names.StartCharge) :: RemoteEvent
 local requestLaunchRemote = remotes:WaitForChild(RemoteContracts.Names.RequestLaunch) :: RemoteEvent
+local cancelChargeRemote = remotes:WaitForChild(RemoteContracts.Names.CancelCharge) :: RemoteEvent
 local stateUpdateRemote = remotes:FindFirstChild(RemoteContracts.Names.StateUpdate) :: RemoteEvent?
 local prefabsFolder = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("Prefabs")
 
@@ -41,6 +42,8 @@ local isHolding = false
 local awaitingReleaseAck = false
 local inputObject: InputObject? = nil
 local currentDragVector = Vector2.zero
+local currentRawFingerPosition: Vector2? = nil
+local isFingerOverCancelZone = false
 local currentDragDistance = 0
 local currentDirection = Vector2.new(0, -1)
 local currentChargeAimDirection = Vector3.new(0, 0, -1)
@@ -64,6 +67,8 @@ local cachedBase: GuiObject? = nil
 local cachedThumb: GuiObject? = nil
 local cachedChargeBar: GuiObject? = nil
 local cachedChargeFill: GuiObject? = nil
+local cachedCancelZone: GuiObject? = nil
+local cachedCancelIcon: GuiObject? = nil
 local cachedDirectionIndicator: GuiObject? = nil
 local cooldownOverlayComponent: any = nil
 local cooldownTextComponent: any = nil
@@ -74,6 +79,8 @@ local cooldownTextComponent: any = nil
 --   LauncherUI (ScreenGui)
 --       ChargeBar (Frame)
 --         Fill (Frame)
+--       CancelZone (Frame)
+--         IconX (GuiObject)
 --       JoystickRoot (Frame)
 --         Base (Frame)
 --         Thumb (Frame)
@@ -112,7 +119,7 @@ local function warnMissingUiOnce(message: string)
 
 	warnedMissingUi = true
 	warn(message)
-	warn("[UI_CREATION_GUIDE] Required path: StarterGui.LauncherUI.ChargeBar(Fill), JoystickRoot(Base, Thumb, CooldownOverlay, DirectionIndicator, CooldownText).")
+	warn("[UI_CREATION_GUIDE] Required path: StarterGui.LauncherUI.ChargeBar(Fill), CancelZone(IconX), JoystickRoot(Base, Thumb, CooldownOverlay, DirectionIndicator, CooldownText).")
 end
 
 local function setVisibleSafe(instance: GuiObject?, visible: boolean)
@@ -160,7 +167,7 @@ local function applyJoystickVisibilityFromState(state: { [string]: any }?)
 	setVisibleSafe(cachedJoystickRoot, true)
 	setVisibleSafe(cachedBase, showJoystick)
 	setVisibleSafe(cachedThumb, showJoystick)
-	setVisibleSafe(cachedDirectionIndicator, showJoystick)
+	setVisibleSafe(cachedDirectionIndicator, showJoystick and isHolding)
 	if cachedBase then
 		cachedBase.Active = showJoystick
 	end
@@ -174,6 +181,7 @@ local function applyJoystickVisibilityFromState(state: { [string]: any }?)
 	end
 	if not launcherMode then
 		setVisibleSafe(cachedChargeBar, false)
+		setVisibleSafe(cachedCancelZone, false)
 		if cooldownOverlayComponent then
 			cooldownOverlayComponent:Update(false)
 		end
@@ -271,12 +279,14 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 
 	local joystickRoot = findChild(screenGui, "JoystickRoot")
 	local chargeBar = findChild(screenGui, "ChargeBar")
+	local cancelZone = findChild(screenGui, "CancelZone")
 	local base = if joystickRoot then findChild(joystickRoot, "Base") else nil
 	local thumb = if joystickRoot then findChild(joystickRoot, "Thumb") else nil
 	local directionIndicator = resolveDirectionIndicator(joystickRoot)
 	local cooldownOverlay = if joystickRoot then findChild(joystickRoot, LauncherUiConstants.Elements.CooldownOverlay) else nil
 	local cooldownText = if joystickRoot then findChild(joystickRoot, LauncherUiConstants.Elements.CooldownText) else nil
 	local chargeFill = if chargeBar then findChild(chargeBar, "Fill") else nil
+	local cancelIcon = if cancelZone then findChild(cancelZone, "IconX") else nil
 
 	if joystickRoot and (not cooldownOverlayComponent or not cooldownOverlayComponent.Root or cooldownOverlayComponent.Root.Parent ~= joystickRoot) then
 		cooldownOverlayComponent = CooldownOverlayComponent.new(joystickRoot)
@@ -285,8 +295,8 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 		cooldownTextComponent = CooldownTextComponent.new(joystickRoot)
 	end
 
-	if not joystickRoot or not base or not thumb or not chargeBar or not chargeFill or not directionIndicator or not cooldownOverlay or not cooldownText then
-		warnMissingUiOnce("[LauncherUI] LauncherUI hierarchy is incomplete. Expected LauncherUI > ChargeBar(Fill), JoystickRoot(Base, Thumb, CooldownOverlay, DirectionIndicator, CooldownText).")
+	if not joystickRoot or not base or not thumb or not chargeBar or not chargeFill or not cancelZone or not cancelIcon or not directionIndicator or not cooldownOverlay or not cooldownText then
+		warnMissingUiOnce("[LauncherUI] LauncherUI hierarchy is incomplete. Expected LauncherUI > ChargeBar(Fill), CancelZone(IconX), JoystickRoot(Base, Thumb, CooldownOverlay, DirectionIndicator, CooldownText).")
 	end
 
 	cachedJoystickRoot = if joystickRoot and joystickRoot:IsA("GuiObject") then joystickRoot else nil
@@ -294,6 +304,8 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 	cachedThumb = if thumb and thumb:IsA("GuiObject") then thumb else nil
 	cachedChargeBar = if chargeBar and chargeBar:IsA("GuiObject") then chargeBar else nil
 	cachedChargeFill = if chargeFill and chargeFill:IsA("GuiObject") then chargeFill else nil
+	cachedCancelZone = if cancelZone and cancelZone:IsA("GuiObject") then cancelZone else nil
+	cachedCancelIcon = if cancelIcon and cancelIcon:IsA("GuiObject") then cancelIcon else nil
 	cachedDirectionIndicator = if directionIndicator and directionIndicator:IsA("GuiObject") then directionIndicator else nil
 
 	ensureAnchors(cachedJoystickRoot, cachedBase, cachedThumb)
@@ -316,6 +328,42 @@ local function getBoundInputRegion(): GuiObject?
 		return cachedBase
 	end
 	return cachedJoystickRoot
+end
+
+
+local function setCancelZoneFeedback(isHovering: boolean)
+	isFingerOverCancelZone = isHovering
+	if cachedCancelZone then
+		cachedCancelZone.Visible = isHolding
+		cachedCancelZone.BackgroundTransparency = if isHovering then 0.25 else 0.45
+	end
+	if cachedCancelIcon then
+		cachedCancelIcon.Visible = isHolding
+	end
+end
+
+local function isPointInsideGuiObject(point: Vector2, guiObject: GuiObject?): boolean
+	if not guiObject or not guiObject.Visible then
+		return false
+	end
+
+	local position = guiObject.AbsolutePosition
+	local size = guiObject.AbsoluteSize
+	return point.X >= position.X
+		and point.X <= position.X + size.X
+		and point.Y >= position.Y
+		and point.Y <= position.Y + size.Y
+end
+
+local function updateCancelZoneFromRawPosition(rawPosition: Vector2?)
+	if not isHolding then
+		setCancelZoneFeedback(false)
+		setVisibleSafe(cachedCancelZone, false)
+		return
+	end
+
+	setVisibleSafe(cachedCancelZone, true)
+	setCancelZoneFeedback(rawPosition ~= nil and isPointInsideGuiObject(rawPosition, cachedCancelZone))
 end
 
 local function updateChargeBar(percent: number)
@@ -478,7 +526,11 @@ local function updateJoystickFromInput(input: InputObject)
 		return
 	end
 
-	local rawVector = Vector2.new(input.Position.X, input.Position.Y) - getBaseCenter()
+	local rawPosition = Vector2.new(input.Position.X, input.Position.Y)
+	currentRawFingerPosition = rawPosition
+	updateCancelZoneFromRawPosition(rawPosition)
+
+	local rawVector = rawPosition - getBaseCenter()
 	local clampedVector, distance, direction = clampDragToRadius(rawVector)
 	currentDragVector = clampedVector
 	currentDragDistance = distance
@@ -568,11 +620,16 @@ local function resetVisualState()
 	awaitingReleaseAck = false
 	inputObject = nil
 	currentDragVector = Vector2.zero
+	currentRawFingerPosition = nil
+	isFingerOverCancelZone = false
 	currentDragDistance = 0
 	currentDirection = Vector2.new(0, -1)
 	currentChargeAimDirection = Vector3.new(0, 0, -1)
 	chargeStartTime = 0
 	setVisibleSafe(cachedChargeBar, false)
+	setVisibleSafe(cachedDirectionIndicator, false)
+	setVisibleSafe(cachedCancelZone, false)
+	setCancelZoneFeedback(false)
 	resetThumbPosition()
 	updateChargeBar(0)
 	destroyArrowPreview()
@@ -620,12 +677,16 @@ local function startHold(input: InputObject)
 	awaitingReleaseAck = false
 	inputObject = input
 	currentDragVector = Vector2.zero
+	currentRawFingerPosition = nil
+	isFingerOverCancelZone = false
 	currentDragDistance = 0
 	currentChargeAimDirection = Vector3.new(0, 0, -1)
 	chargeStartTime = os.clock()
 
 	setVisibleSafe(joystickRoot, true)
 	setVisibleSafe(chargeBar, true)
+	setVisibleSafe(cachedCancelZone, true)
+	updateCancelZoneFromRawPosition(currentRawFingerPosition)
 	resetThumbPosition()
 	updateDirectionIndicator(nil)
 	applyJoystickVisibilityFromState(lastKnownServerState)
@@ -658,6 +719,20 @@ local function updateHold(input: InputObject)
     updateJoystickFromInput(input)
 end
 
+
+local function cancelHold()
+	if not isHolding then
+		return
+	end
+
+	isHolding = false
+	awaitingReleaseAck = false
+	inputObject = nil
+	cancelChargeRemote:FireServer()
+	resetVisualState()
+	debugLog("[LauncherUI] CancelCharge remote fired")
+end
+
 local function resolveClientLaunchSpeed(chargeRatio: number): number
 	local launcherMaxSpeed = PhysicsConfig.Launch.SpeedMax
 	if lastKnownServerState and typeof(lastKnownServerState.LaunchSpeed) == "number" then
@@ -674,6 +749,11 @@ local function releaseHold(input: InputObject)
 
     -- CHỈ kết thúc khi đúng ngón tay đã giữ joystick thả ra (chặn ngón khác chạm/thả làm huỷ touch)
     if inputObject and input ~= inputObject then
+        return
+    end
+
+    if isFingerOverCancelZone or (currentRawFingerPosition ~= nil and isPointInsideGuiObject(currentRawFingerPosition, cachedCancelZone)) then
+        cancelHold()
         return
     end
 

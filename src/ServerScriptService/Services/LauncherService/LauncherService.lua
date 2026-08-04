@@ -166,6 +166,7 @@ function LauncherService:Init()
 	local remotes = self._context.Remotes
 	local startChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.StartCharge)
 	local releaseChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.ReleaseCharge)
+	local cancelChargeRemote = remotes:FindFirstChild(RemoteContracts.Names.CancelCharge)
 	local moveRequestRemote = remotes:FindFirstChild(RemoteContracts.Names.MoveRequest)
 	local requestLaunchRemote = remotes:FindFirstChild(RemoteContracts.Names.RequestLaunch)
 	local clientDoLaunchRemote = remotes:FindFirstChild(RemoteContracts.Names.ClientDoLaunch)
@@ -185,6 +186,14 @@ function LauncherService:Init()
 		end)
 	else
 		warn(string.format("[LauncherService] Missing remote %s; charge-release listener disabled.", RemoteContracts.Names.ReleaseCharge))
+	end
+
+	if cancelChargeRemote and cancelChargeRemote:IsA("RemoteEvent") then
+		self._remoteConnections.CancelCharge = cancelChargeRemote.OnServerEvent:Connect(function(player)
+			self:CancelCharge(player)
+		end)
+	else
+		warn(string.format("[LauncherService] Missing remote %s; charge-cancel listener disabled.", RemoteContracts.Names.CancelCharge))
 	end
 
 	if requestLaunchRemote and requestLaunchRemote:IsA("RemoteEvent") then
@@ -575,6 +584,21 @@ function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3,
 
 	self._chargeState[player] = nil
 	self._releaseCooldown[player] = 0
+	self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
+	self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
+end
+
+function LauncherService:CancelCharge(player: Player)
+	if not RemoteContracts.Validate(RemoteContracts.Names.CancelCharge) then
+		return
+	end
+
+	local state = self._context.Services.PlayerStateService:GetState(player)
+	self._chargeState[player] = nil
+	if state and state.MovementState == MOVEMENT_STATE.Charging then
+		self._context.Services.PlayerStateService:TrySetMovementState(player, MOVEMENT_STATE.Idle)
+	end
+	self._context.Services.PlayerStateService:SetCharging(player, false, 0)
 	self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
 	self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
 end
