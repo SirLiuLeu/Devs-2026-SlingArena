@@ -143,7 +143,7 @@ local function shouldShowJoystickByState(state: { [string]: any }?): boolean
 	end
 
 	local movementState = if state then state.MovementState else nil
-	if movementState == GameStates.PlayerState.Recovering or movementState == GameStates.PlayerState.Launching or movementState == GameStates.PlayerState.Knockback then
+	if movementState == GameStates.PlayerState.Launching or movementState == GameStates.PlayerState.Knockback then
 		return false
 	end
 
@@ -157,8 +157,21 @@ end
 local function applyJoystickVisibilityFromState(state: { [string]: any }?)
 	local launcherMode = isLauncherMode(state)
 	local showJoystick = shouldShowJoystickByState(state)
-	setVisibleSafe(cachedJoystickRoot, showJoystick)
+	setVisibleSafe(cachedJoystickRoot, true)
+	setVisibleSafe(cachedBase, showJoystick)
+	setVisibleSafe(cachedThumb, showJoystick)
 	setVisibleSafe(cachedDirectionIndicator, showJoystick)
+	if cachedBase then
+		cachedBase.Active = showJoystick
+	end
+	if not showJoystick then
+		inputObject = nil
+		currentDragVector = Vector2.zero
+		currentDragDistance = 0
+		if cachedThumb then
+			cachedThumb.Position = UDim2.new(0.5, 0, 0.5, 0)
+		end
+	end
 	if not launcherMode then
 		setVisibleSafe(cachedChargeBar, false)
 		if cooldownOverlayComponent then
@@ -770,10 +783,12 @@ if stateUpdateRemote then
 
 		if state.MovementState == GameStates.PlayerState.Launching then
 			awaitingReleaseAck = false
-		elseif state.MovementState == GameStates.PlayerState.Recovering then
+		end
+
+		if typeof(state.CooldownEndTime) == "number" and state.CooldownEndTime > os.clock() then
 			awaitingReleaseAck = false
 			syncCooldownFromServerState(state)
-		elseif state.MovementState == GameStates.PlayerState.Idle and awaitingReleaseAck == false and state.IsCharging ~= true then
+		elseif awaitingReleaseAck == false and state.IsCharging ~= true then
 			clearCooldown()
 		end
 
@@ -799,7 +814,7 @@ playerGui.ChildAdded:Connect(function(child)
 	bindJoystickInput()
 	if lastKnownServerState and lastKnownServerState.IsAlive == false then
 		resetVisualState()
-	elseif lastKnownServerState and lastKnownServerState.MovementState == GameStates.PlayerState.Recovering then
+	elseif lastKnownServerState and typeof(lastKnownServerState.CooldownEndTime) == "number" and lastKnownServerState.CooldownEndTime > os.clock() then
 		syncCooldownFromServerState(lastKnownServerState)
 	end
 	applyJoystickVisibilityFromState(lastKnownServerState)

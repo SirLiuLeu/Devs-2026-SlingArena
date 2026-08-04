@@ -7,7 +7,6 @@ local GameStates = {
 		Charging = "Charging",
 		Launching = "Launching",
 		Knockback = "Knockback",
-		Recovering = "Recovering",
 		Dead = "Dead",
 		Human = "Human",
 	},
@@ -15,8 +14,7 @@ local GameStates = {
 		Idle = { Moving = true, Charging = true, Knockback = true, Dead = true, Human = true },
 		Moving = { Idle = true, Charging = true, Knockback = true, Dead = true, Human = true },
 		Charging = { Launching = true, Idle = true, Knockback = true, Dead = true, Human = true },
-		Launching = { Recovering = true, Knockback = true, Dead = true, Human = true },
-		Recovering = { Idle = true, Knockback = true, Dead = true, Human = true },
+		Launching = { Idle = true, Knockback = true, Dead = true, Human = true },
 		Human = { Idle = true, Dead = true },
 		Dead = { Idle = true, Human = true },
 

@@ -278,7 +278,7 @@ function LauncherService:_finishLaunch(player: Player, reason: string)
 	self._context.Services.PlayerStateService:SetLastReleaseDuration(player, PhysicsConfig.Launch.RecoveryDuration)
 	self._context.Services.PlayerStateService:SetCooldownEndTime(player, recoveryEnd)
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
-	self._context.Services.PlayerStateService:TrySetMovementState(player, MOVEMENT_STATE.Recovering)
+	self._context.Services.PlayerStateService:TrySetMovementState(player, MOVEMENT_STATE.Idle)
 end
 
 function LauncherService:ValidateLaunchReport(player: Player, payload: any): (boolean, any?, string)
@@ -433,7 +433,7 @@ function LauncherService:HandleMoveRequest(player: Player, moveInput: Vector3, _
 		self._input[player] = Vector3.zero
 		return
 	end
-	if state.MovementState == MOVEMENT_STATE.Charging or state.MovementState == MOVEMENT_STATE.Recovering then
+	if state.MovementState == MOVEMENT_STATE.Charging then
 		self._input[player] = Vector3.zero
 		return
 	end
@@ -463,7 +463,6 @@ function LauncherService:StartCharge(player: Player, aimDirection: Vector3)
 	end
 	if state.MovementState == MOVEMENT_STATE.Charging
 		or state.MovementState == MOVEMENT_STATE.Launching
-		or state.MovementState == MOVEMENT_STATE.Recovering
 	then
 		return
 	end
@@ -797,10 +796,6 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 		return
 	end
 
-	if state.MovementState == MOVEMENT_STATE.Recovering then
-		movementController:DisableLocomotion(false)
-		return
-	end
 
 	if moveDirection.Magnitude < PhysicsConfig.Movement.InputDeadzone then
 		movementController:SetSpeed(resolveMovementSpeed(state))
@@ -863,10 +858,11 @@ function LauncherService:_stepMovementStates(_dt: number)
 			if (state.KnockbackStopEvidenceFrames or 0) >= PhysicsConfig.Collision.KnockbackStopEvidenceFramesRequired then
 				self._context.Services.PlayerStateService:ForceSetMovementState(player, MOVEMENT_STATE.Idle)
 			end
-		elseif state.MovementState == MOVEMENT_STATE.Recovering and now >= (self._releaseCooldown[player] or 0) then
-			self._activeLaunches[player] = nil
-			player:SetAttribute("LaunchValidationGraceEndsAt", 0)
-			self._context.Services.PlayerStateService:ForceSetMovementState(player, MOVEMENT_STATE.Idle)
+		end
+
+		local cooldownUntil = self._releaseCooldown[player] or 0
+		if cooldownUntil > 0 and now >= cooldownUntil then
+			self._releaseCooldown[player] = 0
 			self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
 			self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
 		end

@@ -117,7 +117,7 @@ function LauncherAnimationController:_resolveState(state: any): string?
 		return "Charge"
 	elseif movementState == GameStates.PlayerState.Moving then
 		return "Movement"
-	elseif movementState == GameStates.PlayerState.Idle or movementState == "Recovering" then
+	elseif movementState == GameStates.PlayerState.Idle then
 		return "Idle"
 	end
 	return nil
