@@ -73,21 +73,6 @@ local cachedDirectionIndicator: GuiObject? = nil
 local cooldownOverlayComponent: any = nil
 local cooldownTextComponent: any = nil
 
--- [UI_CREATION_GUIDE]
--- Create in Studio:
--- StarterGui
---   LauncherUI (ScreenGui)
---       ChargeBar (Frame)
---         Fill (Frame)
---       CancelZone (Frame)
---         IconX (GuiObject)
---       JoystickRoot (Frame)
---         Base (Frame)
---         Thumb (Frame)
---         CooldownOverlay (Frame)
---           LeftHalf/Clip/Fill and RightHalf/Clip/Fill
---         DirectionIndicator (ImageLabel)
---         CooldownText (TextLabel)
 
 local function debugLog(message: string)
 	if DEBUG_LOG then
@@ -804,20 +789,6 @@ local function bindJoystickInput()
 		end
 		startHold(input)
 		updateHold(input)
-	end)
-
-	joystickInputChangedConnection = inputRegion.InputChanged:Connect(function(input)
-		if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
-			return
-		end
-		updateHold(input)
-	end)
-
-	joystickInputEndedConnection = inputRegion.InputEnded:Connect(function(input)
-		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-			return
-		end
-		releaseHold(input)
 	end)
 
 	uiInputBound = true
