@@ -14,6 +14,7 @@ export type LobbyClientService = {
 	JoinArenaRemote: RemoteEvent?,
 	LeaveArenaRemote: RemoteEvent?,
 	StartSafeZoneRemote: RemoteEvent?,
+	Plus1MinuteRemote: RemoteEvent?,
 	StateUpdateRemote: RemoteEvent?,
 	UIStateUpdateRemote: RemoteEvent?,
 	RoundResultRemote: RemoteEvent?,
@@ -27,6 +28,7 @@ export type LobbyClientService = {
 	RequestLeaveArena: (self: LobbyClientService) -> (),
 	RequestTeleport: (self: LobbyClientService, mapName: string, spawnName: string) -> (),
 	RequestStartSafeZone: (self: LobbyClientService) -> (),
+	RequestPlus1Minute: (self: LobbyClientService) -> (),
 	RequestDebugSpawnFood: (self: LobbyClientService, mapName: string) -> (),
 	RequestDebugResetLauncher: (self: LobbyClientService) -> (),
 	RequestAttributeUpgrade: (self: LobbyClientService, attributeName: string) -> (),
@@ -51,6 +53,7 @@ function LobbyClientService.new(): LobbyClientService
 	self.JoinArenaRemote = resolveRemote(ProjectTreeSpec.Remotes.JoinArena)
 	self.LeaveArenaRemote = resolveRemote(ProjectTreeSpec.Remotes.LeaveArena)
 	self.StartSafeZoneRemote = resolveRemote(ProjectTreeSpec.Remotes.StartSafeZone)
+	self.Plus1MinuteRemote = resolveRemote(ProjectTreeSpec.Remotes.Plus1Minute)
 	self.StateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.StateUpdate)
 	self.UIStateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.UIStateUpdate)
 	self.RoundResultRemote = resolveRemote(ProjectTreeSpec.Remotes.RoundResult)
@@ -89,6 +92,15 @@ end
 function LobbyClientService:RequestStartSafeZone()
 	if self.StartSafeZoneRemote then
 		self.StartSafeZoneRemote:FireServer()
+	end
+end
+
+function LobbyClientService:RequestPlus1Minute()
+	if not RemoteContracts.Validate(RemoteContracts.Names.Plus1Minute) then
+		return
+	end
+	if self.Plus1MinuteRemote then
+		self.Plus1MinuteRemote:FireServer()
 	end
 end
 

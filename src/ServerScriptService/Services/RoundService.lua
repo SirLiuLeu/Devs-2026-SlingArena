@@ -34,6 +34,7 @@ function RoundService.new(context)
 	self._joinRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.JoinArena) :: RemoteEvent
 	self._leaveRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.LeaveArena) :: RemoteEvent
 	self._startSafeZoneRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.StartSafeZone) :: RemoteEvent?
+	self._plus1MinuteRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.Plus1Minute) :: RemoteEvent?
 	return self
 end
 
@@ -51,6 +52,11 @@ function RoundService:Init()
 	if self._startSafeZoneRemote then
 		self._startSafeZoneRemote.OnServerEvent:Connect(function(player)
 			self:RequestStartSafeZone(player)
+		end)
+	end
+	if self._plus1MinuteRemote then
+		self._plus1MinuteRemote.OnServerEvent:Connect(function(player)
+			self:RequestPlus1Minute(player)
 		end)
 	end
 
@@ -86,6 +92,22 @@ end
 function RoundService:RequestStartSafeZone(_player: Player)
 	if self._state == GameStates.MapRoundState.Awaits then
 		self:_startEarlyGame()
+	end
+end
+
+function RoundService:RequestPlus1Minute(_player: Player)
+	if not self:IsPlayingState() then
+		return
+	end
+	self._roundTimer += 60
+	local safeZoneService = self._context.Services.SafeZoneService
+	if safeZoneService and typeof(safeZoneService.SetElapsed) == "function" then
+		safeZoneService:SetElapsed(self._roundTimer)
+	end
+	if self._state == GameStates.MapRoundState.EarlyGame and safeZoneService and safeZoneService:IsAtMinimumRadius() then
+		self:_setState(GameStates.MapRoundState.FinalPhase)
+	else
+		self:_publishUiState()
 	end
 end
 

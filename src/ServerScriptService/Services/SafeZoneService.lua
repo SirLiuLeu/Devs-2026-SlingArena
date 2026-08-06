@@ -342,6 +342,18 @@ function SafeZoneService:_replicateState(arenaMap: Model)
 	arenaMap:SetAttribute(IS_RELOCATING_ATTRIBUTE_NAME, self._relocating)
 end
 
+function SafeZoneService:SetElapsed(elapsedSeconds: number)
+	self._elapsed = math.clamp(elapsedSeconds, 0, self._shrinkDuration)
+	self:_updateRadius(0)
+	local arenaMap = self:_getArenaMap()
+	if arenaMap then
+		self:_ensureVisualCircle(arenaMap)
+		self:_moveCircleToCenter()
+		self:_updateVisualTransparency()
+		self:_replicateState(arenaMap)
+	end
+end
+
 function SafeZoneService:IsAtMinimumRadius(): boolean
 	return self._radius <= self._minRadius + 0.0001
 end

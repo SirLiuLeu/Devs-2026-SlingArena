@@ -22,6 +22,9 @@ local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
+local QUICK_HP_COOLDOWN_SECONDS = 3
+local QUICK_HP_DIM_TRANSPARENCY = 0.45
+
 local UIController = {}
 UIController.__index = UIController
 
@@ -84,6 +87,25 @@ local function setBuffText(label: Instance?, text: string)
 	end
 end
 
+
+local function formatQuickHpCooldown(remaining: number): string
+	if remaining > 0.5 then
+		return tostring(math.max(1, math.ceil(remaining - 0.001)))
+	end
+	local tenths = math.max(1, math.floor((remaining * 10) + 0.0001))
+	return string.format("%.1f", tenths / 10)
+end
+
+local function formatSteppedCooldown(remaining: number, interval: number): string
+	local safeInterval = math.max(0.1, interval)
+	local stepped = math.ceil((remaining - 0.0001) / safeInterval) * safeInterval
+	stepped = math.max(safeInterval, stepped)
+	if math.abs(stepped - math.floor(stepped + 0.5)) < 0.001 then
+		return tostring(math.floor(stepped + 0.5))
+	end
+	return string.format("%.1f", stepped)
+end
+
 local function getRequiredExp(level: number): number
 	return math.max(1, LevelConfig.RequiredExp(math.max(1, math.floor(level))))
 end
@@ -127,6 +149,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.JoinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.JoinButton)
 	self.LeaveButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton)
 	self.StartSafeZoneButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.StartSafeZoneButton)
+	self.Plus1MinuteButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.Plus1MinuteButton)
 	self.MatchStatusLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel)
 	self.TimerLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel)
 	self.AlivePlayersLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.AlivePlayersLabel)
@@ -142,6 +165,8 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.ProgressPoint = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ProgressPoint)
 	self.QuickHpButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP)
 	self.QuickHpQuantityLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPQuantity)
+	self.QuickHpTimeLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPTime)
+	self.QuickHpOverlay = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPOverlay)
 	self.DamageBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff)
 	self.DamageBuffValueText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageValueText)
 	self.ExpBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.ExpBuff)
@@ -168,10 +193,12 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.AuthoritativeHpPotions = 0
 	self.NextHpPotionUseTime = 0
 	self.LastAuthoritativeState = nil
+	self.QuickHpCooldownEndTime = 0
 
 	if not self.JoinButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.JoinButton, "TextButton") end
 	if not self.LeaveButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.LeaveButton, "TextButton") end
 	if not self.StartSafeZoneButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.StartSafeZoneButton, "TextButton") end
+	if not self.Plus1MinuteButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.Plus1MinuteButton, "GuiButton") end
 	if not self.MatchStatusLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.StatusLabel, "TextLabel") end
 	if not self.TimerLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.TimerLabel, "TextLabel") end
 	if not self.AlivePlayersLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.AlivePlayersLabel, "TextLabel") end
@@ -196,6 +223,8 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not (self.QuickHpQuantityLabel and self.QuickHpQuantityLabel:IsA("TextLabel")) then
 		warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHPQuantity, "TextLabel")
 	end
+	if not self.QuickHpTimeLabel then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHPTime, "TextLabel") end
+	if not (self.QuickHpOverlay and self.QuickHpOverlay:IsA("GuiObject")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHPOverlay, "GuiObject") end
 	if not self.DiamondValueLabel then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.DiamondValue, "TextLabel") end
 	if not self.PanelMap.DailyLogin then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.DailyLogin, "ScreenGui") end
 	if not self.PanelMap.Shop then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Shop, "ScreenGui") end
@@ -249,6 +278,30 @@ function UIController:_showHpPotionUseFeedback(result: string, retryAt: number?)
 	end
 end
 
+
+function UIController:_setQuickHpCooldownVisual(remaining: number)
+	local inCooldown = remaining > 0
+	if self.QuickHpButton then
+		self.QuickHpButton.Active = not inCooldown
+		self.QuickHpButton.AutoButtonColor = not inCooldown
+		if self.QuickHpButton:IsA("ImageButton") then
+			self.QuickHpButton.ImageTransparency = if inCooldown then QUICK_HP_DIM_TRANSPARENCY else 0
+		end
+	end
+	if self.QuickHpOverlay and self.QuickHpOverlay:IsA("GuiObject") then
+		self.QuickHpOverlay.Visible = inCooldown
+	end
+	if self.QuickHpTimeLabel then
+		self.QuickHpTimeLabel.Visible = inCooldown
+		self.QuickHpTimeLabel.Text = if inCooldown then formatQuickHpCooldown(remaining) else ""
+	end
+end
+
+function UIController:_refreshQuickHpCooldown()
+	local remaining = math.max(0, (self.QuickHpCooldownEndTime or 0) - os.clock())
+	self:_setQuickHpCooldownVisual(remaining)
+end
+
 function UIController:ShowMainHubPanel(activeKey: string)
 	for panelKey, panelGui in pairs(self.PanelMap) do
 		if panelGui then
@@ -292,6 +345,7 @@ function UIController:Start()
 	setBuffVisible(self.ExpBuff, true)
 	setBuffText(self.ExpBuffValueText, "100%")
 	setBuffVisible(self.HPRecoveryBuff, false)
+	self:_refreshQuickHpCooldown()
 
 	table.insert(self.Connections, MockPlayerData.BindChanged(function(playerData)
 		self:_refreshMockHud(playerData)
@@ -328,6 +382,11 @@ function UIController:Start()
 	if self.StartSafeZoneButton then
 		table.insert(self.Connections, self.StartSafeZoneButton.MouseButton1Click:Connect(function()
 			self.ClientService:RequestStartSafeZone()
+		end))
+	end
+	if self.Plus1MinuteButton then
+		table.insert(self.Connections, self.Plus1MinuteButton.MouseButton1Click:Connect(function()
+			self.ClientService:RequestPlus1Minute()
 		end))
 	end
 	if self.DebugResetButton then
@@ -421,6 +480,8 @@ function UIController:Start()
 				self:_showHpPotionUseFeedback("Cooldown", self.NextHpPotionUseTime)
 				return
 			end
+			self.QuickHpCooldownEndTime = now + QUICK_HP_COOLDOWN_SECONDS
+			self:_refreshQuickHpCooldown()
 			self.ClientService:RequestConsumeHpPotion()
 		end))
 	end
@@ -441,6 +502,7 @@ function UIController:Start()
 			self.NextHpPotionUseTime = state.NextHpPotionUseTime
 		end
 		self:_renderHudValues(state.Diamonds or 0, self.AuthoritativeHpPotions or 0, state.Exp or 0, state.Level or 1)
+		self:_refreshQuickHpCooldown()
 
 		local activeFlags = state.ActiveFlags or {}
 		local now = os.clock()
@@ -462,7 +524,12 @@ function UIController:Start()
 
 		local hpRecoveryFlag = activeFlags.HPRecovering
 		setBuffVisible(self.HPRecoveryBuff, hpRecoveryFlag ~= nil)
-		setBuffText(self.HPRecoveryTimeText, if hpRecoveryFlag then string.format("%.1fs", getRemainingSeconds(hpRecoveryFlag, now)) else "0.0s")
+		if hpRecoveryFlag then
+			local tickInterval = if type(hpRecoveryFlag) == "table" and type(hpRecoveryFlag.TickInterval) == "number" then hpRecoveryFlag.TickInterval else 0.5
+			setBuffText(self.HPRecoveryTimeText, formatSteppedCooldown(getRemainingSeconds(hpRecoveryFlag, now), tickInterval))
+		else
+			setBuffText(self.HPRecoveryTimeText, "0")
+		end
 	end)
 	if stateConnection then
 		table.insert(self.Connections, stateConnection)
@@ -486,6 +553,10 @@ function UIController:Start()
 		table.insert(self.Connections, uiStateConnection)
 	end
 
+	table.insert(self.Connections, game:GetService("RunService").Heartbeat:Connect(function()
+		self:_refreshQuickHpCooldown()
+	end))
+
 	local scoreboardConnection = self.ClientService:BindMatchScoreboardUpdate(function(payload)
 		if self.MatchScoreboardUIController then
 			self.MatchScoreboardUIController:Refresh(payload)
@@ -506,7 +577,10 @@ function UIController:Start()
 			end
 			local payload = message.Payload or {}
 			local result = tostring(payload.Result or "Rejected")
-			if result ~= "Consumed" then
+			if result == "Consumed" then
+				self.QuickHpCooldownEndTime = os.clock() + QUICK_HP_COOLDOWN_SECONDS
+				self:_refreshQuickHpCooldown()
+			else
 				self:_showHpPotionUseFeedback(result, payload.RetryAt)
 			end
 		end))

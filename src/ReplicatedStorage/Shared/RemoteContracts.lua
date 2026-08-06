@@ -24,6 +24,7 @@ RemoteContracts.Names = {
 	JoinArena = "JoinArena",
 	LeaveArena = "LeaveArena",
 	StartSafeZone = "StartSafeZone",
+	Plus1Minute = "Plus1Minute",
 	TeleportRequest = "TeleportRequest",
 	DebugSpawnFood = "DebugSpawnFood",
 	DebugResetLauncher = "DebugResetLauncher",
@@ -75,6 +76,9 @@ RemoteContracts.Validators = {
 		return typeof(mapName) == "string" and typeof(spawnName) == "string"
 	end,
 	[RemoteContracts.Names.ConsumeHpPotion] = function(): boolean
+		return true
+	end,
+	[RemoteContracts.Names.Plus1Minute] = function(): boolean
 		return true
 	end,
 	[RemoteContracts.Names.ReportFoodHit] = function(payload: any): boolean
