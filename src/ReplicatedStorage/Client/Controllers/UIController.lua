@@ -15,6 +15,7 @@ local ShopLogicService = require(ReplicatedStorage.Client.Services.ShopLogicServ
 local DailyLoginUIController = require(ReplicatedStorage.Client.Controllers.DailyLoginUIController)
 local DailyLoginLogicService = require(ReplicatedStorage.Client.Services.DailyLoginLogicService)
 local MatchScoreboardUIController = require(ReplicatedStorage.Client.Controllers.MatchScoreboardUIController)
+local ToastUIController = require(ReplicatedStorage.Client.Controllers.ToastUIController)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
@@ -107,6 +108,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.ShopUIController = ShopUIController.new(playerGui)
 	self.DailyLoginUIController = DailyLoginUIController.new(playerGui)
 	self.MatchScoreboardUIController = MatchScoreboardUIController.new(playerGui)
+	self.ToastUIController = ToastUIController.new(playerGui)
 	self.InventoryDataProvider = InventoryDataProvider.GetDefault()
 	self.OnlineRewardLogicService = OnlineRewardLogicService.GetDefault()
 	self.ShopLogicService = ShopLogicService.GetDefault()
@@ -129,7 +131,9 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.OnlineRewardButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.OnlineRewardButton)
 	self.SettingButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.SettingButton)
 	self.ShopButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.ShopButton)
-	self.TabScoreButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabScore) or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabScore)
+	self.TabScoreButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabScore)
+	self.QuestButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuestButton)
+	self.ProgressPoint = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ProgressPoint)
 	self.QuickHpButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP)
 	self.QuickHpQuantityLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPQuantity)
 	self.DamageBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff)
@@ -172,6 +176,8 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not self.SettingButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SettingButton, "GuiButton") end
 	if not self.ShopButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.ShopButton, "GuiButton") end
 	if not self.TabScoreButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.TabScore, "GuiButton") end
+	if not self.QuestButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuestButton, "GuiButton") end
+	if not self.ProgressPoint then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.ProgressPoint, "GuiObject") end
 	if not self.QuickHpButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHP, "GuiButton") end
 	if not self.HomeButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.HomeButton, "GuiButton") end
 	if not (self.DamageBuff and self.DamageBuff:IsA("GuiObject")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff, "GuiObject") end
@@ -473,6 +479,9 @@ function UIController:Start()
 	local feedbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
 	if feedbackRemote then
 		table.insert(self.Connections, feedbackRemote.OnClientEvent:Connect(function(message)
+			if self.ToastUIController and type(message) == "table" and message.Toast == true then
+				self.ToastUIController:Enqueue(message)
+			end
 			if type(message) ~= "table" or message.EventType ~= "HpPotionUseResult" then
 				return
 			end
@@ -481,6 +490,13 @@ function UIController:Start()
 			if result ~= "Consumed" then
 				self:_showHpPotionUseFeedback(result, payload.RetryAt)
 			end
+		end))
+	end
+
+	local popupRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):FindFirstChild(RemoteContracts.Names.PopupMessage) :: RemoteEvent?
+	if popupRemote and self.ToastUIController then
+		table.insert(self.Connections, popupRemote.OnClientEvent:Connect(function(message)
+			self.ToastUIController:Enqueue(message)
 		end))
 	end
 
@@ -513,6 +529,9 @@ function UIController:Destroy()
 	end
 	if self.MatchScoreboardUIController then
 		self.MatchScoreboardUIController:Destroy()
+	end
+	if self.ToastUIController then
+		self.ToastUIController:Destroy()
 	end
 	for _, connection in ipairs(self.Connections) do
 		connection:Disconnect()

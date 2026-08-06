@@ -63,7 +63,11 @@ function PathResolver.waitForPath(root: Instance, path: string?, timeout: number
 	local current: Instance? = root
 	local deadline = os.clock() + math.max(timeout, 0)
 
-	for _, segment in ipairs(splitPath(path)) do
+	for index, segment in ipairs(splitPath(path)) do
+		if index == 1 and current ~= nil and segment == current.Name then
+			continue
+		end
+
 		if current == nil then
 			return nil
 		end
@@ -102,7 +106,11 @@ function PathResolver.resolvePath(root: Instance, path: string?, options: Resolv
 	end
 
 	local current: Instance? = root
-	for _, segment in ipairs(splitPath(path)) do
+	for index, segment in ipairs(splitPath(path)) do
+		if index == 1 and current ~= nil and segment == current.Name then
+			continue
+		end
+
 		if current == nil then
 			if shouldWarn then
 				warnMissingOnce(root, path)

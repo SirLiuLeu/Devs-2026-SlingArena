@@ -54,10 +54,6 @@ local function getPlayerStateService(self)
 	return self._context.Services and self._context.Services.PlayerStateService
 end
 
-local function getRankService(self)
-	return self._context.Services and self._context.Services.RankService
-end
-
 function LeaderboardService:Init()
 	Players.PlayerAdded:Connect(function(player)
 		self:_syncPlayer(player)
@@ -77,6 +73,11 @@ function LeaderboardService:Init()
 		self:PublishScoreboard()
 	end)
 	self._context.EventBus:On("PlayerStateUpdated", function(player: Player)
+		self:_syncPlayer(player)
+		self:_recomputeRanks()
+		self:PublishScoreboard()
+	end)
+	self._context.EventBus:On("ProgressPointsChanged", function(player: Player)
 		self:_syncPlayer(player)
 		self:_recomputeRanks()
 		self:PublishScoreboard()
@@ -103,12 +104,12 @@ end
 function LeaderboardService:_getPoints(player: Player): number
 	local stateService = getPlayerStateService(self)
 	local state = stateService and stateService:GetState(player) or nil
-	local points = safeNumber(state and state.RankPoints, 0)
-	local rankService = getRankService(self)
-	local session = rankService and rankService:GetSession(player) or nil
-	if session then
-		points += safeNumber(session.TotalMatchPoints, 0)
+	local playerDataService = self._context.Services and self._context.Services.PlayerDataService
+	local totalPoints = nil
+	if playerDataService and typeof(playerDataService.GetProgressPoints) == "function" then
+		totalPoints = playerDataService:GetProgressPoints(player)
 	end
+	local points = totalPoints or safeNumber(state and state.RankPoints, 0)
 	return math.floor(points)
 end
 

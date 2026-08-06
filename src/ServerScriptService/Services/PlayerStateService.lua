@@ -148,6 +148,8 @@ local function buildDefaultState(player: Player): PlayerState
 		Armor = 0,
 		ExpBonus = 0,
 		RankPoints = 0,
+		TotalPoints = 0,
+		WeeklyPoints = 0,
 	}
 
 	return state
@@ -191,6 +193,7 @@ function PlayerStateService:Init()
 			flagService:EnsurePlayer(player)
 		end
 		self._launcherRuntime[player] = {}
+		self:_syncProgressPoints(player)
 		self:RecalculateDerivedStats(player, true)
 	end)
 	Players.PlayerRemoving:Connect(function(player)
@@ -213,8 +216,21 @@ function PlayerStateService:Init()
 			flagService:EnsurePlayer(player)
 		end
 		self._launcherRuntime[player] = {}
+		self:_syncProgressPoints(player)
 		self:RecalculateDerivedStats(player, true)
 	end
+end
+
+function PlayerStateService:_syncProgressPoints(player: Player)
+	local playerDataService = self._context.Services and self._context.Services.PlayerDataService
+	local state = self._states[player]
+	if not state or not playerDataService or typeof(playerDataService.GetProgressPoints) ~= "function" then
+		return
+	end
+	local totalPoints, weeklyPoints = playerDataService:GetProgressPoints(player)
+	state.RankPoints = totalPoints
+	state.TotalPoints = totalPoints
+	state.WeeklyPoints = weeklyPoints
 end
 
 function PlayerStateService:HasFlag(player: Player, flagName: string): boolean

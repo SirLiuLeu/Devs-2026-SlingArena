@@ -99,10 +99,6 @@ function RoundService:JoinArena(player: Player)
 	self._context.Services.PlayerService:SpawnForActiveMode(player, nil, arenaMapName, spawnMode)
 	self._context.Services.PlayerStateService:SetCurrentMap(player, arenaMapName)
 	self._context.Services.PlayerStateService:SetLocationState(player, GameStates.SessionState.InGame)
-	local rankService = self._context.Services.RankService
-	if rankService then
-		rankService:BeginPlayerSession(player, self._roundTimer)
-	end
 	if self._state == GameStates.MapRoundState.Lobby then
 		self:_setState(GameStates.MapRoundState.Awaits)
 	end
@@ -115,10 +111,6 @@ function RoundService:LeaveArena(player: Player)
 	self._context.Services.PlayerService:SpawnForActiveMode(player, 1, "LobbyMap", lobbyMode)
 	self._context.Services.PlayerStateService:SetCurrentMap(player, "LobbyMap")
 	self._context.Services.PlayerStateService:SetLocationState(player, GameStates.SessionState.Lobby)
-	local rankService = self._context.Services.RankService
-	if rankService then
-		rankService:SettlePlayerSession(player.UserId)
-	end
 	if self:_countArenaPlayers() == 0 and self._state ~= GameStates.MapRoundState.RoundEnd and self._state ~= "PostRound" then
 		self:_setState(GameStates.MapRoundState.Lobby)
 		self._roundActive = false

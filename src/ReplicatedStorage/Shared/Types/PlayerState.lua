@@ -83,6 +83,8 @@ export type PlayerState = {
 	Armor: number?,
 	ExpBonus: number?,
 	RankPoints: number?,
+	TotalPoints: number?,
+	WeeklyPoints: number?,
 }
 
 return {}

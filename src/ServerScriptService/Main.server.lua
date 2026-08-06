@@ -33,7 +33,8 @@ local RoundService = requireSafe(ServicesFolder:WaitForChild("RoundService"), "R
 local SafeZoneService = requireSafe(ServicesFolder:WaitForChild("SafeZoneService"), "SafeZoneService")
 local MonetizationService = requireSafe(ServicesFolder:WaitForChild("MonetizationService"), "MonetizationService")
 local LeaderboardService = requireSafe(ServicesFolder:WaitForChild("LeaderboardService"), "LeaderboardService")
-local RankService = requireSafe(ServicesFolder:WaitForChild("RankService"), "RankService")
+local PlayerDataService = requireSafe(ServicesFolder:WaitForChild("PlayerDataService"), "PlayerDataService")
+local ProgressPointService = requireSafe(ServicesFolder:WaitForChild("ProgressPointService"), "ProgressPointService")
 local LauncherAbilityFolder = ServicesFolder:FindFirstChild("LauncherAbilityService")
 local LauncherAbilityService = nil
 if LauncherAbilityFolder and LauncherAbilityFolder:IsA("Folder") then
@@ -114,7 +115,8 @@ local serviceConstructors = {
 	SafeZoneService = SafeZoneService,
 	MonetizationService = MonetizationService,
 	LeaderboardService = LeaderboardService,
-	RankService = RankService,
+	PlayerDataService = PlayerDataService,
+	ProgressPointService = ProgressPointService,
 }
 
 for serviceName, constructor in pairs(serviceConstructors) do
@@ -137,6 +139,7 @@ end
 
 local initializationOrder = {
 	"RateLimiter",
+	"PlayerDataService",
 	"PlayerStateService",
 	"FlagService",
 	"TeamService",
@@ -153,7 +156,7 @@ local initializationOrder = {
 	"SafeZoneService",
 	"MonetizationService",
 	"LeaderboardService",
-	"RankService",
+	"ProgressPointService",
 	"RoundService",
 }
 
