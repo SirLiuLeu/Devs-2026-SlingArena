@@ -30,7 +30,16 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 			TotalPoints = 0,
 			WeeklyPoints = 0,
 			WeeklyResetAt = currentMondayStamp(os.time()),
+			PendingWeeklyReward = nil,
+			LastWeeklyRewardAt = 0,
 		},
+		QuestState = {
+			DailyResetAt = 0,
+			Metrics = {},
+			Claimed = {},
+		},
+		Diamonds = 0,
+		OwnedItems = {},
 	}
 end
 
@@ -79,9 +88,115 @@ function PlayerDataService:_ensureProgress(data: { [string]: any })
 	progress.WeeklyResetAt = tonumber(progress.WeeklyResetAt) or currentMondayStamp(os.time())
 	local monday = currentMondayStamp(os.time())
 	if progress.WeeklyResetAt < monday then
+		if progress.WeeklyPoints > 0 then
+			progress.PendingWeeklyReward = {
+				WeekStart = progress.WeeklyResetAt,
+				WeekEnd = progress.WeeklyResetAt + (7 * 24 * 60 * 60),
+				Points = progress.WeeklyPoints,
+			}
+		end
 		progress.WeeklyPoints = 0
 		progress.WeeklyResetAt = monday
 	end
+end
+
+function PlayerDataService:_ensureQuestData(data: { [string]: any }, currentDay: number)
+	local questState = data.QuestState
+	if type(questState) ~= "table" then
+		questState = {}
+		data.QuestState = questState
+	end
+	questState.DailyResetAt = tonumber(questState.DailyResetAt) or currentDay
+	if questState.DailyResetAt < currentDay then
+		questState.DailyResetAt = currentDay
+		questState.Claimed = {}
+		local metrics = questState.Metrics
+		if type(metrics) == "table" then
+			metrics.OnlineTime = 0
+			metrics.CollectPoints = 0
+			metrics.DealDamage = 0
+			metrics.CollectFoodRarity = 0
+		end
+	end
+	if type(questState.Metrics) ~= "table" then
+		questState.Metrics = {}
+	end
+	if type(questState.Claimed) ~= "table" then
+		questState.Claimed = {}
+	end
+end
+
+function PlayerDataService:EnsureQuestData(player: Player, currentDay: number): { [string]: any }
+	local data = self:UpdateData(player, function(existing)
+		self:_ensureQuestData(existing, currentDay)
+		return existing
+	end)
+	return data.QuestState
+end
+
+function PlayerDataService:IncrementQuestMetric(player: Player, metricName: string, amount: number): number
+	local add = math.max(0, math.floor(amount))
+	local updated = self:UpdateData(player, function(data)
+		self:_ensureQuestData(data, 0)
+		local metrics = data.QuestState.Metrics
+		metrics[metricName] = math.max(0, math.floor(tonumber(metrics[metricName]) or 0)) + add
+		return data
+	end)
+	return updated.QuestState.Metrics[metricName]
+end
+
+function PlayerDataService:SetQuestMetric(player: Player, metricName: string, value: number): number
+	local normalized = math.max(0, math.floor(value))
+	local updated = self:UpdateData(player, function(data)
+		self:_ensureQuestData(data, 0)
+		data.QuestState.Metrics[metricName] = normalized
+		return data
+	end)
+	return updated.QuestState.Metrics[metricName]
+end
+
+function PlayerDataService:MarkQuestClaimed(player: Player, questId: string)
+	self:UpdateData(player, function(data)
+		self:_ensureQuestData(data, 0)
+		data.QuestState.Claimed[questId] = true
+		return data
+	end)
+end
+
+function PlayerDataService:GrantReward(player: Player, reward: any, reason: string?)
+	self:UpdateData(player, function(data)
+		data.Diamonds = math.max(0, math.floor(tonumber(data.Diamonds) or 0))
+		data.OwnedItems = if type(data.OwnedItems) == "table" then data.OwnedItems else {}
+		local diamonds = tonumber(reward.Diamonds or reward.diamonds) or 0
+		data.Diamonds += math.max(0, math.floor(diamonds))
+		for _, itemReward in ipairs(reward.Items or reward.items or {}) do
+			local itemId = tostring(itemReward.Id or itemReward.ItemId or itemReward.id or "")
+			if itemId ~= "" then
+				local quantity = math.max(1, math.floor(tonumber(itemReward.Quantity or itemReward.Amount or itemReward.quantity) or 1))
+				data.OwnedItems[itemId] = math.max(0, math.floor(tonumber(data.OwnedItems[itemId]) or 0)) + quantity
+			end
+		end
+		return data
+	end)
+	if self._context.EventBus then
+		self._context.EventBus:Fire("PlayerRewardGranted", player, reward, reason)
+	end
+end
+
+function PlayerDataService:ConsumePendingWeeklyReward(player: Player): any?
+	local consumed = nil
+	self:UpdateData(player, function(data)
+		self:_ensureProgress(data)
+		local progress = data.ProgressPoints
+		local pending = progress.PendingWeeklyReward
+		if type(pending) == "table" and (tonumber(pending.WeekStart) or 0) > (tonumber(progress.LastWeeklyRewardAt) or 0) then
+			consumed = pending
+			progress.LastWeeklyRewardAt = pending.WeekStart
+			progress.PendingWeeklyReward = nil
+		end
+		return data
+	end)
+	return consumed
 end
 
 function PlayerDataService:AddProgressPoints(player: Player, amount: number): (number, number)

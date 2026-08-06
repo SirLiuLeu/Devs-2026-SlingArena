@@ -16,6 +16,8 @@ local DailyLoginUIController = require(ReplicatedStorage.Client.Controllers.Dail
 local DailyLoginLogicService = require(ReplicatedStorage.Client.Services.DailyLoginLogicService)
 local MatchScoreboardUIController = require(ReplicatedStorage.Client.Controllers.MatchScoreboardUIController)
 local ToastUIController = require(ReplicatedStorage.Client.Controllers.ToastUIController)
+local QuestUIController = require(ReplicatedStorage.Client.Controllers.QuestUIController)
+local QuestLogicService = require(ReplicatedStorage.Client.Services.QuestLogicService)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
@@ -109,14 +111,18 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.DailyLoginUIController = DailyLoginUIController.new(playerGui)
 	self.MatchScoreboardUIController = MatchScoreboardUIController.new(playerGui)
 	self.ToastUIController = ToastUIController.new(playerGui)
+	self.QuestUIController = QuestUIController.new(playerGui)
 	self.InventoryDataProvider = InventoryDataProvider.GetDefault()
 	self.OnlineRewardLogicService = OnlineRewardLogicService.GetDefault()
 	self.ShopLogicService = ShopLogicService.GetDefault()
 	self.DailyLoginLogicService = DailyLoginLogicService.GetDefault()
+	self.QuestLogicService = QuestLogicService.GetDefault()
 	self.InventoryUIController:SetDataProvider(self.InventoryDataProvider)
 	self.OnlineRewardUIController:SetLogicService(self.OnlineRewardLogicService)
 	self.ShopUIController:SetLogicService(self.ShopLogicService)
 	self.DailyLoginUIController:SetLogicService(self.DailyLoginLogicService)
+	self.QuestUIController:SetLogicService(self.QuestLogicService)
+	self.QuestUIController:SetToastController(self.ToastUIController)
 
 	self.JoinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.JoinButton)
 	self.LeaveButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton)
@@ -155,6 +161,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 		OnlineReward = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.OnlineReward),
 		Settings = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Settings),
 		Spin = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Spin),
+		Quest = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Quest) or resolveScreenGui(playerGui, "QuestUI"),
 	}
 
 	self.LastQuickHpRequest = 0
@@ -276,6 +283,10 @@ function UIController:Start()
 	if self.MatchScoreboardUIController then
 		self.MatchScoreboardUIController:LoadMockData()
 	end
+	if self.QuestUIController then
+		self.QuestUIController:Start()
+		self.PanelMap.Quest = self.PanelMap.Quest or resolveScreenGui(self.PlayerGui, "QuestUI")
+	end
 	setBuffVisible(self.DamageBuff, true)
 	setBuffText(self.DamageBuffValueText, "100%")
 	setBuffVisible(self.ExpBuff, true)
@@ -356,6 +367,14 @@ function UIController:Start()
 			self:ShowMainHubPanel("OnlineReward")
 			if self.OnlineRewardUIController then
 				self.OnlineRewardUIController:SetVisible(true)
+			end
+		end))
+	end
+	if self.QuestButton then
+		table.insert(self.Connections, self.QuestButton.MouseButton1Click:Connect(function()
+			self:ShowMainHubPanel("Quest")
+			if self.QuestUIController then
+				self.QuestUIController:SetVisible(true)
 			end
 		end))
 	end
@@ -532,6 +551,9 @@ function UIController:Destroy()
 	end
 	if self.ToastUIController then
 		self.ToastUIController:Destroy()
+	end
+	if self.QuestUIController then
+		self.QuestUIController:Destroy()
 	end
 	for _, connection in ipairs(self.Connections) do
 		connection:Disconnect()

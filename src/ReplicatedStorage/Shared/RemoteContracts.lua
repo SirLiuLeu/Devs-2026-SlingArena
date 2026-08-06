@@ -39,6 +39,8 @@ RemoteContracts.Names = {
 	SetPlayerMode = "SetPlayerMode",
 	ClockSyncRequest = "ClockSyncRequest",
 	ClockSyncResponse = "ClockSyncResponse",
+	QuestUpdate = "QuestUpdate",
+	QuestClaim = "QuestClaim",
 }
 
 RemoteContracts.Validators = {
@@ -134,6 +136,9 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.ClockSyncRequest] = function(clientSendTime: any): boolean
 		return typeof(clientSendTime) == "number"
+	end,
+	[RemoteContracts.Names.QuestClaim] = function(questId: any): boolean
+		return typeof(questId) == "string" and #questId > 0 and #questId <= 80
 	end,
 	[RemoteContracts.Names.ReportLaunchStopped] = function(payload: any): boolean
 		if type(payload) ~= "table" then

@@ -47,6 +47,7 @@ local ProjectTreeSpec = {
 				OnlineReward = "OnlineRewardUI", -- [ASSUMED] expected online reward panel root ScreenGui name
 				Settings = "SettingsUI", -- [ASSUMED] expected settings panel root ScreenGui name
 				Spin = "SpinUI", -- [ASSUMED] expected spin panel root ScreenGui name
+				Quest = "QuestUI", -- [ASSUMED] generated Phase 2 quest panel root ScreenGui name
 			},
 			LobbyTeleport = {
 				MapName = "LobbyMap", -- [PROJECT_TREE_SPEC] Workspace.Maps.LobbyMap
