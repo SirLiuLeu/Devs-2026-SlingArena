@@ -363,6 +363,42 @@ DataModel
 │  │  │     ├─ UIPadding
 │  │  │     └─ PlayerRowTemplate_MatchScoreboardUI (Frame)
 │  │  └─ Overlay (Frame)
+│  │
+│  ├─ MatchSummaryUI (ScreenGui)
+│  │  ├─ MainPanel (Frame)
+│  │  │  ├─ UICorner
+│  │  │  ├─ UIPadding
+│  │  │  ├─ Footer (Frame)
+│  │  │  │  ├─ ReturnLobbyButton (TextButton)
+│  │  │  │  └─ CountdownLabel (TextLabel)
+│  │  │  ├─ Header (Frame)
+│  │  │  │  ├─ CloseButton (TextButton)
+│  │  │  │  └─ Title (TextLabel)
+│  │  │  └─ Table (Frame)
+│  │  │     ├─ UICorner
+│  │  │     ├─ UIListLayout
+│  │  │     ├─ HeaderRow (Frame)
+│  │  │     │  ├─ UIListLayout
+│  │  │     │  ├─ Dead (TextLabel)
+│  │  │     │  ├─ Kill (TextLabel)
+│  │  │     │  ├─ Level (TextLabel)
+│  │  │     │  ├─ Name (TextLabel)
+│  │  │     │  ├─ Point (TextLabel)
+│  │  │     │  ├─ Rank (TextLabel)
+│  │  │     │  └─ Reward (TextLabel)
+│  │  │     └─ PlayerList (ScrollingFrame)
+│  │  │        ├─ UIListLayout
+│  │  │        └─ PlayerTemplate (Frame)
+│  │  │           ├─ UIListLayout
+│  │  │           ├─ Deaths (TextLabel)
+│  │  │           ├─ Kills (TextLabel)
+│  │  │           ├─ Level (TextLabel)
+│  │  │           ├─ PlayerName (TextLabel)
+│  │  │           ├─ Points (TextLabel)
+│  │  │           ├─ Rank (TextLabel)
+│  │  │           └─ Reward (TextLabel)
+│  │  └─ Overlay (Frame)
+│  │
 │  ├─ OnlineRewardUI (ScreenGui)
 │  │  └─ Root
 │  │     ├─ Content (ScrollingFrame)
@@ -538,6 +574,8 @@ DataModel
 │  │     │  ├─ DiamondIcon (ImageLabel)
 │  │     │  └─ Value (TextLabel)
 │  │     ├─ QuickHP (ImageButton)
+│  │     │  ├─ Time (TextLabel)
+│  │     │  ├─ Overlay (Frame)
 │  │     │  └─ Quantity (TextLabel)
 │  │     └─ Home (ImageButton)
 │  │   
