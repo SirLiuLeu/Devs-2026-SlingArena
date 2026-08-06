@@ -312,6 +312,36 @@ DataModel
 │  │     ├─ LeaveButton
 │  │     └─ StartSafeZoneButton
 │  │
+│  ├─ NotificationGui (ScreenGui)
+│  │  ├─ ToastContainer
+│  │  │  └─ UIListLayout
+│  │  └─ ToastTemplate
+│  │     ├─ UICorner
+│  │     ├─ UIPadding
+│  │     ├─ Icon
+│  │     └─ Message
+│  │
+│  ├─ QuestUI (ScreenGui)
+│  │  └─ Root
+│  │     ├─ Content_ScrollFrame
+│  │     │  ├─ UIListLayout
+│  │     │  └─ QuestTemplate
+│  │     │     ├─ UICorner
+│  │     │     ├─ ProgressBarBox
+│  │     │     │  ├─ UICorner
+│  │     │     │  ├─ Fill
+│  │     │     │  └─ ProgressText
+│  │     │     ├─ ClaimButton
+│  │     │     ├─ QuestIcon
+│  │     │     └─ QuestDesc
+│  │     ├─ TabContainer
+│  │     │  ├─ UIListLayout
+│  │     │  ├─ Tab_Daily
+│  │     │  └─ Tab_Main
+│  │     ├─ CloseButton
+│  │     ├─ Background
+│  │     └─ Header
+│  │
 │  ├─ MatchScoreboardUI (ScreenGui)
 │  │  ├─ MainPanel (Frame)
 │  │  │  ├─ UICorner
@@ -453,6 +483,8 @@ DataModel
 │  │
 │  ├─ MainHUD (ScreenGui)
 │  │  └─ Root
+│  │     ├─ ProgressPoint
+│  │     │  └─ ValueText
 │  │     ├─ BuffContainer
 │  │     │  ├─ UIGridLayout
 │  │     │  ├─ UISizeConstraint
@@ -495,6 +527,8 @@ DataModel
 │  │     │  ├─ InventoryButton (ImageButton)
 │  │     │  ├─ OnlineRewardButton (ImageButton)
 │  │     │  ├─ SettingButton (ImageButton)
+│  │     │  ├─ TabScore (ImageButton)
+│  │     │  ├─ Quest (ImageButton)
 │  │     │  └─ ShopButton (ImageButton)
 │  │     ├─ RankFrame
 │  │     │  ├─ List
@@ -505,7 +539,6 @@ DataModel
 │  │     │  └─ Value (TextLabel)
 │  │     ├─ QuickHP (ImageButton)
 │  │     │  └─ Quantity (TextLabel)
-│  │     ├─ TabScore (ImageButton)
 │  │     └─ Home (ImageButton)
 │  │   
 │  ├─ DailyLoginUI (ScreenGui) -- [REFINED FROM NEW IMAGE]
