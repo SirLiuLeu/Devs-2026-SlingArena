@@ -168,6 +168,15 @@ DataModel
 │  │      │   ├── PointValue (TextLabel)
 │  │      │   └── StateValue (TextLabel)
 │  │      │
+│  │      ├── PlayerRowTemplate_MatchSummaryUI (Frame)
+│  │      │   ├── UIListLayout
+│  │      │   ├── Deaths
+│  │      │   ├── Kills
+│  │      │   ├── Level
+│  │      │   ├── PlayerName
+│  │      │   ├── Points
+│  │      │   ├── Rank
+│  │      │   └── Reward
 │  │      ├── SlotItemsTemplate_ShopUI (Frame)
 │  │      │   ├── UICorner
 │  │      │   ├── InfoButton (ImageButton)
@@ -387,15 +396,8 @@ DataModel
 │  │  │     │  └─ Reward (TextLabel)
 │  │  │     └─ PlayerList (ScrollingFrame)
 │  │  │        ├─ UIListLayout
-│  │  │        └─ PlayerTemplate (Frame)
-│  │  │           ├─ UIListLayout
-│  │  │           ├─ Deaths (TextLabel)
-│  │  │           ├─ Kills (TextLabel)
-│  │  │           ├─ Level (TextLabel)
-│  │  │           ├─ PlayerName (TextLabel)
-│  │  │           ├─ Points (TextLabel)
-│  │  │           ├─ Rank (TextLabel)
-│  │  │           └─ Reward (TextLabel)
+│  │  │        └─ PlayerrRowTemplate_MatchSummaryUI (Frame)
+│  │  │       
 │  │  └─ Overlay (Frame)
 │  │
 │  ├─ OnlineRewardUI (ScreenGui)
