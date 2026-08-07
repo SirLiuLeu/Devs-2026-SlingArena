@@ -21,7 +21,7 @@ local ProjectTreeSpec = {
 			SettingButton = "MainHUD.Root.LeftMenu.SettingButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.SettingButton
 			ShopButton = "MainHUD.Root.LeftMenu.ShopButton", -- [ASSUMED] StarterGui.MainHUD.Root.LeftMenu.ShopButton
 			TabScore = "MainHUD.Root.LeftMenu.TabScore", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.TabScore
-			QuestButton = "MainHUD.Root.LeftMenu.Quest", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.Quest
+			QuestButton = "MainHUD.Root.LeftMenu.QuestButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.QuestButton
 			ProgressPoint = "MainHUD.Root.ProgressPoint", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ProgressPoint
 			QuickHP = "MainHUD.Root.QuickHP", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuickHP
 			QuickHPQuantity = "MainHUD.Root.QuickHP.Quantity", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuickHP.Quantity (TextLabel)
@@ -129,8 +129,8 @@ local ProjectTreeSpec = {
 		},
 		MatchSummary = {
 			ScreenGui = "MatchSummaryUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchSummaryUI
-			CountdownLabel = "MatchSummaryUI.MainPanel.CountdownLabel", -- [PROJECT_TREE_SPEC]
-			PlayerList = "MatchSummaryUI.MainPanel.PlayerList", -- [PROJECT_TREE_SPEC]
+			CountdownLabel = "MatchSummaryUI.MainPanel.Footer.CountdownLabel", -- [PROJECT_TREE_SPEC]
+			PlayerList = "MatchSummaryUI.MainPanel.Table.PlayerList", -- [PROJECT_TREE_SPEC]
 		},
 		MatchScoreboard = {
 			ScreenGui = "MatchScoreboardUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchScoreboardUI
