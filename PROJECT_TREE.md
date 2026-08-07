@@ -162,7 +162,6 @@ DataModel
 │  │      ├── PlayerRowTemplate_MatchScoreboardUI (Frame)
 │  │      │   ├── UICorner
 │  │      │   ├── UIListLayout
-│  │      │   ├── DeadValue (TextLabel)
 │  │      │   ├── KillValue (TextLabel)
 │  │      │   ├── LevelValue (TextLabel)
 │  │      │   ├── NameValue (TextLabel)
@@ -310,6 +309,8 @@ DataModel
 │  │     ├─ DebugReset
 │  │     ├─ JoinButton
 │  │     ├─ LeaveButton
+│  │     ├─ Plus1Minute
+│  │     ├─ EndRound
 │  │     └─ StartSafeZoneButton
 │  │
 │  ├─ NotificationGui (ScreenGui)
@@ -349,15 +350,13 @@ DataModel
 │  │  │  ├─ ColumnHeader (Frame)
 │  │  │  │  ├─ UICorner
 │  │  │  │  ├─ UIListLayout
-│  │  │  │  ├─ DeadHeader (TextLabel)
 │  │  │  │  ├─ KillHeader (TextLabel)
 │  │  │  │  ├─ LevelHeader (TextLabel)
 │  │  │  │  ├─ NameHeader (TextLabel)
 │  │  │  │  ├─ PointHeader (TextLabel)
 │  │  │  │  └─ StateHeader (TextLabel)
 │  │  │  ├─ Header (Frame)
-│  │  │  │  ├─ CloseButton (TextButton)
-│  │  │  │  └─ Title (TextLabel)
+│  │  │  │  └─ CloseButton (TextButton)
 │  │  │  └─ PlayerList (ScrollingFrame)
 │  │  │     ├─ UIListLayout
 │  │  │     ├─ UIPadding

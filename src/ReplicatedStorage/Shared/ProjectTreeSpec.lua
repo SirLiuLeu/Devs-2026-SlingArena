@@ -8,7 +8,7 @@ local ProjectTreeSpec = {
 			JoinButton = "UnitTestUI.RootFrame.JoinButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.JoinButton
 			LeaveButton = "UnitTestUI.RootFrame.LeaveButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.LeaveButton
 			StartSafeZoneButton = "UnitTestUI.RootFrame.StartSafeZoneButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.StartSafeZoneButton
-			Plus1MinuteButton = "UnitTestUI.Plus1Minute", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.Plus1Minute
+			Plus1MinuteButton = "UnitTestUI.RootFrame.Plus1Minute", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.Plus1Minute
 			DebugResetButton = "UnitTestUI.RootFrame.DebugReset", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.DebugReset
 		},
 		MainHub = {
@@ -40,8 +40,8 @@ local ProjectTreeSpec = {
 				DamageValueText = "MainHUD.Root.BuffContainer.DamageBuff.ValueText", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer.DamageBuff.ValueText
 				ExpBuff = "MainHUD.Root.BuffContainer.ExpBuff", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer.ExpBuff
 				ExpValueText = "MainHUD.Root.BuffContainer.ExpBuff.ValueText", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer.ExpBuff.ValueText
-				HPRecovery = "MainHUD.Root.ProgressPoint.HPRecovery", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ProgressPoint.HPRecovery
-				HPRecoveryTime = "MainHUD.Root.ProgressPoint.HPRecovery.Time", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ProgressPoint.HPRecovery.Time
+				HPRecovery = "MainHUD.Root.BuffContainer.HPRecovery", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer.HPRecovery
+				HPRecoveryTime = "MainHUD.Root.BuffContainer.HPRecovery.Time", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer.HPRecovery.Time
 			},
 			Panels = {
 				DailyLogin = "DailyLoginUI", -- [PROJECT_TREE_SPEC] StarterGui.DailyLoginUI
