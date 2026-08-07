@@ -35,6 +35,8 @@ function RoundService.new(context)
 	self._leaveRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.LeaveArena) :: RemoteEvent
 	self._startSafeZoneRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.StartSafeZone) :: RemoteEvent?
 	self._plus1MinuteRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.Plus1Minute) :: RemoteEvent?
+	self._endRoundRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.EndRound) :: RemoteEvent?
+	self._matchSummaryRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.MatchSummaryUpdate) :: RemoteEvent?
 	return self
 end
 
@@ -57,6 +59,11 @@ function RoundService:Init()
 	if self._plus1MinuteRemote then
 		self._plus1MinuteRemote.OnServerEvent:Connect(function(player)
 			self:RequestPlus1Minute(player)
+		end)
+	end
+	if self._endRoundRemote then
+		self._endRoundRemote.OnServerEvent:Connect(function(player)
+			self:RequestEndRound(player)
 		end)
 	end
 
@@ -93,6 +100,11 @@ function RoundService:RequestStartSafeZone(_player: Player)
 	if self._state == GameStates.MapRoundState.Awaits then
 		self:_startEarlyGame()
 	end
+end
+
+-- Debug-only UnitTestUI tool; remove before public release.
+function RoundService:RequestEndRound(_player: Player)
+	self:_beginRoundEnd()
 end
 
 function RoundService:RequestPlus1Minute(_player: Player)
@@ -133,7 +145,7 @@ function RoundService:LeaveArena(player: Player)
 	self._context.Services.PlayerService:SpawnForActiveMode(player, 1, "LobbyMap", lobbyMode)
 	self._context.Services.PlayerStateService:SetCurrentMap(player, "LobbyMap")
 	self._context.Services.PlayerStateService:SetLocationState(player, GameStates.SessionState.Lobby)
-	if self:_countArenaPlayers() == 0 and self._state ~= GameStates.MapRoundState.RoundEnd and self._state ~= "PostRound" then
+	if self:_countArenaPlayers() == 0 and self._state ~= GameStates.MapRoundState.RoundEnd and self._state ~= GameStates.MapRoundState.PostRound then
 		self:_setState(GameStates.MapRoundState.Lobby)
 		self._roundActive = false
 		self._roundTimer = 0
@@ -255,19 +267,31 @@ function RoundService:_freezeArenaPlayers(frozen: boolean)
 end
 
 function RoundService:_beginRoundEnd()
-	if self._state == GameStates.MapRoundState.RoundEnd or self._state == "PostRound" then
+	if self._state == GameStates.MapRoundState.RoundEnd or self._state == GameStates.MapRoundState.PostRound then
 		return
 	end
 	self._winnerName = self:_findLastAlivePlayerName() or "No winner"
 	self._resultsShown = false
 	self._roundActive = false
 	self._roundEndElapsed = 0
+	local leaderboardService = self._context.Services.LeaderboardService
+	local progressPointService = self._context.Services.ProgressPointService
+	local topPlayers = if leaderboardService and typeof(leaderboardService.GetTopPlayers) == "function" then leaderboardService:GetTopPlayers() else {}
+	local summaryRows = if progressPointService and typeof(progressPointService.AwardEndRoundPoints) == "function" then progressPointService:AwardEndRoundPoints(topPlayers) else topPlayers
 	self:_setState(GameStates.MapRoundState.RoundEnd)
 	self:_freezeArenaPlayers(true)
+	if self._matchSummaryRemote then
+		self._matchSummaryRemote:FireAllClients({
+			Rows = summaryRows,
+			RoundId = self._roundId,
+			Winner = self._winnerName or "No winner",
+			DurationSeconds = ROUND_END_RESULTS_SECONDS,
+		})
+	end
 end
 
 function RoundService:_startPostRound()
-	self:_setState("PostRound")
+	self:_setState(GameStates.MapRoundState.PostRound)
 	self:_freezeArenaPlayers(false)
 
 	local stateService = self._context.Services.PlayerStateService
@@ -287,6 +311,11 @@ function RoundService:_startPostRound()
 			stateService:SetCurrentMap(player, "LobbyMap")
 			stateService:SetLocationState(player, GameStates.SessionState.Lobby)
 		end
+	end
+
+	local leaderboardService = self._context.Services.LeaderboardService
+	if leaderboardService and typeof(leaderboardService.ResetForNewRound) == "function" then
+		leaderboardService:ResetForNewRound()
 	end
 
 	self._roundId += 1

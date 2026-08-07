@@ -101,7 +101,7 @@ function LeaderboardService:Init()
 	self:PublishScoreboard()
 end
 
-function LeaderboardService:_getPoints(player: Player): number
+function LeaderboardService:_getTotalPoints(player: Player): number
 	local stateService = getPlayerStateService(self)
 	local state = stateService and stateService:GetState(player) or nil
 	local playerDataService = self._context.Services and self._context.Services.PlayerDataService
@@ -113,11 +113,19 @@ function LeaderboardService:_getPoints(player: Player): number
 	return math.floor(points)
 end
 
+function LeaderboardService:_getRoundPoints(player: Player): number
+	local playerDataService = self._context.Services and self._context.Services.PlayerDataService
+	if playerDataService and typeof(playerDataService.GetRoundProgressPoints) == "function" then
+		return math.floor(playerDataService:GetRoundProgressPoints(player))
+	end
+	return self:_getTotalPoints(player)
+end
+
 function LeaderboardService:_getSortedPlayers(): { Player }
 	local players = Players:GetPlayers()
 	table.sort(players, function(a: Player, b: Player)
-		local aPoints = self:_getPoints(a)
-		local bPoints = self:_getPoints(b)
+		local aPoints = self:_getRoundPoints(a)
+		local bPoints = self:_getRoundPoints(b)
 		if aPoints ~= bPoints then
 			return aPoints > bPoints
 		end
@@ -143,7 +151,7 @@ function LeaderboardService:_syncPlayer(player: Player)
 	local rankValue = ensureIntValue(leaderstats, "Rank")
 	local pointsValue = ensureIntValue(leaderstats, "Points")
 	levelValue.Value = math.floor(safeNumber(state and state.Level, 0))
-	pointsValue.Value = self:_getPoints(player)
+	pointsValue.Value = self:_getRoundPoints(player)
 	rankValue.Value = self._cachedRanks[player] or 0
 end
 
@@ -158,17 +166,16 @@ end
 function LeaderboardService:_buildRow(player: Player, rank: number)
 	local stateService = getPlayerStateService(self)
 	local state = stateService and stateService:GetState(player) or nil
-	local isAlive = if state and state.IsAlive ~= nil then state.IsAlive else true
-	local movementState = if not isAlive then GameStates.PlayerState.Dead else tostring((state and state.MovementState) or GameStates.PlayerState.Idle)
+	local activePlayerMode = tostring((state and state.ActivePlayerMode) or GameStates.PlayerMode.Human)
 	return {
 		UserId = player.UserId,
 		Rank = rank,
 		Name = player.DisplayName ~= "" and player.DisplayName or player.Name,
 		Level = math.floor(safeNumber(state and state.Level, 0)),
-		Points = self:_getPoints(player),
+		Points = self:_getRoundPoints(player),
 		Kills = math.floor(safeNumber(self._kills[player.UserId], 0)),
 		Deaths = math.floor(safeNumber(self._deaths[player.UserId], 0)),
-		State = movementState,
+		State = activePlayerMode,
 	}
 end
 
@@ -182,6 +189,19 @@ function LeaderboardService:GetTopPlayers(limit: number?): { any }
 		table.insert(rows, self:_buildRow(player, rank))
 	end
 	return rows
+end
+
+function LeaderboardService:ResetForNewRound()
+	table.clear(self._kills)
+	table.clear(self._deaths)
+	local playerDataService = self._context.Services and self._context.Services.PlayerDataService
+	if playerDataService and typeof(playerDataService.ResetRoundProgressPoints) == "function" then
+		for _, player in ipairs(Players:GetPlayers()) do
+			playerDataService:ResetRoundProgressPoints(player)
+		end
+	end
+	self:_recomputeRanks()
+	self:PublishScoreboard()
 end
 
 function LeaderboardService:PublishScoreboard()

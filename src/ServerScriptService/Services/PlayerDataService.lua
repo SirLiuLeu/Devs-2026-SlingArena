@@ -26,8 +26,11 @@ end
 function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 	return {
 		UserId = player.UserId,
+		Level = 1,
+		Coin = 0,
 		ProgressPoints = {
 			TotalPoints = 0,
+			RoundPoints = 0,
 			WeeklyPoints = 0,
 			WeeklyResetAt = currentMondayStamp(os.time()),
 			PendingWeeklyReward = nil,
@@ -83,7 +86,10 @@ function PlayerDataService:_ensureProgress(data: { [string]: any })
 		progress = {}
 		data.ProgressPoints = progress
 	end
+	data.Level = math.max(1, math.floor(tonumber(data.Level) or 1))
+	data.Coin = math.max(0, math.floor(tonumber(data.Coin) or 0))
 	progress.TotalPoints = tonumber(progress.TotalPoints) or 0
+	progress.RoundPoints = tonumber(progress.RoundPoints) or 0
 	progress.WeeklyPoints = tonumber(progress.WeeklyPoints) or 0
 	progress.WeeklyResetAt = tonumber(progress.WeeklyResetAt) or currentMondayStamp(os.time())
 	local monday = currentMondayStamp(os.time())
@@ -199,6 +205,42 @@ function PlayerDataService:ConsumePendingWeeklyReward(player: Player): any?
 	return consumed
 end
 
+function PlayerDataService:AddRoundProgressPoints(player: Player, amount: number): number
+	local add = math.max(0, math.floor(amount))
+	local updated = self:UpdateData(player, function(data)
+		self:_ensureProgress(data)
+		local progress = data.ProgressPoints
+		progress.RoundPoints += add
+		return data
+	end)
+	local roundPoints = updated.ProgressPoints.RoundPoints
+	if self._context.EventBus then
+		self._context.EventBus:Fire("ProgressPointsChanged", player, updated.ProgressPoints.TotalPoints, updated.ProgressPoints.WeeklyPoints, roundPoints)
+	end
+	return roundPoints
+end
+
+function PlayerDataService:ResetRoundProgressPoints(player: Player)
+	self:UpdateData(player, function(data)
+		self:_ensureProgress(data)
+		data.ProgressPoints.RoundPoints = 0
+		return data
+	end)
+	if self._context.EventBus then
+		self._context.EventBus:Fire("ProgressPointsChanged", player, self:GetProgressPoints(player))
+	end
+end
+
+function PlayerDataService:AddCoins(player: Player, amount: number): number
+	local add = math.max(0, math.floor(amount))
+	local updated = self:UpdateData(player, function(data)
+		self:_ensureProgress(data)
+		data.Coin += add
+		return data
+	end)
+	return updated.Coin
+end
+
 function PlayerDataService:AddProgressPoints(player: Player, amount: number): (number, number)
 	local add = math.max(0, math.floor(amount))
 	local updated = self:UpdateData(player, function(data)
@@ -219,6 +261,12 @@ function PlayerDataService:GetProgressPoints(player: Player): (number, number)
 	local data = self:GetData(player)
 	self:_ensureProgress(data)
 	return data.ProgressPoints.TotalPoints, data.ProgressPoints.WeeklyPoints
+end
+
+function PlayerDataService:GetRoundProgressPoints(player: Player): number
+	local data = self:GetData(player)
+	self:_ensureProgress(data)
+	return data.ProgressPoints.RoundPoints
 end
 
 return PlayerDataService

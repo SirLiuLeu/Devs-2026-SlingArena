@@ -25,6 +25,8 @@ RemoteContracts.Names = {
 	LeaveArena = "LeaveArena",
 	StartSafeZone = "StartSafeZone",
 	Plus1Minute = "Plus1Minute",
+	EndRound = "EndRound",
+	MatchSummaryUpdate = "MatchSummaryUpdate",
 	TeleportRequest = "TeleportRequest",
 	DebugSpawnFood = "DebugSpawnFood",
 	DebugResetLauncher = "DebugResetLauncher",
@@ -79,6 +81,9 @@ RemoteContracts.Validators = {
 		return true
 	end,
 	[RemoteContracts.Names.Plus1Minute] = function(): boolean
+		return true
+	end,
+	[RemoteContracts.Names.EndRound] = function(): boolean
 		return true
 	end,
 	[RemoteContracts.Names.ReportFoodHit] = function(payload: any): boolean

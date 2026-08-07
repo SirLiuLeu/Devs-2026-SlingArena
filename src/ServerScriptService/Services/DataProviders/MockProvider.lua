@@ -3,6 +3,28 @@
 local MockProvider = {}
 MockProvider.__index = MockProvider
 
+
+local MOCK_SCHEMA_DEFAULTS = {
+	Level = 1,
+	Coin = 0,
+	ProgressPoints = {
+		RoundPoints = 0,
+	},
+}
+
+local function applyDefaults(target: { [any]: any }, defaults: { [any]: any })
+	for key, value in pairs(defaults) do
+		if type(value) == "table" then
+			if type(target[key]) ~= "table" then
+				target[key] = {}
+			end
+			applyDefaults(target[key], value)
+		elseif target[key] == nil then
+			target[key] = value
+		end
+	end
+end
+
 local function deepCopy(value: any): any
 	if type(value) ~= "table" then
 		return value
@@ -26,6 +48,7 @@ function MockProvider:LoadPlayerData(player: Player, defaultData: { [string]: an
 		existing = deepCopy(defaultData)
 		self._dataByUserId[player.UserId] = existing
 	end
+	applyDefaults(existing, MOCK_SCHEMA_DEFAULTS)
 	return existing
 end
 

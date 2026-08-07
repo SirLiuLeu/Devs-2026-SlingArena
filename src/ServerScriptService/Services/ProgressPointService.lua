@@ -50,7 +50,7 @@ function ProgressPointService:_addPoints(player: Player, amount: number)
 		warn("[ProgressPointService] PlayerDataService unavailable; progress points skipped.")
 		return
 	end
-	playerDataService:AddProgressPoints(player, amount)
+	playerDataService:AddRoundProgressPoints(player, amount)
 end
 
 function ProgressPointService:OnFoodConsumed(player: Player, isPremium: boolean)
@@ -86,6 +86,48 @@ function ProgressPointService:OnPlayerKilled(killer: Player, victim: Player)
 	victimWindow.Count += 1
 	local multiplier = if victimWindow.Count == 1 then 1 elseif victimWindow.Count == 2 then 0.5 else 0
 	self:_addPoints(killer, (killSettings.BasePoints or 0) * multiplier)
+end
+
+local END_ROUND_REWARDS = {
+	[1] = { ProgressPoints = 100, Coins = 50 },
+	[2] = { ProgressPoints = 75, Coins = 35 },
+	[3] = { ProgressPoints = 50, Coins = 25 },
+}
+local DEFAULT_END_ROUND_REWARD = { ProgressPoints = 25, Coins = 10 }
+
+local function getRewardForRank(rank: number): { ProgressPoints: number, Coins: number }
+	return END_ROUND_REWARDS[rank] or DEFAULT_END_ROUND_REWARD
+end
+
+function ProgressPointService:AwardEndRoundPoints(topPlayers: { any }): { any }
+	local playerDataService = getService(self._context, "PlayerDataService")
+	if not playerDataService then
+		warn("[ProgressPointService] PlayerDataService unavailable; end-round rewards skipped.")
+		return {}
+	end
+
+	local rows = {}
+	for index, row in ipairs(topPlayers) do
+		if type(row) == "table" then
+			local rank = math.max(1, math.floor(tonumber(row.Rank) or index))
+			local reward = getRewardForRank(rank)
+			local progressReward = math.max(0, math.floor(reward.ProgressPoints or 0))
+			local coinReward = math.max(0, math.floor(reward.Coins or 0))
+			local player = if typeof(row.UserId) == "number" then Players:GetPlayerByUserId(row.UserId) else nil
+			if player then
+				playerDataService:AddProgressPoints(player, progressReward)
+				if coinReward > 0 and typeof(playerDataService.AddCoins) == "function" then
+					playerDataService:AddCoins(player, coinReward)
+				end
+			end
+			local summaryRow = table.clone(row)
+			summaryRow.Reward = progressReward
+			summaryRow.ProgressPointReward = progressReward
+			summaryRow.CoinReward = coinReward
+			table.insert(rows, summaryRow)
+		end
+	end
+	return rows
 end
 
 function ProgressPointService:GetProgressPoints(player: Player): (number, number)

@@ -15,6 +15,7 @@ local ShopLogicService = require(ReplicatedStorage.Client.Services.ShopLogicServ
 local DailyLoginUIController = require(ReplicatedStorage.Client.Controllers.DailyLoginUIController)
 local DailyLoginLogicService = require(ReplicatedStorage.Client.Services.DailyLoginLogicService)
 local MatchScoreboardUIController = require(ReplicatedStorage.Client.Controllers.MatchScoreboardUIController)
+local MatchSummaryUIController = require(ReplicatedStorage.Client.Controllers.MatchSummaryUIController)
 local ToastUIController = require(ReplicatedStorage.Client.Controllers.ToastUIController)
 local QuestUIController = require(ReplicatedStorage.Client.Controllers.QuestUIController)
 local QuestLogicService = require(ReplicatedStorage.Client.Services.QuestLogicService)
@@ -132,6 +133,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.ShopUIController = ShopUIController.new(playerGui)
 	self.DailyLoginUIController = DailyLoginUIController.new(playerGui)
 	self.MatchScoreboardUIController = MatchScoreboardUIController.new(playerGui)
+	self.MatchSummaryUIController = MatchSummaryUIController.new(playerGui, self.ClientService)
 	self.ToastUIController = ToastUIController.new(playerGui)
 	self.QuestUIController = QuestUIController.new(playerGui)
 	self.InventoryDataProvider = InventoryDataProvider.GetDefault()
@@ -150,6 +152,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.LeaveButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton)
 	self.StartSafeZoneButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.StartSafeZoneButton)
 	self.Plus1MinuteButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.Plus1MinuteButton)
+	self.EndRoundButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.EndRoundButton)
 	self.MatchStatusLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel)
 	self.TimerLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel)
 	self.AlivePlayersLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.AlivePlayersLabel)
@@ -199,6 +202,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if not self.LeaveButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.LeaveButton, "TextButton") end
 	if not self.StartSafeZoneButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.StartSafeZoneButton, "TextButton") end
 	if not self.Plus1MinuteButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.Plus1MinuteButton, "GuiButton") end
+	if not self.EndRoundButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.EndRoundButton, "GuiButton") end
 	if not self.MatchStatusLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.StatusLabel, "TextLabel") end
 	if not self.TimerLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.TimerLabel, "TextLabel") end
 	if not self.AlivePlayersLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.AlivePlayersLabel, "TextLabel") end
@@ -336,6 +340,9 @@ function UIController:Start()
 	if self.MatchScoreboardUIController then
 		self.MatchScoreboardUIController:LoadMockData()
 	end
+	if self.MatchSummaryUIController then
+		self.MatchSummaryUIController:Start()
+	end
 	if self.QuestUIController then
 		self.QuestUIController:Start()
 		self.PanelMap.Quest = self.PanelMap.Quest or resolveScreenGui(self.PlayerGui, "QuestUI")
@@ -392,6 +399,11 @@ function UIController:Start()
 	if self.DebugResetButton then
 		table.insert(self.Connections, self.DebugResetButton.MouseButton1Click:Connect(function()
 			self.ClientService:RequestDebugResetLauncher()
+		end))
+	end
+	if self.EndRoundButton then
+		table.insert(self.Connections, self.EndRoundButton.MouseButton1Click:Connect(function()
+			self.ClientService:RequestEndRound()
 		end))
 	end
 	if self.DailyButton then
@@ -622,6 +634,9 @@ function UIController:Destroy()
 	end
 	if self.MatchScoreboardUIController then
 		self.MatchScoreboardUIController:Destroy()
+	end
+	if self.MatchSummaryUIController then
+		self.MatchSummaryUIController:Destroy()
 	end
 	if self.ToastUIController then
 		self.ToastUIController:Destroy()

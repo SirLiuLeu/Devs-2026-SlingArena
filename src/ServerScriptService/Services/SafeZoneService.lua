@@ -348,6 +348,9 @@ function SafeZoneService:SetElapsed(elapsedSeconds: number)
 	local arenaMap = self:_getArenaMap()
 	if arenaMap then
 		self:_ensureVisualCircle(arenaMap)
+		if not self._relocationTriggered and self:_currentScale() <= RELOCATION_SCALE_THRESHOLD then
+			self:_beginRelocation(arenaMap)
+		end
 		self:_moveCircleToCenter()
 		self:_updateVisualTransparency()
 		self:_replicateState(arenaMap)

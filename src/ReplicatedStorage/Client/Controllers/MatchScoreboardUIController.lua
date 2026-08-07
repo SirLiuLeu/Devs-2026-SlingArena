@@ -98,7 +98,6 @@ function MatchScoreboardUIController:_applyRow(row: Frame, rowData: any, index: 
 	self:_setLabel(row, "LevelValue", tostring(math.floor(asNumber(rowData.Level or rowData.level, 0))))
 	self:_setLabel(row, "PointValue", tostring(math.floor(asNumber(rowData.Points or rowData.points or rowData.Point or rowData.point, 0))))
 	self:_setLabel(row, "KillValue", tostring(math.floor(asNumber(rowData.Kills or rowData.kills, 0))))
-	self:_setLabel(row, "DeadValue", tostring(math.floor(asNumber(rowData.Deaths or rowData.deaths or rowData.Dead or rowData.dead, 0))))
 	self:_setLabel(row, "StateValue", asText(rowData.State or rowData.state, "Unknown"))
 end
 

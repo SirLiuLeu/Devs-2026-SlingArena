@@ -10,6 +10,7 @@ local ProjectTreeSpec = {
 			StartSafeZoneButton = "UnitTestUI.RootFrame.StartSafeZoneButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.StartSafeZoneButton
 			Plus1MinuteButton = "UnitTestUI.RootFrame.Plus1Minute", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.Plus1Minute
 			DebugResetButton = "UnitTestUI.RootFrame.DebugReset", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.DebugReset
+			EndRoundButton = "UnitTestUI.RootFrame.EndRoundButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.EndRoundButton
 		},
 		MainHub = {
 			ScreenGui = "MainHUD", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD
@@ -126,6 +127,11 @@ local ProjectTreeSpec = {
 			AlivePlayersLabel = "MatchUI.RootFrame.AlivePlayersLabel", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI.RootFrame.AlivePlayersLabel
 			WinnerPopup = "MatchUI.RootFrame.WinnerPopup", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI.RootFrame.WinnerPopup
 		},
+		MatchSummary = {
+			ScreenGui = "MatchSummaryUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchSummaryUI
+			CountdownLabel = "MatchSummaryUI.MainPanel.CountdownLabel", -- [PROJECT_TREE_SPEC]
+			PlayerList = "MatchSummaryUI.MainPanel.PlayerList", -- [PROJECT_TREE_SPEC]
+		},
 		MatchScoreboard = {
 			ScreenGui = "MatchScoreboardUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchScoreboardUI
 			CloseButton = "MatchScoreboardUI.MainPanel.Header.CloseButton", -- [PROJECT_TREE_SPEC]
@@ -161,6 +167,7 @@ local ProjectTreeSpec = {
 		LeaveArena = "LauncherArenaRemotes.LeaveArena", -- [PROJECT_TREE_SPEC]
 		StartSafeZone = "LauncherArenaRemotes.StartSafeZone",
 		Plus1Minute = "LauncherArenaRemotes.Plus1Minute", -- [PROJECT_TREE_SPEC]
+		EndRound = "LauncherArenaRemotes.EndRound", -- [PROJECT_TREE_SPEC]
 		TeleportRequest = "LauncherArenaRemotes.TeleportRequest", -- [PROJECT_TREE_SPEC]
 		AttributeUpgrade = "LauncherArenaRemotes.AttributeUpgrade", -- [PROJECT_TREE_SPEC]
 		RequestRespawn = "LauncherArenaRemotes.RequestRespawn", -- [PROJECT_TREE_SPEC]
@@ -183,6 +190,7 @@ local ProjectTreeSpec = {
 		PopupMessage = "LauncherArenaRemotes.PopupMessage", -- [PROJECT_TREE_SPEC]
 		ZoneUpdate = "LauncherArenaRemotes.ZoneUpdate", -- [PROJECT_TREE_SPEC]
 		MatchScoreboardUpdate = "LauncherArenaRemotes.MatchScoreboardUpdate", -- [PROJECT_TREE_SPEC]
+		MatchSummaryUpdate = "LauncherArenaRemotes.MatchSummaryUpdate", -- [PROJECT_TREE_SPEC]
 	},
 	Services = {
 		Client = {

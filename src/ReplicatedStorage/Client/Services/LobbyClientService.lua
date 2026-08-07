@@ -15,6 +15,8 @@ export type LobbyClientService = {
 	LeaveArenaRemote: RemoteEvent?,
 	StartSafeZoneRemote: RemoteEvent?,
 	Plus1MinuteRemote: RemoteEvent?,
+	EndRoundRemote: RemoteEvent?,
+	MatchSummaryUpdateRemote: RemoteEvent?,
 	StateUpdateRemote: RemoteEvent?,
 	UIStateUpdateRemote: RemoteEvent?,
 	RoundResultRemote: RemoteEvent?,
@@ -29,6 +31,7 @@ export type LobbyClientService = {
 	RequestTeleport: (self: LobbyClientService, mapName: string, spawnName: string) -> (),
 	RequestStartSafeZone: (self: LobbyClientService) -> (),
 	RequestPlus1Minute: (self: LobbyClientService) -> (),
+	RequestEndRound: (self: LobbyClientService) -> (),
 	RequestDebugSpawnFood: (self: LobbyClientService, mapName: string) -> (),
 	RequestDebugResetLauncher: (self: LobbyClientService) -> (),
 	RequestAttributeUpgrade: (self: LobbyClientService, attributeName: string) -> (),
@@ -37,6 +40,7 @@ export type LobbyClientService = {
 	BindUIStateUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 	BindRoundResult: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 	BindMatchScoreboardUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
+	BindMatchSummaryUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 }
 
 local function resolveRemote(path: string): RemoteEvent?
@@ -54,10 +58,12 @@ function LobbyClientService.new(): LobbyClientService
 	self.LeaveArenaRemote = resolveRemote(ProjectTreeSpec.Remotes.LeaveArena)
 	self.StartSafeZoneRemote = resolveRemote(ProjectTreeSpec.Remotes.StartSafeZone)
 	self.Plus1MinuteRemote = resolveRemote(ProjectTreeSpec.Remotes.Plus1Minute)
+	self.EndRoundRemote = resolveRemote(ProjectTreeSpec.Remotes.EndRound)
 	self.StateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.StateUpdate)
 	self.UIStateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.UIStateUpdate)
 	self.RoundResultRemote = resolveRemote(ProjectTreeSpec.Remotes.RoundResult)
 	self.MatchScoreboardUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.MatchScoreboardUpdate)
+	self.MatchSummaryUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.MatchSummaryUpdate)
 	self.AttributeUpgradeRemote = resolveRemote(ProjectTreeSpec.Remotes.AttributeUpgrade)
 	self.ConsumeHpPotionRemote = resolveRemote(ProjectTreeSpec.Remotes.ConsumeHpPotion)
 	if self.RemotesRoot then
@@ -101,6 +107,15 @@ function LobbyClientService:RequestPlus1Minute()
 	end
 	if self.Plus1MinuteRemote then
 		self.Plus1MinuteRemote:FireServer()
+	end
+end
+
+function LobbyClientService:RequestEndRound()
+	if not RemoteContracts.Validate(RemoteContracts.Names.EndRound) then
+		return
+	end
+	if self.EndRoundRemote then
+		self.EndRoundRemote:FireServer()
 	end
 end
 
@@ -169,6 +184,13 @@ function LobbyClientService:BindMatchScoreboardUpdate(handler: (any) -> ()): RBX
 		return nil
 	end
 	return self.MatchScoreboardUpdateRemote.OnClientEvent:Connect(handler)
+end
+
+function LobbyClientService:BindMatchSummaryUpdate(handler: (any) -> ()): RBXScriptConnection?
+	if self.MatchSummaryUpdateRemote == nil then
+		return nil
+	end
+	return self.MatchSummaryUpdateRemote.OnClientEvent:Connect(handler)
 end
 
 return LobbyClientService

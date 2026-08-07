@@ -47,6 +47,7 @@ local GameStates = {
 		EarlyGame = "EarlyGame",
 		FinalPhase = "FinalPhase",
 		RoundEnd = "RoundEnd",
+		PostRound = "PostRound",
 	},
 }
 
