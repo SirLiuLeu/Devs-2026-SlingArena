@@ -374,14 +374,8 @@ DataModel
 │  │
 │  ├─ MatchSummaryUI (ScreenGui)
 │  │  ├─ MainPanel (Frame)
-│  │  │  ├─ UICorner
-│  │  │  ├─ UIPadding
-│  │  │  ├─ Footer (Frame)
-│  │  │  │  ├─ ReturnLobbyButton (TextButton)
-│  │  │  │  └─ CountdownLabel (TextLabel)
 │  │  │  ├─ Header (Frame)
-│  │  │  │  ├─ CloseButton (TextButton)
-│  │  │  │  └─ Title (TextLabel)
+│  │  │  │  └─ CloseButton (TextButton)
 │  │  │  └─ Table (Frame)
 │  │  │     ├─ UICorner
 │  │  │     ├─ UIListLayout
