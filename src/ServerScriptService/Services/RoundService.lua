@@ -126,6 +126,11 @@ end
 
 function RoundService:JoinArena(player: Player)
 	if not self:_canJoinArena(player) then
+		local leaveAt = self._lastLeaveByUserId[player.UserId] or os.clock()
+		local remainingSeconds = REJOIN_COOLDOWN_SECONDS - (os.clock() - leaveAt)
+		if self._context.EventBus then
+			self._context.EventBus:Fire("ArenaJoinCooldown", player, remainingSeconds)
+		end
 		return
 	end
 	local arenaMapName = self._context.Services.MapService:GetDefaultArenaMapName()
@@ -210,6 +215,7 @@ function RoundService:_setState(nextState: string)
 	if self._state == nextState then
 		return
 	end
+	local previousState = self._state
 	self._state = nextState
 	local stateService = self._context.Services.PlayerStateService
 	if stateService then
@@ -221,6 +227,13 @@ function RoundService:_setState(nextState: string)
 		end
 	end
 	self:_publishUiState()
+	if self._context.EventBus then
+		self._context.EventBus:Fire("RoundStateChanged", {
+			State = nextState,
+			PreviousState = previousState,
+			RoundId = self._roundId,
+		})
+	end
 end
 
 function RoundService:_startEarlyGame()

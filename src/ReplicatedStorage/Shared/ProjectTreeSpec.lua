@@ -193,6 +193,7 @@ local ProjectTreeSpec = {
 		MatchScoreboardUpdate = "LauncherArenaRemotes.MatchScoreboardUpdate", -- [PROJECT_TREE_SPEC]
 		GlobalTop100Update = "LauncherArenaRemotes.GlobalTop100Update", -- [PROJECT_TREE_SPEC]
 		MatchSummaryUpdate = "LauncherArenaRemotes.MatchSummaryUpdate", -- [PROJECT_TREE_SPEC]
+		Notification = "LauncherArenaRemotes.Notification", -- [PROJECT_TREE_SPEC]
 	},
 	Services = {
 		Client = {

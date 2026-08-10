@@ -36,6 +36,7 @@ local LeaderboardService = requireSafe(ServicesFolder:WaitForChild("LeaderboardS
 local PlayerDataService = requireSafe(ServicesFolder:WaitForChild("PlayerDataService"), "PlayerDataService")
 local ProgressPointService = requireSafe(ServicesFolder:WaitForChild("ProgressPointService"), "ProgressPointService")
 local QuestService = requireSafe(ServicesFolder:WaitForChild("QuestService"), "QuestService")
+local NotificationService = requireSafe(ServicesFolder:WaitForChild("NotificationService"), "NotificationService")
 local LauncherAbilityFolder = ServicesFolder:FindFirstChild("LauncherAbilityService")
 local LauncherAbilityService = nil
 if LauncherAbilityFolder and LauncherAbilityFolder:IsA("Folder") then
@@ -119,6 +120,7 @@ local serviceConstructors = {
 	PlayerDataService = PlayerDataService,
 	ProgressPointService = ProgressPointService,
 	QuestService = QuestService,
+	NotificationService = NotificationService,
 }
 
 for serviceName, constructor in pairs(serviceConstructors) do
@@ -160,6 +162,7 @@ local initializationOrder = {
 	"LeaderboardService",
 	"ProgressPointService",
 	"QuestService",
+	"NotificationService",
 	"RoundService",
 }
 

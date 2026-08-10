@@ -45,6 +45,7 @@ RemoteContracts.Names = {
 	ClockSyncResponse = "ClockSyncResponse",
 	QuestUpdate = "QuestUpdate",
 	QuestClaim = "QuestClaim",
+	Notification = "Notification",
 }
 
 RemoteContracts.Validators = {

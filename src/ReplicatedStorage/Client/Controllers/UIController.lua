@@ -578,12 +578,16 @@ function UIController:Start()
 		table.insert(self.Connections, scoreboardConnection)
 	end
 
+	local notificationRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):FindFirstChild(RemoteContracts.Names.Notification) :: RemoteEvent?
+	if notificationRemote and self.ToastUIController then
+		table.insert(self.Connections, notificationRemote.OnClientEvent:Connect(function(payload)
+			self.ToastUIController:Enqueue(payload)
+		end))
+	end
+
 	local feedbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
 	if feedbackRemote then
 		table.insert(self.Connections, feedbackRemote.OnClientEvent:Connect(function(message)
-			if self.ToastUIController and type(message) == "table" and message.Toast == true then
-				self.ToastUIController:Enqueue(message)
-			end
 			if type(message) ~= "table" or message.EventType ~= "HpPotionUseResult" then
 				return
 			end
