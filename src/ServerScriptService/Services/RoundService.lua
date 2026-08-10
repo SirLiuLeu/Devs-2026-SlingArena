@@ -62,6 +62,7 @@ function RoundService:Init()
 		end)
 	end
 	if self._endRoundRemote then
+		-- TODO: RequestEndRound is a debug-only UnitTestUI hook. Remove this remote before public release.
 		self._endRoundRemote.OnServerEvent:Connect(function(player)
 			self:RequestEndRound(player)
 		end)
@@ -270,13 +271,19 @@ function RoundService:_beginRoundEnd()
 	if self._state == GameStates.MapRoundState.RoundEnd or self._state == GameStates.MapRoundState.PostRound then
 		return
 	end
-	self._winnerName = self:_findLastAlivePlayerName() or "No winner"
 	self._resultsShown = false
 	self._roundActive = false
 	self._roundEndElapsed = 0
 	local leaderboardService = self._context.Services.LeaderboardService
 	local progressPointService = self._context.Services.ProgressPointService
 	local topPlayers = if leaderboardService and typeof(leaderboardService.GetTopPlayers) == "function" then leaderboardService:GetTopPlayers() else {}
+	local winnerNames = {}
+	for _, row in ipairs(topPlayers) do
+		if type(row) == "table" and row.Rank == 1 then
+			table.insert(winnerNames, tostring(row.Name or "Player"))
+		end
+	end
+	self._winnerName = if #winnerNames > 0 then table.concat(winnerNames, ", ") else (self:_findLastAlivePlayerName() or "No winner")
 	local summaryRows = if progressPointService and typeof(progressPointService.AwardEndRoundPoints) == "function" then progressPointService:AwardEndRoundPoints(topPlayers) else topPlayers
 	self:_setState(GameStates.MapRoundState.RoundEnd)
 	self:_freezeArenaPlayers(true)

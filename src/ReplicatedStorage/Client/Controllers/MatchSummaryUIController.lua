@@ -43,6 +43,7 @@ function MatchSummaryUIController.new(playerGui: PlayerGui, clientService: any)
 	self.ScreenGui = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchSummary.ScreenGui) :: ScreenGui?
 	self.PlayerList = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchSummary.PlayerList) :: ScrollingFrame?
 	self.CountdownLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchSummary.CountdownLabel) :: TextLabel?
+	self.CloseButton = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchSummary.CloseButton) :: GuiButton?
 	self.RowTemplate = PathResolver.resolvePath(ReplicatedStorage, TEMPLATE_PATH) :: Frame?
 	self.Rows = {} :: { Frame }
 	self.Connections = {} :: { RBXScriptConnection }
@@ -110,6 +111,10 @@ function MatchSummaryUIController:Refresh(payload: any)
 	local duration = if type(payload) == "table" then asNumber(payload.DurationSeconds, DEFAULT_DURATION_SECONDS) else DEFAULT_DURATION_SECONDS
 	self.CountdownEndsAt = os.clock() + math.max(0, duration)
 	self:SetVisible(true)
+	if self.CloseButton then
+		self.CloseButton.Active = true
+		self.CloseButton.Visible = true
+	end
 end
 
 function MatchSummaryUIController:_updateCountdown()
@@ -131,6 +136,13 @@ function MatchSummaryUIController:Start()
 	end)
 	if summaryConnection then
 		table.insert(self.Connections, summaryConnection)
+	end
+	if self.CloseButton then
+		table.insert(self.Connections, self.CloseButton.MouseButton1Click:Connect(function()
+			self.CountdownEndsAt = 0
+			self:SetVisible(false)
+			self:_clearRows()
+		end))
 	end
 	local uiStateConnection = self.ClientService:BindUIStateUpdate(function(payload)
 		if type(payload) == "table" and payload.State == GameStates.MapRoundState.Lobby then

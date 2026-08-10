@@ -21,6 +21,7 @@ export type LobbyClientService = {
 	UIStateUpdateRemote: RemoteEvent?,
 	RoundResultRemote: RemoteEvent?,
 	MatchScoreboardUpdateRemote: RemoteEvent?,
+	GlobalTop100UpdateRemote: RemoteEvent?,
 	TeleportRemote: RemoteEvent?,
 	DebugSpawnFoodRemote: RemoteEvent?,
 	DebugResetLauncherRemote: RemoteEvent?,
@@ -41,6 +42,7 @@ export type LobbyClientService = {
 	BindRoundResult: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 	BindMatchScoreboardUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 	BindMatchSummaryUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
+	BindGlobalTop100Update: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 }
 
 local function resolveRemote(path: string): RemoteEvent?
@@ -63,6 +65,7 @@ function LobbyClientService.new(): LobbyClientService
 	self.UIStateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.UIStateUpdate)
 	self.RoundResultRemote = resolveRemote(ProjectTreeSpec.Remotes.RoundResult)
 	self.MatchScoreboardUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.MatchScoreboardUpdate)
+	self.GlobalTop100UpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.GlobalTop100Update)
 	self.MatchSummaryUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.MatchSummaryUpdate)
 	self.AttributeUpgradeRemote = resolveRemote(ProjectTreeSpec.Remotes.AttributeUpgrade)
 	self.ConsumeHpPotionRemote = resolveRemote(ProjectTreeSpec.Remotes.ConsumeHpPotion)
@@ -184,6 +187,13 @@ function LobbyClientService:BindMatchScoreboardUpdate(handler: (any) -> ()): RBX
 		return nil
 	end
 	return self.MatchScoreboardUpdateRemote.OnClientEvent:Connect(handler)
+end
+
+function LobbyClientService:BindGlobalTop100Update(handler: (any) -> ()): RBXScriptConnection?
+	if self.GlobalTop100UpdateRemote == nil then
+		return nil
+	end
+	return self.GlobalTop100UpdateRemote.OnClientEvent:Connect(handler)
 end
 
 function LobbyClientService:BindMatchSummaryUpdate(handler: (any) -> ()): RBXScriptConnection?

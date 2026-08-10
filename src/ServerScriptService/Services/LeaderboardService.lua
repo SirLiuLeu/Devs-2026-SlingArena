@@ -7,6 +7,7 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 
 local TOP_SCOREBOARD_LIMIT = 100
+local GLOBAL_TOP_100_REFRESH_SECONDS = 60
 
 local LeaderboardService = {}
 LeaderboardService.__index = LeaderboardService
@@ -18,6 +19,8 @@ function LeaderboardService.new(context)
 	self._kills = {} :: { [number]: number }
 	self._deaths = {} :: { [number]: number }
 	self._scoreboardRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.MatchScoreboardUpdate) :: RemoteEvent?
+	self._globalTop100Remote = context.Remotes:FindFirstChild(RemoteContracts.Names.GlobalTop100Update) :: RemoteEvent?
+	self._globalLoopStarted = false
 	return self
 end
 
@@ -81,6 +84,7 @@ function LeaderboardService:Init()
 		self:_syncPlayer(player)
 		self:_recomputeRanks()
 		self:PublishScoreboard()
+		self:PublishGlobalTop100()
 	end)
 	self._context.EventBus:On("PlayerKilled", function(killer: Player, _victim: Player)
 		self._kills[killer.UserId] = (self._kills[killer.UserId] or 0) + 1
@@ -99,6 +103,20 @@ function LeaderboardService:Init()
 	end
 	self:_recomputeRanks()
 	self:PublishScoreboard()
+	self:PublishGlobalTop100()
+end
+
+function LeaderboardService:Start()
+	if self._globalLoopStarted then
+		return
+	end
+	self._globalLoopStarted = true
+	task.spawn(function()
+		while self._globalLoopStarted do
+			self:PublishGlobalTop100()
+			task.wait(GLOBAL_TOP_100_REFRESH_SECONDS)
+		end
+	end)
 end
 
 function LeaderboardService:_getTotalPoints(player: Player): number
@@ -157,8 +175,15 @@ end
 
 function LeaderboardService:_recomputeRanks()
 	local sorted = self:_getSortedPlayers()
+	local previousPoints = nil
+	local currentRank = 0
 	for index, player in ipairs(sorted) do
-		self._cachedRanks[player] = index
+		local points = self:_getRoundPoints(player)
+		if previousPoints == nil or points ~= previousPoints then
+			currentRank = index
+			previousPoints = points
+		end
+		self._cachedRanks[player] = currentRank
 		self:_syncPlayer(player)
 	end
 end
@@ -182,11 +207,11 @@ end
 function LeaderboardService:GetTopPlayers(limit: number?): { any }
 	local rows = {}
 	local maxRows = math.max(1, math.min(limit or TOP_SCOREBOARD_LIMIT, TOP_SCOREBOARD_LIMIT))
-	for rank, player in ipairs(self:_getSortedPlayers()) do
-		if rank > maxRows then
+	for index, player in ipairs(self:_getSortedPlayers()) do
+		if index > maxRows then
 			break
 		end
-		table.insert(rows, self:_buildRow(player, rank))
+		table.insert(rows, self:_buildRow(player, self._cachedRanks[player] or index))
 	end
 	return rows
 end
@@ -209,6 +234,26 @@ function LeaderboardService:PublishScoreboard()
 		return
 	end
 	self._scoreboardRemote:FireAllClients({ Rows = self:GetTopPlayers(TOP_SCOREBOARD_LIMIT), Limit = TOP_SCOREBOARD_LIMIT })
+end
+
+function LeaderboardService:GetGlobalTop100(): { any }
+	local playerDataService = self._context.Services and self._context.Services.PlayerDataService
+	local provider = playerDataService and typeof(playerDataService.GetProvider) == "function" and playerDataService:GetProvider() or nil
+	if provider and typeof(provider.GetTopProgressPointProfiles) == "function" then
+		return provider:GetTopProgressPointProfiles(TOP_SCOREBOARD_LIMIT)
+	end
+	return {}
+end
+
+function LeaderboardService:PublishGlobalTop100()
+	if not self._globalTop100Remote then
+		return
+	end
+	self._globalTop100Remote:FireAllClients({
+		Rows = self:GetGlobalTop100(),
+		Limit = TOP_SCOREBOARD_LIMIT,
+		GeneratedAt = os.time(),
+	})
 end
 
 function LeaderboardService:GetPlayerRank(player: Player): number?

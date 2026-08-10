@@ -39,6 +39,7 @@ RemoteContracts.Names = {
 	ReportLaunchStopped = "ReportLaunchStopped",
 	KnockbackReplication = "KnockbackReplication",
 	MatchScoreboardUpdate = "MatchScoreboardUpdate",
+	GlobalTop100Update = "GlobalTop100Update",
 	SetPlayerMode = "SetPlayerMode",
 	ClockSyncRequest = "ClockSyncRequest",
 	ClockSyncResponse = "ClockSyncResponse",

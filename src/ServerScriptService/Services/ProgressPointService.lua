@@ -113,16 +113,20 @@ function ProgressPointService:AwardEndRoundPoints(topPlayers: { any }): { any }
 			local reward = getRewardForRank(rank)
 			local progressReward = math.max(0, math.floor(reward.ProgressPoints or 0))
 			local coinReward = math.max(0, math.floor(reward.Coins or 0))
+			local roundPoints = math.max(0, math.floor(tonumber(row.Points or row.RoundPoints) or 0))
+			local totalProgressAward = roundPoints + progressReward
 			local player = if typeof(row.UserId) == "number" then Players:GetPlayerByUserId(row.UserId) else nil
 			if player then
-				playerDataService:AddProgressPoints(player, progressReward)
+				playerDataService:AddProgressPoints(player, totalProgressAward)
 				if coinReward > 0 and typeof(playerDataService.AddCoins) == "function" then
 					playerDataService:AddCoins(player, coinReward)
 				end
 			end
 			local summaryRow = table.clone(row)
-			summaryRow.Reward = progressReward
-			summaryRow.ProgressPointReward = progressReward
+			summaryRow.Reward = totalProgressAward
+			summaryRow.RoundPointReward = roundPoints
+			summaryRow.RankBonusReward = progressReward
+			summaryRow.ProgressPointReward = totalProgressAward
 			summaryRow.CoinReward = coinReward
 			table.insert(rows, summaryRow)
 		end

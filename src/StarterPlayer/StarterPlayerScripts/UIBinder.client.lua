@@ -8,6 +8,7 @@ local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local LobbyClientService = require(ReplicatedStorage.Client.Services.LobbyClientService)
 local UIController = require(ReplicatedStorage.Client.Controllers.UIController)
+local LeaderboardWorldUIController = require(ReplicatedStorage.Client.Controllers.LeaderboardWorldUIController)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -17,6 +18,7 @@ PathResolver.reportMissing(ReplicatedStorage, PathResolver.collectPaths(ProjectT
 
 local clientService = LobbyClientService.new()
 local controller: any = nil
+local leaderboardWorldController: any = nil
 local rebuildScheduled = false
 local watchedGuiNames = {
 	["MainHUD"] = true,
@@ -41,6 +43,11 @@ local function buildController()
 		ClientService = clientService,
 	})
 	controller:Start()
+
+	if leaderboardWorldController == nil then
+		leaderboardWorldController = LeaderboardWorldUIController.new(clientService)
+		leaderboardWorldController:Start()
+	end
 end
 
 local function scheduleRebuild()
@@ -103,8 +110,14 @@ RunService.Heartbeat:Connect(function()
 end)
 
 player.AncestryChanged:Connect(function(_, parent)
-	if parent == nil and controller then
-		controller:Destroy()
-		controller = nil
+	if parent == nil then
+		if controller then
+			controller:Destroy()
+			controller = nil
+		end
+		if leaderboardWorldController then
+			leaderboardWorldController:Destroy()
+			leaderboardWorldController = nil
+		end
 	end
 end)

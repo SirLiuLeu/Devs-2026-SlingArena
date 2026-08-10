@@ -263,6 +263,10 @@ function PlayerDataService:GetProgressPoints(player: Player): (number, number)
 	return data.ProgressPoints.TotalPoints, data.ProgressPoints.WeeklyPoints
 end
 
+function PlayerDataService:GetProvider(): any
+	return self._provider
+end
+
 function PlayerDataService:GetRoundProgressPoints(player: Player): number
 	local data = self:GetData(player)
 	self:_ensureProgress(data)

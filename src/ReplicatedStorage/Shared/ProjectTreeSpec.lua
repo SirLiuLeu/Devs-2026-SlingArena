@@ -131,6 +131,7 @@ local ProjectTreeSpec = {
 			ScreenGui = "MatchSummaryUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchSummaryUI
 			CountdownLabel = "MatchSummaryUI.MainPanel.Footer.CountdownLabel", -- [PROJECT_TREE_SPEC]
 			PlayerList = "MatchSummaryUI.MainPanel.Table.PlayerList", -- [PROJECT_TREE_SPEC]
+			CloseButton = "MatchSummaryUI.MainPanel.Header.CloseButton", -- [PROJECT_TREE_SPEC]
 		},
 		MatchScoreboard = {
 			ScreenGui = "MatchScoreboardUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchScoreboardUI
@@ -190,6 +191,7 @@ local ProjectTreeSpec = {
 		PopupMessage = "LauncherArenaRemotes.PopupMessage", -- [PROJECT_TREE_SPEC]
 		ZoneUpdate = "LauncherArenaRemotes.ZoneUpdate", -- [PROJECT_TREE_SPEC]
 		MatchScoreboardUpdate = "LauncherArenaRemotes.MatchScoreboardUpdate", -- [PROJECT_TREE_SPEC]
+		GlobalTop100Update = "LauncherArenaRemotes.GlobalTop100Update", -- [PROJECT_TREE_SPEC]
 		MatchSummaryUpdate = "LauncherArenaRemotes.MatchSummaryUpdate", -- [PROJECT_TREE_SPEC]
 	},
 	Services = {
