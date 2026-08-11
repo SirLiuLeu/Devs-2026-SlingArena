@@ -22,6 +22,7 @@ export type ToastItem = {
 }
 
 function ToastUIController.new(playerGui: PlayerGui)
+	print("[ToastUIController] 🚀 Initializing ToastUIController...")
 	local self = setmetatable({}, ToastUIController)
 	self._playerGui = playerGui
 	self._queue = {} :: { ToastItem }
@@ -29,6 +30,22 @@ function ToastUIController.new(playerGui: PlayerGui)
 	self._destroyed = false
 	self._tweens = {} :: { Tween }
 	self._sequence = 0
+
+	-- Tạo ScreenGui chứa Toast
+	local screenGui = playerGui:FindFirstChild("ToastNotificationGui") :: ScreenGui?
+	if not screenGui then
+		print("[ToastUIController] ➕ Creating ScreenGui 'ToastNotificationGui' inside PlayerGui")
+		local newGui = Instance.new("ScreenGui")
+		newGui.Name = "ToastNotificationGui"
+		newGui.ResetOnSpawn = false
+		newGui.DisplayOrder = 100
+		newGui.Parent = playerGui
+		screenGui = newGui
+	else
+		print("[ToastUIController] ℹ️ Found existing 'ToastNotificationGui'")
+	end
+	self._screenGui = screenGui
+
 	return self
 end
 
@@ -40,6 +57,7 @@ local function formatTemplate(templateText: string, args: { [string]: any }): st
 end
 
 function ToastUIController:_normalize(message: any): ToastItem?
+	print("[ToastUIController] 🔍 Normalizing incoming message:", message)
 	local notificationType = "Generic"
 	local args = {} :: { [string]: any }
 	local text = ""
@@ -65,11 +83,15 @@ function ToastUIController:_normalize(message: any): ToastItem?
 	if text == "" then
 		text = formatTemplate(config.FallbackText, args)
 	end
+	
 	if text == "" then
+		warn("[ToastUIController] ⚠️ Failed to normalize message: Resolved text is empty! Message dropped.")
 		return nil
 	end
 
 	self._sequence += 1
+	print(string.format("[ToastUIController] ✅ Normalized item successfully -> Type: %s | Text: '%s' | Priority: %d", config.Type, text, priorityOverride or config.Priority))
+
 	return {
 		Type = config.Type,
 		I18nKey = i18nKeyOverride or config.I18nKey,
@@ -94,9 +116,11 @@ function ToastUIController:_tryInsert(item: ToastItem)
 	if #self._queue < MAX_QUEUE_SIZE then
 		table.insert(self._queue, item)
 		self:_sortQueue()
+		print(string.format("[ToastUIController] 📥 Enqueued item directly. Queue size: %d/%d", #self._queue, MAX_QUEUE_SIZE))
 		return
 	end
 
+	-- Tìm item có priority thấp nhất trong queue
 	local lowestIndex = 1
 	for index, queued in ipairs(self._queue) do
 		local lowest = self._queue[lowestIndex]
@@ -104,27 +128,36 @@ function ToastUIController:_tryInsert(item: ToastItem)
 			lowestIndex = index
 		end
 	end
+
 	if item.Priority <= self._queue[lowestIndex].Priority then
+		warn(string.format("[ToastUIController] 🚫 Queue full! Dropped item '%s' due to low priority (%d <= %d)", item.Text, item.Priority, self._queue[lowestIndex].Priority))
 		return
 	end
-	table.remove(self._queue, lowestIndex)
+
+	local evicted = table.remove(self._queue, lowestIndex)
+	warn(string.format("[ToastUIController] ♻️ Evicted lower priority item '%s' (Priority %d) to make room for '%s' (Priority %d)", evicted.Text, evicted.Priority, item.Text, item.Priority))
 	table.insert(self._queue, item)
 	self:_sortQueue()
 end
 
 function ToastUIController:Enqueue(message: any)
 	if self._destroyed then
+		warn("[ToastUIController] ⚠️ Cannot enqueue: Controller is destroyed.")
 		return
 	end
+	
+	print("[ToastUIController] 📥 ToastUIController:Enqueue called!")
 	local item = self:_normalize(message)
 	if not item then
 		return
 	end
+	
 	self:_tryInsert(item)
 	self:_pump()
 end
 
 function ToastUIController:_makeToast(item: ToastItem): Frame
+	print("[ToastUIController] 🛠️ Creating Toast UI Frame for:", item.Text)
 	local style = item.Config.Style
 	local frame = Instance.new("Frame")
 	frame.Name = "ToastNotification"
@@ -133,7 +166,7 @@ function ToastUIController:_makeToast(item: ToastItem): Frame
 	frame.Size = UDim2.fromOffset(460, 56)
 	frame.BackgroundColor3 = style.BackgroundColor
 	frame.BackgroundTransparency = 1
-	frame.Parent = self._playerGui
+	frame.Parent = self._screenGui
 
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 10)
@@ -150,9 +183,9 @@ function ToastUIController:_makeToast(item: ToastItem): Frame
 	local icon = Instance.new("ImageLabel")
 	icon.Name = "Icon"
 	icon.BackgroundTransparency = 1
-	icon.Image = style.Icon
+	icon.Image = style.Icon or ""
 	icon.ImageColor3 = style.AccentColor
-	icon.ImageTransparency = if style.Icon == "" then 1 else 1
+	icon.ImageTransparency = 1
 	icon.Position = UDim2.fromOffset(18, 12)
 	icon.Size = UDim2.fromOffset(32, 32)
 	icon.Parent = frame
@@ -178,6 +211,7 @@ function ToastUIController:_trackTween(tween: Tween): Tween
 end
 
 function ToastUIController:_cleanupToast(toast: Instance?, tweens: { Tween })
+	print("[ToastUIController] 🧹 Cleaning up Toast UI Instance and Tweens")
 	for _, tween in ipairs(tweens) do
 		pcall(function()
 			tween:Cancel()
@@ -190,45 +224,74 @@ function ToastUIController:_cleanupToast(toast: Instance?, tweens: { Tween })
 end
 
 function ToastUIController:_pump()
-	if self._active or self._destroyed then
+	if self._active then
+		print("[ToastUIController] ⏳ Controller is busy displaying a toast. Waiting in queue...")
 		return
 	end
+	if self._destroyed then
+		return
+	end
+
 	self:_sortQueue()
 	local item = table.remove(self._queue, 1)
 	if not item then
+		print("[ToastUIController] 📭 Queue is empty. Pump stopped.")
 		return
 	end
+
 	self._active = true
+	print(string.format("[ToastUIController] ▶️ Displaying Toast: '%s' (Display Time: %.1fs)", item.Text, item.Config.DisplaySeconds or 2.5))
+
 	task.spawn(function()
 		local toast = self:_makeToast(item)
 		local message = toast:FindFirstChild("Message") :: TextLabel?
 		local accent = toast:FindFirstChild("Accent") :: Frame?
 		local icon = toast:FindFirstChild("Icon") :: ImageLabel?
-		local tweens = {
+		
+		-- Fade In
+		local fadeInTweens = {
 			self:_trackTween(TweenService:Create(toast, TweenInfo.new(FADE_SECONDS), { BackgroundTransparency = 0.12 })),
 		}
-		if message then table.insert(tweens, self:_trackTween(TweenService:Create(message, TweenInfo.new(FADE_SECONDS), { TextTransparency = 0 }))) end
-		if accent then table.insert(tweens, self:_trackTween(TweenService:Create(accent, TweenInfo.new(FADE_SECONDS), { BackgroundTransparency = 0 }))) end
-		if icon and icon.Image ~= "" then table.insert(tweens, self:_trackTween(TweenService:Create(icon, TweenInfo.new(FADE_SECONDS), { ImageTransparency = 0 }))) end
-		for _, tween in ipairs(tweens) do tween:Play() end
-		tweens[1].Completed:Wait()
+		if message then table.insert(fadeInTweens, self:_trackTween(TweenService:Create(message, TweenInfo.new(FADE_SECONDS), { TextTransparency = 0 }))) end
+		if accent then table.insert(fadeInTweens, self:_trackTween(TweenService:Create(accent, TweenInfo.new(FADE_SECONDS), { BackgroundTransparency = 0 }))) end
+		if icon and icon.Image ~= "" then table.insert(fadeInTweens, self:_trackTween(TweenService:Create(icon, TweenInfo.new(FADE_SECONDS), { ImageTransparency = 0 }))) end
+
+		print("[ToastUIController] ✨ Fading IN Toast...")
+		for _, tween in ipairs(fadeInTweens) do tween:Play() end
+		fadeInTweens[1].Completed:Wait()
+
+		-- Giữ hiển thị
 		task.wait(item.Config.DisplaySeconds or 2.5)
+
+		local allTweens = table.clone(fadeInTweens)
+
+		-- Fade Out
 		if not self._destroyed then
-			local fade = self:_trackTween(TweenService:Create(toast, TweenInfo.new(FADE_SECONDS), { BackgroundTransparency = 1 }))
-			table.insert(tweens, fade)
-			if message then table.insert(tweens, self:_trackTween(TweenService:Create(message, TweenInfo.new(FADE_SECONDS), { TextTransparency = 1 }))) end
-			if accent then table.insert(tweens, self:_trackTween(TweenService:Create(accent, TweenInfo.new(FADE_SECONDS), { BackgroundTransparency = 1 }))) end
-			if icon then table.insert(tweens, self:_trackTween(TweenService:Create(icon, TweenInfo.new(FADE_SECONDS), { ImageTransparency = 1 }))) end
-			for index = #tweens - 3, #tweens do if tweens[index] then tweens[index]:Play() end end
-			fade.Completed:Wait()
+			print("[ToastUIController] 🌫️ Fading OUT Toast...")
+			local fadeOutTweens = {
+				self:_trackTween(TweenService:Create(toast, TweenInfo.new(FADE_SECONDS), { BackgroundTransparency = 1 }))
+			}
+			if message then table.insert(fadeOutTweens, self:_trackTween(TweenService:Create(message, TweenInfo.new(FADE_SECONDS), { TextTransparency = 1 }))) end
+			if accent then table.insert(fadeOutTweens, self:_trackTween(TweenService:Create(accent, TweenInfo.new(FADE_SECONDS), { BackgroundTransparency = 1 }))) end
+			if icon then table.insert(fadeOutTweens, self:_trackTween(TweenService:Create(icon, TweenInfo.new(FADE_SECONDS), { ImageTransparency = 1 }))) end
+
+			for _, tween in ipairs(fadeOutTweens) do 
+				table.insert(allTweens, tween)
+				tween:Play() 
+			end
+			fadeOutTweens[1].Completed:Wait()
 		end
-		self:_cleanupToast(toast, tweens)
+
+		self:_cleanupToast(toast, allTweens)
 		self._active = false
+		
+		-- Tiếp tục hiển thị các toast tiếp theo trong queue nếu có
 		self:_pump()
 	end)
 end
 
 function ToastUIController:Destroy()
+	print("[ToastUIController] 🛑 Destroying ToastUIController...")
 	self._destroyed = true
 	table.clear(self._queue)
 	for _, tween in ipairs(self._tweens) do
@@ -238,10 +301,9 @@ function ToastUIController:Destroy()
 		end)
 	end
 	table.clear(self._tweens)
-	for _, child in ipairs(self._playerGui:GetChildren()) do
-		if child.Name == "ToastNotification" then
-			child:Destroy()
-		end
+
+	if self._screenGui then
+		self._screenGui:Destroy()
 	end
 end
 

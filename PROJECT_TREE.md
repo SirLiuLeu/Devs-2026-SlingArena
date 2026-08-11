@@ -159,6 +159,13 @@ DataModel
 │  │      │   ├── Timer (TextLabel)
 │  │      │   └── Title (TextLabel)
 │  │      │
+│  │      ├── PlayerRowTemplate_TopRank100 (Frame)
+│  │      │   ├── UICorner
+│  │      │   ├── UIListLayout
+│  │      │   ├── NameValue (TextLabel)
+│  │      │   ├── PointValue (TextLabel)
+│  │      │   └── RankValue (TextLabel)
+│  │      │
 │  │      ├── PlayerRowTemplate_MatchScoreboardUI (Frame)
 │  │      │   ├── UICorner
 │  │      │   ├── UIListLayout
@@ -177,6 +184,7 @@ DataModel
 │  │      │   ├── Points
 │  │      │   ├── Rank
 │  │      │   └── Reward
+│  │      │
 │  │      ├── SlotItemsTemplate_ShopUI (Frame)
 │  │      │   ├── UICorner
 │  │      │   ├── InfoButton (ImageButton)
@@ -623,7 +631,17 @@ DataModel
 │     │  │  └─ LobbySpawn
 │     │  ├─ GachaSpin
 │     │  │  └─ Spinwheel
-│     │  └─ Gate (optional join trigger)
+│     │  ├─ Gate (optional join trigger)
+│     │  └─ Rank
+│     │     └─ Table
+│     │        └─ SurfaceGui
+│     │           └─ Root
+│     │              └─ List
+│     │                 ├─ UIGridLayout
+│     │                 └─ PlayerRowTemplate_TopRank100
+│     │                    ├─ NameValue
+│     │                    ├─ RankValue
+│     │                    └─ PointValue
 │     │
 │     └─ ArenaMap (Model)
 │        ├─ FoodContainer (Folder)
