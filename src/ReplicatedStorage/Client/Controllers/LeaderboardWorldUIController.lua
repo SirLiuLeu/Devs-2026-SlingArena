@@ -1,14 +1,39 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local LeaderboardWorldUIController = {}
 LeaderboardWorldUIController.__index = LeaderboardWorldUIController
 
-local BOARD_PART_NAME = "GlobalTop100Board"
-local SURFACE_GUI_NAME = "GlobalTop100SurfaceGui"
-local ROW_CONTAINER_NAME = "Rows"
 local MAX_RENDERED_ROWS = 100
+local MOCK_STARTING_POINTS = 1000000
+local MOCK_POINT_STEP = 8750
+
+local LIST_PATH = {
+	"src",
+	"Workspace",
+	"Maps",
+	"LobbyMap",
+	"Rank",
+	"Table",
+	"SurfaceGui",
+	"Root",
+	"List",
+}
+
+local TEMPLATE_PATH = {
+	"Assets",
+	"UI",
+	"PlayerRowTemplate_TopRank100",
+}
+
+type LeaderboardRow = {
+	Rank: number?,
+	Name: string?,
+	ProgressPoints: number?,
+	Points: number?,
+}
 
 local function asNumber(value: any, fallback: number): number
 	if type(value) == "number" and value == value then
@@ -17,81 +42,67 @@ local function asNumber(value: any, fallback: number): number
 	return fallback
 end
 
-local function ensureBoardPart(): BasePart
-	local existing = Workspace:FindFirstChild(BOARD_PART_NAME)
-	if existing and existing:IsA("BasePart") then
-		return existing
+local function findPath(root: Instance, path: { string }): Instance?
+	local current: Instance? = root
+	for _, childName in ipairs(path) do
+		if not current then
+			return nil
+		end
+		current = current:FindFirstChild(childName)
 	end
-	local part = Instance.new("Part")
-	part.Name = BOARD_PART_NAME
-	part.Anchored = true
-	part.Size = Vector3.new(18, 10, 1)
-	part.CFrame = CFrame.new(0, 8, -35)
-	part.Parent = Workspace
-	return part
+	return current
 end
 
-local function ensureText(parent: Instance, name: string, textSize: number): TextLabel
-	local existing = parent:FindFirstChild(name)
-	if existing and existing:IsA("TextLabel") then
-		return existing
+local function getTargetList(): GuiObject?
+	local list = findPath(Workspace, LIST_PATH)
+	if list and list:IsA("GuiObject") then
+		return list
 	end
-	local label = Instance.new("TextLabel")
-	label.Name = name
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamBold
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextSize = textSize
-	label.Parent = parent
-	return label
+	warn("LeaderboardWorldUIController could not find Workspace.src.Workspace.Maps.LobbyMap.Rank.Table.SurfaceGui.Root.List")
+	return nil
+end
+
+local function getRowTemplate(): Frame?
+	local template = findPath(ReplicatedStorage, TEMPLATE_PATH)
+	if template and template:IsA("Frame") then
+		return template
+	end
+	warn("LeaderboardWorldUIController could not find ReplicatedStorage.Assets.UI.PlayerRowTemplate_TopRank100")
+	return nil
+end
+
+local function setText(rowFrame: Instance, labelName: string, text: string)
+	local label = rowFrame:FindFirstChild(labelName)
+	if label and label:IsA("TextLabel") then
+		label.Text = text
+	end
+end
+
+local function makeMockRows(): { LeaderboardRow }
+	local rows = table.create(MAX_RENDERED_ROWS)
+	for rank = 1, MAX_RENDERED_ROWS do
+		rows[rank] = {
+			Rank = rank,
+			Name = "Player_" .. tostring(rank),
+			Points = MOCK_STARTING_POINTS - ((rank - 1) * MOCK_POINT_STEP),
+		}
+	end
+	return rows
 end
 
 function LeaderboardWorldUIController.new(clientService: any)
 	local self = setmetatable({}, LeaderboardWorldUIController)
 	self.ClientService = clientService
 	self.Connections = {} :: { RBXScriptConnection }
-	self.SurfaceGui = nil :: SurfaceGui?
-	self.RowsFrame = nil :: ScrollingFrame?
+	self.RowsFrame = nil :: GuiObject?
+	self.RowTemplate = nil :: Frame?
 	return self
 end
 
-function LeaderboardWorldUIController:_ensureGui()
-	local part = ensureBoardPart()
-	local gui = part:FindFirstChild(SURFACE_GUI_NAME)
-	if not (gui and gui:IsA("SurfaceGui")) then
-		gui = Instance.new("SurfaceGui")
-		gui.Name = SURFACE_GUI_NAME
-		gui.Face = Enum.NormalId.Front
-		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-		gui.PixelsPerStud = 50
-		gui.Parent = part
-	end
-	self.SurfaceGui = gui
-
-	local title = ensureText(gui, "Title", 28)
-	title.Size = UDim2.new(1, -24, 0, 42)
-	title.Position = UDim2.fromOffset(12, 8)
-	title.Text = "Global Top 100"
-
-	local rows = gui:FindFirstChild(ROW_CONTAINER_NAME)
-	if not (rows and rows:IsA("ScrollingFrame")) then
-		rows = Instance.new("ScrollingFrame")
-		rows.Name = ROW_CONTAINER_NAME
-		rows.BackgroundTransparency = 0.25
-		rows.BackgroundColor3 = Color3.fromRGB(20, 24, 35)
-		rows.BorderSizePixel = 0
-		rows.ScrollBarThickness = 8
-		rows.Parent = gui
-		local layout = Instance.new("UIListLayout")
-		layout.Name = "ListLayout"
-		layout.SortOrder = Enum.SortOrder.LayoutOrder
-		layout.Padding = UDim.new(0, 2)
-		layout.Parent = rows
-	end
-	rows.Size = UDim2.new(1, -24, 1, -62)
-	rows.Position = UDim2.fromOffset(12, 54)
-	self.RowsFrame = rows
+function LeaderboardWorldUIController:_ensureReferences(): boolean
+	self.RowsFrame = getTargetList()
+	self.RowTemplate = getRowTemplate()
+	return self.RowsFrame ~= nil and self.RowTemplate ~= nil
 end
 
 function LeaderboardWorldUIController:_clearRows()
@@ -99,48 +110,52 @@ function LeaderboardWorldUIController:_clearRows()
 		return
 	end
 	for _, child in ipairs(self.RowsFrame:GetChildren()) do
-		if child:IsA("TextLabel") then
-			child:Destroy()
+		if child:IsA("UIGridLayout") or child:IsA("UIListLayout") then
+			continue
 		end
+		child:Destroy()
 	end
 end
 
-function LeaderboardWorldUIController:Render(payload: any)
-	self:_ensureGui()
-	self:_clearRows()
-	local rows = if type(payload) == "table" and type(payload.Rows) == "table" then payload.Rows else {}
-	if not self.RowsFrame then
+function LeaderboardWorldUIController:Render(payload: any?)
+	if not self:_ensureReferences() then
 		return
 	end
+
+	self:_clearRows()
+
+	local rows = if type(payload) == "table" and type(payload.Rows) == "table" then payload.Rows else makeMockRows()
+	local rowsFrame = self.RowsFrame :: GuiObject
+	local rowTemplate = self.RowTemplate :: Frame
+
 	for index, row in ipairs(rows) do
 		if index > MAX_RENDERED_ROWS then
 			break
 		end
 		if type(row) == "table" then
-			local label = Instance.new("TextLabel")
-			label.Name = "GlobalRank_" .. tostring(index)
-			label.LayoutOrder = index
-			label.BackgroundColor3 = if index % 2 == 0 then Color3.fromRGB(31, 36, 52) else Color3.fromRGB(39, 45, 64)
-			label.BorderSizePixel = 0
-			label.Font = Enum.Font.GothamMedium
-			label.TextColor3 = Color3.fromRGB(245, 245, 245)
-			label.TextSize = 18
-			label.TextXAlignment = Enum.TextXAlignment.Left
-			label.Size = UDim2.new(1, -8, 0, 26)
-			label.Text = string.format("#%d  %s  —  %d PP", math.floor(asNumber(row.Rank, index)), tostring(row.Name or "Player"), math.floor(asNumber(row.ProgressPoints, 0)))
-			label.Parent = self.RowsFrame
+			local rank = math.floor(asNumber(row.Rank, index))
+			local points = math.floor(asNumber(row.Points or row.ProgressPoints, 0))
+			local rowFrame = rowTemplate:Clone()
+			rowFrame.Name = "TopRank100Row_" .. tostring(rank)
+			rowFrame.LayoutOrder = rank
+			rowFrame.Visible = true
+			setText(rowFrame, "RankValue", "#" .. tostring(rank))
+			setText(rowFrame, "NameValue", tostring(row.Name or "Player_" .. tostring(rank)))
+			setText(rowFrame, "PointValue", tostring(points))
+			rowFrame.Parent = rowsFrame
 		end
 	end
-	self.RowsFrame.CanvasSize = UDim2.fromOffset(0, math.max(#rows, 1) * 28)
 end
 
 function LeaderboardWorldUIController:Start()
-	self:_ensureGui()
-	local connection = self.ClientService:BindGlobalTop100Update(function(payload)
-		self:Render(payload)
-	end)
-	if connection then
-		table.insert(self.Connections, connection)
+	self:Render()
+	if self.ClientService and self.ClientService.BindGlobalTop100Update then
+		local connection = self.ClientService:BindGlobalTop100Update(function(payload)
+			self:Render(payload)
+		end)
+		if connection then
+			table.insert(self.Connections, connection)
+		end
 	end
 end
 
