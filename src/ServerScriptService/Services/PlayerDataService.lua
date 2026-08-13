@@ -43,6 +43,8 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 		},
 		Diamonds = 0,
 		OwnedItems = {},
+		OwnedEquipment = {},
+		EquippedEquipment = {},
 	}
 end
 
@@ -61,6 +63,7 @@ end
 function PlayerDataService:LoadPlayer(player: Player): { [string]: any }
 	local data = self._provider:LoadPlayerData(player, self:BuildDefaultData(player))
 	self:_ensureProgress(data)
+	self:_ensureEquipmentData(data)
 	return data
 end
 
@@ -77,7 +80,42 @@ function PlayerDataService:UpdateData(player: Player, updater: ({ [string]: any 
 	if self._provider:GetPlayerData(player) == nil then
 		self:LoadPlayer(player)
 	end
-	return self._provider:UpdatePlayerData(player, updater) or self:GetData(player)
+	local updated = self._provider:UpdatePlayerData(player, updater) or self:GetData(player)
+	self:_ensureProgress(updated)
+	self:_ensureEquipmentData(updated)
+	return updated
+end
+
+function PlayerDataService:_ensureEquipmentData(data: { [string]: any })
+	data.Diamonds = math.max(0, math.floor(tonumber(data.Diamonds) or 0))
+	if type(data.OwnedItems) ~= "table" then
+		data.OwnedItems = {}
+	end
+	if type(data.OwnedEquipment) ~= "table" then
+		data.OwnedEquipment = {}
+	end
+	if type(data.EquippedEquipment) ~= "table" then
+		data.EquippedEquipment = {}
+	end
+	for instanceId, equipment in pairs(data.OwnedEquipment) do
+		if type(instanceId) ~= "string" or type(equipment) ~= "table" or type(equipment.definitionId) ~= "string" or equipment.definitionId == "" then
+			data.OwnedEquipment[instanceId] = nil
+		else
+			equipment.level = math.max(1, math.floor(tonumber(equipment.level) or 1))
+			equipment.rarity = tostring(equipment.rarity or "Common")
+			equipment.isTemporary = equipment.isTemporary == true
+			equipment.expiresAt = tonumber(equipment.expiresAt)
+			equipment.acquiredAt = tonumber(equipment.acquiredAt) or os.time()
+			if type(equipment.pity) ~= "table" then
+				equipment.pity = {}
+			end
+		end
+	end
+	for slotType, instanceId in pairs(data.EquippedEquipment) do
+		if type(slotType) ~= "string" or type(instanceId) ~= "string" or data.OwnedEquipment[instanceId] == nil then
+			data.EquippedEquipment[slotType] = nil
+		end
+	end
 end
 
 function PlayerDataService:_ensureProgress(data: { [string]: any })
@@ -171,8 +209,7 @@ end
 
 function PlayerDataService:GrantReward(player: Player, reward: any, reason: string?)
 	self:UpdateData(player, function(data)
-		data.Diamonds = math.max(0, math.floor(tonumber(data.Diamonds) or 0))
-		data.OwnedItems = if type(data.OwnedItems) == "table" then data.OwnedItems else {}
+		self:_ensureEquipmentData(data)
 		local diamonds = tonumber(reward.Diamonds or reward.diamonds) or 0
 		data.Diamonds += math.max(0, math.floor(diamonds))
 		for _, itemReward in ipairs(reward.Items or reward.items or {}) do
@@ -187,6 +224,41 @@ function PlayerDataService:GrantReward(player: Player, reward: any, reason: stri
 	if self._context.EventBus then
 		self._context.EventBus:Fire("PlayerRewardGranted", player, reward, reason)
 	end
+end
+
+function PlayerDataService:GetDiamonds(player: Player): number
+	local data = self:GetData(player)
+	self:_ensureEquipmentData(data)
+	return data.Diamonds
+end
+
+function PlayerDataService:SpendDiamonds(player: Player, amount: number, reason: string?): boolean
+	local cost = math.max(0, math.floor(tonumber(amount) or 0))
+	local spent = false
+	self:UpdateData(player, function(data)
+		self:_ensureEquipmentData(data)
+		if data.Diamonds >= cost then
+			data.Diamonds -= cost
+			spent = true
+		end
+		return data
+	end)
+	if spent and self._context.EventBus then
+		self._context.EventBus:Fire("DiamondsSpent", player, cost, reason)
+	end
+	return spent
+end
+
+function PlayerDataService:GetOwnedEquipment(player: Player): { [string]: any }
+	local data = self:GetData(player)
+	self:_ensureEquipmentData(data)
+	return data.OwnedEquipment
+end
+
+function PlayerDataService:GetEquippedEquipment(player: Player): { [string]: any }
+	local data = self:GetData(player)
+	self:_ensureEquipmentData(data)
+	return data.EquippedEquipment
 end
 
 function PlayerDataService:ConsumePendingWeeklyReward(player: Player): any?

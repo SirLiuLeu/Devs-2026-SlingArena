@@ -8,6 +8,7 @@ local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local LauncherStatResolver = require(ReplicatedStorage.Shared.Utils.LauncherStatResolver)
+local EquipmentStatResolver = require(ReplicatedStorage.Shared.Utils.EquipmentStatResolver)
 local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
@@ -104,7 +105,7 @@ local function buildDefaultState(player: Player): PlayerState
 		InvulnerableUntil = 0,
 		LastDamageTime = 0,
 		InvulCooldownUntil = 0,
-		Diamonds = LevelConfig.StartingDiamonds,
+		Diamonds = 0,
 		HpPotions = BalanceConfig.DefaultHpPotions,
 		NextHpPotionUseTime = 0,
 		RespawnCountThisMatch = 0,
@@ -410,6 +411,12 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	local star = (equippedInstance and equippedInstance.star) or 1
 	local launcherLevel = (equippedInstance and equippedInstance.level) or math.max(state.Level, 1)
 	local resolved = LauncherStatResolver.Resolve(definitionId, star, launcherLevel)
+	local dataService = self._context.Services and self._context.Services.PlayerDataService
+	if dataService and typeof(dataService.GetData) == "function" then
+		local data = dataService:GetData(player)
+		resolved = EquipmentStatResolver.Resolve(resolved :: any, data.OwnedEquipment, data.EquippedEquipment) :: any
+		state.Diamonds = dataService:GetDiamonds(player)
+	end
 
 	state.HPBonus = 0
 	state.RegenBonus = 0
@@ -855,13 +862,19 @@ function PlayerStateService:TrySpendAttribute(player: Player, attributeName: str
 end
 
 function PlayerStateService:SpendDiamonds(player: Player, amount: number): boolean
-	local state = self._states[player]
-	if not state then return false end
-	local cost = math.max(0, amount)
-	if state.Diamonds < cost then return false end
-	state.Diamonds -= cost
-	self:PublishState(player)
-	return true
+	local dataService = self._context.Services and self._context.Services.PlayerDataService
+	if not dataService or typeof(dataService.SpendDiamonds) ~= "function" then
+		return false
+	end
+	local spent = dataService:SpendDiamonds(player, amount, "PlayerStateService")
+	if spent then
+		local state = self._states[player]
+		if state then
+			state.Diamonds = dataService:GetDiamonds(player)
+			self:PublishState(player)
+		end
+	end
+	return spent
 end
 
 function PlayerStateService:ApplyMatchBuff(player: Player)

@@ -17,14 +17,20 @@ Cross-service communication must use `EventBus` for decoupled flow.
 ## 1) Core Services
 
 ### PlayerStateService
-- **Owns:** Canonical runtime player state (HP, EXP, Level, movement flags, visibility/stun flags, arena state, temporary buffs).
+- **Owns:** Canonical runtime player state (HP, EXP, Level, movement flags, visibility/stun flags, arena state, temporary buffs, final derived stats after launcher + Equipment modifiers).
 - **Responsibilities:**
   - Read/write validated player state.
   - Publish `StateUpdate` snapshots.
   - Apply stat recalculation and derived values.
   - Provide state-query APIs to all gameplay systems.
 - **Called by:** LauncherService, DamagePipelineService, GrowthService, TeamService, RoundService, PlayerService, LauncherAbilityService, LeaderboardService, Meta services.
-- **Dependencies:** Shared config/constants, EventBus.
+- **Dependencies:** Shared config/constants, EventBus, `EquipmentStatResolver`, `PlayerDataService` for persistent Equipment and Diamond reads.
+
+### PlayerDataService
+- **Owns:** Persistent-oriented player profile data, including Diamonds, OwnedItems, instance-based `OwnedEquipment`, `EquippedEquipment`, quests, and progress points.
+- **Responsibilities:** Normalize/default profile schema, act as the canonical Diamond ledger, route Diamond spending/grants, and expose Equipment ownership/equipped state to server services.
+- **Called by:** EquipmentService, QuestService, FoodService, progression/meta reward services, PlayerStateService read-through synchronization.
+- **Dependencies:** Data provider boundary and EventBus.
 
 ### PlayerService
 - **Owns:** Launcher pawn lifecycle and player-to-pawn mapping.
@@ -104,6 +110,19 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - **Called by:** EventBus signals from LauncherService and collision/damage flow.
 - **Dependencies:** LauncherService signals, PlayerStateService, DamagePipelineService, EventBus.
 - **Constraint:** MUST NOT directly modify combat or player state bypassing owner services.
+
+### EquipmentService
+- **Owns:** Server-authoritative Equipment lifecycle and ownership mutations.
+- **Responsibilities:** Read owned/equipped Equipment from PlayerDataService, validate fail-closed instance ownership, equip/unequip by owned instance ID, expose upgrade/pity entry points, and publish `EquipmentEquipped`, `EquipmentUnequipped`, and `EquipmentUpdated`.
+- **Called by:** Equipment remotes and future shop/grant systems.
+- **Dependencies:** PlayerDataService, EventBus, EquipmentConfig, EquipmentUpgradeConfig.
+- **Constraint:** Client-supplied definition IDs are never accepted as proof of ownership.
+
+### EquipmentEffectService
+- **Owns:** Runtime orchestration of active Equipment effects.
+- **Responsibilities:** Maintain multiple active effects per player, register modules under `EquipmentEffects`, dispatch `OnInit`, `OnLaunch`, `OnCollision`, `OnTick`, `OnAttack`, and `OnDestroy`, and use one shared Heartbeat connection for all Equipment effects.
+- **Called by:** EventBus Equipment and gameplay signals.
+- **Dependencies:** EventBus, EquipmentConfig, FlagService, PlayerStateService.
 
 ### FoodService
 - **Owns:** Food entity lifecycle and food-type classification.

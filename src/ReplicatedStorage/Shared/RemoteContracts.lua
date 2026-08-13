@@ -46,6 +46,10 @@ RemoteContracts.Names = {
 	QuestUpdate = "QuestUpdate",
 	QuestClaim = "QuestClaim",
 	Notification = "Notification",
+	EquipEquipment = "EquipEquipment",
+	UnequipEquipment = "UnequipEquipment",
+	UpgradeEquipment = "UpgradeEquipment",
+	RequestEquipmentGrant = "RequestEquipmentGrant",
 }
 
 RemoteContracts.Validators = {
@@ -150,6 +154,18 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.QuestClaim] = function(questId: any): boolean
 		return typeof(questId) == "string" and #questId > 0 and #questId <= 80
+	end,
+	[RemoteContracts.Names.EquipEquipment] = function(instanceId: any): boolean
+		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
+	end,
+	[RemoteContracts.Names.UnequipEquipment] = function(slotType: any): boolean
+		return typeof(slotType) == "string" and #slotType > 0 and #slotType <= 64
+	end,
+	[RemoteContracts.Names.UpgradeEquipment] = function(instanceId: any): boolean
+		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
+	end,
+	[RemoteContracts.Names.RequestEquipmentGrant] = function(definitionId: any): boolean
+		return typeof(definitionId) == "string" and #definitionId > 0 and #definitionId <= 128
 	end,
 	[RemoteContracts.Names.ReportLaunchStopped] = function(payload: any): boolean
 		if type(payload) ~= "table" then

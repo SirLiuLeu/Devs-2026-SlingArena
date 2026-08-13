@@ -30,6 +30,8 @@ DataModel
 │  │  │  ├─ AbilityConfig.lua
 │  │  │  ├─ BalanceConfig.lua
 │  │  │  ├─ Config.lua
+│  │  │  ├─ EquipmentConfig.lua
+│  │  │  ├─ EquipmentUpgradeConfig.lua
 │  │  │  ├─ FoodConfig.lua
 │  │  │  ├─ GachaRewardConfig.lua
 │  │  │  ├─ GameConfig.lua
@@ -48,6 +50,7 @@ DataModel
 │  │  │  └─ PlayerState.lua
 │  │  │
 │  │  ├─ Utils
+│  │  │  ├─ EquipmentStatResolver.lua
 │  │  │  ├─ GachaSpinLogic.lua
 │  │  │  ├─ PathResolver.lua
 │  │  │  ├─ RewardRoller.lua
@@ -262,7 +265,14 @@ DataModel
 │  ├─ Main.server.lua
 │  ├─ Config
 │  ├─ Tests
+│  │  └─ EquipmentFoundationTests.server.lua
 │  └─ Services
+│     ├─ EquipmentService
+│     │  └─ EquipmentService.lua
+│     └─ EquipmentEffectService
+│        ├─ EquipmentEffectService.lua
+│        └─ EquipmentEffects
+│           └─ NoOp.lua
 ## 🟩 StarterPlayer
 ├─ StarterPlayer
 │  └─ StarterPlayerScripts

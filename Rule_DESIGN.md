@@ -4,11 +4,16 @@
 4. PHYSICS & COMBAT
 5. LAUNCHER SYSTEM
 6. PROGRESSION & UPGRADE
+   - Phase 1 Equipment foundation: Equipment definitions are shared config, owned Equipment is instance-based persistent data, equipped slots reference owned instance IDs only, and upgrade costs are computed server-side from `EquipmentUpgradeConfig`.
 7. ITEM & TEAM
 8. ENVIRONMENT & SAFE ZONE
 9. ECONOMY & PROGRESSION
+   - Diamonds are canonical in `PlayerDataService`; runtime player state only mirrors the value for snapshots and must not be used as an independent spending ledger.
 10. STATE SYSTEM
 11. FLAG SYSTEM
+12. EQUIPMENT SYSTEM
+   - Equipment is N-per-player and effect modules are orchestrated by `EquipmentEffectService` through one shared Heartbeat.
+   - Phase 1 includes placeholder definitions/effects only; the full 20-Equipment catalog, production Equipment UI, and complex runtime effects are deferred.
 # 🔥 LAUNCHER ARENA – MASTER GAME DESIGN SPECIFICATION (FINAL)
 
 # 0. DESIGN GOAL

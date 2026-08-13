@@ -10,6 +10,9 @@
 | LeaveArena | C->S | RoundService | `{}` | Player exits arena participation. |
 | TeleportRequest | C->S | MapService | `{ mapName: string, spawnName: string }` | Admin/debug teleport request. |
 | AbilityTrigger | C->S | LauncherAbilityService | `{ abilityId: string, phase: "Start"\|"Commit"\|"Cancel", target?: Vector3, contextId?: string }` | Ability activation intent routed to ability orchestrator. |
+| EquipEquipment | C->S | EquipmentService | `{ instanceId: string }` | Server-authoritative equip request for an owned Equipment instance; definition IDs are not accepted as ownership. |
+| UnequipEquipment | C->S | EquipmentService | `{ slotType: string }` | Server-authoritative unequip request for an Equipment slot. |
+| UpgradeEquipment | C->S | EquipmentService | `{ instanceId: string }` | Server-authoritative upgrade request; cost and result are computed on the server from PlayerData diamonds. |
 | AttributeUpgrade | C->S | PlayerStateService | `{ attributeName: string }` | Spend attribute point on selected stat. |
 | ConsumeHpPotion | C->S | PlayerStateService | `{}` | Consume HP potion request. |
 | RequestRespawn | C->S | MonetizationService | `{ mode: "Free" }` | Request free respawn flow. |
@@ -59,6 +62,8 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `GachaRewardConfig.lua` | Gacha reward entries (id/type/weight/icon/name/teamBonus) and reward accessor. | `GachaSpinLogic`, `SpinUIController`, `GachaSpinLogicTests` |
 | `GameConfig.lua` | Placeholder comments for player cap/phase/respawn/join rules; no exported config table. | usage unclear |
 | `ItemConfig.lua` | Item catalog (`Items`) with metadata (`id`, `name`, `effect`, `icon`, `stackable`) and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
+| `EquipmentConfig.lua` | Phase 1 Equipment definition catalog with slot/category/rarity/effect/stat-modifier metadata, separate from owned instances. | `EquipmentService`, `EquipmentEffectService`, `EquipmentStatResolver`, `EquipmentFoundationTests` |
+| `EquipmentUpgradeConfig.lua` | Reusable Equipment upgrade cost formula (`BaseCost * 1.35^(L-1) * LateGameMultiplier(L)`). | `EquipmentService`, `EquipmentFoundationTests` |
 | `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
 | `LauncherConfig.lua` | Canonical 11-launcher catalog (`Types`) with `NormalLauncher` as `DefaultLauncherId`, per-launcher `modelPath` values under `ReplicatedStorage/Assets/Launchers`, rarity/stats, and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
 | `LaunchershotConfig.lua` | Launch/charge/recovery constants, launchershot modifiers, and launcher combat baseline values. | `LauncherService`, `PlayerStateService`, `LauncherUIController` |

@@ -34,6 +34,8 @@ local SafeZoneService = requireSafe(ServicesFolder:WaitForChild("SafeZoneService
 local MonetizationService = requireSafe(ServicesFolder:WaitForChild("MonetizationService"), "MonetizationService")
 local LeaderboardService = requireSafe(ServicesFolder:WaitForChild("LeaderboardService"), "LeaderboardService")
 local PlayerDataService = requireSafe(ServicesFolder:WaitForChild("PlayerDataService"), "PlayerDataService")
+local EquipmentService = requireSafe(ServicesFolder:WaitForChild("EquipmentService"):WaitForChild("EquipmentService"), "EquipmentService")
+local EquipmentEffectService = requireSafe(ServicesFolder:WaitForChild("EquipmentEffectService"):WaitForChild("EquipmentEffectService"), "EquipmentEffectService")
 local ProgressPointService = requireSafe(ServicesFolder:WaitForChild("ProgressPointService"), "ProgressPointService")
 local QuestService = requireSafe(ServicesFolder:WaitForChild("QuestService"), "QuestService")
 local NotificationService = requireSafe(ServicesFolder:WaitForChild("NotificationService"), "NotificationService")
@@ -118,6 +120,8 @@ local serviceConstructors = {
 	MonetizationService = MonetizationService,
 	LeaderboardService = LeaderboardService,
 	PlayerDataService = PlayerDataService,
+	EquipmentService = EquipmentService,
+	EquipmentEffectService = EquipmentEffectService,
 	ProgressPointService = ProgressPointService,
 	QuestService = QuestService,
 	NotificationService = NotificationService,
@@ -145,6 +149,8 @@ local initializationOrder = {
 	"RateLimiter",
 	"PlayerDataService",
 	"PlayerStateService",
+	"EquipmentService",
+	"EquipmentEffectService",
 	"FlagService",
 	"TeamService",
 	"MapService",

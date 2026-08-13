@@ -517,11 +517,13 @@ function FoodService:_rewardFoodKill(entry: any)
 	end
 	self._context.EventBus:Fire("FoodConsumed", player, rule.Exp)
 	if rule.DiamondRate > 0 and rule.DiamondAmount > 0 and math.random() <= rule.DiamondRate then
-		local stateService = getService(self._context, "PlayerStateService")
-		local state = stateService and stateService:GetState(player)
-		if state then
-			state.Diamonds = math.max(0, state.Diamonds + rule.DiamondAmount)
-			stateService:PublishState(player)
+		local dataService = getService(self._context, "PlayerDataService")
+		if dataService and typeof(dataService.GrantReward) == "function" then
+			dataService:GrantReward(player, { Diamonds = rule.DiamondAmount }, "FoodConsumed")
+			local stateService = getService(self._context, "PlayerStateService")
+			if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
+				stateService:RecalculateDerivedStats(player, false)
+			end
 		end
 	end
 end
