@@ -260,38 +260,9 @@ DataModel
 ## 🟥 ServerScriptService
 ├─ ServerScriptService  -> src/ServerScriptService
 │  ├─ Main.server.lua
-│  ├─ MapLoader.server.lua
-│  ├─ LauncherService.server.lua
-│  │
 │  ├─ Config
-│  │  ├─ PhysisConfig.lua
-│  │  └─ FoodConfig.lua
-│  │
 │  ├─ Tests
-│  │  └─ CoreLoopTests.server.lua
-│  │
 │  └─ Services
-│     ├─ EventBus.lua
-│     ├─ PlayerStateService.lua
-│     ├─ PlayerService.lua
-│     ├─ RoundService.lua
-│     ├─ MapService.lua
-│     ├─ LauncherService.lua
-│     │  ├─ LauncherMovement.lua (internal movement module)
-│     │  └─ ChargeFlow.lua [MISSING: planned internal submodule]
-│     ├─ CollisionService.lua
-│     ├─ DamagePipelineService.lua
-│     ├─ GrowthService.lua
-│     ├─ FoodService.lua
-│     ├─ TrapService.lua
-│     ├─ TeamService.lua
-│     ├─ LeaderboardService.lua
-│     ├─ MonetizationService.lua
-│     ├─ LauncherAbilityService.lua [MISSING: required by freeze]
-│     ├─ SafeZoneService.lua [MISSING: required by freeze]
-│     ├─ MapLoader.server.lua (legacy helper entrypoint)
-│     └─ (SkillService removed in safe migration target)
-│
 ## 🟩 StarterPlayer
 ├─ StarterPlayer
 │  └─ StarterPlayerScripts
@@ -632,13 +603,13 @@ DataModel
 │     │  ├─ GachaSpin
 │     │  │  └─ Spinwheel
 │     │  ├─ Gate (optional join trigger)
-│     │  └─ Rank
-│     │     └─ Table
-│     │        └─ SurfaceGui
+│     │  └─ Rank (Folder)
+│     │     └─ Table (Part)
+│     │        └─ SurfaceGui (SurfaceGui)
 │     │           └─ Root
 │     │              └─ List
 │     │                 ├─ UIGridLayout
-│     │                 └─ PlayerRowTemplate_TopRank100
+│     │                 └─ PlayerRowTemplate_TopRank100 (Frame Clone)
 │     │                    ├─ NameValue
 │     │                    ├─ RankValue
 │     │                    └─ PointValue

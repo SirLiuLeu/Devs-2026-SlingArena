@@ -22,7 +22,6 @@ export type ToastItem = {
 }
 
 function ToastUIController.new(playerGui: PlayerGui)
-	print("[ToastUIController] 🚀 Initializing ToastUIController...")
 	local self = setmetatable({}, ToastUIController)
 	self._playerGui = playerGui
 	self._queue = {} :: { ToastItem }
@@ -34,7 +33,6 @@ function ToastUIController.new(playerGui: PlayerGui)
 	-- Tạo ScreenGui chứa Toast
 	local screenGui = playerGui:FindFirstChild("ToastNotificationGui") :: ScreenGui?
 	if not screenGui then
-		print("[ToastUIController] ➕ Creating ScreenGui 'ToastNotificationGui' inside PlayerGui")
 		local newGui = Instance.new("ScreenGui")
 		newGui.Name = "ToastNotificationGui"
 		newGui.ResetOnSpawn = false
@@ -42,7 +40,6 @@ function ToastUIController.new(playerGui: PlayerGui)
 		newGui.Parent = playerGui
 		screenGui = newGui
 	else
-		print("[ToastUIController] ℹ️ Found existing 'ToastNotificationGui'")
 	end
 	self._screenGui = screenGui
 
@@ -90,7 +87,6 @@ function ToastUIController:_normalize(message: any): ToastItem?
 	end
 
 	self._sequence += 1
-	print(string.format("[ToastUIController] ✅ Normalized item successfully -> Type: %s | Text: '%s' | Priority: %d", config.Type, text, priorityOverride or config.Priority))
 
 	return {
 		Type = config.Type,
@@ -116,7 +112,6 @@ function ToastUIController:_tryInsert(item: ToastItem)
 	if #self._queue < MAX_QUEUE_SIZE then
 		table.insert(self._queue, item)
 		self:_sortQueue()
-		print(string.format("[ToastUIController] 📥 Enqueued item directly. Queue size: %d/%d", #self._queue, MAX_QUEUE_SIZE))
 		return
 	end
 
@@ -146,7 +141,6 @@ function ToastUIController:Enqueue(message: any)
 		return
 	end
 	
-	print("[ToastUIController] 📥 ToastUIController:Enqueue called!")
 	local item = self:_normalize(message)
 	if not item then
 		return
@@ -157,7 +151,6 @@ function ToastUIController:Enqueue(message: any)
 end
 
 function ToastUIController:_makeToast(item: ToastItem): Frame
-	print("[ToastUIController] 🛠️ Creating Toast UI Frame for:", item.Text)
 	local style = item.Config.Style
 	local frame = Instance.new("Frame")
 	frame.Name = "ToastNotification"
@@ -211,7 +204,6 @@ function ToastUIController:_trackTween(tween: Tween): Tween
 end
 
 function ToastUIController:_cleanupToast(toast: Instance?, tweens: { Tween })
-	print("[ToastUIController] 🧹 Cleaning up Toast UI Instance and Tweens")
 	for _, tween in ipairs(tweens) do
 		pcall(function()
 			tween:Cancel()
@@ -225,7 +217,6 @@ end
 
 function ToastUIController:_pump()
 	if self._active then
-		print("[ToastUIController] ⏳ Controller is busy displaying a toast. Waiting in queue...")
 		return
 	end
 	if self._destroyed then
@@ -235,12 +226,10 @@ function ToastUIController:_pump()
 	self:_sortQueue()
 	local item = table.remove(self._queue, 1)
 	if not item then
-		print("[ToastUIController] 📭 Queue is empty. Pump stopped.")
 		return
 	end
 
 	self._active = true
-	print(string.format("[ToastUIController] ▶️ Displaying Toast: '%s' (Display Time: %.1fs)", item.Text, item.Config.DisplaySeconds or 2.5))
 
 	task.spawn(function()
 		local toast = self:_makeToast(item)
@@ -256,7 +245,6 @@ function ToastUIController:_pump()
 		if accent then table.insert(fadeInTweens, self:_trackTween(TweenService:Create(accent, TweenInfo.new(FADE_SECONDS), { BackgroundTransparency = 0 }))) end
 		if icon and icon.Image ~= "" then table.insert(fadeInTweens, self:_trackTween(TweenService:Create(icon, TweenInfo.new(FADE_SECONDS), { ImageTransparency = 0 }))) end
 
-		print("[ToastUIController] ✨ Fading IN Toast...")
 		for _, tween in ipairs(fadeInTweens) do tween:Play() end
 		fadeInTweens[1].Completed:Wait()
 
@@ -267,7 +255,6 @@ function ToastUIController:_pump()
 
 		-- Fade Out
 		if not self._destroyed then
-			print("[ToastUIController] 🌫️ Fading OUT Toast...")
 			local fadeOutTweens = {
 				self:_trackTween(TweenService:Create(toast, TweenInfo.new(FADE_SECONDS), { BackgroundTransparency = 1 }))
 			}
@@ -291,7 +278,6 @@ function ToastUIController:_pump()
 end
 
 function ToastUIController:Destroy()
-	print("[ToastUIController] 🛑 Destroying ToastUIController...")
 	self._destroyed = true
 	table.clear(self._queue)
 	for _, tween in ipairs(self._tweens) do
