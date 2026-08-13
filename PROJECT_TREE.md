@@ -66,8 +66,13 @@ DataModel
 │  │  │       ├── StartAttachment (Attachment)
 │  │  │       └── Arrow (MeshPart/Part)
 │  │  │
-│  │  ├── Launchers
-│  │  │  ├── Player (Character Default)
+│  │  ├── Equipment
+│  │  │  ├── Poison (Model)
+│  │  │  ├── GhostFlame (Model)
+│  │  │  ├── PowerCore (Model)
+│  │  │  ├── BrainBoost (Model)
+│  │  │  ├── ThunderHammer (Model)
+│  │  │  └── Medusa (Model)
 │  │  │
 │  │  ├── Launchers
 │  │  │  ├── Player (Character Default)
@@ -87,6 +92,9 @@ DataModel
 │  │  │  │  │  │  └── Poison (Smoke)
 │  │  │  │  │  ├── LinearVelocity
 │  │  │  │  │  ├── LauncherMovementAttachment (Attachment)
+│  │  │  │  │  ├── EquipmentSlot1 (Attachment)
+│  │  │  │  │  ├── EquipmentSlot2 (Attachment)
+│  │  │  │  │  ├── EquipmentSlot3 (Attachment)
 │  │  │  │  │  ├── TrailEnd (Attachment)
 │  │  │  │  │  └── TrailStart (Attachment)
 │  │  │  │  └── LauncherWorldUI
@@ -147,6 +155,14 @@ DataModel
 │  │      │       │   ├── Star3 (ImageLabel)
 │  │      │       │   ├── Star4 (ImageLabel)
 │  │      │       │   └── Star5 (ImageLabel)
+│  │      │       ├── Icon (ImageLabel)
+│  │      │       ├── EquippedTag (TextLabel)
+│  │      │       ├── Level (TextLabel)
+│  │      │       └── Name (TextLabel)
+│  │      │
+│  │      ├── LauncherSlotTemplate_InventoryUI (Frame)
+│  │      │   └── Root (Frame)
+│  │      │       ├── RemainingTimeText (TextLabel)
 │  │      │       ├── Icon (ImageLabel)
 │  │      │       ├── EquippedTag (TextLabel)
 │  │      │       ├── Level (TextLabel)
@@ -455,12 +471,26 @@ DataModel
 │  │  │   │   └─ Title (TextLabel)
 │  │  │   ├── Tabs (Frame)
 │  │  │   │   ├─ ItemsTab (TextButton)
+│  │  │   │   ├─ EquipmentTab (TextButton)
 │  │  │   │   └─ LauncherTab (TextButton)
 │  │  │   ├── BodyLauncher (Frame)
 │  │  │   │   ├── Footer (Frame)
 │  │  │   │   │   └─ CapacityLabel (TextLabel)
 │  │  │   │   ├── GridContainer (ScrollingFrame)
 │  │  │   │   │   └─ Slot1, Slot2, Slot3, Slot4 (LauncherSlotTemplate_InventoryUI Frames) -- Script Spawn in run time
+│  │  │   │   └── RightPanel (Frame)
+│  │  │   │       ├─ ActionButtons (Frame)
+│  │  │   │       │   ├─ DeleteButton (TextButton)
+│  │  │   │       │   ├─ EquipButton (TextButton)
+│  │  │   │       │   └─ UpgradeButton (TextButton)
+│  │  │   │       ├─ Stats (Frame)
+│  │  │   │       │   └─ Damage, HP, Range, Regen (TextLabels)
+│  │  │   │       └─ SelectedName (TextLabel)
+│  │  │   ├── BodyEquipment (Frame)
+│  │  │   │   ├── Footer (Frame)
+│  │  │   │   │   └─ CapacityLabel (TextLabel)
+│  │  │   │   ├── GridContainer (ScrollingFrame)
+│  │  │   │   │   └─ Slot1, Slot2, Slot3, Slot4 (EquipmentSlotTemplate_InventoryUI Frames) -- Script Spawn in run time
 │  │  │   │   └── RightPanel (Frame)
 │  │  │   │       ├─ ActionButtons (Frame)
 │  │  │   │       │   ├─ DeleteButton (TextButton)
