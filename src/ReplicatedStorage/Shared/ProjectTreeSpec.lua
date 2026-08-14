@@ -140,7 +140,6 @@ local ProjectTreeSpec = {
 		},
 		MatchSummary = {
 			ScreenGui = "MatchSummaryUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchSummaryUI
-			CountdownLabel = "MatchSummaryUI.MainPanel.Footer.CountdownLabel", -- [PROJECT_TREE_SPEC]
 			PlayerList = "MatchSummaryUI.MainPanel.Table.PlayerList", -- [PROJECT_TREE_SPEC]
 			CloseButton = "MatchSummaryUI.MainPanel.Header.CloseButton", -- [PROJECT_TREE_SPEC]
 		},
@@ -298,6 +297,7 @@ local ProjectTreeSpec = {
 			Assets = {
 				ItemSlotTemplate_InventoryUI = "Assets.UI.ItemSlotTemplate_InventoryUI",
 				LauncherSlotTemplate_InventoryUI = "Assets.UI.LauncherSlotTemplate_InventoryUI",
+				EquipmentSlotTemplate_InventoryUI = "Assets.UI.EquipmentSlotTemplate_InventoryUI",
 				SlotRewardTemplate_DailyLoginUI = "Assets.UI.SlotRewardTemplate_DailyLoginUI",
 				SlotItemsTemplate_ShopUI = "Assets.UI.SlotItemsTemplate_ShopUI",
 				SlotLauncherTemplate_shopUI = "Assets.UI.SlotLauncherTemplate_shopUI",

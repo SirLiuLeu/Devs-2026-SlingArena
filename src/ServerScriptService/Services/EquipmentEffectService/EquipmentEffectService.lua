@@ -25,6 +25,12 @@ end
 
 function EquipmentEffectService:Init()
 	self:RegisterEffect("NoOp", require(script.EquipmentEffects.NoOp))
+	self:RegisterEffect("Poison", require(script.EquipmentEffects.Poison))
+	self:RegisterEffect("Fire", require(script.EquipmentEffects.Fire))
+	self:RegisterEffect("Slow", require(script.EquipmentEffects.Slow))
+	self:RegisterEffect("Stun", require(script.EquipmentEffects.Stun))
+	self:RegisterEffect("Petrify", require(script.EquipmentEffects.Petrify))
+	self:RegisterEffect("ExpBonus", require(script.EquipmentEffects.ExpBonus))
 	local bus = self._context.EventBus
 	if bus then
 		table.insert(self._connections, bus:On("EquipmentEquipped", function(player, slotType, instanceId, ownedInstance)
@@ -48,6 +54,9 @@ function EquipmentEffectService:Init()
 		end))
 		table.insert(self._connections, bus:On("CollisionDetected", function(collisionType, attacker, defender, payload)
 			self:Dispatch(attacker, "OnCollision", collisionType, defender, payload)
+		end))
+		table.insert(self._connections, bus:On("CollisionPlayerHit", function(victim, attacker, _rawDamage, _knockback, collisionMeta)
+			if attacker then self:Dispatch(attacker, "OnCollision", "Player", victim, collisionMeta) end
 		end))
 		table.insert(self._connections, bus:On("PlayerAttack", function(player, payload)
 			self:Dispatch(player, "OnAttack", payload)
@@ -84,7 +93,10 @@ function EquipmentEffectService:ActivateEquipment(player, _slotType: string, ins
 	local definition = ownedInstance and EquipmentConfig.GetById(tostring(ownedInstance.definitionId or ""))
 	if not definition or not definition.effectId then return false end
 	local module = self._effectModules[definition.effectId]
-	if not module then return false end
+	if not module then
+		warn(string.format("[EQUIPMENT_EFFECT] Missing effect module for configured effectId %s on %s", tostring(definition.effectId), tostring(definition.id)))
+		return false
+	end
 	self._activeEffects[player] = self._activeEffects[player] or {}
 	self:DeactivateEquipment(player, instanceId)
 	local context = {
@@ -94,6 +106,10 @@ function EquipmentEffectService:ActivateEquipment(player, _slotType: string, ins
 		ownedInstance = ownedInstance,
 		FlagService = getService(self._context, "FlagService"),
 		PlayerStateService = getService(self._context, "PlayerStateService"),
+		PlayerDataService = getService(self._context, "PlayerDataService"),
+		TeamService = getService(self._context, "TeamService"),
+		Remotes = self._context.Remotes,
+		FoodService = getService(self._context, "FoodService"),
 	}
 	local effectState = { module = module, context = context }
 	self._activeEffects[player][instanceId] = effectState

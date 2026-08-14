@@ -3,13 +3,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
-local RunService = game:GetService("RunService")
-
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 
 local TEMPLATE_PATH = "Assets.UI.PlayerRowTemplate_MatchSummaryUI"
-local DEFAULT_DURATION_SECONDS = 15
 
 local MatchSummaryUIController = {}
 MatchSummaryUIController.__index = MatchSummaryUIController
@@ -42,12 +39,10 @@ function MatchSummaryUIController.new(playerGui: PlayerGui, clientService: any)
 	self.ClientService = clientService
 	self.ScreenGui = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchSummary.ScreenGui) :: ScreenGui?
 	self.PlayerList = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchSummary.PlayerList) :: ScrollingFrame?
-	self.CountdownLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchSummary.CountdownLabel) :: TextLabel?
 	self.CloseButton = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchSummary.CloseButton) :: GuiButton?
 	self.RowTemplate = PathResolver.resolvePath(ReplicatedStorage, TEMPLATE_PATH) :: Frame?
 	self.Rows = {} :: { Frame }
 	self.Connections = {} :: { RBXScriptConnection }
-	self.CountdownEndsAt = 0
 
 	if self.ScreenGui then
 		self.ScreenGui.Enabled = false
@@ -108,25 +103,10 @@ function MatchSummaryUIController:Refresh(payload: any)
 			self:_addRow(rowData, index)
 		end
 	end
-	local duration = if type(payload) == "table" then asNumber(payload.DurationSeconds, DEFAULT_DURATION_SECONDS) else DEFAULT_DURATION_SECONDS
-	self.CountdownEndsAt = os.clock() + math.max(0, duration)
 	self:SetVisible(true)
 	if self.CloseButton then
 		self.CloseButton.Active = true
 		self.CloseButton.Visible = true
-	end
-end
-
-function MatchSummaryUIController:_updateCountdown()
-	if not self.CountdownLabel then
-		return
-	end
-	local remaining = math.max(0, math.ceil(self.CountdownEndsAt - os.clock()))
-	self.CountdownLabel.Text = tostring(remaining)
-	if remaining <= 0 and self.CountdownEndsAt > 0 then
-		self.CountdownEndsAt = 0
-		self:SetVisible(false)
-		self:_clearRows()
 	end
 end
 
@@ -139,14 +119,12 @@ function MatchSummaryUIController:Start()
 	end
 	if self.CloseButton then
 		table.insert(self.Connections, self.CloseButton.MouseButton1Click:Connect(function()
-			self.CountdownEndsAt = 0
 			self:SetVisible(false)
 			self:_clearRows()
 		end))
 	end
 	local uiStateConnection = self.ClientService:BindUIStateUpdate(function(payload)
 		if type(payload) == "table" and payload.State == GameStates.MapRoundState.Lobby then
-			self.CountdownEndsAt = 0
 			self:SetVisible(false)
 			self:_clearRows()
 		end
@@ -154,9 +132,6 @@ function MatchSummaryUIController:Start()
 	if uiStateConnection then
 		table.insert(self.Connections, uiStateConnection)
 	end
-	table.insert(self.Connections, RunService.Heartbeat:Connect(function()
-		self:_updateCountdown()
-	end))
 end
 
 function MatchSummaryUIController:Destroy()

@@ -23,6 +23,7 @@ local LEGACY_HITBOX_MESH_WELD_NAME = "WeldConstraint_HitboxMesh"
 local ITEM_SLOT_TEMPLATE_NAME = "ItemSlotTemplate_InventoryUI"
 local LAUNCHER_SLOT_TEMPLATE_NAME = "LauncherSlotTemplate_InventoryUI"
 local LEGACY_LAUNCHER_SLOT_TEMPLATE_NAME = "LaunchersSlotTemplate_InventoryUI"
+local EQUIPMENT_SLOT_TEMPLATE_NAME = "EquipmentSlotTemplate_InventoryUI"
 
 local function resolveGui(root: Instance, path: string): GuiObject?
 	local value = PathResolver.resolvePath(root, path)
@@ -158,11 +159,15 @@ function InventoryUIController:Start()
 		else
 			self._itemTemplate = findUiTemplate(uiFolder, ITEM_SLOT_TEMPLATE_NAME, nil)
 			self._launcherTemplate = findUiTemplate(uiFolder, LAUNCHER_SLOT_TEMPLATE_NAME, LEGACY_LAUNCHER_SLOT_TEMPLATE_NAME)
+			self._equipmentTemplate = findUiTemplate(uiFolder, EQUIPMENT_SLOT_TEMPLATE_NAME, nil)
 			if not self._itemTemplate then
 				warn("[INVENTORY_UI] " .. ITEM_SLOT_TEMPLATE_NAME .. " missing in ReplicatedStorage.Assets.UI")
 			end
 			if not self._launcherTemplate then
 				warn("[INVENTORY_UI] " .. LAUNCHER_SLOT_TEMPLATE_NAME .. " missing in ReplicatedStorage.Assets.UI")
+			end
+			if not self._equipmentTemplate then
+				warn("[INVENTORY_UI] " .. EQUIPMENT_SLOT_TEMPLATE_NAME .. " missing in ReplicatedStorage.Assets.UI")
 			end
 		end
 	end
@@ -440,24 +445,42 @@ function InventoryUIController:_spawnLauncherSlot(launcherEntry)
 end
 
 
+local function formatRemainingLifetime(entry): string
+	local expiresAt = tonumber(entry.expiresAt or entry.ExpiresAt or entry.remainingLifetimeEndsAt or entry.RemainingLifetimeEndsAt)
+	if expiresAt then
+		local remaining = math.max(0, math.ceil(expiresAt - os.time()))
+		if remaining > 0 then return string.format("%ds", remaining) end
+	end
+	local remainingSeconds = tonumber(entry.remainingLifetimeSeconds or entry.RemainingLifetimeSeconds or entry.remainingTime or entry.RemainingTime)
+	if remainingSeconds and remainingSeconds > 0 then return string.format("%ds", math.ceil(remainingSeconds)) end
+	return "Permanent"
+end
+
 function InventoryUIController:_spawnEquipmentSlot(equipmentEntry)
-	if not self._equipmentGrid or not self._launcherTemplate or not self._launcherTemplate:IsA("GuiObject") then return end
-	local equipmentId = equipmentEntry.id or equipmentEntry.definitionId
-	local def = EquipmentConfig.GetById(equipmentId)
-	if not def then return end
-	local slot = self._launcherTemplate:Clone()
-	local slotRoot = getTemplateRoot(slot, LAUNCHER_SLOT_TEMPLATE_NAME)
+	if not self._equipmentGrid or not self._equipmentTemplate or not self._equipmentTemplate:IsA("GuiObject") then return end
+	local instanceId = tostring(equipmentEntry.instanceId or "")
+	local definitionId = tostring(equipmentEntry.definitionId or equipmentEntry.id or "")
+	if instanceId == "" or definitionId == "" then return end
+	local def = EquipmentConfig.GetById(definitionId)
+	if not def then warn(string.format("[INVENTORY_UI] Unknown equipment definition id in owned data: %s", definitionId)); return end
+	local slot = self._equipmentTemplate:Clone()
+	local slotRoot = getTemplateRoot(slot, EQUIPMENT_SLOT_TEMPLATE_NAME)
 	if not slotRoot then slot:Destroy(); return end
-	slot.Name = string.format("GeneratedEquipment_%s", equipmentEntry.instanceId or equipmentId)
+	slot.Name = string.format("GeneratedEquipment_%s", instanceId)
 	slot.Visible = true
 	slot.Parent = self._equipmentGrid
 	self:_bindCommonSlot(slotRoot, equipmentEntry.name or def.name, equipmentEntry.icon or def.iconId)
+	local remainingTimeText = findDirectTemplateText(slotRoot, "RemainingTimeText")
+	if remainingTimeText then remainingTimeText.Text = formatRemainingLifetime(equipmentEntry) end
 	local levelLabel = findDirectTemplateText(slotRoot, "Level")
-	if levelLabel then levelLabel.Text = string.format("Lv.%d | %s", math.max(1, equipmentEntry.level or 1), def.abilityId or "Passive") end
+	if levelLabel then levelLabel.Text = string.format("Lv.%d", math.max(1, equipmentEntry.level or 1)) end
 	local equippedTag = findDirectTemplateText(slotRoot, "EquippedTag")
-	if equippedTag then equippedTag.Visible = equipmentEntry.equipped == true end
-	self._equipmentSlotMap[equipmentEntry.instanceId] = slot
-	self:_bindSlotState(slot, "Equipment", equipmentEntry.instanceId)
+	if equippedTag then
+		equippedTag.Visible = equipmentEntry.equipped == true
+		equippedTag.Text = equipmentEntry.equippedSlot and ("Slot " .. tostring(equipmentEntry.equippedSlot)) or "Equipped"
+	end
+	self._equipmentSlotMap[instanceId] = slot
+	self:_bindSlotState(slot, "Equipment", instanceId)
 	table.insert(self._spawnedEquipmentSlots, slot)
 end
 
@@ -470,9 +493,9 @@ function InventoryUIController:_refreshEquipmentPanel(data)
 	local equipmentId = data.selectedEquipmentId or self._selectedEquipmentId
 	self._selectedEquipmentId = equipmentId
 	local entry = equipmentId and self:_findEquipmentEntry(data.ownedEquipment, equipmentId) or nil
-	local def = entry and EquipmentConfig.GetById(entry.id or entry.definitionId or "") or nil
+	local def = entry and EquipmentConfig.GetById(entry.definitionId or entry.id or "") or nil
 	if self._equipmentSelectedName then self._equipmentSelectedName.Text = (entry and entry.name) or (def and def.name) or "No equipment selected" end
-	if self._equipmentStatDamage then self._equipmentStatDamage.Text = "Ability: " .. tostring(def and def.abilityId or "-") end
+	if self._equipmentStatDamage then self._equipmentStatDamage.Text = "Ability: " .. tostring(def and def.effectId or "-") end
 	if self._equipmentStatHP then self._equipmentStatHP.Text = "Level: " .. tostring(entry and entry.level or "-") end
 	if self._equipmentStatRange then self._equipmentStatRange.Text = "Rarity: " .. tostring(def and def.rarity or "-") end
 	if self._equipmentStatRegen then self._equipmentStatRegen.Text = entry and (entry.equipped and "Equipped" or "Unequipped") or "-" end
