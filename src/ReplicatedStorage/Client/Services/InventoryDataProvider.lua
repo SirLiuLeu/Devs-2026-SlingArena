@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local MockData = require(ReplicatedStorage.Client.Services.MockData)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
@@ -10,6 +11,8 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 local consumeHpPotionRemote = remotes:FindFirstChild(RemoteContracts.Names.ConsumeHpPotion) :: RemoteEvent?
+local equipEquipmentRemote = remotes:FindFirstChild(RemoteContracts.Names.EquipEquipment) :: RemoteEvent?
+local unequipEquipmentRemote = remotes:FindFirstChild(RemoteContracts.Names.UnequipEquipment) :: RemoteEvent?
 
 local InventoryDataProvider = {}
 InventoryDataProvider.__index = InventoryDataProvider
@@ -20,6 +23,9 @@ export type InventorySnapshot = {
 	launcherCapacity: number,
 	selectedItemId: string?,
 	selectedLauncherId: string?,
+	ownedEquipment: { any },
+	equippedEquipment: { [any]: string },
+	selectedEquipmentId: string?,
 	lastUseResult: string?,
 }
 
@@ -66,10 +72,14 @@ function InventoryDataProvider.new()
 	self._state = {
 		ownedItems = {},
 		ownedLaunchers = {},
+		ownedEquipment = {},
+		equippedEquipment = {},
 		launcherCapacity = 40,
 		selectedItemId = nil,
 		selectedLauncherId = nil,
+		selectedEquipmentId = nil,
 		lastUseResult = nil,
+		equipmentCapacity = 40,
 		_launcherGiveCursor = 0,
 	}
 	return self
@@ -93,6 +103,10 @@ function InventoryDataProvider:GetSnapshot(): InventorySnapshot
 		selectedItemId = self._state.selectedItemId,
 		selectedLauncherId = self._state.selectedLauncherId,
 		lastUseResult = self._state.lastUseResult,
+		ownedEquipment = cloneLaunchers(self._state.ownedEquipment),
+		equippedEquipment = table.clone(self._state.equippedEquipment),
+		selectedEquipmentId = self._state.selectedEquipmentId,
+		equipmentCapacity = self._state.equipmentCapacity,
 	}
 end
 
@@ -116,6 +130,26 @@ function InventoryDataProvider:SetFromState(state)
 	local incomingLaunchers = state.OwnedLaunchers
 	if type(incomingLaunchers) == "table" then
 		self._state.ownedLaunchers = cloneLaunchers(incomingLaunchers)
+	end
+
+	local incomingEquipment = state.OwnedEquipment
+	if type(incomingEquipment) == "table" then
+		self._state.ownedEquipment = cloneLaunchers(incomingEquipment)
+		for _, entry in ipairs(self._state.ownedEquipment) do
+			local def = EquipmentConfig.GetById(entry.definitionId or entry.id or "")
+			entry.id = entry.definitionId or entry.id
+			entry.name = entry.name or (def and def.name)
+			entry.icon = entry.icon or (def and def.iconId)
+		end
+	end
+	if type(state.EquippedEquipment) == "table" then
+		self._state.equippedEquipment = table.clone(state.EquippedEquipment)
+		for _, entry in ipairs(self._state.ownedEquipment) do
+			entry.equipped = false
+			for slot, instanceId in pairs(self._state.equippedEquipment) do
+				if instanceId == entry.instanceId then entry.equipped = true; entry.equippedSlot = tonumber(slot) or slot end
+			end
+		end
 	end
 
 	if type(state.EquippedLauncherInstanceId) == "string" then
@@ -151,6 +185,11 @@ end
 
 function InventoryDataProvider:SelectItem(itemId: string?)
 	self._state.selectedItemId = itemId
+	self:_emitChanged()
+end
+
+function InventoryDataProvider:SelectEquipment(equipmentId: string?)
+	self._state.selectedEquipmentId = equipmentId
 	self:_emitChanged()
 end
 
@@ -265,6 +304,35 @@ function InventoryDataProvider.GetDefault()
 		defaultProvider = InventoryDataProvider.new()
 	end
 	return defaultProvider
+end
+
+function InventoryDataProvider:_findEquipmentIndex(equipmentId: string): number?
+	for index, entry in ipairs(self._state.ownedEquipment) do
+		if entry.instanceId == equipmentId or entry.id == equipmentId then return index end
+	end
+	return nil
+end
+
+function InventoryDataProvider:EquipSelectedEquipment(): boolean
+	local equipmentId = self._state.selectedEquipmentId
+	local index = equipmentId and self:_findEquipmentIndex(equipmentId)
+	if not index then self:_emitChanged(); return false end
+	local selected = self._state.ownedEquipment[index]
+	if selected.equipped and unequipEquipmentRemote then
+		unequipEquipmentRemote:FireServer(selected.equippedSlot)
+		return true
+	end
+	if equipEquipmentRemote then equipEquipmentRemote:FireServer(selected.instanceId); return true end
+	return false
+end
+
+function InventoryDataProvider:UnequipSelectedEquipment(): boolean
+	local equipmentId = self._state.selectedEquipmentId
+	local index = equipmentId and self:_findEquipmentIndex(equipmentId)
+	if not index then self:_emitChanged(); return false end
+	local selected = self._state.ownedEquipment[index]
+	if selected.equippedSlot and unequipEquipmentRemote then unequipEquipmentRemote:FireServer(selected.equippedSlot); return true end
+	return false
 end
 
 return InventoryDataProvider

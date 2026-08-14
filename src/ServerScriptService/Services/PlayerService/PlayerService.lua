@@ -407,6 +407,63 @@ function PlayerService:_applyLauncherVisual(pawn: Model, launcherId: string): bo
 	return true
 end
 
+
+function PlayerService:_resolveEquipmentModelSource(equipmentId: string): Model?
+	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
+	local equipmentFolder = assetsFolder and assetsFolder:FindFirstChild("Equipment")
+	local equipmentModel = equipmentFolder and equipmentFolder:FindFirstChild(equipmentId)
+	if equipmentModel and equipmentModel:IsA("Model") then return equipmentModel end
+	return nil
+end
+
+function PlayerService:_findEquipmentModel(pawn: Model, slot: number): Model?
+	local model = pawn:FindFirstChild("EquippedEquipmentSlot" .. tostring(slot))
+	return if model and model:IsA("Model") then model else nil
+end
+
+function PlayerService:UnequipEquipmentModel(player: Player, slot: number): boolean
+	local pawn = self:GetPawn(player)
+	if not pawn then return false end
+	local existing = self:_findEquipmentModel(pawn, slot)
+	if existing then existing:Destroy() end
+	return true
+end
+
+function PlayerService:EquipEquipmentModel(player: Player, slot: number, equipmentId: string): boolean
+	if type(slot) ~= "number" or slot < 1 or slot > 3 then return false end
+	local pawn = self:GetPawn(player)
+	if not pawn then return false end
+	local hitbox = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
+	if not (hitbox and hitbox:IsA("BasePart")) then return false end
+	local attachment = hitbox:FindFirstChild("EquipmentSlot" .. tostring(slot), true)
+	if not (attachment and attachment:IsA("Attachment")) then
+		warn(string.format("[PLAYER_SERVICE] EquipmentSlot%d attachment missing", slot))
+		return false
+	end
+	local modelTemplate = self:_resolveEquipmentModelSource(equipmentId)
+	if not modelTemplate then
+		warn(string.format("[PLAYER_SERVICE] Equipment model missing for %s", equipmentId))
+		return false
+	end
+	self:UnequipEquipmentModel(player, slot)
+	local model = modelTemplate:Clone()
+	model.Name = "EquippedEquipmentSlot" .. tostring(slot)
+	model.Parent = pawn
+	local root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+	if not root then model:Destroy(); return false end
+	model.PrimaryPart = root
+	model:PivotTo(attachment.WorldCFrame)
+	self:_configureVisualRig(model)
+	local weld = Instance.new("WeldConstraint")
+	weld.Name = "WeldConstraint_EquipmentSlot" .. tostring(slot)
+	weld.Part0 = hitbox
+	weld.Part1 = root
+	weld.Parent = model
+	model:SetAttribute("EquipmentId", equipmentId)
+	model:SetAttribute("EquipmentSlot", slot)
+	return true
+end
+
 function PlayerService:_prepareLauncherModel(model: Model): BasePart?
 	local root = model:FindFirstChild("Hitbox", true) :: BasePart?
 	if not root then

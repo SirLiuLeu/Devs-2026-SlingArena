@@ -7,81 +7,94 @@ export type StatModifiers = {
 	Multiply: { [string]: number }?,
 }
 
+export type CombatEffect = {
+	collisionFlag: string?,
+	collisionExtraDuration: number?,
+	dotFlag: string?,
+	cannotPetrifyEquipmentIds: { [string]: boolean }?,
+}
+
+export type PassiveAbility = {
+	type: string,
+	percent: number?,
+	value: number?,
+	params: { [string]: any }?,
+}
+
 export type EquipmentDefinition = {
 	id: string,
+	EquipmentId: string,
 	name: string,
+	Name: string,
 	slotType: string,
 	category: string,
 	rarity: string,
+	abilityId: string?,
 	effectId: string?,
+	combatEffect: CombatEffect?,
+	passiveAbility: PassiveAbility?,
 	statModifiers: StatModifiers?,
 	metadata: { [string]: any }?,
 	iconId: string?,
-	modelPath: string?,
+	modelName: string,
+	modelPath: string,
 }
 
-EquipmentConfig.SlotTypes = {
-	Core = "Core",
-	Module = "Module",
-	Charm = "Charm",
-}
+EquipmentConfig.EquippedSlotCount = 3
+EquipmentConfig.SlotTypes = { Universal = "Universal", Core = "Core", Module = "Module", Charm = "Charm" }
+EquipmentConfig.Rarities = { Common = "Common", Rare = "Rare", Epic = "Epic", Legendary = "Legendary" }
 
-EquipmentConfig.Rarities = {
-	Common = "Common",
-	Rare = "Rare",
-	Epic = "Epic",
-}
+local function equipment(id: string, name: string, rarity: string, abilityId: string?, combatEffect: CombatEffect?, passiveAbility: PassiveAbility?, statModifiers: StatModifiers?): EquipmentDefinition
+	return {
+		id = id,
+		EquipmentId = id,
+		name = name,
+		Name = name,
+		slotType = EquipmentConfig.SlotTypes.Universal,
+		category = "Equipment",
+		rarity = rarity,
+		abilityId = abilityId,
+		effectId = abilityId or "NoOp",
+		combatEffect = combatEffect,
+		passiveAbility = passiveAbility,
+		statModifiers = statModifiers or { Add = {}, Multiply = {} },
+		metadata = { inventoryCapacityCost = 1 },
+		iconId = "rbxassetid://0",
+		modelName = id,
+		modelPath = "ReplicatedStorage.Assets.Equipment." .. id,
+	}
+end
 
 EquipmentConfig.Definitions = {
-	training_core = {
-		id = "training_core",
-		name = "Training Core",
-		slotType = EquipmentConfig.SlotTypes.Core,
-		category = "Core",
-		rarity = EquipmentConfig.Rarities.Common,
-		effectId = "NoOp",
-		statModifiers = { Add = { maxHP = 100 }, Multiply = {} },
-		metadata = { phase = "Phase1Placeholder" },
-		iconId = "rbxassetid://0",
-		modelPath = "",
-	},
-	damage_module = {
-		id = "damage_module",
-		name = "Damage Module",
-		slotType = EquipmentConfig.SlotTypes.Module,
-		category = "Module",
-		rarity = EquipmentConfig.Rarities.Common,
-		effectId = "NoOp",
-		statModifiers = { Add = { baseDamage = 50 }, Multiply = { damageMultiplier = 1.05 } },
-		metadata = { phase = "Phase1Placeholder" },
-		iconId = "rbxassetid://0",
-		modelPath = "",
-	},
-	swift_charm = {
-		id = "swift_charm",
-		name = "Swift Charm",
-		slotType = EquipmentConfig.SlotTypes.Charm,
-		category = "Charm",
-		rarity = EquipmentConfig.Rarities.Rare,
-		effectId = "NoOp",
-		statModifiers = { Add = {}, Multiply = { moveSpeed = 1.1 } },
-		metadata = { phase = "Phase1Placeholder" },
-		iconId = "rbxassetid://0",
-		modelPath = "",
-	},
+	training_core = equipment("training_core", "Training Core", EquipmentConfig.Rarities.Common, nil, nil, nil, { Add = { maxHP = 100 }, Multiply = {} }),
+	damage_module = equipment("damage_module", "Damage Module", EquipmentConfig.Rarities.Common, nil, nil, nil, { Add = { baseDamage = 50 }, Multiply = { damageMultiplier = 1.05 } }),
+	swift_charm = equipment("swift_charm", "Swift Charm", EquipmentConfig.Rarities.Rare, nil, nil, nil, { Add = {}, Multiply = { moveSpeed = 1.1 } }),
+	Poison = equipment("Poison", "Poison", EquipmentConfig.Rarities.Rare, "Poison", { dotFlag = "Poison" }, nil, { Add = { baseDamage = 25 }, Multiply = {} }),
+	GhostFlame = equipment("GhostFlame", "Ghost Flame", EquipmentConfig.Rarities.Epic, "Fire", { dotFlag = "Burn" }, nil, { Add = { baseDamage = 50 }, Multiply = {} }),
+	PowerCore = equipment("PowerCore", "Power Core", EquipmentConfig.Rarities.Rare, "Slow", { collisionFlag = "Slow", collisionExtraDuration = 2 }, { type = "HealOnLaunch", percent = 0.05 }, { Add = { maxHP = 100 }, Multiply = {} }),
+	BrainBoost = equipment("BrainBoost", "Brain Boost", EquipmentConfig.Rarities.Rare, "ExpBonus", nil, { type = "ExpBonus", value = 0.5, params = { expBonus = 0.5 } }, { Add = { expBonus = 0.5 }, Multiply = {} }),
+	ThunderHammer = equipment("ThunderHammer", "Thunder Hammer", EquipmentConfig.Rarities.Epic, "Stun", { collisionFlag = "Stun", collisionExtraDuration = 1.25 }, { type = "ExpBoost", params = { expBonus = 0.1 } }, { Add = {}, Multiply = { damageMultiplier = 1.05 } }),
+	Medusa = equipment("Medusa", "Medusa", EquipmentConfig.Rarities.Legendary, "Petrify", { collisionFlag = "Petrify", collisionExtraDuration = 1.5, cannotPetrifyEquipmentIds = { GhostFlame = true } }, nil, { Add = {}, Multiply = {} }),
 }
 
 function EquipmentConfig.GetById(definitionId: string): EquipmentDefinition?
 	return EquipmentConfig.Definitions[definitionId]
 end
 
+function EquipmentConfig.GetAllIds(): { string }
+	local ids = {}
+	for id in pairs(EquipmentConfig.Definitions) do table.insert(ids, id) end
+	table.sort(ids)
+	return ids
+end
+
+function EquipmentConfig.IsValidEquippedSlot(slot: any): boolean
+	local n = tonumber(slot)
+	return n ~= nil and n % 1 == 0 and n >= 1 and n <= EquipmentConfig.EquippedSlotCount
+end
+
 function EquipmentConfig.IsValidSlot(slotType: string): boolean
-	for _, configuredSlot in pairs(EquipmentConfig.SlotTypes) do
-		if configuredSlot == slotType then
-			return true
-		end
-	end
-	return false
+	return EquipmentConfig.IsValidEquippedSlot(slotType) or EquipmentConfig.SlotTypes[slotType] ~= nil
 end
 
 return EquipmentConfig

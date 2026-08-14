@@ -100,6 +100,8 @@ local function buildDefaultState(player: Player): PlayerState
 				acquiredAt = os.time(),
 			},
 		},
+		OwnedEquipment = {},
+		EquippedEquipment = { [1] = nil, [2] = nil, [3] = nil },
 		ChargeValue = 0,
 		CurrentVelocity = Vector3.zero,
 		InvulnerableUntil = 0,
@@ -415,6 +417,8 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	if dataService and typeof(dataService.GetData) == "function" then
 		local data = dataService:GetData(player)
 		resolved = EquipmentStatResolver.Resolve(resolved :: any, data.OwnedEquipment, data.EquippedEquipment) :: any
+		state.OwnedEquipment = data.OwnedEquipment or {}
+		state.EquippedEquipment = data.EquippedEquipment or {}
 		state.Diamonds = dataService:GetDiamonds(player)
 	end
 
@@ -893,6 +897,55 @@ function PlayerStateService:GetLastAttacker(victim: Player): Player?
 end
 function PlayerStateService:ClearLastAttacker(victim: Player)
 	self._lastAttacker[victim] = nil
+end
+
+
+function PlayerStateService:SyncEquipmentFromData(player: Player)
+	local state = self._states[player]
+	local dataService = self._context.Services and self._context.Services.PlayerDataService
+	if not (state and dataService and typeof(dataService.GetData) == "function") then return end
+	local data = dataService:GetData(player)
+	state.OwnedEquipment = data.OwnedEquipment or {}
+	state.EquippedEquipment = data.EquippedEquipment or {}
+	self:PublishState(player)
+end
+
+function PlayerStateService:GetOwnedEquipment(player: Player): { [string]: any }
+	self:SyncEquipmentFromData(player)
+	local state = self._states[player]
+	return (state and state.OwnedEquipment) or {}
+end
+
+function PlayerStateService:GetEquippedEquipment(player: Player): { [any]: string }
+	self:SyncEquipmentFromData(player)
+	local state = self._states[player]
+	return (state and state.EquippedEquipment) or {}
+end
+
+function PlayerStateService:GetEquipmentBySlot(player: Player, slot: any): string?
+	local equipped = self:GetEquippedEquipment(player)
+	return equipped[tonumber(slot) or slot]
+end
+
+function PlayerStateService:HasEquipment(player: Player, equipmentId: string): boolean
+	local owned = self:GetOwnedEquipment(player)
+	for _, instanceId in pairs(self:GetEquippedEquipment(player)) do
+		local instance = owned[instanceId]
+		if instance and instance.definitionId == equipmentId then return true end
+	end
+	return false
+end
+
+function PlayerStateService:EquipEquipment(player: Player, instanceId: string, slot: any?): (boolean, string?)
+	local equipmentService = self._context.Services and self._context.Services.EquipmentService
+	if equipmentService and typeof(equipmentService.Equip) == "function" then return equipmentService:Equip(player, instanceId, slot) end
+	return false, "MissingEquipmentService"
+end
+
+function PlayerStateService:UnequipEquipment(player: Player, slot: any): (boolean, string?)
+	local equipmentService = self._context.Services and self._context.Services.EquipmentService
+	if equipmentService and typeof(equipmentService.Unequip) == "function" then return equipmentService:Unequip(player, slot) end
+	return false, "MissingEquipmentService"
 end
 
 function PlayerStateService:SetLauncherType(player: Player, launcherId: string): boolean

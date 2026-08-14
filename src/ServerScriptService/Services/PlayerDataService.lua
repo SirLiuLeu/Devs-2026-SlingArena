@@ -44,7 +44,7 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 		Diamonds = 0,
 		OwnedItems = {},
 		OwnedEquipment = {},
-		EquippedEquipment = {},
+		EquippedEquipment = { [1] = nil, [2] = nil, [3] = nil },
 	}
 end
 
@@ -111,9 +111,14 @@ function PlayerDataService:_ensureEquipmentData(data: { [string]: any })
 			end
 		end
 	end
-	for slotType, instanceId in pairs(data.EquippedEquipment) do
-		if type(slotType) ~= "string" or type(instanceId) ~= "string" or data.OwnedEquipment[instanceId] == nil then
-			data.EquippedEquipment[slotType] = nil
+	local legacySlotMap = { Core = 1, Module = 2, Charm = 3 }
+	for slot, instanceId in pairs(data.EquippedEquipment) do
+		local slotNumber = tonumber(slot) or legacySlotMap[slot]
+		if slotNumber and slotNumber % 1 == 0 and slotNumber >= 1 and slotNumber <= 3 and type(instanceId) == "string" and data.OwnedEquipment[instanceId] ~= nil then
+			data.EquippedEquipment[slot] = nil
+			data.EquippedEquipment[slotNumber] = instanceId
+		else
+			data.EquippedEquipment[slot] = nil
 		end
 	end
 end

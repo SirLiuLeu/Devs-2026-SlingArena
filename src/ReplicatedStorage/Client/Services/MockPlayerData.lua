@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 
 local MockPlayerData = {}
@@ -42,6 +43,12 @@ local MOCK_PLAYER_DATA = {
 			equipped = true,
 		},
 	},
+	OwnedEquipment = {
+		mock_Poison_1 = { definitionId = "Poison", level = 1, rarity = "Rare", acquiredAt = os.time() },
+		mock_GhostFlame_1 = { definitionId = "GhostFlame", level = 1, rarity = "Epic", acquiredAt = os.time() },
+		mock_ThunderHammer_1 = { definitionId = "ThunderHammer", level = 1, rarity = "Epic", acquiredAt = os.time() },
+	},
+	EquippedEquipment = { [1] = "mock_Poison_1" },
 	Equipped = {
 		LauncherInstanceId = "mock_NormalLauncher_1",
 		ActiveItems = {},
@@ -114,6 +121,8 @@ function MockPlayerData.GetInventoryState()
 		OwnedLaunchers = deepClone(MOCK_PLAYER_DATA.OwnedLaunchers),
 		EquippedLauncherInstanceId = MOCK_PLAYER_DATA.Equipped.LauncherInstanceId,
 		LauncherCapacity = MOCK_PLAYER_DATA.LauncherCapacity,
+		OwnedEquipment = deepClone(MOCK_PLAYER_DATA.OwnedEquipment),
+		EquippedEquipment = deepClone(MOCK_PLAYER_DATA.EquippedEquipment),
 	}
 end
 

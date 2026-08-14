@@ -103,6 +103,9 @@ local function buildInventoryGui(): ScreenGui
 	local launcherTab = Instance.new("TextButton")
 	launcherTab.Name = "LauncherTab"
 	launcherTab.Parent = tabs
+	local equipmentTab = Instance.new("TextButton")
+	equipmentTab.Name = "EquipmentTab"
+	equipmentTab.Parent = tabs
 
 	local bodyItems = Instance.new("Frame")
 	bodyItems.Name = "BodyItems"
@@ -123,6 +126,33 @@ local function buildInventoryGui(): ScreenGui
 	local cap = Instance.new("TextLabel")
 	cap.Name = "CapacityLabel"
 	cap.Parent = footer
+
+	local bodyEquipment = Instance.new("Frame")
+	bodyEquipment.Name = "BodyEquipment"
+	bodyEquipment.Parent = root
+	local equipmentGrid = Instance.new("ScrollingFrame")
+	equipmentGrid.Name = "GridContainer"
+	equipmentGrid.Parent = bodyEquipment
+	local equipmentFooter = Instance.new("Frame")
+	equipmentFooter.Name = "Footer"
+	equipmentFooter.Parent = bodyEquipment
+	local equipmentCap = Instance.new("TextLabel")
+	equipmentCap.Name = "CapacityLabel"
+	equipmentCap.Parent = equipmentFooter
+	local rightPanel = Instance.new("Frame")
+	rightPanel.Name = "RightPanel"
+	rightPanel.Parent = bodyEquipment
+	local selectedName = Instance.new("TextLabel")
+	selectedName.Name = "SelectedName"
+	selectedName.Parent = rightPanel
+	local actionButtons = Instance.new("Frame")
+	actionButtons.Name = "ActionButtons"
+	actionButtons.Parent = rightPanel
+	for _, buttonName in ipairs({ "DeleteButton", "EquipButton", "UpgradeButton" }) do local button = Instance.new("TextButton"); button.Name = buttonName; button.Parent = actionButtons end
+	local stats = Instance.new("Frame")
+	stats.Name = "Stats"
+	stats.Parent = rightPanel
+	for _, statName in ipairs({ "Damage", "HP", "Range", "Regen" }) do local label = Instance.new("TextLabel"); label.Name = statName; label.Parent = stats end
 
 	return screen
 end
@@ -212,5 +242,27 @@ local function testMockInventoryLoadsAndUsesTemplates()
 	playerGui:Destroy()
 end
 
+
+local function testEquipmentInventoryLoadsAndRenders()
+	ensureAssetTemplates()
+	local playerGui = Instance.new("Folder")
+	playerGui.Name = "PlayerGui"
+	local inventoryGui = buildInventoryGui()
+	inventoryGui.Parent = playerGui
+	local provider = InventoryDataProvider.new()
+	provider:LoadMockInventory()
+	local snapshot = provider:GetSnapshot()
+	if #snapshot.ownedEquipment < 1 then error("Equipment inventory must load server-backed/mock equipment") end
+	local controller = InventoryUIController.new(playerGui :: any)
+	controller:SetDataProvider(provider)
+	controller:Start()
+	controller:SetActiveTab("Equipment")
+	controller:RefreshWithData(snapshot)
+	if not inventoryGui.Root.BodyEquipment.Visible then error("Equipment tab must show BodyEquipment") end
+	if #(controller :: any)._spawnedEquipmentSlots < 1 then error("Equipment slots must render from LauncherSlotTemplate_InventoryUI") end
+	controller:Destroy(); provider:Destroy(); playerGui:Destroy()
+end
+
 runTest("GiveLauncher button behavior adds launchers and renders slots", testGiveLauncherAddsAndRenders)
 runTest("Mock inventory loads and replaces static slots", testMockInventoryLoadsAndUsesTemplates)
+runTest("Equipment inventory loads and renders equipment tab", testEquipmentInventoryLoadsAndRenders)

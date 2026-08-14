@@ -30,16 +30,16 @@ end
 
 function EquipmentService:Init()
 	if self._equipRemote then
-		self._equipRemote.OnServerEvent:Connect(function(player: Player, instanceId: string)
+		self._equipRemote.OnServerEvent:Connect(function(player: Player, instanceId: string, slot: any)
 			if RemoteContracts.Validate(RemoteContracts.Names.EquipEquipment, instanceId) then
-				self:Equip(player, instanceId)
+				self:Equip(player, instanceId, slot)
 			end
 		end)
 	end
 	if self._unequipRemote then
-		self._unequipRemote.OnServerEvent:Connect(function(player: Player, slotType: string)
-			if RemoteContracts.Validate(RemoteContracts.Names.UnequipEquipment, slotType) then
-				self:Unequip(player, slotType)
+		self._unequipRemote.OnServerEvent:Connect(function(player: Player, slot: any)
+			if RemoteContracts.Validate(RemoteContracts.Names.UnequipEquipment, slot) then
+				self:Unequip(player, slot)
 			end
 		end)
 	end
@@ -94,51 +94,83 @@ function EquipmentService:Grant(player: Player, definitionId: string, fields: { 
 	return true, instanceId
 end
 
-function EquipmentService:Equip(player: Player, instanceId: string): (boolean, string?)
+function EquipmentService:_normalizeSlot(slot: any): number?
+	local legacySlotMap = { Core = 1, Module = 2, Charm = 3 }
+	local slotNumber = tonumber(slot) or legacySlotMap[slot]
+	if slotNumber and slotNumber % 1 == 0 and slotNumber >= 1 and slotNumber <= EquipmentConfig.EquippedSlotCount then
+		return slotNumber
+	end
+	return nil
+end
+
+function EquipmentService:_findFirstOpenSlot(equipped: { [any]: string }): number?
+	for slot = 1, EquipmentConfig.EquippedSlotCount do
+		if equipped[slot] == nil then
+			return slot
+		end
+	end
+	return nil
+end
+
+function EquipmentService:Equip(player: Player, instanceId: string, preferredSlot: any?): (boolean, string?)
 	if type(instanceId) ~= "string" or instanceId == "" then return false, "InvalidInstanceId" end
 	local dataService = self:_dataService()
 	if not dataService then return false, "MissingPlayerDataService" end
 	local equippedInstance = nil
-	local slotType = nil
+	local slotNumber = nil
 	local ok = false
+	local failure = "NotOwned"
 	dataService:UpdateData(player, function(data)
 		dataService:_ensureEquipmentData(data)
 		local ownedInstance = data.OwnedEquipment[instanceId]
 		if type(ownedInstance) ~= "table" then return data end
 		local definition = EquipmentConfig.GetById(tostring(ownedInstance.definitionId or ""))
-		if not definition then return data end
-		slotType = definition.slotType
-		data.EquippedEquipment[slotType] = instanceId
+		if not definition then failure = "InvalidEquipment"; return data end
+		for _, equippedInstanceId in pairs(data.EquippedEquipment) do
+			if equippedInstanceId == instanceId then failure = "AlreadyEquipped"; return data end
+		end
+		slotNumber = self:_normalizeSlot(preferredSlot) or self:_findFirstOpenSlot(data.EquippedEquipment)
+		if not slotNumber then failure = "NoOpenSlot"; return data end
+		data.EquippedEquipment[slotNumber] = instanceId
 		equippedInstance = ownedInstance
 		ok = true
 		return data
 	end)
-	if not ok then return false, "NotOwned" end
-	if self._context.EventBus then
-		self._context.EventBus:Fire("EquipmentEquipped", player, slotType, instanceId, equippedInstance)
-	end
+	if not ok then return false, failure end
 	local stateService = getService(self._context, "PlayerStateService")
+	if stateService and typeof(stateService.SyncEquipmentFromData) == "function" then stateService:SyncEquipmentFromData(player) end
+	if self._context.EventBus then
+		self._context.EventBus:Fire("EquipmentEquipped", player, slotNumber, instanceId, equippedInstance)
+	end
+	local playerService = getService(self._context, "PlayerService")
+	if playerService and typeof(playerService.EquipEquipmentModel) == "function" then
+		playerService:EquipEquipmentModel(player, slotNumber, tostring(equippedInstance.definitionId))
+	end
 	if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
 		stateService:RecalculateDerivedStats(player, false)
 	end
 	return true, nil
 end
 
-function EquipmentService:Unequip(player: Player, slotType: string): (boolean, string?)
-	if type(slotType) ~= "string" or not EquipmentConfig.IsValidSlot(slotType) then return false, "InvalidSlot" end
+function EquipmentService:Unequip(player: Player, slot: any): (boolean, string?)
+	local slotNumber = self:_normalizeSlot(slot)
+	if not slotNumber then return false, "InvalidSlot" end
 	local dataService = self:_dataService()
 	if not dataService then return false, "MissingPlayerDataService" end
 	local removedInstanceId = nil
 	dataService:UpdateData(player, function(data)
 		dataService:_ensureEquipmentData(data)
-		removedInstanceId = data.EquippedEquipment[slotType]
-		data.EquippedEquipment[slotType] = nil
+		removedInstanceId = data.EquippedEquipment[slotNumber]
+		data.EquippedEquipment[slotNumber] = nil
 		return data
 	end)
-	if removedInstanceId and self._context.EventBus then
-		self._context.EventBus:Fire("EquipmentUnequipped", player, slotType, removedInstanceId)
-	end
 	local stateService = getService(self._context, "PlayerStateService")
+	if stateService and typeof(stateService.SyncEquipmentFromData) == "function" then stateService:SyncEquipmentFromData(player) end
+	if removedInstanceId and self._context.EventBus then
+		self._context.EventBus:Fire("EquipmentUnequipped", player, slotNumber, removedInstanceId)
+	end
+	local playerService = getService(self._context, "PlayerService")
+	if playerService and typeof(playerService.UnequipEquipmentModel) == "function" then playerService:UnequipEquipmentModel(player, slotNumber) end
 	if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
 		stateService:RecalculateDerivedStats(player, false)
 	end

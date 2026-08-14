@@ -159,7 +159,7 @@ RemoteContracts.Validators = {
 		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
 	end,
 	[RemoteContracts.Names.UnequipEquipment] = function(slotType: any): boolean
-		return typeof(slotType) == "string" and #slotType > 0 and #slotType <= 64
+		return (typeof(slotType) == "number" and slotType >= 1 and slotType <= 3) or (typeof(slotType) == "string" and #slotType > 0 and #slotType <= 64)
 	end,
 	[RemoteContracts.Names.UpgradeEquipment] = function(instanceId: any): boolean
 		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128

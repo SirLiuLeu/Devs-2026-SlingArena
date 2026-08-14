@@ -7,6 +7,7 @@ local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
 
 local InventoryUIController = {}
 InventoryUIController.__index = InventoryUIController
@@ -93,13 +94,16 @@ function InventoryUIController.new(playerGui: PlayerGui)
 	self._playerGui = playerGui
 	self._spawnedItemSlots = {}
 	self._spawnedLauncherSlots = {}
+	self._spawnedEquipmentSlots = {}
 	self._connections = {}
 	self._activeTab = "Items"
 	self._slotConnections = {}
 	self._itemSlotMap = {}
 	self._launcherSlotMap = {}
+	self._equipmentSlotMap = {}
 	self._selectedItemId = nil
 	self._selectedLauncherId = nil
+	self._selectedEquipmentId = nil
 	self._cachedSnapshot = nil
 	return self
 end
@@ -114,10 +118,14 @@ function InventoryUIController:Start()
 	self._launchersGrid = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.LaunchersGridContainer)
 	self._itemsBody = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.BodyItems)
 	self._launcherBody = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.BodyLauncher)
+	self._equipmentBody = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.BodyEquipment)
+	self._equipmentGrid = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentGridContainer)
 	self._itemsTab = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsTab)
 	self._launcherTab = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherTab)
+	self._equipmentTab = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentTab)
 	self._closeButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.CloseButton)
 	self._launcherCapacityLabel = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherCapacityLabel)
+	self._equipmentCapacityLabel = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentCapacityLabel)
 
 	self._itemSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsSelectedName)
 	self._itemStat1 = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsStat1)
@@ -125,6 +133,13 @@ function InventoryUIController:Start()
 	self._itemStat3 = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsStat3)
 	self._itemUseButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsUseButton)
 
+	self._equipmentSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentSelectedName)
+	self._equipmentStatDamage = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentStatDamage)
+	self._equipmentStatHP = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentStatHP)
+	self._equipmentStatRange = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentStatRange)
+	self._equipmentStatRegen = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentStatRegen)
+	self._equipmentEquipButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentEquipButton)
+	self._equipmentDeleteButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentDeleteButton)
 	self._launcherSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherSelectedName)
 	self._launcherStatDamage = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherStatDamage)
 	self._launcherStatHP = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherStatHP)
@@ -167,9 +182,10 @@ function InventoryUIController:Start()
 		end))
 	end
 	if self._launcherTab then
-		table.insert(self._connections, self._launcherTab.MouseButton1Click:Connect(function()
-			self:SetActiveTab("Launcher")
-		end))
+		table.insert(self._connections, self._launcherTab.MouseButton1Click:Connect(function() self:SetActiveTab("Launcher") end))
+	end
+	if self._equipmentTab then
+		table.insert(self._connections, self._equipmentTab.MouseButton1Click:Connect(function() self:SetActiveTab("Equipment") end))
 	end
 	if self._closeButton then
 		table.insert(self._connections, self._closeButton.MouseButton1Click:Connect(function()
@@ -194,6 +210,8 @@ function InventoryUIController:Start()
 	else
 		warn("[INVENTORY_UI] " .. ProjectTreeSpec.UI.Inventory.LauncherEquipButton .. " missing")
 	end
+	if self._equipmentEquipButton then table.insert(self._connections, self._equipmentEquipButton.MouseButton1Click:Connect(function() if self._dataProvider then self._dataProvider:EquipSelectedEquipment() end end)) end
+	if self._equipmentDeleteButton then table.insert(self._connections, self._equipmentDeleteButton.MouseButton1Click:Connect(function() if self._dataProvider then self._dataProvider:UnequipSelectedEquipment() end end)) end
 	if self._launcherDeleteButton then
 		table.insert(self._connections, self._launcherDeleteButton.MouseButton1Click:Connect(function()
 			if self._dataProvider then
@@ -214,13 +232,14 @@ function InventoryUIController:SetVisible(isVisible: boolean)
 end
 
 function InventoryUIController:SetActiveTab(tabName: string)
-	self._activeTab = tabName == "Launcher" and "Launcher" or "Items"
+	self._activeTab = if tabName == "Launcher" then "Launcher" elseif tabName == "Equipment" then "Equipment" else "Items"
 	if self._itemsBody then
 		self._itemsBody.Visible = self._activeTab == "Items"
 	end
 	if self._launcherBody then
 		self._launcherBody.Visible = self._activeTab == "Launcher"
 	end
+	if self._equipmentBody then self._equipmentBody.Visible = self._activeTab == "Equipment" end
 end
 
 function InventoryUIController:_disconnectSlotConnections()
@@ -237,6 +256,9 @@ function InventoryUIController:_clearGeneratedSlots()
 				child:Destroy()
 			end
 		end
+	end
+	if self._equipmentGrid then
+		for _, child in ipairs(self._equipmentGrid:GetChildren()) do if child:IsA("GuiObject") then child:Destroy() end end
 	end
 	if self._launchersGrid then
 		for _, child in ipairs(self._launchersGrid:GetChildren()) do
@@ -257,8 +279,10 @@ function InventoryUIController:_clearGeneratedSlots()
 	end
 	table.clear(self._spawnedItemSlots)
 	table.clear(self._spawnedLauncherSlots)
+	table.clear(self._spawnedEquipmentSlots)
 	table.clear(self._itemSlotMap)
 	table.clear(self._launcherSlotMap)
+	table.clear(self._equipmentSlotMap)
 	self:_disconnectSlotConnections()
 end
 
@@ -299,12 +323,12 @@ function InventoryUIController:_bindSlotState(slot: GuiObject, listType: string,
 
 	table.insert(self._slotConnections, clickTarget.MouseEnter:Connect(function()
 		hoverState = true
-		local selected = (listType == "Item" and self._selectedItemId == id) or (listType == "Launcher" and self._selectedLauncherId == id)
+		local selected = (listType == "Item" and self._selectedItemId == id) or (listType == "Launcher" and self._selectedLauncherId == id) or (listType == "Equipment" and self._selectedEquipmentId == id)
 		self:_applySlotVisual(slot, hoverState, selected)
 	end))
 	table.insert(self._slotConnections, clickTarget.MouseLeave:Connect(function()
 		hoverState = false
-		local selected = (listType == "Item" and self._selectedItemId == id) or (listType == "Launcher" and self._selectedLauncherId == id)
+		local selected = (listType == "Item" and self._selectedItemId == id) or (listType == "Launcher" and self._selectedLauncherId == id) or (listType == "Equipment" and self._selectedEquipmentId == id)
 		self:_applySlotVisual(slot, hoverState, selected)
 	end))
 	table.insert(self._slotConnections, clickTarget.InputBegan:Connect(function(input)
@@ -318,9 +342,10 @@ function InventoryUIController:_bindSlotState(slot: GuiObject, listType: string,
 			end
 		elseif listType == "Launcher" then
 			self._selectedLauncherId = id
-			if self._dataProvider then
-				self._dataProvider:SelectLauncher(id)
-			end
+			if self._dataProvider then self._dataProvider:SelectLauncher(id) end
+		elseif listType == "Equipment" then
+			self._selectedEquipmentId = id
+			if self._dataProvider then self._dataProvider:SelectEquipment(id) end
 		end
 		if self._cachedSnapshot then
 			self:RefreshWithData(self._cachedSnapshot)
@@ -414,6 +439,45 @@ function InventoryUIController:_spawnLauncherSlot(launcherEntry)
 	table.insert(self._spawnedLauncherSlots, slot)
 end
 
+
+function InventoryUIController:_spawnEquipmentSlot(equipmentEntry)
+	if not self._equipmentGrid or not self._launcherTemplate or not self._launcherTemplate:IsA("GuiObject") then return end
+	local equipmentId = equipmentEntry.id or equipmentEntry.definitionId
+	local def = EquipmentConfig.GetById(equipmentId)
+	if not def then return end
+	local slot = self._launcherTemplate:Clone()
+	local slotRoot = getTemplateRoot(slot, LAUNCHER_SLOT_TEMPLATE_NAME)
+	if not slotRoot then slot:Destroy(); return end
+	slot.Name = string.format("GeneratedEquipment_%s", equipmentEntry.instanceId or equipmentId)
+	slot.Visible = true
+	slot.Parent = self._equipmentGrid
+	self:_bindCommonSlot(slotRoot, equipmentEntry.name or def.name, equipmentEntry.icon or def.iconId)
+	local levelLabel = findDirectTemplateText(slotRoot, "Level")
+	if levelLabel then levelLabel.Text = string.format("Lv.%d | %s", math.max(1, equipmentEntry.level or 1), def.abilityId or "Passive") end
+	local equippedTag = findDirectTemplateText(slotRoot, "EquippedTag")
+	if equippedTag then equippedTag.Visible = equipmentEntry.equipped == true end
+	self._equipmentSlotMap[equipmentEntry.instanceId] = slot
+	self:_bindSlotState(slot, "Equipment", equipmentEntry.instanceId)
+	table.insert(self._spawnedEquipmentSlots, slot)
+end
+
+function InventoryUIController:_findEquipmentEntry(ownedEquipment, equipmentId)
+	for _, entry in ipairs(ownedEquipment or {}) do if entry.instanceId == equipmentId or entry.id == equipmentId then return entry end end
+	return nil
+end
+
+function InventoryUIController:_refreshEquipmentPanel(data)
+	local equipmentId = data.selectedEquipmentId or self._selectedEquipmentId
+	self._selectedEquipmentId = equipmentId
+	local entry = equipmentId and self:_findEquipmentEntry(data.ownedEquipment, equipmentId) or nil
+	local def = entry and EquipmentConfig.GetById(entry.id or entry.definitionId or "") or nil
+	if self._equipmentSelectedName then self._equipmentSelectedName.Text = (entry and entry.name) or (def and def.name) or "No equipment selected" end
+	if self._equipmentStatDamage then self._equipmentStatDamage.Text = "Ability: " .. tostring(def and def.abilityId or "-") end
+	if self._equipmentStatHP then self._equipmentStatHP.Text = "Level: " .. tostring(entry and entry.level or "-") end
+	if self._equipmentStatRange then self._equipmentStatRange.Text = "Rarity: " .. tostring(def and def.rarity or "-") end
+	if self._equipmentStatRegen then self._equipmentStatRegen.Text = entry and (entry.equipped and "Equipped" or "Unequipped") or "-" end
+end
+
 function InventoryUIController:_findLauncherEntry(ownedLaunchers, launcherId)
 	for _, launcherEntry in ipairs(ownedLaunchers) do
 		if launcherEntry.id == launcherId then
@@ -479,6 +543,11 @@ function InventoryUIController:_refreshAllSlotVisuals()
 	for launcherId, slot in pairs(self._launcherSlotMap) do
 		if slot and slot.Parent then
 			self:_applySlotVisual(slot, false, self._selectedLauncherId == launcherId)
+		end
+	end
+	for equipmentId, slot in pairs(self._equipmentSlotMap) do
+		if slot and slot.Parent then
+			self:_applySlotVisual(slot, false, self._selectedEquipmentId == equipmentId)
 		end
 	end
 end
@@ -657,12 +726,17 @@ function InventoryUIController:RefreshWithData(data)
 		self:_spawnLauncherSlot(launcherEntry)
 	end
 
+	local ownedEquipment = data.ownedEquipment or {}
+	for _, equipmentEntry in ipairs(ownedEquipment) do self:_spawnEquipmentSlot(equipmentEntry) end
+
+	if self._equipmentCapacityLabel then self._equipmentCapacityLabel.Text = string.format("Capacity: %d/%d | Equipped: %d/3", #(data.ownedEquipment or {}), data.equipmentCapacity or 0, (function() local count = 0; for _ in pairs(data.equippedEquipment or {}) do count += 1 end; return count end)()) end
 	if self._launcherCapacityLabel then
 		self._launcherCapacityLabel.Text = string.format("Capacity: %d/%d", #ownedLaunchers, data.launcherCapacity or 0)
 	end
 
 	self:_refreshItemPanel(data)
 	self:_refreshLauncherPanel(data)
+	self:_refreshEquipmentPanel(data)
 	self:_refreshAllSlotVisuals()
 end
 

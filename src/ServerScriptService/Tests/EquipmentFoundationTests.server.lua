@@ -55,13 +55,13 @@ runTest("default and normalized equipment data", function()
 	assertTrue(type(data.EquippedEquipment) == "table", "EquippedEquipment defaults to a table")
 	data.OwnedEquipment.keep = { definitionId = "training_core", level = "3", rarity = "Rare", pity = { spins = 2 } }
 	data.OwnedEquipment.drop = { level = 1 }
-	data.EquippedEquipment.Core = "keep"
-	data.EquippedEquipment.Module = "missing"
+	data.EquippedEquipment[1] = "keep"
+	data.EquippedEquipment[2] = "missing"
 	dataService:_ensureEquipmentData(data)
 	assertEqual(data.OwnedEquipment.keep.level, 3, "valid instance level is normalized and preserved")
 	assertEqual(data.OwnedEquipment.drop, nil, "invalid owned equipment is removed")
-	assertEqual(data.EquippedEquipment.Core, "keep", "valid equipped instance survives normalization")
-	assertEqual(data.EquippedEquipment.Module, nil, "equipped references to unowned instances are removed")
+	assertEqual(data.EquippedEquipment[1], "keep", "valid equipped instance survives normalization")
+	assertEqual(data.EquippedEquipment[2], nil, "equipped references to unowned instances are removed")
 	context.EventBus:Destroy()
 end)
 
@@ -89,13 +89,13 @@ runTest("stat resolver applies equipped additive and multiplicative modifiers on
 		module1 = { definitionId = "damage_module" },
 		charm1 = { definitionId = "swift_charm" },
 	}
-	local equipped = { Core = "core1", Module = "module1" }
+	local equipped = { [1] = "core1", [2] = "module1" }
 	local result = EquipmentStatResolver.Resolve({ maxHP = 1000, baseDamage = 100, damageMultiplier = 2, moveSpeed = 10 }, owned, equipped)
 	assertEqual(result.maxHP, 1100, "equipped additive HP applies")
 	assertEqual(result.baseDamage, 150, "equipped additive damage applies")
 	assertNear(result.damageMultiplier, 2.1, 0.0001, "equipped multiplicative damage applies")
 	assertEqual(result.moveSpeed, 10, "owned but unequipped move speed modifier is ignored")
-	equipped.Charm = "charm1"
+	equipped[3] = "charm1"
 	local withCharm = EquipmentStatResolver.Resolve({ maxHP = 1000, baseDamage = 100, damageMultiplier = 2, moveSpeed = 10 }, owned, equipped)
 	assertEqual(withCharm.moveSpeed, 11, "multiple equipped slots aggregate")
 end)
@@ -120,7 +120,7 @@ runTest("effects activate, isolate players, and share heartbeat", function()
 	assertEqual(effectService:GetHeartbeatConnectionCount(), 1, "one shared heartbeat connection is used")
 	assertEqual(#callbacks, 1, "heartbeat is connected once")
 	callbacks[1](0.016)
-	equipmentService:Unequip(p1, "Core")
+	equipmentService:Unequip(p1, 1)
 	assertEqual(effectService:GetActiveEffectCount(p1), 1, "unequip deactivates only matching effect")
 	assertEqual(effectService:GetActiveEffectCount(p2), 1, "unequip does not affect other player")
 	context.EventBus:Destroy()

@@ -292,3 +292,7 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - Runtime still contains legacy `SkillService.lua` and wiring in `Main.server.lua`; remove after remote-owner reassignment.
 - SafeZoneService/LauncherAbilityService are not yet implemented as runtime modules.
 - Ghost/Spectating state machine is not yet enforced in runtime constants/services.
+
+## Equipment Ability Migration Re-ratification (2026-08-14)
+
+Equipment abilities are now owned by `EquipmentAbilityService`. Launchers remain responsible for core launcher stats and movement compatibility only; Equipment owns active combat effects, passive abilities, and visual equipment model attachment state through `PlayerStateService`, `EquipmentService`, and `PlayerService`.

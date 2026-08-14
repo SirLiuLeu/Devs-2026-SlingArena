@@ -43,6 +43,8 @@ export type PlayerState = {
 	LaunchershotType: string,
 	EquippedLauncherInstanceId: string?,
 	OwnedLaunchers: { [string]: OwnedLauncher }?,
+	OwnedEquipment: { [string]: any }?,
+	EquippedEquipment: { [any]: string }?,
 	ChargeValue: number,
 	CurrentVelocity: Vector3,
 	InvulnerableUntil: number,
