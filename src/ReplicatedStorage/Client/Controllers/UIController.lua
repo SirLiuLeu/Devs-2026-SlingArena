@@ -33,32 +33,32 @@ export type Dependencies = {
 	ClientService: any,
 }
 
-local function resolveTextButton(root: Instance, path: string): TextButton?
-	local value = PathResolver.resolvePath(root, path)
+local function resolveTextButton(root: Instance, path: string, shouldWarn: boolean?): TextButton?
+	local value = PathResolver.resolvePath(root, path, { shouldWarn = shouldWarn })
 	if value and value:IsA("TextButton") then
 		return value
 	end
 	return nil
 end
 
-local function resolveGuiButton(root: Instance, path: string): GuiButton?
-	local value = PathResolver.resolvePath(root, path)
+local function resolveGuiButton(root: Instance, path: string, shouldWarn: boolean?): GuiButton?
+	local value = PathResolver.resolvePath(root, path, { shouldWarn = shouldWarn })
 	if value and value:IsA("GuiButton") then
 		return value
 	end
 	return nil
 end
 
-local function resolveTextLabel(root: Instance, path: string): TextLabel?
-	local value = PathResolver.resolvePath(root, path)
+local function resolveTextLabel(root: Instance, path: string, shouldWarn: boolean?): TextLabel?
+	local value = PathResolver.resolvePath(root, path, { shouldWarn = shouldWarn })
 	if value and value:IsA("TextLabel") then
 		return value
 	end
 	return nil
 end
 
-local function resolveScreenGui(root: Instance, path: string): ScreenGui?
-	local value = PathResolver.resolvePath(root, path)
+local function resolveScreenGui(root: Instance, path: string, shouldWarn: boolean?): ScreenGui?
+	local value = PathResolver.resolvePath(root, path, { shouldWarn = shouldWarn })
 	if value and value:IsA("ScreenGui") then
 		return value
 	end
@@ -127,6 +127,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.ClientService = dependencies.ClientService
 	self.PlayerGui = playerGui
 	self.Connections = {}
+	self._startedControllerKeys = {}
 	self.InventoryUIController = InventoryUIController.new(playerGui)
 	self.SpinUIController = SpinUIController.new(playerGui)
 	self.OnlineRewardUIController = OnlineRewardUIController.new(playerGui)
@@ -148,48 +149,48 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.QuestUIController:SetLogicService(self.QuestLogicService)
 	self.QuestUIController:SetToastController(self.ToastUIController)
 
-	self.JoinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.JoinButton)
-	self.LeaveButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton)
-	self.StartSafeZoneButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.StartSafeZoneButton)
-	self.Plus1MinuteButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.Plus1MinuteButton)
-	self.EndRoundButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.EndRoundButton)
-	self.MatchStatusLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel)
-	self.TimerLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel)
-	self.AlivePlayersLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.AlivePlayersLabel)
-	self.WinnerPopup = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.WinnerPopup)
-	self.DebugResetButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugResetButton)
-	self.DailyButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.DailyButton)
-	self.InventoryButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.InventoryButton)
-	self.OnlineRewardButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.OnlineRewardButton)
-	self.SettingButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.SettingButton)
-	self.ShopButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.ShopButton)
-	self.TabScoreButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabScore)
-	self.QuestButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuestButton)
-	self.ProgressPoint = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ProgressPoint)
-	self.QuickHpButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP)
-	self.QuickHpQuantityLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPQuantity)
-	self.QuickHpTimeLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPTime)
-	self.QuickHpOverlay = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPOverlay)
-	self.DamageBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff)
-	self.DamageBuffValueText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageValueText)
-	self.ExpBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.ExpBuff)
-	self.ExpBuffValueText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.ExpValueText)
-	self.HPRecoveryBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecovery)
-	self.HPRecoveryTimeText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecoveryTime)
-	self.HomeButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.HomeButton)
-	self.DiamondValueLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.DiamondValue)
-	self.ExpBarFill = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.Fill)
-	self.ExpValueLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.ValueLabel)
-	self.ExpLevelLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.LevelLabel)
+	self.JoinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.JoinButton, false)
+	self.LeaveButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton, false)
+	self.StartSafeZoneButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.StartSafeZoneButton, false)
+	self.Plus1MinuteButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.Plus1MinuteButton, false)
+	self.EndRoundButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.EndRoundButton, false)
+	self.MatchStatusLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel, false)
+	self.TimerLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel, false)
+	self.AlivePlayersLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.AlivePlayersLabel, false)
+	self.WinnerPopup = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.WinnerPopup, false)
+	self.DebugResetButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugResetButton, false)
+	self.DailyButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.DailyButton, false)
+	self.InventoryButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.InventoryButton, false)
+	self.OnlineRewardButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.OnlineRewardButton, false)
+	self.SettingButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.SettingButton, false)
+	self.ShopButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.ShopButton, false)
+	self.TabScoreButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabScore, false)
+	self.QuestButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuestButton, false)
+	self.ProgressPoint = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ProgressPoint, { shouldWarn = false })
+	self.QuickHpButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP, false)
+	self.QuickHpQuantityLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPQuantity, { shouldWarn = false })
+	self.QuickHpTimeLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPTime, false)
+	self.QuickHpOverlay = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPOverlay, { shouldWarn = false })
+	self.DamageBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff, { shouldWarn = false })
+	self.DamageBuffValueText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageValueText, { shouldWarn = false })
+	self.ExpBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.ExpBuff, { shouldWarn = false })
+	self.ExpBuffValueText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.ExpValueText, { shouldWarn = false })
+	self.HPRecoveryBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecovery, { shouldWarn = false })
+	self.HPRecoveryTimeText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecoveryTime, { shouldWarn = false })
+	self.HomeButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.HomeButton, false)
+	self.DiamondValueLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.DiamondValue, false)
+	self.ExpBarFill = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.Fill, { shouldWarn = false })
+	self.ExpValueLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.ValueLabel, false)
+	self.ExpLevelLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.LevelLabel, false)
 
 	self.PanelMap = {
-		DailyLogin = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.DailyLogin),
-		Shop = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Shop) or resolveScreenGui(playerGui, "ShopUI"),
-		Inventory = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Inventory),
-		OnlineReward = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.OnlineReward),
-		Settings = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Settings),
-		Spin = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Spin),
-		Quest = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Quest) or resolveScreenGui(playerGui, "QuestUI"),
+		DailyLogin = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.DailyLogin, false),
+		Shop = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Shop, false) or resolveScreenGui(playerGui, "ShopUI", false),
+		Inventory = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Inventory, false),
+		OnlineReward = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.OnlineReward, false),
+		Settings = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Settings, false),
+		Spin = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Spin, false),
+		Quest = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Quest, false) or resolveScreenGui(playerGui, "QuestUI", false),
 	}
 
 	self.LastQuickHpRequest = 0
@@ -198,44 +199,10 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.LastAuthoritativeState = nil
 	self.QuickHpCooldownEndTime = 0
 
-	if not self.JoinButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.JoinButton, "TextButton") end
-	if not self.LeaveButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.LeaveButton, "TextButton") end
-	if not self.StartSafeZoneButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.StartSafeZoneButton, "TextButton") end
-	if not self.Plus1MinuteButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.Plus1MinuteButton, "GuiButton") end
-	if not self.EndRoundButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.EndRoundButton, "GuiButton") end
-	if not self.MatchStatusLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.StatusLabel, "TextLabel") end
-	if not self.TimerLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.TimerLabel, "TextLabel") end
-	if not self.AlivePlayersLabel then warnMissingUiPath(ProjectTreeSpec.UI.Match.AlivePlayersLabel, "TextLabel") end
-	if not self.WinnerPopup then warnMissingUiPath(ProjectTreeSpec.UI.Match.WinnerPopup, "TextLabel") end
-	if not self.DebugResetButton then warnMissingUiPath(ProjectTreeSpec.UI.Lobby.DebugResetButton, "TextButton") end
-	if not self.DailyButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.DailyButton, "GuiButton") end
-	if not self.InventoryButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.InventoryButton, "GuiButton") end
-	if not self.OnlineRewardButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.OnlineRewardButton, "GuiButton") end
-	if not self.SettingButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.SettingButton, "GuiButton") end
-	if not self.ShopButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.ShopButton, "GuiButton") end
-	if not self.TabScoreButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.TabScore, "GuiButton") end
-	if not self.QuestButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuestButton, "GuiButton") end
-	if not self.ProgressPoint then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.ProgressPoint, "GuiObject") end
-	if not self.QuickHpButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHP, "GuiButton") end
-	if not self.HomeButton then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.HomeButton, "GuiButton") end
-	if not (self.DamageBuff and self.DamageBuff:IsA("GuiObject")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff, "GuiObject") end
-	if not (self.DamageBuffValueText and self.DamageBuffValueText:IsA("TextLabel")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.DamageValueText, "TextLabel") end
-	if not (self.ExpBuff and self.ExpBuff:IsA("GuiObject")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.ExpBuff, "GuiObject") end
-	if not (self.ExpBuffValueText and self.ExpBuffValueText:IsA("TextLabel")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.ExpValueText, "TextLabel") end
-	if not (self.HPRecoveryBuff and self.HPRecoveryBuff:IsA("GuiObject")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecovery, "GuiObject") end
-	if not (self.HPRecoveryTimeText and self.HPRecoveryTimeText:IsA("TextLabel")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecoveryTime, "TextLabel") end
-	if not (self.QuickHpQuantityLabel and self.QuickHpQuantityLabel:IsA("TextLabel")) then
-		warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHPQuantity, "TextLabel")
-	end
-	if not self.QuickHpTimeLabel then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHPTime, "TextLabel") end
-	if not (self.QuickHpOverlay and self.QuickHpOverlay:IsA("GuiObject")) then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.QuickHPOverlay, "GuiObject") end
-	if not self.DiamondValueLabel then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.DiamondValue, "TextLabel") end
-	if not self.PanelMap.DailyLogin then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.DailyLogin, "ScreenGui") end
-	if not self.PanelMap.Shop then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Shop, "ScreenGui") end
-	if not self.PanelMap.Inventory then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Inventory, "ScreenGui") end
-	if not self.PanelMap.OnlineReward then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.OnlineReward, "ScreenGui") end
-	if not self.PanelMap.Settings then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Settings, "ScreenGui") end
-	if not self.PanelMap.Spin then warnMissingUiPath(ProjectTreeSpec.UI.MainHub.Panels.Spin, "ScreenGui") end
+	-- UI may be cloned into PlayerGui after this controller is constructed.
+	-- Missing-path warnings for concrete UI hierarchies are emitted by startup checks
+	-- and by individual controllers once their ScreenGui is actually present.
+
 
 	return self
 end
@@ -321,32 +288,117 @@ function UIController:ToggleMainHubPanel(panelKey: string)
 	end
 end
 
-function UIController:Start()
-	if self.InventoryUIController then
+function UIController:_isUiAvailable(path: string): boolean
+	return PathResolver.resolvePath(self.PlayerGui, path, { shouldWarn = false }) ~= nil
+end
+
+function UIController:_startFeatureController(key: string, screenPath: string, startCallback: () -> ())
+	if self._startedControllerKeys[key] or not self:_isUiAvailable(screenPath) then
+		return
+	end
+	self._startedControllerKeys[key] = true
+	startCallback()
+end
+
+function UIController:_startAvailableFeatureControllers()
+	self:_startFeatureController("Inventory", ProjectTreeSpec.UI.Inventory.ScreenGui, function()
+		self.InventoryUIController = InventoryUIController.new(self.PlayerGui)
+		self.InventoryUIController:SetDataProvider(self.InventoryDataProvider)
 		self.InventoryUIController:Start()
-	end
-	if self.SpinUIController then
+		self.PanelMap.Inventory = resolveScreenGui(self.PlayerGui, ProjectTreeSpec.UI.Inventory.ScreenGui, false)
+		if self.InventoryDataProvider then
+			self.InventoryUIController:RefreshWithData(self.InventoryDataProvider:GetSnapshot())
+		end
+	end)
+	self:_startFeatureController("Spin", ProjectTreeSpec.UI.Spin.ScreenGui, function()
+		self.SpinUIController = SpinUIController.new(self.PlayerGui)
 		self.SpinUIController:Start()
-	end
-	if self.OnlineRewardUIController then
+		self.PanelMap.Spin = resolveScreenGui(self.PlayerGui, ProjectTreeSpec.UI.Spin.ScreenGui, false)
+	end)
+	self:_startFeatureController("OnlineReward", ProjectTreeSpec.UI.OnlineReward.ScreenGui, function()
+		self.OnlineRewardUIController = OnlineRewardUIController.new(self.PlayerGui)
+		self.OnlineRewardUIController:SetLogicService(self.OnlineRewardLogicService)
 		self.OnlineRewardUIController:Start()
-	end
-	if self.ShopUIController then
+		self.PanelMap.OnlineReward = resolveScreenGui(self.PlayerGui, ProjectTreeSpec.UI.OnlineReward.ScreenGui, false)
+	end)
+	self:_startFeatureController("Shop", ProjectTreeSpec.UI.Shop.ScreenGui, function()
+		self.ShopUIController = ShopUIController.new(self.PlayerGui)
+		self.ShopUIController:SetLogicService(self.ShopLogicService)
 		self.ShopUIController:Start()
-	end
-	if self.DailyLoginUIController then
+		self.PanelMap.Shop = resolveScreenGui(self.PlayerGui, ProjectTreeSpec.UI.Shop.ScreenGui, false)
+	end)
+	self:_startFeatureController("DailyLogin", ProjectTreeSpec.UI.DailyLogin.ScreenGui, function()
+		self.DailyLoginUIController = DailyLoginUIController.new(self.PlayerGui)
+		self.DailyLoginUIController:SetLogicService(self.DailyLoginLogicService)
 		self.DailyLoginUIController:Start()
-	end
-	if self.MatchScoreboardUIController then
+		self.PanelMap.DailyLogin = resolveScreenGui(self.PlayerGui, ProjectTreeSpec.UI.DailyLogin.ScreenGui, false)
+	end)
+	self:_startFeatureController("MatchScoreboard", ProjectTreeSpec.UI.MatchScoreboard.ScreenGui, function()
+		self.MatchScoreboardUIController = MatchScoreboardUIController.new(self.PlayerGui)
 		self.MatchScoreboardUIController:LoadMockData()
-	end
-	if self.MatchSummaryUIController then
+	end)
+	self:_startFeatureController("MatchSummary", ProjectTreeSpec.UI.MatchSummary.ScreenGui, function()
+		self.MatchSummaryUIController = MatchSummaryUIController.new(self.PlayerGui, self.ClientService)
 		self.MatchSummaryUIController:Start()
-	end
-	if self.QuestUIController then
+	end)
+	self:_startFeatureController("Quest", "QuestUI", function()
+		self.QuestUIController = QuestUIController.new(self.PlayerGui)
+		self.QuestUIController:SetLogicService(self.QuestLogicService)
+		self.QuestUIController:SetToastController(self.ToastUIController)
 		self.QuestUIController:Start()
-		self.PanelMap.Quest = self.PanelMap.Quest or resolveScreenGui(self.PlayerGui, "QuestUI")
+		self.PanelMap.Quest = self.PanelMap.Quest or resolveScreenGui(self.PlayerGui, "QuestUI", false)
+	end)
+end
+
+function UIController:_destroyFeatureController(key: string, fieldName: string)
+	if not self._startedControllerKeys[key] then
+		return
 	end
+	local controller = self[fieldName]
+	if controller and controller.Destroy then
+		controller:Destroy()
+	end
+	self[fieldName] = nil
+	self._startedControllerKeys[key] = nil
+end
+
+function UIController:_handlePlayerGuiChildRemoved(child: Instance)
+	local name = child.Name
+	if name == ProjectTreeSpec.UI.Inventory.ScreenGui then
+		self:_destroyFeatureController("Inventory", "InventoryUIController")
+	elseif name == ProjectTreeSpec.UI.Shop.ScreenGui then
+		self:_destroyFeatureController("Shop", "ShopUIController")
+	elseif name == ProjectTreeSpec.UI.MatchSummary.ScreenGui then
+		self:_destroyFeatureController("MatchSummary", "MatchSummaryUIController")
+	elseif name == ProjectTreeSpec.UI.MatchScoreboard.ScreenGui then
+		self:_destroyFeatureController("MatchScoreboard", "MatchScoreboardUIController")
+	elseif name == ProjectTreeSpec.UI.OnlineReward.ScreenGui then
+		self:_destroyFeatureController("OnlineReward", "OnlineRewardUIController")
+	elseif name == ProjectTreeSpec.UI.DailyLogin.ScreenGui then
+		self:_destroyFeatureController("DailyLogin", "DailyLoginUIController")
+	elseif name == ProjectTreeSpec.UI.Spin.ScreenGui then
+		self:_destroyFeatureController("Spin", "SpinUIController")
+	elseif name == "QuestUI" then
+		self:_destroyFeatureController("Quest", "QuestUIController")
+	end
+	if self.PanelMap then
+		for panelKey, panelGui in pairs(self.PanelMap) do
+			if panelGui == child then
+				self.PanelMap[panelKey] = nil
+			end
+		end
+	end
+end
+
+function UIController:Start()
+	self:_startAvailableFeatureControllers()
+	table.insert(self.Connections, self.PlayerGui.ChildAdded:Connect(function()
+		self:_startAvailableFeatureControllers()
+	end))
+	table.insert(self.Connections, self.PlayerGui.ChildRemoved:Connect(function(child)
+		self:_handlePlayerGuiChildRemoved(child)
+	end))
+
 	setBuffVisible(self.DamageBuff, true)
 	setBuffText(self.DamageBuffValueText, "100%")
 	setBuffVisible(self.ExpBuff, true)
