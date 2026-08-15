@@ -7,6 +7,8 @@ export type ResolveOptions = {
 	shouldWarn: boolean?,
 }
 
+local DEFAULT_REPORT_MISSING_TIMEOUT_SECONDS = 5
+
 local warnedMissingPaths: { [string]: boolean } = {}
 
 local function flattenSpec(prefix: string, node: any, output: { string })
@@ -138,10 +140,11 @@ function PathResolver.collectPaths(specNode: any): { string }
 end
 
 function PathResolver.reportMissing(root: Instance, paths: { string }, options: ResolveOptions?): { string }
+	local waitTimeout = if options and options.waitTimeout ~= nil then options.waitTimeout else DEFAULT_REPORT_MISSING_TIMEOUT_SECONDS
 	local missing = {}
 	for _, path in ipairs(paths) do
 		if PathResolver.resolvePath(root, path, {
-			waitTimeout = if options then options.waitTimeout else nil,
+			waitTimeout = waitTimeout,
 			shouldWarn = false,
 		}) == nil then
 			table.insert(missing, path)

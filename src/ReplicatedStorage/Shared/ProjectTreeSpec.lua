@@ -140,11 +140,13 @@ local ProjectTreeSpec = {
 		},
 		MatchSummary = {
 			ScreenGui = "MatchSummaryUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchSummaryUI
+			Root = "MatchSummaryUI.MainPanel", -- [PROJECT_TREE_SPEC] StarterGui.MatchSummaryUI.MainPanel
 			PlayerList = "MatchSummaryUI.MainPanel.Table.PlayerList", -- [PROJECT_TREE_SPEC]
 			CloseButton = "MatchSummaryUI.MainPanel.Header.CloseButton", -- [PROJECT_TREE_SPEC]
 		},
 		MatchScoreboard = {
 			ScreenGui = "MatchScoreboardUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchScoreboardUI
+			Root = "MatchScoreboardUI.MainPanel", -- [PROJECT_TREE_SPEC] StarterGui.MatchScoreboardUI.MainPanel
 			CloseButton = "MatchScoreboardUI.MainPanel.Header.CloseButton", -- [PROJECT_TREE_SPEC]
 			Overlay = "MatchScoreboardUI.Overlay", -- [PROJECT_TREE_SPEC]
 			PlayerList = "MatchScoreboardUI.MainPanel.PlayerList", -- [PROJECT_TREE_SPEC]

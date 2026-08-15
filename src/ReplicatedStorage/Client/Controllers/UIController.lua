@@ -127,6 +127,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.ClientService = dependencies.ClientService
 	self.PlayerGui = playerGui
 	self.Connections = {}
+	self._boundUiConnectionKeys = {}
 	self._startedControllerKeys = {}
 	self.InventoryUIController = InventoryUIController.new(playerGui)
 	self.SpinUIController = SpinUIController.new(playerGui)
@@ -149,55 +150,14 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.QuestUIController:SetLogicService(self.QuestLogicService)
 	self.QuestUIController:SetToastController(self.ToastUIController)
 
-	self.JoinButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.JoinButton, false)
-	self.LeaveButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton, false)
-	self.StartSafeZoneButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.StartSafeZoneButton, false)
-	self.Plus1MinuteButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.Plus1MinuteButton, false)
-	self.EndRoundButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.EndRoundButton, false)
-	self.MatchStatusLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel, false)
-	self.TimerLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel, false)
-	self.AlivePlayersLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.AlivePlayersLabel, false)
-	self.WinnerPopup = resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.WinnerPopup, false)
-	self.DebugResetButton = resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugResetButton, false)
-	self.DailyButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.DailyButton, false)
-	self.InventoryButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.InventoryButton, false)
-	self.OnlineRewardButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.OnlineRewardButton, false)
-	self.SettingButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.SettingButton, false)
-	self.ShopButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.ShopButton, false)
-	self.TabScoreButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabScore, false)
-	self.QuestButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuestButton, false)
-	self.ProgressPoint = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ProgressPoint, { shouldWarn = false })
-	self.QuickHpButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP, false)
-	self.QuickHpQuantityLabel = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPQuantity, { shouldWarn = false })
-	self.QuickHpTimeLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPTime, false)
-	self.QuickHpOverlay = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPOverlay, { shouldWarn = false })
-	self.DamageBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff, { shouldWarn = false })
-	self.DamageBuffValueText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageValueText, { shouldWarn = false })
-	self.ExpBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.ExpBuff, { shouldWarn = false })
-	self.ExpBuffValueText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.ExpValueText, { shouldWarn = false })
-	self.HPRecoveryBuff = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecovery, { shouldWarn = false })
-	self.HPRecoveryTimeText = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecoveryTime, { shouldWarn = false })
-	self.HomeButton = resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.HomeButton, false)
-	self.DiamondValueLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.DiamondValue, false)
-	self.ExpBarFill = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.Fill, { shouldWarn = false })
-	self.ExpValueLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.ValueLabel, false)
-	self.ExpLevelLabel = resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.LevelLabel, false)
-
-	self.PanelMap = {
-		DailyLogin = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.DailyLogin, false),
-		Shop = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Shop, false) or resolveScreenGui(playerGui, "ShopUI", false),
-		Inventory = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Inventory, false),
-		OnlineReward = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.OnlineReward, false),
-		Settings = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Settings, false),
-		Spin = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Spin, false),
-		Quest = resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Quest, false) or resolveScreenGui(playerGui, "QuestUI", false),
-	}
+	self.PanelMap = {}
 
 	self.LastQuickHpRequest = 0
 	self.AuthoritativeHpPotions = 0
 	self.NextHpPotionUseTime = 0
 	self.LastAuthoritativeState = nil
 	self.QuickHpCooldownEndTime = 0
+	self:_resolveUiReferences()
 
 	-- UI may be cloned into PlayerGui after this controller is constructed.
 	-- Missing-path warnings for concrete UI hierarchies are emitted by startup checks
@@ -205,6 +165,229 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 
 
 	return self
+end
+
+function UIController:_resolveUiReferences()
+	local playerGui = self.PlayerGui
+	self.JoinButton = self.JoinButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.JoinButton, false)
+	self.LeaveButton = self.LeaveButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton, false)
+	self.StartSafeZoneButton = self.StartSafeZoneButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.StartSafeZoneButton, false)
+	self.Plus1MinuteButton = self.Plus1MinuteButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.Plus1MinuteButton, false)
+	self.EndRoundButton = self.EndRoundButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.EndRoundButton, false)
+	self.MatchStatusLabel = self.MatchStatusLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel, false)
+	self.TimerLabel = self.TimerLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel, false)
+	self.AlivePlayersLabel = self.AlivePlayersLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.AlivePlayersLabel, false)
+	self.WinnerPopup = self.WinnerPopup or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.WinnerPopup, false)
+	self.DebugResetButton = self.DebugResetButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugResetButton, false)
+	self.DailyButton = self.DailyButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.DailyButton, false)
+	self.InventoryButton = self.InventoryButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.InventoryButton, false)
+	self.OnlineRewardButton = self.OnlineRewardButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.OnlineRewardButton, false)
+	self.SettingButton = self.SettingButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.SettingButton, false)
+	self.ShopButton = self.ShopButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.ShopButton, false)
+	self.TabScoreButton = self.TabScoreButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabScore, false)
+	self.QuestButton = self.QuestButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuestButton, false)
+	self.ProgressPoint = self.ProgressPoint or PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ProgressPoint, { shouldWarn = false })
+	self.QuickHpButton = self.QuickHpButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP, false)
+	self.QuickHpQuantityLabel = self.QuickHpQuantityLabel or PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPQuantity, { shouldWarn = false })
+	self.QuickHpTimeLabel = self.QuickHpTimeLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPTime, false)
+	self.QuickHpOverlay = self.QuickHpOverlay or PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPOverlay, { shouldWarn = false })
+	self.DamageBuff = self.DamageBuff or PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageBuff, { shouldWarn = false })
+	self.DamageBuffValueText = self.DamageBuffValueText or PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.DamageValueText, { shouldWarn = false })
+	self.ExpBuff = self.ExpBuff or PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.ExpBuff, { shouldWarn = false })
+	self.ExpBuffValueText = self.ExpBuffValueText or PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.ExpValueText, { shouldWarn = false })
+	self.HPRecoveryBuff = self.HPRecoveryBuff or PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecovery, { shouldWarn = false })
+	self.HPRecoveryTimeText = self.HPRecoveryTimeText or PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.BuffContainer.HPRecoveryTime, { shouldWarn = false })
+	self.HomeButton = self.HomeButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.HomeButton, false)
+	self.DiamondValueLabel = self.DiamondValueLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.DiamondValue, false)
+	self.ExpBarFill = self.ExpBarFill or PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.Fill, { shouldWarn = false })
+	self.ExpValueLabel = self.ExpValueLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.ValueLabel, false)
+	self.ExpLevelLabel = self.ExpLevelLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.MainHub.ExpProgress.LevelLabel, false)
+
+	self.PanelMap.DailyLogin = self.PanelMap.DailyLogin or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.DailyLogin, false)
+	self.PanelMap.Shop = self.PanelMap.Shop or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Shop, false) or resolveScreenGui(playerGui, "ShopUI", false)
+	self.PanelMap.Inventory = self.PanelMap.Inventory or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Inventory, false)
+	self.PanelMap.OnlineReward = self.PanelMap.OnlineReward or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.OnlineReward, false)
+	self.PanelMap.Settings = self.PanelMap.Settings or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Settings, false)
+	self.PanelMap.Spin = self.PanelMap.Spin or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Spin, false)
+	self.PanelMap.Quest = self.PanelMap.Quest or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Quest, false) or resolveScreenGui(playerGui, "QuestUI", false)
+end
+
+function UIController:_connectOnce(key: string, signal: RBXScriptSignal, callback: (...any) -> ())
+	if self._boundUiConnectionKeys[key] then
+		return
+	end
+	self._boundUiConnectionKeys[key] = true
+	table.insert(self.Connections, signal:Connect(callback))
+end
+
+function UIController:_clearReferenceIfRemoved(fieldName: string, removedRoot: Instance, connectionKey: string?)
+	local current = self[fieldName]
+	if current and current:IsDescendantOf(removedRoot) then
+		self[fieldName] = nil
+		if connectionKey then
+			self._boundUiConnectionKeys[connectionKey] = nil
+		end
+	end
+end
+
+function UIController:_clearRemovedUiReferences(removedRoot: Instance)
+	self:_clearReferenceIfRemoved("JoinButton", removedRoot, "JoinButton")
+	self:_clearReferenceIfRemoved("LeaveButton", removedRoot, "LeaveButton")
+	self:_clearReferenceIfRemoved("StartSafeZoneButton", removedRoot, "StartSafeZoneButton")
+	self:_clearReferenceIfRemoved("Plus1MinuteButton", removedRoot, "Plus1MinuteButton")
+	self:_clearReferenceIfRemoved("EndRoundButton", removedRoot, "EndRoundButton")
+	self:_clearReferenceIfRemoved("DebugResetButton", removedRoot, "DebugResetButton")
+	self:_clearReferenceIfRemoved("DailyButton", removedRoot, "DailyButton")
+	self:_clearReferenceIfRemoved("InventoryButton", removedRoot, "InventoryButton")
+	self:_clearReferenceIfRemoved("OnlineRewardButton", removedRoot, "OnlineRewardButton")
+	self:_clearReferenceIfRemoved("SettingButton", removedRoot, "SettingButton")
+	self:_clearReferenceIfRemoved("ShopButton", removedRoot, "ShopButton")
+	self:_clearReferenceIfRemoved("TabScoreButton", removedRoot, "TabScoreButton")
+	self:_clearReferenceIfRemoved("QuestButton", removedRoot, "QuestButton")
+	self:_clearReferenceIfRemoved("HomeButton", removedRoot, "HomeButton")
+	self:_clearReferenceIfRemoved("QuickHpButton", removedRoot, "QuickHpButton")
+	self:_clearReferenceIfRemoved("MatchStatusLabel", removedRoot, nil)
+	self:_clearReferenceIfRemoved("TimerLabel", removedRoot, nil)
+	self:_clearReferenceIfRemoved("AlivePlayersLabel", removedRoot, nil)
+	self:_clearReferenceIfRemoved("WinnerPopup", removedRoot, nil)
+	self:_clearReferenceIfRemoved("ProgressPoint", removedRoot, nil)
+	self:_clearReferenceIfRemoved("QuickHpQuantityLabel", removedRoot, nil)
+	self:_clearReferenceIfRemoved("QuickHpTimeLabel", removedRoot, nil)
+	self:_clearReferenceIfRemoved("QuickHpOverlay", removedRoot, nil)
+	self:_clearReferenceIfRemoved("DamageBuff", removedRoot, nil)
+	self:_clearReferenceIfRemoved("DamageBuffValueText", removedRoot, nil)
+	self:_clearReferenceIfRemoved("ExpBuff", removedRoot, nil)
+	self:_clearReferenceIfRemoved("ExpBuffValueText", removedRoot, nil)
+	self:_clearReferenceIfRemoved("HPRecoveryBuff", removedRoot, nil)
+	self:_clearReferenceIfRemoved("HPRecoveryTimeText", removedRoot, nil)
+	self:_clearReferenceIfRemoved("DiamondValueLabel", removedRoot, nil)
+	self:_clearReferenceIfRemoved("ExpBarFill", removedRoot, nil)
+	self:_clearReferenceIfRemoved("ExpValueLabel", removedRoot, nil)
+	self:_clearReferenceIfRemoved("ExpLevelLabel", removedRoot, nil)
+end
+
+function UIController:_bindResolvedUiReferences()
+	if self.JoinButton then
+		self:_connectOnce("JoinButton", self.JoinButton.MouseButton1Click, function()
+			self.ClientService:RequestJoinArena()
+		end)
+	end
+	if self.LeaveButton then
+		self:_connectOnce("LeaveButton", self.LeaveButton.MouseButton1Click, function()
+			self.ClientService:RequestLeaveArena()
+		end)
+	end
+	if self.StartSafeZoneButton then
+		self:_connectOnce("StartSafeZoneButton", self.StartSafeZoneButton.MouseButton1Click, function()
+			self.ClientService:RequestStartSafeZone()
+		end)
+	end
+	if self.Plus1MinuteButton then
+		self:_connectOnce("Plus1MinuteButton", self.Plus1MinuteButton.MouseButton1Click, function()
+			self.ClientService:RequestPlus1Minute()
+		end)
+	end
+	if self.DebugResetButton then
+		self:_connectOnce("DebugResetButton", self.DebugResetButton.MouseButton1Click, function()
+			self.ClientService:RequestDebugResetLauncher()
+		end)
+	end
+	if self.EndRoundButton then
+		self:_connectOnce("EndRoundButton", self.EndRoundButton.MouseButton1Click, function()
+			self.ClientService:RequestEndRound()
+		end)
+	end
+	if self.DailyButton then
+		self:_connectOnce("DailyButton", self.DailyButton.MouseButton1Click, function()
+			self:ShowMainHubPanel("DailyLogin")
+			if self.DailyLoginUIController then
+				self.DailyLoginUIController:SetVisible(true)
+			end
+		end)
+	end
+	if self.ShopButton then
+		self:_connectOnce("ShopButton", self.ShopButton.MouseButton1Click, function()
+			self:ShowMainHubPanel("Shop")
+			if self.ShopUIController then
+				self.ShopUIController:SetVisible(true)
+			end
+		end)
+	end
+	if self.InventoryButton then
+		self:_connectOnce("InventoryButton", self.InventoryButton.MouseButton1Click, function()
+			self:ShowMainHubPanel("Inventory")
+			if self.InventoryUIController then
+				self.InventoryUIController:SetVisible(true)
+			end
+			if self.InventoryDataProvider and self.InventoryUIController then
+				self.InventoryUIController:RefreshWithData(self.InventoryDataProvider:GetSnapshot())
+			end
+		end)
+	end
+	if self.OnlineRewardButton then
+		self:_connectOnce("OnlineRewardButton", self.OnlineRewardButton.MouseButton1Click, function()
+			self:ShowMainHubPanel("OnlineReward")
+			if self.OnlineRewardUIController then
+				self.OnlineRewardUIController:SetVisible(true)
+			end
+		end)
+	end
+	if self.QuestButton then
+		self:_connectOnce("QuestButton", self.QuestButton.MouseButton1Click, function()
+			self:ShowMainHubPanel("Quest")
+			if self.QuestUIController then
+				self.QuestUIController:SetVisible(true)
+			end
+		end)
+	end
+	if self.SettingButton then
+		self:_connectOnce("SettingButton", self.SettingButton.MouseButton1Click, function()
+			self:ShowMainHubPanel("Settings")
+		end)
+	end
+	if self.TabScoreButton then
+		self:_connectOnce("TabScoreButton", self.TabScoreButton.MouseButton1Click, function()
+			if self.MatchScoreboardUIController then
+				self.MatchScoreboardUIController:ToggleVisible()
+			end
+		end)
+	end
+	if self.MatchScoreboardUIController and self.MatchScoreboardUIController.CloseButton then
+		self:_connectOnce("MatchScoreboardCloseButton", self.MatchScoreboardUIController.CloseButton.MouseButton1Click, function()
+			self.MatchScoreboardUIController:SetVisible(false)
+		end)
+	end
+	if self.MatchScoreboardUIController and self.MatchScoreboardUIController.Overlay and self.MatchScoreboardUIController.Overlay:IsA("GuiButton") then
+		self:_connectOnce("MatchScoreboardOverlay", self.MatchScoreboardUIController.Overlay.MouseButton1Click, function()
+			self.MatchScoreboardUIController:SetVisible(false)
+		end)
+	end
+	if self.HomeButton then
+		self.HomeButton.Active = true
+		self:_connectOnce("HomeButton", self.HomeButton.MouseButton1Click, function()
+			self.ClientService:RequestLeaveArena()
+		end)
+	end
+	if self.QuickHpButton then
+		self:_connectOnce("QuickHpButton", self.QuickHpButton.MouseButton1Click, function()
+			local now = os.clock()
+			if now - self.LastQuickHpRequest < 0.2 then
+				return
+			end
+			self.LastQuickHpRequest = now
+			if (self.AuthoritativeHpPotions or 0) <= 0 then
+				self:_showHpPotionUseFeedback("NoPotion")
+				return
+			end
+			if now < (self.NextHpPotionUseTime or 0) then
+				self:_showHpPotionUseFeedback("Cooldown", self.NextHpPotionUseTime)
+				return
+			end
+			self.QuickHpCooldownEndTime = now + QUICK_HP_COOLDOWN_SECONDS
+			self:_refreshQuickHpCooldown()
+			self.ClientService:RequestConsumeHpPotion()
+		end)
+	end
 end
 
 function UIController:_renderHudValues(diamonds: number?, hpPotions: number?, exp: number?, level: number?)
@@ -360,9 +543,14 @@ function UIController:_destroyFeatureController(key: string, fieldName: string)
 	end
 	self[fieldName] = nil
 	self._startedControllerKeys[key] = nil
+	if key == "MatchScoreboard" then
+		self._boundUiConnectionKeys.MatchScoreboardCloseButton = nil
+		self._boundUiConnectionKeys.MatchScoreboardOverlay = nil
+	end
 end
 
 function UIController:_handlePlayerGuiChildRemoved(child: Instance)
+	self:_clearRemovedUiReferences(child)
 	local name = child.Name
 	if name == ProjectTreeSpec.UI.Inventory.ScreenGui then
 		self:_destroyFeatureController("Inventory", "InventoryUIController")
@@ -391,9 +579,19 @@ function UIController:_handlePlayerGuiChildRemoved(child: Instance)
 end
 
 function UIController:Start()
+	self:_resolveUiReferences()
 	self:_startAvailableFeatureControllers()
+	self:_bindResolvedUiReferences()
 	table.insert(self.Connections, self.PlayerGui.ChildAdded:Connect(function()
+		self:_resolveUiReferences()
 		self:_startAvailableFeatureControllers()
+		self:_bindResolvedUiReferences()
+		self:_refreshMockHud(MockPlayerData.GetPlayerData())
+		self:_refreshQuickHpCooldown()
+	end))
+	table.insert(self.Connections, self.PlayerGui.DescendantAdded:Connect(function()
+		self:_resolveUiReferences()
+		self:_bindResolvedUiReferences()
 	end))
 	table.insert(self.Connections, self.PlayerGui.ChildRemoved:Connect(function(child)
 		self:_handlePlayerGuiChildRemoved(child)
@@ -427,127 +625,6 @@ function UIController:Start()
 	end
 	if self.DailyLoginLogicService then
 		self.DailyLoginLogicService:LoadMockData()
-	end
-	if self.JoinButton then
-		table.insert(self.Connections, self.JoinButton.MouseButton1Click:Connect(function()
-			self.ClientService:RequestJoinArena()
-		end))
-	end
-	if self.LeaveButton then
-		table.insert(self.Connections, self.LeaveButton.MouseButton1Click:Connect(function()
-			self.ClientService:RequestLeaveArena()
-		end))
-	end
-	if self.StartSafeZoneButton then
-		table.insert(self.Connections, self.StartSafeZoneButton.MouseButton1Click:Connect(function()
-			self.ClientService:RequestStartSafeZone()
-		end))
-	end
-	if self.Plus1MinuteButton then
-		table.insert(self.Connections, self.Plus1MinuteButton.MouseButton1Click:Connect(function()
-			self.ClientService:RequestPlus1Minute()
-		end))
-	end
-	if self.DebugResetButton then
-		table.insert(self.Connections, self.DebugResetButton.MouseButton1Click:Connect(function()
-			self.ClientService:RequestDebugResetLauncher()
-		end))
-	end
-	if self.EndRoundButton then
-		table.insert(self.Connections, self.EndRoundButton.MouseButton1Click:Connect(function()
-			self.ClientService:RequestEndRound()
-		end))
-	end
-	if self.DailyButton then
-		table.insert(self.Connections, self.DailyButton.MouseButton1Click:Connect(function()
-			self:ShowMainHubPanel("DailyLogin")
-			if self.DailyLoginUIController then
-				self.DailyLoginUIController:SetVisible(true)
-			end
-		end))
-	end
-	if self.ShopButton then
-		table.insert(self.Connections, self.ShopButton.MouseButton1Click:Connect(function()
-			self:ShowMainHubPanel("Shop")
-			if self.ShopUIController then
-				self.ShopUIController:SetVisible(true)
-			end
-		end))
-	end
-	if self.InventoryButton then
-		table.insert(self.Connections, self.InventoryButton.MouseButton1Click:Connect(function()
-			self:ShowMainHubPanel("Inventory")
-			if self.InventoryUIController then
-				self.InventoryUIController:SetVisible(true)
-			end
-			if self.InventoryDataProvider and self.InventoryUIController then
-				self.InventoryUIController:RefreshWithData(self.InventoryDataProvider:GetSnapshot())
-			end
-		end))
-	end
-	if self.OnlineRewardButton then
-		table.insert(self.Connections, self.OnlineRewardButton.MouseButton1Click:Connect(function()
-			self:ShowMainHubPanel("OnlineReward")
-			if self.OnlineRewardUIController then
-				self.OnlineRewardUIController:SetVisible(true)
-			end
-		end))
-	end
-	if self.QuestButton then
-		table.insert(self.Connections, self.QuestButton.MouseButton1Click:Connect(function()
-			self:ShowMainHubPanel("Quest")
-			if self.QuestUIController then
-				self.QuestUIController:SetVisible(true)
-			end
-		end))
-	end
-	if self.SettingButton then
-		table.insert(self.Connections, self.SettingButton.MouseButton1Click:Connect(function()
-			self:ShowMainHubPanel("Settings")
-		end))
-	end
-	if self.TabScoreButton then
-		table.insert(self.Connections, self.TabScoreButton.MouseButton1Click:Connect(function()
-			if self.MatchScoreboardUIController then
-				self.MatchScoreboardUIController:ToggleVisible()
-			end
-		end))
-	end
-	if self.MatchScoreboardUIController and self.MatchScoreboardUIController.CloseButton then
-		table.insert(self.Connections, self.MatchScoreboardUIController.CloseButton.MouseButton1Click:Connect(function()
-			self.MatchScoreboardUIController:SetVisible(false)
-		end))
-	end
-	if self.MatchScoreboardUIController and self.MatchScoreboardUIController.Overlay and self.MatchScoreboardUIController.Overlay:IsA("GuiButton") then
-		table.insert(self.Connections, self.MatchScoreboardUIController.Overlay.MouseButton1Click:Connect(function()
-			self.MatchScoreboardUIController:SetVisible(false)
-		end))
-	end
-	if self.HomeButton then
-		self.HomeButton.Active = true
-		table.insert(self.Connections, self.HomeButton.MouseButton1Click:Connect(function()
-			self.ClientService:RequestLeaveArena()
-		end))
-	end
-	if self.QuickHpButton then
-		table.insert(self.Connections, self.QuickHpButton.MouseButton1Click:Connect(function()
-			local now = os.clock()
-			if now - self.LastQuickHpRequest < 0.2 then
-				return
-			end
-			self.LastQuickHpRequest = now
-			if (self.AuthoritativeHpPotions or 0) <= 0 then
-				self:_showHpPotionUseFeedback("NoPotion")
-				return
-			end
-			if now < (self.NextHpPotionUseTime or 0) then
-				self:_showHpPotionUseFeedback("Cooldown", self.NextHpPotionUseTime)
-				return
-			end
-			self.QuickHpCooldownEndTime = now + QUICK_HP_COOLDOWN_SECONDS
-			self:_refreshQuickHpCooldown()
-			self.ClientService:RequestConsumeHpPotion()
-		end))
 	end
 
 	local stateConnection = self.ClientService:BindStateUpdate(function(state)

@@ -12,16 +12,22 @@ local LeaderboardWorldUIController = require(ReplicatedStorage.Client.Controller
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+local STARTUP_UI_WAIT_TIMEOUT_SECONDS = 8
+
 local STARTUP_UI_PATHS = {
 	ProjectTreeSpec.UI.MainHub.ScreenGui,
 	ProjectTreeSpec.UI.MainHub.Root,
 	ProjectTreeSpec.UI.Match.ScreenGui,
 	ProjectTreeSpec.UI.Match.Root,
+	ProjectTreeSpec.UI.MatchScoreboard.ScreenGui,
+	ProjectTreeSpec.UI.MatchScoreboard.Root,
+	ProjectTreeSpec.UI.MatchSummary.ScreenGui,
+	ProjectTreeSpec.UI.MatchSummary.Root,
 }
 
 PathResolver.reportMissing(game, PathResolver.collectPaths(ProjectTreeSpec.Services.Client))
 PathResolver.reportMissing(ReplicatedStorage, PathResolver.collectPaths(ProjectTreeSpec.Remotes))
-PathResolver.reportMissing(playerGui, STARTUP_UI_PATHS)
+PathResolver.reportMissing(playerGui, STARTUP_UI_PATHS, { waitTimeout = STARTUP_UI_WAIT_TIMEOUT_SECONDS })
 
 local clientService = LobbyClientService.new()
 local controller = UIController.new(playerGui, {
