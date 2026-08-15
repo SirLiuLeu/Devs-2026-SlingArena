@@ -2,7 +2,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MockData = require(ReplicatedStorage.Client.Services.MockData)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 
@@ -43,6 +42,8 @@ function MatchScoreboardUIController.new(playerGui: PlayerGui)
 	self.Overlay = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchScoreboard.Overlay) :: GuiObject?
 	self.RowsByKey = {} :: { [string]: Frame }
 	self.LastRows = {} :: { any }
+	self.Connections = {} :: { RBXScriptConnection }
+	self.DataService = nil
 
 	if self.RowTemplate then
 		self.RowTemplate.Visible = false
@@ -54,7 +55,21 @@ function MatchScoreboardUIController.new(playerGui: PlayerGui)
 	return self
 end
 
+function MatchScoreboardUIController:_resolveUi()
+	self.ScreenGui = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchScoreboard.ScreenGui, { shouldWarn = false }) :: ScreenGui?
+	self.PlayerList = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchScoreboard.PlayerList, { shouldWarn = false }) :: ScrollingFrame?
+	self.RowTemplate = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchScoreboard.RowTemplate, { shouldWarn = false }) :: Frame?
+	self.CloseButton = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchScoreboard.CloseButton, { shouldWarn = false }) :: GuiButton?
+	self.Overlay = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchScoreboard.Overlay, { shouldWarn = false }) :: GuiObject?
+	if self.RowTemplate then self.RowTemplate.Visible = false end
+end
+
+function MatchScoreboardUIController:SetDataService(dataService)
+	self.DataService = dataService
+end
+
 function MatchScoreboardUIController:SetVisible(visible: boolean)
+	self:_resolveUi()
 	if self.ScreenGui then
 		self.ScreenGui.Enabled = visible
 	end
@@ -102,6 +117,7 @@ function MatchScoreboardUIController:_applyRow(row: Frame, rowData: any, index: 
 end
 
 function MatchScoreboardUIController:Refresh(payload: any)
+	self:_resolveUi()
 	local rows = if type(payload) == "table" and type(payload.Rows) == "table" then payload.Rows else payload
 	if type(rows) ~= "table" then
 		rows = {}
@@ -133,17 +149,18 @@ function MatchScoreboardUIController:Refresh(payload: any)
 	end
 end
 
-function MatchScoreboardUIController:LoadMockData()
-	if #self.LastRows > 0 then
-		return
+function MatchScoreboardUIController:Start()
+	self:_resolveUi()
+	if self.DataService then
+		table.insert(self.Connections, self.DataService:BindChanged(function(snapshot) self:Refresh(snapshot) end))
+		self:Refresh(self.DataService:GetSnapshot())
 	end
-	local getScoreboard = MockData.GetMatchScoreboardState
-	if type(getScoreboard) == "function" then
-		self:Refresh(getScoreboard())
-	end
+	table.insert(self.Connections, self.PlayerGui.DescendantAdded:Connect(function() self:_resolveUi(); if self.DataService then self:Refresh(self.DataService:GetSnapshot()) end end))
 end
 
 function MatchScoreboardUIController:Destroy()
+	for _, connection in ipairs(self.Connections) do connection:Disconnect() end
+	table.clear(self.Connections)
 	for _, row in pairs(self.RowsByKey) do
 		row:Destroy()
 	end

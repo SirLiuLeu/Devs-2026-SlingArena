@@ -13,7 +13,8 @@ local LauncherUiState = require(ReplicatedStorage.Shared.Utils.LauncherUiState)
 local LauncherCooldownService = require(ReplicatedStorage.Shared.Utils.LauncherCooldownService)
 local CooldownOverlayComponent = require(script.Parent.Components.CooldownOverlayComponent)
 local CooldownTextComponent = require(script.Parent.Components.CooldownTextComponent)
-local WaitForUI = require(ReplicatedStorage.Shared.Utils.WaitForUI)
+local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
+local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 
 local player = Players.LocalPlayer
@@ -226,36 +227,24 @@ local function getBaseCenter(): Vector2
 	return cachedBase.AbsolutePosition + (cachedBase.AbsoluteSize * 0.5)
 end
 
-local function resolveScreenGui(waitForUi: boolean): ScreenGui?
+local function resolveScreenGui(_waitForUi: boolean): ScreenGui?
 	if cachedScreenGui and cachedScreenGui.Parent then
 		return cachedScreenGui
 	end
-
-	cachedScreenGui = WaitForUI.ResolveLauncherUIWithRetry(player, {
-		wait = waitForUi,
-		timeout = if waitForUi then 5 else 0,
-		onResolved = function(screenGui)
-			cachedScreenGui = screenGui
-			warnedMissingUi = false
-			logUiResolvedOnce(screenGui)
-		end,
-	})
-
-	if cachedScreenGui then
+	local resolved = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.LauncherTouch.ScreenGui, { shouldWarn = false })
+	if resolved and resolved:IsA("ScreenGui") then
+		cachedScreenGui = resolved
 		warnedMissingUi = false
-		logUiResolvedOnce(cachedScreenGui)
+		logUiResolvedOnce(resolved)
+		return resolved
 	end
-
-	return cachedScreenGui
+	return nil
 end
 
 local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?)
 	local screenGui = resolveScreenGui(if waitForUi == nil then false else waitForUi)
 	if not screenGui then
-		if WaitForUI.IsRetryPending(player) and waitForUi ~= true then
-			return nil, nil, nil, nil, nil, nil, nil
-		end
-		warnMissingUiOnce("[LauncherUI] Missing LauncherUI ScreenGui at PlayerGui.LauncherUI.")
+		warnMissingUiOnce("[LauncherUI] Missing LauncherUI ScreenGui at PlayerGui.LauncherUI; waiting for template clone.")
 		return nil, nil, nil, nil, nil, nil, nil
 	end
 
@@ -856,8 +845,8 @@ workspace:WaitForChild("LauncherPawns").ChildAdded:Connect(function(child)
 	resetVisualState()
 end)
 
-playerGui.ChildAdded:Connect(function(child)
-	if child.Name ~= LauncherUiConstants.ScreenGuiName then
+local function handlePotentialLauncherUi(child: Instance)
+	if child.Name ~= LauncherUiConstants.ScreenGuiName and not child:IsDescendantOf(cachedScreenGui or playerGui) then
 		return
 	end
 
@@ -869,6 +858,15 @@ playerGui.ChildAdded:Connect(function(child)
 		syncCooldownFromServerState(lastKnownServerState)
 	end
 	applyJoystickVisibilityFromState(lastKnownServerState)
+end
+
+playerGui.ChildAdded:Connect(handlePotentialLauncherUi)
+playerGui.DescendantAdded:Connect(handlePotentialLauncherUi)
+playerGui.ChildRemoved:Connect(function(child)
+	if child == cachedScreenGui or child.Name == LauncherUiConstants.ScreenGuiName then
+		disconnectUiInputConnections()
+		cachedScreenGui = nil; cachedJoystickRoot = nil; cachedBase = nil; cachedThumb = nil; cachedChargeBar = nil; cachedChargeFill = nil; cachedCancelZone = nil; cachedCancelIcon = nil; cachedDirectionIndicator = nil
+	end
 end)
 
 resolveUi(false)

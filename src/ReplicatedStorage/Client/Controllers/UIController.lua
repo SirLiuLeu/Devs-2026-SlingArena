@@ -19,6 +19,9 @@ local MatchSummaryUIController = require(ReplicatedStorage.Client.Controllers.Ma
 local ToastUIController = require(ReplicatedStorage.Client.Controllers.ToastUIController)
 local QuestUIController = require(ReplicatedStorage.Client.Controllers.QuestUIController)
 local QuestLogicService = require(ReplicatedStorage.Client.Services.QuestLogicService)
+local HudDataService = require(ReplicatedStorage.Client.Services.HudDataService)
+local MatchScoreboardDataService = require(ReplicatedStorage.Client.Services.MatchScoreboardDataService)
+local MatchSummaryDataService = require(ReplicatedStorage.Client.Services.MatchSummaryDataService)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
@@ -128,7 +131,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.PlayerGui = playerGui
 	self.Connections = {}
 	self._boundUiConnectionKeys = {}
-	self._startedControllerKeys = {}
 	self.InventoryUIController = InventoryUIController.new(playerGui)
 	self.SpinUIController = SpinUIController.new(playerGui)
 	self.OnlineRewardUIController = OnlineRewardUIController.new(playerGui)
@@ -143,12 +145,17 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.ShopLogicService = ShopLogicService.GetDefault()
 	self.DailyLoginLogicService = DailyLoginLogicService.GetDefault()
 	self.QuestLogicService = QuestLogicService.GetDefault()
+	self.HudDataService = HudDataService.GetDefault()
+	self.MatchScoreboardDataService = MatchScoreboardDataService.GetDefault()
+	self.MatchSummaryDataService = MatchSummaryDataService.GetDefault()
 	self.InventoryUIController:SetDataProvider(self.InventoryDataProvider)
 	self.OnlineRewardUIController:SetLogicService(self.OnlineRewardLogicService)
 	self.ShopUIController:SetLogicService(self.ShopLogicService)
 	self.DailyLoginUIController:SetLogicService(self.DailyLoginLogicService)
 	self.QuestUIController:SetLogicService(self.QuestLogicService)
 	self.QuestUIController:SetToastController(self.ToastUIController)
+	self.MatchScoreboardUIController:SetDataService(self.MatchScoreboardDataService)
+	self.MatchSummaryUIController:SetDataService(self.MatchSummaryDataService)
 
 	self.PanelMap = {}
 
@@ -413,6 +420,10 @@ function UIController:_renderHudValues(diamonds: number?, hpPotions: number?, ex
 	end
 end
 
+function UIController:_renderHudValuesFromSnapshot(snapshot)
+	self:_renderHudValues(snapshot.Diamonds or 0, snapshot.HpPotions or self.AuthoritativeHpPotions or 0, snapshot.Exp or 0, snapshot.Level or 1)
+end
+
 function UIController:_refreshMockHud(playerData)
 	local data = playerData or MockPlayerData.GetPlayerData()
 	self:_renderHudValues(data.Diamonds or 0, self.AuthoritativeHpPotions or 0, data.Exp or 0, data.Level or 1)
@@ -471,104 +482,25 @@ function UIController:ToggleMainHubPanel(panelKey: string)
 	end
 end
 
-function UIController:_isUiAvailable(path: string): boolean
-	return PathResolver.resolvePath(self.PlayerGui, path, { shouldWarn = false }) ~= nil
-end
-
-function UIController:_startFeatureController(key: string, screenPath: string, startCallback: () -> ())
-	if self._startedControllerKeys[key] or not self:_isUiAvailable(screenPath) then
-		return
-	end
-	self._startedControllerKeys[key] = true
-	startCallback()
-end
-
 function UIController:_startAvailableFeatureControllers()
-	self:_startFeatureController("Inventory", ProjectTreeSpec.UI.Inventory.ScreenGui, function()
-		self.InventoryUIController = InventoryUIController.new(self.PlayerGui)
-		self.InventoryUIController:SetDataProvider(self.InventoryDataProvider)
-		self.InventoryUIController:Start()
-		self.PanelMap.Inventory = resolveScreenGui(self.PlayerGui, ProjectTreeSpec.UI.Inventory.ScreenGui, false)
-		if self.InventoryDataProvider then
-			self.InventoryUIController:RefreshWithData(self.InventoryDataProvider:GetSnapshot())
-		end
-	end)
-	self:_startFeatureController("Spin", ProjectTreeSpec.UI.Spin.ScreenGui, function()
-		self.SpinUIController = SpinUIController.new(self.PlayerGui)
-		self.SpinUIController:Start()
-		self.PanelMap.Spin = resolveScreenGui(self.PlayerGui, ProjectTreeSpec.UI.Spin.ScreenGui, false)
-	end)
-	self:_startFeatureController("OnlineReward", ProjectTreeSpec.UI.OnlineReward.ScreenGui, function()
-		self.OnlineRewardUIController = OnlineRewardUIController.new(self.PlayerGui)
-		self.OnlineRewardUIController:SetLogicService(self.OnlineRewardLogicService)
-		self.OnlineRewardUIController:Start()
-		self.PanelMap.OnlineReward = resolveScreenGui(self.PlayerGui, ProjectTreeSpec.UI.OnlineReward.ScreenGui, false)
-	end)
-	self:_startFeatureController("Shop", ProjectTreeSpec.UI.Shop.ScreenGui, function()
-		self.ShopUIController = ShopUIController.new(self.PlayerGui)
-		self.ShopUIController:SetLogicService(self.ShopLogicService)
-		self.ShopUIController:Start()
-		self.PanelMap.Shop = resolveScreenGui(self.PlayerGui, ProjectTreeSpec.UI.Shop.ScreenGui, false)
-	end)
-	self:_startFeatureController("DailyLogin", ProjectTreeSpec.UI.DailyLogin.ScreenGui, function()
-		self.DailyLoginUIController = DailyLoginUIController.new(self.PlayerGui)
-		self.DailyLoginUIController:SetLogicService(self.DailyLoginLogicService)
-		self.DailyLoginUIController:Start()
-		self.PanelMap.DailyLogin = resolveScreenGui(self.PlayerGui, ProjectTreeSpec.UI.DailyLogin.ScreenGui, false)
-	end)
-	self:_startFeatureController("MatchScoreboard", ProjectTreeSpec.UI.MatchScoreboard.ScreenGui, function()
-		self.MatchScoreboardUIController = MatchScoreboardUIController.new(self.PlayerGui)
-		self.MatchScoreboardUIController:LoadMockData()
-	end)
-	self:_startFeatureController("MatchSummary", ProjectTreeSpec.UI.MatchSummary.ScreenGui, function()
-		self.MatchSummaryUIController = MatchSummaryUIController.new(self.PlayerGui, self.ClientService)
-		self.MatchSummaryUIController:Start()
-	end)
-	self:_startFeatureController("Quest", "QuestUI", function()
-		self.QuestUIController = QuestUIController.new(self.PlayerGui)
-		self.QuestUIController:SetLogicService(self.QuestLogicService)
-		self.QuestUIController:SetToastController(self.ToastUIController)
-		self.QuestUIController:Start()
-		self.PanelMap.Quest = self.PanelMap.Quest or resolveScreenGui(self.PlayerGui, "QuestUI", false)
-	end)
+	if self.InventoryUIController then self.InventoryUIController:Start() end
+	if self.SpinUIController then self.SpinUIController:Start() end
+	if self.OnlineRewardUIController then self.OnlineRewardUIController:Start() end
+	if self.ShopUIController then self.ShopUIController:Start() end
+	if self.DailyLoginUIController then self.DailyLoginUIController:Start() end
+	if self.MatchScoreboardUIController then self.MatchScoreboardUIController:Start() end
+	if self.MatchSummaryUIController then self.MatchSummaryUIController:Start() end
+	if self.QuestUIController then self.QuestUIController:Start() end
 end
 
-function UIController:_destroyFeatureController(key: string, fieldName: string)
-	if not self._startedControllerKeys[key] then
-		return
-	end
+function UIController:_destroyFeatureController(_key: string, fieldName: string)
 	local controller = self[fieldName]
-	if controller and controller.Destroy then
-		controller:Destroy()
-	end
+	if controller and controller.Destroy then controller:Destroy() end
 	self[fieldName] = nil
-	self._startedControllerKeys[key] = nil
-	if key == "MatchScoreboard" then
-		self._boundUiConnectionKeys.MatchScoreboardCloseButton = nil
-		self._boundUiConnectionKeys.MatchScoreboardOverlay = nil
-	end
 end
 
 function UIController:_handlePlayerGuiChildRemoved(child: Instance)
 	self:_clearRemovedUiReferences(child)
-	local name = child.Name
-	if name == ProjectTreeSpec.UI.Inventory.ScreenGui then
-		self:_destroyFeatureController("Inventory", "InventoryUIController")
-	elseif name == ProjectTreeSpec.UI.Shop.ScreenGui then
-		self:_destroyFeatureController("Shop", "ShopUIController")
-	elseif name == ProjectTreeSpec.UI.MatchSummary.ScreenGui then
-		self:_destroyFeatureController("MatchSummary", "MatchSummaryUIController")
-	elseif name == ProjectTreeSpec.UI.MatchScoreboard.ScreenGui then
-		self:_destroyFeatureController("MatchScoreboard", "MatchScoreboardUIController")
-	elseif name == ProjectTreeSpec.UI.OnlineReward.ScreenGui then
-		self:_destroyFeatureController("OnlineReward", "OnlineRewardUIController")
-	elseif name == ProjectTreeSpec.UI.DailyLogin.ScreenGui then
-		self:_destroyFeatureController("DailyLogin", "DailyLoginUIController")
-	elseif name == ProjectTreeSpec.UI.Spin.ScreenGui then
-		self:_destroyFeatureController("Spin", "SpinUIController")
-	elseif name == "QuestUI" then
-		self:_destroyFeatureController("Quest", "QuestUIController")
-	end
 	if self.PanelMap then
 		for panelKey, panelGui in pairs(self.PanelMap) do
 			if panelGui == child then
@@ -584,9 +516,8 @@ function UIController:Start()
 	self:_bindResolvedUiReferences()
 	table.insert(self.Connections, self.PlayerGui.ChildAdded:Connect(function()
 		self:_resolveUiReferences()
-		self:_startAvailableFeatureControllers()
 		self:_bindResolvedUiReferences()
-		self:_refreshMockHud(MockPlayerData.GetPlayerData())
+		if self.HudDataService then self:_renderHudValuesFromSnapshot(self.HudDataService:GetSnapshot()) end
 		self:_refreshQuickHpCooldown()
 	end))
 	table.insert(self.Connections, self.PlayerGui.DescendantAdded:Connect(function()
@@ -604,10 +535,11 @@ function UIController:Start()
 	setBuffVisible(self.HPRecoveryBuff, false)
 	self:_refreshQuickHpCooldown()
 
-	table.insert(self.Connections, MockPlayerData.BindChanged(function(playerData)
-		self:_refreshMockHud(playerData)
-	end))
-	self:_refreshMockHud(MockPlayerData.GetPlayerData())
+	if self.HudDataService then
+		table.insert(self.Connections, self.HudDataService:BindChanged(function(snapshot) self:_renderHudValuesFromSnapshot(snapshot) end))
+		self.HudDataService:LoadMockData()
+		self:_renderHudValuesFromSnapshot(self.HudDataService:GetSnapshot())
+	end
 
 	if self.InventoryDataProvider then
 		table.insert(self.Connections, self.InventoryDataProvider:BindChanged(function(snapshot)
@@ -642,6 +574,7 @@ function UIController:Start()
 		if typeof(state.NextHpPotionUseTime) == "number" then
 			self.NextHpPotionUseTime = state.NextHpPotionUseTime
 		end
+		if self.HudDataService then self.HudDataService:SetFromState(state) end
 		self:_renderHudValues(state.Diamonds or 0, self.AuthoritativeHpPotions or 0, state.Exp or 0, state.Level or 1)
 		self:_refreshQuickHpCooldown()
 
@@ -688,6 +621,8 @@ function UIController:Start()
 		if self.WinnerPopup and (payload.State or "") == GameStates.MapRoundState.RoundEnd then
 			self.WinnerPopup.Visible = true
 			self.WinnerPopup.Text = "Match result screen: pending"
+		elseif (payload.State or "") == GameStates.MapRoundState.Lobby and self.MatchSummaryDataService then
+			self.MatchSummaryDataService:Reset()
 		end
 	end)
 	if uiStateConnection then
@@ -699,9 +634,7 @@ function UIController:Start()
 	end))
 
 	local scoreboardConnection = self.ClientService:BindMatchScoreboardUpdate(function(payload)
-		if self.MatchScoreboardUIController then
-			self.MatchScoreboardUIController:Refresh(payload)
-		end
+		if self.MatchScoreboardDataService then self.MatchScoreboardDataService:SetFromState(payload) end
 	end)
 	if scoreboardConnection then
 		table.insert(self.Connections, scoreboardConnection)
@@ -737,6 +670,11 @@ function UIController:Start()
 			self.ToastUIController:Enqueue(message)
 		end))
 	end
+
+	local summaryConnection = self.ClientService:BindMatchSummaryUpdate(function(payload)
+		if self.MatchSummaryDataService then self.MatchSummaryDataService:SetFromState(payload) end
+	end)
+	if summaryConnection then table.insert(self.Connections, summaryConnection) end
 
 	local resultConnection = self.ClientService:BindRoundResult(function(payload)
 		if self.WinnerPopup then

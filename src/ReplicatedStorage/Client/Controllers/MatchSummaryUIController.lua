@@ -37,6 +37,7 @@ function MatchSummaryUIController.new(playerGui: PlayerGui, clientService: any)
 	local self = setmetatable({}, MatchSummaryUIController)
 	self.PlayerGui = playerGui
 	self.ClientService = clientService
+	self.DataService = nil
 	self.ScreenGui = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchSummary.ScreenGui) :: ScreenGui?
 	self.PlayerList = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchSummary.PlayerList) :: ScrollingFrame?
 	self.CloseButton = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchSummary.CloseButton) :: GuiButton?
@@ -54,7 +55,17 @@ function MatchSummaryUIController.new(playerGui: PlayerGui, clientService: any)
 	return self
 end
 
+function MatchSummaryUIController:_resolveUi()
+	self.ScreenGui = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchSummary.ScreenGui, { shouldWarn = false }) :: ScreenGui?
+	self.PlayerList = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchSummary.PlayerList, { shouldWarn = false }) :: ScrollingFrame?
+	self.CloseButton = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchSummary.CloseButton, { shouldWarn = false }) :: GuiButton?
+	if self.RowTemplate then self.RowTemplate.Visible = false end
+end
+
+function MatchSummaryUIController:SetDataService(dataService) self.DataService = dataService end
+
 function MatchSummaryUIController:SetVisible(visible: boolean)
+	self:_resolveUi()
 	if self.ScreenGui then
 		self.ScreenGui.Enabled = visible
 	end
@@ -96,6 +107,7 @@ function MatchSummaryUIController:_addRow(rowData: any, index: number)
 end
 
 function MatchSummaryUIController:Refresh(payload: any)
+	self:_resolveUi()
 	local rows = if type(payload) == "table" and type(payload.Rows) == "table" then payload.Rows else {}
 	self:_clearRows()
 	for index, rowData in ipairs(rows) do
@@ -111,27 +123,23 @@ function MatchSummaryUIController:Refresh(payload: any)
 end
 
 function MatchSummaryUIController:Start()
-	local summaryConnection = self.ClientService:BindMatchSummaryUpdate(function(payload)
-		self:Refresh(payload)
-	end)
-	if summaryConnection then
-		table.insert(self.Connections, summaryConnection)
-	end
-	if self.CloseButton then
-		table.insert(self.Connections, self.CloseButton.MouseButton1Click:Connect(function()
-			self:SetVisible(false)
-			self:_clearRows()
+	self:_resolveUi()
+	if self.DataService then
+		table.insert(self.Connections, self.DataService:BindChanged(function(snapshot)
+			if snapshot.Visible == false then self:SetVisible(false); self:_clearRows() else self:Refresh(snapshot) end
 		end))
+		local snapshot = self.DataService:GetSnapshot()
+		if snapshot.Visible then self:Refresh(snapshot) end
 	end
-	local uiStateConnection = self.ClientService:BindUIStateUpdate(function(payload)
-		if type(payload) == "table" and payload.State == GameStates.MapRoundState.Lobby then
-			self:SetVisible(false)
-			self:_clearRows()
+	local function bindClose()
+		self:_resolveUi()
+		if self.CloseButton and not self._closeBound then
+			self._closeBound = true
+			table.insert(self.Connections, self.CloseButton.MouseButton1Click:Connect(function() self:SetVisible(false); self:_clearRows() end))
 		end
-	end)
-	if uiStateConnection then
-		table.insert(self.Connections, uiStateConnection)
 	end
+	bindClose()
+	table.insert(self.Connections, self.PlayerGui.DescendantAdded:Connect(function() bindClose(); if self.DataService then local snapshot=self.DataService:GetSnapshot(); if snapshot.Visible then self:Refresh(snapshot) end end end))
 end
 
 function MatchSummaryUIController:Destroy()
