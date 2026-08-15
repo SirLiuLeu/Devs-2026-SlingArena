@@ -66,9 +66,9 @@ function QuestUIController:_resolveOrCreateUi()
 		local layout = Instance.new("UIListLayout"); layout.Padding = UDim.new(0, 6); layout.Parent = list
 	end
 	self._root = self._screenGui:FindFirstChild("Root")
-	self._list = self._root and self._root:FindFirstChild("QuestList", true)
-	local dailyTab = self._root and self._root:FindFirstChild("DailyTab", true)
-	local mainTab = self._root and self._root:FindFirstChild("MainTab", true)
+	self._list = self._root and self._root:FindFirstChild("Content_ScrollFrame", true)
+	local dailyTab = self._root and self._root:FindFirstChild("Tab_Daily", true)
+	local mainTab = self._root and self._root:FindFirstChild("Tab_Main", true)
 	local close = self._root and self._root:FindFirstChild("CloseButton", true)
 	if dailyTab and dailyTab:IsA("GuiButton") then table.insert(self._connections, dailyTab.MouseButton1Click:Connect(function() self._activeTab = "Daily"; self:RenderSnapshot(self._logicService:GetSnapshot()) end)) end
 	if mainTab and mainTab:IsA("GuiButton") then table.insert(self._connections, mainTab.MouseButton1Click:Connect(function() self._activeTab = "Main"; self:RenderSnapshot(self._logicService:GetSnapshot()) end)) end

@@ -226,6 +226,13 @@ DataModel
 │  │      │   ├── Description (TextLabel)
 │  │      │   └── Title (TextLabel)
 │  │      │
+│  │      ├── QuestRowTemplate_QuestUI (Frame)
+│  │      │   ├── UICorner
+│  │      │   ├── ProgressBarBox
+│  │      │   ├── ClaimButton
+│  │      │   ├── QuestIcon
+│  │      │   └── QuestDesc
+│  │      │
 │  │      ├── LauncherWorldUI (BillboardGui)
 │  │      │   ├── UIListLayout
 │  │      │   ├── HpBarBackground (Frame)
