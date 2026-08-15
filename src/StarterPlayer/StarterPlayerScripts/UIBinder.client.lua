@@ -12,7 +12,7 @@ local LeaderboardWorldUIController = require(ReplicatedStorage.Client.Controller
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local STARTUP_UI_WAIT_TIMEOUT_SECONDS = 8
+local STARTUP_UI_WAIT_TIMEOUT_SECONDS = 3
 
 local STARTUP_UI_PATHS = {
 	ProjectTreeSpec.UI.MainHub.ScreenGui,

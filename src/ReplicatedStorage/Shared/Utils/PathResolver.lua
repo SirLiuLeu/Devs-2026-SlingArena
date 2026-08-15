@@ -7,7 +7,7 @@ export type ResolveOptions = {
 	shouldWarn: boolean?,
 }
 
-local DEFAULT_REPORT_MISSING_TIMEOUT_SECONDS = 5
+local DEFAULT_REPORT_MISSING_TIMEOUT_SECONDS = 1
 
 local warnedMissingPaths: { [string]: boolean } = {}
 
