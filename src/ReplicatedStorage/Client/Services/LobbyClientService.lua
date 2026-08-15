@@ -9,6 +9,27 @@ local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local LobbyClientService = {}
 LobbyClientService.__index = LobbyClientService
 
+local CACHE_KEYS = {
+	StateUpdate = "StateUpdate",
+	UIStateUpdate = "UIStateUpdate",
+	RoundResult = "RoundResult",
+	MatchScoreboardUpdate = "MatchScoreboardUpdate",
+	MatchSummaryUpdate = "MatchSummaryUpdate",
+	GlobalTop100Update = "GlobalTop100Update",
+}
+
+local function deepCopy(value: any): any
+	if type(value) ~= "table" then
+		return value
+	end
+
+	local copy = {}
+	for key, child in pairs(value) do
+		copy[deepCopy(key)] = deepCopy(child)
+	end
+	return copy
+end
+
 export type LobbyClientService = {
 	RemotesRoot: Instance?,
 	JoinArenaRemote: RemoteEvent?,
@@ -43,6 +64,7 @@ export type LobbyClientService = {
 	BindMatchScoreboardUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 	BindMatchSummaryUpdate: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
 	BindGlobalTop100Update: (self: LobbyClientService, handler: (any) -> ()) -> RBXScriptConnection?,
+	GetLastSnapshot: (self: LobbyClientService) -> { [string]: any },
 }
 
 local function resolveRemote(path: string): RemoteEvent?
@@ -69,6 +91,12 @@ function LobbyClientService.new(): LobbyClientService
 	self.MatchSummaryUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.MatchSummaryUpdate)
 	self.AttributeUpgradeRemote = resolveRemote(ProjectTreeSpec.Remotes.AttributeUpgrade)
 	self.ConsumeHpPotionRemote = resolveRemote(ProjectTreeSpec.Remotes.ConsumeHpPotion)
+	self._lastPayloads = {}
+	self._cacheEvents = {}
+	self._remoteConnections = {}
+	for _, cacheKey in pairs(CACHE_KEYS) do
+		self._cacheEvents[cacheKey] = Instance.new("BindableEvent")
+	end
 	if self.RemotesRoot then
 		local teleport = self.RemotesRoot:FindFirstChild(RemoteContracts.Names.TeleportRequest)
 		if teleport and teleport:IsA("RemoteEvent") then
@@ -83,7 +111,58 @@ function LobbyClientService.new(): LobbyClientService
 			self.DebugResetLauncherRemote = resetLauncher
 		end
 	end
+	self:_bindCacheRemote(CACHE_KEYS.StateUpdate, self.StateUpdateRemote)
+	self:_bindCacheRemote(CACHE_KEYS.UIStateUpdate, self.UIStateUpdateRemote)
+	self:_bindCacheRemote(CACHE_KEYS.RoundResult, self.RoundResultRemote)
+	self:_bindCacheRemote(CACHE_KEYS.MatchScoreboardUpdate, self.MatchScoreboardUpdateRemote)
+	self:_bindCacheRemote(CACHE_KEYS.MatchSummaryUpdate, self.MatchSummaryUpdateRemote)
+	self:_bindCacheRemote(CACHE_KEYS.GlobalTop100Update, self.GlobalTop100UpdateRemote)
 	return self
+end
+
+function LobbyClientService:_bindCacheRemote(cacheKey: string, remote: RemoteEvent?)
+	if remote == nil then
+		return
+	end
+
+	self._remoteConnections[cacheKey] = remote.OnClientEvent:Connect(function(payload)
+		self:_setCachedPayload(cacheKey, payload)
+	end)
+end
+
+function LobbyClientService:_setCachedPayload(cacheKey: string, payload: any)
+	local cachedPayload = deepCopy(payload)
+	self._lastPayloads[cacheKey] = cachedPayload
+	local changedEvent = self._cacheEvents[cacheKey]
+	if changedEvent then
+		changedEvent:Fire(deepCopy(cachedPayload))
+	end
+end
+
+function LobbyClientService:_bindCached(cacheKey: string, handler: (any) -> ()): RBXScriptConnection?
+	local changedEvent = self._cacheEvents[cacheKey]
+	if changedEvent == nil then
+		return nil
+	end
+
+	local connection = changedEvent.Event:Connect(handler)
+	local lastPayload = self._lastPayloads[cacheKey]
+	if lastPayload ~= nil then
+		task.defer(function()
+			if connection.Connected then
+				handler(deepCopy(lastPayload))
+			end
+		end)
+	end
+	return connection
+end
+
+function LobbyClientService:GetLastSnapshot(): { [string]: any }
+	local snapshot = {}
+	for cacheKey, payload in pairs(self._lastPayloads) do
+		snapshot[cacheKey] = deepCopy(payload)
+	end
+	return snapshot
 end
 
 function LobbyClientService:RequestJoinArena()
@@ -162,45 +241,27 @@ function LobbyClientService:RequestConsumeHpPotion()
 end
 
 function LobbyClientService:BindStateUpdate(handler: (any) -> ()): RBXScriptConnection?
-	if self.StateUpdateRemote == nil then
-		return nil
-	end
-	return self.StateUpdateRemote.OnClientEvent:Connect(handler)
+	return self:_bindCached(CACHE_KEYS.StateUpdate, handler)
 end
 
 function LobbyClientService:BindUIStateUpdate(handler: (any) -> ()): RBXScriptConnection?
-	if self.UIStateUpdateRemote == nil then
-		return nil
-	end
-	return self.UIStateUpdateRemote.OnClientEvent:Connect(handler)
+	return self:_bindCached(CACHE_KEYS.UIStateUpdate, handler)
 end
 
 function LobbyClientService:BindRoundResult(handler: (any) -> ()): RBXScriptConnection?
-	if self.RoundResultRemote == nil then
-		return nil
-	end
-	return self.RoundResultRemote.OnClientEvent:Connect(handler)
+	return self:_bindCached(CACHE_KEYS.RoundResult, handler)
 end
 
 function LobbyClientService:BindMatchScoreboardUpdate(handler: (any) -> ()): RBXScriptConnection?
-	if self.MatchScoreboardUpdateRemote == nil then
-		return nil
-	end
-	return self.MatchScoreboardUpdateRemote.OnClientEvent:Connect(handler)
+	return self:_bindCached(CACHE_KEYS.MatchScoreboardUpdate, handler)
 end
 
 function LobbyClientService:BindGlobalTop100Update(handler: (any) -> ()): RBXScriptConnection?
-	if self.GlobalTop100UpdateRemote == nil then
-		return nil
-	end
-	return self.GlobalTop100UpdateRemote.OnClientEvent:Connect(handler)
+	return self:_bindCached(CACHE_KEYS.GlobalTop100Update, handler)
 end
 
 function LobbyClientService:BindMatchSummaryUpdate(handler: (any) -> ()): RBXScriptConnection?
-	if self.MatchSummaryUpdateRemote == nil then
-		return nil
-	end
-	return self.MatchSummaryUpdateRemote.OnClientEvent:Connect(handler)
+	return self:_bindCached(CACHE_KEYS.MatchSummaryUpdate, handler)
 end
 
 return LobbyClientService
