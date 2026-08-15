@@ -5,11 +5,13 @@ local PathResolver = {}
 export type ResolveOptions = {
 	waitTimeout: number?,
 	shouldWarn: boolean?,
+	allowMissingReason: string?, -- Explicit TODO/uncertain marker for paths that are intentionally not enforced yet.
 }
 
 local DEFAULT_REPORT_MISSING_TIMEOUT_SECONDS = 1
 
 local warnedMissingPaths: { [string]: boolean } = {}
+local warnedAllowedMissingPaths: { [string]: boolean } = {}
 
 local function flattenSpec(prefix: string, node: any, output: { string })
 	if type(node) == "string" then
@@ -35,14 +37,27 @@ local function getPathKey(root: Instance, path: string): string
 	return string.format("%s::%s", root:GetFullName(), path)
 end
 
-local function warnMissingOnce(root: Instance, path: string)
-	local key = getPathKey(root, path)
+local function warnMissingOnce(root: Instance, path: string, missingSegment: string?, parentPath: string?)
+	local key = getPathKey(root, path) .. "::" .. tostring(missingSegment)
 	if warnedMissingPaths[key] then
 		return
 	end
 
 	warnedMissingPaths[key] = true
-	warn("[ProjectTreeSpec] Missing:", path)
+	if missingSegment and parentPath then
+		warn(string.format("[PathResolver] Missing child '%s' under '%s' while resolving '%s'", missingSegment, parentPath, path))
+	else
+		warn("[ProjectTreeSpec] Missing:", path)
+	end
+end
+
+local function warnAllowedMissingOnce(root: Instance, path: string, reason: string)
+	local key = getPathKey(root, path)
+	if warnedAllowedMissingPaths[key] then
+		return
+	end
+	warnedAllowedMissingPaths[key] = true
+	warn(string.format("[PathResolver][TODO_ALLOWED_MISSING] %s (%s)", path, reason))
 end
 
 local function splitPath(path: string?): { string }
@@ -99,6 +114,7 @@ function PathResolver.resolvePath(root: Instance, path: string?, options: Resolv
 	end
 
 	local shouldWarn = if options and options.shouldWarn ~= nil then options.shouldWarn else true
+	local allowMissingReason = if options then options.allowMissingReason else nil
 	local resolved = if options and options.waitTimeout ~= nil
 		then PathResolver.waitForPath(root, path, options.waitTimeout)
 		else nil
@@ -108,25 +124,34 @@ function PathResolver.resolvePath(root: Instance, path: string?, options: Resolv
 	end
 
 	local current: Instance? = root
+	local resolvedPath = root:GetFullName()
 	for index, segment in ipairs(splitPath(path)) do
 		if index == 1 and current ~= nil and segment == current.Name then
 			continue
 		end
 
 		if current == nil then
-			if shouldWarn then
-				warnMissingOnce(root, path)
+			if allowMissingReason then
+				warnAllowedMissingOnce(root, path, allowMissingReason)
+			elseif shouldWarn then
+				warnMissingOnce(root, path, segment, resolvedPath)
 			end
 			return nil
 		end
 
-		current = current:FindFirstChild(segment)
-		if current == nil then
-			if shouldWarn then
-				warnMissingOnce(root, path)
+		local parent = current
+		local child = parent:FindFirstChild(segment)
+		if child == nil then
+			if allowMissingReason then
+				warnAllowedMissingOnce(root, path, allowMissingReason)
+			elseif shouldWarn then
+				warnMissingOnce(root, path, segment, resolvedPath)
 			end
 			return nil
 		end
+
+		current = child
+		resolvedPath = current:GetFullName()
 	end
 
 	return current
@@ -146,8 +171,15 @@ function PathResolver.reportMissing(root: Instance, paths: { string }, options: 
 		if PathResolver.resolvePath(root, path, {
 			waitTimeout = waitTimeout,
 			shouldWarn = false,
+			allowMissingReason = options and options.allowMissingReason or nil,
 		}) == nil then
 			table.insert(missing, path)
+			if options == nil or options.shouldWarn ~= false then
+				PathResolver.resolvePath(root, path, {
+					shouldWarn = true,
+					allowMissingReason = options and options.allowMissingReason or nil,
+				})
+			end
 		end
 	end
 

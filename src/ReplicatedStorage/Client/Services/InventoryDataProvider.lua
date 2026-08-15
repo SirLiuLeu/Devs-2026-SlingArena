@@ -237,6 +237,7 @@ function InventoryDataProvider:UseSelectedItem(): boolean
 			return false
 		end
 		consumeHpPotionRemote:FireServer()
+		print("[System]: Successfully used HP Potion")
 		self._state.lastUseResult = "Requested"
 		self:_emitChanged()
 		return true
@@ -244,7 +245,10 @@ function InventoryDataProvider:UseSelectedItem(): boolean
 
 	local success, message = MockPlayerData.UseItem(itemId, "InventoryUseItem")
 	self._state.lastUseResult = message
-	if not success then
+	if success then
+		local itemDef = ItemConfig.GetById(itemId)
+		print(string.format("[System]: Successfully used %s", itemDef and itemDef.name or itemId))
+	else
 		self:_emitChanged()
 	end
 	return success
@@ -266,6 +270,7 @@ function InventoryDataProvider:EquipSelectedLauncher(): boolean
 	local selected = self._state.ownedLaunchers[selectedIndex]
 	local equipped = MockPlayerData.EquipLauncher(selected.instanceId, "InventoryEquipLauncher")
 	if equipped then
+		print(string.format("[System]: Successfully equipped %s", selected.name or selected.id or selected.instanceId))
 		local remotes = ReplicatedStorage:FindFirstChild("LauncherArenaRemotes")
 		local abilityTrigger = remotes and remotes:FindFirstChild(RemoteContracts.Names.AbilityTrigger)
 		if abilityTrigger and abilityTrigger:IsA("RemoteEvent") then
@@ -322,7 +327,11 @@ function InventoryDataProvider:EquipSelectedEquipment(): boolean
 		unequipEquipmentRemote:FireServer(selected.equippedSlot)
 		return true
 	end
-	if equipEquipmentRemote then equipEquipmentRemote:FireServer(selected.instanceId); return true end
+	if equipEquipmentRemote then
+		equipEquipmentRemote:FireServer(selected.instanceId)
+		print(string.format("[System]: Successfully equipped %s", selected.name or selected.id or selected.instanceId))
+		return true
+	end
 	return false
 end
 

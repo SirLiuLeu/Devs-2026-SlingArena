@@ -116,7 +116,7 @@ end
 
 local function isLauncherMode(state: { [string]: any }?): boolean
 	local mode = if state and typeof(state.ActivePlayerMode) == "string" then state.ActivePlayerMode else player:GetAttribute("ActivePlayerMode")
-	return mode ~= GameStates.PlayerMode.Human
+	return mode == GameStates.PlayerMode.Launcher
 end
 
 local function destroyArrowPreview()
@@ -244,7 +244,9 @@ end
 local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?, GuiObject?)
 	local screenGui = resolveScreenGui(if waitForUi == nil then false else waitForUi)
 	if not screenGui then
-		warnMissingUiOnce("[LauncherUI] Missing LauncherUI ScreenGui at PlayerGui.LauncherUI; waiting for template clone.")
+		if isLauncherMode(lastKnownServerState) then
+			warnMissingUiOnce("[LauncherUI] Missing LauncherUI ScreenGui at PlayerGui.LauncherUI; waiting for template clone.")
+		end
 		return nil, nil, nil, nil, nil, nil, nil
 	end
 
@@ -747,6 +749,7 @@ local function releaseHold(input: InputObject)
         chargeRatio = chargeRatio,
         clientTimestamp = os.clock(),
     })
+    print(string.format("[System]: Successfully performed launcher action (charge %.0f%%)", chargeRatio * 100))
 
     setVisibleSafe(cachedChargeBar, false)
     resetThumbPosition()
