@@ -1,7 +1,5 @@
 --!strict
 
-local MockData = require(script.Parent.MockData)
-
 local MockProvider = {}
 MockProvider.__index = MockProvider
 
@@ -105,7 +103,7 @@ end
 function MockProvider:LoadPlayerData(player: Player, defaultData: { [string]: any }): { [string]: any }
 	local existing = self._dataByUserId[player.UserId]
 	if existing == nil then
-		existing = MockData.GetProfileByUserId(player.UserId) or deepCopy(defaultData)
+		existing = deepCopy(defaultData)
 		self._dataByUserId[player.UserId] = existing
 	end
 	normalizeInventory(existing)
