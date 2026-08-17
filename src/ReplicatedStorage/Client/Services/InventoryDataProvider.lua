@@ -80,7 +80,7 @@ function InventoryDataProvider.new()
 		selectedLauncherId = nil,
 		selectedEquipmentId = nil,
 		lastUseResult = nil,
-		pendingLauncherInstanceId = self._state.pendingLauncherInstanceId,
+		pendingLauncherInstanceId = nil,
 		equipmentCapacity = 40,
 		_launcherGiveCursor = 0,
 	}
