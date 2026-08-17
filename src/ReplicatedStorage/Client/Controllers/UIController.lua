@@ -163,6 +163,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.AuthoritativeHpPotions = 0
 	self.NextHpPotionUseTime = 0
 	self.LastAuthoritativeState = nil
+	self.HasAuthoritativeInventoryState = false
 	self.QuickHpCooldownEndTime = 0
 	self:_resolveUiReferences()
 
@@ -547,7 +548,12 @@ function UIController:Start()
 				self.InventoryUIController:RefreshWithData(snapshot)
 			end
 		end))
-		self.InventoryDataProvider:LoadMockInventory()
+		-- Injection point: server StateUpdate is authoritative; mock inventory is only a delayed fallback for offline UI previews.
+		task.delay(5, function()
+			if not self.HasAuthoritativeInventoryState then
+				self.InventoryDataProvider:LoadMockInventory()
+			end
+		end)
 	end
 	if self.OnlineRewardLogicService then
 		self.OnlineRewardLogicService:LoadMockData()
@@ -567,9 +573,11 @@ function UIController:Start()
 		end
 		if typeof(state.HpPotions) == "number" then
 			self.AuthoritativeHpPotions = math.max(0, math.floor(state.HpPotions))
-			if self.InventoryDataProvider then
-				self.InventoryDataProvider:SetFromState({ OwnedItems = { hp_potion = self.AuthoritativeHpPotions } })
-			end
+		end
+		if self.InventoryDataProvider then
+			-- Injection point: consume the full authoritative equipment/launcher/item payload from StateUpdate.
+			self.HasAuthoritativeInventoryState = true
+			self.InventoryDataProvider:SetFromState(state)
 		end
 		if typeof(state.NextHpPotionUseTime) == "number" then
 			self.NextHpPotionUseTime = state.NextHpPotionUseTime

@@ -186,11 +186,15 @@ function EquipmentService:Upgrade(player: Player, instanceId: string): (boolean,
 	local dataService = self:_dataService()
 	if not dataService or not self:OwnsInstance(player, instanceId) then return false, "NotOwned" end
 	local owned = self:GetOwnedEquipment(player)[instanceId]
-	local cost = EquipmentUpgradeConfig.GetUpgradeCost(tonumber(owned.level) or 1)
+	local definition = EquipmentConfig.GetById(tostring(owned.definitionId or ""))
+	local maxLevel = definition and EquipmentConfig.GetMaxLevelForRarity(definition.rarity) or EquipmentUpgradeConfig.MaxLevel
+	local currentLevel = math.max(1, math.floor(tonumber(owned.level) or 1))
+	if currentLevel >= maxLevel then return false, "MaxLevel" end
+	local cost = EquipmentUpgradeConfig.GetUpgradeCost(currentLevel)
 	if not dataService:SpendDiamonds(player, cost, "EquipmentUpgrade") then return false, "InsufficientDiamonds" end
 	dataService:UpdateData(player, function(data)
 		dataService:_ensureEquipmentData(data)
-		data.OwnedEquipment[instanceId].level = math.max(1, math.floor(tonumber(data.OwnedEquipment[instanceId].level) or 1)) + 1
+		data.OwnedEquipment[instanceId].level = math.min(maxLevel, currentLevel + 1)
 		return data
 	end)
 	if self._context.EventBus then

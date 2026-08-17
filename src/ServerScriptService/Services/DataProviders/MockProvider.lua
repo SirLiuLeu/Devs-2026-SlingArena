@@ -8,8 +8,17 @@ local MOCK_USER_ID_START = -900000
 local RNG_SEED = 20260809
 
 local MOCK_SCHEMA_DEFAULTS = {
+	-- Temporary authoritative server inventory schema until DataStores replace MockProvider.
 	Level = 1,
 	Coin = 0,
+	Diamonds = 0,
+	OwnedItems = {},
+	OwnedEquipment = {},
+	EquippedEquipment = { [1] = nil, [2] = nil, [3] = nil },
+	OwnedLaunchers = {
+		default_normal_launcher = { definitionId = "NormalLauncher", star = 1, level = 1 },
+	},
+	EquippedLauncherInstanceId = "default_normal_launcher",
 	ProgressPoints = {
 		TotalPoints = 0,
 		RoundPoints = 0,
@@ -39,6 +48,19 @@ local function deepCopy(value: any): any
 		copy[deepCopy(key)] = deepCopy(child)
 	end
 	return copy
+end
+
+local function normalizeInventory(data: { [string]: any })
+	-- Injection point: keep server-owned inventory state canonical here until DataStores are implemented.
+	applyDefaults(data, MOCK_SCHEMA_DEFAULTS)
+	if type(data.OwnedItems) ~= "table" then data.OwnedItems = {} end
+	if type(data.OwnedEquipment) ~= "table" then data.OwnedEquipment = {} end
+	if type(data.EquippedEquipment) ~= "table" then data.EquippedEquipment = { [1] = nil, [2] = nil, [3] = nil } end
+	if type(data.OwnedLaunchers) ~= "table" then data.OwnedLaunchers = deepCopy(MOCK_SCHEMA_DEFAULTS.OwnedLaunchers) end
+	if type(data.EquippedLauncherInstanceId) ~= "string" or data.OwnedLaunchers[data.EquippedLauncherInstanceId] == nil then
+		data.EquippedLauncherInstanceId = "default_normal_launcher"
+	end
+	data.Diamonds = math.max(0, math.floor(tonumber(data.Diamonds) or 0))
 end
 
 local function normalizeProgress(data: { [string]: any })
@@ -84,6 +106,7 @@ function MockProvider:LoadPlayerData(player: Player, defaultData: { [string]: an
 		existing = deepCopy(defaultData)
 		self._dataByUserId[player.UserId] = existing
 	end
+	normalizeInventory(existing)
 	normalizeProgress(existing)
 	existing.UserId = player.UserId
 	existing.Name = player.Name
@@ -110,6 +133,7 @@ function MockProvider:UpdatePlayerData(player: Player, updater: ({ [string]: any
 		self._dataByUserId[player.UserId] = updated
 		current = updated
 	end
+	normalizeInventory(current)
 	normalizeProgress(current)
 	return current
 end

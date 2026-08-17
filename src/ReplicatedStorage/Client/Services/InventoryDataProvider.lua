@@ -27,6 +27,7 @@ export type InventorySnapshot = {
 	equippedEquipment: { [any]: string },
 	selectedEquipmentId: string?,
 	lastUseResult: string?,
+	pendingLauncherInstanceId: string?,
 }
 
 local function cloneItems(items: { [string]: number }): { [string]: number }
@@ -79,6 +80,7 @@ function InventoryDataProvider.new()
 		selectedLauncherId = nil,
 		selectedEquipmentId = nil,
 		lastUseResult = nil,
+		pendingLauncherInstanceId = self._state.pendingLauncherInstanceId,
 		equipmentCapacity = 40,
 		_launcherGiveCursor = 0,
 	}
@@ -126,6 +128,9 @@ function InventoryDataProvider:SetFromState(state)
 	if type(incomingItems) == "table" then
 		self._state.ownedItems = cloneItems(incomingItems)
 	end
+	if typeof(state.HpPotions) == "number" then
+		self._state.ownedItems.hp_potion = math.max(0, math.floor(state.HpPotions))
+	end
 
 	local incomingLaunchers = state.OwnedLaunchers
 	if type(incomingLaunchers) == "table" then
@@ -155,6 +160,10 @@ function InventoryDataProvider:SetFromState(state)
 	if type(state.EquippedLauncherInstanceId) == "string" then
 		for _, launcherEntry in ipairs(self._state.ownedLaunchers) do
 			launcherEntry.equipped = launcherEntry.instanceId == state.EquippedLauncherInstanceId
+		end
+		if self._state.pendingLauncherInstanceId ~= nil then
+			self._state.lastUseResult = (self._state.pendingLauncherInstanceId == state.EquippedLauncherInstanceId) and "LauncherEquipped" or "LauncherEquipRejected"
+			self._state.pendingLauncherInstanceId = nil
 		end
 	end
 
@@ -268,22 +277,24 @@ function InventoryDataProvider:EquipSelectedLauncher(): boolean
 	end
 
 	local selected = self._state.ownedLaunchers[selectedIndex]
-	local equipped = MockPlayerData.EquipLauncher(selected.instanceId, "InventoryEquipLauncher")
-	if equipped then
-		print(string.format("[System]: Successfully equipped %s", selected.name or selected.id or selected.instanceId))
-		local remotes = ReplicatedStorage:FindFirstChild("LauncherArenaRemotes")
-		local abilityTrigger = remotes and remotes:FindFirstChild(RemoteContracts.Names.AbilityTrigger)
-		if abilityTrigger and abilityTrigger:IsA("RemoteEvent") then
-			abilityTrigger:FireServer({
-				action = "EquipLauncher",
-				launcherId = selected.id,
-				instanceId = selected.instanceId,
-			})
-		end
-	else
+	local remotesFolder = ReplicatedStorage:FindFirstChild("LauncherArenaRemotes")
+	local abilityTrigger = remotesFolder and remotesFolder:FindFirstChild(RemoteContracts.Names.AbilityTrigger)
+	if not (abilityTrigger and abilityTrigger:IsA("RemoteEvent")) then
+		self._state.lastUseResult = "LauncherEquipRemoteMissing"
 		self:_emitChanged()
+		return false
 	end
-	return equipped
+
+	-- Injection point: optimistic launcher UI now mirrors equipment flow: request, mark loading, and wait for StateUpdate ack.
+	self._state.pendingLauncherInstanceId = selected.instanceId
+	self._state.lastUseResult = "LauncherEquipRequested"
+	self:_emitChanged()
+	abilityTrigger:FireServer({
+		action = "EquipLauncher",
+		launcherId = selected.id or selected.definitionId,
+		instanceId = selected.instanceId,
+	})
+	return true
 end
 
 function InventoryDataProvider:UnequipSelectedLauncher(): boolean

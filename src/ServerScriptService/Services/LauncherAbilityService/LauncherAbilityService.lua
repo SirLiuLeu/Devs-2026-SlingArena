@@ -7,7 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
-local BaseAbility = require(script.Parent.BaseAbility)
+local BaseAbility = require(script.Parent.Parent.Shared.BaseAbility)
 
 local LauncherAbilityService = {}
 LauncherAbilityService.__index = LauncherAbilityService
