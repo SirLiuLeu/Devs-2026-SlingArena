@@ -9,6 +9,7 @@ RemoteContracts.Names = {
 	CancelCharge = "CancelCharge",
 	RequestLaunch = "RequestLaunch",
 	AbilityTrigger = "AbilityTrigger",
+	EquipLauncher = "EquipLauncher",
 	GameplayFeedback = "GameplayFeedback",
 	StateUpdate = "StateUpdate",
 	UIStateUpdate = "UIStateUpdate",
@@ -154,6 +155,9 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.QuestClaim] = function(questId: any): boolean
 		return typeof(questId) == "string" and #questId > 0 and #questId <= 80
+	end,
+	[RemoteContracts.Names.EquipLauncher] = function(instanceId: any): boolean
+		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
 	end,
 	[RemoteContracts.Names.EquipEquipment] = function(instanceId: any): boolean
 		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128

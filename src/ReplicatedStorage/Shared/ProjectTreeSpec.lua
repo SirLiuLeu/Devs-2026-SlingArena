@@ -176,6 +176,7 @@ local ProjectTreeSpec = {
 		CancelCharge = "LauncherArenaRemotes.CancelCharge", -- [PROJECT_TREE_SPEC]
 		RequestLaunch = "LauncherArenaRemotes.RequestLaunch", -- [PROJECT_TREE_SPEC]
 		AbilityTrigger = "LauncherArenaRemotes.AbilityTrigger", -- [PROJECT_TREE_SPEC]
+		EquipLauncher = "LauncherArenaRemotes.EquipLauncher", -- [PROJECT_TREE_SPEC]
 		JoinArena = "LauncherArenaRemotes.JoinArena", -- [PROJECT_TREE_SPEC]
 		LeaveArena = "LauncherArenaRemotes.LeaveArena", -- [PROJECT_TREE_SPEC]
 		StartSafeZone = "LauncherArenaRemotes.StartSafeZone",

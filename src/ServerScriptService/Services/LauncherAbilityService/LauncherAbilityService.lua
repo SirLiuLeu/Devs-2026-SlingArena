@@ -90,23 +90,9 @@ function LauncherAbilityService:_onAbilityTrigger(player: Player, payload)
 	if stateServiceForMode and stateServiceForMode:IsHuman(player) then
 		return
 	end
-	if type(payload) == "table" and payload.action == "EquipLauncher" and typeof(payload.launcherId) == "string" then
-		local stateService = getService(self._context, "PlayerStateService")
-		local equipped = false
-		if stateService and typeof(payload.instanceId) == "string" and typeof(stateService.SetEquippedLauncherInstance) == "function" then
-			equipped = stateService:SetEquippedLauncherInstance(player, payload.instanceId)
-		end
-		if stateService and (equipped or stateService:SetLauncherType(player, payload.launcherId)) then
-			local playerService = getService(self._context, "PlayerService")
-			if playerService and typeof(playerService.EquipLauncherModel) == "function" then
-				playerService:EquipLauncherModel(player, payload.launcherId)
-			end
-			self:_destroyAbility(player)
-			self:_ensureAbility(player):OnInit(nil)
-		end
-	end
+	-- AbilityTrigger is intentionally limited to ability activation. Launcher ownership/equip
+	-- requests are handled by the dedicated EquipLauncher remote in PlayerService.
 end
-
 function LauncherAbilityService:_destroyAbility(player: Player)
 	local ability = self._abilities[player]
 	if ability then

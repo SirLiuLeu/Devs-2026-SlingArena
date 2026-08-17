@@ -45,6 +45,11 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 		OwnedItems = {},
 		OwnedEquipment = {},
 		EquippedEquipment = { [1] = nil, [2] = nil, [3] = nil },
+		OwnedLaunchers = {
+			default_normal_launcher = { definitionId = "NormalLauncher", star = 1, level = 1 },
+		},
+		EquippedLauncherInstanceId = "default_normal_launcher",
+		LauncherCapacity = 40,
 	}
 end
 

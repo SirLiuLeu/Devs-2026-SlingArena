@@ -12,6 +12,7 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 local consumeHpPotionRemote = remotes:FindFirstChild(RemoteContracts.Names.ConsumeHpPotion) :: RemoteEvent?
 local equipEquipmentRemote = remotes:FindFirstChild(RemoteContracts.Names.EquipEquipment) :: RemoteEvent?
+local equipLauncherRemote = remotes:FindFirstChild(RemoteContracts.Names.EquipLauncher) :: RemoteEvent?
 local unequipEquipmentRemote = remotes:FindFirstChild(RemoteContracts.Names.UnequipEquipment) :: RemoteEvent?
 
 local InventoryDataProvider = {}
@@ -277,23 +278,17 @@ function InventoryDataProvider:EquipSelectedLauncher(): boolean
 	end
 
 	local selected = self._state.ownedLaunchers[selectedIndex]
-	local remotesFolder = ReplicatedStorage:FindFirstChild("LauncherArenaRemotes")
-	local abilityTrigger = remotesFolder and remotesFolder:FindFirstChild(RemoteContracts.Names.AbilityTrigger)
-	if not (abilityTrigger and abilityTrigger:IsA("RemoteEvent")) then
+	if not equipLauncherRemote then
 		self._state.lastUseResult = "LauncherEquipRemoteMissing"
 		self:_emitChanged()
 		return false
 	end
 
-	-- Injection point: optimistic launcher UI now mirrors equipment flow: request, mark loading, and wait for StateUpdate ack.
+	-- Launcher equip is server-authoritative: request by owned instance id and wait for StateUpdate ack.
 	self._state.pendingLauncherInstanceId = selected.instanceId
 	self._state.lastUseResult = "LauncherEquipRequested"
 	self:_emitChanged()
-	abilityTrigger:FireServer({
-		action = "EquipLauncher",
-		launcherId = selected.id or selected.definitionId,
-		instanceId = selected.instanceId,
-	})
+	equipLauncherRemote:FireServer(selected.instanceId)
 	return true
 end
 

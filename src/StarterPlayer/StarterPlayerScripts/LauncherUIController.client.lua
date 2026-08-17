@@ -11,8 +11,7 @@ local LauncherUiConstants = require(ReplicatedStorage.Shared.Constants.LauncherU
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local LauncherUiState = require(ReplicatedStorage.Shared.Utils.LauncherUiState)
 local LauncherCooldownService = require(ReplicatedStorage.Shared.Utils.LauncherCooldownService)
-local CooldownOverlayComponent = require(script.Parent.Components.CooldownOverlayComponent)
-local CooldownTextComponent = require(script.Parent.Components.CooldownTextComponent)
+local CooldownComponent = require(script.Parent.Components.CooldownComponent)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
@@ -71,8 +70,7 @@ local cachedChargeFill: GuiObject? = nil
 local cachedCancelZone: GuiObject? = nil
 local cachedCancelIcon: GuiObject? = nil
 local cachedDirectionIndicator: GuiObject? = nil
-local cooldownOverlayComponent: any = nil
-local cooldownTextComponent: any = nil
+local cooldownComponent: any = nil
 
 
 local function debugLog(message: string)
@@ -168,11 +166,8 @@ local function applyJoystickVisibilityFromState(state: { [string]: any }?)
 	if not launcherMode then
 		setVisibleSafe(cachedChargeBar, false)
 		setVisibleSafe(cachedCancelZone, false)
-		if cooldownOverlayComponent then
-			cooldownOverlayComponent:Update(false)
-		end
-		if cooldownTextComponent then
-			cooldownTextComponent:Update(false)
+		if cooldownComponent then
+			cooldownComponent:Update(false)
 		end
 		destroyArrowPreview()
 	end
@@ -264,11 +259,8 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 	local chargeFill = if chargeBar then findChild(chargeBar, "Fill") else nil
 	local cancelIcon = if cancelZone then findChild(cancelZone, "IconX") else nil
 
-	if joystickRoot and (not cooldownOverlayComponent or not cooldownOverlayComponent.Root or cooldownOverlayComponent.Root.Parent ~= joystickRoot) then
-		cooldownOverlayComponent = CooldownOverlayComponent.new(joystickRoot)
-	end
-	if joystickRoot and (not cooldownTextComponent or not cooldownTextComponent.Root or cooldownTextComponent.Root.Parent ~= joystickRoot) then
-		cooldownTextComponent = CooldownTextComponent.new(joystickRoot)
+	if joystickRoot and (not cooldownComponent or not cooldownComponent.Root or cooldownComponent.Root.Parent ~= joystickRoot) then
+		cooldownComponent = CooldownComponent.new(joystickRoot)
 	end
 
 	if not joystickRoot or not base or not thumb or not chargeBar or not chargeFill or not cancelZone or not cancelIcon or not directionIndicator or not cooldownOverlay or not cooldownText then
@@ -367,21 +359,18 @@ local function updateCooldownVisuals(percent: number, remainingTime: number?)
 	local normalized = LauncherUiState.ClampRatio(percent)
 	local launcherMode = isLauncherMode(lastKnownServerState)
 	local showCooldown = launcherMode and normalized < 1 and remainingTime ~= nil and remainingTime > 0
-	if cooldownOverlayComponent then
-		cooldownOverlayComponent:Update(showCooldown, normalized)
-	end
-	if cooldownTextComponent then
+	if cooldownComponent then
 		if showCooldown and remainingTime then
 			local text, bucket = formatCooldownText(remainingTime)
 			if lastCooldownTextBucket ~= bucket then
 				lastCooldownTextBucket = bucket
-				cooldownTextComponent:Update(true, text)
+				cooldownComponent:Update(true, normalized, text)
 			else
-				cooldownTextComponent:Update(true)
+				cooldownComponent:Update(true, normalized)
 			end
 		else
 			lastCooldownTextBucket = nil
-			cooldownTextComponent:Update(false)
+			cooldownComponent:Update(false)
 		end
 	end
 end
@@ -868,7 +857,7 @@ playerGui.DescendantAdded:Connect(handlePotentialLauncherUi)
 playerGui.ChildRemoved:Connect(function(child)
 	if child == cachedScreenGui or child.Name == LauncherUiConstants.ScreenGuiName then
 		disconnectUiInputConnections()
-		cachedScreenGui = nil; cachedJoystickRoot = nil; cachedBase = nil; cachedThumb = nil; cachedChargeBar = nil; cachedChargeFill = nil; cachedCancelZone = nil; cachedCancelIcon = nil; cachedDirectionIndicator = nil
+		cachedScreenGui = nil; cachedJoystickRoot = nil; cachedBase = nil; cachedThumb = nil; cachedChargeBar = nil; cachedChargeFill = nil; cachedCancelZone = nil; cachedCancelIcon = nil; cachedDirectionIndicator = nil; cooldownComponent = nil
 	end
 end)
 

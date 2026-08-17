@@ -77,6 +77,15 @@ function PlayerService:Init()
 			self:RespawnCurrentMode(player, nil, self._context.Services.MapService:GetActiveMap() or "LobbyMap")
 		end)
 	end
+
+	local equipLauncherRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.EquipLauncher)
+	if equipLauncherRemote and equipLauncherRemote:IsA("RemoteEvent") then
+		equipLauncherRemote.OnServerEvent:Connect(function(player, instanceId)
+			if RemoteContracts.Validate(RemoteContracts.Names.EquipLauncher, instanceId) then
+				self:EquipOwnedLauncher(player, instanceId)
+			end
+		end)
+	end
 end
 
 function PlayerService:ShowFloatingHpChange(adornee: BasePart?, amount: number)
@@ -894,6 +903,19 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	end
 
 	return pawn
+end
+
+function PlayerService:EquipOwnedLauncher(player: Player, instanceId: string): boolean
+	local stateService = self._context.Services and self._context.Services.PlayerStateService
+	if not (stateService and typeof(stateService.SetEquippedLauncherInstance) == "function") then
+		return false
+	end
+	if not stateService:SetEquippedLauncherInstance(player, instanceId) then
+		return false
+	end
+	local state = stateService:GetState(player)
+	local launcherId = state and state.LaunchershotType or nil
+	return typeof(launcherId) == "string" and self:EquipLauncherModel(player, launcherId)
 end
 
 function PlayerService:EquipLauncherModel(player: Player, launcherId: string): boolean
