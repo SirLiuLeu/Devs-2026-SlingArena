@@ -90,6 +90,10 @@ EquipmentConfig.Definitions = {
 	BrainBoost = equipment("BrainBoost", "Brain Boost", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.ConditionalEffect, "ExpBonus", nil, { type = "ExpBonus", value = 0.5, params = { expBonus = 0.5 } }, { Add = { expBonus = 0.5 }, Multiply = {} }),
 	ThunderHammer = equipment("ThunderHammer", "Thunder Hammer", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.CrowdControl, "Stun", { collisionFlag = "Stun", collisionExtraDuration = 1.25 }, { type = "ExpBoost", params = { expBonus = 0.1 } }, { Add = {}, Multiply = { damageMultiplier = 1.05 } }),
 	Medusa = equipment("Medusa", "Medusa", EquipmentConfig.Rarities.Legendary, EquipmentConfig.Categories.CrowdControl, "Petrify", { collisionFlag = "Petrify", collisionExtraDuration = 1.5, cannotPetrifyEquipmentIds = { GhostFlame = true } }, nil, { Add = {}, Multiply = {} }),
+	Magnet = equipment("Magnet", "Magnet", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.UtilityAreaEffect, "Magnet", nil, { type = "Magnet", value = 10 }, { Add = {}, Multiply = {} }),
+	Shield = equipment("Shield", "Shield", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier, "Shield", nil, { type = "DamageReduction", percent = 0.2 }, { Add = {}, Multiply = {} }),
+	Titan = equipment("Titan", "Titan", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.PassiveStatModifier, "Titan", nil, { type = "Titan", params = { sizeMultiplier = 1.2, incomingKnockbackMultiplier = 0.75, outgoingKnockbackMultiplier = 1.25 } }, { Add = {}, Multiply = {} }),
+	SmokeBomb = equipment("SmokeBomb", "Smoke Bomb", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.ConditionalEffect, "SmokeBomb", nil, { type = "SmokeOnLaunch" }, { Add = {}, Multiply = {} }),
 }
 
 function EquipmentConfig.GetMaxLevelForRarity(rarity: string): number

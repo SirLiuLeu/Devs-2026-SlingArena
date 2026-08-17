@@ -36,6 +36,7 @@ local LeaderboardService = requireSafe(ServicesFolder:WaitForChild("LeaderboardS
 local PlayerDataService = requireSafe(ServicesFolder:WaitForChild("PlayerDataService"), "PlayerDataService")
 local EquipmentService = requireSafe(ServicesFolder:WaitForChild("EquipmentService"):WaitForChild("EquipmentService"), "EquipmentService")
 local EquipmentEffectService = requireSafe(ServicesFolder:WaitForChild("EquipmentEffectService"):WaitForChild("EquipmentEffectService"), "EquipmentEffectService")
+local EquipmentAbilityService = requireSafe(ServicesFolder:WaitForChild("EquipmentAbilityService"):WaitForChild("EquipmentAbilityService"), "EquipmentAbilityService")
 local ProgressPointService = requireSafe(ServicesFolder:WaitForChild("ProgressPointService"), "ProgressPointService")
 local QuestService = requireSafe(ServicesFolder:WaitForChild("QuestService"), "QuestService")
 local NotificationService = requireSafe(ServicesFolder:WaitForChild("NotificationService"), "NotificationService")
@@ -122,6 +123,7 @@ local serviceConstructors = {
 	PlayerDataService = PlayerDataService,
 	EquipmentService = EquipmentService,
 	EquipmentEffectService = EquipmentEffectService,
+	EquipmentAbilityService = EquipmentAbilityService,
 	ProgressPointService = ProgressPointService,
 	QuestService = QuestService,
 	NotificationService = NotificationService,
@@ -151,6 +153,7 @@ local initializationOrder = {
 	"PlayerStateService",
 	"EquipmentService",
 	"EquipmentEffectService",
+	"EquipmentAbilityService",
 	"FlagService",
 	"TeamService",
 	"MapService",

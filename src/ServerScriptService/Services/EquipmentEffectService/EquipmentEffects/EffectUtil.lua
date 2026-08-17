@@ -1,5 +1,6 @@
 --!strict
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
@@ -81,8 +82,21 @@ function EffectUtil.ApplyDotFlag(context, victim: Player)
 end
 
 local foodDotState: { [string]: any } = {}
+local playerRemovingConnection: RBXScriptConnection? = nil
+
+local function ensurePlayerRemovingCleanup()
+	if playerRemovingConnection then return end
+	playerRemovingConnection = Players.PlayerRemoving:Connect(function(player: Player)
+		for stateKey, dotData in pairs(foodDotState) do
+			if dotData.instigator == player or string.find(stateKey, ":" .. tostring(player.UserId), 1, true) then
+				foodDotState[stateKey] = nil
+			end
+		end
+	end)
+end
 
 function EffectUtil.ApplyFoodDot(context, food: Model)
+	ensurePlayerRemovingCleanup()
 	local effect = context.definition.combatEffect or {}
 	local flagName = effect.dotFlag
 	if not flagName then return end

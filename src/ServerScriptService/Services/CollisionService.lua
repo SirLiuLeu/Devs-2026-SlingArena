@@ -254,6 +254,9 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		elseif maxDefenderOutSpeed <= 0
 		then Vector3.zero
 		else defenderOutRaw.Unit * maxDefenderOutSpeed
+	local outgoingKnockbackMultiplier = tonumber(player:GetAttribute("EquipmentOutgoingKnockbackMultiplier")) or 1
+	local incomingKnockbackMultiplier = tonumber(defender:GetAttribute("EquipmentIncomingKnockbackMultiplier")) or 1
+	defenderOut *= math.max(0, outgoingKnockbackMultiplier) * math.max(0, incomingKnockbackMultiplier)
 	local attackerOut = collisionResult.AttackerVelocity
 	local transferEnergy = math.max(0, attackerAbsoluteSpeed)
 	local shouldKnockback = defenderOut.Magnitude >= PhysicsConfig.Collision.KnockbackMinActivationSpeed

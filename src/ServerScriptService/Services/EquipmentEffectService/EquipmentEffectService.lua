@@ -1,5 +1,6 @@
 --!strict
 
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
@@ -31,7 +32,20 @@ function EquipmentEffectService:Init()
 	self:RegisterEffect("Stun", require(script.EquipmentEffects.Stun))
 	self:RegisterEffect("Petrify", require(script.EquipmentEffects.Petrify))
 	self:RegisterEffect("ExpBonus", require(script.EquipmentEffects.ExpBonus))
+	self:RegisterEffect("Magnet", require(script.EquipmentEffects.Magnet))
+	self:RegisterEffect("Shield", require(script.EquipmentEffects.Shield))
+	self:RegisterEffect("Titan", require(script.EquipmentEffects.Titan))
+	self:RegisterEffect("SmokeBomb", require(script.EquipmentEffects.SmokeBomb))
 	local bus = self._context.EventBus
+	table.insert(self._connections, Players.PlayerRemoving:Connect(function(player)
+		local effects = self._activeEffects[player]
+		if effects then
+			for instanceId in pairs(effects) do
+				self:DeactivateEquipment(player, instanceId)
+			end
+		end
+		self._activeEffects[player] = nil
+	end))
 	if bus then
 		table.insert(self._connections, bus:On("EquipmentEquipped", function(player, slotType, instanceId, ownedInstance)
 			self:ActivateEquipment(player, slotType, instanceId, ownedInstance)
@@ -110,6 +124,7 @@ function EquipmentEffectService:ActivateEquipment(player, _slotType: string, ins
 		TeamService = getService(self._context, "TeamService"),
 		Remotes = self._context.Remotes,
 		FoodService = getService(self._context, "FoodService"),
+		PlayerService = getService(self._context, "PlayerService"),
 	}
 	local effectState = { module = module, context = context }
 	self._activeEffects[player][instanceId] = effectState

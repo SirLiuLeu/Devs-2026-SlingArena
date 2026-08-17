@@ -263,7 +263,8 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 
 	local victimStats = playerStateService:GetFinalStats(victim)
 	local armor = victimStats and math.clamp(victimStats.Armor or 0, 0, 0.8) or 0
-	local amount = math.clamp(rawDamage * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
+	local equipmentDamageMultiplier = tonumber(victim:GetAttribute("EquipmentShieldDamageMultiplier")) or 1
+	local amount = math.clamp(rawDamage * equipmentDamageMultiplier * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
 	local teamService = getService(self._context, "TeamService")
 	local friendly = attacker and teamService and teamService:IsFriendly(attacker, victim) or false
 	if friendly then

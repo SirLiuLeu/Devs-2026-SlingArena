@@ -429,17 +429,48 @@ function PlayerService:UnequipEquipmentModel(player: Player, slot: number): bool
 	return true
 end
 
+function PlayerService:_resolveEquipmentAttachment(pawn: Model, hitbox: BasePart, slot: number, modelTemplate: Model): (BasePart?, CFrame?, string?)
+	local slotAttachment = hitbox:FindFirstChild("EquipmentSlot" .. tostring(slot), true)
+	if slotAttachment and slotAttachment:IsA("Attachment") then
+		return hitbox, slotAttachment.WorldCFrame, "EquipmentSlot" .. tostring(slot)
+	end
+
+	local requestedPart = modelTemplate:GetAttribute("EquipmentAttachPart")
+	local requestedAttachment = modelTemplate:GetAttribute("EquipmentAttachAttachment")
+	local partNames = {}
+	if typeof(requestedPart) == "string" then
+		table.insert(partNames, requestedPart)
+	end
+	table.insert(partNames, "Head")
+	table.insert(partNames, "UpperTorso")
+	table.insert(partNames, "Torso")
+
+	for _, partName in ipairs(partNames) do
+		local part = pawn:FindFirstChild(partName, true)
+		if part and part:IsA("BasePart") then
+			if typeof(requestedAttachment) == "string" then
+				local attachment = part:FindFirstChild(requestedAttachment, true)
+				if attachment and attachment:IsA("Attachment") then
+					return part, attachment.WorldCFrame, requestedAttachment
+				end
+			end
+			local dynamicAttachment = part:FindFirstChild("EquipmentSlot" .. tostring(slot), true) or part:FindFirstChild("EquipmentAttachment", true)
+			if dynamicAttachment and dynamicAttachment:IsA("Attachment") then
+				return part, dynamicAttachment.WorldCFrame, dynamicAttachment.Name
+			end
+			return part, part.CFrame, partName
+		end
+	end
+
+	return nil, nil, nil
+end
+
 function PlayerService:EquipEquipmentModel(player: Player, slot: number, equipmentId: string): boolean
 	if type(slot) ~= "number" or slot < 1 or slot > 3 then return false end
 	local pawn = self:GetPawn(player)
 	if not pawn then return false end
 	local hitbox = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
 	if not (hitbox and hitbox:IsA("BasePart")) then return false end
-	local attachment = hitbox:FindFirstChild("EquipmentSlot" .. tostring(slot), true)
-	if not (attachment and attachment:IsA("Attachment")) then
-		warn(string.format("[PLAYER_SERVICE] EquipmentSlot%d attachment missing", slot))
-		return false
-	end
 	local modelTemplate = self:_resolveEquipmentModelSource(equipmentId)
 	if not modelTemplate then
 		warn(string.format("[PLAYER_SERVICE] Equipment model missing for %s", equipmentId))
@@ -451,16 +482,23 @@ function PlayerService:EquipEquipmentModel(player: Player, slot: number, equipme
 	model.Parent = pawn
 	local root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
 	if not root then model:Destroy(); return false end
+	local attachPart, attachCFrame, attachName = self:_resolveEquipmentAttachment(pawn, hitbox, slot, modelTemplate)
+	if not (attachPart and attachCFrame) then
+		warn(string.format("[PLAYER_SERVICE] EquipmentSlot%d attachment point missing", slot))
+		model:Destroy()
+		return false
+	end
 	model.PrimaryPart = root
-	model:PivotTo(attachment.WorldCFrame)
+	model:PivotTo(attachCFrame)
 	self:_configureVisualRig(model)
 	local weld = Instance.new("WeldConstraint")
 	weld.Name = "WeldConstraint_EquipmentSlot" .. tostring(slot)
-	weld.Part0 = hitbox
+	weld.Part0 = attachPart
 	weld.Part1 = root
 	weld.Parent = model
 	model:SetAttribute("EquipmentId", equipmentId)
 	model:SetAttribute("EquipmentSlot", slot)
+	model:SetAttribute("EquipmentAttachPoint", attachName)
 	return true
 end
 
