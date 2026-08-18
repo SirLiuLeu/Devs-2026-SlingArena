@@ -7,11 +7,12 @@ local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local LobbyClientService = require(ReplicatedStorage.Client.Services.LobbyClientService)
+local UiBindManager = require(ReplicatedStorage.Shared.Utils.UiBindManager)
 local UIController = require(ReplicatedStorage.Client.Controllers.UIController)
 local LeaderboardWorldUIController = require(ReplicatedStorage.Client.Controllers.LeaderboardWorldUIController)
 
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local playerGui = player:WaitForChild("PlayerGui") :: PlayerGui
 
 local STARTUP_UI_WAIT_TIMEOUT_SECONDS = 3
 
@@ -65,9 +66,16 @@ controller:Start()
 local leaderboardWorldController = LeaderboardWorldUIController.new(clientService)
 leaderboardWorldController:Start()
 
+local uiBindManager = UiBindManager.new(playerGui)
+for pathKey, path in ipairs(buildStartupUiPaths()) do
+	uiBindManager:Bind(tostring(pathKey), path, function(_resolved) end)
+end
+uiBindManager:Start()
+
 player.AncestryChanged:Connect(function(_, parent)
 	if parent == nil then
 		controller:Destroy()
+		uiBindManager:Destroy()
 		leaderboardWorldController:Destroy()
 	end
 end)

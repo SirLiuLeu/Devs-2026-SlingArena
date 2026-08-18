@@ -29,10 +29,25 @@ local function getClip(overlay: Instance?, halfName: string): GuiObject?
     return getGuiObject(half, "Clip")
 end
 
+local function getTextObject(parent: Instance?): GuiObject?
+	local child = if parent then parent:FindFirstChild("CooldownText") else nil
+	if not child then
+		warnMissing("CooldownText")
+		return nil
+	end
+	if not child:IsA("GuiObject") then
+		warn(string.format("[UI_MISSING] %s exists but is not a GuiObject.", child:GetFullName()))
+		return nil
+	end
+	child.Visible = false
+	return child
+end
+
 function Component.new(joystickRoot: Instance)
     local root = getGuiObject(joystickRoot, "CooldownOverlay")
     local leftClip = getClip(root, "LeftHalf")
     local rightClip = getClip(root, "RightHalf")
+    local text = getTextObject(joystickRoot)
 
     if root then
         root.Visible = false
@@ -42,10 +57,11 @@ function Component.new(joystickRoot: Instance)
         Root = root,
         LeftClip = leftClip,
         RightClip = rightClip,
+        Text = text,
     }, Component)
 end
 
-function Component:Update(visible: boolean, progress: number?)
+function Component:Update(visible: boolean, progress: number?, text: string?)
     if not self.Root then
         return
     end
@@ -64,11 +80,21 @@ function Component:Update(visible: boolean, progress: number?)
     if self.LeftClip then
         self.LeftClip.Rotation = leftDegrees
     end
+
+    if self.Text and self.Text:IsA("GuiObject") then
+        self.Text.Visible = visible
+        if text ~= nil and (self.Text:IsA("TextLabel") or self.Text:IsA("TextButton") or self.Text:IsA("TextBox")) then
+            (self.Text :: any).Text = text
+        end
+    end
 end
 
 function Component:Destroy()
     if self.Root and self.Root.Parent then
-        self.Root:Destroy()
+        self.Root.Visible = false
+    end
+    if self.Text and self.Text.Parent and self.Text:IsA("GuiObject") then
+        self.Text.Visible = false
     end
 end
 

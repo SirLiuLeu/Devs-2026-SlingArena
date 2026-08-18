@@ -1,6 +1,6 @@
 --!strict
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local DeepCopy = require(ReplicatedStorage.Shared.Utils.DeepCopy)
 
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
@@ -36,12 +36,6 @@ local function resolveRemote(path: string): RemoteEvent?
 	return nil
 end
 
-local function clone(value: any): any
-	if type(value) ~= "table" then return value end
-	local copy = {}
-	for key, child in pairs(value) do copy[clone(key)] = clone(child) end
-	return copy
-end
 
 local function makeReplayConnection(disconnect: () -> ()): RBXScriptConnection
 	return ({ Disconnect = disconnect, disconnect = disconnect } :: any) :: RBXScriptConnection
@@ -81,15 +75,15 @@ function LobbyClientService:_ensureCachedRemote(remoteName: CachedRemoteName)
 	local remote = self[REMOTE_FIELDS[remoteName]]
 	if remote then
 		self._remoteConnections[remoteName] = remote.OnClientEvent:Connect(function(payload)
-			self._lastSnapshots[remoteName] = clone(payload)
-			self._events[remoteName]:Fire(clone(payload))
+			self._lastSnapshots[remoteName] = DeepCopy.Copy(payload)
+			self._events[remoteName]:Fire(DeepCopy.Copy(payload))
 		end)
 	end
 end
 
 function LobbyClientService:GetLastSnapshot(remoteName: CachedRemoteName?): any
-	if remoteName then return clone(self._lastSnapshots[remoteName]) end
-	return clone(self._lastSnapshots)
+	if remoteName then return DeepCopy.Copy(self._lastSnapshots[remoteName]) end
+	return DeepCopy.Copy(self._lastSnapshots)
 end
 
 function LobbyClientService:_bindCached(remoteName: CachedRemoteName, handler: Handler): RBXScriptConnection?
@@ -106,7 +100,12 @@ function LobbyClientService:RequestJoinArena() if self.JoinArenaRemote then self
 function LobbyClientService:RequestLeaveArena() if self.LeaveArenaRemote then self.LeaveArenaRemote:FireServer() end end
 function LobbyClientService:RequestStartSafeZone() if self.StartSafeZoneRemote then self.StartSafeZoneRemote:FireServer() end end
 function LobbyClientService:RequestPlus1Minute() if RemoteContracts.Validate(RemoteContracts.Names.Plus1Minute) and self.Plus1MinuteRemote then self.Plus1MinuteRemote:FireServer() end end
-function LobbyClientService:RequestEndRound() if RemoteContracts.Validate(RemoteContracts.Names.EndRound) and self.EndRoundRemote then self.EndRoundRemote:FireServer() end end
+function LobbyClientService:RequestEndRound()
+	local now = os.clock()
+	if self._lastEndRoundRequestAt and now - self._lastEndRoundRequestAt < 1 then return end
+	self._lastEndRoundRequestAt = now
+	if RemoteContracts.Validate(RemoteContracts.Names.EndRound) and self.EndRoundRemote then self.EndRoundRemote:FireServer() end
+end
 function LobbyClientService:RequestTeleport(mapName: string, spawnName: string) if RemoteContracts.Validate(RemoteContracts.Names.TeleportRequest, mapName, spawnName) and self.TeleportRemote then self.TeleportRemote:FireServer(mapName, spawnName) end end
 function LobbyClientService:RequestDebugSpawnFood(mapName: string) if self.DebugSpawnFoodRemote then self.DebugSpawnFoodRemote:FireServer(mapName) end end
 function LobbyClientService:RequestDebugResetLauncher() if self.DebugResetLauncherRemote then self.DebugResetLauncherRemote:FireServer() end end

@@ -168,6 +168,13 @@ local ProjectTreeSpec = {
 			CooldownText = "LauncherUI.JoystickRoot.CooldownText", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.JoystickRoot.CooldownText
 		},
 	},
+	SharedModules = {
+		Utils = {
+			DeepCopy = "Shared.Utils.DeepCopy", -- [PROJECT_TREE_SPEC] ReplicatedStorage.Shared.Utils.DeepCopy.lua
+			PlayerModeState = "Shared.Utils.PlayerModeState", -- [PROJECT_TREE_SPEC] ReplicatedStorage.Shared.Utils.PlayerModeState.lua
+			UiBindManager = "Shared.Utils.UiBindManager", -- [PROJECT_TREE_SPEC] ReplicatedStorage.Shared.Utils.UiBindManager.lua
+		},
+	},
 	Remotes = {
 		Folder = "LauncherArenaRemotes", -- [PROJECT_TREE_SPEC] ReplicatedStorage.LauncherArenaRemotes
 		MoveRequest = "LauncherArenaRemotes.MoveRequest", -- [PROJECT_TREE_SPEC]

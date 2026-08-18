@@ -9,6 +9,7 @@ local Workspace = game:GetService("Workspace")
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
+local PlayerModeState = require(ReplicatedStorage.Shared.Utils.PlayerModeState)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
 local player = Players.LocalPlayer
@@ -116,7 +117,7 @@ local function setHumanoidAutoRotateEnabled(enabled: boolean)
 end
 
 local function isLauncherMode(): boolean
-	return player:GetAttribute("ActivePlayerMode") ~= GameStates.PlayerMode.Human
+	return PlayerModeState.IsLauncherMode(player, nil)
 end
 
 local function resetLauncherInput()
@@ -272,7 +273,9 @@ player.CharacterAdded:Connect(function()
 	task.defer(syncInputMode)
 end)
 
-player:GetAttributeChangedSignal("ActivePlayerMode"):Connect(syncInputMode)
+PlayerModeState.BindSettled(player, function()
+	syncInputMode()
+end)
 
 RunService.RenderStepped:Connect(function()
 	if not launcherInputActive then

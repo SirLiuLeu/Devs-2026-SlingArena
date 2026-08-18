@@ -9,6 +9,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameStates = require(Shared:WaitForChild("Constants"):WaitForChild("GameStates"))
 local PhysicsConfig = require(Shared:WaitForChild("Config"):WaitForChild("PhysicsConfig"))
 local PawnLocator = require(Shared:WaitForChild("Utils"):WaitForChild("PawnLocator"))
+local PlayerModeState = require(Shared:WaitForChild("Utils"):WaitForChild("PlayerModeState"))
 local stateUpdateRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("StateUpdate") :: RemoteEvent
 local reportFoodRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
 local reportCollisionRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportCollision") :: RemoteEvent
@@ -172,7 +173,7 @@ local function gridKey(pos: Vector3): string
 end
 
 local function isHumanMode(): boolean
-	return player:GetAttribute("ActivePlayerMode") == GameStates.PlayerMode.Human
+	return not PlayerModeState.IsLauncherMode(player, nil)
 end
 
 local function getActiveCharacter(): Model?

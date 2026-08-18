@@ -1,17 +1,10 @@
 --!strict
 
-local MockData = {}
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local function deepCopy(value: any): any
-	if type(value) ~= "table" then
-		return value
-	end
-	local copy = {}
-	for key, child in pairs(value) do
-		copy[deepCopy(key)] = deepCopy(child)
-	end
-	return copy
-end
+local DeepCopy = require(ReplicatedStorage.Shared.Utils.DeepCopy)
+
+local MockData = {}
 
 MockData.PlayerProfiles = {
 	{
@@ -27,7 +20,7 @@ MockData.PlayerProfiles = {
 			eq_alpha_module_fire = { definitionId = "GhostFlame", level = 2, rarity = "Epic", acquiredAt = 1786924800 },
 			eq_alpha_temp_shield = { definitionId = "PowerCore", level = 1, rarity = "Common", isTemporary = true, expiresAt = 1787011200, acquiredAt = 1786924800 },
 		},
-		EquippedEquipment = { [1] = "eq_alpha_core_poison", [2] = "eq_alpha_module_fire" },
+		EquippedEquipment = { [1] = "eq_alpha_core_poison", [2] = "eq_alpha_module_fire", [3] = "eq_alpha_temp_shield" },
 		OwnedLaunchers = {
 			ln_alpha_normal = { definitionId = "NormalLauncher", star = 1, level = 2 },
 			ln_alpha_fire = { definitionId = "FireLauncher", star = 3, level = 4, temporaryState = { skin = "TrialRed" } },
@@ -45,8 +38,9 @@ MockData.PlayerProfiles = {
 		OwnedEquipment = {
 			eq_beta_charm_medusa = { definitionId = "Medusa", level = 5, rarity = "Legendary", acquiredAt = 1786924800 },
 			eq_beta_core_thunder = { definitionId = "ThunderHammer", level = 4, rarity = "Epic", acquiredAt = 1786924800 },
+			eq_beta_temp_brain = { definitionId = "BrainBoost", level = 2, rarity = "Uncommon", isTemporary = true, expiresAt = 1787014800, acquiredAt = 1786924800 },
 		},
-		EquippedEquipment = { [1] = "eq_beta_core_thunder", [3] = "eq_beta_charm_medusa" },
+		EquippedEquipment = { [1] = "eq_beta_core_thunder", [2] = "eq_beta_temp_brain", [3] = "eq_beta_charm_medusa" },
 		OwnedLaunchers = {
 			ln_beta_normal = { definitionId = "NormalLauncher", star = 1, level = 1 },
 			ln_beta_petrify = { definitionId = "PetrifyLauncher", star = 4, level = 6 },
@@ -59,14 +53,14 @@ MockData.PlayerProfiles = {
 function MockData.GetProfileByUserId(userId: number): { [string]: any }?
 	for _, profile in ipairs(MockData.PlayerProfiles) do
 		if profile.UserId == userId then
-			return deepCopy(profile)
+			return DeepCopy.Copy(profile)
 		end
 	end
 	return nil
 end
 
 function MockData.GetDefaultPlayerProfile(): { [string]: any }
-	return deepCopy(MockData.PlayerProfiles[1])
+	return DeepCopy.Copy(MockData.PlayerProfiles[1])
 end
 
 return MockData

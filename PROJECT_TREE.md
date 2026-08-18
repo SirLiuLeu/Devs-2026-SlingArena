@@ -50,10 +50,13 @@ DataModel
 │  │  │  └─ PlayerState.lua
 │  │  │
 │  │  ├─ Utils
+│  │  │  ├─ DeepCopy.lua
 │  │  │  ├─ EquipmentStatResolver.lua
 │  │  │  ├─ GachaSpinLogic.lua
 │  │  │  ├─ PathResolver.lua
+│  │  │  ├─ PlayerModeState.lua
 │  │  │  ├─ RewardRoller.lua
+│  │  │  ├─ UiBindManager.lua
 │  │  │  ├─ LauncherUiState.lua
 │  │  │  └─ WaitForUI.lua
 │  │  ├─ ProjectTreeSpec.lua
@@ -313,8 +316,7 @@ DataModel
 │        ├─ AttributePanel.lua
 │        ├─ BuffPanel.lua
 │        ├─ ChargeBar.lua
-│        ├─ CooldownOverlayComponent.lua
-│        ├─ CooldownTextComponent.lua
+│        ├─ CooldownDisplayComponent.lua
 │        ├─ DiamondDisplay.lua
 │        ├─ HealthBar.lua
 │        ├─ HUD.lua

@@ -14,6 +14,7 @@ local MIN_PLAYERS_TO_START = 3
 local REJOIN_COOLDOWN_SECONDS = 15
 local ROUND_END_FREEZE_SECONDS = 5
 local ROUND_END_RESULTS_SECONDS = 15
+local END_ROUND_RATE_LIMIT_SECONDS = 2
 
 function RoundService.new(context)
 	local self = setmetatable({}, RoundService)
@@ -25,6 +26,7 @@ function RoundService.new(context)
 	self._winnerName = nil :: string?
 	self._resultsShown = false
 	self._lastLeaveByUserId = {} :: { [number]: number }
+	self._lastEndRoundRequestByUserId = {} :: { [number]: number }
 	self._frozenRoots = {} :: { [Player]: BasePart }
 	self._roundId = 1
 	self._matchStateRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.MatchStateUpdate) :: RemoteEvent
@@ -104,7 +106,13 @@ function RoundService:RequestStartSafeZone(_player: Player)
 end
 
 -- Debug-only UnitTestUI tool; remove before public release.
-function RoundService:RequestEndRound(_player: Player)
+function RoundService:RequestEndRound(player: Player)
+	local now = os.clock()
+	local lastRequestAt = self._lastEndRoundRequestByUserId[player.UserId]
+	if lastRequestAt and now - lastRequestAt < END_ROUND_RATE_LIMIT_SECONDS then
+		return
+	end
+	self._lastEndRoundRequestByUserId[player.UserId] = now
 	self:_beginRoundEnd()
 end
 
