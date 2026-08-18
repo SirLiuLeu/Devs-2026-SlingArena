@@ -16,6 +16,8 @@ local playerGui = player:WaitForChild("PlayerGui") :: PlayerGui
 
 local STARTUP_UI_WAIT_TIMEOUT_SECONDS = 3
 
+print("[ROUND_END_TRACE][UIBinder] script start; waiting for PlayerGui complete")
+
 local STARTER_GUI_ROOTS = {
 	UnitTestUI = true,
 	MainHUD = true,
@@ -36,11 +38,16 @@ local function getRootSegment(path: string): string
 end
 
 local function buildStartupUiPaths(): { string }
+	print("[ROUND_END_TRACE][UIBinder] buildStartupUiPaths start")
 	local paths = PathResolver.collectPaths(ProjectTreeSpec.UI)
 	local activeMode = player:GetAttribute("ActivePlayerMode")
 	local isHuman = activeMode == nil or activeMode == GameStates.PlayerMode.Human or player:GetAttribute("State") == GameStates.PlayerMode.Human
 	local filtered = {}
-	for _, path in ipairs(paths) do
+	print(string.format("[ROUND_END_TRACE][UIBinder] buildStartupUiPaths collected %d paths; ActivePlayerMode=%s State=%s isHuman=%s", #paths, tostring(activeMode), tostring(player:GetAttribute("State")), tostring(isHuman)))
+	for index, path in ipairs(paths) do
+		if index == 1 or index % 25 == 0 or string.find(path, "EndRound", 1, true) then
+			print(string.format("[ROUND_END_TRACE][UIBinder] filtering path %d/%d: %s", index, #paths, path))
+		end
 		local rootName = getRootSegment(path)
 		if not STARTER_GUI_ROOTS[rootName] then
 			continue
@@ -50,27 +57,48 @@ local function buildStartupUiPaths(): { string }
 		end
 		table.insert(filtered, path)
 	end
+	print(string.format("[ROUND_END_TRACE][UIBinder] buildStartupUiPaths finished with %d allowed startup paths", #filtered))
 	return filtered
 end
 
+print("[ROUND_END_TRACE][UIBinder] before client service PathResolver.reportMissing")
 PathResolver.reportMissing(game, PathResolver.collectPaths(ProjectTreeSpec.Services.Client))
+print("[ROUND_END_TRACE][UIBinder] before remotes PathResolver.reportMissing")
 PathResolver.reportMissing(ReplicatedStorage, PathResolver.collectPaths(ProjectTreeSpec.Remotes))
+print("[ROUND_END_TRACE][UIBinder] before startup UI PathResolver.reportMissing")
 PathResolver.reportMissing(playerGui, buildStartupUiPaths(), { waitTimeout = STARTUP_UI_WAIT_TIMEOUT_SECONDS })
+print("[ROUND_END_TRACE][UIBinder] after startup UI PathResolver.reportMissing")
 
+print("[ROUND_END_TRACE][UIBinder] constructing LobbyClientService")
 local clientService = LobbyClientService.new()
 local controller = UIController.new(playerGui, {
 	ClientService = clientService,
 })
+print("[ROUND_END_TRACE][UIBinder] before UIController:Start")
 controller:Start()
+print("[ROUND_END_TRACE][UIBinder] after UIController:Start")
 
 local leaderboardWorldController = LeaderboardWorldUIController.new(clientService)
+print("[ROUND_END_TRACE][UIBinder] before LeaderboardWorldUIController:Start")
 leaderboardWorldController:Start()
+print("[ROUND_END_TRACE][UIBinder] after LeaderboardWorldUIController:Start")
 
 local uiBindManager = UiBindManager.new(playerGui)
-for pathKey, path in ipairs(buildStartupUiPaths()) do
-	uiBindManager:Bind(tostring(pathKey), path, function(_resolved) end)
+local startupUiPaths = buildStartupUiPaths()
+print(string.format("[ROUND_END_TRACE][UIBinder] binding %d startup UI paths into UiBindManager", #startupUiPaths))
+for pathKey, path in ipairs(startupUiPaths) do
+	if pathKey == 1 or pathKey % 25 == 0 or string.find(path, "EndRound", 1, true) then
+		print(string.format("[ROUND_END_TRACE][UIBinder] UiBindManager:Bind path %d/%d: %s", pathKey, #startupUiPaths, path))
+	end
+	uiBindManager:Bind(tostring(pathKey), path, function(resolved)
+		if string.find(path, "EndRound", 1, true) then
+			print(string.format("[ROUND_END_TRACE][UIBinder] UiBindManager callback for EndRound path; resolved=%s", resolved and resolved:GetFullName() or "nil"))
+		end
+	end)
 end
+print("[ROUND_END_TRACE][UIBinder] before UiBindManager:Start")
 uiBindManager:Start()
+print("[ROUND_END_TRACE][UIBinder] after UiBindManager:Start")
 
 player.AncestryChanged:Connect(function(_, parent)
 	if parent == nil then

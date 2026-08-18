@@ -66,7 +66,9 @@ function RoundService:Init()
 	if self._endRoundRemote then
 		-- TODO: RequestEndRound is a debug-only UnitTestUI hook. Remove this remote before public release.
 		self._endRoundRemote.OnServerEvent:Connect(function(player)
+			print(string.format("[ROUND_END_TRACE][RoundService] EndRound OnServerEvent received from %s", player and player.Name or "nil"))
 			self:RequestEndRound(player)
+			print(string.format("[ROUND_END_TRACE][RoundService] EndRound OnServerEvent handler completed for %s", player and player.Name or "nil"))
 		end)
 	end
 
@@ -107,13 +109,17 @@ end
 
 -- Debug-only UnitTestUI tool; remove before public release.
 function RoundService:RequestEndRound(player: Player)
+	print(string.format("[ROUND_END_TRACE][RoundService] RequestEndRound START; player=%s state=%s", player and player.Name or "nil", tostring(self._state)))
 	local now = os.clock()
 	local lastRequestAt = self._lastEndRoundRequestByUserId[player.UserId]
 	if lastRequestAt and now - lastRequestAt < END_ROUND_RATE_LIMIT_SECONDS then
+		print("[ROUND_END_TRACE][RoundService] RequestEndRound rate-limited")
 		return
 	end
 	self._lastEndRoundRequestByUserId[player.UserId] = now
+	print("[ROUND_END_TRACE][RoundService] RequestEndRound before _beginRoundEnd")
 	self:_beginRoundEnd()
+	print(string.format("[ROUND_END_TRACE][RoundService] RequestEndRound END; state=%s", tostring(self._state)))
 end
 
 function RoundService:RequestPlus1Minute(_player: Player)
@@ -267,12 +273,14 @@ function RoundService:_startEarlyGame()
 end
 
 function RoundService:_freezeArenaPlayers(frozen: boolean)
+	print(string.format("[ROUND_END_TRACE][RoundService] _freezeArenaPlayers start; frozen=%s players=%d", tostring(frozen), #Players:GetPlayers()))
 	local playerService = self._context.Services.PlayerService
 	local stateService = self._context.Services.PlayerStateService
 	if not playerService or not stateService then
 		return
 	end
-	for _, player in ipairs(Players:GetPlayers()) do
+	for index, player in ipairs(Players:GetPlayers()) do
+		print(string.format("[ROUND_END_TRACE][RoundService] _freezeArenaPlayers loop %d player=%s", index, player.Name))
 		local state = stateService:GetState(player)
 		if state and state.LocationState ~= GameStates.SessionState.Lobby then
 			local root = playerService:GetRoot(player)
@@ -289,6 +297,7 @@ function RoundService:_freezeArenaPlayers(frozen: boolean)
 end
 
 function RoundService:_beginRoundEnd()
+	print(string.format("[ROUND_END_TRACE][RoundService] _beginRoundEnd START; currentState=%s", tostring(self._state)))
 	if self._state == GameStates.MapRoundState.RoundEnd or self._state == GameStates.MapRoundState.PostRound then
 		return
 	end
@@ -297,6 +306,7 @@ function RoundService:_beginRoundEnd()
 	self._roundEndElapsed = 0
 	local leaderboardService = self._context.Services.LeaderboardService
 	local progressPointService = self._context.Services.ProgressPointService
+	print("[ROUND_END_TRACE][RoundService] _beginRoundEnd before leaderboard/progress award lookup")
 	local topPlayers = if leaderboardService and typeof(leaderboardService.GetTopPlayers) == "function" then leaderboardService:GetTopPlayers() else {}
 	local winnerNames = {}
 	for _, row in ipairs(topPlayers) do
@@ -305,10 +315,16 @@ function RoundService:_beginRoundEnd()
 		end
 	end
 	self._winnerName = if #winnerNames > 0 then table.concat(winnerNames, ", ") else (self:_findLastAlivePlayerName() or "No winner")
+	print(string.format("[ROUND_END_TRACE][RoundService] _beginRoundEnd collected topPlayers=%d winners=%d", #topPlayers, #winnerNames))
 	local summaryRows = if progressPointService and typeof(progressPointService.AwardEndRoundPoints) == "function" then progressPointService:AwardEndRoundPoints(topPlayers) else topPlayers
+	print(string.format("[ROUND_END_TRACE][RoundService] _beginRoundEnd after AwardEndRoundPoints; summaryRows=%d", #summaryRows))
+	print("[ROUND_END_TRACE][RoundService] _beginRoundEnd before _setState RoundEnd")
 	self:_setState(GameStates.MapRoundState.RoundEnd)
+	print("[ROUND_END_TRACE][RoundService] _beginRoundEnd after _setState; before freeze")
 	self:_freezeArenaPlayers(true)
+	print("[ROUND_END_TRACE][RoundService] _beginRoundEnd after freeze; before MatchSummary FireAllClients")
 	if self._matchSummaryRemote then
+		print("[ROUND_END_TRACE][RoundService] _beginRoundEnd firing MatchSummaryUpdate")
 		self._matchSummaryRemote:FireAllClients({
 			Rows = summaryRows,
 			RoundId = self._roundId,
@@ -316,6 +332,7 @@ function RoundService:_beginRoundEnd()
 			DurationSeconds = ROUND_END_RESULTS_SECONDS,
 		})
 	end
+	print("[ROUND_END_TRACE][RoundService] _beginRoundEnd END")
 end
 
 function RoundService:_startPostRound()
