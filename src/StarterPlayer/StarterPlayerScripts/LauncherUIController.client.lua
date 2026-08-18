@@ -6,13 +6,13 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
+local PlayerModeState = require(ReplicatedStorage.Shared.Utils.PlayerModeState)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local LauncherUiConstants = require(ReplicatedStorage.Shared.Constants.LauncherUiConstants)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local LauncherUiState = require(ReplicatedStorage.Shared.Utils.LauncherUiState)
 local LauncherCooldownService = require(ReplicatedStorage.Shared.Utils.LauncherCooldownService)
-local CooldownOverlayComponent = require(script.Parent.Components.CooldownOverlayComponent)
-local CooldownTextComponent = require(script.Parent.Components.CooldownTextComponent)
+local CooldownDisplayComponent = require(script.Parent.Components.CooldownDisplayComponent)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
@@ -71,8 +71,8 @@ local cachedChargeFill: GuiObject? = nil
 local cachedCancelZone: GuiObject? = nil
 local cachedCancelIcon: GuiObject? = nil
 local cachedDirectionIndicator: GuiObject? = nil
-local cooldownOverlayComponent: any = nil
-local cooldownTextComponent: any = nil
+local cooldownDisplayComponent: any = nil
+local lastSyncedCooldownEpisode: string? = nil
 
 
 local function debugLog(message: string)
@@ -115,8 +115,7 @@ local function setVisibleSafe(instance: GuiObject?, visible: boolean)
 end
 
 local function isLauncherMode(state: { [string]: any }?): boolean
-	local mode = if state and typeof(state.ActivePlayerMode) == "string" then state.ActivePlayerMode else player:GetAttribute("ActivePlayerMode")
-	return mode == GameStates.PlayerMode.Launcher
+	return PlayerModeState.IsLauncherMode(player, state)
 end
 
 local function destroyArrowPreview()
@@ -168,11 +167,8 @@ local function applyJoystickVisibilityFromState(state: { [string]: any }?)
 	if not launcherMode then
 		setVisibleSafe(cachedChargeBar, false)
 		setVisibleSafe(cachedCancelZone, false)
-		if cooldownOverlayComponent then
-			cooldownOverlayComponent:Update(false)
-		end
-		if cooldownTextComponent then
-			cooldownTextComponent:Update(false)
+		if cooldownDisplayComponent then
+			cooldownDisplayComponent:Update(false)
 		end
 		destroyArrowPreview()
 	end
@@ -264,11 +260,8 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 	local chargeFill = if chargeBar then findChild(chargeBar, "Fill") else nil
 	local cancelIcon = if cancelZone then findChild(cancelZone, "IconX") else nil
 
-	if joystickRoot and (not cooldownOverlayComponent or not cooldownOverlayComponent.Root or cooldownOverlayComponent.Root.Parent ~= joystickRoot) then
-		cooldownOverlayComponent = CooldownOverlayComponent.new(joystickRoot)
-	end
-	if joystickRoot and (not cooldownTextComponent or not cooldownTextComponent.Root or cooldownTextComponent.Root.Parent ~= joystickRoot) then
-		cooldownTextComponent = CooldownTextComponent.new(joystickRoot)
+	if joystickRoot and (not cooldownDisplayComponent or not cooldownDisplayComponent.Root or cooldownDisplayComponent.Root.Parent ~= joystickRoot) then
+		cooldownDisplayComponent = CooldownDisplayComponent.new(joystickRoot)
 	end
 
 	if not joystickRoot or not base or not thumb or not chargeBar or not chargeFill or not cancelZone or not cancelIcon or not directionIndicator or not cooldownOverlay or not cooldownText then
@@ -367,21 +360,18 @@ local function updateCooldownVisuals(percent: number, remainingTime: number?)
 	local normalized = LauncherUiState.ClampRatio(percent)
 	local launcherMode = isLauncherMode(lastKnownServerState)
 	local showCooldown = launcherMode and normalized < 1 and remainingTime ~= nil and remainingTime > 0
-	if cooldownOverlayComponent then
-		cooldownOverlayComponent:Update(showCooldown, normalized)
-	end
-	if cooldownTextComponent then
+	if cooldownDisplayComponent then
 		if showCooldown and remainingTime then
 			local text, bucket = formatCooldownText(remainingTime)
 			if lastCooldownTextBucket ~= bucket then
 				lastCooldownTextBucket = bucket
-				cooldownTextComponent:Update(true, text)
+				cooldownDisplayComponent:Update(true, normalized, text)
 			else
-				cooldownTextComponent:Update(true)
+				cooldownDisplayComponent:Update(true, normalized)
 			end
 		else
 			lastCooldownTextBucket = nil
-			cooldownTextComponent:Update(false)
+			cooldownDisplayComponent:Update(false, normalized)
 		end
 	end
 end
@@ -587,6 +577,7 @@ local function clearCooldown()
 	cooldownEndTime = cooldownState.cooldownEndTime
 	cooldownDuration = cooldownState.cooldownDuration
 	lastCooldownTextBucket = nil
+	lastSyncedCooldownEpisode = nil
 	updateCooldownVisuals(0, 0)
 	stopUiLoopIfIdle()
 end
@@ -627,7 +618,11 @@ local function syncCooldownFromServerState(state: { [string]: any })
 
 	local releaseDuration = state.LastReleaseDuration
 	local resolvedDuration = if typeof(releaseDuration) == "number" and releaseDuration > 0 then releaseDuration else DEFAULT_COOLDOWN_DURATION
-	beginCooldown(resolvedDuration, serverCooldownEnd)
+	local episode = string.format("%.3f:%.3f", serverCooldownEnd, resolvedDuration)
+	if episode ~= lastSyncedCooldownEpisode or not cooldownService:IsActive() then
+		lastSyncedCooldownEpisode = episode
+		beginCooldown(resolvedDuration, serverCooldownEnd)
+	end
 end
 
 local function startHold(input: InputObject)
@@ -807,7 +802,7 @@ if stateUpdateRemote then
 			return
 		end
 		if typeof(state.ActivePlayerMode) == "string" then
-			player:SetAttribute("ActivePlayerMode", state.ActivePlayerMode)
+			PlayerModeState.ApplyPayload(player, state)
 		end
 
 		if state.IsAlive == false or not isLauncherMode(state) then

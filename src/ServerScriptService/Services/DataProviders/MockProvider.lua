@@ -1,5 +1,10 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local DeepCopy = require(ReplicatedStorage.Shared.Utils.DeepCopy)
+local MockData = require(script.Parent.MockData)
+
 local MockProvider = {}
 MockProvider.__index = MockProvider
 
@@ -39,24 +44,13 @@ local function applyDefaults(target: { [any]: any }, defaults: { [any]: any })
 	end
 end
 
-local function deepCopy(value: any): any
-	if type(value) ~= "table" then
-		return value
-	end
-	local copy = {}
-	for key, child in pairs(value) do
-		copy[deepCopy(key)] = deepCopy(child)
-	end
-	return copy
-end
-
 local function normalizeInventory(data: { [string]: any })
 	-- Injection point: keep server-owned inventory state canonical here until DataStores are implemented.
 	applyDefaults(data, MOCK_SCHEMA_DEFAULTS)
 	if type(data.OwnedItems) ~= "table" then data.OwnedItems = {} end
 	if type(data.OwnedEquipment) ~= "table" then data.OwnedEquipment = {} end
 	if type(data.EquippedEquipment) ~= "table" then data.EquippedEquipment = { [1] = nil, [2] = nil, [3] = nil } end
-	if type(data.OwnedLaunchers) ~= "table" then data.OwnedLaunchers = deepCopy(MOCK_SCHEMA_DEFAULTS.OwnedLaunchers) end
+	if type(data.OwnedLaunchers) ~= "table" then data.OwnedLaunchers = DeepCopy.Copy(MOCK_SCHEMA_DEFAULTS.OwnedLaunchers) end
 	if type(data.EquippedLauncherInstanceId) ~= "string" or data.OwnedLaunchers[data.EquippedLauncherInstanceId] == nil then
 		data.EquippedLauncherInstanceId = "default_normal_launcher"
 	end
@@ -103,7 +97,7 @@ end
 function MockProvider:LoadPlayerData(player: Player, defaultData: { [string]: any }): { [string]: any }
 	local existing = self._dataByUserId[player.UserId]
 	if existing == nil then
-		existing = deepCopy(defaultData)
+		existing = MockData.GetProfileByUserId(player.UserId) or MockData.GetDefaultPlayerProfile() or DeepCopy.Copy(defaultData)
 		self._dataByUserId[player.UserId] = existing
 	end
 	normalizeInventory(existing)

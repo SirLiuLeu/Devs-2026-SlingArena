@@ -6,6 +6,7 @@ local TweenService = game:GetService("TweenService")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local PlayerModeState = require(ReplicatedStorage.Shared.Utils.PlayerModeState)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -15,8 +16,8 @@ local setPlayerModeRemote = remotes:WaitForChild(RemoteContracts.Names.SetPlayer
 local HumanLauncherToggleController = {}
 HumanLauncherToggleController.__index = HumanLauncherToggleController
 
-local LauncherMode = GameStates.PlayerMode.Launcher
-local HumanMode = GameStates.PlayerMode.Human
+local LauncherMode = PlayerModeState.LauncherMode
+local HumanMode = PlayerModeState.HumanMode
 local SelectedPlayerMode = HumanMode
 local ActivePlayerMode = HumanMode
 player:SetAttribute("SelectedPlayerMode", SelectedPlayerMode)
@@ -160,17 +161,9 @@ local function applyStatePayload(state: any)
 	if type(state) ~= "table" then
 		return
 	end
-	if typeof(state.SelectedPlayerMode) == "string" then
-		SelectedPlayerMode = state.SelectedPlayerMode
-		player:SetAttribute("SelectedPlayerMode", SelectedPlayerMode)
-	end
-	if typeof(state.ActivePlayerMode) == "string" then
-		ActivePlayerMode = state.ActivePlayerMode
-		player:SetAttribute("ActivePlayerMode", ActivePlayerMode)
-	end
-	if typeof(state.LocationState) == "string" then
-		player:SetAttribute("LocationState", state.LocationState)
-	end
+	PlayerModeState.ApplyPayload(player, state)
+	SelectedPlayerMode = PlayerModeState.GetActiveMode(player, { ActivePlayerMode = player:GetAttribute("SelectedPlayerMode") })
+	ActivePlayerMode = PlayerModeState.GetActiveMode(player, nil)
 	controller:RefreshFromActiveMode()
 	controller:_setVisibleForState()
 end

@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
+local PlayerModeState = require(ReplicatedStorage.Shared.Utils.PlayerModeState)
 
 local PawnLocator = {}
 
@@ -33,7 +34,7 @@ local function getLauncherPawnByPlayer(player: Player): Model?
 end
 
 function PawnLocator.GetPawnByPlayer(player: Player): Model?
-	if player:GetAttribute("ActivePlayerMode") == GameStates.PlayerMode.Human then
+	if not PlayerModeState.IsLauncherMode(player, nil) then
 		return if player.Character and player.Character:IsA("Model") then player.Character else nil
 	end
 
