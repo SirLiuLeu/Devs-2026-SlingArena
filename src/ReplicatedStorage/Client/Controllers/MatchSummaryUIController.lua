@@ -139,7 +139,11 @@ function MatchSummaryUIController:Start()
 		end
 	end
 	bindClose()
-	table.insert(self.Connections, self.PlayerGui.DescendantAdded:Connect(function() bindClose(); if self.DataService then local snapshot=self.DataService:GetSnapshot(); if snapshot.Visible then self:Refresh(snapshot) end end end))
+	table.insert(self.Connections, self.PlayerGui.DescendantAdded:Connect(function()
+		-- Only bind late-cloned controls here. Refresh is driven by DataService updates;
+		-- rebuilding rows from DescendantAdded would re-enter when rows are parented.
+		bindClose()
+	end))
 end
 
 function MatchSummaryUIController:Destroy()

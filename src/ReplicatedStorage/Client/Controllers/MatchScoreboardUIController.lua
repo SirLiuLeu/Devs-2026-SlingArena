@@ -155,7 +155,11 @@ function MatchScoreboardUIController:Start()
 		table.insert(self.Connections, self.DataService:BindChanged(function(snapshot) self:Refresh(snapshot) end))
 		self:Refresh(self.DataService:GetSnapshot())
 	end
-	table.insert(self.Connections, self.PlayerGui.DescendantAdded:Connect(function() self:_resolveUi(); if self.DataService then self:Refresh(self.DataService:GetSnapshot()) end end))
+	table.insert(self.Connections, self.PlayerGui.DescendantAdded:Connect(function()
+		-- Only resolve late-cloned static UI references here. Refresh is driven by
+		-- DataService updates; row parenting must not recursively rebuild rows.
+		self:_resolveUi()
+	end))
 end
 
 function MatchScoreboardUIController:Destroy()

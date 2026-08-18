@@ -131,6 +131,8 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.PlayerGui = playerGui
 	self.Connections = {}
 	self._boundUiConnectionKeys = {}
+	self._UiResolveQueued = false
+	self._UiResolveRefreshHudQueued = false
 	self.InventoryUIController = InventoryUIController.new(playerGui)
 	self.SpinUIController = SpinUIController.new(playerGui)
 	self.OnlineRewardUIController = OnlineRewardUIController.new(playerGui)
@@ -220,6 +222,25 @@ function UIController:_resolveUiReferences()
 	self.PanelMap.Spin = self.PanelMap.Spin or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Spin, false)
 	self.PanelMap.Quest = self.PanelMap.Quest or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Quest, false) or resolveScreenGui(playerGui, "QuestUI", false)
 	print(string.format("[ROUND_END_TRACE][UIController] _resolveUiReferences done; EndRoundButton=%s WinnerPopup=%s MatchSummaryController=%s", self.EndRoundButton and self.EndRoundButton:GetFullName() or "nil", self.WinnerPopup and self.WinnerPopup:GetFullName() or "nil", tostring(self.MatchSummaryUIController ~= nil)))
+end
+
+function UIController:_scheduleResolveUiReferences(refreshHud: boolean?)
+	self._UiResolveRefreshHudQueued = self._UiResolveRefreshHudQueued or refreshHud == true
+	if self._UiResolveQueued then
+		return
+	end
+	self._UiResolveQueued = true
+	task.defer(function()
+		local shouldRefreshHud = self._UiResolveRefreshHudQueued
+		self._UiResolveQueued = false
+		self._UiResolveRefreshHudQueued = false
+		self:_resolveUiReferences()
+		self:_bindResolvedUiReferences()
+		if shouldRefreshHud then
+			if self.HudDataService then self:_renderHudValuesFromSnapshot(self.HudDataService:GetSnapshot()) end
+			self:_refreshQuickHpCooldown()
+		end
+	end)
 end
 
 function UIController:_connectOnce(key: string, signal: RBXScriptSignal, callback: (...any) -> ())
@@ -526,17 +547,18 @@ function UIController:Start()
 	self:_startAvailableFeatureControllers()
 	self:_bindResolvedUiReferences()
 	table.insert(self.Connections, self.PlayerGui.ChildAdded:Connect(function()
-		self:_resolveUiReferences()
-		self:_bindResolvedUiReferences()
-		if self.HudDataService then self:_renderHudValuesFromSnapshot(self.HudDataService:GetSnapshot()) end
-		self:_refreshQuickHpCooldown()
+		self:_scheduleResolveUiReferences(true)
 	end))
 	table.insert(self.Connections, self.PlayerGui.DescendantAdded:Connect(function()
-		self:_resolveUiReferences()
-		self:_bindResolvedUiReferences()
+		self:_scheduleResolveUiReferences(false)
 	end))
 	table.insert(self.Connections, self.PlayerGui.ChildRemoved:Connect(function(child)
 		self:_handlePlayerGuiChildRemoved(child)
+		self:_scheduleResolveUiReferences(true)
+	end))
+	table.insert(self.Connections, self.PlayerGui.DescendantRemoving:Connect(function(descendant)
+		self:_clearRemovedUiReferences(descendant)
+		self:_scheduleResolveUiReferences(false)
 	end))
 
 	setBuffVisible(self.DamageBuff, true)

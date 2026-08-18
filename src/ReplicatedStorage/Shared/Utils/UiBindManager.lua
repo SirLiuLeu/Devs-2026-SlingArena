@@ -7,6 +7,7 @@ export type UiBindManager = typeof(setmetatable({} :: {
 	PlayerGui: PlayerGui,
 	Connections: { RBXScriptConnection },
 	Bindings: { [string]: { Path: string, Callback: (Instance?) -> (), Last: Instance? } },
+	_RefreshQueued: boolean,
 }, UiBindManager))
 
 local function resolvePath(root: Instance, path: string): Instance?
@@ -23,6 +24,7 @@ function UiBindManager.new(playerGui: PlayerGui): UiBindManager
 	self.PlayerGui = playerGui
 	self.Connections = {}
 	self.Bindings = {}
+	self._RefreshQueued = false
 	return self
 end
 
@@ -47,11 +49,22 @@ function UiBindManager:RefreshAll()
 	end
 end
 
+function UiBindManager:_scheduleRefreshAll()
+	if self._RefreshQueued then
+		return
+	end
+	self._RefreshQueued = true
+	task.defer(function()
+		self._RefreshQueued = false
+		self:RefreshAll()
+	end)
+end
+
 function UiBindManager:Start()
-	table.insert(self.Connections, self.PlayerGui.ChildAdded:Connect(function() self:RefreshAll() end))
-	table.insert(self.Connections, self.PlayerGui.DescendantAdded:Connect(function() self:RefreshAll() end))
-	table.insert(self.Connections, self.PlayerGui.ChildRemoved:Connect(function() self:RefreshAll() end))
-	table.insert(self.Connections, self.PlayerGui.DescendantRemoving:Connect(function() task.defer(function() self:RefreshAll() end) end))
+	table.insert(self.Connections, self.PlayerGui.ChildAdded:Connect(function() self:_scheduleRefreshAll() end))
+	table.insert(self.Connections, self.PlayerGui.DescendantAdded:Connect(function() self:_scheduleRefreshAll() end))
+	table.insert(self.Connections, self.PlayerGui.ChildRemoved:Connect(function() self:_scheduleRefreshAll() end))
+	table.insert(self.Connections, self.PlayerGui.DescendantRemoving:Connect(function() self:_scheduleRefreshAll() end))
 	self:RefreshAll()
 end
 
