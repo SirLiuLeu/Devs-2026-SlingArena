@@ -331,7 +331,7 @@ DataModel
 │  │     ├─ JoinButton
 │  │     ├─ LeaveButton
 │  │     ├─ Plus1Minute
-│  │     ├─ EndRound
+│  │     ├─ EndRoundButton
 │  │     └─ StartSafeZoneButton
 │  │
 │  ├─ NotificationGui (ScreenGui)
