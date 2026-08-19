@@ -14,7 +14,7 @@ local LeaderboardWorldUIController = require(ReplicatedStorage.Client.Controller
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui") :: PlayerGui
 
-local STARTUP_UI_WAIT_TIMEOUT_SECONDS = 0
+local STARTUP_UI_WAIT_TIMEOUT_SECONDS = .1
 
 print("[ROUND_END_TRACE][UIBinder] script start; waiting for PlayerGui complete")
 
