@@ -29,6 +29,7 @@ function EquipmentService.new(context: Context)
 end
 
 function EquipmentService:Init()
+	print(string.format("[DIAG][EquipmentService] Init equipRemote=%s unequipRemote=%s upgradeRemote=%s t=%.3f", tostring(self._equipRemote ~= nil), tostring(self._unequipRemote ~= nil), tostring(self._upgradeRemote ~= nil), os.clock()))
 	if self._equipRemote then
 		self._equipRemote.OnServerEvent:Connect(function(player: Player, instanceId: string, slot: any)
 			if RemoteContracts.Validate(RemoteContracts.Names.EquipEquipment, instanceId) then
@@ -113,6 +114,7 @@ function EquipmentService:_findFirstOpenSlot(equipped: { [any]: string }): numbe
 end
 
 function EquipmentService:Equip(player: Player, instanceId: string, preferredSlot: any?): (boolean, string?)
+	print(string.format("[DIAG][EquipmentService] Equip requested player=%s instanceId=%s preferredSlot=%s t=%.3f", player.Name, tostring(instanceId), tostring(preferredSlot), os.clock()))
 	if type(instanceId) ~= "string" or instanceId == "" then return false, "InvalidInstanceId" end
 	local dataService = self:_dataService()
 	if not dataService then return false, "MissingPlayerDataService" end
@@ -136,7 +138,11 @@ function EquipmentService:Equip(player: Player, instanceId: string, preferredSlo
 		ok = true
 		return data
 	end)
-	if not ok then return false, failure end
+	if not ok then
+		print(string.format("[DIAG][EquipmentService] Equip failed player=%s instanceId=%s failure=%s t=%.3f", player.Name, tostring(instanceId), tostring(failure), os.clock()))
+		return false, failure
+	end
+	print(string.format("[DIAG][EquipmentService] Equip committed player=%s instanceId=%s slot=%s definition=%s t=%.3f", player.Name, tostring(instanceId), tostring(slotNumber), tostring(equippedInstance and equippedInstance.definitionId), os.clock()))
 	local stateService = getService(self._context, "PlayerStateService")
 	if stateService and typeof(stateService.SyncEquipmentFromData) == "function" then stateService:SyncEquipmentFromData(player) end
 	if self._context.EventBus then
@@ -153,6 +159,7 @@ function EquipmentService:Equip(player: Player, instanceId: string, preferredSlo
 end
 
 function EquipmentService:Unequip(player: Player, slot: any): (boolean, string?)
+	print(string.format("[DIAG][EquipmentService] Unequip requested player=%s slot=%s t=%.3f", player.Name, tostring(slot), os.clock()))
 	local slotNumber = self:_normalizeSlot(slot)
 	if not slotNumber then return false, "InvalidSlot" end
 	local dataService = self:_dataService()

@@ -112,6 +112,7 @@ end
 
 -- Debug-only UnitTestUI tool; remove before public release.
 function RoundService:RequestEndRound(player: Player)
+	print(string.format("[DIAG][RoundService] RequestEndRound player=%s state=%s roundId=%d t=%.3f", player.Name, tostring(self._state), self._roundId, os.clock()))
 	local now = os.clock()
 	local lastRequestAt = self._lastEndRoundRequestByUserId[player.UserId]
 	if lastRequestAt and now - lastRequestAt < END_ROUND_RATE_LIMIT_SECONDS then
@@ -294,6 +295,7 @@ function RoundService:_freezeArenaPlayers(frozen: boolean)
 end
 
 function RoundService:_beginRoundEnd()
+	print(string.format("[DIAG][RoundService] beginRoundEnd entry state=%s roundId=%d active=%s t=%.3f", tostring(self._state), self._roundId, tostring(self._roundActive), os.clock()))
 	if self._state == GameStates.MapRoundState.RoundEnd or self._state == GameStates.MapRoundState.PostRound then
 		return
 	end
@@ -403,6 +405,7 @@ function RoundService:_step(dt: number)
 end
 
 function RoundService:_publishUiState()
+	print(string.format("[DIAG][RoundService] publishUiState attempt state=%s roundId=%d timer=%.3f active=%s t=%.3f", tostring(self._state), self._roundId, self._roundTimer, tostring(self._roundActive), os.clock()))
 	if not self._uiStateRemote then
 		return
 	end
@@ -444,6 +447,7 @@ function RoundService:_publishUiState()
 	self._lastPublishedUiState = table.clone(payload)
 	self._lastUiAlivePlayers = alivePlayers
 	self._lastUiPlayerCount = playerCount
+	print(string.format("[DIAG][RoundService] publishUiState fire state=%s roundId=%s alive=%s players=%s elapsed=%.3f t=%.3f", tostring(payload.State), tostring(payload.RoundId), tostring(payload.AlivePlayers), tostring(payload.PlayerCount), payload.RoundElapsed, os.clock()))
 	self._uiStateRemote:FireAllClients(payload)
 end
 
