@@ -101,17 +101,13 @@ function LobbyClientService:RequestLeaveArena() if self.LeaveArenaRemote then se
 function LobbyClientService:RequestStartSafeZone() if self.StartSafeZoneRemote then self.StartSafeZoneRemote:FireServer() end end
 function LobbyClientService:RequestPlus1Minute() if RemoteContracts.Validate(RemoteContracts.Names.Plus1Minute) and self.Plus1MinuteRemote then self.Plus1MinuteRemote:FireServer() end end
 function LobbyClientService:RequestEndRound()
-	print("[ROUND_END_TRACE][LobbyClientService] RequestEndRound START")
 	local now = os.clock()
 	if self._lastEndRoundRequestAt and now - self._lastEndRoundRequestAt < 1 then
-		print("[ROUND_END_TRACE][LobbyClientService] RequestEndRound throttled")
 		return
 	end
 	self._lastEndRoundRequestAt = now
 	local isValid = RemoteContracts.Validate(RemoteContracts.Names.EndRound)
-	print(string.format("[ROUND_END_TRACE][LobbyClientService] RequestEndRound before FireServer; valid=%s remote=%s", tostring(isValid), self.EndRoundRemote and self.EndRoundRemote:GetFullName() or "nil"))
 	if isValid and self.EndRoundRemote then self.EndRoundRemote:FireServer() end
-	print("[ROUND_END_TRACE][LobbyClientService] RequestEndRound END after FireServer path")
 end
 function LobbyClientService:RequestTeleport(mapName: string, spawnName: string) if RemoteContracts.Validate(RemoteContracts.Names.TeleportRequest, mapName, spawnName) and self.TeleportRemote then self.TeleportRemote:FireServer(mapName, spawnName) end end
 function LobbyClientService:RequestDebugSpawnFood(mapName: string) if self.DebugSpawnFoodRemote then self.DebugSpawnFoodRemote:FireServer(mapName) end end

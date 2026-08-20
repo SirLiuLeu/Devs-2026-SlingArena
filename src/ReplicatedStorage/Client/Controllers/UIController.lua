@@ -133,6 +133,8 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self._boundUiConnectionKeys = {}
 	self._UiResolveQueued = false
 	self._UiResolveRefreshHudQueued = false
+	self._lastAppliedUiState = nil
+	self._connectedScopedUiRoots = {}
 	self.InventoryUIController = InventoryUIController.new(playerGui)
 	self.SpinUIController = SpinUIController.new(playerGui)
 	self.OnlineRewardUIController = OnlineRewardUIController.new(playerGui)
@@ -178,7 +180,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 end
 
 function UIController:_resolveUiReferences()
-	print("[ROUND_END_TRACE][UIController] _resolveUiReferences start")
 	local playerGui = self.PlayerGui
 	self.JoinButton = self.JoinButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.JoinButton, false)
 	self.LeaveButton = self.LeaveButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton, false)
@@ -221,7 +222,6 @@ function UIController:_resolveUiReferences()
 	self.PanelMap.Settings = self.PanelMap.Settings or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Settings, false)
 	self.PanelMap.Spin = self.PanelMap.Spin or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Spin, false)
 	self.PanelMap.Quest = self.PanelMap.Quest or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Quest, false) or resolveScreenGui(playerGui, "QuestUI", false)
-	print(string.format("[ROUND_END_TRACE][UIController] _resolveUiReferences done; EndRoundButton=%s WinnerPopup=%s MatchSummaryController=%s", self.EndRoundButton and self.EndRoundButton:GetFullName() or "nil", self.WinnerPopup and self.WinnerPopup:GetFullName() or "nil", tostring(self.MatchSummaryUIController ~= nil)))
 end
 
 function UIController:_scheduleResolveUiReferences(refreshHud: boolean?)
@@ -245,7 +245,6 @@ end
 
 function UIController:_connectOnce(key: string, signal: RBXScriptSignal, callback: (...any) -> ())
 	if key == "EndRoundButton" or key == "MatchScoreboardCloseButton" then
-		print(string.format("[ROUND_END_TRACE][UIController] _connectOnce attempt for %s; alreadyBound=%s", key, tostring(self._boundUiConnectionKeys[key] == true)))
 	end
 	if self._boundUiConnectionKeys[key] then
 		return
@@ -327,12 +326,8 @@ function UIController:_bindResolvedUiReferences()
 		end)
 	end
 	if self.EndRoundButton then
-		print("[ROUND_END_TRACE][UIController] binding EndRoundButton click handler")
 		self:_connectOnce("EndRoundButton", self.EndRoundButton.MouseButton1Click, function()
-			print("[ROUND_END_TRACE][UIController] EndRoundButton click START")
-			print("[ROUND_END_TRACE][UIController] EndRoundButton before ClientService:RequestEndRound")
 			self.ClientService:RequestEndRound()
-			print("[ROUND_END_TRACE][UIController] EndRoundButton after ClientService:RequestEndRound")
 		end)
 	end
 	if self.DailyButton then
@@ -541,25 +536,35 @@ function UIController:_handlePlayerGuiChildRemoved(child: Instance)
 	end
 end
 
-function UIController:Start()
-	print("[ROUND_END_TRACE][UIController] Start begin")
-	self:_resolveUiReferences()
-	self:_startAvailableFeatureControllers()
-	self:_bindResolvedUiReferences()
-	table.insert(self.Connections, self.PlayerGui.ChildAdded:Connect(function()
-		self:_scheduleResolveUiReferences(true)
-	end))
-	table.insert(self.Connections, self.PlayerGui.DescendantAdded:Connect(function()
+function UIController:_connectScopedUiRoot(rootName: string)
+	local root = self.PlayerGui:FindFirstChild(rootName)
+	if not (root and root:IsA("ScreenGui")) then
+		return
+	end
+	if self._connectedScopedUiRoots[root] then
+		return
+	end
+	self._connectedScopedUiRoots[root] = true
+	table.insert(self.Connections, root.DescendantAdded:Connect(function()
 		self:_scheduleResolveUiReferences(false)
 	end))
-	table.insert(self.Connections, self.PlayerGui.ChildRemoved:Connect(function(child)
-		self:_handlePlayerGuiChildRemoved(child)
-		self:_scheduleResolveUiReferences(true)
-	end))
-	table.insert(self.Connections, self.PlayerGui.DescendantRemoving:Connect(function(descendant)
+	table.insert(self.Connections, root.DescendantRemoving:Connect(function(descendant)
 		self:_clearRemovedUiReferences(descendant)
 		self:_scheduleResolveUiReferences(false)
 	end))
+end
+
+function UIController:_connectScopedUiRoots()
+	self:_connectScopedUiRoot(ProjectTreeSpec.UI.MainHub.ScreenGui)
+	self:_connectScopedUiRoot(ProjectTreeSpec.UI.Match.ScreenGui)
+	self:_connectScopedUiRoot(ProjectTreeSpec.UI.LauncherTouch.ScreenGui)
+end
+
+function UIController:Start()
+	self:_resolveUiReferences()
+	self:_startAvailableFeatureControllers()
+	self:_bindResolvedUiReferences()
+	self:_connectScopedUiRoots()
 
 	setBuffVisible(self.DamageBuff, true)
 	setBuffText(self.DamageBuffValueText, "100%")
@@ -650,20 +655,37 @@ function UIController:Start()
 	end
 
 	local uiStateConnection = self.ClientService:BindUIStateUpdate(function(payload)
-		print(string.format("[ROUND_END_TRACE][UIController] UIStateUpdate received; State=%s RoundId=%s", tostring(payload.State), tostring(payload.RoundId)))
-		if self.MatchStatusLabel then self.MatchStatusLabel.Text = string.format("Match: %s", tostring(payload.State or GameStates.MapRoundState.Lobby)) end
-		if self.TimerLabel then
-			local total = math.max(0, math.floor(payload.RoundElapsed or payload.CountdownTimer or payload.TimeLeft or 0))
+		local lastPayload = self._lastAppliedUiState or {}
+		local state = payload.State or GameStates.MapRoundState.Lobby
+		if self.MatchStatusLabel and lastPayload.State ~= state then
+			self.MatchStatusLabel.Text = string.format("Match: %s", tostring(state))
+		end
+
+		local elapsed = payload.RoundElapsed or payload.CountdownTimer or payload.TimeLeft or 0
+		local total = math.max(0, math.floor(elapsed))
+		if self.TimerLabel and lastPayload.TimerTotal ~= total then
 			local minutes = math.floor(total / 60)
 			local seconds = total % 60
 			self.TimerLabel.Text = string.format("%02d:%02d", minutes, seconds)
 		end
-		if self.AlivePlayersLabel then self.AlivePlayersLabel.Text = string.format("PlayerCount: %d (alive %d)", payload.PlayerCount or 0, payload.AlivePlayers or 0) end
-		if self.WinnerPopup and (payload.State or "") == GameStates.MapRoundState.RoundEnd then
-			print("[ROUND_END_TRACE][UIController] UIStateUpdate entering RoundEnd WinnerPopup branch")
+
+		local playerCount = payload.PlayerCount or 0
+		local alivePlayers = payload.AlivePlayers or 0
+		if self.AlivePlayersLabel and (lastPayload.PlayerCount ~= playerCount or lastPayload.AlivePlayers ~= alivePlayers) then
+			self.AlivePlayersLabel.Text = string.format("PlayerCount: %d (alive %d)", playerCount, alivePlayers)
+		end
+
+		self._lastAppliedUiState = {
+			State = state,
+			TimerTotal = total,
+			PlayerCount = playerCount,
+			AlivePlayers = alivePlayers,
+		}
+
+		if self.WinnerPopup and state == GameStates.MapRoundState.RoundEnd then
 			self.WinnerPopup.Visible = true
 			self.WinnerPopup.Text = "Match result screen: pending"
-		elseif (payload.State or "") == GameStates.MapRoundState.Lobby and self.MatchSummaryDataService then
+		elseif state == GameStates.MapRoundState.Lobby and self.MatchSummaryDataService then
 			self.MatchSummaryDataService:Reset()
 		end
 	end)
@@ -714,13 +736,11 @@ function UIController:Start()
 	end
 
 	local summaryConnection = self.ClientService:BindMatchSummaryUpdate(function(payload)
-		print(string.format("[ROUND_END_TRACE][UIController] MatchSummaryUpdate received; rows=%s winner=%s", tostring(payload and payload.Rows and #payload.Rows), tostring(payload and payload.Winner)))
 		if self.MatchSummaryDataService then self.MatchSummaryDataService:SetFromState(payload) end
 	end)
 	if summaryConnection then table.insert(self.Connections, summaryConnection) end
 
 	local resultConnection = self.ClientService:BindRoundResult(function(payload)
-		print(string.format("[ROUND_END_TRACE][UIController] RoundResult received; winner=%s roundId=%s", tostring(payload and payload.Winner), tostring(payload and payload.RoundId)))
 		if self.WinnerPopup then
 			self.WinnerPopup.Visible = true
 			self.WinnerPopup.Text = "Match result screen: Winner: " .. tostring(payload.Winner)

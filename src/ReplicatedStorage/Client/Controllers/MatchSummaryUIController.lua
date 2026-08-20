@@ -72,6 +72,9 @@ function MatchSummaryUIController:SetVisible(visible: boolean)
 end
 
 function MatchSummaryUIController:_clearRows()
+	if #self.Rows == 0 then
+		return
+	end
 	for _, row in ipairs(self.Rows) do
 		row:Destroy()
 	end
