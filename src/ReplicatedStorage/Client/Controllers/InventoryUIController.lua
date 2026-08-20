@@ -99,6 +99,7 @@ function InventoryUIController.new(playerGui: PlayerGui)
 	self._connections = {}
 	self._activeTab = "Items"
 	self._slotConnections = {}
+	self._slotConnectionMap = {}
 	self._itemSlotMap = {}
 	self._launcherSlotMap = {}
 	self._equipmentSlotMap = {}
@@ -235,6 +236,9 @@ function InventoryUIController:SetVisible(isVisible: boolean)
 	if self._inventoryGui and self._inventoryGui:IsA("ScreenGui") then
 		self._inventoryGui.Enabled = isVisible
 	end
+	if isVisible and self._cachedSnapshot then
+		self:RefreshWithData(self._cachedSnapshot)
+	end
 end
 
 function InventoryUIController:SetActiveTab(tabName: string)
@@ -254,6 +258,18 @@ function InventoryUIController:_disconnectSlotConnections()
 		connection:Disconnect()
 	end
 	table.clear(self._slotConnections)
+	if self._slotConnectionMap then table.clear(self._slotConnectionMap) end
+end
+
+function InventoryUIController:_disconnectSlot(slot: Instance)
+	local slotConnections = self._slotConnectionMap and self._slotConnectionMap[slot]
+	if not slotConnections then return end
+	for _, connection in ipairs(slotConnections) do
+		connection:Disconnect()
+		local index = table.find(self._slotConnections, connection)
+		if index then table.remove(self._slotConnections, index) end
+	end
+	self._slotConnectionMap[slot] = nil
 end
 
 function InventoryUIController:_clearGeneratedSlots()
@@ -330,17 +346,23 @@ function InventoryUIController:_bindSlotState(slot: GuiObject, listType: string,
 
 	self:_applySlotVisual(slot, false, false)
 
-	table.insert(self._slotConnections, clickTarget.MouseEnter:Connect(function()
+	local slotConnections = {}
+	local function track(connection)
+		table.insert(slotConnections, connection)
+		table.insert(self._slotConnections, connection)
+	end
+
+	track(clickTarget.MouseEnter:Connect(function()
 		hoverState = true
 		local selected = (listType == "Item" and self._selectedItemId == id) or (listType == "Launcher" and self._selectedLauncherId == id) or (listType == "Equipment" and self._selectedEquipmentId == id)
 		self:_applySlotVisual(slot, hoverState, selected)
 	end))
-	table.insert(self._slotConnections, clickTarget.MouseLeave:Connect(function()
+	track(clickTarget.MouseLeave:Connect(function()
 		hoverState = false
 		local selected = (listType == "Item" and self._selectedItemId == id) or (listType == "Launcher" and self._selectedLauncherId == id) or (listType == "Equipment" and self._selectedEquipmentId == id)
 		self:_applySlotVisual(slot, hoverState, selected)
 	end))
-	table.insert(self._slotConnections, clickTarget.InputBegan:Connect(function(input)
+	track(clickTarget.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
 			return
 		end
@@ -360,6 +382,7 @@ function InventoryUIController:_bindSlotState(slot: GuiObject, listType: string,
 			self:RefreshWithData(self._cachedSnapshot)
 		end
 	end))
+	self._slotConnectionMap[slot] = slotConnections
 end
 
 function InventoryUIController:_spawnItemSlot(itemId: string, quantity: number)
@@ -486,6 +509,87 @@ function InventoryUIController:_spawnEquipmentSlot(equipmentEntry)
 	self._equipmentSlotMap[instanceId] = slot
 	self:_bindSlotState(slot, "Equipment", instanceId)
 	table.insert(self._spawnedEquipmentSlots, slot)
+end
+
+function InventoryUIController:_updateItemSlot(slot: GuiObject, itemId: string, quantity: number)
+	local itemDef = ItemConfig.GetById(itemId)
+	if not itemDef then return end
+	local slotRoot = getTemplateRoot(slot, ITEM_SLOT_TEMPLATE_NAME)
+	if not slotRoot then return end
+	self:_bindCommonSlot(slotRoot, itemDef.name, itemDef.icon)
+	local quantityLabel = findDirectTemplateText(slotRoot, "Quantity")
+	if quantityLabel then quantityLabel.Text = string.format("x%d", math.max(0, quantity)) end
+end
+
+function InventoryUIController:_updateLauncherSlot(slot: GuiObject, launcherEntry)
+	local slotRoot = getTemplateRoot(slot, LAUNCHER_SLOT_TEMPLATE_NAME)
+	local launcherDef = LauncherConfig.GetById(launcherEntry.id)
+	if not slotRoot or not launcherDef then return end
+	self:_bindCommonSlot(slotRoot, launcherEntry.name or launcherDef.name, launcherEntry.icon or launcherDef.icon)
+	local levelLabel = findDirectTemplateText(slotRoot, "Level")
+	if levelLabel then
+		local stats = launcherEntry.stats
+		if type(stats) == "table" then
+			levelLabel.Text = string.format("Lv.%d | Dmg %.1f | HP %.0f", math.max(1, launcherEntry.level or 1), stats.damage or 0, stats.hp or 0)
+		else
+			levelLabel.Text = string.format("Lv.%d", math.max(1, launcherEntry.level or 1))
+		end
+	end
+	local equippedTag = findDirectTemplateText(slotRoot, "EquippedTag")
+	if equippedTag then equippedTag.Visible = launcherEntry.equipped == true end
+end
+
+function InventoryUIController:_updateEquipmentSlot(slot: GuiObject, equipmentEntry)
+	local definitionId = tostring(equipmentEntry.definitionId or equipmentEntry.id or "")
+	local def = EquipmentConfig.GetById(definitionId)
+	local slotRoot = getTemplateRoot(slot, EQUIPMENT_SLOT_TEMPLATE_NAME)
+	if not slotRoot or not def then return end
+	self:_bindCommonSlot(slotRoot, equipmentEntry.name or def.name, equipmentEntry.icon or def.iconId)
+	local remainingTimeText = findDirectTemplateText(slotRoot, "RemainingTimeText")
+	if remainingTimeText then remainingTimeText.Text = formatRemainingLifetime(equipmentEntry) end
+	local levelLabel = findDirectTemplateText(slotRoot, "Level")
+	if levelLabel then levelLabel.Text = string.format("Lv.%d", math.max(1, equipmentEntry.level or 1)) end
+	local equippedTag = findDirectTemplateText(slotRoot, "EquippedTag")
+	if equippedTag then
+		equippedTag.Visible = equipmentEntry.equipped == true
+		equippedTag.Text = equipmentEntry.equippedSlot and ("Slot " .. tostring(equipmentEntry.equippedSlot)) or "Equipped"
+	end
+end
+
+function InventoryUIController:_destroyMappedSlot(slot: GuiObject?)
+	if not slot then return end
+	self:_disconnectSlot(slot)
+	if slot.Parent then slot:Destroy() end
+end
+
+function InventoryUIController:_reconcileSlots(data)
+	local seenItems = {}
+	for itemId, quantity in pairs(data.ownedItems or {}) do
+		seenItems[itemId] = true
+		local slot = self._itemSlotMap[itemId]
+		if slot and slot.Parent then self:_updateItemSlot(slot, itemId, quantity) else self:_spawnItemSlot(itemId, quantity) end
+	end
+	for itemId, slot in pairs(self._itemSlotMap) do if not seenItems[itemId] then self._itemSlotMap[itemId] = nil; self:_destroyMappedSlot(slot) end end
+
+	local seenLaunchers = {}
+	for _, launcherEntry in ipairs(data.ownedLaunchers or {}) do
+		local launcherId = launcherEntry.id
+		seenLaunchers[launcherId] = true
+		local slot = self._launcherSlotMap[launcherId]
+		if slot and slot.Parent then self:_updateLauncherSlot(slot, launcherEntry) else self:_spawnLauncherSlot(launcherEntry) end
+	end
+	for launcherId, slot in pairs(self._launcherSlotMap) do if not seenLaunchers[launcherId] then self._launcherSlotMap[launcherId] = nil; self:_destroyMappedSlot(slot) end end
+
+	local seenEquipment = {}
+	for _, equipmentEntry in ipairs(data.ownedEquipment or {}) do
+		local instanceId = tostring(equipmentEntry.instanceId or "")
+		if instanceId ~= "" then
+			seenEquipment[instanceId] = true
+			local slot = self._equipmentSlotMap[instanceId]
+			if slot and slot.Parent then self:_updateEquipmentSlot(slot, equipmentEntry) else self:_spawnEquipmentSlot(equipmentEntry) end
+		end
+	end
+	for equipmentId, slot in pairs(self._equipmentSlotMap) do if not seenEquipment[equipmentId] then self._equipmentSlotMap[equipmentId] = nil; self:_destroyMappedSlot(slot) end end
 end
 
 function InventoryUIController:_findEquipmentEntry(ownedEquipment, equipmentId)
@@ -743,21 +847,13 @@ end
 function InventoryUIController:RefreshWithData(data)
 	print(string.format("[DIAG][InventoryUI] RefreshWithData items=%s launchers=%s equipment=%s equippedEquipment=%s selectedEquipment=%s t=%.3f", tostring(type(data.ownedItems) == "table" and (function() local count = 0; for _ in pairs(data.ownedItems) do count += 1 end; return count end)() or "n/a"), tostring(type(data.ownedLaunchers) == "table" and #data.ownedLaunchers or "n/a"), tostring(type(data.ownedEquipment) == "table" and #data.ownedEquipment or "n/a"), tostring(type(data.equippedEquipment) == "table" and (function() local count = 0; for _ in pairs(data.equippedEquipment) do count += 1 end; return count end)() or "n/a"), tostring(data.selectedEquipmentId), os.clock()))
 	self._cachedSnapshot = data
-	self:_clearGeneratedSlots()
-
-	local ownedItems = data.ownedItems or {}
-	for itemId, quantity in pairs(ownedItems) do
-		self:_spawnItemSlot(itemId, quantity)
+	if self._inventoryGui and self._inventoryGui:IsA("ScreenGui") and not self._inventoryGui.Enabled then
+		return
 	end
+
+	self:_reconcileSlots(data)
 
 	local ownedLaunchers = data.ownedLaunchers or {}
-	for _, launcherEntry in ipairs(ownedLaunchers) do
-		self:_spawnLauncherSlot(launcherEntry)
-	end
-
-	local ownedEquipment = data.ownedEquipment or {}
-	for _, equipmentEntry in ipairs(ownedEquipment) do self:_spawnEquipmentSlot(equipmentEntry) end
-
 	if self._equipmentCapacityLabel then self._equipmentCapacityLabel.Text = string.format("Capacity: %d/%d | Equipped: %d/3", #(data.ownedEquipment or {}), data.equipmentCapacity or 0, (function() local count = 0; for _ in pairs(data.equippedEquipment or {}) do count += 1 end; return count end)()) end
 	if self._launcherCapacityLabel then
 		self._launcherCapacityLabel.Text = string.format("Capacity: %d/%d", #ownedLaunchers, data.launcherCapacity or 0)

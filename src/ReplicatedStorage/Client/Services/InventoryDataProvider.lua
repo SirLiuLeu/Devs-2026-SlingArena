@@ -30,6 +30,27 @@ export type InventorySnapshot = {
 	pendingLauncherInstanceId: string?,
 }
 
+
+local function deepEqual(left: any, right: any): boolean
+	if left == right then
+		return true
+	end
+	if type(left) ~= "table" or type(right) ~= "table" then
+		return false
+	end
+	for key, leftValue in pairs(left) do
+		if not deepEqual(leftValue, right[key]) then
+			return false
+		end
+	end
+	for key in pairs(right) do
+		if left[key] == nil then
+			return false
+		end
+	end
+	return true
+end
+
 local function cloneItems(items: { [string]: number }): { [string]: number }
 	local result = {}
 	for itemId, quantity in pairs(items) do
@@ -126,53 +147,79 @@ function InventoryDataProvider:SetFromState(state)
 	if type(state) ~= "table" then
 		return
 	end
+
+	local nextItems = cloneItems(self._state.ownedItems)
 	local incomingItems = state.OwnedItems
 	if type(incomingItems) == "table" then
-		self._state.ownedItems = cloneItems(incomingItems)
+		nextItems = cloneItems(incomingItems)
 	end
 	if typeof(state.HpPotions) == "number" then
-		self._state.ownedItems.hp_potion = math.max(0, math.floor(state.HpPotions))
+		nextItems.hp_potion = math.max(0, math.floor(state.HpPotions))
 	end
 
+	local nextLaunchers = self._state.ownedLaunchers
 	local incomingLaunchers = state.OwnedLaunchers
 	if type(incomingLaunchers) == "table" then
-		self._state.ownedLaunchers = cloneLaunchers(incomingLaunchers)
+		nextLaunchers = cloneLaunchers(incomingLaunchers)
+	end
+	if type(state.EquippedLauncherInstanceId) == "string" then
+		nextLaunchers = cloneLaunchers(nextLaunchers)
+		for _, launcherEntry in ipairs(nextLaunchers) do
+			launcherEntry.equipped = launcherEntry.instanceId == state.EquippedLauncherInstanceId
+		end
 	end
 
+	local nextEquipment = self._state.ownedEquipment
 	local incomingEquipment = state.OwnedEquipment
 	if type(incomingEquipment) == "table" then
-		self._state.ownedEquipment = cloneLaunchers(incomingEquipment)
-		for _, entry in ipairs(self._state.ownedEquipment) do
+		nextEquipment = cloneLaunchers(incomingEquipment)
+		for _, entry in ipairs(nextEquipment) do
 			local def = EquipmentConfig.GetById(entry.definitionId or entry.id or "")
 			entry.id = entry.definitionId or entry.id
 			entry.name = entry.name or (def and def.name)
 			entry.icon = entry.icon or (def and def.iconId)
 		end
 	end
+
+	local nextEquippedEquipment = self._state.equippedEquipment
 	if type(state.EquippedEquipment) == "table" then
-		self._state.equippedEquipment = table.clone(state.EquippedEquipment)
-		for _, entry in ipairs(self._state.ownedEquipment) do
+		nextEquippedEquipment = table.clone(state.EquippedEquipment)
+		nextEquipment = cloneLaunchers(nextEquipment)
+		for _, entry in ipairs(nextEquipment) do
 			entry.equipped = false
-			for slot, instanceId in pairs(self._state.equippedEquipment) do
+			entry.equippedSlot = nil
+			for slot, instanceId in pairs(nextEquippedEquipment) do
 				if instanceId == entry.instanceId then entry.equipped = true; entry.equippedSlot = tonumber(slot) or slot end
 			end
 		end
 	end
 
-	if type(state.EquippedLauncherInstanceId) == "string" then
-		for _, launcherEntry in ipairs(self._state.ownedLaunchers) do
-			launcherEntry.equipped = launcherEntry.instanceId == state.EquippedLauncherInstanceId
-		end
-		if self._state.pendingLauncherInstanceId ~= nil then
-			self._state.lastUseResult = (self._state.pendingLauncherInstanceId == state.EquippedLauncherInstanceId) and "LauncherEquipped" or "LauncherEquipRejected"
-			self._state.pendingLauncherInstanceId = nil
-		end
-	end
-
+	local nextLauncherCapacity = self._state.launcherCapacity
 	if type(state.LauncherCapacity) == "number" then
-		self._state.launcherCapacity = math.max(0, math.floor(state.LauncherCapacity))
+		nextLauncherCapacity = math.max(0, math.floor(state.LauncherCapacity))
 	end
 
+	local changed = not deepEqual(nextItems, self._state.ownedItems)
+		or not deepEqual(nextLaunchers, self._state.ownedLaunchers)
+		or not deepEqual(nextEquipment, self._state.ownedEquipment)
+		or not deepEqual(nextEquippedEquipment, self._state.equippedEquipment)
+		or nextLauncherCapacity ~= self._state.launcherCapacity
+
+	if type(state.EquippedLauncherInstanceId) == "string" and self._state.pendingLauncherInstanceId ~= nil then
+		self._state.lastUseResult = (self._state.pendingLauncherInstanceId == state.EquippedLauncherInstanceId) and "LauncherEquipped" or "LauncherEquipRejected"
+		self._state.pendingLauncherInstanceId = nil
+		changed = true
+	end
+
+	if not changed then
+		return
+	end
+
+	self._state.ownedItems = nextItems
+	self._state.ownedLaunchers = nextLaunchers
+	self._state.ownedEquipment = nextEquipment
+	self._state.equippedEquipment = nextEquippedEquipment
+	self._state.launcherCapacity = nextLauncherCapacity
 	self:_emitChanged()
 end
 

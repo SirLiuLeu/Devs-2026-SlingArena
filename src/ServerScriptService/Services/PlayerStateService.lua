@@ -51,6 +51,7 @@ function PlayerStateService.new(context: Context)
 	self._lastAttacker = {} :: { [Player]: Player }
 	self._damageDealt = {} :: { [Player]: number }
 	self._launcherRuntime = {} :: { [Player]: any }
+	self._lastPublishedStates = {} :: { [Player]: any }
 	self._stateUpdateRemote = context.Remotes:FindFirstChild("StateUpdate") :: RemoteEvent
 	self._consumeHpPotionRemote = context.Remotes:FindFirstChild("ConsumeHpPotion") :: RemoteEvent?
 	self._attributeUpgradeRemote = context.Remotes:FindFirstChild("AttributeUpgrade") :: RemoteEvent?
@@ -209,6 +210,7 @@ function PlayerStateService:Init()
 			flagService:ClearPlayer(player)
 		end
 		self._launcherRuntime[player] = nil
+		self._lastPublishedStates[player] = nil
 	end)
 	for _, player in ipairs(Players:GetPlayers()) do
 		self._states[player] = buildDefaultState(player)
@@ -733,14 +735,64 @@ function PlayerStateService:ResetForRespawn(player: Player)
 	self:RecalculateDerivedStats(player, true)
 end
 
+local function cloneStateValue(value: any, seen: { [any]: any }?): any
+	if type(value) ~= "table" then
+		return value
+	end
+	seen = seen or {}
+	if seen[value] then
+		return seen[value]
+	end
+	local clone = {}
+	seen[value] = clone
+	for key, childValue in pairs(value) do
+		clone[cloneStateValue(key, seen)] = cloneStateValue(childValue, seen)
+	end
+	return clone
+end
+
+local function stateValuesEqual(left: any, right: any, seen: { [any]: { [any]: boolean } }?): boolean
+	if left == right then
+		return true
+	end
+	if type(left) ~= "table" or type(right) ~= "table" then
+		return false
+	end
+	seen = seen or {}
+	seen[left] = seen[left] or {}
+	if seen[left][right] then
+		return true
+	end
+	seen[left][right] = true
+	for key, leftValue in pairs(left) do
+		if not stateValuesEqual(leftValue, right[key], seen) then
+			return false
+		end
+	end
+	for key in pairs(right) do
+		if left[key] == nil then
+			return false
+		end
+	end
+	return true
+end
+
 function PlayerStateService:PublishState(player: Player)
 	local state = self._states[player]
-	if self._stateUpdateRemote and state then
+	if not state then
+		return
+	end
+
+	local lastPublishedState = self._lastPublishedStates[player]
+	if lastPublishedState and stateValuesEqual(state, lastPublishedState) then
+		return
+	end
+
+	self._lastPublishedStates[player] = cloneStateValue(state)
+	if self._stateUpdateRemote then
 		self._stateUpdateRemote:FireClient(player, state)
 	end
-	if state then
-		self._context.EventBus:Fire("PlayerStateUpdated", player, state)
-	end
+	self._context.EventBus:Fire("PlayerStateUpdated", player, state)
 end
 
 function PlayerStateService:SetCharging(player: Player, isCharging: boolean, chargeValue: number)
