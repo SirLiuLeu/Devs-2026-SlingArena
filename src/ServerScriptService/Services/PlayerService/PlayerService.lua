@@ -429,44 +429,21 @@ function PlayerService:UnequipEquipmentModel(player: Player, slot: number): bool
 	return true
 end
 
-function PlayerService:_resolveEquipmentAttachment(pawn: Model, hitbox: BasePart, slot: number, modelTemplate: Model): (BasePart?, CFrame?, string?)
+function PlayerService:_resolveEquipmentAttachment(hitbox: BasePart, slot: number): (Attachment?, string?)
 	local slotAttachment = hitbox:FindFirstChild("EquipmentSlot" .. tostring(slot), true)
 	if slotAttachment and slotAttachment:IsA("Attachment") then
-		return hitbox, slotAttachment.WorldCFrame, "EquipmentSlot" .. tostring(slot)
+		return slotAttachment, slotAttachment.Name
 	end
-
-	local requestedPart = modelTemplate:GetAttribute("EquipmentAttachPart")
-	local requestedAttachment = modelTemplate:GetAttribute("EquipmentAttachAttachment")
-	local partNames = {}
-	if typeof(requestedPart) == "string" then
-		table.insert(partNames, requestedPart)
-	end
-	table.insert(partNames, "Head")
-	table.insert(partNames, "UpperTorso")
-	table.insert(partNames, "Torso")
-
-	for _, partName in ipairs(partNames) do
-		local part = pawn:FindFirstChild(partName, true)
-		if part and part:IsA("BasePart") then
-			if typeof(requestedAttachment) == "string" then
-				local attachment = part:FindFirstChild(requestedAttachment, true)
-				if attachment and attachment:IsA("Attachment") then
-					return part, attachment.WorldCFrame, requestedAttachment
-				end
-			end
-			local dynamicAttachment = part:FindFirstChild("EquipmentSlot" .. tostring(slot), true) or part:FindFirstChild("EquipmentAttachment", true)
-			if dynamicAttachment and dynamicAttachment:IsA("Attachment") then
-				return part, dynamicAttachment.WorldCFrame, dynamicAttachment.Name
-			end
-			return part, part.CFrame, partName
-		end
-	end
-
-	return nil, nil, nil
+	return nil, nil
 end
 
 function PlayerService:EquipEquipmentModel(player: Player, slot: number, equipmentId: string): boolean
 	if type(slot) ~= "number" or slot < 1 or slot > 3 then return false end
+	local stateService = self._context.Services.PlayerStateService
+	if not (stateService and stateService:IsLauncher(player)) then
+		self:UnequipEquipmentModel(player, slot)
+		return false
+	end
 	local pawn = self:GetPawn(player)
 	if not pawn then return false end
 	local hitbox = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
@@ -480,26 +457,48 @@ function PlayerService:EquipEquipmentModel(player: Player, slot: number, equipme
 	local model = modelTemplate:Clone()
 	model.Name = "EquippedEquipmentSlot" .. tostring(slot)
 	model.Parent = pawn
-	local root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+	local root = model:FindFirstChild("Handle", true)
+	if not (root and root:IsA("BasePart")) then root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true) end
 	if not root then model:Destroy(); return false end
-	local attachPart, attachCFrame, attachName = self:_resolveEquipmentAttachment(pawn, hitbox, slot, modelTemplate)
-	if not (attachPart and attachCFrame) then
-		warn(string.format("[PLAYER_SERVICE] EquipmentSlot%d attachment point missing", slot))
+	local attachment, attachName = self:_resolveEquipmentAttachment(hitbox, slot)
+	if not attachment then
+		warn(string.format("[PLAYER_SERVICE] Launcher Hitbox.EquipmentSlot%d attachment missing; create it in ReplicatedStorage.Assets.Launchers.Player.Hitbox.", slot))
 		model:Destroy()
 		return false
 	end
 	model.PrimaryPart = root
-	model:PivotTo(attachCFrame)
+	model:PivotTo(attachment.WorldCFrame)
 	self:_configureVisualRig(model)
 	local weld = Instance.new("WeldConstraint")
 	weld.Name = "WeldConstraint_EquipmentSlot" .. tostring(slot)
-	weld.Part0 = attachPart
+	weld.Part0 = hitbox
 	weld.Part1 = root
 	weld.Parent = model
 	model:SetAttribute("EquipmentId", equipmentId)
 	model:SetAttribute("EquipmentSlot", slot)
 	model:SetAttribute("EquipmentAttachPoint", attachName)
 	return true
+end
+
+function PlayerService:RefreshEquipmentModels(player: Player)
+	local stateService = self._context.Services.PlayerStateService
+	if not (stateService and stateService:IsLauncher(player)) then
+		for slot = 1, 3 do self:UnequipEquipmentModel(player, slot) end
+		return
+	end
+	local dataService = self._context.Services.PlayerDataService
+	if not dataService then return end
+	local owned = dataService:GetOwnedEquipment(player)
+	local equipped = dataService:GetEquippedEquipment(player)
+	for slot = 1, 3 do
+		local instanceId = equipped[slot]
+		local instance = instanceId and owned[instanceId]
+		if type(instance) == "table" and type(instance.definitionId) == "string" then
+			self:EquipEquipmentModel(player, slot, instance.definitionId)
+		else
+			self:UnequipEquipmentModel(player, slot)
+		end
+	end
 end
 
 function PlayerService:_prepareLauncherModel(model: Model): BasePart?
@@ -874,6 +873,7 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	pawn.PrimaryPart:SetNetworkOwner(player)
 	self._playerToLauncher[player] = pawn
 	self._launcherToPlayer[pawn] = player
+	self:RefreshEquipmentModels(player)
 	self:_attachWorldUi(pawn, player)
 	self:_initializeLauncherAnimations(player, pawn)
 	pawn:SetAttribute("ScaleValue", LauncherConfig.ModelScale)

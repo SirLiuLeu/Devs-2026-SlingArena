@@ -68,3 +68,10 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `LauncherConfig.lua` | Canonical 11-launcher catalog (`Types`) with `NormalLauncher` as `DefaultLauncherId`, per-launcher `modelPath` values under `ReplicatedStorage/Assets/Launchers`, rarity/stats, and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
 | `LaunchershotConfig.lua` | Launch/charge/recovery constants, launchershot modifiers, and launcher combat baseline values. | `LauncherService`, `PlayerStateService`, `LauncherUIController` |
 | `TrapConfig.lua` | Trap tuning constants (EXP penalty, cooldown, count, color). | `TrapService` |
+
+## Recent implementation update (2026-08-21)
+
+- Equipment visuals are Launcher-only: `PlayerService` attaches cloned `Equipment/<Id>/Handle` models exclusively to `Player.Hitbox.EquipmentSlot1..3`, clears them for Human mode, and restores equipped visuals whenever a Launcher pawn is spawned.
+- Equipment active-input UI resolves the first equipped definition with an `abilityId` from authoritative `StateUpdate` data and fires `AbilityTrigger` with that id.
+- `RoundService` sends an immediate targeted `UIStateUpdate` snapshot to each joining client; Shop UI re-resolves and safely rebinds after `CharacterAdded`.
+- Debug lifecycle traces in the Equipment services are reduced/commented with `-- [DEBUG_TRACE]`.

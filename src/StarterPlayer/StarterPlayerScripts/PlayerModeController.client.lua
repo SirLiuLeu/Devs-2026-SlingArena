@@ -123,11 +123,14 @@ function HumanLauncherToggleController:Bind()
 	if not toggleFrame then
 		return
 	end
+	local toggleFrameChanged = self.ToggleFrame ~= toggleFrame
 	self.ToggleFrame = toggleFrame
 	self.Background = toggleFrame:WaitForChild("Background") :: GuiObject
 	self.Gradient = (self.Background :: Instance):WaitForChild("Gradient") :: UIGradient
 	self.Options = toggleFrame:WaitForChild("Options")
-	self.CurrentVisualState = nil
+	if toggleFrameChanged then
+		self.CurrentVisualState = nil
+	end
 	local offClick = self.Options:WaitForChild("Off"):WaitForChild("Click") :: GuiButton
 	local onClick = self.Options:WaitForChild("On"):WaitForChild("Click") :: GuiButton
 	table.insert(self.Connections, offClick.Activated:Connect(function()

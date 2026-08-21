@@ -48,6 +48,14 @@ function RoundService.new(context)
 end
 
 function RoundService:Init()
+	Players.PlayerAdded:Connect(function(player)
+		-- A newly joined client can miss the initial broadcast; give it a targeted snapshot.
+		task.defer(function()
+			if player.Parent == Players then
+				self:_sendUiStateToPlayer(player)
+			end
+		end)
+	end)
 	if self._joinRemote then
 		self._joinRemote.OnServerEvent:Connect(function(player)
 			self:JoinArena(player)
@@ -409,9 +417,31 @@ function RoundService:_publishUiState()
 	if not self._uiStateRemote then
 		return
 	end
+	local payload = self:_buildUiStatePayload()
+	local alivePlayers = payload.AlivePlayers
+	local playerCount = payload.PlayerCount
+	local lastPayload = self._lastPublishedUiState
+	if lastPayload then
+		local changed = false
+		for key, value in pairs(payload) do
+			if lastPayload[key] ~= value then changed = true; break end
+		end
+		if not changed then
+			for key in pairs(lastPayload) do if payload[key] == nil then changed = true; break end end
+		end
+		if not changed then return end
+	end
+	self._lastPublishedUiState = table.clone(payload)
+	self._lastUiAlivePlayers = alivePlayers
+	self._lastUiPlayerCount = playerCount
+	print(string.format("[DIAG][RoundService] publishUiState fire state=%s roundId=%s alive=%s players=%s elapsed=%.3f t=%.3f", tostring(payload.State), tostring(payload.RoundId), tostring(payload.AlivePlayers), tostring(payload.PlayerCount), payload.RoundElapsed, os.clock()))
+	self._uiStateRemote:FireAllClients(payload)
+end
+
+function RoundService:_buildUiStatePayload()
 	local alivePlayers = self:_countAliveArenaPlayers()
 	local playerCount = self:_countArenaPlayers()
-	local payload = {
+	return {
 		State = self._state,
 		LocationState = self._state,
 		AlivePlayers = alivePlayers,
@@ -423,32 +453,12 @@ function RoundService:_publishUiState()
 		RoundActive = self._roundActive,
 		RoundId = self._roundId,
 	}
-	local lastPayload = self._lastPublishedUiState
-	if lastPayload then
-		local changed = false
-		for key, value in pairs(payload) do
-			if lastPayload[key] ~= value then
-				changed = true
-				break
-			end
-		end
-		if not changed then
-			for key in pairs(lastPayload) do
-				if payload[key] == nil then
-					changed = true
-					break
-				end
-			end
-		end
-		if not changed then
-			return
-		end
+end
+
+function RoundService:_sendUiStateToPlayer(player: Player)
+	if self._uiStateRemote then
+		self._uiStateRemote:FireClient(player, self:_buildUiStatePayload())
 	end
-	self._lastPublishedUiState = table.clone(payload)
-	self._lastUiAlivePlayers = alivePlayers
-	self._lastUiPlayerCount = playerCount
-	print(string.format("[DIAG][RoundService] publishUiState fire state=%s roundId=%s alive=%s players=%s elapsed=%.3f t=%.3f", tostring(payload.State), tostring(payload.RoundId), tostring(payload.AlivePlayers), tostring(payload.PlayerCount), payload.RoundElapsed, os.clock()))
-	self._uiStateRemote:FireAllClients(payload)
 end
 
 return RoundService

@@ -1,6 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
@@ -34,6 +35,7 @@ function ShopUIController.new(playerGui: PlayerGui)
 	local self = setmetatable({}, ShopUIController)
 	self._playerGui = playerGui
 	self._connections = {}
+	self._uiConnections = {}
 	self._slotConnections = {}
 	self._snapshot = nil
 	return self
@@ -44,6 +46,38 @@ function ShopUIController:SetLogicService(logicService)
 end
 
 function ShopUIController:Start()
+	self:_bindCharacterLifecycle()
+	self:_resolveGuiAndBind()
+	if self._logicService and not self._logicConnection then
+		self._logicConnection = self._logicService:BindChanged(function(snapshot)
+			self:RenderSnapshot(snapshot)
+		end)
+	end
+	if self._logicService then self:RenderSnapshot(self._logicService:GetSnapshot()) end
+	self:ShowTab("Items")
+end
+
+function ShopUIController:_disconnectUiConnections()
+	for _, connection in ipairs(self._uiConnections) do connection:Disconnect() end
+	table.clear(self._uiConnections)
+	self:_disconnectSlotConnections()
+end
+
+function ShopUIController:_bindCharacterLifecycle()
+	if self._characterConnection then return end
+	local player = Players.LocalPlayer
+	self._characterConnection = player.CharacterAdded:Connect(function()
+		-- ScreenGuis with ResetOnSpawn enabled are recreated with the character.
+		task.defer(function()
+			self:_resolveGuiAndBind()
+			if self._snapshot then self:RenderSnapshot(self._snapshot) end
+		end)
+	end)
+end
+
+function ShopUIController:_resolveGuiAndBind()
+	local wasVisible = self:IsVisible()
+	self:_disconnectUiConnections()
 	self._screenGui = PathResolver.resolvePath(self._playerGui, ProjectTreeSpec.UI.Shop.ScreenGui)
 	if not self._screenGui then
 		self._screenGui = PathResolver.resolvePath(self._playerGui, "ShopUI")
@@ -71,34 +105,27 @@ function ShopUIController:Start()
 	if not self._dinamondTemplate then warn("[SHOP_UI] ReplicatedStorage.Assets.UI.SlotDiamondPackTemplate_ShopUI missing") end
 
 	if self._closeButton then
-		table.insert(self._connections, self._closeButton.MouseButton1Click:Connect(function()
+		table.insert(self._uiConnections, self._closeButton.MouseButton1Click:Connect(function()
 			self:SetVisible(false)
 		end))
 	end
 	if self._itemsTabButton then
-		table.insert(self._connections, self._itemsTabButton.MouseButton1Click:Connect(function()
+		table.insert(self._uiConnections, self._itemsTabButton.MouseButton1Click:Connect(function()
 			self:ShowTab("Items")
 		end))
 	end
 	if self._launchersTabButton then
-		table.insert(self._connections, self._launchersTabButton.MouseButton1Click:Connect(function()
+		table.insert(self._uiConnections, self._launchersTabButton.MouseButton1Click:Connect(function()
 			self:ShowTab("Launchers")
 		end))
 	end
 	if self._dinamondsTabButton then
-		table.insert(self._connections, self._dinamondsTabButton.MouseButton1Click:Connect(function()
+		table.insert(self._uiConnections, self._dinamondsTabButton.MouseButton1Click:Connect(function()
 			self:ShowTab("Dinamonds")
 		end))
 	end
 
-	if self._logicService then
-		table.insert(self._connections, self._logicService:BindChanged(function(snapshot)
-			self:RenderSnapshot(snapshot)
-		end))
-		self:RenderSnapshot(self._logicService:GetSnapshot())
-	end
-
-	self:ShowTab("Items")
+	self:SetVisible(wasVisible)
 end
 
 function ShopUIController:SetVisible(isVisible: boolean)
@@ -257,6 +284,9 @@ function ShopUIController:RenderSnapshot(snapshot)
 end
 
 function ShopUIController:Destroy()
+	self:_disconnectUiConnections()
+	if self._characterConnection then self._characterConnection:Disconnect(); self._characterConnection = nil end
+	if self._logicConnection then self._logicConnection:Disconnect(); self._logicConnection = nil end
 	self:_disconnectSlotConnections()
 	for _, connection in ipairs(self._connections) do
 		connection:Disconnect()
