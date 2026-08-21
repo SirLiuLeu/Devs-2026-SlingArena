@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local EquipmentEffectService = {}
 EquipmentEffectService.__index = EquipmentEffectService
@@ -21,6 +22,7 @@ function EquipmentEffectService.new(context)
 	self._connections = {}
 	self._heartbeatConnection = nil
 	self._heartbeatConnectCount = 0
+	self._abilityTriggerRemote = context.Remotes and context.Remotes:FindFirstChild(RemoteContracts.Names.AbilityTrigger) :: RemoteEvent?
 	return self
 end
 
@@ -37,6 +39,14 @@ function EquipmentEffectService:Init()
 	self:RegisterEffect("Shield", require(script.EquipmentEffects.Shield))
 	self:RegisterEffect("Titan", require(script.EquipmentEffects.Titan))
 	self:RegisterEffect("SmokeBomb", require(script.EquipmentEffects.SmokeBomb))
+	self:RegisterEffect("Freeze", require(script.EquipmentEffects.Slow))
+	self:RegisterEffect("Regen", require(script.EquipmentEffects.Regen))
+	self:RegisterEffect("ShadowCloak", require(script.EquipmentEffects.ShadowCloak))
+	if self._abilityTriggerRemote then
+		table.insert(self._connections, self._abilityTriggerRemote.OnServerEvent:Connect(function(player: Player, payload)
+			self:_onAbilityTrigger(player, payload)
+		end))
+	end
 	local bus = self._context.EventBus
 	table.insert(self._connections, Players.PlayerRemoving:Connect(function(player)
 		local effects = self._activeEffects[player]
@@ -91,6 +101,23 @@ function EquipmentEffectService:Init()
 	print("[ROUND_END_TRACE][EquipmentEffectService] Init END; heartbeat ensured")
 end
 
+function EquipmentEffectService:_onAbilityTrigger(player: Player, payload: any)
+	if type(payload) ~= "table" or type(payload.abilityId) ~= "string" then return end
+	local playerEffects = self._activeEffects[player]
+	if not playerEffects then return end
+	for _, effectState in pairs(playerEffects) do
+		local definition = effectState.context.definition
+		if definition and definition.abilityId == payload.abilityId then
+			local handler = effectState.module.OnAbilityTrigger or effectState.module.OnAttack
+			if typeof(handler) == "function" then
+				handler(effectState.context, payload)
+			else
+				warn(string.format("[EQUIPMENT_EFFECT] Ability trigger for %s is not implemented.", tostring(definition.id)))
+			end
+		end
+	end
+end
+
 function EquipmentEffectService:RegisterEffect(effectId: string, effectModule: any)
 	self._effectModules[effectId] = effectModule
 end
@@ -133,6 +160,7 @@ function EquipmentEffectService:ActivateEquipment(player, _slotType: string, ins
 	self:DeactivateEquipment(player, instanceId)
 	local context = {
 		player = player,
+		slot = tonumber(_slotType),
 		instanceId = instanceId,
 		definition = definition,
 		ownedInstance = ownedInstance,

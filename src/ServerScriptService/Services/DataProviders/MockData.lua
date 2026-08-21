@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local DeepCopy = require(ReplicatedStorage.Shared.Utils.DeepCopy)
+local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
 
 local MockData = {}
 
@@ -16,17 +17,35 @@ MockData.PlayerProfiles = {
 		Diamonds = 750,
 		OwnedItems = { hp_potion = 8, exp_buff_x2 = 2, gacha_ticket = 5 },
 		OwnedEquipment = {
-			eq_alpha_core_poison = { definitionId = "Poison", level = 3, rarity = "Rare", acquiredAt = 1786924800 },
-			eq_alpha_module_fire = { definitionId = "GhostFlame", level = 2, rarity = "Epic", acquiredAt = 1786924800 },
-			eq_alpha_temp_shield = { definitionId = "PowerCore", level = 1, rarity = "Common", isTemporary = true, expiresAt = 1787011200, acquiredAt = 1786924800 },
+			eq_alpha_PlasmaCannon = { definitionId = "PlasmaCannon", level = 1, rarity = (EquipmentConfig.GetById("PlasmaCannon") and EquipmentConfig.GetById("PlasmaCannon").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_SlowBlaster = { definitionId = "SlowBlaster", level = 1, rarity = (EquipmentConfig.GetById("SlowBlaster") and EquipmentConfig.GetById("SlowBlaster").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_ThunderHammer = { definitionId = "ThunderHammer", level = 1, rarity = (EquipmentConfig.GetById("ThunderHammer") and EquipmentConfig.GetById("ThunderHammer").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_Medusa = { definitionId = "Medusa", level = 1, rarity = (EquipmentConfig.GetById("Medusa") and EquipmentConfig.GetById("Medusa").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_IceCrystal = { definitionId = "IceCrystal", level = 1, rarity = (EquipmentConfig.GetById("IceCrystal") and EquipmentConfig.GetById("IceCrystal").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_GhostFlame = { definitionId = "GhostFlame", level = 1, rarity = (EquipmentConfig.GetById("GhostFlame") and EquipmentConfig.GetById("GhostFlame").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_Poison = { definitionId = "Poison", level = 1, rarity = (EquipmentConfig.GetById("Poison") and EquipmentConfig.GetById("Poison").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_HealthCore = { definitionId = "HealthCore", level = 1, rarity = (EquipmentConfig.GetById("HealthCore") and EquipmentConfig.GetById("HealthCore").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_PowerCore = { definitionId = "PowerCore", level = 1, rarity = (EquipmentConfig.GetById("PowerCore") and EquipmentConfig.GetById("PowerCore").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_Shield = { definitionId = "Shield", level = 1, rarity = (EquipmentConfig.GetById("Shield") and EquipmentConfig.GetById("Shield").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_BrainBoost = { definitionId = "BrainBoost", level = 1, rarity = (EquipmentConfig.GetById("BrainBoost") and EquipmentConfig.GetById("BrainBoost").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_TurboModule = { definitionId = "TurboModule", level = 1, rarity = (EquipmentConfig.GetById("TurboModule") and EquipmentConfig.GetById("TurboModule").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_LaunchBooster = { definitionId = "LaunchBooster", level = 1, rarity = (EquipmentConfig.GetById("LaunchBooster") and EquipmentConfig.GetById("LaunchBooster").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_TitanCore = { definitionId = "TitanCore", level = 1, rarity = (EquipmentConfig.GetById("TitanCore") and EquipmentConfig.GetById("TitanCore").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_QuickReload = { definitionId = "QuickReload", level = 1, rarity = (EquipmentConfig.GetById("QuickReload") and EquipmentConfig.GetById("QuickReload").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_ThornArmor = { definitionId = "ThornArmor", level = 1, rarity = (EquipmentConfig.GetById("ThornArmor") and EquipmentConfig.GetById("ThornArmor").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_RegenBooster = { definitionId = "RegenBooster", level = 1, rarity = (EquipmentConfig.GetById("RegenBooster") and EquipmentConfig.GetById("RegenBooster").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_ShadowCloak = { definitionId = "ShadowCloak", level = 1, rarity = (EquipmentConfig.GetById("ShadowCloak") and EquipmentConfig.GetById("ShadowCloak").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_SmokeBomb = { definitionId = "SmokeBomb", level = 1, rarity = (EquipmentConfig.GetById("SmokeBomb") and EquipmentConfig.GetById("SmokeBomb").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_MagnetCore = { definitionId = "MagnetCore", level = 1, rarity = (EquipmentConfig.GetById("MagnetCore") and EquipmentConfig.GetById("MagnetCore").rarity) or "Common", acquiredAt = 1786924800 },
 		},
-		EquippedEquipment = { [1] = "eq_alpha_core_poison", [2] = "eq_alpha_module_fire", [3] = "eq_alpha_temp_shield" },
+		EquippedEquipment = { [1] = "eq_alpha_Poison", [2] = "eq_alpha_GhostFlame", [3] = "eq_alpha_ThunderHammer" },
 		OwnedLaunchers = {
 			ln_alpha_normal = { definitionId = "NormalLauncher", star = 1, level = 2 },
 			ln_alpha_fire = { definitionId = "FireLauncher", star = 3, level = 4, temporaryState = { skin = "TrialRed" } },
 		},
 		EquippedLauncherInstanceId = "ln_alpha_fire",
 	},
+
 	{
 		UserId = -800002,
 		Name = "MockPlayerBeta",

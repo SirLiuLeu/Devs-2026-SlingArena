@@ -120,6 +120,7 @@ function EquipmentService:Equip(player: Player, instanceId: string, preferredSlo
 	if not dataService then return false, "MissingPlayerDataService" end
 	local equippedInstance = nil
 	local slotNumber = nil
+	local replacedInstanceId = nil
 	local ok = false
 	local failure = "NotOwned"
 	dataService:UpdateData(player, function(data)
@@ -133,6 +134,7 @@ function EquipmentService:Equip(player: Player, instanceId: string, preferredSlo
 		end
 		slotNumber = self:_normalizeSlot(preferredSlot) or self:_findFirstOpenSlot(data.EquippedEquipment)
 		if not slotNumber then failure = "NoOpenSlot"; return data end
+		replacedInstanceId = data.EquippedEquipment[slotNumber]
 		data.EquippedEquipment[slotNumber] = instanceId
 		equippedInstance = ownedInstance
 		ok = true
@@ -146,6 +148,9 @@ function EquipmentService:Equip(player: Player, instanceId: string, preferredSlo
 	local stateService = getService(self._context, "PlayerStateService")
 	if stateService and typeof(stateService.SyncEquipmentFromData) == "function" then stateService:SyncEquipmentFromData(player) end
 	if self._context.EventBus then
+		if replacedInstanceId and replacedInstanceId ~= instanceId then
+			self._context.EventBus:Fire("EquipmentUnequipped", player, slotNumber, replacedInstanceId)
+		end
 		self._context.EventBus:Fire("EquipmentEquipped", player, slotNumber, instanceId, equippedInstance)
 	end
 	local playerService = getService(self._context, "PlayerService")

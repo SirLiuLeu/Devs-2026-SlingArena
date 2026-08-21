@@ -47,13 +47,41 @@ local function buildContext()
 	return context, data
 end
 
+
+runTest("required equipment catalog contains exactly 20 definitions", function()
+	local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
+	local requiredIds = { "PlasmaCannon", "SlowBlaster", "ThunderHammer", "Medusa", "IceCrystal", "GhostFlame", "Poison", "HealthCore", "PowerCore", "Shield", "BrainBoost", "TurboModule", "LaunchBooster", "TitanCore", "QuickReload", "ThornArmor", "RegenBooster", "ShadowCloak", "SmokeBomb", "MagnetCore" }
+	assertEqual(#EquipmentConfig.GetAllIds(), 20, "catalog exposes exactly the requested 20 Equipment definitions")
+	for _, definitionId in ipairs(requiredIds) do
+		local definition = EquipmentConfig.GetById(definitionId)
+		assertTrue(definition ~= nil, "missing Equipment definition " .. definitionId)
+		assertEqual(definition.modelName, definitionId, "model name follows definition ID")
+	end
+end)
+
+
+runTest("mock data contains all required equipment", function()
+	local MockData = require(ServerScriptService.Services.DataProviders.MockData)
+	local profile = MockData.GetDefaultPlayerProfile()
+	local count = 0
+	local seen = {}
+	for _, owned in pairs(profile.OwnedEquipment) do
+		count += 1
+		seen[owned.definitionId] = true
+	end
+	assertEqual(count, 20, "server mock profile contains exactly 20 Equipment instances")
+	for _, definitionId in ipairs(require(ReplicatedStorage.Shared.Config.EquipmentConfig).GetAllIds()) do
+		assertTrue(seen[definitionId] == true, "mock profile missing " .. definitionId)
+	end
+end)
+
 runTest("default and normalized equipment data", function()
 	local context, dataService = buildContext()
 	local p = player(7101, "EquipData")
 	local data = dataService:LoadPlayer(p)
 	assertTrue(type(data.OwnedEquipment) == "table", "OwnedEquipment defaults to a table")
 	assertTrue(type(data.EquippedEquipment) == "table", "EquippedEquipment defaults to a table")
-	data.OwnedEquipment.keep = { definitionId = "training_core", level = "3", rarity = "Rare", pity = { spins = 2 } }
+	data.OwnedEquipment.keep = { definitionId = "HealthCore", level = "3", rarity = "Rare", pity = { spins = 2 } }
 	data.OwnedEquipment.drop = { level = 1 }
 	data.EquippedEquipment[1] = "keep"
 	data.EquippedEquipment[2] = "missing"
@@ -70,7 +98,7 @@ runTest("fail-closed ownership equip", function()
 	local service = EquipmentService.new(context)
 	local p = player(7102, "EquipOwner")
 	dataService:LoadPlayer(p)
-	local ok, instanceId = service:Grant(p, "training_core", { instanceId = "owned-core" })
+	local ok, instanceId = service:Grant(p, "HealthCore", { instanceId = "owned-core" })
 	assertTrue(ok and instanceId == "owned-core", "grant creates owned instance")
 	local equipOk = service:Equip(p, "owned-core")
 	assertTrue(equipOk, "owned instance equips")
@@ -78,26 +106,26 @@ runTest("fail-closed ownership equip", function()
 	assertTrue(not unownedOk, "unowned instance fails")
 	local invalidOk = service:Equip(p, "")
 	assertTrue(not invalidOk, "invalid instance ID fails")
-	local definitionOk = service:Equip(p, "training_core")
+	local definitionOk = service:Equip(p, "HealthCore")
 	assertTrue(not definitionOk, "definition ID cannot bypass ownership")
 	context.EventBus:Destroy()
 end)
 
 runTest("stat resolver applies equipped additive and multiplicative modifiers only", function()
 	local owned = {
-		core1 = { definitionId = "training_core" },
-		module1 = { definitionId = "damage_module" },
-		charm1 = { definitionId = "swift_charm" },
+		core1 = { definitionId = "HealthCore" },
+		module1 = { definitionId = "PowerCore" },
+		charm1 = { definitionId = "TurboModule" },
 	}
 	local equipped = { [1] = "core1", [2] = "module1" }
 	local result = EquipmentStatResolver.Resolve({ maxHP = 1000, baseDamage = 100, damageMultiplier = 2, moveSpeed = 10 }, owned, equipped)
-	assertEqual(result.maxHP, 1100, "equipped additive HP applies")
-	assertEqual(result.baseDamage, 150, "equipped additive damage applies")
-	assertNear(result.damageMultiplier, 2.1, 0.0001, "equipped multiplicative damage applies")
+	assertEqual(result.maxHP, 1300, "equipped multiplicative HP applies")
+	assertEqual(result.baseDamage, 120, "equipped multiplicative damage applies")
+	assertNear(result.damageMultiplier, 2, 0.0001, "unmodified damage multiplier stays stable")
 	assertEqual(result.moveSpeed, 10, "owned but unequipped move speed modifier is ignored")
 	equipped[3] = "charm1"
 	local withCharm = EquipmentStatResolver.Resolve({ maxHP = 1000, baseDamage = 100, damageMultiplier = 2, moveSpeed = 10 }, owned, equipped)
-	assertEqual(withCharm.moveSpeed, 11, "multiple equipped slots aggregate")
+	assertEqual(withCharm.moveSpeed, 12, "multiple equipped slots aggregate")
 end)
 
 runTest("effects activate, isolate players, and share heartbeat", function()
@@ -111,9 +139,9 @@ runTest("effects activate, isolate players, and share heartbeat", function()
 	local p1 = player(7103, "EffectOne")
 	local p2 = player(7104, "EffectTwo")
 	dataService:LoadPlayer(p1); dataService:LoadPlayer(p2)
-	equipmentService:Grant(p1, "training_core", { instanceId = "p1-core" })
-	equipmentService:Grant(p1, "damage_module", { instanceId = "p1-module" })
-	equipmentService:Grant(p2, "training_core", { instanceId = "p2-core" })
+	equipmentService:Grant(p1, "HealthCore", { instanceId = "p1-core" })
+	equipmentService:Grant(p1, "PowerCore", { instanceId = "p1-module" })
+	equipmentService:Grant(p2, "HealthCore", { instanceId = "p2-core" })
 	equipmentService:Equip(p1, "p1-core"); equipmentService:Equip(p1, "p1-module"); equipmentService:Equip(p2, "p2-core")
 	assertEqual(effectService:GetActiveEffectCount(p1), 2, "one player can have multiple active equipment effects")
 	assertEqual(effectService:GetActiveEffectCount(p2), 1, "other player's effects are isolated")
@@ -132,7 +160,7 @@ runTest("equipment upgrade spends canonical PlayerData diamonds", function()
 	local p = player(7105, "Economy")
 	dataService:LoadPlayer(p)
 	dataService:GrantReward(p, { Diamonds = 1000 }, "Test")
-	service:Grant(p, "training_core", { instanceId = "upgrade-core" })
+	service:Grant(p, "HealthCore", { instanceId = "upgrade-core" })
 	local cost = EquipmentUpgradeConfig.GetUpgradeCost(1)
 	local ok = service:Upgrade(p, "upgrade-core")
 	assertTrue(ok, "upgrade succeeds when PlayerData diamonds can pay")
@@ -140,7 +168,7 @@ runTest("equipment upgrade spends canonical PlayerData diamonds", function()
 	context.Services.PlayerStateService.RuntimeDiamonds = 999999
 	local poor = player(7106, "PoorEconomy")
 	dataService:LoadPlayer(poor)
-	service:Grant(poor, "training_core", { instanceId = "poor-core" })
+	service:Grant(poor, "HealthCore", { instanceId = "poor-core" })
 	local poorOk = service:Upgrade(poor, "poor-core")
 	assertTrue(not poorOk, "runtime-only diamond fields cannot bypass PlayerData ledger")
 	context.EventBus:Destroy()

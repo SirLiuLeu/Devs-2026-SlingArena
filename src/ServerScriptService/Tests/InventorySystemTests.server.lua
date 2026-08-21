@@ -252,7 +252,7 @@ local function testEquipmentInventoryLoadsAndRenders()
 	local provider = InventoryDataProvider.new()
 	provider:LoadMockInventory()
 	local snapshot = provider:GetSnapshot()
-	if #snapshot.ownedEquipment < 1 then error("Equipment inventory must load server-backed/mock equipment") end
+	if #snapshot.ownedEquipment ~= 20 then error("Equipment inventory mock must display exactly 20 Equipment") end
 	local controller = InventoryUIController.new(playerGui :: any)
 	controller:SetDataProvider(provider)
 	controller:Start()

@@ -2,7 +2,7 @@
 
 local Workspace = game:GetService("Workspace")
 
-local RADIUS = 10
+local DEFAULT_RADIUS = 6
 local PULL_ALPHA = 0.18
 local MAX_PER_TICK = 24
 
@@ -27,7 +27,8 @@ function Magnet.OnTick(context, _dt: number)
 			local foodRoot = getRoot(descendant)
 			if foodRoot and not foodRoot.Anchored then
 				local offset = playerRoot.Position - foodRoot.Position
-				if offset.Magnitude <= RADIUS then
+				local radius = math.max(0, tonumber((context.definition.passiveAbility or {}).value) or DEFAULT_RADIUS)
+				if offset.Magnitude <= radius then
 					foodRoot.AssemblyLinearVelocity = foodRoot.AssemblyLinearVelocity:Lerp(offset.Unit * math.min(offset.Magnitude * 8, 60), PULL_ALPHA)
 					pulled += 1
 				end

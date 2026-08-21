@@ -25,6 +25,8 @@ local STAT_ALIASES = {
 	Armor = "armor",
 	expBonus = "expBonus",
 	ExpBonus = "expBonus",
+	launchCooldown = "launchCooldown",
+	LaunchCooldown = "launchCooldown",
 }
 
 local function canonical(statName: string): string
