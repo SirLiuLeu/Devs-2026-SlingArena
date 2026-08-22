@@ -8,6 +8,13 @@ local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
+local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
+
+local function trace(message: string)
+	if DebugConfig.VerboseTrace then
+		print(message)
+	end
+end
 
 local InventoryUIController = {}
 InventoryUIController.__index = InventoryUIController
@@ -115,7 +122,7 @@ function InventoryUIController:SetDataProvider(provider)
 end
 
 function InventoryUIController:Start()
-	print(string.format("[DIAG][InventoryUI] Start existingConnections=%d t=%.3f", #self._connections, os.clock()))
+	trace(string.format("[DIAG][InventoryUI] Start existingConnections=%d t=%.3f", #self._connections, os.clock()))
 	self._inventoryGui = PathResolver.resolvePath(self._playerGui, ProjectTreeSpec.UI.Inventory.ScreenGui)
 	self._itemsGrid = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsGridContainer)
 	self._launchersGrid = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.LaunchersGridContainer)
@@ -242,7 +249,7 @@ function InventoryUIController:SetVisible(isVisible: boolean)
 end
 
 function InventoryUIController:SetActiveTab(tabName: string)
-	print(string.format("[DIAG][InventoryUI] SetActiveTab requested=%s previous=%s t=%.3f", tostring(tabName), tostring(self._activeTab), os.clock()))
+	trace(string.format("[DIAG][InventoryUI] SetActiveTab requested=%s previous=%s t=%.3f", tostring(tabName), tostring(self._activeTab), os.clock()))
 	self._activeTab = if tabName == "Launcher" then "Launcher" elseif tabName == "Equipment" then "Equipment" else "Items"
 	if self._itemsBody then
 		self._itemsBody.Visible = self._activeTab == "Items"
@@ -273,7 +280,7 @@ function InventoryUIController:_disconnectSlot(slot: Instance)
 end
 
 function InventoryUIController:_clearGeneratedSlots()
-	print(string.format("[DIAG][InventoryUI] clearGeneratedSlots items=%d launchers=%d equipment=%d slotConnections=%d t=%.3f", #self._spawnedItemSlots, #self._spawnedLauncherSlots, #self._spawnedEquipmentSlots, #self._slotConnections, os.clock()))
+	trace(string.format("[DIAG][InventoryUI] clearGeneratedSlots items=%d launchers=%d equipment=%d slotConnections=%d t=%.3f", #self._spawnedItemSlots, #self._spawnedLauncherSlots, #self._spawnedEquipmentSlots, #self._slotConnections, os.clock()))
 	if self._itemsGrid then
 		for _, child in ipairs(self._itemsGrid:GetChildren()) do
 			if child:IsA("GuiObject") then
@@ -332,7 +339,7 @@ function InventoryUIController:_applySlotVisual(slot: GuiObject, isHovered: bool
 end
 
 function InventoryUIController:_bindSlotState(slot: GuiObject, listType: string, id: string)
-	print(string.format("[DIAG][InventoryUI] bindSlotState type=%s id=%s existingSlotConnections=%d t=%.3f", tostring(listType), tostring(id), #self._slotConnections, os.clock()))
+	trace(string.format("[DIAG][InventoryUI] bindSlotState type=%s id=%s existingSlotConnections=%d t=%.3f", tostring(listType), tostring(id), #self._slotConnections, os.clock()))
 	slot.BackgroundTransparency = 0
 	slot.Active = true
 	slot.Selectable = true
@@ -803,7 +810,7 @@ function InventoryUIController:_updateHitboxRootPartWeld(pawn: Model, hitbox: Ba
 end
 
 function InventoryUIController:_applyEquippedLauncherModel(launcherId: string)
-	print(string.format("[DIAG][InventoryUI] applyEquippedLauncherModel launcherId=%s t=%.3f", tostring(launcherId), os.clock()))
+	trace(string.format("[DIAG][InventoryUI] applyEquippedLauncherModel launcherId=%s t=%.3f", tostring(launcherId), os.clock()))
 	local modelTemplate = self:_resolveLauncherModelSource(launcherId)
 	if not modelTemplate then
 		return
@@ -845,7 +852,7 @@ function InventoryUIController:_applyEquippedLauncherModel(launcherId: string)
 end
 
 function InventoryUIController:RefreshWithData(data)
-	print(string.format("[DIAG][InventoryUI] RefreshWithData items=%s launchers=%s equipment=%s equippedEquipment=%s selectedEquipment=%s t=%.3f", tostring(type(data.ownedItems) == "table" and (function() local count = 0; for _ in pairs(data.ownedItems) do count += 1 end; return count end)() or "n/a"), tostring(type(data.ownedLaunchers) == "table" and #data.ownedLaunchers or "n/a"), tostring(type(data.ownedEquipment) == "table" and #data.ownedEquipment or "n/a"), tostring(type(data.equippedEquipment) == "table" and (function() local count = 0; for _ in pairs(data.equippedEquipment) do count += 1 end; return count end)() or "n/a"), tostring(data.selectedEquipmentId), os.clock()))
+	trace(string.format("[DIAG][InventoryUI] RefreshWithData items=%s launchers=%s equipment=%s equippedEquipment=%s selectedEquipment=%s t=%.3f", tostring(type(data.ownedItems) == "table" and (function() local count = 0; for _ in pairs(data.ownedItems) do count += 1 end; return count end)() or "n/a"), tostring(type(data.ownedLaunchers) == "table" and #data.ownedLaunchers or "n/a"), tostring(type(data.ownedEquipment) == "table" and #data.ownedEquipment or "n/a"), tostring(type(data.equippedEquipment) == "table" and (function() local count = 0; for _ in pairs(data.equippedEquipment) do count += 1 end; return count end)() or "n/a"), tostring(data.selectedEquipmentId), os.clock()))
 	self._cachedSnapshot = data
 	if self._inventoryGui and self._inventoryGui:IsA("ScreenGui") and not self._inventoryGui.Enabled then
 		return

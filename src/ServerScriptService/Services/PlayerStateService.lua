@@ -312,6 +312,49 @@ function PlayerStateService:SetSelectedPlayerMode(player: Player, modeName: stri
 	return true
 end
 
+
+function PlayerStateService:SetEquipmentEquipStatus(player: Player, status: any)
+	local state = self._states[player]
+	if not state then return end
+	state.EquipmentEquipStatus = status
+	self:PublishState(player)
+end
+
+function PlayerStateService:_syncEquipmentLifecycleForMode(player: Player, modeName: string)
+	local playerService = self._context.Services and self._context.Services.PlayerService
+	local effectService = self._context.Services and self._context.Services.EquipmentEffectService
+	local dataService = self._context.Services and self._context.Services.PlayerDataService
+	if modeName == GameStates.PlayerMode.Human then
+		if effectService and typeof(effectService.DeactivateAllForPlayer) == "function" then
+			effectService:DeactivateAllForPlayer(player)
+		end
+		if playerService and typeof(playerService.UnequipEquipmentModel) == "function" then
+			for slot = 1, 3 do playerService:UnequipEquipmentModel(player, slot) end
+		end
+		return
+	end
+	state.EquipmentEquipStatus = nil
+	if not dataService then return end
+	local owned = dataService:GetOwnedEquipment(player)
+	local equipped = dataService:GetEquippedEquipment(player)
+	for slot = 1, 3 do
+		local instanceId = equipped[slot]
+		local ownedInstance = instanceId and owned[instanceId]
+		if type(ownedInstance) == "table" and type(ownedInstance.definitionId) == "string" then
+			if playerService and typeof(playerService.EquipEquipmentModel) == "function" then
+				playerService:EquipEquipmentModel(player, slot, ownedInstance.definitionId)
+			end
+			if self._context.EventBus then
+				self._context.EventBus:Fire("EquipmentEquipped", player, slot, instanceId, ownedInstance)
+			end
+		else
+			if playerService and typeof(playerService.UnequipEquipmentModel) == "function" then
+				playerService:UnequipEquipmentModel(player, slot)
+			end
+		end
+	end
+end
+
 function PlayerStateService:SetActivePlayerMode(player: Player, modeName: string, forced: boolean?, publishNow: boolean?): boolean
 	if modeName ~= GameStates.PlayerMode.Launcher and modeName ~= GameStates.PlayerMode.Human then
 		return false
@@ -335,6 +378,10 @@ function PlayerStateService:SetActivePlayerMode(player: Player, modeName: string
 	state.KnockbackMaxEndsAt = 0
 	if forced == true and modeName == GameStates.PlayerMode.Human then
 		state.ForcedHuman = true
+	end
+	self:_syncEquipmentLifecycleForMode(player, modeName)
+	if self._context.EventBus then
+		self._context.EventBus:Fire("PlayerModeChanged", player, modeName)
 	end
 	if publishNow ~= false then
 		self:PublishState(player)
