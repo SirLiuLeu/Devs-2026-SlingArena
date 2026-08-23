@@ -69,13 +69,19 @@ DataModel
 │  │  │       ├── StartAttachment (Attachment)
 │  │  │       └── Arrow (MeshPart/Part)
 │  │  │
-│  │  ├── Equipment
+│  │  ├── Equipment (Folder)
 │  │  │  ├── Poison (Model)
+│  │  │  │    └── Root (Part)
 │  │  │  ├── GhostFlame (Model)
+│  │  │  │    └── Root (Part)
 │  │  │  ├── PowerCore (Model)
+│  │  │  │    └── Root (Part)
 │  │  │  ├── BrainBoost (Model)
+│  │  │  │    └── Root (Part)
 │  │  │  ├── ThunderHammer (Model)
+│  │  │  │    └── Root (Part)
 │  │  │  └── Medusa (Model)
+│  │  │       └── Root (Part)
 │  │  │
 │  │  ├── Launchers
 │  │  │  ├── Player (Character Default)
