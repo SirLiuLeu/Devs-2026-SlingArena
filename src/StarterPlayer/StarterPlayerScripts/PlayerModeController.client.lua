@@ -71,8 +71,8 @@ function HumanLauncherToggleController:_setVisibleForState()
 	end
 	local locationState = player:GetAttribute("LocationState")
 	local roundState = player:GetAttribute("RoundState")
-	local inLobby = locationState == nil or locationState == GameStates.SessionState.Lobby
-	local roundIsLobby = roundState == nil or roundState == GameStates.MapRoundState.Lobby
+	local inLobby = locationState == GameStates.SessionState.Lobby
+	local roundIsLobby = roundState == GameStates.MapRoundState.Lobby
 	toggleFrame.Visible = inLobby and roundIsLobby
 end
 
@@ -100,10 +100,8 @@ function HumanLauncherToggleController:_applyVisual(optionName: string)
 	self:_setVisibleForState()
 end
 
-function HumanLauncherToggleController:RefreshFromActiveMode(modeOverride: string?)
-	local settledMode = modeOverride or PlayerModeState.GetActiveMode(player, nil)
-	ActivePlayerMode = settledMode
-	local visualMode = if settledMode == LauncherMode then LAUNCHER_ON else HUMAN_OFF
+function HumanLauncherToggleController:RefreshFromActiveMode()
+	local visualMode = if ActivePlayerMode == LauncherMode then LAUNCHER_ON else HUMAN_OFF
 	self:_applyVisual(visualMode)
 end
 
@@ -113,6 +111,7 @@ function HumanLauncherToggleController:SetSelectedPlayerMode(modeName: string, n
 	end
 	SelectedPlayerMode = modeName
 	player:SetAttribute("SelectedPlayerMode", SelectedPlayerMode)
+	self:RefreshFromActiveMode()
 	if notifyServer then
 		setPlayerModeRemote:FireServer(SelectedPlayerMode)
 	end
@@ -140,9 +139,7 @@ function HumanLauncherToggleController:Bind()
 	table.insert(self.Connections, onClick.Activated:Connect(function()
 		self:SetSelectedPlayerMode(LauncherMode, true)
 	end))
-	table.insert(self.Connections, PlayerModeState.BindSettled(player, function(modeName)
-		self:RefreshFromActiveMode(modeName)
-	end))
+	self:RefreshFromActiveMode()
 	table.insert(self.Connections, player:GetAttributeChangedSignal("LocationState"):Connect(function()
 		self:_setVisibleForState()
 	end))
@@ -170,6 +167,7 @@ local function applyStatePayload(state: any)
 	PlayerModeState.ApplyPayload(player, state)
 	SelectedPlayerMode = PlayerModeState.GetActiveMode(player, { ActivePlayerMode = player:GetAttribute("SelectedPlayerMode") })
 	ActivePlayerMode = PlayerModeState.GetActiveMode(player, nil)
+	controller:RefreshFromActiveMode()
 	controller:_setVisibleForState()
 end
 

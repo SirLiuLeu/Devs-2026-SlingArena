@@ -5,18 +5,7 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
-local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
 
-
-local function trace(message: string)
-	if DebugConfig.VerboseTrace then
-		print(message)
-	end
-end
-
-local function milestone(message: string)
-	print(message)
-end
 local EquipmentEffectService = {}
 EquipmentEffectService.__index = EquipmentEffectService
 
@@ -63,23 +52,23 @@ function EquipmentEffectService:Init()
 		local effects = self._activeEffects[player]
 		if effects then
 			for instanceId in pairs(effects) do
-				trace(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentUnequipped; player=%s instanceId=%s", player and player.Name or "nil", tostring(instanceId)))
+				print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentUnequipped; player=%s instanceId=%s", player and player.Name or "nil", tostring(instanceId)))
 				self:DeactivateEquipment(player, instanceId)
 			end
 		end
 		self._activeEffects[player] = nil
 	end))
 	if bus then
-		trace("[ROUND_END_TRACE][EquipmentEffectService] EventBus found; binding equipment/effect lifecycle handlers")
+		print("[ROUND_END_TRACE][EquipmentEffectService] EventBus found; binding equipment/effect lifecycle handlers")
 		table.insert(self._connections, bus:On("EquipmentEquipped", function(player, slotType, instanceId, ownedInstance)
-			trace(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentEquipped; player=%s slot=%s instanceId=%s", player and player.Name or "nil", tostring(slotType), tostring(instanceId)))
+			print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentEquipped; player=%s slot=%s instanceId=%s", player and player.Name or "nil", tostring(slotType), tostring(instanceId)))
 			self:ActivateEquipment(player, slotType, instanceId, ownedInstance)
 		end))
 		table.insert(self._connections, bus:On("EquipmentUnequipped", function(player, _slotType, instanceId)
 			self:DeactivateEquipment(player, instanceId)
 		end))
 		table.insert(self._connections, bus:On("EquipmentUpdated", function(player, instanceId, ownedInstance)
-			trace(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentUpdated; player=%s instanceId=%s", player and player.Name or "nil", tostring(instanceId)))
+			print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentUpdated; player=%s instanceId=%s", player and player.Name or "nil", tostring(instanceId)))
 			local dataService = getService(self._context, "PlayerDataService")
 			local equipped = dataService and dataService:GetEquippedEquipment(player) or {}
 			for slotType, equippedInstanceId in pairs(equipped) do
@@ -90,23 +79,21 @@ function EquipmentEffectService:Init()
 			end
 		end))
 		table.insert(self._connections, bus:On("LauncherLaunched", function(player, payload)
-			trace(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus LauncherLaunched -> Dispatch OnLaunch; player=%s", player and player.Name or "nil"))
+			print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus LauncherLaunched -> Dispatch OnLaunch; player=%s", player and player.Name or "nil"))
 			self:Dispatch(player, "OnLaunch", payload)
 		end))
 		table.insert(self._connections, bus:On("CollisionDetected", function(collisionType, attacker, defender, payload)
-			trace(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus CollisionDetected -> Dispatch OnCollision; attacker=%s type=%s", attacker and attacker.Name or "nil", tostring(collisionType)))
-			if collisionType ~= "Launcher" then
-				self:Dispatch(attacker, "OnCollision", collisionType, defender, payload)
-			end
+			print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus CollisionDetected -> Dispatch OnCollision; attacker=%s type=%s", attacker and attacker.Name or "nil", tostring(collisionType)))
+			self:Dispatch(attacker, "OnCollision", collisionType, defender, payload)
 		end))
 		table.insert(self._connections, bus:On("CollisionPlayerHit", function(victim, attacker, _rawDamage, _knockback, collisionMeta)
 			if attacker then
-				trace(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus CollisionPlayerHit -> Dispatch OnCollision; attacker=%s victim=%s", attacker.Name, victim and victim.Name or "nil"))
+				print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus CollisionPlayerHit -> Dispatch OnCollision; attacker=%s victim=%s", attacker.Name, victim and victim.Name or "nil"))
 				self:Dispatch(attacker, "OnCollision", "Player", victim, collisionMeta)
 			end
 		end))
 		table.insert(self._connections, bus:On("PlayerAttack", function(player, payload)
-			trace(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus PlayerAttack -> Dispatch OnAttack; player=%s", player and player.Name or "nil"))
+			print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus PlayerAttack -> Dispatch OnAttack; player=%s", player and player.Name or "nil"))
 			self:Dispatch(player, "OnAttack", payload)
 		end))
 	end
@@ -160,11 +147,7 @@ function EquipmentEffectService:GetActiveEffectCount(player): number
 end
 
 function EquipmentEffectService:ActivateEquipment(player, _slotType: string, instanceId: string, ownedInstance: any): boolean
-	local stateService = getService(self._context, "PlayerStateService")
-	if stateService and typeof(stateService.IsLauncher) == "function" and not stateService:IsLauncher(player) then
-		return false
-	end
-	milestone(string.format("[EQUIPMENT_EFFECT][SUCCESS] ActivateEquipment player=%s instanceId=%s definitionId=%s", player and player.Name or "nil", tostring(instanceId), tostring(ownedInstance and ownedInstance.definitionId)))
+	print(string.format("[ROUND_END_TRACE][EquipmentEffectService] ActivateEquipment player=%s instanceId=%s definitionId=%s", player and player.Name or "nil", tostring(instanceId), tostring(ownedInstance and ownedInstance.definitionId)))
 	local definition = ownedInstance and EquipmentConfig.GetById(tostring(ownedInstance.definitionId or ""))
 	if not definition or not definition.effectId then return false end
 	local module = self._effectModules[definition.effectId]
@@ -197,7 +180,7 @@ function EquipmentEffectService:ActivateEquipment(player, _slotType: string, ins
 end
 
 function EquipmentEffectService:DeactivateEquipment(player, instanceId: string): boolean
-	trace(string.format("[ROUND_END_TRACE][EquipmentEffectService] DeactivateEquipment player=%s instanceId=%s", player and player.Name or "nil", tostring(instanceId)))
+	print(string.format("[ROUND_END_TRACE][EquipmentEffectService] DeactivateEquipment player=%s instanceId=%s", player and player.Name or "nil", tostring(instanceId)))
 	local playerEffects = self._activeEffects[player]
 	local effectState = playerEffects and playerEffects[instanceId]
 	if not effectState then return false end
@@ -208,22 +191,9 @@ function EquipmentEffectService:DeactivateEquipment(player, instanceId: string):
 	return true
 end
 
-function EquipmentEffectService:DeactivateAllForPlayer(player): number
-	local effects = self._activeEffects[player]
-	local removed = 0
-	if effects then
-		for instanceId in pairs(effects) do
-			if self:DeactivateEquipment(player, instanceId) then
-				removed += 1
-			end
-		end
-	end
-	return removed
-end
-
 function EquipmentEffectService:Dispatch(player, lifecycleName: string, ...)
 	local shouldTraceDispatch = lifecycleName ~= "OnTick"
-	if shouldTraceDispatch then trace(string.format("[ROUND_END_TRACE][EquipmentEffectService] Dispatch player=%s lifecycle=%s", player and player.Name or "nil", tostring(lifecycleName))) end
+	if shouldTraceDispatch then print(string.format("[ROUND_END_TRACE][EquipmentEffectService] Dispatch player=%s lifecycle=%s", player and player.Name or "nil", tostring(lifecycleName))) end
 	local playerEffects = self._activeEffects[player]
 	if not playerEffects then return end
 	for instanceId, effectState in pairs(playerEffects) do

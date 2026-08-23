@@ -147,24 +147,15 @@ function EquipmentService:Equip(player: Player, instanceId: string, preferredSlo
 	-- [DEBUG_TRACE] print(string.format("[DIAG][EquipmentService] Equip committed player=%s instanceId=%s slot=%s definition=%s t=%.3f", player.Name, tostring(instanceId), tostring(slotNumber), tostring(equippedInstance and equippedInstance.definitionId), os.clock()))
 	local stateService = getService(self._context, "PlayerStateService")
 	if stateService and typeof(stateService.SyncEquipmentFromData) == "function" then stateService:SyncEquipmentFromData(player) end
-	local isLauncher = stateService and typeof(stateService.IsLauncher) == "function" and stateService:IsLauncher(player)
-	if self._context.EventBus and isLauncher then
+	if self._context.EventBus then
 		if replacedInstanceId and replacedInstanceId ~= instanceId then
 			self._context.EventBus:Fire("EquipmentUnequipped", player, slotNumber, replacedInstanceId)
 		end
 		self._context.EventBus:Fire("EquipmentEquipped", player, slotNumber, instanceId, equippedInstance)
 	end
 	local playerService = getService(self._context, "PlayerService")
-	if isLauncher and playerService and typeof(playerService.EquipEquipmentModel) == "function" then
+	if playerService and typeof(playerService.EquipEquipmentModel) == "function" then
 		playerService:EquipEquipmentModel(player, slotNumber, tostring(equippedInstance.definitionId))
-	elseif stateService and typeof(stateService.SetEquipmentEquipStatus) == "function" then
-		stateService:SetEquipmentEquipStatus(player, {
-			Status = "PendingLauncher",
-			InstanceId = instanceId,
-			Slot = slotNumber,
-			DefinitionId = tostring(equippedInstance.definitionId),
-			Message = "Equipment saved. Switch to Launcher mode to attach and activate it.",
-		})
 	end
 	if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
 		stateService:RecalculateDerivedStats(player, false)
