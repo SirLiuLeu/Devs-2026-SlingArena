@@ -71,8 +71,11 @@ function HumanLauncherToggleController:_setVisibleForState()
 	end
 	local locationState = player:GetAttribute("LocationState")
 	local roundState = player:GetAttribute("RoundState")
-	local inLobby = locationState == GameStates.SessionState.Lobby
-	local roundIsLobby = roundState == GameStates.MapRoundState.Lobby
+	-- MainHUD persists across spawns, but server-owned attributes can briefly be nil
+	-- during startup and character swaps. Treat nil as the client's local default
+	-- (Human in Lobby) so the toggle does not disappear before the first sync.
+	local inLobby = locationState == nil or locationState == GameStates.SessionState.Lobby
+	local roundIsLobby = roundState == nil or roundState == GameStates.MapRoundState.Lobby
 	toggleFrame.Visible = inLobby and roundIsLobby
 end
 
@@ -111,7 +114,9 @@ function HumanLauncherToggleController:SetSelectedPlayerMode(modeName: string, n
 	end
 	SelectedPlayerMode = modeName
 	player:SetAttribute("SelectedPlayerMode", SelectedPlayerMode)
-	self:RefreshFromActiveMode()
+	-- Active mode is authoritative; visual movement is debounced through
+	-- PlayerModeState.BindSettled so character conversion attribute churn cannot
+	-- jitter the toggle.
 	if notifyServer then
 		setPlayerModeRemote:FireServer(SelectedPlayerMode)
 	end
@@ -140,6 +145,10 @@ function HumanLauncherToggleController:Bind()
 		self:SetSelectedPlayerMode(LauncherMode, true)
 	end))
 	self:RefreshFromActiveMode()
+	table.insert(self.Connections, PlayerModeState.BindSettled(player, function(settledMode)
+		ActivePlayerMode = settledMode
+		self:RefreshFromActiveMode()
+	end))
 	table.insert(self.Connections, player:GetAttributeChangedSignal("LocationState"):Connect(function()
 		self:_setVisibleForState()
 	end))
@@ -167,7 +176,7 @@ local function applyStatePayload(state: any)
 	PlayerModeState.ApplyPayload(player, state)
 	SelectedPlayerMode = PlayerModeState.GetActiveMode(player, { ActivePlayerMode = player:GetAttribute("SelectedPlayerMode") })
 	ActivePlayerMode = PlayerModeState.GetActiveMode(player, nil)
-	controller:RefreshFromActiveMode()
+	-- Defer visual refresh to BindSettled to coalesce destroy -> spawn -> attribute updates.
 	controller:_setVisibleForState()
 end
 

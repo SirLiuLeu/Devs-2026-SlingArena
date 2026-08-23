@@ -5,6 +5,7 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
 
 local EquipmentEffectService = {}
 EquipmentEffectService.__index = EquipmentEffectService
@@ -52,16 +53,16 @@ function EquipmentEffectService:Init()
 		local effects = self._activeEffects[player]
 		if effects then
 			for instanceId in pairs(effects) do
-				print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentUnequipped; player=%s instanceId=%s", player and player.Name or "nil", tostring(instanceId)))
+				if DebugConfig.VerboseTrace then print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentUnequipped; player=%s instanceId=%s", player and player.Name or "nil", tostring(instanceId))) end
 				self:DeactivateEquipment(player, instanceId)
 			end
 		end
 		self._activeEffects[player] = nil
 	end))
 	if bus then
-		print("[ROUND_END_TRACE][EquipmentEffectService] EventBus found; binding equipment/effect lifecycle handlers")
+		if DebugConfig.VerboseTrace then print("[ROUND_END_TRACE][EquipmentEffectService] EventBus found; binding equipment/effect lifecycle handlers") end
 		table.insert(self._connections, bus:On("EquipmentEquipped", function(player, slotType, instanceId, ownedInstance)
-			print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentEquipped; player=%s slot=%s instanceId=%s", player and player.Name or "nil", tostring(slotType), tostring(instanceId)))
+			if DebugConfig.VerboseTrace then print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentEquipped; player=%s slot=%s instanceId=%s", player and player.Name or "nil", tostring(slotType), tostring(instanceId))) end
 			local stateService = getService(self._context, "PlayerStateService")
 			if stateService and stateService:IsLauncher(player) then
 				self:ActivateEquipment(player, slotType, instanceId, ownedInstance)
@@ -71,7 +72,7 @@ function EquipmentEffectService:Init()
 			self:DeactivateEquipment(player, instanceId)
 		end))
 		table.insert(self._connections, bus:On("EquipmentUpdated", function(player, instanceId, ownedInstance)
-			print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentUpdated; player=%s instanceId=%s", player and player.Name or "nil", tostring(instanceId)))
+			if DebugConfig.VerboseTrace then print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentUpdated; player=%s instanceId=%s", player and player.Name or "nil", tostring(instanceId))) end
 			local stateService = getService(self._context, "PlayerStateService")
 			if not (stateService and stateService:IsLauncher(player)) then return end
 			local dataService = getService(self._context, "PlayerDataService")
@@ -84,23 +85,23 @@ function EquipmentEffectService:Init()
 			end
 		end))
 		table.insert(self._connections, bus:On("LauncherLaunched", function(player, payload)
-			print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus LauncherLaunched -> Dispatch OnLaunch; player=%s", player and player.Name or "nil"))
+			if DebugConfig.VerboseTrace then print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus LauncherLaunched -> Dispatch OnLaunch; player=%s", player and player.Name or "nil")) end
 			self:Dispatch(player, "OnLaunch", payload)
 		end))
 		table.insert(self._connections, bus:On("CollisionDetected", function(collisionType, attacker, defender, payload)
 			if collisionType == "Food" then
-				print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus CollisionDetected -> Dispatch Food OnCollision; attacker=%s", attacker and attacker.Name or "nil"))
+				if DebugConfig.VerboseTrace then print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus CollisionDetected -> Dispatch Food OnCollision; attacker=%s", attacker and attacker.Name or "nil")) end
 				self:Dispatch(attacker, "OnCollision", collisionType, defender, payload)
 			end
 		end))
 		table.insert(self._connections, bus:On("CollisionPlayerHit", function(victim, attacker, _rawDamage, _knockback, collisionMeta)
 			if attacker then
-				print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus CollisionPlayerHit -> Dispatch OnCollision; attacker=%s victim=%s", attacker.Name, victim and victim.Name or "nil"))
+				if DebugConfig.VerboseTrace then print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus CollisionPlayerHit -> Dispatch OnCollision; attacker=%s victim=%s", attacker.Name, victim and victim.Name or "nil")) end
 				self:Dispatch(attacker, "OnCollision", "Player", victim, collisionMeta)
 			end
 		end))
 		table.insert(self._connections, bus:On("PlayerAttack", function(player, payload)
-			print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus PlayerAttack -> Dispatch OnAttack; player=%s", player and player.Name or "nil"))
+			if DebugConfig.VerboseTrace then print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus PlayerAttack -> Dispatch OnAttack; player=%s", player and player.Name or "nil")) end
 			self:Dispatch(player, "OnAttack", payload)
 		end))
 	end
@@ -179,7 +180,7 @@ function EquipmentEffectService:DeactivateAllEquipment(player): ()
 end
 
 function EquipmentEffectService:ActivateEquipment(player, _slotType: string, instanceId: string, ownedInstance: any): boolean
-	print(string.format("[ROUND_END_TRACE][EquipmentEffectService] ActivateEquipment player=%s instanceId=%s definitionId=%s", player and player.Name or "nil", tostring(instanceId), tostring(ownedInstance and ownedInstance.definitionId)))
+	print(string.format("[EQUIPMENT_EFFECT][SUCCESS] ActivateEquipment player=%s instanceId=%s definitionId=%s", player and player.Name or "nil", tostring(instanceId), tostring(ownedInstance and ownedInstance.definitionId)))
 	local definition = ownedInstance and EquipmentConfig.GetById(tostring(ownedInstance.definitionId or ""))
 	if not definition or not definition.effectId then return false end
 	local module = self._effectModules[definition.effectId]
@@ -212,7 +213,7 @@ function EquipmentEffectService:ActivateEquipment(player, _slotType: string, ins
 end
 
 function EquipmentEffectService:DeactivateEquipment(player, instanceId: string): boolean
-	print(string.format("[ROUND_END_TRACE][EquipmentEffectService] DeactivateEquipment player=%s instanceId=%s", player and player.Name or "nil", tostring(instanceId)))
+	if DebugConfig.VerboseTrace then print(string.format("[ROUND_END_TRACE][EquipmentEffectService] DeactivateEquipment player=%s instanceId=%s", player and player.Name or "nil", tostring(instanceId))) end
 	local playerEffects = self._activeEffects[player]
 	local effectState = playerEffects and playerEffects[instanceId]
 	if not effectState then return false end
@@ -225,7 +226,7 @@ end
 
 function EquipmentEffectService:Dispatch(player, lifecycleName: string, ...)
 	local shouldTraceDispatch = lifecycleName ~= "OnTick"
-	if shouldTraceDispatch then print(string.format("[ROUND_END_TRACE][EquipmentEffectService] Dispatch player=%s lifecycle=%s", player and player.Name or "nil", tostring(lifecycleName))) end
+	if shouldTraceDispatch and DebugConfig.VerboseTrace then print(string.format("[ROUND_END_TRACE][EquipmentEffectService] Dispatch player=%s lifecycle=%s", player and player.Name or "nil", tostring(lifecycleName))) end
 	local playerEffects = self._activeEffects[player]
 	if not playerEffects then return end
 	for instanceId, effectState in pairs(playerEffects) do

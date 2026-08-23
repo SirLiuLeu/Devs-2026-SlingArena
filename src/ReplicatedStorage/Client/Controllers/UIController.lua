@@ -25,6 +25,7 @@ local MatchSummaryDataService = require(ReplicatedStorage.Client.Services.MatchS
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
 
 local QUICK_HP_COOLDOWN_SECONDS = 3
 local QUICK_HP_DIM_TRANSPARENCY = 0.45
@@ -126,7 +127,7 @@ local function getActiveFlagData(activeFlags: any, flagName: string): any?
 end
 
 function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
-	print(string.format("[DIAG][UIController] new playerGui=%s t=%.3f", playerGui:GetFullName(), os.clock()))
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] new playerGui=%s t=%.3f", playerGui:GetFullName(), os.clock())) end
 	local self = setmetatable({}, UIController)
 	self.ClientService = dependencies.ClientService
 	self.PlayerGui = playerGui
@@ -181,7 +182,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 end
 
 function UIController:_resolveUiReferences()
-	print(string.format("[DIAG][UIController] resolveUiReferences queued=%s t=%.3f", tostring(self._UiResolveQueued), os.clock()))
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] resolveUiReferences queued=%s t=%.3f", tostring(self._UiResolveQueued), os.clock())) end
 	local playerGui = self.PlayerGui
 	self.JoinButton = self.JoinButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.JoinButton, false)
 	self.LeaveButton = self.LeaveButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton, false)
@@ -227,7 +228,7 @@ function UIController:_resolveUiReferences()
 end
 
 function UIController:_scheduleResolveUiReferences(refreshHud: boolean?)
-	print(string.format("[DIAG][UIController] scheduleResolve refreshHud=%s alreadyQueued=%s t=%.3f", tostring(refreshHud == true), tostring(self._UiResolveQueued), os.clock()))
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] scheduleResolve refreshHud=%s alreadyQueued=%s t=%.3f", tostring(refreshHud == true), tostring(self._UiResolveQueued), os.clock())) end
 	self._UiResolveRefreshHudQueued = self._UiResolveRefreshHudQueued or refreshHud == true
 	if self._UiResolveQueued then
 		return
@@ -248,17 +249,17 @@ end
 
 function UIController:_connectOnce(key: string, signal: RBXScriptSignal, callback: (...any) -> ())
 	if self._boundUiConnectionKeys[key] then
-		print(string.format("[DIAG][UIController] connectOnce skipped duplicate key=%s t=%.3f", key, os.clock()))
+		if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] connectOnce skipped duplicate key=%s t=%.3f", key, os.clock())) end
 		return
 	end
-	print(string.format("[DIAG][UIController] connectOnce binding key=%s t=%.3f", key, os.clock()))
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] connectOnce binding key=%s t=%.3f", key, os.clock())) end
 	self._boundUiConnectionKeys[key] = true
 	table.insert(self.Connections, signal:Connect(callback))
 end
 
 function UIController:_clearReferenceIfRemoved(fieldName: string, removedRoot: Instance, connectionKey: string?)
 	local current = self[fieldName]
-	if current and current:IsDescendantOf(removedRoot) then
+	if current and (current == removedRoot or current:IsDescendantOf(removedRoot)) then
 		self[fieldName] = nil
 		if connectionKey then
 			self._boundUiConnectionKeys[connectionKey] = nil
@@ -303,7 +304,7 @@ function UIController:_clearRemovedUiReferences(removedRoot: Instance)
 end
 
 function UIController:_bindResolvedUiReferences()
-	print(string.format("[DIAG][UIController] bindResolved refs join=%s inventory=%s endRound=%s quickHp=%s t=%.3f", tostring(self.JoinButton ~= nil), tostring(self.InventoryButton ~= nil), tostring(self.EndRoundButton ~= nil), tostring(self.QuickHpButton ~= nil), os.clock()))
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] bindResolved refs join=%s inventory=%s endRound=%s quickHp=%s t=%.3f", tostring(self.JoinButton ~= nil), tostring(self.InventoryButton ~= nil), tostring(self.EndRoundButton ~= nil), tostring(self.QuickHpButton ~= nil), os.clock())) end
 	if self.JoinButton then
 		self:_connectOnce("JoinButton", self.JoinButton.MouseButton1Click, function()
 			self.ClientService:RequestJoinArena()
@@ -428,7 +429,7 @@ function UIController:_bindResolvedUiReferences()
 end
 
 function UIController:_renderHudValues(diamonds: number?, hpPotions: number?, exp: number?, level: number?)
-	print(string.format("[DIAG][UIController] renderHud diamonds=%s hpPotions=%s exp=%s level=%s t=%.3f", tostring(diamonds), tostring(hpPotions), tostring(exp), tostring(level), os.clock()))
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] renderHud diamonds=%s hpPotions=%s exp=%s level=%s t=%.3f", tostring(diamonds), tostring(hpPotions), tostring(exp), tostring(level), os.clock())) end
 	local resolvedLevel = math.max(1, math.floor(level or 1))
 	local currentExp = math.max(0, math.floor(exp or 0))
 	local required = getRequiredExp(resolvedLevel)
@@ -499,7 +500,8 @@ function UIController:_refreshQuickHpCooldown()
 end
 
 function UIController:ShowMainHubPanel(activeKey: string)
-	print(string.format("[DIAG][UIController] ShowMainHubPanel activeKey=%s panelCount=%d t=%.3f", tostring(activeKey), (function() local count = 0; for _ in pairs(self.PanelMap) do count += 1 end; return count end)(), os.clock()))
+	self:_resolveUiReferences()
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] ShowMainHubPanel activeKey=%s panelCount=%d t=%.3f", tostring(activeKey), (function() local count = 0; for _ in pairs(self.PanelMap) do count += 1 end; return count end)(), os.clock())) end
 	for panelKey, panelGui in pairs(self.PanelMap) do
 		if panelGui then
 			panelGui.Enabled = (panelKey == activeKey)
@@ -535,7 +537,7 @@ function UIController:_handlePlayerGuiChildRemoved(child: Instance)
 	self:_clearRemovedUiReferences(child)
 	if self.PanelMap then
 		for panelKey, panelGui in pairs(self.PanelMap) do
-			if panelGui == child then
+			if panelGui == child or panelGui:IsDescendantOf(child) then
 				self.PanelMap[panelKey] = nil
 			end
 		end
@@ -567,7 +569,7 @@ function UIController:_connectScopedUiRoots()
 end
 
 function UIController:Start()
-	print(string.format("[DIAG][UIController] Start begin existingConnections=%d t=%.3f", #self.Connections, os.clock()))
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] Start begin existingConnections=%d t=%.3f", #self.Connections, os.clock())) end
 	self:_resolveUiReferences()
 	self:_startAvailableFeatureControllers()
 	self:_bindResolvedUiReferences()
@@ -610,7 +612,7 @@ function UIController:Start()
 	end
 
 	local stateConnection = self.ClientService:BindStateUpdate(function(state)
-		print(string.format("[DIAG][UIController] StateUpdate received level=%s exp=%s hp=%s ownedEquipment=%s equippedEquipment=%s t=%.3f", tostring(state.Level), tostring(state.Exp), tostring(state.HpPotions), tostring(type(state.OwnedEquipment) == "table" and #state.OwnedEquipment or "n/a"), tostring(type(state.EquippedEquipment) == "table" and (function() local count = 0; for _ in pairs(state.EquippedEquipment) do count += 1 end; return count end)() or "n/a"), os.clock()))
+		if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] StateUpdate received level=%s exp=%s hp=%s ownedEquipment=%s equippedEquipment=%s t=%.3f", tostring(state.Level), tostring(state.Exp), tostring(state.HpPotions), tostring(type(state.OwnedEquipment) == "table" and #state.OwnedEquipment or "n/a"), tostring(type(state.EquippedEquipment) == "table" and (function() local count = 0; for _ in pairs(state.EquippedEquipment) do count += 1 end; return count end)() or "n/a"), os.clock())) end
 		local previousState = self.LastAuthoritativeState
 		self.LastAuthoritativeState = state
 		if not previousState or previousState.Level ~= state.Level or previousState.Exp ~= state.Exp then
@@ -663,7 +665,7 @@ function UIController:Start()
 	end
 
 	local uiStateConnection = self.ClientService:BindUIStateUpdate(function(payload)
-		print(string.format("[DIAG][UIController] UIStateUpdate state=%s roundId=%s elapsed=%s alive=%s players=%s t=%.3f", tostring(payload.State), tostring(payload.RoundId), tostring(payload.RoundElapsed or payload.CountdownTimer or payload.TimeLeft), tostring(payload.AlivePlayers), tostring(payload.PlayerCount), os.clock()))
+		if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] UIStateUpdate state=%s roundId=%s elapsed=%s alive=%s players=%s t=%.3f", tostring(payload.State), tostring(payload.RoundId), tostring(payload.RoundElapsed or payload.CountdownTimer or payload.TimeLeft), tostring(payload.AlivePlayers), tostring(payload.PlayerCount), os.clock())) end
 		local lastPayload = self._lastAppliedUiState or {}
 		local state = payload.State or GameStates.MapRoundState.Lobby
 		if self.MatchStatusLabel and lastPayload.State ~= state then
@@ -702,6 +704,10 @@ function UIController:Start()
 		table.insert(self.Connections, uiStateConnection)
 	end
 
+	table.insert(self.Connections, self.PlayerGui.ChildRemoved:Connect(function(child)
+		self:_handlePlayerGuiChildRemoved(child)
+	end))
+
 	table.insert(self.Connections, game:GetService("RunService").Heartbeat:Connect(function()
 		self:_refreshQuickHpCooldown()
 	end))
@@ -723,7 +729,21 @@ function UIController:Start()
 	local feedbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
 	if feedbackRemote then
 		table.insert(self.Connections, feedbackRemote.OnClientEvent:Connect(function(message)
-			if type(message) ~= "table" or message.EventType ~= "HpPotionUseResult" then
+			if type(message) ~= "table" then
+				return
+			end
+			if message.EventType == "EquipmentEquipResult" then
+				local payload = message.Payload or {}
+				if self.ToastUIController then
+					self.ToastUIController:Enqueue({
+						Type = tostring(payload.Status or "Equipment"),
+						Text = tostring(payload.Message or payload.Reason or "Equipment updated."),
+						CreatedAt = os.clock(),
+					})
+				end
+				return
+			end
+			if message.EventType ~= "HpPotionUseResult" then
 				return
 			end
 			local payload = message.Payload or {}
@@ -750,7 +770,7 @@ function UIController:Start()
 	if summaryConnection then table.insert(self.Connections, summaryConnection) end
 
 	local resultConnection = self.ClientService:BindRoundResult(function(payload)
-		print(string.format("[DIAG][UIController] RoundResult winner=%s roundId=%s t=%.3f", tostring(payload.Winner), tostring(payload.RoundId), os.clock()))
+		if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] RoundResult winner=%s roundId=%s t=%.3f", tostring(payload.Winner), tostring(payload.RoundId), os.clock())) end
 		if self.WinnerPopup then
 			self.WinnerPopup.Visible = true
 			self.WinnerPopup.Text = "Match result screen: Winner: " .. tostring(payload.Winner)

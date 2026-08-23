@@ -6,6 +6,7 @@ local HttpService = game:GetService("HttpService")
 local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
 local EquipmentUpgradeConfig = require(ReplicatedStorage.Shared.Config.EquipmentUpgradeConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 
 type Context = { Remotes: Folder?, EventBus: any?, Services: any?, ServiceRegistry: any? }
 
@@ -50,6 +51,20 @@ function EquipmentService:Init()
 				self:Upgrade(player, instanceId)
 			end
 		end)
+	end
+end
+
+
+function EquipmentService:_publishEquipResult(player: Player, result: { [string]: any })
+	local feedbackRemote = self._context.Remotes and self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
+	if feedbackRemote then
+		feedbackRemote:FireClient(player, {
+			EventType = "EquipmentEquipResult",
+			Payload = result,
+		})
+	end
+	if self._context.EventBus then
+		self._context.EventBus:Fire("EquipmentEquipResult", player, result)
 	end
 end
 
@@ -142,11 +157,22 @@ function EquipmentService:Equip(player: Player, instanceId: string, preferredSlo
 	end)
 	if not ok then
 		-- [DEBUG_TRACE] print(string.format("[DIAG][EquipmentService] Equip failed player=%s instanceId=%s failure=%s t=%.3f", player.Name, tostring(instanceId), tostring(failure), os.clock()))
+		self:_publishEquipResult(player, { Status = "Rejected", Reason = failure, InstanceId = instanceId })
 		return false, failure
 	end
 	-- [DEBUG_TRACE] print(string.format("[DIAG][EquipmentService] Equip committed player=%s instanceId=%s slot=%s definition=%s t=%.3f", player.Name, tostring(instanceId), tostring(slotNumber), tostring(equippedInstance and equippedInstance.definitionId), os.clock()))
 	local stateService = getService(self._context, "PlayerStateService")
 	if stateService and typeof(stateService.SyncEquipmentFromData) == "function" then stateService:SyncEquipmentFromData(player) end
+	local isLauncherMode = stateService and typeof(stateService.IsLauncher) == "function" and stateService:IsLauncher(player)
+	local equipResult = {
+		Status = if isLauncherMode then "EquippedActive" else "EquippedVisualPending",
+		Reason = if isLauncherMode then nil else "HumanModeNoHitbox",
+		Message = if isLauncherMode then "Equipment equipped." else "Equipment saved. It will visually attach and activate when you switch to Launcher.",
+		InstanceId = instanceId,
+		DefinitionId = equippedInstance and equippedInstance.definitionId,
+		ActivePlayerMode = if isLauncherMode then GameStates.PlayerMode.Launcher else GameStates.PlayerMode.Human,
+	}
+	self:_publishEquipResult(player, equipResult)
 	if self._context.EventBus then
 		if replacedInstanceId and replacedInstanceId ~= instanceId then
 			self._context.EventBus:Fire("EquipmentUnequipped", player, slotNumber, replacedInstanceId)

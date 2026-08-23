@@ -8,6 +8,7 @@ local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local MockData = require(ReplicatedStorage.Client.Services.MockData)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
 
 local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 local consumeHpPotionRemote = remotes:FindFirstChild(RemoteContracts.Names.ConsumeHpPotion) :: RemoteEvent?
@@ -134,7 +135,7 @@ function InventoryDataProvider:GetSnapshot(): InventorySnapshot
 end
 
 function InventoryDataProvider:_emitChanged()
-	print(string.format("[DIAG][InventoryData] emitChanged items=%d launchers=%d equipment=%d selectedEquipment=%s t=%.3f", (function() local count = 0; for _ in pairs(self._state.ownedItems) do count += 1 end; return count end)(), #self._state.ownedLaunchers, #self._state.ownedEquipment, tostring(self._state.selectedEquipmentId), os.clock()))
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryData] emitChanged items=%d launchers=%d equipment=%d selectedEquipment=%s t=%.3f", (function() local count = 0; for _ in pairs(self._state.ownedItems) do count += 1 end; return count end)(), #self._state.ownedLaunchers, #self._state.ownedEquipment, tostring(self._state.selectedEquipmentId), os.clock())) end
 	self._changed:Fire(self:GetSnapshot())
 end
 
@@ -143,7 +144,7 @@ function InventoryDataProvider:BindChanged(callback: (InventorySnapshot) -> ())
 end
 
 function InventoryDataProvider:SetFromState(state)
-	print(string.format("[DIAG][InventoryData] SetFromState incomingType=%s ownedEquipment=%s equippedEquipment=%s t=%.3f", type(state), tostring(type(state) == "table" and type(state.OwnedEquipment) == "table" and (function() local count = 0; for _ in pairs(state.OwnedEquipment) do count += 1 end; return count end)() or "n/a"), tostring(type(state) == "table" and type(state.EquippedEquipment) == "table" and (function() local count = 0; for _ in pairs(state.EquippedEquipment) do count += 1 end; return count end)() or "n/a"), os.clock()))
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryData] SetFromState incomingType=%s ownedEquipment=%s equippedEquipment=%s t=%.3f", type(state), tostring(type(state) == "table" and type(state.OwnedEquipment) == "table" and (function() local count = 0; for _ in pairs(state.OwnedEquipment) do count += 1 end; return count end)() or "n/a"), tostring(type(state) == "table" and type(state.EquippedEquipment) == "table" and (function() local count = 0; for _ in pairs(state.EquippedEquipment) do count += 1 end; return count end)() or "n/a"), os.clock())) end
 	if type(state) ~= "table" then
 		return
 	end
@@ -379,7 +380,7 @@ function InventoryDataProvider:_findEquipmentIndex(equipmentId: string): number?
 end
 
 function InventoryDataProvider:EquipSelectedEquipment(): boolean
-	print(string.format("[DIAG][InventoryData] EquipSelectedEquipment selected=%s t=%.3f", tostring(self._state.selectedEquipmentId), os.clock()))
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryData] EquipSelectedEquipment selected=%s t=%.3f", tostring(self._state.selectedEquipmentId), os.clock())) end
 	local equipmentId = self._state.selectedEquipmentId
 	local index = equipmentId and self:_findEquipmentIndex(equipmentId)
 	if not index then self:_emitChanged(); return false end
