@@ -312,6 +312,28 @@ function PlayerStateService:SetSelectedPlayerMode(player: Player, modeName: stri
 	return true
 end
 
+function PlayerStateService:_syncEquipmentLifecycleForMode(player: Player, modeName: string)
+	local playerService = self._context.Services and self._context.Services.PlayerService
+	local effectService = self._context.Services and self._context.Services.EquipmentEffectService
+	if modeName == GameStates.PlayerMode.Launcher then
+		if playerService and typeof(playerService.RefreshEquipmentModels) == "function" then
+			playerService:RefreshEquipmentModels(player)
+		end
+		if effectService and typeof(effectService.ActivateEquippedEquipment) == "function" then
+			effectService:ActivateEquippedEquipment(player)
+		end
+	else
+		if effectService and typeof(effectService.DeactivateAllEquipment) == "function" then
+			effectService:DeactivateAllEquipment(player)
+		end
+		if playerService and typeof(playerService.UnequipEquipmentModel) == "function" then
+			for slot = 1, 3 do
+				playerService:UnequipEquipmentModel(player, slot)
+			end
+		end
+	end
+end
+
 function PlayerStateService:SetActivePlayerMode(player: Player, modeName: string, forced: boolean?, publishNow: boolean?): boolean
 	if modeName ~= GameStates.PlayerMode.Launcher and modeName ~= GameStates.PlayerMode.Human then
 		return false
@@ -320,6 +342,7 @@ function PlayerStateService:SetActivePlayerMode(player: Player, modeName: string
 	if not state then
 		return false
 	end
+	local previousMode = state.ActivePlayerMode
 	state.ActivePlayerMode = modeName
 	state.MovementState = if modeName == GameStates.PlayerMode.Human then GameStates.PlayerState.Human else GameStates.PlayerState.Idle
 	state.IsCharging = false
@@ -335,6 +358,9 @@ function PlayerStateService:SetActivePlayerMode(player: Player, modeName: string
 	state.KnockbackMaxEndsAt = 0
 	if forced == true and modeName == GameStates.PlayerMode.Human then
 		state.ForcedHuman = true
+	end
+	if previousMode ~= modeName then
+		self:_syncEquipmentLifecycleForMode(player, modeName)
 	end
 	if publishNow ~= false then
 		self:PublishState(player)

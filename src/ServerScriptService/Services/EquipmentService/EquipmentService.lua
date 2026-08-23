@@ -153,10 +153,6 @@ function EquipmentService:Equip(player: Player, instanceId: string, preferredSlo
 		end
 		self._context.EventBus:Fire("EquipmentEquipped", player, slotNumber, instanceId, equippedInstance)
 	end
-	local playerService = getService(self._context, "PlayerService")
-	if playerService and typeof(playerService.EquipEquipmentModel) == "function" then
-		playerService:EquipEquipmentModel(player, slotNumber, tostring(equippedInstance.definitionId))
-	end
 	if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
 		stateService:RecalculateDerivedStats(player, false)
 	end
@@ -181,8 +177,6 @@ function EquipmentService:Unequip(player: Player, slot: any): (boolean, string?)
 	if removedInstanceId and self._context.EventBus then
 		self._context.EventBus:Fire("EquipmentUnequipped", player, slotNumber, removedInstanceId)
 	end
-	local playerService = getService(self._context, "PlayerService")
-	if playerService and typeof(playerService.UnequipEquipmentModel) == "function" then playerService:UnequipEquipmentModel(player, slotNumber) end
 	if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
 		stateService:RecalculateDerivedStats(player, false)
 	end

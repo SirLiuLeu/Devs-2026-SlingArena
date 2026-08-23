@@ -62,13 +62,18 @@ function EquipmentEffectService:Init()
 		print("[ROUND_END_TRACE][EquipmentEffectService] EventBus found; binding equipment/effect lifecycle handlers")
 		table.insert(self._connections, bus:On("EquipmentEquipped", function(player, slotType, instanceId, ownedInstance)
 			print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentEquipped; player=%s slot=%s instanceId=%s", player and player.Name or "nil", tostring(slotType), tostring(instanceId)))
-			self:ActivateEquipment(player, slotType, instanceId, ownedInstance)
+			local stateService = getService(self._context, "PlayerStateService")
+			if stateService and stateService:IsLauncher(player) then
+				self:ActivateEquipment(player, slotType, instanceId, ownedInstance)
+			end
 		end))
 		table.insert(self._connections, bus:On("EquipmentUnequipped", function(player, _slotType, instanceId)
 			self:DeactivateEquipment(player, instanceId)
 		end))
 		table.insert(self._connections, bus:On("EquipmentUpdated", function(player, instanceId, ownedInstance)
 			print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentUpdated; player=%s instanceId=%s", player and player.Name or "nil", tostring(instanceId)))
+			local stateService = getService(self._context, "PlayerStateService")
+			if not (stateService and stateService:IsLauncher(player)) then return end
 			local dataService = getService(self._context, "PlayerDataService")
 			local equipped = dataService and dataService:GetEquippedEquipment(player) or {}
 			for slotType, equippedInstanceId in pairs(equipped) do
@@ -83,8 +88,10 @@ function EquipmentEffectService:Init()
 			self:Dispatch(player, "OnLaunch", payload)
 		end))
 		table.insert(self._connections, bus:On("CollisionDetected", function(collisionType, attacker, defender, payload)
-			print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus CollisionDetected -> Dispatch OnCollision; attacker=%s type=%s", attacker and attacker.Name or "nil", tostring(collisionType)))
-			self:Dispatch(attacker, "OnCollision", collisionType, defender, payload)
+			if collisionType == "Food" then
+				print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus CollisionDetected -> Dispatch Food OnCollision; attacker=%s", attacker and attacker.Name or "nil"))
+				self:Dispatch(attacker, "OnCollision", collisionType, defender, payload)
+			end
 		end))
 		table.insert(self._connections, bus:On("CollisionPlayerHit", function(victim, attacker, _rawDamage, _knockback, collisionMeta)
 			if attacker then
@@ -144,6 +151,31 @@ function EquipmentEffectService:GetActiveEffectCount(player): number
 	local count = 0
 	if effects then for _ in pairs(effects) do count += 1 end end
 	return count
+end
+
+function EquipmentEffectService:ActivateEquippedEquipment(player): ()
+	local dataService = getService(self._context, "PlayerDataService")
+	if not dataService then return end
+	local owned = dataService:GetOwnedEquipment(player)
+	local equipped = dataService:GetEquippedEquipment(player)
+	for slotType, instanceId in pairs(equipped) do
+		local ownedInstance = instanceId and owned[instanceId]
+		if type(ownedInstance) == "table" then
+			self:ActivateEquipment(player, slotType, instanceId, ownedInstance)
+		end
+	end
+end
+
+function EquipmentEffectService:DeactivateAllEquipment(player): ()
+	local effects = self._activeEffects[player]
+	if not effects then return end
+	local instanceIds = {}
+	for instanceId in pairs(effects) do
+		table.insert(instanceIds, instanceId)
+	end
+	for _, instanceId in ipairs(instanceIds) do
+		self:DeactivateEquipment(player, instanceId)
+	end
 end
 
 function EquipmentEffectService:ActivateEquipment(player, _slotType: string, instanceId: string, ownedInstance: any): boolean

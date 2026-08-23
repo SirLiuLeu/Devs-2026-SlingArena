@@ -457,9 +457,12 @@ function PlayerService:EquipEquipmentModel(player: Player, slot: number, equipme
 	local model = modelTemplate:Clone()
 	model.Name = "EquippedEquipmentSlot" .. tostring(slot)
 	model.Parent = pawn
-	local root = model:FindFirstChild("Handle", true)
-	if not (root and root:IsA("BasePart")) then root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true) end
-	if not root then model:Destroy(); return false end
+	local root = model:FindFirstChild("Root")
+	if not (root and root:IsA("BasePart")) then
+		warn(string.format("[PLAYER_SERVICE] Equipment model %s must contain one BasePart child named Root", equipmentId))
+		model:Destroy()
+		return false
+	end
 	local attachment, attachName = self:_resolveEquipmentAttachment(hitbox, slot)
 	if not attachment then
 		warn(string.format("[PLAYER_SERVICE] Launcher Hitbox.EquipmentSlot%d attachment missing; create it in ReplicatedStorage.Assets.Launchers.Player.Hitbox.", slot))
