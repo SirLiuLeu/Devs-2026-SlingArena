@@ -413,7 +413,6 @@ function RoundService:_step(dt: number)
 end
 
 function RoundService:_publishUiState()
-	print(string.format("[DIAG][RoundService] publishUiState attempt state=%s roundId=%d timer=%.3f active=%s t=%.3f", tostring(self._state), self._roundId, self._roundTimer, tostring(self._roundActive), os.clock()))
 	if not self._uiStateRemote then
 		return
 	end

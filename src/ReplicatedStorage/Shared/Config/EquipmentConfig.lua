@@ -81,26 +81,87 @@ local function equipment(id: string, name: string, rarity: string, category: str
 end
 
 EquipmentConfig.Definitions = {
-	PlasmaCannon = equipment("PlasmaCannon", "Plasma Cannon", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.ActiveAttack, "NoOp", nil, { type = "ActiveAttack", value = 1000, params = { cooldown = 10, diagnostic = "Plasma Cannon active attack is not yet implemented" } }, { Add = {}, Multiply = {} }),
-	SlowBlaster = equipment("SlowBlaster", "Slow Blaster", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.ActiveAttack, "Slow", { collisionFlag = "Slow", collisionExtraDuration = 3 }, { type = "ProjectileSlow", params = { cooldown = 3, diagnostic = "Slow Blaster projectile is not yet implemented; collision slow uses the shared Slow effect" } }, { Add = {}, Multiply = {} }),
-	ThunderHammer = equipment("ThunderHammer", "Thunder Hammer", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.CrowdControl, "Stun", { collisionFlag = "Stun", collisionExtraDuration = 1.25 }, nil, { Add = {}, Multiply = { damageMultiplier = 1.05 } }),
-	Medusa = equipment("Medusa", "Medusa", EquipmentConfig.Rarities.Legendary, EquipmentConfig.Categories.CrowdControl, "Petrify", { collisionFlag = "Petrify", collisionExtraDuration = 5, cannotPetrifyEquipmentIds = { GhostFlame = true } }, nil, { Add = {}, Multiply = {} }),
-	IceCrystal = equipment("IceCrystal", "Ice Crystal", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.CrowdControl, "Freeze", { collisionFlag = "Freeze", collisionExtraDuration = 3 }, { type = "Freeze", params = { diagnostic = "Freeze flag dispatch is configured; full freeze rules depend on PlayerStateService flag support" } }, { Add = {}, Multiply = {} }),
-	GhostFlame = equipment("GhostFlame", "Ghost Flame", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.DamageOverTime, "Fire", { dotFlag = "Burn" }, nil, { Add = { baseDamage = 50 }, Multiply = {} }),
-	Poison = equipment("Poison", "Poison", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.DamageOverTime, "Poison", { dotFlag = "Poison" }, nil, { Add = { baseDamage = 25 }, Multiply = {} }),
-	HealthCore = equipment("HealthCore", "Health Core", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier, nil, nil, nil, { Add = {}, Multiply = { maxHP = 1.3 } }),
-	PowerCore = equipment("PowerCore", "Power Core", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier, nil, nil, nil, { Add = {}, Multiply = { baseDamage = 1.2 } }),
-	Shield = equipment("Shield", "Shield", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier, "Shield", nil, { type = "DamageReduction", percent = 0.2 }, { Add = {}, Multiply = {} }),
-	BrainBoost = equipment("BrainBoost", "Brain Boost", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier, "ExpBonus", nil, { type = "ExpBonus", value = 0.3, params = { expBonus = 0.3 } }, { Add = { expBonus = 0.3 }, Multiply = {} }),
-	TurboModule = equipment("TurboModule", "Turbo Module", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier, nil, nil, nil, { Add = {}, Multiply = { moveSpeed = 1.2 } }),
-	LaunchBooster = equipment("LaunchBooster", "Launch Booster", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier, nil, nil, nil, { Add = {}, Multiply = { launchSpeed = 1.2 } }),
-	TitanCore = equipment("TitanCore", "Titan Core", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.PassiveStatModifier, "Titan", nil, { type = "Titan", params = { sizeMultiplier = 1.2, incomingKnockbackMultiplier = 0.75, outgoingKnockbackMultiplier = 1.25 } }, { Add = {}, Multiply = {} }),
-	QuickReload = equipment("QuickReload", "Quick Reload", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier, nil, nil, nil, { Add = { launchCooldown = -1 }, Multiply = {} }),
-	ThornArmor = equipment("ThornArmor", "Thorn Armor", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.PassiveStatModifier, "NoOp", nil, { type = "ReflectDamage", percent = 0.2, params = { diagnostic = "Thorn Armor damage reflection is not yet wired into DamagePipelineService" } }, { Add = { reflectDamage = 0.2 }, Multiply = {} }),
-	RegenBooster = equipment("RegenBooster", "Regen Booster", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.RegenerationHealing, "Regen", nil, { type = "Regeneration", value = 500, params = { tickInterval = 5 } }, { Add = {}, Multiply = {} }),
-	ShadowCloak = equipment("ShadowCloak", "Shadow Cloak", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.ConditionalEffect, "ShadowCloak", nil, { type = "IdleStealth", params = { idleSeconds = 5, revealOn = { "Launch", "Movement", "Knockback" } } }, { Add = {}, Multiply = {} }),
-	SmokeBomb = equipment("SmokeBomb", "Smoke Bomb", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.ConditionalEffect, "SmokeBomb", nil, { type = "SmokeOnLaunch" }, { Add = {}, Multiply = {} }),
-	MagnetCore = equipment("MagnetCore", "Magnet Core", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.UtilityAreaEffect, "Magnet", nil, { type = "Magnet", value = 6 }, { Add = {}, Multiply = {} }),
+
+    -- Active Attack
+    PlasmaCannon = equipment("PlasmaCannon", "Plasma Cannon", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.ActiveAttack, "NoOp", nil,
+        { type = "ActiveAttack", value = 1000, params = { cooldown = 10, diagnostic = "Plasma Cannon active attack is not yet implemented" } },
+        { Add = {}, Multiply = {} }),
+
+    SlowBlaster = equipment("SlowBlaster", "Slow Blaster", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.ActiveAttack, "Slow",
+        { collisionFlag = "Slow", collisionExtraDuration = 3 },
+        { type = "ProjectileSlow", params = { cooldown = 3, diagnostic = "Slow Blaster projectile is not yet implemented; collision slow uses the shared Slow effect" } },
+        { Add = {}, Multiply = {} }),
+
+    -- Crowd Control
+    ThunderHammer = equipment("ThunderHammer", "Thunder Hammer", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.CrowdControl, "Stun",
+        { collisionFlag = "Stun", collisionExtraDuration = 1.25 }, nil,
+        { Add = {}, Multiply = { damageMultiplier = 1.05 } }),
+
+    Medusa = equipment("Medusa", "Medusa", EquipmentConfig.Rarities.Legendary, EquipmentConfig.Categories.CrowdControl, "Petrify",
+        { collisionFlag = "Petrify", collisionExtraDuration = 5, cannotPetrifyEquipmentIds = { GhostFlame = true } }, nil,
+        { Add = {}, Multiply = {} }),
+
+    IceCrystal = equipment("IceCrystal", "Ice Crystal", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.CrowdControl, "Freeze",
+        { collisionFlag = "Freeze", collisionExtraDuration = 3 },
+        { type = "Freeze", params = { diagnostic = "Freeze flag dispatch is configured; full freeze rules depend on PlayerStateService flag support" } },
+        { Add = {}, Multiply = {} }),
+
+    -- Damage Over Time
+    GhostFlame = equipment("GhostFlame", "Ghost Flame", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.DamageOverTime, "Fire",
+        { dotFlag = "Burn" }, nil,
+        { Add = { baseDamage = 50 }, Multiply = {} }),
+
+    Poison = equipment("Poison", "Poison", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.DamageOverTime, "Poison",
+        { dotFlag = "Poison" }, nil,
+        { Add = { baseDamage = 25 }, Multiply = {} }),
+
+    -- Passive Stat Modifier
+    HealthCore = equipment("HealthCore", "Health Core", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier,
+        nil, nil, nil, { Add = {}, Multiply = { maxHP = 1.3 } }),
+
+    PowerCore = equipment("PowerCore", "Power Core", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier,
+        nil, nil, nil, { Add = {}, Multiply = { baseDamage = 1.2 } }),
+
+    Shield = equipment("Shield", "Shield", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier, "Shield",
+        nil, { type = "DamageReduction", percent = 0.2 }, { Add = {}, Multiply = {} }),
+
+    BrainBoost = equipment("BrainBoost", "Brain Boost", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier, "ExpBonus",
+        nil, { type = "ExpBonus", value = 0.3, params = { expBonus = 0.3 } },
+        { Add = { expBonus = 0.3 }, Multiply = {} }),
+
+    TurboModule = equipment("TurboModule", "Turbo Module", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier,
+        nil, nil, nil, { Add = {}, Multiply = { moveSpeed = 1.2 } }),
+
+    LaunchBooster = equipment("LaunchBooster", "Launch Booster", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier,
+        nil, nil, nil, { Add = {}, Multiply = { launchSpeed = 1.2 } }),
+
+    TitanCore = equipment("TitanCore", "Titan Core", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.PassiveStatModifier, "Titan",
+        nil, { type = "Titan", params = { sizeMultiplier = 1.2, incomingKnockbackMultiplier = 0.75, outgoingKnockbackMultiplier = 1.25 } },
+        { Add = {}, Multiply = {} }),
+
+    QuickReload = equipment("QuickReload", "Quick Reload", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier,
+        nil, nil, nil, { Add = { launchCooldown = -1 }, Multiply = {} }),
+
+    ThornArmor = equipment("ThornArmor", "Thorn Armor", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.PassiveStatModifier, "NoOp",
+        nil, { type = "ReflectDamage", percent = 0.2, params = { diagnostic = "Thorn Armor damage reflection is not yet wired into DamagePipelineService" } },
+        { Add = { reflectDamage = 0.2 }, Multiply = {} }),
+
+    -- Regeneration / Healing
+    RegenBooster = equipment("RegenBooster", "Regen Booster", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.RegenerationHealing, "Regen",
+        nil, { type = "Regeneration", value = 500, params = { tickInterval = 5 } },
+        { Add = {}, Multiply = {} }),
+
+    -- Conditional Effect
+    ShadowCloak = equipment("ShadowCloak", "Shadow Cloak", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.ConditionalEffect, "ShadowCloak",
+        nil, { type = "IdleStealth", params = { idleSeconds = 5, revealOn = { "Launch", "Movement", "Knockback" } } },
+        { Add = {}, Multiply = {} }),
+
+    SmokeBomb = equipment("SmokeBomb", "Smoke Bomb", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.ConditionalEffect, "SmokeBomb",
+        nil, { type = "SmokeOnLaunch" }, { Add = {}, Multiply = {} }),
+
+    -- Utility / Area Effect
+    MagnetCore = equipment("MagnetCore", "Magnet Core", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.UtilityAreaEffect, "Magnet",
+        nil, { type = "Magnet", value = 6 }, { Add = {}, Multiply = {} }),
 }
 
 function EquipmentConfig.GetMaxLevelForRarity(rarity: string): number
