@@ -376,9 +376,11 @@ function FlagService:GetFlag(player: Player, flagName: string, source: any?, dat
 end
 
 function FlagService:ApplyFlag(player: Player, flagName: string, duration: number?, source: any?, data: any?): boolean
+	if flagName == "Burn" or flagName == "Poison" or flagName == "Stun" or flagName == "Petrify" then print(`[EQUIPMENT_ATTACK_TRACE][FlagService] ApplyFlag entered target={player.Name} flag={flagName} duration={tostring(duration)} source={getSourceId(source, data)}`) end
 	local stateService = getService(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player)
 	if not state then
+		if flagName == "Burn" or flagName == "Poison" or flagName == "Stun" or flagName == "Petrify" then print(`[EQUIPMENT_ATTACK_TRACE][FlagService] ApplyFlag aborted target={player.Name} flag={flagName}: state missing`) end
 		return false
 	end
 	if flagName == "Petrify" then
@@ -387,11 +389,13 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 			self:RemoveFlag(player, "Stun")
 		end
 	elseif flagName == "Stun" and self:HasFlag(player, "Petrify") then
+		print(`[EQUIPMENT_ATTACK_TRACE][FlagService] ApplyFlag aborted target={player.Name} flag=Stun: Petrify already active`)
 		return false
 	end
 	local defaults = getFlagDefaults(flagName)
 	local resolvedDuration = math.max(0, duration or defaults.Duration or 0)
 	if resolvedDuration <= 0 then
+		if flagName == "Burn" or flagName == "Poison" or flagName == "Stun" or flagName == "Petrify" then print(`[EQUIPMENT_ATTACK_TRACE][FlagService] ApplyFlag aborted target={player.Name} flag={flagName}: resolvedDuration={resolvedDuration}`) end
 		return false
 	end
 	local flags = self._activeFlags[player]
@@ -446,6 +450,7 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 	end
 	state.ActiveFlags = buildFlagSnapshot(flags)
 	stateService:PublishState(player)
+	if flagName == "Burn" or flagName == "Poison" or flagName == "Stun" or flagName == "Petrify" then print(`[EQUIPMENT_ATTACK_TRACE][FlagService] ApplyFlag success target={player.Name} flag={flagName} stacks={stacks} expiresAt={expiresAt}`) end
 	return true
 end
 

@@ -271,6 +271,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 
 	local attackerState = stateService:GetState(player)
 	local launcherMaxSpeed = attackerState and attackerState.LaunchSpeed or PhysicsConfig.Launch.SpeedMin
+	print(`[EQUIPMENT_ATTACK_TRACE][CollisionService] collision accepted; firing hooks attacker={playerName(player)} victim={playerName(defender)} impactSpeed={impactSpeed} transferredVelocity={defenderOut.Magnitude} launchId={tostring(payload.launchId)}`)
 	self._context.EventBus:Fire("CollisionDetected", "Launcher", player, defender, {
 		Speed = impactSpeed,
 		ImpactNormal = normal,

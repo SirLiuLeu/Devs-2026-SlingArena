@@ -8,6 +8,14 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local EffectUtil = {}
 
+local function trace(context, message: string)
+	local definition = context and context.definition
+	local equipmentId = definition and definition.id or "unknown"
+	if equipmentId == "Medusa" or equipmentId == "GhostFlame" or equipmentId == "ThunderHammer" or equipmentId == "Poison" then
+		print(string.format("[EQUIPMENT_ATTACK_TRACE][%s] %s", equipmentId, message))
+	end
+end
+
 function EffectUtil.GetFlagConfig(flagName: string): any
 	return GameConfig.FlagConfig[flagName] or {}
 end
@@ -31,11 +39,12 @@ end
 
 function EffectUtil.CanAffectPlayers(context, attacker: Player, victim: Player): boolean
 	local stateService = context.PlayerStateService
-	if not stateService then return false end
-	if stateService:IsHuman(attacker) or stateService:IsHuman(victim) then return false end
-	if stateService:HasFlag(attacker, "Ghost") or stateService:HasFlag(victim, "Ghost") then return false end
+	if not stateService then trace(context, "CanAffectPlayers=false: PlayerStateService missing"); return false end
+	if stateService:IsHuman(attacker) or stateService:IsHuman(victim) then trace(context, string.format("CanAffectPlayers=false: human attacker=%s victim=%s", tostring(stateService:IsHuman(attacker)), tostring(stateService:IsHuman(victim)))); return false end
+	if stateService:HasFlag(attacker, "Ghost") or stateService:HasFlag(victim, "Ghost") then trace(context, string.format("CanAffectPlayers=false: ghost attacker=%s victim=%s", tostring(stateService:HasFlag(attacker, "Ghost")), tostring(stateService:HasFlag(victim, "Ghost")))); return false end
 	local teamService = context.TeamService
-	if teamService and teamService:IsFriendly(attacker, victim) then return false end
+	if teamService and teamService:IsFriendly(attacker, victim) then trace(context, "CanAffectPlayers=false: friendly target"); return false end
+	trace(context, "CanAffectPlayers=true")
 	return true
 end
 
@@ -50,27 +59,31 @@ end
 function EffectUtil.ApplyCollisionFlag(context, victim: Player, collisionMeta: any)
 	local effect = context.definition.combatEffect or {}
 	local flagName = effect.collisionFlag
-	if not flagName then return end
+	if not flagName then trace(context, "ApplyCollisionFlag aborted: collisionFlag missing"); return end
 	local stateService = context.PlayerStateService
-	if not stateService then return end
+	if not stateService then trace(context, "ApplyCollisionFlag aborted: PlayerStateService missing"); return end
 	local duration = EffectUtil.ResolveImpactScaledFlagDuration(flagName, collisionMeta, effect.collisionExtraDuration)
-	stateService:ApplyFlag(victim, flagName, duration, context.player)
+	trace(context, string.format("ApplyCollisionFlag target=%s flag=%s duration=%.3f transferredVelocity=%s", victim.Name, flagName, duration, tostring(EffectUtil.GetCollisionTransferredVelocity(collisionMeta))))
+	local applied = stateService:ApplyFlag(victim, flagName, duration, context.player)
+	trace(context, string.format("ApplyCollisionFlag result=%s", tostring(applied)))
 	EffectUtil.FireCCFeedback(context, victim, flagName, duration)
 end
 
 function EffectUtil.ApplyDotFlag(context, victim: Player)
 	local effect = context.definition.combatEffect or {}
 	local flagName = effect.dotFlag
-	if not flagName then return end
+	if not flagName then trace(context, "ApplyDotFlag aborted: dotFlag missing"); return end
 	local stateService = context.PlayerStateService
-	if not stateService then return end
+	if not stateService then trace(context, "ApplyDotFlag aborted: PlayerStateService missing"); return end
 	local flagConfig = EffectUtil.GetFlagConfig(flagName)
-	stateService:ApplyFlag(victim, flagName, flagConfig.Duration, context.player, {
+	trace(context, string.format("ApplyDotFlag target=%s flag=%s duration=%s tickInterval=%s damagePerTick=%s maxStack=%s", victim.Name, flagName, tostring(flagConfig.Duration), tostring(flagConfig.TickInterval), tostring(flagConfig.DamagePerTick), tostring(flagConfig.MaxStack)))
+	local applied = stateService:ApplyFlag(victim, flagName, flagConfig.Duration, context.player, {
 		Stackable = flagConfig.Stackable,
 		MaxStack = flagConfig.MaxStack,
 		TickInterval = flagConfig.TickInterval,
 		DamagePerTick = flagConfig.DamagePerTick,
 	})
+	trace(context, string.format("ApplyDotFlag result=%s", tostring(applied)))
 	if flagConfig.SlowAmount then
 		local slowConfig = EffectUtil.GetFlagConfig("Slow")
 		stateService:ApplyFlag(victim, "Slow", flagConfig.SlowDuration or slowConfig.Duration, context.player, {

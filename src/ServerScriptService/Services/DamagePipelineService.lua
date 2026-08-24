@@ -84,7 +84,8 @@ local function playerName(player: Player?): string
 	return player and player.Name or "nil"
 end
 
-local function damageLog(_message: string)
+local function damageLog(message: string)
+	print("[EQUIPMENT_ATTACK_TRACE][DamagePipeline] " .. message)
 end
 
 -- Combat damage is allowed in active round phases; safe-zone and trap damage bypass this check.
@@ -151,8 +152,10 @@ function DamagePipelineService:Init()
 
 		local damage = self:ComputeCollisionDamage(attackerState or {}, impactSpeed, collisionMeta)
 		damage *= getDamageBoostMultiplier(stateService, attacker)
+		damageLog(`CollisionPlayerHit hook fired attacker={playerName(attacker)} victim={playerName(victim)} impactSpeed={impactSpeed} baseDamage={tostring(attackerState and attackerState.BaseDamage)} calculatedDamage={damage}`)
 
 		if damage <= 0 then
+			damageLog("CollisionPlayerHit aborted: calculated damage is zero")
 			return
 		end
 
@@ -251,13 +254,17 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 		return false
 	end
 	local sourceType = options and options.SourceType or (if attacker then "LauncherCombat" else "Environment")
+	damageLog(`ApplyHitDamage entered attacker={playerName(attacker)} victim={playerName(victim)} rawDamage={rawDamage} sourceType={sourceType}`)
 	if attacker and (not isCombatDamageAllowed(self._context) or (playerStateService.IsHuman and playerStateService:IsHuman(attacker))) then
+		damageLog("ApplyHitDamage aborted: combat phase disallows damage or attacker is Human")
 		return false
 	end
 	if playerStateService.IsHuman and playerStateService:IsHuman(victim) and not isHumanDamageAllowed(sourceType) then
+		damageLog("ApplyHitDamage aborted: victim is Human for this source type")
 		return false
 	end
 	if playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
+		damageLog("ApplyHitDamage aborted: victim is invulnerable or Ghost")
 		return false
 	end
 
@@ -275,6 +282,7 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 		didDamage = playerStateService:ApplyDamage(victim, amount)
 	end
 	if not didDamage then
+		damageLog(`ApplyHitDamage aborted: PlayerStateService rejected amount={amount}`)
 		return false
 	end
 
@@ -334,6 +342,7 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 end
 
 function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number, source: any?, flagName: string?): boolean
+	damageLog(`ApplyDoTDamage entered victim={playerName(victim)} source={playerName(if typeof(source) == "Instance" and source:IsA("Player") then source else nil)} flag={tostring(flagName)} rawDamage={rawDamage}`)
 	local playerStateService = getService(self._context, "PlayerStateService")
 	if not playerStateService then
 		warn("[DamagePipelineService] PlayerStateService unavailable; DOT damage skipped.")
@@ -341,17 +350,21 @@ function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number,
 	end
 	local sourceIsPlayer = typeof(source) == "Instance" and source:IsA("Player")
 	if playerStateService.IsHuman and playerStateService:IsHuman(victim) and sourceIsPlayer then
+		damageLog("ApplyDoTDamage aborted: player-sourced DoT cannot damage a Human victim")
 		return false
 	end
 	if playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
+		damageLog("ApplyDoTDamage aborted: victim is invulnerable or Ghost")
 		return false
 	end
 	local amount = math.max(0, rawDamage)
 	if amount <= 0 then
+		damageLog("ApplyDoTDamage aborted: amount is zero")
 		return false
 	end
 	local didDamage = playerStateService:ApplyDamage(victim, amount)
 	if not didDamage then
+		damageLog("ApplyDoTDamage aborted: PlayerStateService rejected damage")
 		return false
 	end
 	self:_sendFeedback(victim, "DamageTaken", { Amount = amount, DamageType = "DoT", Flag = flagName })
@@ -365,6 +378,7 @@ function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number,
 	if state and state.CurrentHP <= 0 then
 		self:HandlePlayerDeath(victim)
 	end
+	damageLog(`ApplyDoTDamage success victim={playerName(victim)} flag={tostring(flagName)} amount={amount}`)
 	return true
 end
 

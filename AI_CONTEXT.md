@@ -75,3 +75,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 - Equipment active-input UI resolves the first equipped definition with an `abilityId` from authoritative `StateUpdate` data and fires `AbilityTrigger` with that id.
 - `RoundService` sends an immediate targeted `UIStateUpdate` snapshot to each joining client; Shop UI re-resolves and safely rebinds after `CharacterAdded`.
 - Debug lifecycle traces in the Equipment services are reduced/commented with `-- [DEBUG_TRACE]`.
+
+## Combat equipment investigation update (2026-08-24)
+
+- Server-side `[EQUIPMENT_ATTACK_TRACE]` prints are intentionally enabled across collision validation, `CollisionPlayerHit`, equipment dispatch, Medusa/ThunderHammer/GhostFlame effect handlers, flag application, and the damage pipeline. These traces identify equipment activation/validation, hook dispatch, effect calculations, and early exits while diagnosing collision equipment effects.
