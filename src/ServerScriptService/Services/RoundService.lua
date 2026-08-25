@@ -433,7 +433,6 @@ function RoundService:_publishUiState()
 	self._lastPublishedUiState = table.clone(payload)
 	self._lastUiAlivePlayers = alivePlayers
 	self._lastUiPlayerCount = playerCount
-	print(string.format("[DIAG][RoundService] publishUiState fire state=%s roundId=%s alive=%s players=%s elapsed=%.3f t=%.3f", tostring(payload.State), tostring(payload.RoundId), tostring(payload.AlivePlayers), tostring(payload.PlayerCount), payload.RoundElapsed, os.clock()))
 	self._uiStateRemote:FireAllClients(payload)
 end
 
