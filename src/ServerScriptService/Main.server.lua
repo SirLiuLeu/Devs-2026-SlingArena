@@ -5,13 +5,22 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ServicesFolder = script.Parent:WaitForChild("Services")
 
+-- local function requireSafe(moduleScript: Instance, moduleName: string)
+-- 	local ok, loaded = pcall(require, moduleScript)
+	
+-- 	if not ok then
+-- 		warn(string.format("[Bootstrap] Failed to require %s: %s", moduleName, tostring(loaded)))
+-- 		return nil
+-- 	end
+-- 	return loaded
+-- end
 local function requireSafe(moduleScript: Instance, moduleName: string)
-	local ok, loaded = pcall(require, moduleScript)
-	if not ok then
-		warn(string.format("[Bootstrap] Failed to require %s: %s", moduleName, tostring(loaded)))
-		return nil
-	end
-	return loaded
+    local ok, loaded = pcall(require, moduleScript)
+    if not ok then
+        -- Dùng error() để bắn log đỏ và dừng server ngay lập tức
+        error(string.format("\n[Bootstrap CRITICAL] Failed to require %s!\nError:\n%s\n", moduleName, tostring(loaded)), 0)
+    end
+    return loaded
 end
 
 local EventBus = requireSafe(ServicesFolder:WaitForChild("Infrastructure"):WaitForChild("EventBus"), "EventBus")
@@ -95,9 +104,19 @@ local function runServicePhase(serviceName: string, phase: "Init" | "Start")
 	local ok, err = xpcall(function()
 		phaseMethod(service)
 	end, debug.traceback)
-	if not ok then
-		warn(string.format("[Bootstrap] %s:%s failed: %s", serviceName, phase, tostring(err)))
-	end
+	--- 
+	local ok, err = xpcall(function()
+			phaseMethod(service)
+		end, debug.traceback)
+		
+		if not ok then
+			-- SỬA TẠI ĐÂY: Ép server crash và báo lỗi đỏ chót khổng lồ
+			local errorMsg = string.format("\n!!! CRITICAL BOOTSTRAP ERROR !!!\nService: %s\nPhase: %s\nError:\n%s\n", serviceName, phase, tostring(err))
+			error(errorMsg, 0)
+		end
+	-- if not ok then
+	-- 	warn(string.format("[Bootstrap] %s:%s failed: %s", serviceName, phase, tostring(err)))
+	-- end
 end
 
 local serviceConstructors = {
