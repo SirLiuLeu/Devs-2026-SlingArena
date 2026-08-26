@@ -7,6 +7,26 @@ local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
 
 local MockData = {}
 
+-- This is the single schema for an unseeded mock player. Seeded profiles below are
+-- deliberately richer fixtures and must not be used as the new-player fallback.
+MockData.MOCK_SCHEMA_DEFAULTS = {
+	Level = 1,
+	Coin = 0,
+	Diamonds = 0,
+	OwnedItems = {},
+	OwnedEquipment = {},
+	EquippedEquipment = { [1] = nil, [2] = nil, [3] = nil },
+	OwnedLaunchers = {
+		default_normal_launcher = { definitionId = "NormalLauncher", star = 1, level = 1 },
+	},
+	EquippedLauncherInstanceId = "default_normal_launcher",
+	ProgressPoints = {
+		TotalPoints = 0,
+		RoundPoints = 0,
+		WeeklyPoints = 0,
+	},
+}
+
 MockData.PlayerProfiles = {
 	{
 		UserId = -800001,
@@ -79,7 +99,7 @@ function MockData.GetProfileByUserId(userId: number): { [string]: any }?
 end
 
 function MockData.GetDefaultPlayerProfile(): { [string]: any }
-	return DeepCopy.Copy(MockData.PlayerProfiles[1])
+	return DeepCopy.Copy(MockData.MOCK_SCHEMA_DEFAULTS)
 end
 
 return MockData

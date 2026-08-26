@@ -12,24 +12,9 @@ local SEEDED_PROFILE_COUNT = 125
 local MOCK_USER_ID_START = -900000
 local RNG_SEED = 20260809
 
-local MOCK_SCHEMA_DEFAULTS = {
-	-- Temporary authoritative server inventory schema until DataStores replace MockProvider.
-	Level = 1,
-	Coin = 0,
-	Diamonds = 0,
-	OwnedItems = {},
-	OwnedEquipment = {},
-	EquippedEquipment = { [1] = nil, [2] = nil, [3] = nil },
-	OwnedLaunchers = {
-		default_normal_launcher = { definitionId = "NormalLauncher", star = 1, level = 1 },
-	},
-	EquippedLauncherInstanceId = "default_normal_launcher",
-	ProgressPoints = {
-		TotalPoints = 0,
-		RoundPoints = 0,
-		WeeklyPoints = 0,
-	},
-}
+-- Keep the provider and MockData's unseeded-player fallback on one schema.
+local MOCK_SCHEMA_DEFAULTS = MockData.MOCK_SCHEMA_DEFAULTS
+MockProvider.MOCK_SCHEMA_DEFAULTS = MOCK_SCHEMA_DEFAULTS
 
 local function applyDefaults(target: { [any]: any }, defaults: { [any]: any })
 	for key, value in pairs(defaults) do

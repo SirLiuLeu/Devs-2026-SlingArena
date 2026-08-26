@@ -11,13 +11,15 @@ local EquipmentEffectService = require(ServerScriptService.Services.EquipmentEff
 local EquipmentStatResolver = require(ReplicatedStorage.Shared.Utils.EquipmentStatResolver)
 local EquipmentUpgradeConfig = require(ReplicatedStorage.Shared.Config.EquipmentUpgradeConfig)
 
+local failures = {}
+
 local function runTest(name: string, testFn: () -> ())
 	local ok, err = pcall(testFn)
 	if ok then
 		print(string.format("[EquipmentFoundationTests] PASS %s", name))
 	else
 		warn(string.format("[EquipmentFoundationTests] FAIL %s :: %s", name, tostring(err)))
-		error(err)
+		table.insert(failures, string.format("%s :: %s", name, tostring(err)))
 	end
 end
 
@@ -62,7 +64,8 @@ end)
 
 runTest("mock data contains all required equipment", function()
 	local MockData = require(ServerScriptService.Services.DataProviders.MockData)
-	local profile = MockData.GetDefaultPlayerProfile()
+	local profile = MockData.GetProfileByUserId(-800001)
+	if profile == nil then error("seeded equipment fixture exists") end
 	local count = 0
 	local seen = {}
 	for _, owned in pairs(profile.OwnedEquipment) do
@@ -81,15 +84,21 @@ runTest("default and normalized equipment data", function()
 	local data = dataService:LoadPlayer(p)
 	assertTrue(type(data.OwnedEquipment) == "table", "OwnedEquipment defaults to a table")
 	assertTrue(type(data.EquippedEquipment) == "table", "EquippedEquipment defaults to a table")
+	assertEqual(data.EquippedEquipment[1], nil, "fresh mock player starts with an empty first equipment slot")
+	assertEqual(data.EquippedEquipment[2], nil, "fresh mock player starts with an empty second equipment slot")
+	assertEqual(data.EquippedEquipment[3], nil, "fresh mock player starts with an empty third equipment slot")
 	data.OwnedEquipment.keep = { definitionId = "HealthCore", level = "3", rarity = "Rare", pity = { spins = 2 } }
+	data.OwnedEquipment.legacy = { definitionId = "PowerCore", level = 1 }
 	data.OwnedEquipment.drop = { level = 1 }
 	data.EquippedEquipment[1] = "keep"
 	data.EquippedEquipment[2] = "missing"
+	data.EquippedEquipment.Core = "legacy"
 	dataService:_ensureEquipmentData(data)
 	assertEqual(data.OwnedEquipment.keep.level, 3, "valid instance level is normalized and preserved")
 	assertEqual(data.OwnedEquipment.drop, nil, "invalid owned equipment is removed")
 	assertEqual(data.EquippedEquipment[1], "keep", "valid equipped instance survives normalization")
 	assertEqual(data.EquippedEquipment[2], nil, "equipped references to unowned instances are removed")
+	assertEqual(data.EquippedEquipment.Core, nil, "legacy slot keys are converted away during normalization")
 	context.EventBus:Destroy()
 end)
 
@@ -135,6 +144,9 @@ runTest("effects activate, isolate players, and share heartbeat", function()
 	local signal = { Connect = function(_, callback) table.insert(callbacks, callback); return { Disconnect = function() end } end }
 	effectService._heartbeatSignal = signal
 	effectService:Init()
+	for _, effectId in ipairs({ "Poison", "Fire", "Slow", "Stun", "Petrify", "ExpBonus", "Magnet", "Shield", "Titan", "SmokeBomb", "Regen", "ShadowCloak", "NoOp" }) do
+		assertTrue(effectService._effectModules[effectId] ~= nil, "effect module registers: " .. effectId)
+	end
 	local equipmentService = EquipmentService.new(context)
 	local p1 = player(7103, "EffectOne")
 	local p2 = player(7104, "EffectTwo")
@@ -173,3 +185,9 @@ runTest("equipment upgrade spends canonical PlayerData diamonds", function()
 	assertTrue(not poorOk, "runtime-only diamond fields cannot bypass PlayerData ledger")
 	context.EventBus:Destroy()
 end)
+
+if #failures > 0 then
+	error(string.format("[EquipmentFoundationTests] %d test(s) failed after the complete suite:\n%s", #failures, table.concat(failures, "\n")))
+end
+
+print("[EquipmentFoundationTests] all checks passed")

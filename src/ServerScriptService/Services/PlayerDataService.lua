@@ -111,16 +111,22 @@ function PlayerDataService:_ensureEquipmentData(data: { [string]: any })
 			end
 		end
 	end
-	local legacySlotMap = { Core = 1, Module = 2, Charm = 3 }
-	for slot, instanceId in pairs(data.EquippedEquipment) do
-		local slotNumber = tonumber(slot) or legacySlotMap[slot]
-		if slotNumber and slotNumber % 1 == 0 and slotNumber >= 1 and slotNumber <= 3 and type(instanceId) == "string" and data.OwnedEquipment[instanceId] ~= nil then
-			data.EquippedEquipment[slot] = nil
-			data.EquippedEquipment[slotNumber] = instanceId
-		else
-			data.EquippedEquipment[slot] = nil
+	-- Do not mutate EquippedEquipment while iterating it: legacy and numeric keys can
+	-- represent the same slot, and pairs() does not define an order. Numeric keys take
+	-- precedence over numeric-string aliases and then legacy slot names.
+	local legacySlotNames = { "Core", "Module", "Charm" }
+	local normalizedEquipped = {}
+	for slot = 1, 3 do
+		local candidateKeys = { slot, tostring(slot), legacySlotNames[slot] }
+		for _, candidateKey in ipairs(candidateKeys) do
+			local instanceId = data.EquippedEquipment[candidateKey]
+			if type(instanceId) == "string" and data.OwnedEquipment[instanceId] ~= nil then
+				normalizedEquipped[slot] = instanceId
+				break
+			end
 		end
 	end
+	data.EquippedEquipment = normalizedEquipped
 end
 
 function PlayerDataService:_ensureProgress(data: { [string]: any })

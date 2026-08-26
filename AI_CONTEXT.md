@@ -76,6 +76,13 @@ Config modules store shared tuning and content tables (movement/combat constants
 - `RoundService` sends an immediate targeted `UIStateUpdate` snapshot to each joining client; Shop UI re-resolves and safely rebinds after `CharacterAdded`.
 - Debug lifecycle traces in the Equipment services are reduced/commented with `-- [DEBUG_TRACE]`.
 
+## Equipment foundation reliability update (2026-08-26)
+
+- `EquipmentEffectService` resolves its sibling `EquipmentEffects` folder through `script.Parent`, matching the Rojo hierarchy used by `Main.server.lua`.
+- `MockData.MOCK_SCHEMA_DEFAULTS` is the shared fresh-player schema used by `MockProvider`; seeded `PlayerProfiles` remain opt-in fixtures, while new players start with empty equipment slots.
+- `EquipmentFoundationTests` records individual failures, completes the suite, and then raises one aggregate failure so CI remains unambiguous.
+- `PlayerDataService:_ensureEquipmentData` rebuilds equipped slots in deterministic numeric/legacy-key precedence order instead of mutating the table during `pairs()` iteration.
+
 ## Combat equipment investigation update (2026-08-24)
 
 - Server-side `[EQUIPMENT_ATTACK_TRACE]` prints are intentionally enabled across collision validation, `CollisionPlayerHit`, equipment dispatch, Medusa/ThunderHammer/GhostFlame effect handlers, flag application, and the damage pipeline. These traces identify equipment activation/validation, hook dispatch, effect calculations, and early exits while diagnosing collision equipment effects.
