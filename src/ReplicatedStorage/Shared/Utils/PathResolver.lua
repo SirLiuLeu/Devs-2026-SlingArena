@@ -8,7 +8,7 @@ export type ResolveOptions = {
 	allowMissingReason: string?, -- Explicit TODO/uncertain marker for paths that are intentionally not enforced yet.
 }
 
-local DEFAULT_REPORT_MISSING_TIMEOUT_SECONDS = .1
+local DEFAULT_REPORT_MISSING_TIMEOUT_SECONDS = 1
 
 local warnedMissingPaths: { [string]: boolean } = {}
 local warnedAllowedMissingPaths: { [string]: boolean } = {}
