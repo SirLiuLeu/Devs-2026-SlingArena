@@ -10,11 +10,11 @@ local LobbyClientService = require(ReplicatedStorage.Client.Services.LobbyClient
 local UiBindManager = require(ReplicatedStorage.Shared.Utils.UiBindManager)
 local UIController = require(ReplicatedStorage.Client.Controllers.UIController)
 local LeaderboardWorldUIController = require(ReplicatedStorage.Client.Controllers.LeaderboardWorldUIController)
+local UIReadiness = require(ReplicatedStorage.Shared.Utils.UIReadiness)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui") :: PlayerGui
 
-local STARTUP_UI_WAIT_TIMEOUT_SECONDS = 3
 
 print("[ROUND_END_TRACE][UIBinder] script start; waiting for PlayerGui complete")
 
@@ -65,14 +65,20 @@ print("[ROUND_END_TRACE][UIBinder] before client service PathResolver.reportMiss
 PathResolver.reportMissing(game, PathResolver.collectPaths(ProjectTreeSpec.Services.Client))
 print("[ROUND_END_TRACE][UIBinder] before remotes PathResolver.reportMissing")
 PathResolver.reportMissing(ReplicatedStorage, PathResolver.collectPaths(ProjectTreeSpec.Remotes))
-print("[ROUND_END_TRACE][UIBinder] before startup UI PathResolver.reportMissing")
-PathResolver.reportMissing(playerGui, buildStartupUiPaths(), { waitTimeout = STARTUP_UI_WAIT_TIMEOUT_SECONDS })
-print("[ROUND_END_TRACE][UIBinder] after startup UI PathResolver.reportMissing")
+local startupUiPaths = buildStartupUiPaths()
+-- UIReadiness is the UI builder boundary. Controllers only resolve paths after
+-- this event, rather than racing StarterGui replication with a fixed timeout.
+local uiReadySignal = UIReadiness.create(playerGui, startupUiPaths)
+print("[ROUND_END_TRACE][UIBinder] waiting for UI_Ready")
+uiReadySignal.Event:Wait()
+print("[ROUND_END_TRACE][UIBinder] UI_Ready received; validating startup UI")
+PathResolver.reportMissing(playerGui, startupUiPaths)
 
 print("[ROUND_END_TRACE][UIBinder] constructing LobbyClientService")
 local clientService = LobbyClientService.new()
 local controller = UIController.new(playerGui, {
 	ClientService = clientService,
+	UIReadySignal = uiReadySignal,
 })
 print("[ROUND_END_TRACE][UIBinder] before UIController:Start")
 controller:Start()
@@ -84,7 +90,6 @@ leaderboardWorldController:Start()
 print("[ROUND_END_TRACE][UIBinder] after LeaderboardWorldUIController:Start")
 
 local uiBindManager = UiBindManager.new(playerGui)
-local startupUiPaths = buildStartupUiPaths()
 print(string.format("[ROUND_END_TRACE][UIBinder] binding %d startup UI paths into UiBindManager", #startupUiPaths))
 for pathKey, path in ipairs(startupUiPaths) do
 	if pathKey == 1 or pathKey % 25 == 0 or string.find(path, "EndRound", 1, true) then

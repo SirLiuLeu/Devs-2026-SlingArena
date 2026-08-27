@@ -18,8 +18,24 @@ function ServiceRegistry.new(): ServiceRegistryType
 	return self :: any
 end
 
+local REQUIRED_SERVICE_METHODS: { [string]: { string } } = {
+	-- Keep this list intentionally small: it validates the cross-service mode
+	-- boundary without coupling the registry to PlayerStateService internals.
+	PlayerStateService = { "IsLauncher" },
+}
+
 function ServiceRegistry:Register(name: string, service: any)
+	if service == nil then
+		error(string.format("[ServiceRegistry] Cannot register nil service '%s'.", name), 2)
+	end
+
 	self._services[name] = service
+	for _, methodName in ipairs(REQUIRED_SERVICE_METHODS[name] or {}) do
+		if self:RequireMethod(name, methodName) == nil then
+			self._services[name] = nil
+			error(string.format("[ServiceRegistry] Service '%s' violates its required contract: '%s'.", name, methodName), 2)
+		end
+	end
 end
 
 function ServiceRegistry:GetOptional(name: string)

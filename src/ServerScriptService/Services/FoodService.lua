@@ -16,7 +16,6 @@ local MIN_SPEED_EPSILON = 1e-3
 local GRID_CELL_SIZE = 48
 local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
 local DEBUG_FOOD_HIT_REJECTS = false
-local SPAWN_POSITION_RETRY_LIMIT = 30
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
@@ -354,36 +353,43 @@ function FoodService:_isSpawnPositionValid(candidate: Vector3, foodRadius: numbe
 	return true
 end
 
-function FoodService:_buildSpawnPosition(spawnPart: BasePart, zoneName: string, foodRadius: number, batchPositions: { Vector3 }, batchRadii: { number }): Vector3?
+function FoodService:_buildLatticePositions(spawnPart: BasePart, zoneName: string): { Vector3 }
 	local placementRadius = self:_getPlacementRadiusForZone(zoneName)
-	if placementRadius <= 0 then
-		for _ = 1, SPAWN_POSITION_RETRY_LIMIT do
-			local halfWidth = math.max(0, (spawnPart.Size.X / 2) - foodRadius)
-			local halfDepth = math.max(0, (spawnPart.Size.Z / 2) - foodRadius)
-			local localX = (math.random() * 2 - 1) * halfWidth
-			local localZ = (math.random() * 2 - 1) * halfDepth
-			local candidate = spawnPart.CFrame:PointToWorldSpace(Vector3.new(localX, 0, localZ))
-			if self:_isSpawnPositionValid(candidate, foodRadius, batchPositions, batchRadii) then
-				return candidate
+	local largestFoodRadius = 0
+	for _, template in pairs(self._foodModels) do
+		largestFoodRadius = math.max(largestFoodRadius, self:_getFoodPlacementRadius(template))
+	end
+	local cellSize = math.max(FoodConfig.MinNoOverlapDistance + largestFoodRadius * 2, 1)
+	local halfWidth = if placementRadius > 0 then placementRadius else spawnPart.Size.X * 0.5
+	local halfDepth = if placementRadius > 0 then placementRadius else spawnPart.Size.Z * 0.5
+	local candidates = {}
+	local columns = math.max(1, math.floor((halfWidth * 2) / cellSize))
+	local rows = math.max(1, math.floor((halfDepth * 2) / cellSize))
+	local jitterLimit = cellSize * 0.2
+
+	for column = 0, columns - 1 do
+		for row = 0, rows - 1 do
+			local x = -halfWidth + (column + 0.5) * (halfWidth * 2 / columns)
+			local z = -halfDepth + (row + 0.5) * (halfDepth * 2 / rows)
+			if placementRadius <= 0 or x * x + z * z <= placementRadius * placementRadius then
+				local jitterX = (math.random() * 2 - 1) * jitterLimit
+				local jitterZ = (math.random() * 2 - 1) * jitterLimit
+				local localPosition = Vector3.new(x + jitterX, 0, z + jitterZ)
+				if placementRadius <= 0 or localPosition.X * localPosition.X + localPosition.Z * localPosition.Z <= placementRadius * placementRadius then
+					table.insert(candidates, spawnPart.CFrame:PointToWorldSpace(localPosition))
+				end
 			end
 		end
-		return nil
 	end
-
-	for _ = 1, SPAWN_POSITION_RETRY_LIMIT do
-		local angle = math.random() * math.pi * 2
-		local distance = math.sqrt(math.random()) * placementRadius
-		local offset = Vector3.new(math.cos(angle) * distance, 0, math.sin(angle) * distance)
-		local candidate = spawnPart.Position + offset
-		if self:_isSpawnPositionValid(candidate, foodRadius, batchPositions, batchRadii) then
-			return candidate
-		end
+	-- Fisher-Yates provides natural distribution without repeatedly sampling occupied space.
+	for index = #candidates, 2, -1 do
+		local swapIndex = math.random(1, index)
+		candidates[index], candidates[swapIndex] = candidates[swapIndex], candidates[index]
 	end
-
-	return nil
+	return candidates
 end
 
-function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string, batchPositions: { Vector3 }?, batchRadii: { number }?): boolean
+function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string, batchPositions: { Vector3 }?, batchRadii: { number }?, requestedPosition: Vector3?): boolean
 	local foodType = self:_pickWeightedType(zoneName)
 	if not foodType then
 		return false
@@ -397,7 +403,10 @@ function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Fol
 	local activeBatchPositions = batchPositions or {}
 	local activeBatchRadii = batchRadii or {}
 	local foodRadius = self:_getFoodPlacementRadius(template)
-	local spawnPos = self:_buildSpawnPosition(spawnPart, zoneName, foodRadius, activeBatchPositions, activeBatchRadii)
+	local spawnPos = requestedPosition
+	if spawnPos and not self:_isSpawnPositionValid(spawnPos, foodRadius, activeBatchPositions, activeBatchRadii) then
+		spawnPos = nil
+	end
 	if not spawnPos then
 		warn(string.format("[FoodService] Unable to find valid %s food position for %s", zoneName, spawnPart:GetFullName()))
 		return false
@@ -447,17 +456,21 @@ function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Fol
 	return true
 end
 
-function FoodService:_spawnFoodBatchOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string)
-	local spawnCount = self:_getSpawnCountForZone(zoneName)
+function FoodService:_spawnFoodBatchOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string, requestedCount: number?)
+	local spawnCount = requestedCount or self:_getSpawnCountForZone(zoneName)
 	if spawnCount <= 0 then
 		return
 	end
 
 	local batchPositions = {}
 	local batchRadii = {}
+	local latticePositions = self:_buildLatticePositions(spawnPart, zoneName)
 	local spawned = 0
-	for _ = 1, spawnCount do
-		if self:_spawnSingleFoodOnSpawn(mapModel, foodContainer, spawnPart, zoneName, batchPositions, batchRadii) then
+	for _, latticePosition in ipairs(latticePositions) do
+		if spawned >= spawnCount then
+			break
+		end
+		if self:_spawnSingleFoodOnSpawn(mapModel, foodContainer, spawnPart, zoneName, batchPositions, batchRadii, latticePosition) then
 			spawned += 1
 		end
 	end
@@ -528,6 +541,16 @@ function FoodService:_rewardFoodKill(entry: any)
 	end
 end
 
+function FoodService:_getActiveFoodCountForSpawn(spawnPart: BasePart): number
+	local count = 0
+	for _, entry in pairs(self._foodEntries) do
+		if entry.IsActive and not entry.IsConsumed and entry.SpawnPart == spawnPart then
+			count += 1
+		end
+	end
+	return count
+end
+
 function FoodService:_consumeFood(entry: any, player: Player)
 	if not entry.IsActive or entry.IsConsumed then
 		return
@@ -562,7 +585,11 @@ function FoodService:_consumeFood(entry: any, player: Player)
 				if mapModel then
 					local foodContainer = mapModel:FindFirstChild("FoodContainer")
 					if foodContainer and foodContainer:IsA("Folder") then
-						self:_spawnSingleFoodOnSpawn(mapModel, foodContainer, entry.SpawnPart, entry.ZoneName)
+						local capacity = self:_getSpawnCountForZone(entry.ZoneName)
+						local activeCount = self:_getActiveFoodCountForSpawn(entry.SpawnPart)
+						if activeCount < capacity then
+							self:_spawnFoodBatchOnSpawn(mapModel, foodContainer, entry.SpawnPart, entry.ZoneName, capacity - activeCount)
+						end
 					end
 				end
 			end

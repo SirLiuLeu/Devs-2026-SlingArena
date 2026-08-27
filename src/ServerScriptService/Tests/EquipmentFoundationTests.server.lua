@@ -10,6 +10,7 @@ local EquipmentService = require(ServerScriptService.Services.EquipmentService.E
 local EquipmentEffectService = require(ServerScriptService.Services.EquipmentEffectService.EquipmentEffectService)
 local EquipmentStatResolver = require(ReplicatedStorage.Shared.Utils.EquipmentStatResolver)
 local EquipmentUpgradeConfig = require(ReplicatedStorage.Shared.Config.EquipmentUpgradeConfig)
+local TestContext = require(ServerScriptService.Tests.Fixtures.TestContext)
 
 local failures = {}
 
@@ -42,10 +43,10 @@ local function player(id: number, name: string)
 end
 
 local function buildContext()
-	local context = { EventBus = EventBus.new(), Services = {}, ServiceRegistry = nil }
+	local context = TestContext.new()
 	local data = PlayerDataService.new(context, MockProvider.new())
 	context.Services.PlayerDataService = data
-	context.Services.PlayerStateService = { RecalculateCount = 0, RecalculateDerivedStats = function(self) self.RecalculateCount += 1 end }
+	context.ServiceRegistry:Register("PlayerDataService", data)
 	return context, data
 end
 

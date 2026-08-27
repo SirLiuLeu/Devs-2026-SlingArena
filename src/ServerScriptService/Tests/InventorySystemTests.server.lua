@@ -113,6 +113,26 @@ local function buildInventoryGui(): ScreenGui
 	local itemsGrid = Instance.new("ScrollingFrame")
 	itemsGrid.Name = "GridContainer"
 	itemsGrid.Parent = bodyItems
+	local itemsRightPanel = Instance.new("Frame")
+	itemsRightPanel.Name = "RightPanel"
+	itemsRightPanel.Parent = bodyItems
+	local itemsSelectedName = Instance.new("TextLabel")
+	itemsSelectedName.Name = "SelectedName"
+	itemsSelectedName.Parent = itemsRightPanel
+	local itemsActionButtons = Instance.new("Frame")
+	itemsActionButtons.Name = "ActionButtons"
+	itemsActionButtons.Parent = itemsRightPanel
+	local useButton = Instance.new("TextButton")
+	useButton.Name = "UseButton"
+	useButton.Parent = itemsActionButtons
+	local itemsStats = Instance.new("Frame")
+	itemsStats.Name = "Stats"
+	itemsStats.Parent = itemsRightPanel
+	for _, statName in ipairs({ "ItemStat1", "ItemStat2", "ItemStat3" }) do
+		local label = Instance.new("TextLabel")
+		label.Name = statName
+		label.Parent = itemsStats
+	end
 
 	local bodyLauncher = Instance.new("Frame")
 	bodyLauncher.Name = "BodyLauncher"

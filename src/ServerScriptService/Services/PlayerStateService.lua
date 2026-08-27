@@ -16,6 +16,17 @@ local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 
 type PlayerState = PlayerStateTypes.PlayerState
 
+-- Public dependency contract. Consumers should depend on this interface rather than
+-- assuming a concrete PlayerStateService table is present at runtime.
+export type IPlayerStateService = {
+	IsLauncher: (self: IPlayerStateService, player: Player) -> boolean,
+	IsHuman: (self: IPlayerStateService, player: Player) -> boolean,
+	GetState: (self: IPlayerStateService, player: Player) -> PlayerState?,
+	RecalculateDerivedStats: (self: IPlayerStateService, player: Player, forcePublish: boolean?) -> (),
+	Heal: (self: IPlayerStateService, player: Player, amount: number) -> (),
+	PublishState: (self: IPlayerStateService, player: Player) -> (),
+}
+
 local MOVEMENT_STATE = GameStates.PlayerState
 
 type BuffState = {

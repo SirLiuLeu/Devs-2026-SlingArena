@@ -35,6 +35,7 @@ UIController.__index = UIController
 
 export type Dependencies = {
 	ClientService: any,
+	UIReadySignal: BindableEvent?,
 }
 
 local function resolveTextButton(root: Instance, path: string, shouldWarn: boolean?): TextButton?
@@ -130,6 +131,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] new playerGui=%s t=%.3f", playerGui:GetFullName(), os.clock())) end
 	local self = setmetatable({}, UIController)
 	self.ClientService = dependencies.ClientService
+	self.UIReadySignal = dependencies.UIReadySignal
 	self.PlayerGui = playerGui
 	self.Connections = {}
 	self._boundUiConnectionKeys = {}
@@ -517,7 +519,7 @@ function UIController:ToggleMainHubPanel(panelKey: string)
 end
 
 function UIController:_startAvailableFeatureControllers()
-	if self.InventoryUIController then self.InventoryUIController:Start() end
+	if self.InventoryUIController then self.InventoryUIController:Start(self.UIReadySignal) end
 	if self.SpinUIController then self.SpinUIController:Start() end
 	if self.OnlineRewardUIController then self.OnlineRewardUIController:Start() end
 	if self.ShopUIController then self.ShopUIController:Start() end

@@ -115,7 +115,12 @@ function InventoryUIController:SetDataProvider(provider)
 	self._dataProvider = provider
 end
 
-function InventoryUIController:Start()
+function InventoryUIController:Start(uiReadySignal: BindableEvent?)
+	-- The UI builder owns the readiness boundary. Resolving paths before it fires
+	-- creates false missing-path diagnostics while StarterGui is still cloning.
+	if uiReadySignal and uiReadySignal:GetAttribute("IsReady") ~= true then
+		uiReadySignal.Event:Wait()
+	end
 	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryUI] Start existingConnections=%d t=%.3f", #self._connections, os.clock())) end
 	self._inventoryGui = PathResolver.resolvePath(self._playerGui, ProjectTreeSpec.UI.Inventory.ScreenGui)
 	self._itemsGrid = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsGridContainer)
@@ -152,7 +157,7 @@ function InventoryUIController:Start()
 	self._launcherEquipButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherEquipButton)
 	self._launcherDeleteButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherDeleteButton)
 
-	local assets = ReplicatedStorage:WaitForChild("Assets", 5)
+	local assets = ReplicatedStorage:WaitForChild("Assets")
 	if not assets then
 		warn("[INVENTORY_UI] ReplicatedStorage.Assets missing")
 	else
