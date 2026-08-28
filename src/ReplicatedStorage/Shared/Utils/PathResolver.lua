@@ -9,6 +9,7 @@ export type ResolveOptions = {
 }
 
 local DEFAULT_REPORT_MISSING_TIMEOUT_SECONDS = 1
+local DEFAULT_ROOT_SCREEN_GUI_TIMEOUT_SECONDS = 8
 
 local warnedMissingPaths: { [string]: boolean } = {}
 local warnedAllowedMissingPaths: { [string]: boolean } = {}
@@ -105,6 +106,28 @@ function PathResolver.waitForPath(root: Instance, path: string?, timeout: number
 	return current
 end
 
+-- Resolves only the ScreenGui root so callers can use a bounded replication wait
+-- without making every optional descendant wait for the same timeout.
+function PathResolver.resolveRootScreenGui(playerGui: PlayerGui, path: string?, timeout: number?): ScreenGui?
+	local segments = splitPath(path)
+	local rootName = segments[1]
+	if rootName == nil then
+		return nil
+	end
+
+	local root = playerGui:FindFirstChild(rootName)
+	if root == nil then
+		local waitTimeout = if timeout ~= nil then math.max(timeout, 0) else DEFAULT_ROOT_SCREEN_GUI_TIMEOUT_SECONDS
+		root = playerGui:WaitForChild(rootName, waitTimeout)
+	end
+
+	if root and root:IsA("ScreenGui") then
+		return root
+	end
+
+	return nil
+end
+
 function PathResolver.resolvePath(root: Instance, path: string?, options: ResolveOptions?): Instance?
 	if type(path) ~= "string" or path == "" then
 		if options == nil or options.shouldWarn ~= false then
@@ -170,26 +193,15 @@ function PathResolver.reportMissing(root: Instance, paths: { string }, options: 
 	for _, path in ipairs(paths) do
 		if PathResolver.resolvePath(root, path, {
 			waitTimeout = waitTimeout,
-			shouldWarn = false,
+			shouldWarn = options == nil or options.shouldWarn ~= false,
 			allowMissingReason = options and options.allowMissingReason or nil,
 		}) == nil then
 			table.insert(missing, path)
-			if options == nil or options.shouldWarn ~= false then
-				PathResolver.resolvePath(root, path, {
-					shouldWarn = true,
-					allowMissingReason = options and options.allowMissingReason or nil,
-				})
-			end
 		end
 	end
 
-	if #missing == 0 then
-	else
+	if #missing > 0 and (options == nil or options.shouldWarn ~= false) then
 		warn(string.format("[ProjectTreeSpec] Startup check complete. Missing instances: %d", #missing))
-		for _, path in ipairs(missing) do
-			warnMissingOnce(root, path)
-			warn("[ProjectTreeSpec] MissingSummary:", path)
-		end
 	end
 
 	return missing
