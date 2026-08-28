@@ -185,6 +185,8 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	if not self._launchersGrid then warn("[INVENTORY_UI] Launchers grid container missing") end
 	if not self._itemsBody then warn("[INVENTORY_UI] Items body frame missing") end
 	if not self._launcherBody then warn("[INVENTORY_UI] Launcher body frame missing") end
+	if not self._equipmentBody then warn("[INVENTORY_UI] BodyEquipment missing at StarterGui/InventoryUI/Root/BodyEquipment") end
+	if not self._equipmentGrid then warn("[INVENTORY_UI] GridContainer missing at StarterGui/InventoryUI/Root/BodyEquipment/GridContainer") end
 	if not self._itemsTab then warn("[INVENTORY_UI] ItemsTab button missing") end
 	if not self._launcherTab then warn("[INVENTORY_UI] LauncherTab button missing") end
 	if not self._closeButton then warn("[INVENTORY_UI] CloseButton missing") end
@@ -490,7 +492,8 @@ local function formatRemainingLifetime(entry): string
 end
 
 function InventoryUIController:_spawnEquipmentSlot(equipmentEntry)
-	if not self._equipmentGrid or not self._equipmentTemplate or not self._equipmentTemplate:IsA("GuiObject") then return end
+	if not self._equipmentGrid then warn("[INVENTORY_UI] Cannot spawn equipment: GridContainer missing at StarterGui/InventoryUI/Root/BodyEquipment/GridContainer"); return end
+	if not self._equipmentTemplate or not self._equipmentTemplate:IsA("GuiObject") then warn("[INVENTORY_UI] Cannot spawn equipment: template missing at ReplicatedStorage/Assets/UI/EquipmentSlotTemplate_InventoryUI"); return end
 	local instanceId = tostring(equipmentEntry.instanceId or "")
 	local definitionId = tostring(equipmentEntry.definitionId or equipmentEntry.id or "")
 	if instanceId == "" or definitionId == "" then return end
