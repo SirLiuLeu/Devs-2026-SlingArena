@@ -42,8 +42,13 @@ local function player(id: number, name: string)
 	return { UserId = id, Name = name, DisplayName = name } :: any
 end
 
-local function buildContext()
+local function buildContext(playerStateOptions: TestContext.MockPlayerStateServiceOptions?)
 	local context = TestContext.new()
+	if playerStateOptions then
+		local playerStateService = TestContext.newMockPlayerStateService(playerStateOptions)
+		context.Services.PlayerStateService = playerStateService
+		context.ServiceRegistry:Register("PlayerStateService", playerStateService)
+	end
 	local data = PlayerDataService.new(context, MockProvider.new())
 	context.Services.PlayerDataService = data
 	context.ServiceRegistry:Register("PlayerDataService", data)
@@ -139,7 +144,7 @@ runTest("stat resolver applies equipped additive and multiplicative modifiers on
 end)
 
 runTest("effects activate, isolate players, and share heartbeat", function()
-	local context, dataService = buildContext()
+	local context, dataService = buildContext({ isLauncher = true })
 	local effectService = EquipmentEffectService.new(context)
 	local callbacks = {}
 	local signal = { Connect = function(_, callback) table.insert(callbacks, callback); return { Disconnect = function() end } end }
@@ -155,15 +160,16 @@ runTest("effects activate, isolate players, and share heartbeat", function()
 	equipmentService:Grant(p1, "HealthCore", { instanceId = "p1-core" })
 	equipmentService:Grant(p1, "PowerCore", { instanceId = "p1-module" })
 	equipmentService:Grant(p2, "HealthCore", { instanceId = "p2-core" })
-	equipmentService:Equip(p1, "p1-core"); equipmentService:Equip(p1, "p1-module"); equipmentService:Equip(p2, "p2-core")
+	equipmentService:Grant(p2, "PowerCore", { instanceId = "p2-module" })
+	equipmentService:Equip(p1, "p1-core"); equipmentService:Equip(p1, "p1-module"); equipmentService:Equip(p2, "p2-core"); equipmentService:Equip(p2, "p2-module")
 	assertEqual(effectService:GetActiveEffectCount(p1), 2, "one player can have multiple active equipment effects")
-	assertEqual(effectService:GetActiveEffectCount(p2), 1, "other player's effects are isolated")
+	assertEqual(effectService:GetActiveEffectCount(p2), 2, "other player's effects are isolated")
 	assertEqual(effectService:GetHeartbeatConnectionCount(), 1, "one shared heartbeat connection is used")
 	assertEqual(#callbacks, 1, "heartbeat is connected once")
 	callbacks[1](0.016)
 	equipmentService:Unequip(p1, 1)
 	assertEqual(effectService:GetActiveEffectCount(p1), 1, "unequip deactivates only matching effect")
-	assertEqual(effectService:GetActiveEffectCount(p2), 1, "unequip does not affect other player")
+	assertEqual(effectService:GetActiveEffectCount(p2), 2, "unequip does not affect other player")
 	context.EventBus:Destroy()
 end)
 

@@ -348,13 +348,12 @@ function FoodService:_isSpawnPositionValid(candidate: Vector3, foodRadius: numbe
 	return true
 end
 
-function FoodService:_buildLatticePositions(spawnPart: BasePart, zoneName: string): { Vector3 }
+function FoodService:_buildLatticePositions(spawnPart: BasePart, zoneName: string, foodRadius: number): { Vector3 }
 	local placementRadius = self:_getPlacementRadiusForZone(zoneName)
-	local largestFoodRadius = 0
-	for _, template in pairs(self._foodModels) do
-		largestFoodRadius = math.max(largestFoodRadius, self:_getFoodPlacementRadius(template))
-	end
-	local cellSize = math.max(FoodConfig.MinNoOverlapDistance + largestFoodRadius * 2, 1)
+	-- Candidates are generated for the item being placed, rather than the largest
+	-- possible model. Collision validation below still enforces spacing against every
+	-- existing food entry, so large food cannot overlap smaller food.
+	local cellSize = math.max(FoodConfig.MinNoOverlapDistance + foodRadius * 2, 1)
 	local halfWidth = if placementRadius > 0 then placementRadius else spawnPart.Size.X * 0.5
 	local halfDepth = if placementRadius > 0 then placementRadius else spawnPart.Size.Z * 0.5
 	local candidates = {}
@@ -384,8 +383,8 @@ function FoodService:_buildLatticePositions(spawnPart: BasePart, zoneName: strin
 	return candidates
 end
 
-function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string, batchPositions: { Vector3 }?, batchRadii: { number }?, requestedPosition: Vector3?): boolean
-	local foodType = self:_pickWeightedType(zoneName)
+function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string, batchPositions: { Vector3 }?, batchRadii: { number }?, requestedPosition: Vector3?, requestedFoodType: string?): boolean
+	local foodType = requestedFoodType or self:_pickWeightedType(zoneName)
 	if not foodType then
 		return false
 	end
@@ -403,7 +402,6 @@ function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Fol
 		spawnPos = nil
 	end
 	if not spawnPos then
-		warn(string.format("[FoodService] Unable to find valid %s food position for %s", zoneName, spawnPart:GetFullName()))
 		return false
 	end
 
@@ -459,13 +457,40 @@ function FoodService:_spawnFoodBatchOnSpawn(mapModel: Model, foodContainer: Fold
 
 	local batchPositions = {}
 	local batchRadii = {}
-	local latticePositions = self:_buildLatticePositions(spawnPart, zoneName)
 	local spawned = 0
-	for _, latticePosition in ipairs(latticePositions) do
-		if spawned >= spawnCount then
-			break
+	for _ = 1, spawnCount do
+		local foodType = self:_pickWeightedType(zoneName)
+		local template = foodType and self._foodModels[foodType]
+		local didSpawn = false
+		if foodType and template then
+			local foodRadius = self:_getFoodPlacementRadius(template)
+			for _, latticePosition in ipairs(self:_buildLatticePositions(spawnPart, zoneName, foodRadius)) do
+				if self:_spawnSingleFoodOnSpawn(mapModel, foodContainer, spawnPart, zoneName, batchPositions, batchRadii, latticePosition, foodType) then
+					didSpawn = true
+					break
+				end
+			end
+
+			-- A per-item lattice avoids the old largest-model bottleneck. Random
+			-- rejection sampling fills any gaps left by occupied lattice cells.
+			local placementRadius = self:_getPlacementRadiusForZone(zoneName)
+			local halfWidth = if placementRadius > 0 then placementRadius else spawnPart.Size.X * 0.5
+			local halfDepth = if placementRadius > 0 then placementRadius else spawnPart.Size.Z * 0.5
+			for _ = 1, 192 do
+				if didSpawn then
+					break
+				end
+				local x = (math.random() * 2 - 1) * halfWidth
+				local z = (math.random() * 2 - 1) * halfDepth
+				if placementRadius <= 0 or x * x + z * z <= placementRadius * placementRadius then
+					local position = spawnPart.CFrame:PointToWorldSpace(Vector3.new(x, 0, z))
+					if self:_spawnSingleFoodOnSpawn(mapModel, foodContainer, spawnPart, zoneName, batchPositions, batchRadii, position, foodType) then
+						didSpawn = true
+					end
+				end
+			end
 		end
-		if self:_spawnSingleFoodOnSpawn(mapModel, foodContainer, spawnPart, zoneName, batchPositions, batchRadii, latticePosition) then
+		if didSpawn then
 			spawned += 1
 		end
 	end

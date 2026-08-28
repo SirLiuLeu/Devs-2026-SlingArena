@@ -13,6 +13,10 @@ export type MockPlayerStateService = IPlayerStateService & {
 	RuntimeDiamonds: number?,
 }
 
+export type MockPlayerStateServiceOptions = {
+	isLauncher: boolean?,
+}
+
 export type TestContext = {
 	EventBus: any,
 	Services: { [string]: any },
@@ -23,10 +27,11 @@ local TestContext = {}
 
 -- Canonical fixture for services that only need PlayerStateService's public
 -- contract. Its no-op methods deliberately make event callbacks safe in tests.
-function TestContext.newMockPlayerStateService(): MockPlayerStateService
+function TestContext.newMockPlayerStateService(options: MockPlayerStateServiceOptions?): MockPlayerStateService
+	local isLauncher = options and options.isLauncher == true
 	local mock = {
 		RecalculateCount = 0,
-		IsLauncher = function(_self: MockPlayerStateService, _player: Player): boolean return false end,
+		IsLauncher = function(_self: MockPlayerStateService, _player: Player): boolean return isLauncher end,
 		IsHuman = function(_self: MockPlayerStateService, _player: Player): boolean return true end,
 		GetState = function(_self: MockPlayerStateService, _player: Player): any return nil end,
 		RecalculateDerivedStats = function(self: MockPlayerStateService, _player: Player, _forcePublish: boolean?) self.RecalculateCount += 1 end,

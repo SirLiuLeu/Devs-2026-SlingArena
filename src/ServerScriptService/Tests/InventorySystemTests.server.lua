@@ -146,6 +146,20 @@ local function buildInventoryGui(): ScreenGui
 	local cap = Instance.new("TextLabel")
 	cap.Name = "CapacityLabel"
 	cap.Parent = footer
+	local launcherRightPanel = Instance.new("Frame")
+	launcherRightPanel.Name = "RightPanel"
+	launcherRightPanel.Parent = bodyLauncher
+	local launcherSelectedName = Instance.new("TextLabel")
+	launcherSelectedName.Name = "SelectedName"
+	launcherSelectedName.Parent = launcherRightPanel
+	local launcherActionButtons = Instance.new("Frame")
+	launcherActionButtons.Name = "ActionButtons"
+	launcherActionButtons.Parent = launcherRightPanel
+	for _, buttonName in ipairs({ "DeleteButton", "EquipButton" }) do local button = Instance.new("TextButton"); button.Name = buttonName; button.Parent = launcherActionButtons end
+	local launcherStats = Instance.new("Frame")
+	launcherStats.Name = "Stats"
+	launcherStats.Parent = launcherRightPanel
+	for _, statName in ipairs({ "Damage", "HP", "Range", "Regen" }) do local label = Instance.new("TextLabel"); label.Name = statName; label.Parent = launcherStats end
 
 	local bodyEquipment = Instance.new("Frame")
 	bodyEquipment.Name = "BodyEquipment"
