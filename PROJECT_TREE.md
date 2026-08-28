@@ -149,7 +149,7 @@ DataModel
 │  │      │       ├── UICorner
 │  │      │       └── HpBarFill (Frame)
 │  │      │
-│  │      ├── ItemotTemplate_InventoryUI (Frame)
+│  │      ├── ItemSlotTemplate_InventoryUI (Frame)
 │  │      │   └── Root (Frame)
 │  │      │       ├── UICorner
 │  │      │       ├── Icon (ImageLabel)
@@ -169,7 +169,7 @@ DataModel
 │  │      │       ├── Level (TextLabel)
 │  │      │       └── Name (TextLabel)
 │  │      │
-│  │      ├── LauncherSlotTemplate_InventoryUI (Frame)
+│  │      ├── EquipmentSlotTemplate_InventoryUI (Frame)
 │  │      │   └── Root (Frame)
 │  │      │       ├── RemainingTimeText (TextLabel)
 │  │      │       ├── Icon (ImageLabel)
