@@ -4,18 +4,13 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local RankConfig = require(ReplicatedStorage.Shared.Config.RankConfig)
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 type Context = { EventBus: any, Services: any, ServiceRegistry: any? }
 
 local ProgressPointService = {}
 ProgressPointService.__index = ProgressPointService
 
-local function getService(context: Context, name: string)
-	if context.ServiceRegistry then
-		return context.ServiceRegistry:GetOptional(name)
-	end
-	return context.Services and context.Services[name]
-end
 
 function ProgressPointService.new(context: Context)
 	local self = setmetatable({}, ProgressPointService)
@@ -45,7 +40,7 @@ function ProgressPointService:_addPoints(player: Player, amount: number)
 	if amount <= 0 then
 		return
 	end
-	local playerDataService = getService(self._context, "PlayerDataService")
+	local playerDataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not playerDataService then
 		warn("[ProgressPointService] PlayerDataService unavailable; progress points skipped.")
 		return
@@ -100,7 +95,7 @@ local function getRewardForRank(rank: number): { ProgressPoints: number, Coins: 
 end
 
 function ProgressPointService:AwardEndRoundPoints(topPlayers: { any }): { any }
-	local playerDataService = getService(self._context, "PlayerDataService")
+	local playerDataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not playerDataService then
 		warn("[ProgressPointService] PlayerDataService unavailable; end-round rewards skipped.")
 		return {}
@@ -135,7 +130,7 @@ function ProgressPointService:AwardEndRoundPoints(topPlayers: { any }): { any }
 end
 
 function ProgressPointService:GetProgressPoints(player: Player): (number, number)
-	local playerDataService = getService(self._context, "PlayerDataService")
+	local playerDataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not playerDataService then
 		return 0, 0
 	end

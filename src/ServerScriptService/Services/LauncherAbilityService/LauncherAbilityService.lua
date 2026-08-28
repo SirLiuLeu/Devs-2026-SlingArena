@@ -8,16 +8,11 @@ local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local BaseAbility = require(script.Parent.Parent.Shared.BaseAbility)
+local ServiceResolver = require(script.Parent.Parent.Infrastructure.ServiceResolver)
 
 local LauncherAbilityService = {}
 LauncherAbilityService.__index = LauncherAbilityService
 
-local function getService(context, name: string)
-	if context.ServiceRegistry then
-		return context.ServiceRegistry:GetOptional(name)
-	end
-	return context.Services and context.Services[name]
-end
 
 function LauncherAbilityService.new(context)
 	local self = setmetatable({}, LauncherAbilityService)
@@ -70,7 +65,7 @@ function LauncherAbilityService:Start()
 		self._heartbeatConnection:Disconnect()
 	end
 	self._heartbeatConnection = RunService.Heartbeat:Connect(function(dt)
-		local stateService = getService(self._context, "PlayerStateService")
+		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 		if stateService and typeof(stateService.TickFlags) == "function" then
 			stateService:TickFlags(dt)
 		end
@@ -86,18 +81,18 @@ function LauncherAbilityService:_onAbilityTrigger(player: Player, payload)
 	if not RemoteContracts.Validate(RemoteContracts.Names.AbilityTrigger, payload) then
 		return
 	end
-	local stateServiceForMode = getService(self._context, "PlayerStateService")
+	local stateServiceForMode = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateServiceForMode and stateServiceForMode:IsHuman(player) then
 		return
 	end
 	if type(payload) == "table" and payload.action == "EquipLauncher" and typeof(payload.launcherId) == "string" then
-		local stateService = getService(self._context, "PlayerStateService")
+		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 		local equipped = false
 		if stateService and typeof(payload.instanceId) == "string" and typeof(stateService.SetEquippedLauncherInstance) == "function" then
 			equipped = stateService:SetEquippedLauncherInstance(player, payload.instanceId)
 		end
 		if stateService and (equipped or stateService:SetLauncherType(player, payload.launcherId)) then
-			local playerService = getService(self._context, "PlayerService")
+			local playerService = ServiceResolver.Get(self._context, "PlayerService")
 			if playerService and typeof(playerService.EquipLauncherModel) == "function" then
 				playerService:EquipLauncherModel(player, payload.launcherId)
 			end
@@ -116,7 +111,7 @@ function LauncherAbilityService:_destroyAbility(player: Player)
 end
 
 function LauncherAbilityService:_ensureAbility(player: Player)
-	local stateService = getService(self._context, "PlayerStateService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local abilityType = stateService and stateService:GetLauncherAbilityType(player) or "NormalLauncher"
 	local config = AbilityConfig.GetById(abilityType) or AbilityConfig.GetById("NormalLauncher")
 	local current = self._abilities[player]
@@ -133,7 +128,7 @@ end
 function LauncherAbilityService:_handleChargeStarted(player: Player)
 	local ability = self:_ensureAbility(player)
 	if ability.Config.invisibleWhileCharging then
-		local stateService = getService(self._context, "PlayerStateService")
+		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 		if stateService then
 			stateService:ApplyFlag(player, "Invisible", 9999, player)
 		end
@@ -142,7 +137,7 @@ end
 
 function LauncherAbilityService:_handleLaunch(player: Player, chargeRatio: number, launchState: any)
 	local ability = self:_ensureAbility(player)
-	local stateService = getService(self._context, "PlayerStateService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player)
 	local config = ability.Config
 	if not (stateService and state and config) then
@@ -179,7 +174,7 @@ function LauncherAbilityService:_handleLaunch(player: Player, chargeRatio: numbe
 	end
 
 	if config.clientScanOnly then
-		local playerService = getService(self._context, "PlayerService")
+		local playerService = ServiceResolver.Get(self._context, "PlayerService")
 		local root = playerService and playerService:GetRoot(player)
 		self._context.EventBus:Fire("AbilityVacuumPulse", player, {
 			Center = root and root.Position or nil,
@@ -193,7 +188,7 @@ end
 function LauncherAbilityService:_revealIfStealth(player: Player)
 	local ability = self:_ensureAbility(player)
 	if ability.Config.revealOnCollision then
-		local stateService = getService(self._context, "PlayerStateService")
+		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 		if stateService then
 			stateService:RemoveFlag(player, "Invisible")
 		end
@@ -202,7 +197,7 @@ end
 
 -- Applies collision effects to the victim. The attacker is not modified here except for ally healing.
 function LauncherAbilityService:_handleCollision(attacker: Player, victim: Player, collisionMeta: any)
-	local stateService = getService(self._context, "PlayerStateService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not stateService then
 		return
 	end
@@ -218,7 +213,7 @@ function LauncherAbilityService:_handleCollision(attacker: Player, victim: Playe
 
 	self:_revealIfStealth(attacker)
 
-	local teamService = getService(self._context, "TeamService")
+	local teamService = ServiceResolver.Get(self._context, "TeamService")
 	local isFriendly = teamService and teamService:IsFriendly(attacker, victim)
 
 	-- SupportLauncher: heal allies, no damage.

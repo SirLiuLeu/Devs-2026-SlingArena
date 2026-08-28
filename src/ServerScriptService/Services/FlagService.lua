@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local StatusEffectVfx = require(ReplicatedStorage.Shared.Utils.StatusEffectVfx)
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 local MOVEMENT_STATE = GameStates.PlayerState
 
@@ -30,12 +31,6 @@ type FlagVisual = {
 	Materials: { [BasePart]: Enum.Material },
 }
 
-local function getService(context, name: string)
-	if context.ServiceRegistry then
-		return context.ServiceRegistry:GetOptional(name)
-	end
-	return context.Services and context.Services[name]
-end
 
 local function getFlagDefaults(flagName: string): any
 	return GameConfig.FlagConfig[flagName] or {}
@@ -234,7 +229,7 @@ function FlagService:ResetPlayer(player: Player): any
 end
 
 function FlagService:DisablePlayerStatusEffects(player: Player)
-	local playerService = getService(self._context, "PlayerService")
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	local root = playerService and playerService:GetRoot(player)
 	if root then
 		setAllStatusEffectsEnabled(root, false)
@@ -274,7 +269,7 @@ function FlagService:_removeFlagVisual(player: Player, flagName: string)
 	end
 
 	if visual.EffectName and not self:_hasActiveEffect(player, visual.EffectName, flagName) then
-		local playerService = getService(self._context, "PlayerService")
+		local playerService = ServiceResolver.Get(self._context, "PlayerService")
 		local root = playerService and playerService:GetRoot(player)
 		if root then
 			setStatusEffectEnabled(root, visual.EffectName, false, visual.AttachmentName)
@@ -310,7 +305,7 @@ function FlagService:_applyFlagVisual(player: Player, flagName: string, data: an
 
 	self:_removeFlagVisual(player, flagName)
 
-	local playerService = getService(self._context, "PlayerService")
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	local pawn = playerService and playerService:GetPawn(player)
 	local root = playerService and playerService:GetRoot(player)
 	if not (pawn and root) then
@@ -377,7 +372,7 @@ end
 
 function FlagService:ApplyFlag(player: Player, flagName: string, duration: number?, source: any?, data: any?): boolean
 	if flagName == "Burn" or flagName == "Poison" or flagName == "Stun" or flagName == "Petrify" then print(`[EQUIPMENT_ATTACK_TRACE][FlagService] ApplyFlag entered target={player.Name} flag={flagName} duration={tostring(duration)} source={getSourceId(source, data)}`) end
-	local stateService = getService(self._context, "PlayerStateService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player)
 	if not state then
 		if flagName == "Burn" or flagName == "Poison" or flagName == "Stun" or flagName == "Petrify" then print(`[EQUIPMENT_ATTACK_TRACE][FlagService] ApplyFlag aborted target={player.Name} flag={flagName}: state missing`) end
@@ -466,7 +461,7 @@ function FlagService:RemoveFlag(player: Player, flagName: string, source: any?, 
 		end
 	end
 	self:_removeFlagVisual(player, flagName)
-	local stateService = getService(self._context, "PlayerStateService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player)
 	if state then
 		if flagName == "Invisible" or flagName == "Ghost" then
@@ -480,11 +475,11 @@ end
 function FlagService:TickFlags(dt: number)
 	local now = os.clock()
 	-- RCA Fix D: inject a service-level round-state gate so DoT cannot bypass active-round rules.
-	local roundService = getService(self._context, "RoundService")
+	local roundService = ServiceResolver.Get(self._context, "RoundService")
 	local roundState = roundService and roundService:GetState()
 	local dotAllowed = roundState == GameStates.MapRoundState.EarlyGame or roundState == GameStates.MapRoundState.FinalPhase
 
-	local stateService = getService(self._context, "PlayerStateService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	for player, flags in pairs(self._activeFlags) do
 		if not flags or next(flags) == nil then
 			continue
@@ -530,7 +525,7 @@ function FlagService:TickFlags(dt: number)
 				local lastDamageTickAt = flag.LastDamageTickAt or flag.LastTickAt or now
 				if now - lastDamageTickAt >= tickInterval then
 					flag.LastDamageTickAt = now
-					local damagePipeline = getService(self._context, "DamagePipelineService")
+					local damagePipeline = ServiceResolver.Get(self._context, "DamagePipelineService")
 					local amount = 0
 					if type(damagePerTick) == "table" and damagePerTick.Mode == "MaxHPPercent" then
 						amount = math.max(tonumber(damagePerTick.Fallback) or 0, (state.MaxHP or 0) * math.max(0, tonumber(damagePerTick.Percent) or 0))

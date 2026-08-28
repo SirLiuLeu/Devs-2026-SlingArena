@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 local MonetizationService = {}
 MonetizationService.__index = MonetizationService
@@ -36,9 +37,9 @@ function MonetizationService:Init()
 end
 
 function MonetizationService:HandleRespawnRequest(player: Player)
-	local state = self._context.Services.PlayerStateService:GetState(player)
-	local mapName = state and state.CurrentMap or self._context.Services.MapService:GetActiveMap() or "LobbyMap"
-	self._context.Services.PlayerService:RespawnCurrentMode(player, nil, mapName)
+	local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
+	local mapName = state and state.CurrentMap or ServiceResolver.Get(self._context, "MapService"):GetActiveMap() or "LobbyMap"
+	ServiceResolver.Get(self._context, "PlayerService"):RespawnCurrentMode(player, nil, mapName)
 end
 
 return MonetizationService

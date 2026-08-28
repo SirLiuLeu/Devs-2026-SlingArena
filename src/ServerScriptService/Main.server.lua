@@ -25,6 +25,7 @@ end
 
 local EventBus = requireSafe(ServicesFolder:WaitForChild("Infrastructure"):WaitForChild("EventBus"), "EventBus")
 local ServiceRegistry = requireSafe(ServicesFolder:WaitForChild("Infrastructure"):WaitForChild("ServiceRegistry"), "ServiceRegistry")
+local ServiceResolver = requireSafe(ServicesFolder:WaitForChild("Infrastructure"):WaitForChild("ServiceResolver"), "ServiceResolver")
 local RateLimiter = requireSafe(ServicesFolder:WaitForChild("Infrastructure"):WaitForChild("RateLimiter"), "RateLimiter")
 local PlayerStateService = requireSafe(ServicesFolder:WaitForChild("PlayerStateService"), "PlayerStateService")
 local FlagService = requireSafe(ServicesFolder:WaitForChild("FlagService"), "FlagService")
@@ -90,7 +91,7 @@ local context = {
 }
 
 local function runServicePhase(serviceName: string, phase: "Init" | "Start")
-	local service = context.Services[serviceName]
+	local service = ServiceResolver.Get(context, serviceName)
 	if not service then
 		warn(string.format("[Bootstrap] Missing service %s during %s phase.", serviceName, phase))
 		return

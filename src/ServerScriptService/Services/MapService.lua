@@ -1,4 +1,5 @@
 --!strict
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 local Workspace = game:GetService("Workspace")
 
@@ -251,7 +252,7 @@ function MapService:_hookLobbyGates()
 			part.Touched:Connect(function(hit)
 				local model = hit:FindFirstAncestorOfClass("Model")
 				if not model then return end
-				local playerService = self._context.Services.PlayerService
+				local playerService = ServiceResolver.Get(self._context, "PlayerService")
 				if not playerService then return end
 				local player = playerService:GetPlayerFromPawn(model)
 				if not player then return end
@@ -270,11 +271,11 @@ function MapService:ActivateMap(mapName: string)
 		self._activeArenaMapName = mapName
 	end
 	self:Generate()
-	if self._context.Services.FoodService then
-		self._context.Services.FoodService:LoadMapResources(mapName)
+	if ServiceResolver.Get(self._context, "FoodService") then
+		ServiceResolver.Get(self._context, "FoodService"):LoadMapResources(mapName)
 	end
-	if self._context.Services.TrapService then
-		self._context.Services.TrapService:LoadMapResources(mapName)
+	if ServiceResolver.Get(self._context, "TrapService") then
+		ServiceResolver.Get(self._context, "TrapService"):LoadMapResources(mapName)
 	end
 end
 
@@ -311,8 +312,8 @@ function MapService:Generate()
 		end
 	end
 
-	if self._context.Services.TrapService then
-		for _, trapPart in ipairs(self._context.Services.TrapService:GetActiveTrapParts()) do
+	if ServiceResolver.Get(self._context, "TrapService") then
+		for _, trapPart in ipairs(ServiceResolver.Get(self._context, "TrapService"):GetActiveTrapParts()) do
 			table.insert(self._traps, trapPart)
 		end
 	end
@@ -387,14 +388,14 @@ function MapService:GetExitZones(): { BasePart }
 end
 
 function MapService:SpawnFood(_count: number?)
-	if self._context.Services.FoodService then
-		self._context.Services.FoodService:SpawnFoodForActiveMap()
+	if ServiceResolver.Get(self._context, "FoodService") then
+		ServiceResolver.Get(self._context, "FoodService"):SpawnFoodForActiveMap()
 	end
 end
 
 function MapService:SpawnTrap(_count: number?)
-	if self._context.Services.TrapService then
-		self._context.Services.TrapService:LoadMapResources("ArenaMap")
+	if ServiceResolver.Get(self._context, "TrapService") then
+		ServiceResolver.Get(self._context, "TrapService"):LoadMapResources("ArenaMap")
 		self:Generate()
 	end
 end

@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local SafeZoneConfig = require(ReplicatedStorage.Shared.Config.SafeZoneConfig)
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 local SafeZoneService = {}
 SafeZoneService.__index = SafeZoneService
@@ -88,7 +89,7 @@ function SafeZoneService:GetCenter(): Vector3
 end
 
 function SafeZoneService:_getArenaMap(): Model?
-	local mapService = self._context.Services.MapService
+	local mapService = ServiceResolver.Get(self._context, "MapService")
 	if not mapService then
 		return nil
 	end
@@ -300,9 +301,9 @@ function SafeZoneService:_isOutsideCircle(rootPosition: Vector3): boolean
 end
 
 function SafeZoneService:_damagePlayersOutsideZone(dt: number)
-	local playerService = self._context.Services.PlayerService
-	local playerStateService = self._context.Services.PlayerStateService
-	local damagePipelineService = self._context.Services.DamagePipelineService
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
+	local playerStateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local damagePipelineService = ServiceResolver.Get(self._context, "DamagePipelineService")
 	if not playerService or not playerStateService or not damagePipelineService then
 		return
 	end
@@ -362,7 +363,7 @@ function SafeZoneService:IsAtMinimumRadius(): boolean
 end
 
 function SafeZoneService:_isShrinkAllowed(): boolean
-	local roundService = self._context.Services.RoundService
+	local roundService = ServiceResolver.Get(self._context, "RoundService")
 	if not roundService then
 		return false
 	end
@@ -370,7 +371,7 @@ function SafeZoneService:_isShrinkAllowed(): boolean
 end
 
 function SafeZoneService:_isDamageAllowed(): boolean
-	local roundService = self._context.Services.RoundService
+	local roundService = ServiceResolver.Get(self._context, "RoundService")
 	if not roundService then
 		return false
 	end
@@ -437,7 +438,7 @@ function SafeZoneService:_step(dt: number)
 		self:_updateRelocation(dt)
 		self:_moveCircleToCenter()
 	else
-		local roundService = self._context.Services.RoundService
+		local roundService = ServiceResolver.Get(self._context, "RoundService")
 		if roundService and roundService:GetState() == GameStates.MapRoundState.Lobby then
 			self:Reset()
 		end

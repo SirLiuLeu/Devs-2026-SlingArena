@@ -7,18 +7,13 @@ local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
 local EquipmentUpgradeConfig = require(ReplicatedStorage.Shared.Config.EquipmentUpgradeConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
+local ServiceResolver = require(script.Parent.Parent.Infrastructure.ServiceResolver)
 
 type Context = { Remotes: Folder?, EventBus: any?, Services: any?, ServiceRegistry: any? }
 
 local EquipmentService = {}
 EquipmentService.__index = EquipmentService
 
-local function getService(context: Context, name: string)
-	if context.ServiceRegistry then
-		return context.ServiceRegistry:GetOptional(name)
-	end
-	return context.Services and context.Services[name]
-end
 
 function EquipmentService.new(context: Context)
 	local self = setmetatable({}, EquipmentService)
@@ -69,7 +64,7 @@ function EquipmentService:_publishEquipResult(player: Player, result: { [string]
 end
 
 function EquipmentService:_dataService()
-	return getService(self._context, "PlayerDataService")
+	return ServiceResolver.Get(self._context, "PlayerDataService")
 end
 
 function EquipmentService:GetOwnedEquipment(player: Player): { [string]: any }
@@ -161,7 +156,7 @@ function EquipmentService:Equip(player: Player, instanceId: string, preferredSlo
 		return false, failure
 	end
 	-- [DEBUG_TRACE] print(string.format("[DIAG][EquipmentService] Equip committed player=%s instanceId=%s slot=%s definition=%s t=%.3f", player.Name, tostring(instanceId), tostring(slotNumber), tostring(equippedInstance and equippedInstance.definitionId), os.clock()))
-	local stateService = getService(self._context, "PlayerStateService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateService and typeof(stateService.SyncEquipmentFromData) == "function" then stateService:SyncEquipmentFromData(player) end
 	local isLauncherMode = stateService and typeof(stateService.IsLauncher) == "function" and stateService:IsLauncher(player)
 	local equipResult = {
@@ -198,7 +193,7 @@ function EquipmentService:Unequip(player: Player, slot: any): (boolean, string?)
 		data.EquippedEquipment[slotNumber] = nil
 		return data
 	end)
-	local stateService = getService(self._context, "PlayerStateService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateService and typeof(stateService.SyncEquipmentFromData) == "function" then stateService:SyncEquipmentFromData(player) end
 	if removedInstanceId and self._context.EventBus then
 		self._context.EventBus:Fire("EquipmentUnequipped", player, slotNumber, removedInstanceId)

@@ -7,6 +7,7 @@ local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 type Context = {
 	Services: any,
@@ -73,12 +74,6 @@ local function resolveKnockbackDirectionAndSpeed(knockbackVelocity: Vector3, col
 	return planar.Unit, speed
 end
 
-local function getService(context: Context, name: string)
-	if context.ServiceRegistry then
-		return context.ServiceRegistry:GetOptional(name)
-	end
-	return context.Services and context.Services[name]
-end
 
 local function playerName(player: Player?): string
 	return player and player.Name or "nil"
@@ -104,7 +99,7 @@ local function isHumanDamageAllowed(sourceType: string?): boolean
 end
 
 local function isCombatDamageAllowed(context: Context): boolean
-	local roundService = getService(context, "RoundService")
+	local roundService = ServiceResolver.Get(context, "RoundService")
 	if not roundService then
 		return false
 	end
@@ -147,7 +142,7 @@ function DamagePipelineService:Init()
 		_knockbackDirection: Vector3,
 		collisionMeta: any
 	)
-		local stateService = getService(self._context, "PlayerStateService")
+		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 		local attackerState = attacker and stateService and stateService:GetState(attacker) or nil
 
 		local damage = self:ComputeCollisionDamage(attackerState or {}, impactSpeed, collisionMeta)
@@ -174,7 +169,7 @@ function DamagePipelineService:Init()
 
 
 	self._context.EventBus:On("LevelUp", function(player: Player)
-		local stateService = getService(self._context, "PlayerStateService")
+		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 		if not stateService then
 			warn("[DamagePipelineService] PlayerStateService unavailable; level-up growth skipped.")
 			return
@@ -248,7 +243,7 @@ function DamagePipelineService:_sendFeedback(player: Player, eventType: string, 
 end
 
 function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
-	local playerStateService = getService(self._context, "PlayerStateService")
+	local playerStateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not playerStateService then
 		warn("[DamagePipelineService] PlayerStateService unavailable; damage skipped.")
 		return false
@@ -272,7 +267,7 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 	local armor = victimStats and math.clamp(victimStats.Armor or 0, 0, 0.8) or 0
 	local equipmentDamageMultiplier = tonumber(victim:GetAttribute("EquipmentShieldDamageMultiplier")) or 1
 	local amount = math.clamp(rawDamage * equipmentDamageMultiplier * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
-	local teamService = getService(self._context, "TeamService")
+	local teamService = ServiceResolver.Get(self._context, "TeamService")
 	local friendly = attacker and teamService and teamService:IsFriendly(attacker, victim) or false
 	if friendly then
 		amount = 0
@@ -313,7 +308,7 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 
 	local suppressKnockback = options and options.SuppressKnockback == true
 	if knockbackDirection and not suppressKnockback then
-		local playerService = getService(self._context, "PlayerService")
+		local playerService = ServiceResolver.Get(self._context, "PlayerService")
 		local root = playerService and playerService:GetRoot(victim)
 		if root and knockbackDirection.Magnitude > 0 then
 			local planarKnockback = Vector3.new(knockbackDirection.X, 0, knockbackDirection.Z)
@@ -343,7 +338,7 @@ end
 
 function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number, source: any?, flagName: string?): boolean
 	damageLog(`ApplyDoTDamage entered victim={playerName(victim)} source={playerName(if typeof(source) == "Instance" and source:IsA("Player") then source else nil)} flag={tostring(flagName)} rawDamage={rawDamage}`)
-	local playerStateService = getService(self._context, "PlayerStateService")
+	local playerStateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not playerStateService then
 		warn("[DamagePipelineService] PlayerStateService unavailable; DOT damage skipped.")
 		return false
@@ -388,7 +383,7 @@ function DamagePipelineService:_scheduleSlowAfterKnockback(victim: Player, sourc
 	local nextToken = (self._pendingSlowTokens[victim][sourceId] or 0) + 1
 	self._pendingSlowTokens[victim][sourceId] = nextToken
 	task.spawn(function()
-		local stateService = getService(self._context, "PlayerStateService")
+		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 		while stateService do
 			local state = stateService:GetState(victim)
 			if not state or not state.IsAlive then
@@ -402,7 +397,7 @@ function DamagePipelineService:_scheduleSlowAfterKnockback(victim: Player, sourc
 		if not self._pendingSlowTokens[victim] or self._pendingSlowTokens[victim][sourceId] ~= nextToken then
 			return
 		end
-		local stateService = getService(self._context, "PlayerStateService")
+		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 		if stateService then
 			stateService:ApplyFlag(victim, "Slow", duration, source, {
 				SlowAmount = amount,
@@ -422,7 +417,7 @@ function DamagePipelineService:_applyLauncherDotFromHit(victim: Player, attacker
 	end
 	local flagName = effectConfig.Flag
 	local merged = mergeEffectDefaults(effectConfig)
-	local stateService = getService(self._context, "PlayerStateService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not stateService then
 		return
 	end
@@ -458,7 +453,7 @@ function DamagePipelineService:ApplySelfDamage(player: Player, amount: number)
 end
 
 function DamagePipelineService:ApplyExpPenalty(player: Player, amount: number)
-	local stateService = getService(self._context, "PlayerStateService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not stateService then
 		return
 	end
@@ -470,19 +465,19 @@ function DamagePipelineService:ApplyExpPenalty(player: Player, amount: number)
 end
 
 function DamagePipelineService:HandlePlayerDeath(player: Player)
-	local playerStateService = self._context.Services.PlayerStateService
+	local playerStateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local state = playerStateService:GetState(player)
 	if not state or not state.IsAlive then
 		return
 	end
-	local roundService = getService(self._context, "RoundService")
+	local roundService = ServiceResolver.Get(self._context, "RoundService")
 	local roundState = roundService and roundService:GetState() or nil
 	local convertToHuman = playerStateService:RecordDeath(player, roundState)
 	playerStateService:SetAlive(player, false)
 	self._context.EventBus:Fire("PlayerDied", player)
 
-	local playerService = getService(self._context, "PlayerService")
-	local mapName = state.CurrentMap or self._context.Services.MapService:GetActiveMap() or "ArenaMap"
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
+	local mapName = state.CurrentMap or ServiceResolver.Get(self._context, "MapService"):GetActiveMap() or "ArenaMap"
 	if convertToHuman then
 		playerStateService:SetActivePlayerMode(player, GameStates.PlayerMode.Human)
 	end

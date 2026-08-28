@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 local TOP_SCOREBOARD_LIMIT = 100
 local GLOBAL_TOP_100_REFRESH_SECONDS = 60
@@ -54,7 +55,7 @@ local function safeNumber(value: any, fallback: number): number
 end
 
 local function getPlayerStateService(self)
-	return self._context.Services and self._context.Services.PlayerStateService
+	return ServiceResolver.Get(self._context, "PlayerStateService")
 end
 
 function LeaderboardService:Init()
@@ -122,7 +123,7 @@ end
 function LeaderboardService:_getTotalPoints(player: Player): number
 	local stateService = getPlayerStateService(self)
 	local state = stateService and stateService:GetState(player) or nil
-	local playerDataService = self._context.Services and self._context.Services.PlayerDataService
+	local playerDataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	local totalPoints = nil
 	if playerDataService and typeof(playerDataService.GetProgressPoints) == "function" then
 		totalPoints = playerDataService:GetProgressPoints(player)
@@ -132,7 +133,7 @@ function LeaderboardService:_getTotalPoints(player: Player): number
 end
 
 function LeaderboardService:_getRoundPoints(player: Player): number
-	local playerDataService = self._context.Services and self._context.Services.PlayerDataService
+	local playerDataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if playerDataService and typeof(playerDataService.GetRoundProgressPoints) == "function" then
 		return math.floor(playerDataService:GetRoundProgressPoints(player))
 	end
@@ -219,7 +220,7 @@ end
 function LeaderboardService:ResetForNewRound()
 	table.clear(self._kills)
 	table.clear(self._deaths)
-	local playerDataService = self._context.Services and self._context.Services.PlayerDataService
+	local playerDataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if playerDataService and typeof(playerDataService.ResetRoundProgressPoints) == "function" then
 		for _, player in ipairs(Players:GetPlayers()) do
 			playerDataService:ResetRoundProgressPoints(player)
@@ -237,7 +238,7 @@ function LeaderboardService:PublishScoreboard()
 end
 
 function LeaderboardService:GetGlobalTop100(): { any }
-	local playerDataService = self._context.Services and self._context.Services.PlayerDataService
+	local playerDataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	local provider = playerDataService and typeof(playerDataService.GetProvider) == "function" and playerDataService:GetProvider() or nil
 	if provider and typeof(provider.GetTopProgressPointProfiles) == "function" then
 		return provider:GetTopProgressPointProfiles(TOP_SCOREBOARD_LIMIT)

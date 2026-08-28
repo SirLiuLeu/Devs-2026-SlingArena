@@ -13,6 +13,7 @@ local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 type PlayerState = PlayerStateTypes.PlayerState
 
@@ -171,10 +172,7 @@ local function buildDefaultState(player: Player): PlayerState
 end
 
 local function getFlagService(context: Context)
-	if context.ServiceRegistry then
-		return context.ServiceRegistry:GetOptional("FlagService")
-	end
-	return context.Services and context.Services.FlagService
+	return ServiceResolver.Get(context, "FlagService")
 end
 
 function PlayerStateService:Init()
@@ -190,7 +188,7 @@ function PlayerStateService:Init()
 	end
 	if self._setPlayerModeRemote then
 		self._setPlayerModeRemote.OnServerEvent:Connect(function(player: Player, modeName: string)
-			local playerService = self._context.Services and self._context.Services.PlayerService
+			local playerService = ServiceResolver.Get(self._context, "PlayerService")
 			if playerService and typeof(playerService.SwitchPlayerModeInLobby) == "function" then
 				playerService:SwitchPlayerModeInLobby(player, modeName)
 			else
@@ -238,7 +236,7 @@ function PlayerStateService:Init()
 end
 
 function PlayerStateService:_syncProgressPoints(player: Player)
-	local playerDataService = self._context.Services and self._context.Services.PlayerDataService
+	local playerDataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	local state = self._states[player]
 	if not state or not playerDataService or typeof(playerDataService.GetProgressPoints) ~= "function" then
 		return
@@ -324,8 +322,8 @@ function PlayerStateService:SetSelectedPlayerMode(player: Player, modeName: stri
 end
 
 function PlayerStateService:_syncEquipmentLifecycleForMode(player: Player, modeName: string)
-	local playerService = self._context.Services and self._context.Services.PlayerService
-	local effectService = self._context.Services and self._context.Services.EquipmentEffectService
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
+	local effectService = ServiceResolver.Get(self._context, "EquipmentEffectService")
 	if modeName == GameStates.PlayerMode.Launcher then
 		if playerService and typeof(playerService.RefreshEquipmentModels) == "function" then
 			playerService:RefreshEquipmentModels(player)
@@ -452,7 +450,7 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	local star = (equippedInstance and equippedInstance.star) or 1
 	local launcherLevel = (equippedInstance and equippedInstance.level) or math.max(state.Level, 1)
 	local resolved = LauncherStatResolver.Resolve(definitionId, star, launcherLevel)
-	local dataService = self._context.Services and self._context.Services.PlayerDataService
+	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if dataService and typeof(dataService.GetData) == "function" then
 		local data = dataService:GetData(player)
 		resolved = EquipmentStatResolver.Resolve(resolved :: any, data.OwnedEquipment, data.EquippedEquipment) :: any
@@ -596,7 +594,7 @@ function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
 	local before = state.CurrentHP
 	state.CurrentHP = math.max(0, state.CurrentHP - math.max(0, amount))
 	applyDamageLog(`PlayerStateService:ApplyDamage applied player={playerName(player)} amount={amount} beforeHP={before} afterHP={state.CurrentHP}`)
-	local playerService = self._context.Services and self._context.Services.PlayerService
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	local root = playerService and playerService:GetRoot(player)
 	if root and state.CurrentHP ~= before then
 		playerService:ShowFloatingHpChange(root, state.CurrentHP - before)
@@ -613,7 +611,7 @@ function PlayerStateService:Heal(player: Player, amount: number, showOnHpBar: bo
 	local before = state.CurrentHP
 	state.CurrentHP = math.min(state.MaxHP, state.CurrentHP + math.max(0, amount))
 	local restored = state.CurrentHP - before
-	local playerService = self._context.Services and self._context.Services.PlayerService
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	local root = playerService and playerService:GetRoot(player)
 	if root and restored ~= 0 then
 		playerService:ShowFloatingHpChange(root, restored)
@@ -955,7 +953,7 @@ function PlayerStateService:TrySpendAttribute(player: Player, attributeName: str
 end
 
 function PlayerStateService:SpendDiamonds(player: Player, amount: number): boolean
-	local dataService = self._context.Services and self._context.Services.PlayerDataService
+	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not dataService or typeof(dataService.SpendDiamonds) ~= "function" then
 		return false
 	end
@@ -991,7 +989,7 @@ end
 
 function PlayerStateService:SyncEquipmentFromData(player: Player)
 	local state = self._states[player]
-	local dataService = self._context.Services and self._context.Services.PlayerDataService
+	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not (state and dataService and typeof(dataService.GetData) == "function") then return end
 	local data = dataService:GetData(player)
 	state.OwnedEquipment = data.OwnedEquipment or {}
@@ -1026,13 +1024,13 @@ function PlayerStateService:HasEquipment(player: Player, equipmentId: string): b
 end
 
 function PlayerStateService:EquipEquipment(player: Player, instanceId: string, slot: any?): (boolean, string?)
-	local equipmentService = self._context.Services and self._context.Services.EquipmentService
+	local equipmentService = ServiceResolver.Get(self._context, "EquipmentService")
 	if equipmentService and typeof(equipmentService.Equip) == "function" then return equipmentService:Equip(player, instanceId, slot) end
 	return false, "MissingEquipmentService"
 end
 
 function PlayerStateService:UnequipEquipment(player: Player, slot: any): (boolean, string?)
-	local equipmentService = self._context.Services and self._context.Services.EquipmentService
+	local equipmentService = ServiceResolver.Get(self._context, "EquipmentService")
 	if equipmentService and typeof(equipmentService.Unequip) == "function" then return equipmentService:Unequip(player, slot) end
 	return false, "MissingEquipmentService"
 end

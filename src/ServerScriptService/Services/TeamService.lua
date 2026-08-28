@@ -1,4 +1,5 @@
 --!strict
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 local TeamService = {}
 TeamService.__index = TeamService
@@ -15,7 +16,7 @@ function TeamService:AssignBalancedTeam(player: Player): string?
 end
 
 function TeamService:IsFriendly(playerA: Player, playerB: Player): boolean
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local stateA = stateService and stateService:GetState(playerA)
 	local stateB = stateService and stateService:GetState(playerB)
 	if stateA and stateB and stateA.TeamId and stateB.TeamId then

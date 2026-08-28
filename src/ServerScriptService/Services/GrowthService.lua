@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 type Context = {
 	EventBus: any,
@@ -11,12 +12,6 @@ type Context = {
 local GrowthService = {}
 GrowthService.__index = GrowthService
 
-local function getService(context: Context, name: string)
-	if context.ServiceRegistry then
-		return context.ServiceRegistry:GetOptional(name)
-	end
-	return context.Services and context.Services[name]
-end
 
 function GrowthService.new(context: Context)
 	local self = setmetatable({}, GrowthService)
@@ -26,7 +21,7 @@ end
 
 function GrowthService:Init()
 	self._context.EventBus:On("PlayerKilled", function(killer: Player)
-		local stateService = getService(self._context, "PlayerStateService")
+		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 		if stateService then
 			stateService:GrantExp(killer, BalanceConfig.KillExp)
 		else
@@ -35,7 +30,7 @@ function GrowthService:Init()
 	end)
 
 	self._context.EventBus:On("FoodConsumed", function(player: Player, expAmount: number)
-		local stateService = getService(self._context, "PlayerStateService")
+		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 		if stateService then
 			stateService:GrantExp(player, expAmount)
 		else

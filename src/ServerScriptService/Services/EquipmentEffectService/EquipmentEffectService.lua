@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
+local ServiceResolver = require(script.Parent.Parent.Infrastructure.ServiceResolver)
 
 local EquipmentEffectService = {}
 EquipmentEffectService.__index = EquipmentEffectService
@@ -39,10 +40,6 @@ function EquipmentEffectService:_traceExpectedEquipment(player: Player?, checkpo
 	print(string.format("[EQUIPMENT_ATTACK_TRACE] equipment validation checkpoint=%s player=%s Medusa=%s GhostFlame=%s ThunderHammer=%s active=[%s]", checkpoint, player and player.Name or "nil", tostring(equipped.Medusa), tostring(equipped.GhostFlame), tostring(equipped.ThunderHammer), table.concat(activeIds, ", ")))
 end
 
-local function getService(context, name: string)
-	if context.ServiceRegistry then return context.ServiceRegistry:GetOptional(name) end
-	return context.Services and context.Services[name]
-end
 
 function EquipmentEffectService.new(context)
 	local self = setmetatable({}, EquipmentEffectService)
@@ -93,7 +90,7 @@ function EquipmentEffectService:Init()
 		if DebugConfig.VerboseTrace then print("[ROUND_END_TRACE][EquipmentEffectService] EventBus found; binding equipment/effect lifecycle handlers") end
 		table.insert(self._connections, bus:On("EquipmentEquipped", function(player, slotType, instanceId, ownedInstance)
 			if DebugConfig.VerboseTrace then print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentEquipped; player=%s slot=%s instanceId=%s", player and player.Name or "nil", tostring(slotType), tostring(instanceId))) end
-			local stateService = getService(self._context, "PlayerStateService")
+			local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 			if stateService and stateService:IsLauncher(player) then
 				self:ActivateEquipment(player, slotType, instanceId, ownedInstance)
 			end
@@ -103,9 +100,9 @@ function EquipmentEffectService:Init()
 		end))
 		table.insert(self._connections, bus:On("EquipmentUpdated", function(player, instanceId, ownedInstance)
 			if DebugConfig.VerboseTrace then print(string.format("[ROUND_END_TRACE][EquipmentEffectService] EventBus EquipmentUpdated; player=%s instanceId=%s", player and player.Name or "nil", tostring(instanceId))) end
-			local stateService = getService(self._context, "PlayerStateService")
+			local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 			if not (stateService and stateService:IsLauncher(player)) then return end
-			local dataService = getService(self._context, "PlayerDataService")
+			local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 			local equipped = dataService and dataService:GetEquippedEquipment(player) or {}
 			for slotType, equippedInstanceId in pairs(equipped) do
 				if equippedInstanceId == instanceId then
@@ -189,7 +186,7 @@ function EquipmentEffectService:GetActiveEffectCount(player): number
 end
 
 function EquipmentEffectService:ActivateEquippedEquipment(player): ()
-	local dataService = getService(self._context, "PlayerDataService")
+	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not dataService then return end
 	local owned = dataService:GetOwnedEquipment(player)
 	local equipped = dataService:GetEquippedEquipment(player)
@@ -233,13 +230,13 @@ function EquipmentEffectService:ActivateEquipment(player, _slotType: string, ins
 		instanceId = instanceId,
 		definition = definition,
 		ownedInstance = ownedInstance,
-		FlagService = getService(self._context, "FlagService"),
-		PlayerStateService = getService(self._context, "PlayerStateService"),
-		PlayerDataService = getService(self._context, "PlayerDataService"),
-		TeamService = getService(self._context, "TeamService"),
+		FlagService = ServiceResolver.Get(self._context, "FlagService"),
+		PlayerStateService = ServiceResolver.Get(self._context, "PlayerStateService"),
+		PlayerDataService = ServiceResolver.Get(self._context, "PlayerDataService"),
+		TeamService = ServiceResolver.Get(self._context, "TeamService"),
 		Remotes = self._context.Remotes,
-		FoodService = getService(self._context, "FoodService"),
-		PlayerService = getService(self._context, "PlayerService"),
+		FoodService = ServiceResolver.Get(self._context, "FoodService"),
+		PlayerService = ServiceResolver.Get(self._context, "PlayerService"),
 	}
 	local effectState = { module = module, context = context }
 	self._activeEffects[player][instanceId] = effectState

@@ -13,6 +13,7 @@ local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local StatusEffectVfx = require(ReplicatedStorage.Shared.Utils.StatusEffectVfx)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local LauncherAnimationController = require(script.Parent.AnimationController)
+local ServiceResolver = require(script.Parent.Parent.Infrastructure.ServiceResolver)
 
 local EQUIPPED_LAUNCHER_MODEL_NAME = "EquippedLauncherModel"
 local TYPO_EQUIPPED_LAUNCHER_MODEL_NAME = "EquipedLauncherModel"
@@ -74,7 +75,7 @@ function PlayerService:Init()
 	local debugResetRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.DebugResetLauncher)
 	if debugResetRemote and debugResetRemote:IsA("RemoteEvent") then
 		debugResetRemote.OnServerEvent:Connect(function(player)
-			self:RespawnCurrentMode(player, nil, self._context.Services.MapService:GetActiveMap() or "LobbyMap")
+			self:RespawnCurrentMode(player, nil, ServiceResolver.Get(self._context, "MapService"):GetActiveMap() or "LobbyMap")
 		end)
 	end
 end
@@ -439,7 +440,7 @@ end
 
 function PlayerService:EquipEquipmentModel(player: Player, slot: number, equipmentId: string): boolean
 	if type(slot) ~= "number" or slot < 1 or slot > 3 then return false end
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not (stateService and stateService:IsLauncher(player)) then
 		self:UnequipEquipmentModel(player, slot)
 		return false
@@ -484,12 +485,12 @@ function PlayerService:EquipEquipmentModel(player: Player, slot: number, equipme
 end
 
 function PlayerService:RefreshEquipmentModels(player: Player)
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not (stateService and stateService:IsLauncher(player)) then
 		for slot = 1, 3 do self:UnequipEquipmentModel(player, slot) end
 		return
 	end
-	local dataService = self._context.Services.PlayerDataService
+	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not dataService then return end
 	local owned = dataService:GetOwnedEquipment(player)
 	local equipped = dataService:GetEquippedEquipment(player)
@@ -628,7 +629,7 @@ function PlayerService:GetPlayerFromPawn(pawn: Model): Player?
 end
 
 function PlayerService:IsAlive(player)
-	local state = self._context.Services.PlayerStateService:GetState(player)
+	local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
 	return state ~= nil and state.IsAlive
 end
 
@@ -646,7 +647,7 @@ function PlayerService:SwitchPlayerModeInLobby(player: Player, modeName: string)
 		return false
 	end
 
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player) or nil
 	if not state or state.LocationState ~= GameStates.SessionState.Lobby then
 		if stateService then
@@ -659,7 +660,7 @@ function PlayerService:SwitchPlayerModeInLobby(player: Player, modeName: string)
 		return false
 	end
 
-	local launcherService = self._context.Services.LauncherService
+	local launcherService = ServiceResolver.Get(self._context, "LauncherService")
 	if modeName == GameStates.PlayerMode.Human and launcherService and typeof(launcherService.ResetPlayerRuntime) == "function" then
 		launcherService:ResetPlayerRuntime(player)
 	end
@@ -679,7 +680,7 @@ function PlayerService:SwitchPlayerModeInLobby(player: Player, modeName: string)
 end
 
 function PlayerService:SpawnForActiveMode(player: Player, spawnIndex: number?, mapName: string?, modeName: string?)
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local resolvedMode = modeName or (stateService and stateService:GetActivePlayerMode(player)) or GameStates.PlayerMode.Launcher
 	if resolvedMode == GameStates.PlayerMode.Human then
 		return self:SpawnHumanCharacter(player, spawnIndex, mapName)
@@ -688,21 +689,21 @@ function PlayerService:SpawnForActiveMode(player: Player, spawnIndex: number?, m
 end
 
 function PlayerService:RespawnCurrentMode(player: Player, spawnIndex: number?, mapName: string?)
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player) or nil
 	local modeName = (state and state.ActivePlayerMode) or GameStates.PlayerMode.Human
 	return self:SpawnForActiveMode(player, spawnIndex, mapName or (state and state.CurrentMap) or "LobbyMap", modeName)
 end
 
 function PlayerService:RespawnAfterDelay(player: Player, delaySeconds: number?, spawnIndex: number?, mapName: string?)
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local expectedMode = (stateService and stateService:GetActivePlayerMode(player)) or GameStates.PlayerMode.Human
 	task.delay(delaySeconds or 3, function()
 		if player.Parent ~= Players then
 			return
 		end
 		local state = stateService and stateService:GetState(player) or nil
-		local respawnMap = mapName or (state and state.CurrentMap) or self._context.Services.MapService:GetActiveMap() or "LobbyMap"
+		local respawnMap = mapName or (state and state.CurrentMap) or ServiceResolver.Get(self._context, "MapService"):GetActiveMap() or "LobbyMap"
 		local modeName = (state and state.ActivePlayerMode) or expectedMode
 		self:SpawnForActiveMode(player, spawnIndex, respawnMap, modeName)
 	end)
@@ -744,11 +745,11 @@ end
 function PlayerService:SpawnHumanCharacter(player: Player, spawnIndex: number?, mapName: string?)
 	self:_disconnectDeathSignal(player)
 	self:_destroyPawn(player)
-	local launcherService = self._context.Services.LauncherService
+	local launcherService = ServiceResolver.Get(self._context, "LauncherService")
 	if launcherService and typeof(launcherService.ResetPlayerRuntime) == "function" then
 		launcherService:ResetPlayerRuntime(player)
 	end
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateService then
 		stateService:SetActivePlayerMode(player, GameStates.PlayerMode.Human, nil, false)
 	end
@@ -761,14 +762,14 @@ function PlayerService:SpawnHumanCharacter(player: Player, spawnIndex: number?, 
 	local humanoid, root = self:_waitForHumanoidCharacterParts(character)
 	if humanoid then
 		self._deathConnections[player] = humanoid.Died:Connect(function()
-			local damageService = self._context.Services.DamagePipelineService
+			local damageService = ServiceResolver.Get(self._context, "DamagePipelineService")
 			if damageService then
 				damageService:HandlePlayerDeath(player)
 			end
 		end)
 	end
 
-	local mapService = self._context.Services.MapService
+	local mapService = ServiceResolver.Get(self._context, "MapService")
 	if root and mapService then
 		local playerState = stateService and stateService:GetState(player) or nil
 		local teamId = playerState and playerState.TeamId or nil
@@ -803,7 +804,7 @@ function PlayerService:_initializeLauncherAnimations(player: Player, pawn: Model
 		return
 	end
 	self._animationControllers[pawn] = LauncherAnimationController.new(pawn, equipped)
-	local state = self._context.Services.PlayerStateService:GetState(player)
+	local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
 	if state then
 		self._animationControllers[pawn]:ApplyState(state)
 	end
@@ -832,7 +833,7 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 		player.Character = nil
 		existingCharacter:Destroy()
 	end
-	local stateServiceForMode = self._context.Services.PlayerStateService
+	local stateServiceForMode = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateServiceForMode then
 		stateServiceForMode:SetActivePlayerMode(player, GameStates.PlayerMode.Launcher)
 	end
@@ -843,7 +844,7 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	end
 	local pawn = template:Clone()
 	pawn.Name = player.Name .. "_Pawn"
-	local playerState = self._context.Services.PlayerStateService:GetState(player)
+	local playerState = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
 	local currentLauncherId = LauncherConfig.DefaultLauncherId
 	if playerState and LauncherConfig.GetById(playerState.LaunchershotType or "") then
 		currentLauncherId = playerState.LaunchershotType
@@ -862,7 +863,7 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	pawn.PrimaryPart.Massless = false
 	local index = spawnIndex or (player.UserId % 8) + 1
 	self:_applyLauncherVisual(pawn, currentLauncherId)
-	local mapService = self._context.Services.MapService
+	local mapService = ServiceResolver.Get(self._context, "MapService")
 	local teamId = playerState and playerState.TeamId or nil
 	local spawnCFrame = CFrame.new(mapService:GetSpawnPoint(index, mapName))
 	if type(mapService.GetSpawnCFrame) == "function" then
@@ -890,8 +891,8 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 		end
 	end
 
-	self._context.Services.PlayerStateService:ResetForRespawn(player)
-	local state = self._context.Services.PlayerStateService:GetState(player)
+	ServiceResolver.Get(self._context, "PlayerStateService"):ResetForRespawn(player)
+	local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
 	if state then
 		self:_updateWorldUi(player, state)
 	end
@@ -921,7 +922,7 @@ function PlayerService:EquipLauncherModel(player: Player, launcherId: string): b
 	end
 	self:_initializeLauncherAnimations(player, pawn)
 
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not (stateService and stateService:IsHuman(player)) then
 		player.Character = pawn
 	end
@@ -937,7 +938,7 @@ end
 function PlayerService:DespawnPawn(player)
 	self:_disconnectDeathSignal(player)
 	self:_destroyPawn(player)
-	self._context.Services.PlayerStateService:SetAlive(player, false)
+	ServiceResolver.Get(self._context, "PlayerStateService"):SetAlive(player, false)
 end
 
 function PlayerService:_destroyPawn(player)
@@ -960,7 +961,7 @@ function PlayerService:IsGrounded(player): boolean
 end
 
 function PlayerService:GetRoot(player)
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateService and stateService:IsHuman(player) then
 		local character = player.Character
 		local root = character and (character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart)

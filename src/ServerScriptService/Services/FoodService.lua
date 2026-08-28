@@ -18,6 +18,7 @@ local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
 local DEBUG_FOOD_HIT_REJECTS = false
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 local function buildRequiredFoodModels(): { [string]: boolean }
 	local required = {}
@@ -38,12 +39,6 @@ local FOOD_TYPE_COLORS = {
 	Legendary = Color3.fromRGB(255, 196, 90),
 }
 
-local function getService(context, name)
-	if context.ServiceRegistry then
-		return context.ServiceRegistry:GetOptional(name)
-	end
-	return context.Services and context.Services[name]
-end
 
 local function isArenaMapName(mapName: string?): boolean
 	return type(mapName) == "string" and mapName ~= "LobbyMap" and mapName ~= "Lobby" and string.find(mapName, "Arena", 1, true) ~= nil
@@ -530,10 +525,10 @@ function FoodService:_rewardFoodKill(entry: any)
 	end
 	self._context.EventBus:Fire("FoodConsumed", player, rule.Exp)
 	if rule.DiamondRate > 0 and rule.DiamondAmount > 0 and math.random() <= rule.DiamondRate then
-		local dataService = getService(self._context, "PlayerDataService")
+		local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 		if dataService and typeof(dataService.GrantReward) == "function" then
 			dataService:GrantReward(player, { Diamonds = rule.DiamondAmount }, "FoodConsumed")
-			local stateService = getService(self._context, "PlayerStateService")
+			local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 			if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
 				stateService:RecalculateDerivedStats(player, false)
 			end
@@ -570,7 +565,7 @@ function FoodService:_consumeFood(entry: any, player: Player)
 	local rule = FoodConfig.Foods[entry.FoodType]
 	if rule then
 		self._context.EventBus:Fire("CollisionDetected", "Food", player, nil, {})
-		local stateService = getService(self._context, "PlayerStateService")
+		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 		if rule.Touch then
 			self._context.EventBus:Fire("FoodConsumed", player, rule.Exp)
 		end
@@ -664,7 +659,7 @@ end
 function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player: Player?): boolean
 	local entry = if type(foodOrEntry) == "table" then foodOrEntry else self._foodByInstance[foodOrEntry]
 	local rule = entry and FoodConfig.Foods[entry.FoodType]
-	local stateService = getService(self._context, "PlayerStateService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if (stateService and stateService:IsHuman(player)) or not (entry and rule and player) or entry.CurrentHP <= 0 or entry.IsConsumed then
 		return false
 	end
@@ -676,7 +671,7 @@ function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player:
 	entry.LastHitBy = player
 	entry.CurrentHP = math.max(0, entry.CurrentHP - damage)
 	local hitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
-	local playerService = getService(self._context, "PlayerService")
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	if hitbox and hitbox:IsA("BasePart") and playerService and entry.CurrentHP ~= before then
 		playerService:ShowFloatingHpChange(hitbox, entry.CurrentHP - before)
 	end
@@ -693,8 +688,8 @@ function FoodService:_applyLauncherDamage(entry: any, player: Player, velocity: 
 	if not rule or entry.CurrentHP <= 0 then
 		return
 	end
-	local stateService = getService(self._context, "PlayerStateService")
-	local damagePipeline = getService(self._context, "DamagePipelineService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local damagePipeline = ServiceResolver.Get(self._context, "DamagePipelineService")
 	local attackerState = stateService and stateService:GetState(player) or {}
 	local damage = if damagePipeline and typeof(damagePipeline.ComputeCollisionDamage) == "function"
 		then damagePipeline:ComputeCollisionDamage(attackerState, velocity, {
@@ -762,13 +757,13 @@ function FoodService:Start()
 	end
 	remote.OnServerEvent:Connect(function(player, payload)
 		local now = os.clock()
-		local rateLimiter = getService(self._context, "RateLimiter")
+		local rateLimiter = ServiceResolver.Get(self._context, "RateLimiter")
 		if rateLimiter and not rateLimiter:Allow(RemoteContracts.Names.ReportFoodHit, tostring(player.UserId), 1, now) then
 			self:_rejectFoodHit(player, "rate_limited", payload, nil)
 			return
 		end
 		local entry = (type(payload) == "table") and self._foodById[payload.foodId] or nil
-		local dedupeService = getService(self._context, "HitCooldownDedupe")
+		local dedupeService = ServiceResolver.Get(self._context, "HitCooldownDedupe")
 
 		if type(payload) ~= "table" then
 			self:_rejectFoodHit(player, "invalid_payload", payload, nil)
@@ -803,7 +798,7 @@ function FoodService:Start()
 		if rule.Touch then
 			self:_consumeFood(entry, player)
 		elseif entry.MaxHP > 0 then
-			local playerService = getService(self._context, "PlayerService")
+			local playerService = ServiceResolver.Get(self._context, "PlayerService")
 			local root = playerService and playerService:GetRoot(player)
 			local hitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
 			if not (root and hitbox and hitbox:IsA("BasePart")) then
@@ -833,7 +828,7 @@ function FoodService:LoadMapResources(mapName: string)
 end
 
 function FoodService:SpawnFoodForActiveMap()
-	local mapService = getService(self._context, "MapService")
+	local mapService = ServiceResolver.Get(self._context, "MapService")
 	local arena = mapService and mapService:GetArenaModel()
 	if arena then
 		self:SpawnFoodForMap(arena)

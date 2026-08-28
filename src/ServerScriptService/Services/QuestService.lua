@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local QuestConfig = require(ReplicatedStorage.Shared.Config.QuestConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 type Context = { EventBus: any?, Services: any?, ServiceRegistry: any?, Remotes: Folder? }
 
@@ -21,12 +22,6 @@ local WEEKLY_REWARD_TIERS = {
 	{ MinPoints = 250, Reward = { Diamonds = 10 } },
 }
 
-local function getService(context: Context, name: string)
-	if context.ServiceRegistry then
-		return context.ServiceRegistry:GetOptional(name)
-	end
-	return context.Services and context.Services[name]
-end
 
 local function currentDayStamp(now: number): number
 	local date = os.date("!*t", now)
@@ -152,7 +147,7 @@ function QuestService:_ensureRemotes()
 end
 
 function QuestService:_getPlayerDataService()
-	return getService(self._context, "PlayerDataService")
+	return ServiceResolver.Get(self._context, "PlayerDataService")
 end
 
 function QuestService:EnsurePlayerQuestState(player: Player)

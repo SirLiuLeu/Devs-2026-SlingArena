@@ -11,16 +11,11 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local LauncherMovement = require(script.Parent.LauncherMovement)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local LaunchMotionModel = require(script.Parent.LaunchMotionModel)
+local ServiceResolver = require(script.Parent.Parent.Infrastructure.ServiceResolver)
 
 local LauncherService = {}
 LauncherService.__index = LauncherService
 
-local function getService(context, name)
-	if context.ServiceRegistry then
-		return context.ServiceRegistry:GetOptional(name)
-	end
-	return context.Services and context.Services[name]
-end
 
 local function sanitizeNumber(value: number, fallback: number): number
 	if value ~= value or value == math.huge or value == -math.huge then
@@ -110,7 +105,7 @@ function LauncherService:ResetPlayerRuntime(player: Player)
 end
 
 function LauncherService:_isLauncherMode(player: Player): boolean
-	local stateService = getService(self._context, "PlayerStateService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	return stateService == nil or not stateService:IsHuman(player)
 end
 
@@ -126,7 +121,7 @@ function LauncherService:_getTrackedPlayers(): { any }
 	local trackedPlayers = {}
 	local seen = {}
 
-	local stateService = getService(self._context, "PlayerStateService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateService and typeof(stateService.GetAllStates) == "function" then
 		for player in pairs(stateService:GetAllStates()) do
 			if not seen[player] then
@@ -246,7 +241,7 @@ function LauncherService:_resolvePawnAndRoot(player: Player): (Model?, BasePart?
 	if not self:_isLauncherMode(player) then
 		return nil, nil
 	end
-	local playerService = self._context.Services.PlayerService
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	local pawn = if playerService then playerService:GetPawn(player) else nil
 	if not (pawn and pawn:IsA("Model")) then
 		return nil, nil
@@ -284,10 +279,10 @@ function LauncherService:_finishLaunch(player: Player, reason: string)
 	self._activeLaunches[player] = nil
 	local recoveryEnd = now + PhysicsConfig.Launch.RecoveryDuration
 	self._releaseCooldown[player] = recoveryEnd
-	self._context.Services.PlayerStateService:SetLastReleaseDuration(player, PhysicsConfig.Launch.RecoveryDuration)
-	self._context.Services.PlayerStateService:SetCooldownEndTime(player, recoveryEnd)
+	ServiceResolver.Get(self._context, "PlayerStateService"):SetLastReleaseDuration(player, PhysicsConfig.Launch.RecoveryDuration)
+	ServiceResolver.Get(self._context, "PlayerStateService"):SetCooldownEndTime(player, recoveryEnd)
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
-	self._context.Services.PlayerStateService:TrySetMovementState(player, MOVEMENT_STATE.Idle)
+	ServiceResolver.Get(self._context, "PlayerStateService"):TrySetMovementState(player, MOVEMENT_STATE.Idle)
 end
 
 function LauncherService:ValidateLaunchReport(player: Player, payload: any): (boolean, any?, string)
@@ -298,7 +293,7 @@ function LauncherService:ValidateLaunchReport(player: Player, payload: any): (bo
 	if type(payload) ~= "table" or payload.launchId ~= launchState.launchId then
 		return false, nil, "launch_id_mismatch"
 	end
-	local state = self._context.Services.PlayerStateService:GetState(player)
+	local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
 	if not state or state.MovementState ~= MOVEMENT_STATE.Launching then
 		return false, nil, "not_launching"
 	end
@@ -370,7 +365,7 @@ function LauncherService:Start()
 end
 
 function LauncherService:_isRoundPlaying(): boolean
-	local roundService = getService(self._context, "RoundService")
+	local roundService = ServiceResolver.Get(self._context, "RoundService")
 	if not roundService then
 		return false
 	end
@@ -379,9 +374,9 @@ function LauncherService:_isRoundPlaying(): boolean
 end
 
 function LauncherService:_canControl(player: Player): boolean
-	local roundService = getService(self._context, "RoundService")
-	local playerService = getService(self._context, "PlayerService")
-	local stateService = getService(self._context, "PlayerStateService")
+	local roundService = ServiceResolver.Get(self._context, "RoundService")
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not roundService or not playerService or not stateService then
 		return false
 	end
@@ -416,7 +411,7 @@ function LauncherService:HandleMoveRequest(player: Player, moveInput: Vector3, _
 	end
 
 	local now = os.clock()
-	local rateLimiter = getService(self._context, "RateLimiter")
+	local rateLimiter = ServiceResolver.Get(self._context, "RateLimiter")
 	if rateLimiter and not rateLimiter:Allow(RemoteContracts.Names.MoveRequest, tostring(player.UserId), 1, now) then
 		return
 	end
@@ -424,7 +419,7 @@ function LauncherService:HandleMoveRequest(player: Player, moveInput: Vector3, _
 	if not RemoteContracts.Validate(RemoteContracts.Names.MoveRequest, moveInput) then
 		return
 	end
-	local state = self._context.Services.PlayerStateService:GetState(player)
+	local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
 	local planar = Vector3.new(moveInput.X, 0, moveInput.Z)
 	local storedInput = if planar.Magnitude > 1 then planar.Unit else planar
 	if state and state.MovementState == MOVEMENT_STATE.Knockback then
@@ -466,7 +461,7 @@ function LauncherService:StartCharge(player: Player, aimDirection: Vector3)
 	end
 
 	local _, root = self:_resolvePawnAndRoot(player)
-	local state = self._context.Services.PlayerStateService:GetState(player)
+	local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
 	if not root or not state then
 		return
 	end
@@ -481,7 +476,7 @@ function LauncherService:StartCharge(player: Player, aimDirection: Vector3)
 
 	local direction = LauncherService.ResolveLaunchDirection(root, aimDirection)
 
-	if not self._context.Services.PlayerStateService:TrySetMovementState(player, MOVEMENT_STATE.Charging) then
+	if not ServiceResolver.Get(self._context, "PlayerStateService"):TrySetMovementState(player, MOVEMENT_STATE.Charging) then
 		warn(string.format("[LauncherService] StartCharge rejected for %s from %s", player.Name, tostring(state.MovementState)))
 		return
 	end
@@ -489,7 +484,7 @@ function LauncherService:StartCharge(player: Player, aimDirection: Vector3)
 		chargeStartTime = now,
 		aimDirection = direction,
 	}
-	self._context.Services.PlayerStateService:SetCharging(player, true, 0)
+	ServiceResolver.Get(self._context, "PlayerStateService"):SetCharging(player, true, 0)
 	self._context.EventBus:Fire("ChargeStarted", player)
 end
 
@@ -502,7 +497,7 @@ function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3,
 		return
 	end
 	local _, root = self:_resolvePawnAndRoot(player)
-	local state = self._context.Services.PlayerStateService:GetState(player)
+	local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
 	if not root or not state then
 		self._chargeState[player] = nil
 		return
@@ -560,16 +555,16 @@ function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3,
 		root:SetNetworkOwner(player)
 	end
 
-	if not self._context.Services.PlayerStateService:TrySetMovementState(player, MOVEMENT_STATE.Launching) then
+	if not ServiceResolver.Get(self._context, "PlayerStateService"):TrySetMovementState(player, MOVEMENT_STATE.Launching) then
 		warn(string.format("[LauncherService] Launch rejected for %s from %s", player.Name, tostring(state.MovementState)))
 		self._chargeState[player] = nil
-		self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
+		ServiceResolver.Get(self._context, "PlayerStateService"):SetCharging(player, false, chargeRatio)
 		return
 	end
 
 	self._activeLaunches[player] = launchState
 	state.CurrentVelocity = launchState.direction * launchState.initialSpeed
-	self._context.Services.PlayerStateService:SetCharging(player, false, chargeRatio)
+	ServiceResolver.Get(self._context, "PlayerStateService"):SetCharging(player, false, chargeRatio)
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 
 	local launchRemote = self._clientDoLaunchRemote
@@ -584,8 +579,8 @@ function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3,
 
 	self._chargeState[player] = nil
 	self._releaseCooldown[player] = 0
-	self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
-	self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
+	ServiceResolver.Get(self._context, "PlayerStateService"):SetLastReleaseDuration(player, 0)
+	ServiceResolver.Get(self._context, "PlayerStateService"):SetCooldownEndTime(player, 0)
 end
 
 function LauncherService:CancelCharge(player: Player)
@@ -593,14 +588,14 @@ function LauncherService:CancelCharge(player: Player)
 		return
 	end
 
-	local state = self._context.Services.PlayerStateService:GetState(player)
+	local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
 	self._chargeState[player] = nil
 	if state and state.MovementState == MOVEMENT_STATE.Charging then
-		self._context.Services.PlayerStateService:TrySetMovementState(player, MOVEMENT_STATE.Idle)
+		ServiceResolver.Get(self._context, "PlayerStateService"):TrySetMovementState(player, MOVEMENT_STATE.Idle)
 	end
-	self._context.Services.PlayerStateService:SetCharging(player, false, 0)
-	self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
-	self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
+	ServiceResolver.Get(self._context, "PlayerStateService"):SetCharging(player, false, 0)
+	ServiceResolver.Get(self._context, "PlayerStateService"):SetLastReleaseDuration(player, 0)
+	ServiceResolver.Get(self._context, "PlayerStateService"):SetCooldownEndTime(player, 0)
 end
 
 function LauncherService:RequestLaunch(player: Player, payload: any)
@@ -692,7 +687,7 @@ function LauncherService:_stepMovement(dt: number)
 			self:ResetPlayerRuntime(player)
 			continue
 		end
-		local root = self._context.Services.PlayerService:GetRoot(player)
+		local root = ServiceResolver.Get(self._context, "PlayerService"):GetRoot(player)
 		local input = self._input[player] or Vector3.zero
 		if root then
 			self:_applyRootVelocity(player, root, input, dt)
@@ -750,7 +745,7 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 		end
 	end
 
-	local state = self._context.Services.PlayerStateService:GetState(player)
+	local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
 	if not state or state.ActivePlayerMode == GameStates.PlayerMode.Human then
 		self:ResetPlayerRuntime(player)
 		return
@@ -825,7 +820,7 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 		movementController:SetSpeed(resolveMovementSpeed(state))
 		movementController:Move(Vector3.zero, dt)
 		if state.MovementState ~= MOVEMENT_STATE.Idle then
-			self._context.Services.PlayerStateService:TrySetMovementState(player, MOVEMENT_STATE.Idle)
+			ServiceResolver.Get(self._context, "PlayerStateService"):TrySetMovementState(player, MOVEMENT_STATE.Idle)
 		end
 		return
 	end
@@ -834,7 +829,7 @@ function LauncherService:_applyRootVelocity(player: Player, root: BasePart, inpu
 	movementController:Move(moveDirection.Unit, dt)
 	self:_applyPlanarRotation(root, moveDirection.Unit)
 	if state.MovementState ~= MOVEMENT_STATE.Moving then
-		self._context.Services.PlayerStateService:TrySetMovementState(player, MOVEMENT_STATE.Moving)
+		ServiceResolver.Get(self._context, "PlayerStateService"):TrySetMovementState(player, MOVEMENT_STATE.Moving)
 	end
 end
 
@@ -846,7 +841,7 @@ end
 function LauncherService:_stepMovementStates(_dt: number)
 	local now = os.clock()
 	for _, player in self:_getTrackedPlayers() do
-		local state = self._context.Services.PlayerStateService:GetState(player)
+		local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
 		if not state or state.ActivePlayerMode == GameStates.PlayerMode.Human then
 			continue
 		end
@@ -859,7 +854,7 @@ function LauncherService:_stepMovementStates(_dt: number)
 		elseif state.MovementState == MOVEMENT_STATE.Knockback then
 			if typeof(state.KnockbackMaxEndsAt) == "number" and state.KnockbackMaxEndsAt > 0 and now >= state.KnockbackMaxEndsAt then
 				warn(string.format("[LauncherService] Knockback timeout for %s", player.Name))
-				self._context.Services.PlayerStateService:ForceSetMovementState(player, MOVEMENT_STATE.Idle)
+				ServiceResolver.Get(self._context, "PlayerStateService"):ForceSetMovementState(player, MOVEMENT_STATE.Idle)
 				continue
 			end
 			local knockbackStartTime = if typeof(state.KnockbackStartTime) == "number" and state.KnockbackStartTime > 0 then state.KnockbackStartTime else now
@@ -871,7 +866,7 @@ function LauncherService:_stepMovementStates(_dt: number)
 				continue
 			end
 
-			local root = self._context.Services.PlayerService:GetRoot(player)
+			local root = ServiceResolver.Get(self._context, "PlayerService"):GetRoot(player)
 			local velocity = root and root.AssemblyLinearVelocity or Vector3.zero
 			local horizontalSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
 			if horizontalSpeed < PhysicsConfig.Collision.KnockbackStopSpeed then
@@ -880,15 +875,15 @@ function LauncherService:_stepMovementStates(_dt: number)
 				state.KnockbackStopEvidenceFrames = 0
 			end
 			if (state.KnockbackStopEvidenceFrames or 0) >= PhysicsConfig.Collision.KnockbackStopEvidenceFramesRequired then
-				self._context.Services.PlayerStateService:ForceSetMovementState(player, MOVEMENT_STATE.Idle)
+				ServiceResolver.Get(self._context, "PlayerStateService"):ForceSetMovementState(player, MOVEMENT_STATE.Idle)
 			end
 		end
 
 		local cooldownUntil = self._releaseCooldown[player] or 0
 		if cooldownUntil > 0 and now >= cooldownUntil then
 			self._releaseCooldown[player] = 0
-			self._context.Services.PlayerStateService:SetCooldownEndTime(player, 0)
-			self._context.Services.PlayerStateService:SetLastReleaseDuration(player, 0)
+			ServiceResolver.Get(self._context, "PlayerStateService"):SetCooldownEndTime(player, 0)
+			ServiceResolver.Get(self._context, "PlayerStateService"):SetLastReleaseDuration(player, 0)
 		end
 	end
 end

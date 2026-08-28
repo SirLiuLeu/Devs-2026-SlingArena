@@ -6,6 +6,7 @@ local RunService = game:GetService("RunService")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 local RoundService = {}
 RoundService.__index = RoundService
@@ -99,7 +100,7 @@ function RoundService:IsPlayingState(): boolean
 end
 
 function RoundService:IsPlayerQueued(player: Player): boolean
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player)
 	return state ~= nil and state.LocationState ~= GameStates.SessionState.Lobby
 end
@@ -135,7 +136,7 @@ function RoundService:RequestPlus1Minute(_player: Player)
 		return
 	end
 	self._roundTimer += 60
-	local safeZoneService = self._context.Services.SafeZoneService
+	local safeZoneService = ServiceResolver.Get(self._context, "SafeZoneService")
 	if safeZoneService and typeof(safeZoneService.SetElapsed) == "function" then
 		safeZoneService:SetElapsed(self._roundTimer)
 	end
@@ -155,12 +156,12 @@ function RoundService:JoinArena(player: Player)
 		end
 		return
 	end
-	local arenaMapName = self._context.Services.MapService:GetDefaultArenaMapName()
-	self._context.Services.MapService:ActivateMap(arenaMapName)
-	local spawnMode = self._context.Services.PlayerStateService:ResolveArenaSpawnMode(player)
-	self._context.Services.PlayerService:SpawnForActiveMode(player, nil, arenaMapName, spawnMode)
-	self._context.Services.PlayerStateService:SetCurrentMap(player, arenaMapName)
-	self._context.Services.PlayerStateService:SetLocationState(player, GameStates.SessionState.InGame)
+	local arenaMapName = ServiceResolver.Get(self._context, "MapService"):GetDefaultArenaMapName()
+	ServiceResolver.Get(self._context, "MapService"):ActivateMap(arenaMapName)
+	local spawnMode = ServiceResolver.Get(self._context, "PlayerStateService"):ResolveArenaSpawnMode(player)
+	ServiceResolver.Get(self._context, "PlayerService"):SpawnForActiveMode(player, nil, arenaMapName, spawnMode)
+	ServiceResolver.Get(self._context, "PlayerStateService"):SetCurrentMap(player, arenaMapName)
+	ServiceResolver.Get(self._context, "PlayerStateService"):SetLocationState(player, GameStates.SessionState.InGame)
 	if self._state == GameStates.MapRoundState.Lobby then
 		self:_setState(GameStates.MapRoundState.Awaits)
 	end
@@ -169,10 +170,10 @@ end
 
 function RoundService:LeaveArena(player: Player)
 	self._lastLeaveByUserId[player.UserId] = os.clock()
-	local lobbyMode = self._context.Services.PlayerStateService:GetState(player) and self._context.Services.PlayerStateService:GetState(player).SelectedPlayerMode or GameStates.PlayerMode.Human
-	self._context.Services.PlayerService:SpawnForActiveMode(player, 1, "LobbyMap", lobbyMode)
-	self._context.Services.PlayerStateService:SetCurrentMap(player, "LobbyMap")
-	self._context.Services.PlayerStateService:SetLocationState(player, GameStates.SessionState.Lobby)
+	local lobbyMode = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player) and ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player).SelectedPlayerMode or GameStates.PlayerMode.Human
+	ServiceResolver.Get(self._context, "PlayerService"):SpawnForActiveMode(player, 1, "LobbyMap", lobbyMode)
+	ServiceResolver.Get(self._context, "PlayerStateService"):SetCurrentMap(player, "LobbyMap")
+	ServiceResolver.Get(self._context, "PlayerStateService"):SetLocationState(player, GameStates.SessionState.Lobby)
 	if self:_countArenaPlayers() == 0 and self._state ~= GameStates.MapRoundState.RoundEnd and self._state ~= GameStates.MapRoundState.PostRound then
 		self:_setState(GameStates.MapRoundState.Lobby)
 		self._roundActive = false
@@ -190,7 +191,7 @@ function RoundService:_canJoinArena(player: Player): boolean
 end
 
 function RoundService:_countArenaPlayers(): number
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not stateService then
 		return 0
 	end
@@ -205,7 +206,7 @@ function RoundService:_countArenaPlayers(): number
 end
 
 function RoundService:_countAliveArenaPlayers(): number
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not stateService then
 		return 0
 	end
@@ -220,7 +221,7 @@ function RoundService:_countAliveArenaPlayers(): number
 end
 
 function RoundService:_findLastAlivePlayerName(): string?
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not stateService then
 		return nil
 	end
@@ -239,7 +240,7 @@ function RoundService:_setState(nextState: string)
 	end
 	local previousState = self._state
 	self._state = nextState
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateService then
 		for _, player in ipairs(Players:GetPlayers()) do
 			local state = stateService:GetState(player)
@@ -264,14 +265,14 @@ function RoundService:_startEarlyGame()
 	end
 	self._roundActive = true
 	self._roundTimer = 0
-	local safeZoneService = self._context.Services.SafeZoneService
+	local safeZoneService = ServiceResolver.Get(self._context, "SafeZoneService")
 	if safeZoneService and typeof(safeZoneService.Reset) == "function" then
 		safeZoneService:Reset()
 	end
 	for _, player in ipairs(Players:GetPlayers()) do
-		local state = self._context.Services.PlayerStateService:GetState(player)
+		local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
 		if state and state.LocationState ~= GameStates.SessionState.Lobby then
-			self._context.Services.PlayerStateService:ResetForNewRound(player)
+			ServiceResolver.Get(self._context, "PlayerStateService"):ResetForNewRound(player)
 		end
 	end
 	self:_setState(GameStates.MapRoundState.EarlyGame)
@@ -281,8 +282,8 @@ function RoundService:_startEarlyGame()
 end
 
 function RoundService:_freezeArenaPlayers(frozen: boolean)
-	local playerService = self._context.Services.PlayerService
-	local stateService = self._context.Services.PlayerStateService
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not playerService or not stateService then
 		return
 	end
@@ -310,8 +311,8 @@ function RoundService:_beginRoundEnd()
 	self._resultsShown = false
 	self._roundActive = false
 	self._roundEndElapsed = 0
-	local leaderboardService = self._context.Services.LeaderboardService
-	local progressPointService = self._context.Services.ProgressPointService
+	local leaderboardService = ServiceResolver.Get(self._context, "LeaderboardService")
+	local progressPointService = ServiceResolver.Get(self._context, "ProgressPointService")
 	local topPlayers = if leaderboardService and typeof(leaderboardService.GetTopPlayers) == "function" then leaderboardService:GetTopPlayers() else {}
 	local winnerNames = {}
 	for _, row in ipairs(topPlayers) do
@@ -337,18 +338,18 @@ function RoundService:_startPostRound()
 	self:_setState(GameStates.MapRoundState.PostRound)
 	self:_freezeArenaPlayers(false)
 
-	local stateService = self._context.Services.PlayerStateService
-	local mapService = self._context.Services.MapService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local mapService = ServiceResolver.Get(self._context, "MapService")
 	if mapService then
 		mapService:ActivateMap("LobbyMap")
 	end
-	local safeZoneService = self._context.Services.SafeZoneService
+	local safeZoneService = ServiceResolver.Get(self._context, "SafeZoneService")
 	if safeZoneService and typeof(safeZoneService.Reset) == "function" then
 		safeZoneService:Reset()
 	end
 	for _, player in ipairs(Players:GetPlayers()) do
 		local lobbyMode = stateService and stateService:GetState(player) and stateService:GetState(player).SelectedPlayerMode or GameStates.PlayerMode.Human
-		self._context.Services.PlayerService:SpawnForActiveMode(player, 1, "LobbyMap", lobbyMode)
+		ServiceResolver.Get(self._context, "PlayerService"):SpawnForActiveMode(player, 1, "LobbyMap", lobbyMode)
 		if stateService then
 			stateService:ClearHumanQualification(player)
 			stateService:SetCurrentMap(player, "LobbyMap")
@@ -356,7 +357,7 @@ function RoundService:_startPostRound()
 		end
 	end
 
-	local leaderboardService = self._context.Services.LeaderboardService
+	local leaderboardService = ServiceResolver.Get(self._context, "LeaderboardService")
 	if leaderboardService and typeof(leaderboardService.ResetForNewRound) == "function" then
 		leaderboardService:ResetForNewRound()
 	end
@@ -371,7 +372,7 @@ function RoundService:_startPostRound()
 end
 
 function RoundService:_step(dt: number)
-	local safeZoneService = self._context.Services.SafeZoneService
+	local safeZoneService = ServiceResolver.Get(self._context, "SafeZoneService")
 	local arenaCount = self:_countArenaPlayers()
 	if self._state == GameStates.MapRoundState.Lobby and arenaCount > 0 then
 		self:_setState(GameStates.MapRoundState.Awaits)
@@ -444,7 +445,7 @@ function RoundService:_buildUiStatePayload()
 		LocationState = self._state,
 		AlivePlayers = alivePlayers,
 		PlayerCount = playerCount,
-		CurrentMap = self._context.Services.MapService:GetActiveMap() or "Unknown",
+		CurrentMap = ServiceResolver.Get(self._context, "MapService"):GetActiveMap() or "Unknown",
 		TimeLeft = self._roundTimer,
 		CountdownTimer = self._roundTimer,
 		RoundElapsed = self._roundTimer,

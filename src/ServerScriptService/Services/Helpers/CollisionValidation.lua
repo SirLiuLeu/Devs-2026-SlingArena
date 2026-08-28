@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local CombatCollision = require(ReplicatedStorage.Shared.Utils.CombatCollision)
+local ServiceResolver = require(script.Parent.Parent.Infrastructure.ServiceResolver)
 
 export type Context = { Services: any, ServiceRegistry: any? }
 export type ValidationTarget = { Kind: "Player" | "Food", Player: Player?, Part: BasePart, RadiusPadding: number?, RequiresLaunching: boolean?, AllowTouchStates: boolean? }
@@ -20,12 +21,6 @@ local COMMON_ALLOWED_STATES = {
 	[GameStates.PlayerState.Human] = true,
 }
 
-local function getService(context: Context, name: string): any
-	if context.ServiceRegistry then
-		return context.ServiceRegistry:GetOptional(name)
-	end
-	return context.Services and context.Services[name]
-end
 
 local function fail(reason: string, details: { [string]: any }?): ValidationResult
 	return { Ok = false, Reason = reason, Details = details, Root = nil, TargetPart = nil, TargetPlayer = nil, Normal = Vector3.new(1, 0, 0), ReportVelocity = Vector3.zero, Speed = 0 }
@@ -35,8 +30,8 @@ function CollisionValidation.ValidateAttackerTarget(context: Context, attacker: 
 	if type(payload) ~= "table" then
 		return fail("invalid_payload", nil)
 	end
-	local playerService = getService(context, "PlayerService")
-	local stateService = getService(context, "PlayerStateService")
+	local playerService = ServiceResolver.Get(context, "PlayerService")
+	local stateService = ServiceResolver.Get(context, "PlayerStateService")
 	local root = playerService and playerService:GetRoot(attacker)
 	if not (root and stateService) then
 		return fail("missing_player_root_or_state_service", nil)

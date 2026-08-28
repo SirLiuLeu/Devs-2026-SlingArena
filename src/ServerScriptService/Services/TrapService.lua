@@ -6,6 +6,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local TrapConfig = require(ReplicatedStorage.Shared.Config.TrapConfig)
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 local TrapService = {}
 TrapService.__index = TrapService
 
@@ -201,7 +202,7 @@ function TrapService:_applyHitCooldownTrap(player: Player, trapPart: BasePart, t
 	end
 
 	local damageApplied = false
-	local damagePipeline = self._context.Services.DamagePipelineService
+	local damagePipeline = ServiceResolver.Get(self._context, "DamagePipelineService")
 	if trapConfig.Damage and damagePipeline then
 		damageApplied = damagePipeline:ApplyHitDamage(player, trapConfig.Damage, nil, nil) == true
 	end
@@ -215,8 +216,8 @@ end
 
 function TrapService:_applyContactDotTrapTick(player: Player, trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Model)
 	local flagName = trapConfig.Flag
-	local stateService = self._context.Services.PlayerStateService
-	local damagePipeline = self._context.Services.DamagePipelineService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local damagePipeline = ServiceResolver.Get(self._context, "DamagePipelineService")
 	if not (flagName and stateService and damagePipeline) then
 		return
 	end
@@ -247,7 +248,7 @@ function TrapService:_applyContactDotTrapTick(player: Player, trapPart: BasePart
 end
 
 function TrapService:_stopContactDotTrap(player: Player, trapType: string, trapConfig: any, sourceRoot: Model)
-	local stateService = self._context.Services.PlayerStateService
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not stateService then
 		return
 	end
@@ -292,7 +293,7 @@ function TrapService:_scanTrapContacts(dt: number)
 	end
 	self._scanAccumulator = 0
 
-	local playerService = self._context.Services.PlayerService
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	if not playerService then
 		return
 	end
