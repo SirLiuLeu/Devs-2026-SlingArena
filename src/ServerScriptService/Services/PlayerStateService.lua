@@ -207,6 +207,8 @@ function PlayerStateService:Init()
 		end
 		self._launcherRuntime[player] = {}
 		self:_syncProgressPoints(player)
+		self:_ensureStarterEquipment(player)
+		self:SyncEquipmentFromData(player)
 		self:RecalculateDerivedStats(player, true)
 	end)
 	Players.PlayerRemoving:Connect(function(player)
@@ -231,8 +233,18 @@ function PlayerStateService:Init()
 		end
 		self._launcherRuntime[player] = {}
 		self:_syncProgressPoints(player)
+		self:_ensureStarterEquipment(player)
+		self:SyncEquipmentFromData(player)
 		self:RecalculateDerivedStats(player, true)
 	end
+end
+
+function PlayerStateService:_ensureStarterEquipment(player: Player)
+	local equipmentService = ServiceResolver.Get(self._context, "EquipmentService")
+	if not equipmentService or typeof(equipmentService.GrantStarterEquipment) ~= "function" then
+		return
+	end
+	equipmentService:GrantStarterEquipment(player)
 end
 
 function PlayerStateService:_syncProgressPoints(player: Player)

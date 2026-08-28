@@ -596,12 +596,11 @@ function UIController:Start()
 				self.InventoryUIController:RefreshWithData(snapshot)
 			end
 		end))
-		-- Injection point: server StateUpdate is authoritative; mock inventory is only a delayed fallback for offline UI previews.
-		task.delay(5, function()
-			if not self.HasAuthoritativeInventoryState then
-				self.InventoryDataProvider:LoadMockInventory()
-			end
-		end)
+		-- Start from an explicit empty snapshot. StateUpdate is authoritative, so preview
+		-- data can never replace real inventory when the server reply arrives late.
+		if self.InventoryUIController then
+			self.InventoryUIController:RefreshWithData(self.InventoryDataProvider:GetSnapshot())
+		end
 	end
 	if self.OnlineRewardLogicService then
 		self.OnlineRewardLogicService:LoadMockData()

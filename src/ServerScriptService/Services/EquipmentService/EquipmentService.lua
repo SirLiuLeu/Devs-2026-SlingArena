@@ -83,6 +83,19 @@ function EquipmentService:OwnsInstance(player: Player, instanceId: string): bool
 	return self:GetOwnedEquipment(player)[instanceId] ~= nil
 end
 
+local STARTER_EQUIPMENT = { "HealthCore", "PowerCore", "RegenBooster" }
+
+function EquipmentService:GrantStarterEquipment(player: Player): boolean
+	local dataService = self:_dataService()
+	if not dataService then return false end
+	local owned = self:GetOwnedEquipment(player)
+	if next(owned) ~= nil then return false end
+	for index, definitionId in ipairs(STARTER_EQUIPMENT) do
+		self:Grant(player, definitionId, { instanceId = "starter_equipment_" .. tostring(index) .. "_" .. definitionId })
+	end
+	return true
+end
+
 function EquipmentService:Grant(player: Player, definitionId: string, fields: { [string]: any }?): (boolean, string?)
 	local definition = EquipmentConfig.GetById(definitionId)
 	if not definition then return false, nil end
