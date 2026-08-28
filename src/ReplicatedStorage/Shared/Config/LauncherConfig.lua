@@ -33,18 +33,6 @@ LauncherConfig.BaseStats = {
 }
 
 LauncherConfig.Types = {
-	SupportLauncher = {
-		id = "SupportLauncher",
-		name = "Support Launcher",
-		iconId = "rbxassetid://0",
-		stats = { maxHP = 18000, baseDamage = 900, armor = 0, regen = 1, speed = 15.5, launchPower = 1.0, control = 1.05, launchSpeed = 80 },
-	},
-	StunLauncher = {
-		id = "StunLauncher",
-		name = "Stun Launcher",
-		iconId = "rbxassetid://0",
-		stats = { maxHP = 20000, baseDamage = 1000, armor = 0, regen = 1, speed = 15.5, launchPower = 1.0, control = 1.0, launchSpeed = 85 },
-	},
 	NormalLauncher = {
 		id = "NormalLauncher",
 		name = "Normal Launcher",
@@ -60,45 +48,9 @@ LauncherConfig.Types = {
 			launchSpeed = 100,
 		},
 	},
-	VacuumLauncher = {
-		id = "VacuumLauncher",
-		name = "Vacuum Launcher",
-		iconId = "rbxassetid://0",
-		stats = { maxHP = 15000, baseDamage = 800, armor = 0, regen = 1, speed = 16.2, launchPower = 0.95, control = 1.1, launchSpeed = 88 },
-	},
-	StealthLauncher = {
-		id = "StealthLauncher",
-		name = "Stealth Launcher",
-		iconId = "rbxassetid://0",
-		stats = { maxHP = 13000, baseDamage = 1200, armor = 0, regen = 1, speed = 18, launchPower = 1.05, control = 1.15, launchSpeed = 95 },
-	},
-	HealLauncher = {
-		id = "HealLauncher",
-		name = "Heal Launcher",
-		iconId = "rbxassetid://0",
-		stats = { maxHP = 18000, baseDamage = 800, armor = 0, regen = 1.1, speed = 15, launchPower = 0.95, control = 1.05, launchSpeed = 82 },
-	},
-	BonusBuffLauncher = {
-		id = "BonusBuffLauncher",
-		name = "Bonus Buff Launcher",
-		iconId = "rbxassetid://0",
-		stats = { maxHP = 22000, baseDamage = 1200, armor = 0.15, regen = 1.1, speed = 17, launchPower = 1.1, control = 1.05, launchSpeed = 80 },
-	},
-	PetrifyLauncher = {
-		id = "PetrifyLauncher",
-		name = "Petrify Launcher",
-		iconId = "rbxassetid://0",
-		stats = { maxHP = 20000, baseDamage = 900, armor = 0, regen = 1, speed = 15, launchPower = 1.0, control = 1.1, launchSpeed = 82 },
-	},
-	FireLauncher = {
-		id = "FireLauncher",
-		name = "Fire Launcher",
-		iconId = "rbxassetid://0",
-		stats = { maxHP = 14000, baseDamage = 1200, armor = 0, regen = 1, speed = 17, launchPower = 1.1, control = 0.95, launchSpeed = 90 },
-	},
 	TitanBulwarkLauncher = {
 		id = "TitanBulwarkLauncher", name = "Titan Bulwark Launcher", description = "A reinforced launcher plated for the front line — soaks up punishment and shrugs off incoming fire, at the cost of raw mobility.", iconId = "rbxassetid://0",
-		stats = { maxHP = 32000, baseDamage = 700, armor = 0.30, regen = 1.4, speed = 12.5, launchPower = 0.85, control = 0.90, launchSpeed = 65 },
+		stats = { maxHP = 28000, baseDamage = 700, armor = 0.30, regen = 1.4, speed = 12.5, launchPower = 0.85, control = 0.90, launchSpeed = 65 },
 	},
 	ZephyrDartLauncher = {
 		id = "ZephyrDartLauncher", name = "Zephyr Dart Launcher", description = "Built for hit-and-run tactics — outruns and outmaneuvers everything else on the field, but can't take a sustained fight.", iconId = "rbxassetid://0",
@@ -107,12 +59,6 @@ LauncherConfig.Types = {
 	RavagerCoreLauncher = {
 		id = "RavagerCoreLauncher", name = "Ravager Core Launcher", description = "An unstable overcharged core optimized purely for burst damage — devastating hits, fragile chassis.", iconId = "rbxassetid://0",
 		stats = { maxHP = 13500, baseDamage = 1650, armor = 0.0, regen = 0.9, speed = 15.0, launchPower = 1.20, control = 0.95, launchSpeed = 90 },
-	},
-	PoisonLauncher = {
-		id = "PoisonLauncher",
-		name = "Poison Launcher",
-		iconId = "rbxassetid://0",
-		stats = { maxHP = 15000, baseDamage = 900, armor = 0, regen = 1, speed = 16.5, launchPower = 1.0, control = 1.05, launchSpeed = 88 },
 	},
 } :: { [string]: LauncherDefinition }
 

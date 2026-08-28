@@ -21,9 +21,9 @@ DataModel
 │  │     ├─ RareAmber
 │  │     │  ├─ Hitbox
 │  │     │  └─ Visual
-│  │     ├─ UncommonIce
-│  │     │  ├─ Hitbox
-│  │     │  └─ Visual
+│  │     └─ UncommonIce
+│  │        ├─ Hitbox
+│  │        └─ Visual
 │  │
 │  ├─ Shared  -> src/ReplicatedStorage/Shared
 │  │  ├─ Config
@@ -113,23 +113,10 @@ DataModel
 │  │  │  │     │  └── HpBarFill
 │  │  │  │     ├── LevelLabel
 │  │  │  │     └── Name
-│  │  │  │
-│  │  │  ├── Launcher_Template (Model structure reference only)
-│  │  │  │  ├── RootPart
-│  │  │  │  └── Mesh (MeshPart)
-│  │  │  │  
-│  │  │  ├── SupportLauncher (Launcher_Template format)
-│  │  │  ├── StunLauncher (Launcher_Template format)
 │  │  │  ├── NormalLauncher (Launcher_Template format; default launcher)
-│  │  │  ├── VacuumLauncher (Launcher_Template format)
-│  │  │  ├── StealthLauncher (Launcher_Template format)
-│  │  │  ├── HealLauncher (Launcher_Template format)
-│  │  │  ├── SpeedLauncher (Launcher_Template format)
-│  │  │  ├── BonusBuffLauncher (Launcher_Template format)
-│  │  │  ├── FreezeLauncher (Launcher_Template format) -- sẽ delete trong tương lai
-│  │  │  ├── PetrifyLauncher (Launcher_Template format) -- new update, replace FreezeLauncher
-│  │  │  ├── FireLauncher (Launcher_Template format)
-│  │  │  └── PoisonLauncher (Launcher_Template format)
+│  │  │  ├── TitanBulwarkLauncher (Launcher_Template format) -- new update, replace FreezeLauncher
+│  │  │  ├── ZephyrDartLauncher (Launcher_Template format)
+│  │  │  └── RavagerCoreLauncher (Launcher_Template format)
 │  │  │
 │  │  ├── Icons
 │  │  │   ├── Items
