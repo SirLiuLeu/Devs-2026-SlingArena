@@ -1,1565 +1,415 @@
-# 🔥 LAUNCHER ARENA – MASTER GAME DESIGN SPECIFICATION
+# 🔥 SLING ARENA – GAME DESIGN SPECIFICATION (Code-Verified)
+_Last audited against source: `SirLiuLeu/Devs-2026-SlingArena` (main), 2026-08-29._
+
+This document is the **single source of truth** for gameplay rules during feature development and bug fixing. Every rule below has been checked against the actual Luau source under `src/`. Anything the source does not support has been **removed** rather than carried forward from the previous draft. Anything the source contradicts is called out inline and collected in **Section 13 — Inconsistencies / Needs Alignment**.
+
+Legend used throughout:
+- ✅ **Verified** — confirmed directly in source.
+- ⚠️ **Partially implemented** — some supporting code exists, but the full behavior described does not run end-to-end.
+- ❌ **Not implemented** — referenced in docs/config but no runtime code executes it.
+
+---
+
 # 0. DESIGN GOAL
-* Genre: Survival Physics Arena (Round-based)
-* Core Experience: Farm Food to level up, use physics to collide with and push opponents into traps or the shrinking zone
-* Philosophy: Skill & Coordination > Raw Stats
-* Core Feeling: **Launch – Impact – Bounce – Slide** must feel strong and responsive
+
+* Genre: Survival Physics Arena (round-based, up to solo/duo play)
+* Core Experience: Farm Food to level up; use physics-based Launch collisions to push opponents into hazards or the shrinking Safe Zone
+* Core Feeling: **Launch → Impact → Bounce → Slide** should feel strong and responsive
+* Philosophy: Skill & positioning over raw stat checks
 
 # 1. CORE GAME LOOP
-* Lobby: Select / Buy / Spin Launcher; Equip Items; Upgrade
-* Start: Join Map; Farm Food; Level Up
-* Mid Game: Combat; Position Control; Use Traps
-* Late Game: Shrinking Zone; Forced Fights; Survival
-* End: Last player alive wins; Rewards granted; Round reset
 
-# 2. ROUND RULES
-## 2.1 World & Map
-* Arena size: 400 × 400 studs
-* Shape: Square Arena
-* Boundary: Surrounded by walls
-* Maximum players: 20
+* **Lobby:** select Launcher / Equipment, open Shop, Spin
+* **Join Arena:** player enters the map and is switched into `Launcher` mode
+* **Mid Round:** farm Food, level up, fight, use traps
+* **Late Round:** Safe Zone shrinks to minimum radius → `FinalPhase`
+* **End:** last player alive wins; round resets, all players return to Lobby
 
-### Spawn Logic
-* Player: Random spawn near arena edges
-* Food: Spawn in clusters using `FoodSpawn`
-* Traps: Fixed positions
-* Launcher: Moves with normal movement controls; Can Charge / Launch
+---
 
-## 2.2 Early Game
-### Timing
-* Main EarlyGame duration: 0 → 8 minutes
-* Trigger: At least 3 players are in the map
-* Once triggered: Safe Zone begins its normal shrink cycle; Full gameplay becomes active
+# 2. ROUND LIFECYCLE
 
-### Gameplay
-* Movement
-* Charge
-* Launch
-* Food farming
-* Combat
-* Traps
+Round states (`GameStates.MapRoundState`), verified in `RoundService.lua`:
 
-### EXP
-* Full EXP gain: 100%
+**Lobby → Awaits → EarlyGame → FinalPhase → RoundEnd → PostRound**
 
-### Death
-* Respawn after **3 seconds**
-* Respawn at a random position inside Safe Zone
-* Lose 30% current EXP
+## 2.1 Lobby
 
-### Joining
-* New players may join during EarlyGame.
+* Players are not counted as "in the arena" (`LocationState = Lobby`).
+* Round state returns to `Lobby` whenever the arena empties out (0 players in `Awaits`/`EarlyGame`), which also resets `_roundTimer` to 0.
 
-## 2.3 Final Phase
-### Timing
-* Target phase: 8 → 10 minutes
-* Trigger: Safe Zone reaches its minimum-radius condition / Final Phase threshold
+## 2.2 Joining the Arena
 
-### Rules
-* Respawn disabled
-* New team creation disabled
-* Ghost system becomes active
-* Forced combat pressure increases as Safe Zone approaches its final condition
+* `RoundService:JoinArena(player)`:
+  * Rejects the join if the player is inside a **15-second** rejoin cooldown after last leaving (`REJOIN_COOLDOWN_SECONDS = 15`). ✅
+  * Activates the default arena map.
+  * Resolves spawn mode via `PlayerStateService:ResolveArenaSpawnMode`, which returns `Launcher` **unless** `ShouldForceHuman(player)` is true (see §4.4). ✅
+  * If the round was in `Lobby`, transitions it to `Awaits`.
 
-### Death
-* Dead players do not respawn
-* Player receives the `Ghost` flag
+## 2.3 Awaits
 
-### Joining
-* A player joining after the Final Phase has started immediately receives the `Ghost` flag.
+* Purpose: wait for enough players before the shrink timeline starts.
+* Full gameplay is enabled (movement, charge, launch, food, combat) — nothing in code disables these during `Awaits`. ✅
+* ⚠️ The previous doc claimed "EXP gain reduced by 50%, no Diamonds, no special rewards" during `Awaits`. **No such gating exists** in `GrowthService`, `FoodService`, or `PlayerStateService:GrantExp` — EXP and Diamond grants are identical in `Awaits` and `EarlyGame`. Flagged in §13.
 
-### Team
-* No new team formation
-* Existing teams remain valid
-* Players without a team play solo
+## 2.4 EarlyGame
 
-## 2.4 Final Phase + Ghost Behavior
-* `Ghost` is implemented as a **Flag**, not as a high-level `PlayerState`.
+* Trigger: **`MIN_PLAYERS_TO_START = 3`** players present in the arena (`RoundService.lua`). ✅
+* On entry, the Safe Zone begins shrinking (`SafeZoneService`).
+* ⚠️ No code path applies a distinct "100% EXP" multiplier for this phase specifically — EXP math is round-state agnostic (see §2.3).
 
-### Ghost Activation
+## 2.5 FinalPhase
 
-* The `Ghost` flag is activated when:
+* Trigger: `SafeZoneService:IsAtMinimumRadius()` becomes true while in `EarlyGame` (or via the debug `+1 Minute` tool forcing the check). ✅
+* On entry: `RoundService:_setState(FinalPhase)`.
+* ❌ **No respawn-disable, no Ghost-flag activation, and no "new team creation disabled" logic exists** tied to entering `FinalPhase`. `DamagePipelineService:HandlePlayerDeath` always calls `RespawnAfterDelay(player, 3, ...)` regardless of round state — including during `FinalPhase`. See §13 for the full breakdown; this is the single largest gap between the old design doc and the actual game.
+* What **is** real: dying while in `Launcher` mode, or dying at all while the round state is `FinalPhase`, permanently forces the player into `Human` mode for the rest of the match (`PlayerStateService:RecordDeath`) — see §4.
 
-  * Player dies during Final Phase
-  * Player joins after Final Phase begins
+## 2.6 RoundEnd
 
-### Movement
+* `ROUND_END_FREEZE_SECONDS = 5`, `ROUND_END_RESULTS_SECONDS = 15` (`RoundService.lua`). ✅
+* Flow: freeze all arena players → determine winner → unfreeze after 5s → show results/rewards until 15s → transition to `PostRound`.
+* Win condition: last player alive (checked while round state is `EarlyGame` or `FinalPhase`).
 
-* Can move freely
-* No player collision
-* No physical interaction with normal players
-* No combat physics interaction
+## 2.7 PostRound
 
-### Combat
+* Players return to Lobby; round/map/food/temporary-flag state resets; next round prepared.
 
-* Cannot Charge
-* Cannot Launch
-* Cannot deal damage
-* Does not trigger combat collision effects
+---
 
-### Visibility
+# 3. CHARACTER CONTROL MODES — HUMAN vs LAUNCHER
 
-* Invisible to normal players
-* Visible to other Ghosts
+Backed by `GameStates.PlayerMode` (`Human` | `Launcher`) and `PlayerStateService`.
 
-### Farming
+## 3.1 Mode Switching
 
-* Can consume Normal / Common Food
-* Cannot interact with HP Food
+* **On joining the Arena:** the player's active mode resolves to `Launcher`, **unless** they are currently flagged to be forced into `Human` (`ShouldForceHuman`). ✅ (`RoundService:JoinArena` → `PlayerStateService:ResolveArenaSpawnMode`)
+* **On death:** `PlayerStateService:RecordDeath(player, roundState)` sets `ActivePlayerMode = Human` and `ForcedHuman = true` immediately if either:
+  * the player died while in `Launcher` mode (the common case — Human-mode players cannot take damage, see below), **or**
+  * the current round state is `FinalPhase`.
+  * The **visible pawn respawn** (the character model actually reappearing) happens on a **3-second delay** via `PlayerService:RespawnAfterDelay(player, 3, ...)`, spawned in whatever mode `ActivePlayerMode` now holds. ✅ This matches the intended "3-second delay before reverting to Human" behavior, though technically the *state flag* flips immediately at the moment of death and the delay only gates the *pawn respawn*. See §13.
 
-### Intro Delay
+## 3.2 Human Mode Capabilities
 
-* For the first **5 seconds** after Ghost activation:
+Confirmed via `IsHuman()` gates across services:
 
-  * Cannot move
-  * Fully disabled
-* After the delay:
+| Capability | Human Mode |
+|---|---|
+| Standard movement | ✅ Allowed |
+| Charge / Launch | ❌ Blocked (`LauncherService.lua`) |
+| Take / deal combat damage | ❌ Blocked (`PlayerStateService:ApplyDamage`, `DamagePipelineService`) |
+| Consume Common Food | ✅ Allowed |
+| Consume HP-based Food (Uncommon/Rare/Epic/Legendary) | ❌ Blocked — these require a valid attack (`RequiresLaunching`), which Human mode cannot perform (`FoodService.lua`, `CollisionValidation.lua`) |
 
-  * Movement enabled
-  * Farming enabled according to Ghost rules
+## 3.3 Launcher Mode
 
-## 2.5 Round Lifecycle
+* Full gameplay: movement, charge, launch, combat, all Food types, Equipment effects.
+* `EquipmentEffectService` only activates equipped effects while `PlayerStateService:IsLauncher(player)` is true; switching to Human clears equipment visuals (`PlayerService`) and effects are re-activated on the next Launcher spawn.
 
-* Round states: **Lobby → Awaits → EarlyGame → FinalPhase → RoundEnd → PostRound**
+---
 
-### 2.5.1 Lobby
+# 4. LAUNCHER SYSTEM
 
-* Players remain in Lobby map
-* Can open: Shop; Inventory; Spin
-* Players may join the Arena Map
-* Cannot attack while remaining in Lobby
+## 4.1 Current Launcher Roster (`LauncherConfig.lua`)
 
-### Leaving / Rejoining
+Exactly **4 launchers** exist in the runtime catalog:
 
-* After leaving the Arena, player has a **15-second cooldown** before rejoining
+| ID | Role | maxHP | baseDamage | speed | launchPower | armor |
+|---|---|---|---|---|---|---|
+| `NormalLauncher` (default) | Balanced | 16,000 | 1,000 | 16 | 1.00 | 0 |
+| `TitanBulwarkLauncher` | Tank | 28,000 | 700 | 12.5 | 0.85 | 0.30 |
+| `ZephyrDartLauncher` | Speed | 11,000 | 650 | 22.0 | 1.05 | 0 |
+| `RavagerCoreLauncher` | Burst | 13,500 | 1,650 | 15.0 | 1.20 | 0 |
 
-### PostRound Transition
+* A Launcher owns base stats, size, movement profile, and launch profile.
+* A Launcher does **not** own combat status effects (Stun, Slow, DoT, etc.) — those belong exclusively to Equipment (§5).
 
-* When the round ends:
+## 4.2 Star & Level Scaling (`LauncherStatResolver.lua`)
 
-  * All players are teleported back to Lobby
-  * Reset round state
-  * Reset map state
-  * Reset Food
-  * Reset temporary player state
-  * Reset temporary flags
-  * Reset round-specific data
-  * Prepare the next round
-* Once the next Map is ready:
+* **Star multiplier:** `1 + (star - 1) × 0.08` — i.e., **+8% per star**.
+* **Level multiplier:** `1 + (level - 1) × 0.03` — i.e., **+3% per in-match level**.
+* Total growth = `starMultiplier × levelMultiplier`, applied to maxHP, baseDamage, regen, launchPower, and control.
+* ❌ **The "3 identical Launchers → +1★" fusion mechanic has no implementation anywhere in the codebase.** The `star` field exists on owned-launcher data and the multiplier math is real, but nothing sets or increments `star` at runtime except hardcoded seed/mock data. See §13.
+* ⚠️ Mock/seed data (`MockData.lua`) contains a `star = 4` entry, exceeding the design intent of a 3★ cap, and references launcher IDs (`FireLauncher`, `PetrifyLauncher`, `VacuumLauncher`) that **do not exist** in `LauncherConfig.Types`. Treat these as stale fixtures, not canonical content.
 
-  * Transition into the next round lifecycle
+## 4.3 In-Match Level-Up
 
-### 2.5.2 Awaits
+* No direct stat-adjustment UI during a match; leveling is driven purely by EXP from Food/kills (§6).
 
-* Purpose:
+---
 
-  * Wait for enough players to enter the Arena
-  * Prepare the round before the main shrinking phase begins
-* Gameplay:
+# 5. EQUIPMENT SYSTEM
 
-  * Players can move
-  * Players can Charge
-  * Players can Launch
-  * Players can farm Food
-  * Players can attack normally
-* Temporary limitations:
+## 5.1 Slot Capacity
 
-  * EXP gain reduced by **50%**
-  * No Diamonds rewarded
-  * No special rewards spawn
+* **`EquipmentConfig.EquippedSlotCount = 3`** — each player may equip up to 3 Equipment items simultaneously, alongside their single Launcher. ✅
 
-### Damage Rule
+## 5.2 Definition vs. Owned Instance
 
-* During Awaits:
+* **Definition** (`EquipmentConfig.Definitions`): static id, name, rarity, category, ability/effect id, stat modifiers.
+* **Owned Instance**: persistent per-player record with a unique `instanceId`. The client must supply an `instanceId`, never a `definitionId`, as proof of ownership — the server only accepts instance IDs already present in that player's authoritative data (`EquipmentService.lua`).
 
-  * Movement: enabled
-  * Charge: enabled
-  * Launch: enabled
-  * Food farming: enabled
-  * Launch damage against Players / HP Food remains subject to normal combat validation rules
+## 5.3 Visual Attachment (`PlayerService:EquipEquipmentModel`)
 
-### 2.5.3 EarlyGame
+Verified exact mechanism — more specific than "attach to an Attachment":
 
-* Trigger:
+1. The equipped Equipment's model template is resolved and cloned.
+2. The clone is renamed `EquippedEquipmentSlot{N}` and parented directly under the player's pawn.
+3. The clone **must contain a `BasePart` child named `Root`** — if missing, the equip is rejected and the clone is destroyed.
+4. The target attachment is resolved by name: `Hitbox.EquipmentSlot{N}` (`N` = 1, 2, or 3), found via `hitbox:FindFirstChild("EquipmentSlot" .. N, true)`.
+5. The clone is pivoted to the attachment's `WorldCFrame`, then **welded** (`WeldConstraint`) between the pawn's `Hitbox` and the clone's `Root` part — it is not parented into the Attachment itself, just positioned there and welded to the Hitbox.
+6. If the expected `EquipmentSlot{N}` Attachment doesn't exist under `Hitbox`, the equip fails with a warning (`"create it in ReplicatedStorage.Assets.Launchers.Player.Hitbox"`).
+7. Equipment visuals are cleared when switching to Human mode and restored when a Launcher pawn is (re)spawned.
 
-  * At least **3 players** are in the map
-* Actions:
+## 5.4 Equipment Upgrade Levels — ⚠️ Corrected
 
-  * Safe Zone begins shrinking
-  * Display: `"Safe zone is shrinking. EXP gain is now 100%."`
-* Enabled systems:
+**The "Level 10 to 20 scaling by rarity" concept is not what the code implements.** The actual per-rarity level cap (`EquipmentConfig.RarityMaxLevel`, enforced in `EquipmentService`) is:
 
-  * Movement
-  * Charge
-  * Launch
-  * Food farming
-  * Combat
-  * Traps
+| Rarity | Max Level |
+|---|---|
+| Common | 5 |
+| Rare | 10 |
+| Epic | 15 |
+| Legendary | 20 |
 
-### 2.5.4 FinalPhase
+* Upgrade cost formula (`EquipmentUpgradeConfig.lua`): `cost = BaseCost(100) × 1.35^(level-1) × LateGameMultiplier(level)`, where the late-game multiplier is ×1.5 at level ≥25 and ×2 at level ≥40.
+* A separate `EquipmentUpgradeConfig.MaxLevel = 50` exists as a **fallback default only** — it is not the enforced cap; `EquipmentConfig.GetMaxLevelForRarity(rarity)` is what `EquipmentService` actually checks against.
 
-* Trigger:
+## 5.5 Effect Lifecycle (`EquipmentEffectService.lua`)
 
-  * Safe Zone reaches Final Phase threshold / minimum-radius condition
-* Actions:
+Standard lifecycle hooks, dispatched per active effect instance: **`OnInit → OnLaunch → OnAttack → OnCollision → OnTick → OnDestroy`**. One shared Heartbeat connection drives all `OnTick` calls — individual effects must not create their own.
 
-  * Disable respawn
-  * Disable new team creation
-  * Enable Ghost behavior
+## 5.6 Equipment Catalog Summary (`EquipmentConfig.Definitions` — 20 items, 7 categories)
 
-### 2.5.5 RoundEnd
+| Category | Items |
+|---|---|
+| Active Attack | Plasma Cannon (Epic, unimplemented "NoOp" ability), Slow Blaster (Rare, applies Slow on hit) |
+| Crowd Control | Thunder Hammer (Epic, applies Stun), Medusa (Legendary, applies Petrify; cannot Petrify a target that has GhostFlame active), Ice Crystal (Rare, dispatches a `Freeze` effect — see §5.7 for what this actually does) |
+| Damage Over Time | Ghost Flame (Epic, applies Burn), Poison (Rare, applies Poison) |
+| Passive Stat Modifier | Health Core (+30% maxHP), Power Core (+20% damage), Shield (20% damage reduction), Brain Boost (+30% EXP), Turbo Module (+20% move speed), Launch Booster (+20% launch speed), Titan Core (+20% size, altered knockback transfer), Quick Reload (−1s launch cooldown), Thorn Armor (20% reflect damage — ⚠️ not yet wired into `DamagePipelineService`, see §13) |
+| Regeneration / Healing | Regen Booster (500 HP every 5s) |
+| Conditional Effect | Shadow Cloak (goes Invisible after 5s idle; breaks on Launch/Movement/Knockback), Smoke Bomb (smoke on launch) |
+| Utility / Area Effect | Magnet Core (pulls nearby items, radius 6) |
 
-* Trigger:
+## 5.7 "Freeze" Is Not a Distinct Effect — ⚠️
 
-  * Only **1 player** or **1 team** remains alive
-  * Win condition is checked while round state is `EarlyGame` or `FinalPhase`
-* Flow:
+`EquipmentEffectService:Init()` registers the effect id `"Freeze"` by literally reusing the `Slow` effect module:
 
-  * **0–5s:** Freeze all active players; Determine winner; Stop normal round progression
-  * **5–15s:** Show result UI; Show rank; Grant rewards
-* After result flow:
+```lua
+self:RegisterEffect("Freeze", require(equipmentEffects.Slow))
+```
 
-  * Transition to `PostRound`
+There is **no independent Freeze flag, no hard-CC "Freeze" behavior** anywhere in `FlagService`/`GameConfig.FlagConfig`. Any Equipment configured to apply "Freeze" (e.g., Ice Crystal) currently just applies the same movement-speed reduction as Slow. Treat "Freeze" as a planned-but-unbuilt effect. See §13.
 
-## 2.6 End Condition
+---
 
-### Winner
+# 6. FLAG SYSTEM (`FlagService.lua` + `GameConfig.FlagConfig`)
 
-* Last player alive
-* Or last surviving team
+Flags are modifiers layered on top of a player's core `MovementState`. Real, code-backed flag set:
 
-### After Win
+| Flag | Duration | Notes |
+|---|---|---|
+| `Ghost` | 9999s (if ever applied) | ❌ **No code path ever calls `ApplyFlag(..., "Ghost", ...)` anywhere in the repo.** Every service (`CollisionService`, `DamagePipelineService`, `PlayerStateService`, `LauncherAbilityService`, `EquipmentEffects/EffectUtil`, `CollisionValidation`) *checks* for the Ghost flag and would correctly no-collide/no-damage/hide a Ghost player if one existed — but nothing in the runtime ever grants it. This is the single most important gap for anyone implementing "Ghost/spectator on death in FinalPhase." See §13. |
+| `Invulnerable` | 30s default | Blocks damage and DoT |
+| `Petrify` | 5s | Interrupts charge; removes any active `Stun` on application; blocks new `Stun` while active |
+| `Stun` | 5s | Interrupts charge; cannot be applied over an active `Petrify` |
+| `Slow` | 3s | −25% move speed (`SlowAmount = 0.25`), not stackable |
+| `Burn` | 4s | 250 dmg/tick every 1s, 1.5s post-knockback tail |
+| `Poison` | 5s | 150 dmg/tick every 1s, plus a 25% slow for 3s scheduled after knockback resolves |
+| `PoisonTrap` | 5s, stacks to 5 | Source-scoped (per source) |
+| `LavaTrap` | 0.75s, source-scoped | 0.1 dmg/tick every 0.5s + 25% contact slow for 0.75s |
+| `HPRecovering` | 3s | 500 heal/tick every 0.5s (used by HP Potion, see §7.2) |
+| `EXPBoosted` | 300s | +100% EXP |
+| `DamageBoosted` | 30s | +100% damage |
+| `Invisible` | Explicit duration only (no default in `FlagConfig`) | Used by Shadow Cloak and by `LauncherAbilityService`'s post-launch stealth window |
 
-* Safe Zone stops dealing damage
-* Round enters `RoundEnd`
+* Freeze/Petrify precedence: applying `Petrify` clears an active `Stun`; applying `Stun` while `Petrify` is active is rejected.
+* Any flag with a configured `DamagePerTick` is gated by `dotAllowed`, which only permits DoT ticking while round state is `EarlyGame` or `FinalPhase` (not `Lobby`/`Awaits`/`RoundEnd`).
 
-### Result Flow
+---
 
-* **0–5s:** Determine winner / freeze gameplay
-* **5–15s:** Show rank and rewards
-* After result phase: reset round
+# 7. FOOD SYSTEM (`ServerScriptService/Config/FoodConfig.lua`)
 
-# 3. FOOD SPAWN SYSTEM
+⚠️ **Note:** there are two separate `FoodConfig.lua` files in the repo — a real, fully-populated one under `ServerScriptService/Config/` (used by `FoodService`), and a placeholder/empty one under `ReplicatedStorage/Shared/Config/` (per `AI_CONTEXT.md`, "no exported config table"). Only the `ServerScriptService` one is live. See §13.
 
-## 3.1 Food Structure
+## 7.1 Global Settings
 
-* Food rarity types:
+* `CommonRespawnTime = 10`s, `HpFoodRespawnTime = 30`s
+* `SpawnRadius = 20`, `MinNoOverlapDistance = 3`
 
-  * Common
-  * Uncommon
-  * Rare
-  * Epic
-  * Legendary
-* Spawn marker:
+## 7.2 Food Types
 
-  * `FoodSpawn`
+| Food | Type | HP | EXP | Heal | Diamond Chance | Diamonds | Touch-only? |
+|---|---|---|---|---|---|---|---|
+| CommonRed/Green/Blue | Common | — | 50 | 20/15/10 | 0% | 0 | ✅ Yes |
+| UncommonIce | Uncommon | 3,000 | 25 | — | 5% | 1 | ❌ Requires attack |
+| RareAmber | Rare | 5,000 | 45 | — | 8% | 1 | ❌ Requires attack |
+| EpicViolet | Epic | 8,000 | 70 | — | 12% | 2 | ❌ Requires attack |
+| LegendaryGold | Legendary | 12,000 | 120 | — | 18% | 3 | ❌ Requires attack |
 
-## 3.2 Spawn Rule
+* Common Food disappears on touch; HP Food requires a valid Launch/attack hit and is destroyed only when its HP reaches 0.
+* Diamonds are granted **only** as a chance-based drop from destroying HP Food — there is no other Diamond income path in the current codebase (see §8, §13).
 
-* Food spawn position:
+## 7.3 Zone Spawn Weights (`ZoneWeights`)
 
-  * Random offset within approximately ±5 studs on X/Z
-* Conceptual rule:
+| Rarity | Mid Zones | Edge Zones | Center Zones |
+|---|---|---|---|
+| Common | 70% | 65% | 0% |
+| Uncommon | 15% | 15% | 0% |
+| Rare | 10% | 10% | 0% |
+| Epic | 5% | 5% | 70% |
+| Legendary | 0% | 5% | 30% |
 
-  * `spawnPos = FoodSpawn.Position + Vector3.new(random(-5,5), 0, random(-5,5))`
-* Density:
+## 7.4 Spawn Density (`ZoneSpawnSettings`)
 
-  * `1 FoodSpawn = 5 Common Food active`
-  * Or `1 HP Food`
-* Food should not overlap with another Food inside the same cluster.
+* Center Zones: 1 active item per spawn point.
+* Mid/Edge Zones: 10 active items per spawn point, within `SpawnRadius = 20`.
 
-## 3.3 Food Types
+---
 
-### 3.3.1 Common Food
+# 8. ECONOMY & PROGRESSION
 
-* Interaction:
+## 8.1 EXP
 
-  * Touch / valid overlap
-* Rules:
+* `LevelConfig.RequiredExp(level) = BaseExp(100) × level^ExpExponent(1.3)`. ✅ matches original design intent.
+* `LevelConfig.MaxLevel = 200`.
+* Kill EXP: a flat **`BalanceConfig.KillExp = 120`** is granted to the killer (`GrowthService`), **not** "50% of the target's lost EXP" as previously documented. ⚠️ See §13.
+* ❌ **No EXP-loss-on-death penalty is applied anywhere.** `PlayerStateService:TryApplyExpPenalty` and `DamagePipelineService:ApplyExpPenalty` exist as functions, but `HandlePlayerDeath` never calls them. The "lose 30% EXP on death" rule from the previous doc does not run in the current codebase.
 
-  * Disappears on valid contact
-  * Grants EXP
-  * Heals HP
-* Server:
+## 8.2 Diamonds
 
-  * Validates the interaction
-  * Grants rewards
-  * Removes Food on Server
-  * Replicates resulting state
-* Respawn:
+* `PlayerDataService` is the sole authoritative Diamonds ledger (via `PlayerStateService:SpendDiamonds`/reads).
+* The **only** Diamond income path found in source is the chance-based drop on HP Food destruction (§7.2). ❌ There is no per-kill Diamond reward in code, despite it being commonly expected design.
+* `LevelConfig.StartingDiamonds = 1000`.
 
-  * Each destroyed Common Food respawns **exactly 1**
-  * Respawn delay: **10 seconds**
+## 8.3 Size Growth — ⚠️ Two Conflicting, Unused-vs-Used Formulas
 
-### 3.3.2 HP Food
+* `PlayerStateService:ComputeSize(level)` implements `BaseSize + level × 0.08` — **this function is never called anywhere in the codebase.** Dead code.
+* The formula actually applied to runtime state (`state.Size`, in `PlayerStateService`) is: `BaseSize × (1 + (Level - 1) × 0.03) × ScaleMultiplier` — i.e., **+3% size per level**, matching the Launcher stat growth rate (§4.2), not a square-root curve.
+* Neither formula matches a `sqrt(Level) × 0.08` shape from earlier drafts of this document. Use the **+3%/level, multiplicative with ScaleMultiplier** formula as the authoritative one.
 
-* Types:
-  * Uncommon
-  * Rare
-  * Epic
-  * Legendary
-* Interaction:
+## 8.4 HP Potion — ⚠️ Two Conflicting Definitions
 
-  * Requires an attack / valid hit
-  * Does not disappear from a simple normal movement contact
-* Rules:
+* `BalanceConfig.HpPotionHealAmount = 120` and `BalanceConfig.HpPotionCooldown = 1.5` exist but are **effectively dead** — `PlayerStateService:TryConsumeHpPotion` always resolves cooldown/heal parameters from `ItemConfig.GetById("hp_potion")` first, and that definition is always present, so the `BalanceConfig` fallback values are never reached in normal play.
+* The real, live HP Potion (via `ItemConfig.Items` → `HPRecovering` flag): **500 HP every 0.5s for 3s (6 ticks = 3,000 total HP)**, on a **3-second** cooldown (`useCooldown = 3`).
+* `LevelConfig`/`PlayerStateService` starting inventory: `DefaultHpPotions = 25`.
 
-  * Valid attack reduces Food HP
-  * Grants EXP when destroyed
-  * Has a chance to grant Diamonds
-* Server:
+---
 
-  * Validates the hit
-  * Reduces HP
-  * Destroys Food only when HP reaches `0`
-  * Replicates state
-* Respawn:
+# 9. SAFE ZONE (`SafeZoneConfig.lua` + `SafeZoneService.lua`)
 
-  * Each destroyed HP Food respawns **exactly 1**
-  * Respawn delay: **30 seconds**
+## 9.1 Shape & Shrink Timeline
 
-## 3.4 Spatial Grid
+* `StartRadius = 300`, `MinRadius = 0`, full shrink duration `ShrinkDurationSeconds = 600` (10 minutes).
+* Relocation: when shrink progress crosses `RelocationScaleThreshold = 0.7`, the zone's center may relocate over `RelocationDurationSeconds = 10`; tracked via the `IsRelocating` attribute. This is independent of normal radius shrinking.
 
-* Food uses XZ spatial partitioning.
-* Rules:
+## 9.2 Outside-Zone Damage — ⚠️ Numbers Corrected
 
-  * Food is indexed into grid cells using `GRID_CELL_SIZE`
-  * Nearby queries only inspect neighboring cells
-  * Standard nearby query checks the surrounding **3 × 3 cells**
-  * Do not scan the entire Food collection for ordinary collision queries
+Real ramp (`SafeZoneService.lua` constants), not the "1%/s → 10%/s" figure from the earlier draft:
 
-## 3.5 Zone Spawn Rates
+* Starts at **0.5%/s**, increases by **+0.5%** every **30 seconds**, capped at **5%/s** (`DAMAGE_START_PERCENT=0.5`, `DAMAGE_PERCENT_STEP=0.5`, `DAMAGE_STEP_INTERVAL=30`, `DAMAGE_MAX_PERCENT=5`).
+* Damage per tick = `(CurrentHP × percent/100) + (15,000 × percent/100)` — i.e., there is a large **fixed base component** (`DAMAGE_FIXED_BASE = 15000`) added on top of the HP-percentage component. This makes zone damage considerably more punishing than a pure percent-of-HP tick.
+* Ticks once per second (`DAMAGE_TICK_INTERVAL = 1`).
 
-### Mid Zones
+## 9.3 Traps (`TrapConfig.lua`) — ⚠️ Roster Corrected
 
-* Common: 70%
-* Uncommon: 15%
-* Rare: 10%
-* Epic: 5%
-* Legendary: 0%
+Only **two** trap types actually exist in the codebase — **Totem** and **Toxic Smoke** traps referenced in earlier drafts do not exist anywhere in source:
 
-### Edge Zones
+| Trap | Behavior | Details |
+|---|---|---|
+| SpikeTrap | Hit-cooldown damage | 1,500 damage per hit, 1.5s cooldown, "Spike hit! -1500 HP" popup |
+| LavaTrap | Contact DoT | Applies the `LavaTrap` flag (0.1 dmg/tick every 0.5s, plus 25% slow for 0.75s) |
 
-* Common: 65%
-* Uncommon: 15%
-* Rare: 10%
-* Epic: 5%
-* Legendary: 5%
+---
 
-### Center Zones
+# 10. TEAM SYSTEM — ❌ Largely Unimplemented
 
-* Common: 0%
-* Uncommon: 0%
-* Rare: 0%
-* Epic: 70%
-* Legendary: 30%
+`TeamService.lua` is a stub:
 
-# 4. PHYSICS & MOVEMENT
+```lua
+function TeamService:Init()
+    -- Teams are intentionally uninitialized at startup.
+    -- Team creation/assignment will be implemented in a future feature.
+end
+```
 
-## 4.1 Movement Ownership
+* `AssignBalancedTeam` unconditionally sets `player.Team = nil` and returns `nil`.
+* `IsFriendly(playerA, playerB)` compares `state.TeamId` on both players — but **nothing in the codebase ever sets a real `TeamId`** via `PlayerStateService:SetTeamId` except the initial `nil` default. No remote, UI flow, or service creates a 2-player team at runtime.
+* ❌ No Friendly Fire toggle logic, no shared-win rank logic, no assist-reward logic (10-second assist window / +50% EXP+Diamonds), and no teammate-tracking UI logic exist in any server service.
+* `SYSTEM_OWNERSHIP.md` and `PlayerService.lua` still reference a legacy `TeamRed`/`TeamBlue` concept (`state.TeamId == "TeamRed"`), which the same document explicitly lists as **Deprecated**.
 
-* Normal horizontal movement uses:
+**Bottom line:** document Team as a planned system, not a live one, until `TeamService` is actually built out. See §13.
 
-  * `LinearVelocity`
-  * Attachment-based constraint
-  * Server-owned movement configuration
-* Server controls:
+---
 
-  * `PlaneVelocity`
-  * Constraint `Enabled` state
-  * Movement state transitions
-* Client must not:
+# 11. PHYSICS & COLLISION AUTHORITY
 
-  * Create its own authoritative movement constraint
-  * Manually override server movement using CFrame-based movement logic
+These architectural rules are verified in source and remain accurate:
 
-## 4.2 Rotation Ownership
+* Movement uses `LinearVelocity` + Attachment-based constraints; the server owns `PlaneVelocity`, constraint `Enabled` state, and movement-state transitions. Clients must not run their own authoritative movement constraint.
+* Rotation uses `AlignOrientation`; only `LauncherService` may write the authoritative `AlignOrientation.CFrame` on the server.
+* All physical constants live in `PhysicsConfig.lua` — do not hardcode physics numbers in service logic.
+* Collision is event-driven (`Client Detects → Client Reports → Server Validates → Server Resolves → Replicate`), not fixed-interval polling.
+* Server validation is centralized in `CollisionValidation.lua` — do not duplicate manual distance/sweep checks in individual services.
+* Rate limiting (`RateLimiter`) and hit deduplication (`HitCooldownDedupe`) are mandatory parts of combat validation.
+* `CombatService`, referenced by `SYSTEM_OWNERSHIP.md` as the owner of "pure combat formulas," **does not exist as a runtime module** — no `CombatService.lua` file is present anywhere in `src/`. The closest real equivalent is `CombatCollision.lua` (pure bounce/depenetration geometry, no damage formula) plus damage math inlined in `DamagePipelineService`. See §13.
 
-* Character rotation uses:
+---
 
-  * `AlignOrientation`
-* Server owns the orientation path.
-* Rule:
+# 12. PLAYER STATE MACHINE
 
-  * Only `LauncherService` may update `AlignOrientation.CFrame` on the server.
-  * Other services must not independently write the authoritative orientation.
+`GameStates.PlayerState`: `Idle`, `Moving`, `Charging`, `Launching`, `Knockback`, `Dead`, `Human`.
 
-## 4.3 Physics Source of Truth
+Verified legal transitions (`MovementStateTransitions`):
 
-* All physical constants must come from `PhysicsConfig.lua`.
-* This includes categories such as:
+* `Idle → {Moving, Charging, Knockback, Dead, Human}`
+* `Moving → {Idle, Charging, Knockback, Dead, Human}`
+* `Charging → {Launching, Idle, Knockback, Dead, Human}`
+* `Launching → {Idle, Knockback, Dead, Human}`
+* `Human → {Idle, Dead}` — a Human-mode player can only return to `Idle` (going Launcher) or die conceptually, they cannot Charge/Launch directly from Human.
+* `Dead → {Idle, Human}`
+* `Knockback → {}` — a player cannot self-exit Knockback; only a server-side `ForceSetMovementState` (verified stop/timeout) can end it.
 
-  * Movement
-  * World
-  * Charge
-  * Knockback
-  * Launch
-  * Lag Compensation
-  * Collision
-  * Stability
-* Do not hardcode physics constants inside service logic.
+`Human` sits alongside the combat states as a distinct `MovementState` value (not merely a `PlayerMode` label) — when `ActivePlayerMode = Human`, `MovementState` is also forced to `Human`.
 
-## 4.4 Core Formulas
+---
 
-### Impact Damage
+# 13. INCONSISTENCIES / NEEDS ALIGNMENT
 
-* `ImpactDamage = BaseDamage × CollisionSpeedMultiplier`
+This section exists so nobody has to guess. Each item below is a **real, verified gap** between prior design assumptions and the current codebase — not an invented rule.
 
-### Launcher Size
+1. **Ghost flag is checked everywhere but granted nowhere.** Every combat/visibility/food system correctly no-ops for a Ghost player, but no service ever calls `ApplyFlag(player, "Ghost", ...)`. The entire "player becomes a Ghost on death/late-join during FinalPhase" mechanic from earlier design drafts is **unbuilt**. Anyone implementing FinalPhase spectating needs to add the activation trigger; the consuming code is already correct and ready.
+2. **FinalPhase does almost nothing mechanically today.** No respawn-disable, no new-team-creation-disable, and (per #1) no Ghost activation are wired to the `FinalPhase` state transition. The only real FinalPhase-linked behavior is that dying while in `FinalPhase` forces the player into `Human` mode.
+3. **"3 identical Launchers → +1★" fusion has no implementation.** The star-multiplier math exists and is applied, but nothing increments `star` at runtime. Seed/mock data even contains `star = 4`, exceeding a supposed 3★ cap, and references non-existent launcher IDs.
+4. **Equipment upgrade level caps are 5/10/15/20 by rarity (Common/Rare/Epic/Legendary), not a flat 10–20 range.** `EquipmentUpgradeConfig.MaxLevel = 50` is an unused fallback constant.
+5. **"Freeze" equipment/flag is an alias for Slow.** `EquipmentEffectService` registers the `Freeze` effect id using the `Slow` module. There is no independent hard-CC Freeze behavior in `FlagService`/`GameConfig.FlagConfig`.
+6. **Team system is a stub.** No team creation, no `TeamId` assignment at runtime, no Friendly Fire toggle logic, no assist-reward logic, no shared-win logic, no teammate-tracking UI logic. Treat all "Team" rules as design intent, not shipped behavior, until `TeamService` is built out.
+7. **No EXP-loss-on-death penalty runs**, despite the relevant functions (`TryApplyExpPenalty`, `ApplyExpPenalty`) existing in code — they are simply never called from the death path.
+8. **Kill EXP is a flat 120, not 50% of the victim's lost EXP.** There is also **no per-kill Diamond reward** anywhere in source; Diamonds only ever come from a chance-based HP Food drop.
+9. **No EXP-rate difference between `Awaits` and `EarlyGame`.** `GrantExp` is round-state agnostic; the previously documented "50% EXP in Awaits, 100% in EarlyGame" scaling does not exist in code.
+10. **Safe Zone outside-damage numbers were wrong.** Real ramp is 0.5%/s → 5%/s (+0.5% every 30s), plus a large fixed 15,000-point base component added to every tick — not a pure 1%→10% percent-of-HP ramp.
+11. **Only two trap types exist** (SpikeTrap, LavaTrap). Totem and Toxic Smoke traps referenced in earlier drafts have no implementation anywhere in the codebase.
+12. **Two conflicting `FoodConfig.lua` files exist** — the live one is under `src/ServerScriptService/Config/`; the one under `ReplicatedStorage/Shared/Config/` is an empty placeholder per the project's own `AI_CONTEXT.md`. Anyone editing Food balance must edit the ServerScriptService copy.
+13. **Two conflicting HP Potion definitions exist** (`BalanceConfig.HpPotionHealAmount/Cooldown` vs. `ItemConfig`'s `hp_potion` entry). The `ItemConfig` definition is what actually runs; the `BalanceConfig` fields are dead fallback values.
+14. **Size-growth formula in earlier drafts (`sqrt(Level) × 0.08`) matches neither implementation found in code.** One implementation (`ComputeSize`, +8%/level linear) is dead code, never called. The live formula, applied to runtime state, is +3%/level multiplicative — matching the Launcher stat growth rate, not a square-root curve.
+15. **`CombatService`, cited in `SYSTEM_OWNERSHIP.md` as the pure-formula combat service, does not exist as a file.** Bounce/depenetration geometry lives in `CombatCollision.lua`; damage math is inlined directly in `DamagePipelineService`. `SYSTEM_OWNERSHIP.md` needs reconciling with actual module boundaries.
+16. **Launcher roster count is inconsistent across project docs.** `Rule_DESIGN.md` (previous draft) and `LauncherConfig.lua` agree on **4** launchers; `AI_CONTEXT.md` claims an "11-launcher catalog," which does not match the code. Treat `AI_CONTEXT.md`'s launcher-count claim as stale.
+17. **Arena size and max-player-count (20) could not be verified from source.** No `MaxPlayers`, `ArenaSize`, or similar constant exists in any `.lua` config file — these are presumably Studio/place-level settings not represented in this Rojo tree. Additionally, `SafeZoneConfig.StartRadius = 300` implies a play space with a ~600-stud diameter, which is larger than a "400×400 stud arena" claim if both are meant to describe the same space. Needs confirmation from whoever owns the Studio place file.
+18. **Thorn Armor's reflect-damage passive is defined in config but not wired into the damage pipeline** — its own definition comment says so directly ("Thorn Armor damage reflection is not yet wired into DamagePipelineService").
+19. **`AI_CONTEXT.md`'s claim that `PlayerAttack`/`AbilityTrigger` are fully generalized is only partially true** — several Equipment abilities (Plasma Cannon's Active Attack, Ice Crystal's Freeze) are marked in their own `params.diagnostic` fields as not yet implemented; treat any Equipment whose config contains a `diagnostic` string as a stub pending implementation, not shipped behavior.
 
-* `Size = BaseSize × (1 + sqrt(Level) × 0.08)`
+---
 
-### Required EXP
+# 14. ARCHITECTURE PRINCIPLES (Still Accurate)
 
-* `RequiredEXP = BaseEXP × (Level ^ 1.3)`
-
-## 4.5 State-Based Physics Rules
-
-### State = Moving
-
-* Goal:
-
-  * Smooth movement
-  * Avoid unnecessary physics interference
-* Rules:
-
-  * Player-to-player contact does not cause combat damage
-  * Normal movement contact does not cause launch bounce
-  * Food collision should not create unwanted physical resistance
-  * HP Food physical resistance is ignored for normal movement logic
-
-### Ghost Flag
-
-* When `Ghost` is active:
-
-  * Passes through normal players
-  * No combat collision
-  * No physical interaction
-  * Can only consume allowed Common Food
-
-### State = Charging
-
-* Player prepares a Launch
-* Normal movement is disabled
-* Launch can be triggered by release
-* Active hard CC can interrupt charging
-
-### State = Launching
-
-* Goal:
-
-  * Strong impact
-  * Controlled physics
-  * Predictable knockback
-  * Precise damage resolution
-* Rules:
-
-  * Physics movement is active
-  * Velocity, knockback and reaction forces apply
-  * Damage is resolved through the server collision pipeline
-  * Damage against the same target is not repeatedly applied during one contact window
-  * Velocity and force must remain within `PhysicsConfig.lua` limits
-  * Drag gradually reduces excessive velocity
-
-## 4.6 Physics Reconciliation
-
-* Client simulates its predicted motion.
-* Server remains authoritative.
-
-### Minor Desync
-
-* Smooth correction
-* Lerp / interpolation
-
-### Large Desync
-
-* Immediately resynchronize to server state
-
-### False Client Collision
-
-* If client predicts a hit but the server rejects it:
-
-  * Cancel local knockback prediction
-  * Resynchronize position
-  * Resynchronize velocity
-  * Continue from authoritative server state
-
-# 5. COLLISION & COMBAT VALIDATION
-
-## 5.1 Event-Driven Collision Model
-
-* Collision is **event-driven**, not fixed-interval Food/Player polling.
-* Pipeline:
-
-  * **Client Detects → Client Reports → Server Validates → Server Resolves → Replicate**
-* Client may:
-
-  * Detect possible collision
-  * Predict local impact
-  * Play immediate VFX/SFX
-  * Apply local hitstop / bounce prediction
-  * Send hit request
-* Client does not:
-
-  * Decide final damage
-  * Decide death
-  * Decide kill
-  * Decide reward
-  * Remove authoritative Food state
-* Server:
-
-  * Validates collision
-  * Validates combat state
-  * Applies damage
-  * Applies knockback result
-  * Handles HP / death / elimination
-  * Updates authoritative state
-  * Replicates result
-
-## 5.2 Clock Sync & Lag Compensation
-
-* Hit validation uses synchronized client/server timing.
-* Infrastructure includes:
-
-  * `ClockSyncRequest`
-  * `ClockSyncResponse`
-* Validation must account for:
-
-  * Accepted client latency
-  * Future timestamp tolerance
-  * Server/client clock difference
-* Lag compensation values are defined in:
-
-  * `PhysicsConfig.LagCompensation`
-
-## 5.3 Rate Limiting & Hit Deduplication
-
-* Every client combat report is protected by validation infrastructure.
-
-### Rate Limiting
-
-* Use `RateLimiter` to:
-
-  * Limit remote frequency per player
-  * Prevent remote-event spam
-  * Reject excessive request rates
-
-### Hit Deduplication
-
-* Use `HitCooldownDedupe` to:
-
-  * Prevent duplicate hits
-  * Track launch/target combinations
-  * Deduplicate repeated collision events
-  * Prevent multiple resolutions from the same attack window
-
-## 5.4 Collision Validation
-
-* All common collision validation should be centralized in:
-
-  * `CollisionValidation`
-* Do not duplicate manual distance / swept collision formulas inside individual services.
-* Validation may include:
-
-  * Distance check
-  * Horizontal distance check
-  * Swept collision check for high-speed movement
-  * Position plausibility
-  * Velocity threshold
-  * Collision radius
-  * Timestamp / lag compensation
-  * State validation
-  * Target validity
-
-## 5.5 Hitbox Shapes
-
-* Simplified gameplay hitboxes only.
-
-### Player / Launcher
-
-* Sphere
-
-### Common Food
-
-* Sphere
-
-### HP Food
-
-* Sphere preferred
-* Box allowed where Food shape requires it
-* Do not rely on complex mesh collision for core gameplay validation.
-
-## 5.6 Server Validation Rules
-
-* The server must reject a hit when:
-
-  * Attacker does not exist
-  * Attacker is dead
-  * Target does not exist
-  * Target is invalid
-  * Food no longer exists
-  * Food is inactive
-  * Attacker is not in a valid combat state
-  * Distance is invalid
-  * Swept collision fails
-  * Timestamp is invalid
-  * Request exceeds rate limit
-  * Hit is duplicated
-  * Cooldown / dedupe rule rejects the event
-  * Velocity exceeds allowed threshold
-  * Ghost / invulnerability / other rules block the interaction
-
-## 5.7 Collision Types
-
-### A. Player vs Common Food
-
-* Common Food:
-
-  * `CanCollide = false`
-  * `CanTouch = false`
-* Client:
-
-  * May detect overlap locally
-  * May hide Food immediately for feedback
-  * Sends interaction request
-* Server:
-
-  * Validates request
-  * Grants EXP
-  * Applies HP recovery
-  * Removes Food
-  * Replicates state
-
-### B. Player vs HP Food
-
-* HP Food:
-
-  * `CanCollide = true`
-* Rules:
-
-  * Requires an actual attack
-  * Normal movement should not consume it
-* Server:
-
-  * Validates attack
-  * Reduces Food HP
-  * Destroys Food only at HP `0`
-  * Applies valid physical impact where configured
-* Client:
-
-  * Provides visual feedback
-  * Does not authoritatively modify Food HP
-
-### C. Player vs Player
-
-* `CanCollide = true`
-* Server resolves combat result
-* Server may apply controlled `ApplyImpulse`
-* Force is clamped by `PhysicsConfig`
-* Friendly-fire damage rules still apply
-
-## 5.8 Launch Combat Feel
-
-* The client may perform immediate local feedback when predicting a valid collision.
-
-### Step 1 – Impact Absorption
-
-* `Velocity *= 0.6`
-* Purpose:
-
-  * Simulate impact against a heavy object
-
-### Step 2 – Compression / Hitstop
-
-* Pause predicted physics for approximately **50 ms**
-* Purpose:
-
-  * Add impact weight
-  * Improve hit readability
-
-### Step 3 – Bounce
-
-* `Velocity = Reflect(Velocity, Normal) × 0.7`
-* Purpose:
-
-  * Reduce rebound energy
-  * Produce a more controlled trajectory
-* The server remains authoritative over the actual combat result.
-
-## 5.9 Standard Hit Processing Pipeline
-
-* Initiate:
-
-  * Client enters `Launching`
-  * Launch begins
-* Simulate:
-
-  * Client predicts trajectory
-  * Client applies predicted drag / reaction forces
-* Detect & Request:
-
-  * Client detects possible collision
-  * Executes local impact feedback
-  * Sends hit request containing target information and timing data
-* Validate:
-
-  * Server verifies:
-
-    * State
-    * Timestamp
-    * Distance / sweep
-    * Cooldown
-    * Rate limit
-    * Plausibility
-    * Other combat restrictions
-* Resolve & Replicate:
-
-  * Valid:
-
-    * Apply combat result
-    * Apply damage
-    * Handle death
-    * Handle elimination
-    * Handle effects
-    * Replicate state
-  * Invalid:
-
-    * Ignore request
-    * Client resynchronizes to server state
-
-# 6. LAUNCHER SYSTEM – STATS & ROLES
-
-## 6.1 Launcher Ownership
-
-* Launcher defines the player's base combat platform.
-* Launcher is responsible for:
-
-  * Base stats
-  * Size
-  * Movement profile
-  * Launch profile
-  * Physics characteristics
-  * Role / archetype
-* Launcher is **not** the source of individual combat status effects.
-* Combat effects such as:
-
-  * Stun
-  * Slow
-  * DoT
-  * Petrify
-  * Heal
-  * Reflect
-  * Special collision effects
-* belong to the Equipment system.
-
-## 6.2 Current Launcher Set
-
-* Current launchers:
-
-  * `NormalLauncher`
-  * `TitanBulwarkLauncher`
-  * `ZephyrDartLauncher`
-  * `RavagerCoreLauncher`
-* Launcher roles are based on stat / role characteristics such as:
-
-  * Normal
-  * Tank
-  * Speed
-  * Burst
-* The exact numeric values are configuration data, not rules duplicated in this document.
-
-## 6.3 Core Stats
-
-* Launcher core stats may include:
-
-  * MaxHP
-  * BaseDamage
-  * MoveSpeed
-  * LaunchRange
-  * Armor
-  * Regen
-  * EXPBonus
-  * BaseSize
-  * LaunchForce
-  * Other physics-related baseline stats
-* Combat effects are not implemented as Launcher archetype abilities.
-
-## 6.4 Star Upgrade
-
-* 3 identical Launchers → +1★
-* Maximum: **3★**
-* Balance principle:
-
-  * A high-star common Launcher may have stronger raw statistics than a lower-star rare Launcher
-  * Rare / higher-tier content may provide stronger or more specialized characteristics through configuration
-
-## 6.5 In-Match Scaling
-
-* Level up increases:
-
-  * Size
-  * Damage
-  * Overall stats
-* Base rule:
-
-  * **+3% all stats** per defined level progression
-* UI rule:
-
-  * No direct stat-adjustment UI during a match
-
-# 7. EQUIPMENT SYSTEM
-
-## 7.1 Definition vs Owned Instance
-
-* Equipment has two separate concepts.
-
-### Definition
-
-* Static configuration:
-
-  * Equipment ID
-  * Name
-  * Rarity
-  * Category
-  * Ability definition
-  * Base parameters
-* Stored in:
-
-  * `EquipmentConfig.Definitions`
-
-### Owned Instance
-
-* Persistent player-owned data:
-
-  * Unique `instanceId`
-  * Associated definition
-  * Player ownership
-  * Upgrade / instance-specific data where applicable
-* Owned Equipment is persistent.
-* Rule:
-
-  * The client must never use `definitionId` as proof of ownership.
-  * Server only accepts an `instanceId` that already exists in authoritative player data.
-
-## 7.2 Equipped Slots
-
-* Each player may equip multiple Equipment items.
-* Current maximum:
-
-  * **3 Equipment slots**
-* Configured through:
-
-  * `EquipmentConfig.EquippedSlotCount`
-* Equipment architecture is therefore:
-
-  * **1 Launcher + N Equipment**
-* rather than:
-
-  * **1 Launcher = 1 combat ability**
-
-## 7.3 Equipment Effect Ownership
-
-* All runtime combat effects are owned and orchestrated by:
-
-  * `EquipmentEffectService`
-* Examples include:
-
-  * Stun
-  * Slow
-  * Fire / Burn
-  * Poison
-  * Petrify
-  * Ghost-Flame
-  * Heal
-  * Reflect
-  * Other equipment-defined effects
-* Launcher code must not independently recreate Equipment effect logic.
-
-## 7.4 Effect Lifecycle
-
-* Every Equipment effect follows the common lifecycle where supported.
-
-### `OnInit(launcherModel)`
-
-* Runs when the Equipment effect is initialized
-* Initializes required runtime state
-
-### `OnLaunch(target / direction)`
-
-* Triggered when Launch occurs
-* Applies launch-based effects
-
-### `OnAttack(...)`
-
-* Triggered by attack-specific behavior
-* Used for effects that require an attack event
-
-### `OnCollision(hitPart, hitPosition)`
-
-* Triggered when a valid server collision is resolved
-* Applies combat effects
-
-### `OnTick(deltaTime)`
-
-* Optional
-* Used for continuous effects
-* Centrally managed
-* Do not create separate Heartbeat connections for every effect
-
-### `OnDestroy()`
-
-* Cleans up:
-
-  * Timers
-  * Connections
-  * Effects
-  * Runtime state
-
-* Lifecycle:
-
-  * **OnInit → OnLaunch → OnAttack → OnCollision → OnTick → OnDestroy**
-
-## 7.5 Equipment Rules
-
-* Each Equipment has a defined scope
-* Equipment cannot modify systems outside its contract
-* Server is authoritative
-* Client is responsible for:
-
-  * VFX
-  * UI
-  * Prediction
-* Multiple Equipment effects may coexist
-* Equipment effects must pass through the common conflict-resolution rules
-
-## 7.6 Effect Conflict Resolution
-
-* Priority:
-
-  * 1. Invulnerable
-  * 2. Ghost
-  * 3. Hard CC
-  * 4. Damage / Heal
-  * 5. DoT / Slow
-  * 6. Visual-only effects
-
-### Invulnerable
-
-* Blocks incoming damage
-* Immune to DoT
-* Does not trigger reflected damage
-
-### Ghost
-
-* Ignores combat collision logic
-* Does not trigger collision effects
-* Receives no combat CC from collision
-
-### Hard CC
-
-* No infinite stacking
-* Strongest / longest valid effect wins
-* Priority:
-
-  * Freeze > Stun
-
-### Damage
-
-* Collision must be valid before damage
-* Blocked damage does not continue into downstream damage effects
-* Reflect only occurs when the triggering damage is valid
-
-### DoT
-
-* Fire:
-
-  * Maximum 3 stacks
-* Poison:
-
-  * Maximum 5 stacks
-* Same-type DoT may:
-
-  * Refresh duration
-  * Add stack
-  * Replace stack
-* Exact behavior is configuration-driven
-
-### Slow
-
-* Slow modifies movement speed
-* Slow does not override Hard CC
-* Hard CC always takes priority
-
-# 8. ITEM & TEAM
-
-## 8.1 Items
-
-### HP Potion
-
-* `300 HP/s × 5s`
-
-* Total: **1500 HP**
-
-* Subject to cooldown
-
-* Other item types may include:
-
-  * Scale potion
-  * EXP buff
-  * Gacha ticket
-
-### Sources
-
-* Daily Login
-* Chest
-* Shop
-* Event
-
-## 8.2 Team
-
-* Maximum:
-
-  * **2 players**
-
-### Friendly Fire
-
-* Damage: OFF
-* Knockback: still allowed
-
-### Shared Win
-
-* If one teammate wins:
-
-  * Both teammates receive the same rank
-
-### Assist Reward
-
-* Assist condition:
-
-  * Dealt damage within the last **10 seconds** before target death
-* Assist may apply to:
-
-  * Player kill
-  * HP Food destruction
-* Reward:
-
-  * +50% EXP
-  * +50% Diamonds
-
-### Teammate Tracking
-
-* When teammate is off-screen:
-
-  * Show direction marker / Arrow
-* Display:
-
-  * Real distance between teammates
-
-### Disconnect
-
-* If teammate disconnects:
-
-  * Remaining player becomes solo
-
-# 9. ENVIRONMENT & SAFE ZONE
-
-## 9.1 Safe Zone
-
-* Safe Zone is represented by:
-
-  * `SimulatorCircle` model
-* Center:
-
-  * Map center initially
-* Behavior:
-
-  * Shrinks continuously over time
-  * Forces combat and positional pressure
-* Outside Safe Zone:
-
-  * Player loses HP over time
-* Damage:
-
-  * Percentage of MaxHP
-  * Damage percentage increases over time
-  * Example progression:
-
-    * 1%/s → 10%/s
-    * +1% every 30 seconds
-
-## 9.2 Safe Zone Detection
-
-* Server-authoritative distance check.
-* Conceptual rule:
-
-  * `distance = (position - center).Magnitude`
-* Outside when:
-
-  * `distance > radius`
-* Check frequency:
-
-  * Continuous server-side evaluation
-  * Approximately every **0.1–0.25s** where periodic evaluation is used
-* Safe Zone damage must not depend on client authority.
-
-## 9.3 Safe Zone Relocation
-
-* Safe Zone does not only shrink around a permanently fixed center.
-* When configured threshold is reached:
-
-  * Safe Zone may relocate its center
-* Configuration:
-
-  * `RelocationScaleThreshold`
-  * `RelocationDurationSeconds`
-* During relocation:
-
-  * Safe Zone center moves
-  * Safe Zone remains part of the authoritative round state
-  * `IsRelocating` attribute identifies relocation activity
-* This mechanism is separate from normal radius shrinking.
-
-## 9.4 Traps
-
-### Toxic Smoke / Fire / Lava
-
-* Damage over time
-
-### Spike
-
-* Damage
-
-### Totem
-
-* Fires projectiles
-* Pushes players
-
-### General Trap Rules
-
-* Fixed positions
-* Always active
-* Affect normal players
-* Do not affect Ghosts
-
-# 10. ECONOMY & PROGRESSION
-
-## 10.1 Income
-
-### Kill Reward
-
-* Diamonds:
-
-  * Depends on target level
-  * Possible reward range: **0–6 Diamonds**
-* EXP:
-
-  * `50% of target's lost EXP`
-
-### Other Sources
-
-* Chest
-* Event
-* Daily rewards
-* Robux
-
-
-
-## 10.2 Diamonds Ledger
-
-* `PlayerDataService` is the **single authoritative ledger** for Diamonds.
-* Rule:
-
-  * Persistent Diamonds are stored and modified through the player data authority
-  * Runtime snapshots sent to the client are mirrors only
-  * UI state / runtime cache must never become an independent spending source
-* All Diamond transactions must resolve against the authoritative ledger.
-
-
-# 11. STATE & FLAG SYSTEM – PLAYER
-
-## 11.1 Player States
-
-* High-level PlayerState values:
-
-  * `Idle`
-  * `Moving`
-  * `Charging`
-  * `Launching`
-  * `Dead`
-
-### Idle
-
-* Default state
-* No active movement input
-
-### Moving
-
-* Normal player movement
-
-### Charging
-
-* Holding input to prepare Launch
-* Cannot normal-move
-
-### Launching
-
-* Physics-controlled movement
-* Cannot re-enter Charging until Launch resolves
-
-### Dead
-
-* No actions
-* Input ignored
-
-## 11.2 State Transition
-
-* Core transitions:
-
-  * `Idle → Moving`
-  * `Moving → Charging`
-  * `Charging → Launching`
-  * `Launching → Idle`
-  * `Any → Dead` when HP ≤ 0
-* Launch completion may occur when:
-
-  * Velocity falls below configured threshold
-  * Collision resolves Launch
-  * Other configured resolution condition occurs
-
-## 11.3 Movement Rule
-
-* A player may move only when:
-
-  * State is not `Dead`
-  * State is not `Charging`
-  * State is not `Launching`
-  * No active `Stun`
-  * No active `Freeze`
-* Flags may override otherwise-valid state behavior.
-
-## 11.4 Flags
-
-* Flags are modifiers layered on top of PlayerState.
-* Supported flag types:
-
-  * `Ghost`
-  * `Slow`
-  * `Stun`
-  * `Freeze`
-  * `PoisonTrap`
-  * `Invisible`
-  * `Recovering`
-  * `Invulnerable`
-
-### Ghost
-
-* No combat collision
-* No combat damage
-* Invisible to normal players
-* Visible to other Ghosts
-* Can move after intro delay
-* Can consume allowed Common Food
-* Cannot use Launch
-* Cannot consume HP Food
-
-### Slow
-
-* Reduces movement speed
-
-### Stun
-
-* Disable input
-* Disable movement
-* Interrupt Charging
-
-### Freeze
-
-* Strong Hard CC
-* Disable movement
-* Disable rotation
-* Interrupt Charging / Launch preparation as required
-
-### PoisonTrap
-
-* Periodic damage
-
-### Invisible
-
-* Hidden from enemy UI / targeting according to visibility rules
-
-### Recovering
-
-* Periodic healing
-
-### Invulnerable
-
-* Ignore incoming damage
-* Ignore DoT
-* Prevent reflect caused by blocked damage
-
-## 11.5 Flag Properties
-
-* Each flag may define:
-
-  * Duration
-  * Stackability
-  * Maximum stack
-  * Source
-  * Runtime state
-
-## 11.6 Flag Priority
-
-* Priority:
-
-  * **Freeze > Stun > Slow**
-* General conflict resolution:
-
-  * Hard CC overrides movement
-  * Ghost overrides combat collision behavior
-  * Invulnerable overrides damage intake
-  * Invisible modifies visibility
-  * Recovering modifies HP
-  * Other flags operate without overriding higher-priority rules
-
-## 11.7 State + Flag Resolution Pipeline
-
-* Core principle:
-
-  * **State defines intent.**
-  * **Flag modifies or overrides behavior.**
-  * **Server resolves the final result.**
-* Example:
-
-  * State = `Moving`
-  * Flag = `Stun`
-  * Final result = cannot move
-* Example:
-
-  * State = `Launching`
-  * Flag = `Invulnerable`
-  * Final result = Launch continues, but incoming damage is blocked
-* Example:
-
-  * Player dies in FinalPhase
-  * State = `Dead`
-  * `Ghost` flag is applied according to round rules
-  * Ghost behavior is then controlled by the Flag system, not by creating a separate `Ghost` PlayerState
-
-# 12. SESSION & ARCHITECTURE PRINCIPLES
-
-## 12.1 Session States
-
-* Session-level location states:
-
-  * `Lobby`
-  * `Loading`
-  * `InGame`
-
-### Lobby
-
-* Player is in Lobby
-* Can interact with Lobby systems
-* Cannot deal combat damage
-
-### Loading
-
-* Preparing player / map
-* Disable inappropriate interaction until ready
-
-### InGame
-
-* Player is bound to active Arena
-
-* Full gameplay rules are available according to RoundState and PlayerState
-
-* Flow:
-
-  * **Lobby → Loading → InGame → Lobby**
-
-## 12.2 Player Data & Map Binding
-
-* Authoritative PlayerData includes:
-
-  * `LocationState`
-
-    * Lobby
-    * Loading
-    * InGame
-  * `CurrentMap`
-
-    * nil or map reference
-
-### Join Map
-
-* When joining:
-
-  * `playerData.CurrentMap = map`
-  * `map.Players[player] = true`
-  * `playerData.LocationState = InGame`
-
-### Leave Map
-
-* When leaving:
-
-  * Remove player from `map.Players`
-  * `playerData.CurrentMap = nil`
-  * `playerData.LocationState = Lobby`
-
-## 12.3 Round State vs Player State
-
-* These are separate concepts.
-
-### RoundState
-
-* Lobby
-* Awaits
-* EarlyGame
-* FinalPhase
-* RoundEnd
-* PostRound
-
-### PlayerState
-
-* Idle
-* Moving
-* Charging
-* Launching
-* Dead
-
-### Flags
-
-* Modify PlayerState behavior:
-
-  * Ghost
-  * Slow
-  * Stun
-  * Freeze
-  * Invisible
-  * Invulnerable
-  * Recovering
-  * Other supported flags
-* Ghost is **not** a RoundState or high-level PlayerState.
-
-## 12.4 Service Resolution
-
-* Services must not directly require each other when doing runtime service lookup.
-* Use:
-
-  * `ServiceRegistry`
-  * `ServiceResolver.Get(context, "ServiceName")`
-* Purpose:
-
-  * Centralized service registration
-  * Avoid circular dependency
-  * Standardize service access
-  * Keep service ownership explicit
-
-## 12.5 Server-Authoritative Boundaries
-
-### Server Owns
-
-* Player authoritative state
-* Player data
-* Player ownership
-* Equipment ownership
-* Diamonds ledger
-* Combat result
-* Damage
-* HP
-* Death
-* Elimination
-* Food authoritative state
-* Safe Zone
-* Team state
-* Round state
-* Validation
-* Physics constants
-* Authoritative movement constraints
-* Authoritative orientation
-* Equipment effect resolution
-
-### Client Owns
-
-* Input
-* Local presentation
-* UI
-* VFX / SFX
-* Local prediction
-* Potential collision detection
-* Local responsiveness
-* Client must never become the source of truth for:
-  * Damage
-  * Kill
-  * Rewards
-  * Diamonds
-  * Equipment ownership
-  * Food authoritative state
-  * Final collision result
-
-## 12.6 Configuration Source of Truth
-
-### Physics
-
-* `PhysicsConfig.lua`
-* Source of truth for:
-
-  * Movement
-  * World physics
-  * Charge
-  * Launch
-  * Knockback
-  * Collision
-  * Stability
-  * Lag compensation
-
-### Launcher
-
-* `LauncherConfig.lua`
-* Source of truth for:
-
-  * Launcher definitions
-  * Base statistics
-  * Launcher role characteristics
-
-### Equipment
-
-* `EquipmentConfig.lua`
-* Source of truth for:
-
-  * Equipment definitions
-  * Equipped slot count
-  * Equipment metadata
-  * Effect configuration
-
-### Safe Zone
-
-* `SafeZoneConfig.lua`
-* Source of truth for:
-
-  * Safe Zone configuration
-  * Shrink behavior
-  * Relocation threshold
-  * Relocation duration
-  * Relocation state attributes
-
-### Balance
-
-* Balance-specific numbers should remain in the appropriate configuration / balance source rather than being duplicated as architecture rules in this document.
-
-## 12.7 Architecture Principles
-
-* 1. **Server is authoritative for gameplay truth.**
-* 2. **Client predicts for responsiveness, but prediction never becomes authority.**
-* 3. **State defines intent; Flags modify behavior.**
-* 4. **Ghost is a Flag, not a high-level PlayerState.**
-* 5. **Launcher defines base stats / movement role; Equipment defines combat effects.**
-* 6. **Equipment ownership is instance-based and persistent.**
-* 7. **Diamonds have one authoritative ledger.**
-* 8. **Collision is event-driven, not fixed Food/Player polling.**
-* 9. **Collision validation is centralized in** **`CollisionValidation`**.
-* 10. **Rate limiting, hit deduplication and clock synchronization are mandatory parts of combat validation.**
-* 11. **Food queries use spatial partitioning rather than full-list scans.**
-* 12. **Physics constants come from** **`PhysicsConfig.lua`**.
-* 13. **Runtime services resolve dependencies through** **`ServiceResolver`** **/** **`ServiceRegistry`**.
-* 14. **Configuration contains data; gameplay logic belongs in services / systems.**
-* 15. **Avoid conflicting ownership where two systems independently modify the same authoritative state.**
+1. Server is authoritative for all gameplay truth (HP, damage, kills, Diamonds, Equipment ownership, Food state, Safe Zone, Round state).
+2. Client predicts for responsiveness only; prediction never becomes authority.
+3. State defines intent; Flags modify or override behavior; the server resolves the final result.
+4. Launcher defines base stats/movement role; Equipment defines combat effects — do not blur this boundary.
+5. Equipment ownership is instance-based (`instanceId`) and persistent; definition IDs are never accepted as proof of ownership.
+6. Collision is event-driven and centrally validated in `CollisionValidation`.
+7. Rate limiting, hit deduplication, and clock sync are mandatory parts of combat validation.
+8. Physics constants come from `PhysicsConfig.lua`; do not hardcode.
+9. Runtime services resolve dependencies through `ServiceResolver`/`ServiceRegistry` — avoid direct `require()` cycles between services.
+10. Configuration holds data; gameplay logic belongs in services.
+11. When adding a new mechanic, check whether it's referenced only in a design doc versus actually wired into a service — this document's §13 exists precisely because that gap has historically been large in this project. Verify against source before assuming a rule is live.
