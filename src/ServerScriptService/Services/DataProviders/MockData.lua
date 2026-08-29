@@ -9,6 +9,21 @@ local MockData = {}
 
 -- This is the single schema for an unseeded mock player. Seeded profiles below are
 -- deliberately richer fixtures and must not be used as the new-player fallback.
+
+local function buildAllEquipmentInventory(prefix: string): { [string]: any }
+	local inventory = {}
+	for _, definitionId in ipairs(EquipmentConfig.GetAllIds()) do
+		local definition = EquipmentConfig.GetById(definitionId)
+		inventory[prefix .. definitionId] = {
+			definitionId = definitionId,
+			level = 1,
+			rarity = (definition and definition.rarity) or "Common",
+			acquiredAt = os.time(),
+		}
+	end
+	return inventory
+end
+
 MockData.MOCK_SCHEMA_DEFAULTS = {
 	Level = 1,
 	Coin = 0,
@@ -99,7 +114,9 @@ function MockData.GetProfileByUserId(userId: number): { [string]: any }?
 end
 
 function MockData.GetDefaultPlayerProfile(): { [string]: any }
-	return DeepCopy.Copy(MockData.MOCK_SCHEMA_DEFAULTS)
+	local profile = DeepCopy.Copy(MockData.MOCK_SCHEMA_DEFAULTS)
+	profile.OwnedEquipment = buildAllEquipmentInventory("starter_equipment_")
+	return profile
 end
 
 return MockData

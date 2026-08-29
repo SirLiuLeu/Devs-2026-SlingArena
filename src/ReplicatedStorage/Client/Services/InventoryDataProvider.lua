@@ -281,6 +281,7 @@ function InventoryDataProvider:GiveTestItem()
 end
 
 function InventoryDataProvider:UseSelectedItem(): boolean
+	print("[UI] Action called: Use Item")
 	local itemId = self._state.selectedItemId
 	if not itemId then
 		self._state.lastUseResult = "Select an item first"
@@ -296,6 +297,7 @@ function InventoryDataProvider:UseSelectedItem(): boolean
 			return false
 		end
 		consumeHpPotionRemote:FireServer()
+		print("[UI] Action Success: Use Item")
 		print("[System]: Successfully used HP Potion")
 		self._state.lastUseResult = "Requested"
 		self:_emitChanged()
@@ -305,6 +307,7 @@ function InventoryDataProvider:UseSelectedItem(): boolean
 	local success, message = MockPlayerData.UseItem(itemId, "InventoryUseItem")
 	self._state.lastUseResult = message
 	if success then
+		print("[UI] Action Success: Use Item")
 		local itemDef = ItemConfig.GetById(itemId)
 		print(string.format("[System]: Successfully used %s", itemDef and itemDef.name or itemId))
 	else
@@ -380,6 +383,7 @@ function InventoryDataProvider:_findEquipmentIndex(equipmentId: string): number?
 end
 
 function InventoryDataProvider:EquipSelectedEquipment(): boolean
+	print("[UI] Action called: Equip Item")
 	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryData] EquipSelectedEquipment selected=%s t=%.3f", tostring(self._state.selectedEquipmentId), os.clock())) end
 	local equipmentId = self._state.selectedEquipmentId
 	local index = equipmentId and self:_findEquipmentIndex(equipmentId)
@@ -387,10 +391,12 @@ function InventoryDataProvider:EquipSelectedEquipment(): boolean
 	local selected = self._state.ownedEquipment[index]
 	if selected.equipped and unequipEquipmentRemote then
 		unequipEquipmentRemote:FireServer(selected.equippedSlot)
+		print("[UI] Action Success: Equip Item")
 		return true
 	end
 	if equipEquipmentRemote then
 		equipEquipmentRemote:FireServer(selected.instanceId)
+		print("[UI] Action Success: Equip Item")
 		print(string.format("[System]: Successfully equipped %s", selected.name or selected.id or selected.instanceId))
 		return true
 	end

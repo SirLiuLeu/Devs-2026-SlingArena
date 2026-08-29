@@ -1,13 +1,30 @@
 --!strict
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
 local MockProvider = require(script.Parent.DataProviders.MockProvider)
 
 type Context = { EventBus: any?, Services: any?, ServiceRegistry: any? }
 
 local PlayerDataService = {}
 PlayerDataService.__index = PlayerDataService
+
+
+local function buildStarterEquipmentInventory(): { [string]: any }
+	local inventory = {}
+	for _, definitionId in ipairs(EquipmentConfig.GetAllIds()) do
+		local definition = EquipmentConfig.GetById(definitionId)
+		inventory["starter_equipment_" .. definitionId] = {
+			definitionId = definitionId,
+			level = 1,
+			rarity = (definition and definition.rarity) or "Common",
+			acquiredAt = os.time(),
+		}
+	end
+	return inventory
+end
 
 local function currentMondayStamp(now: number): number
 	local date = os.date("!*t", now)
@@ -43,7 +60,7 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 		},
 		Diamonds = 0,
 		OwnedItems = {},
-		OwnedEquipment = {},
+		OwnedEquipment = buildStarterEquipmentInventory(),
 		EquippedEquipment = { [1] = nil, [2] = nil, [3] = nil },
 	}
 end

@@ -83,7 +83,7 @@ function EquipmentService:OwnsInstance(player: Player, instanceId: string): bool
 	return self:GetOwnedEquipment(player)[instanceId] ~= nil
 end
 
-local STARTER_EQUIPMENT = { "HealthCore", "PowerCore", "RegenBooster" }
+local STARTER_EQUIPMENT = EquipmentConfig.GetAllIds()
 
 function EquipmentService:GrantStarterEquipment(player: Player): boolean
 	local dataService = self:_dataService()
@@ -91,7 +91,7 @@ function EquipmentService:GrantStarterEquipment(player: Player): boolean
 	local owned = self:GetOwnedEquipment(player)
 	if next(owned) ~= nil then return false end
 	for index, definitionId in ipairs(STARTER_EQUIPMENT) do
-		self:Grant(player, definitionId, { instanceId = "starter_equipment_" .. tostring(index) .. "_" .. definitionId })
+		self:Grant(player, definitionId, { instanceId = "starter_equipment_" .. definitionId })
 	end
 	return true
 end
@@ -169,8 +169,13 @@ function EquipmentService:Equip(player: Player, instanceId: string, preferredSlo
 		return false, failure
 	end
 	-- [DEBUG_TRACE] print(string.format("[DIAG][EquipmentService] Equip committed player=%s instanceId=%s slot=%s definition=%s t=%.3f", player.Name, tostring(instanceId), tostring(slotNumber), tostring(equippedInstance and equippedInstance.definitionId), os.clock()))
+	print(string.format("[Equipment] Equipping item: %s", tostring(equippedInstance and equippedInstance.definitionId or instanceId)))
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateService and typeof(stateService.SyncEquipmentFromData) == "function" then stateService:SyncEquipmentFromData(player) end
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
+	if playerService and typeof(playerService.RefreshEquipmentModels) == "function" then
+		playerService:RefreshEquipmentModels(player)
+	end
 	local isLauncherMode = stateService and typeof(stateService.IsLauncher) == "function" and stateService:IsLauncher(player)
 	local equipResult = {
 		Status = if isLauncherMode then "EquippedActive" else "EquippedVisualPending",
@@ -208,6 +213,10 @@ function EquipmentService:Unequip(player: Player, slot: any): (boolean, string?)
 	end)
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateService and typeof(stateService.SyncEquipmentFromData) == "function" then stateService:SyncEquipmentFromData(player) end
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
+	if playerService and typeof(playerService.UnequipEquipmentModel) == "function" then
+		playerService:UnequipEquipmentModel(player, slotNumber)
+	end
 	if removedInstanceId and self._context.EventBus then
 		self._context.EventBus:Fire("EquipmentUnequipped", player, slotNumber, removedInstanceId)
 	end

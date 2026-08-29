@@ -287,7 +287,7 @@ function PlayerStateService:IsStunned(player: Player): boolean
 end
 
 function PlayerStateService:IsFrozen(player: Player): boolean
-	return self:HasFlag(player, "Petrify")
+	return self:HasFlag(player, "Petrify") or self:HasFlag(player, "Freeze")
 end
 
 function PlayerStateService:IsGhost(player: Player): boolean

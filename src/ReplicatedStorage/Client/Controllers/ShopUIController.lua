@@ -268,7 +268,11 @@ function ShopUIController:RenderSnapshot(snapshot)
 			end
 			self:_applyIcon(slot, pack.icon)
 			self:_hookBuyButton(slot, function()
-				local _, message = self._logicService:PurchaseDinamondPack(pack.id)
+				print("[UI] Action called: Buy Diamonds")
+				local success, message = self._logicService:PurchaseDinamondPack(pack.id)
+				if success then
+					print("[UI] Action Success: Buy Diamonds")
+				end
 			end)
 		end
 	end

@@ -425,7 +425,9 @@ function UIController:_bindResolvedUiReferences()
 			end
 			self.QuickHpCooldownEndTime = now + QUICK_HP_COOLDOWN_SECONDS
 			self:_refreshQuickHpCooldown()
+			print("[UI] Action called: Use Item")
 			self.ClientService:RequestConsumeHpPotion()
+			print("[UI] Action Success: Use Item")
 		end)
 	end
 end

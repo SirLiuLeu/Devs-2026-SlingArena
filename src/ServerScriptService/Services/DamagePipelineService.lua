@@ -7,6 +7,7 @@ local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
+local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 type Context = {
@@ -38,6 +39,16 @@ type EffectConfig = {
 
 local DamagePipelineService = {}
 DamagePipelineService.__index = DamagePipelineService
+
+
+local EQUIPMENT_EFFECT_OVERRIDES: { [string]: EffectConfig } = {
+	Burn = { Flag = "Burn" },
+	Poison = { Flag = "Poison" },
+	Stun = { Flag = "Stun" },
+	Petrify = { Flag = "Petrify" },
+	Slow = { Flag = "Slow" },
+	Freeze = { Flag = "Freeze" },
+}
 
 local LAUNCHER_DOT_EFFECTS: { [string]: EffectConfig } = {
 	FireLauncher = { Flag = "Burn" },
@@ -164,6 +175,7 @@ function DamagePipelineService:Init()
 		damageLog(`collision hit attacker={playerName(attacker)} defender={playerName(victim)} impactSpeed={impactSpeed} damage={damage} applied={didApply}`)
 		if didApply then
 			self:_applyLauncherDotFromHit(victim, attacker, attackerState, collisionMeta)
+			self:_applyEquipmentCombatEffectsFromHit(victim, attacker, collisionMeta)
 		end
 	end)
 
@@ -439,6 +451,69 @@ function DamagePipelineService:_applyLauncherDotFromHit(victim: Player, attacker
 		local slowDuration = math.max(0, tonumber(merged.SlowDuration) or 0)
 		if slowAmount > 0 and slowDuration > 0 then
 			self:_scheduleSlowAfterKnockback(victim, attacker, slowAmount, slowDuration)
+		end
+	end
+end
+
+
+function DamagePipelineService:_applyEquipmentCombatEffectsFromHit(victim: Player, attacker: Player?, _collisionMeta: any?)
+	if not attacker or attacker == victim then
+		return
+	end
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
+	if not (stateService and dataService) then
+		return
+	end
+	local owned = dataService:GetOwnedEquipment(attacker)
+	local equipped = dataService:GetEquippedEquipment(attacker)
+	for slot = 1, 3 do
+		local instanceId = equipped[slot]
+		local instance = instanceId and owned[instanceId]
+		local definition = type(instance) == "table" and EquipmentConfig.GetById(tostring(instance.definitionId or "")) or nil
+		local combatEffect = definition and definition.combatEffect
+		if combatEffect then
+			local flagName = combatEffect.dotFlag or combatEffect.collisionFlag
+			local effectConfig = flagName and EQUIPMENT_EFFECT_OVERRIDES[flagName]
+			if effectConfig then
+				if flagName == "Petrify" and combatEffect.cannotPetrifyEquipmentIds then
+					local victimOwned = dataService:GetOwnedEquipment(victim)
+					local victimEquipped = dataService:GetEquippedEquipment(victim)
+					local immune = false
+					for victimSlot = 1, 3 do
+						local victimInstance = victimEquipped[victimSlot] and victimOwned[victimEquipped[victimSlot]]
+						if type(victimInstance) == "table" and combatEffect.cannotPetrifyEquipmentIds[tostring(victimInstance.definitionId)] then
+							immune = true
+							break
+						end
+					end
+					if immune then
+						continue
+					end
+				end
+				local merged = mergeEffectDefaults(effectConfig)
+				local duration = math.max(0, tonumber(combatEffect.collisionExtraDuration or merged.Duration) or 0)
+				if duration > 0 then
+					stateService:ApplyFlag(victim, flagName, duration, attacker, {
+						SourceId = getSourceId(attacker) .. ":EquipmentSlot" .. tostring(slot),
+						EquipmentId = definition.id,
+						EquipmentInstanceId = instanceId,
+						TickInterval = merged.TickInterval,
+						DamagePerTick = merged.DamagePerTick,
+						SlowAmount = merged.SlowAmount,
+						KnockbackTailDuration = merged.KnockbackTailDuration,
+						Stackable = false,
+						MaxStack = 1,
+					})
+					if flagName == "Poison" then
+						local slowAmount = math.max(0, tonumber(merged.SlowAmount) or 0)
+						local slowDuration = math.max(0, tonumber(merged.SlowDuration) or 0)
+						if slowAmount > 0 and slowDuration > 0 then
+							self:_scheduleSlowAfterKnockback(victim, attacker, slowAmount, slowDuration)
+						end
+					end
+				end
+			end
 		end
 	end
 end

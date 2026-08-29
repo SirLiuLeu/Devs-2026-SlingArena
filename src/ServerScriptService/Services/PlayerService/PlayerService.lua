@@ -427,15 +427,42 @@ function PlayerService:UnequipEquipmentModel(player: Player, slot: number): bool
 	if not pawn then return false end
 	local existing = self:_findEquipmentModel(pawn, slot)
 	if existing then existing:Destroy() end
+	local pawnHitbox = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
+	if pawnHitbox and pawnHitbox:IsA("BasePart") then
+		self:_setEquipmentSlotOccupant(pawnHitbox, "EquipmentSlot" .. tostring(slot), nil)
+	end
 	return true
 end
 
 function PlayerService:_resolveEquipmentAttachment(hitbox: BasePart, slot: number): (Attachment?, string?)
-	local slotAttachment = hitbox:FindFirstChild("EquipmentSlot" .. tostring(slot), true)
+	local slotName = "EquipmentSlot" .. tostring(slot)
+	local slotAttachment = hitbox:FindFirstChild(slotName)
 	if slotAttachment and slotAttachment:IsA("Attachment") then
-		return slotAttachment, slotAttachment.Name
+		return slotAttachment, slotName
 	end
-	return nil, nil
+	return nil, slotName
+end
+
+function PlayerService:_resolveEquipmentVisualTarget(pawn: Model, hitbox: BasePart): BasePart?
+	local launcher = pawn:FindFirstChild("Launcher", true)
+	if launcher and launcher:IsA("BasePart") then
+		return launcher
+	end
+	if launcher and launcher:IsA("Model") then
+		return launcher.PrimaryPart or launcher:FindFirstChildWhichIsA("BasePart", true)
+	end
+	return hitbox
+end
+
+function PlayerService:_setEquipmentSlotOccupant(hitbox: BasePart, slotName: string, model: Model?)
+	local markerName = slotName .. "Occupant"
+	local marker = hitbox:FindFirstChild(markerName)
+	if not (marker and marker:IsA("ObjectValue")) then
+		marker = Instance.new("ObjectValue")
+		marker.Name = markerName
+		marker.Parent = hitbox
+	end
+	marker.Value = model
 end
 
 function PlayerService:EquipEquipmentModel(player: Player, slot: number, equipmentId: string): boolean
@@ -466,21 +493,26 @@ function PlayerService:EquipEquipmentModel(player: Player, slot: number, equipme
 	end
 	local attachment, attachName = self:_resolveEquipmentAttachment(hitbox, slot)
 	if not attachment then
-		warn(string.format("[PLAYER_SERVICE] Launcher Hitbox.EquipmentSlot%d attachment missing; create it in ReplicatedStorage.Assets.Launchers.Player.Hitbox.", slot))
+		warn(string.format("[PLAYER_SERVICE] Launcher Hitbox.%s attachment missing; create it in ReplicatedStorage.Assets.Launchers.Player.Hitbox.", tostring(attachName)))
 		model:Destroy()
 		return false
 	end
 	model.PrimaryPart = root
+	local visualTarget = self:_resolveEquipmentVisualTarget(pawn, hitbox)
 	model:PivotTo(attachment.WorldCFrame)
 	self:_configureVisualRig(model)
+	print("[Equipment] Model Cloned successfully")
 	local weld = Instance.new("WeldConstraint")
 	weld.Name = "WeldConstraint_EquipmentSlot" .. tostring(slot)
-	weld.Part0 = hitbox
+	weld.Part0 = visualTarget or hitbox
 	weld.Part1 = root
 	weld.Parent = model
 	model:SetAttribute("EquipmentId", equipmentId)
 	model:SetAttribute("EquipmentSlot", slot)
 	model:SetAttribute("EquipmentAttachPoint", attachName)
+	model:SetAttribute("EquipmentVisualTarget", (visualTarget and visualTarget.Name) or hitbox.Name)
+	self:_setEquipmentSlotOccupant(hitbox, attachName or ("EquipmentSlot" .. tostring(slot)), model)
+	print(string.format("[Equipment] Attached to %s successfully", tostring(attachName)))
 	return true
 end
 
