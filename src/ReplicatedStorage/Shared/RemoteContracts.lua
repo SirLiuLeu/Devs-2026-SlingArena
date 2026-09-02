@@ -31,6 +31,7 @@ RemoteContracts.Names = {
 	DebugSpawnFood = "DebugSpawnFood",
 	DebugResetLauncher = "DebugResetLauncher",
 	ConsumeHpPotion = "ConsumeHpPotion",
+	ConsumeItem = "ConsumeItem",
 	ReportFoodHit = "ReportFoodHit",
 	ReportCollision = "ReportCollision",
 	ApplySelfBounce = "ApplySelfBounce",
@@ -85,6 +86,9 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.ConsumeHpPotion] = function(): boolean
 		return true
+	end,
+	[RemoteContracts.Names.ConsumeItem] = function(payload: any): boolean
+		return type(payload) == "table" and typeof(payload.itemId) == "string" and #payload.itemId > 0 and #payload.itemId <= 80
 	end,
 	[RemoteContracts.Names.Plus1Minute] = function(): boolean
 		return true

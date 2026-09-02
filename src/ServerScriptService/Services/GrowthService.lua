@@ -19,6 +19,11 @@ function GrowthService.new(context: Context)
 	return self
 end
 
+function GrowthService:GrantExperience(player: Player, amount: number, _reason: string?)
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	if stateService then stateService:GrantExp(player, math.max(0, amount)) end
+end
+
 function GrowthService:Init()
 	self._context.EventBus:On("PlayerKilled", function(killer: Player)
 		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")

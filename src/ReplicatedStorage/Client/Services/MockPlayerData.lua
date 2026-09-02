@@ -30,7 +30,11 @@ local MOCK_PLAYER_DATA = {
 	Exp = LevelConfig.StartingExp,
 	OwnedItems = {
 		hp_potion = 25,
-		exp_buff_x2 = 25,
+		exp_buff_30 = 5,
+		damage_buff_20 = 5,
+		hp_buff_30 = 5,
+		exp_card_500 = 5,
+		luck_buff_clover = 5,
 		gacha_ticket = 100,
 	},
 	OwnedLaunchers = {
@@ -62,8 +66,6 @@ local MOCK_PLAYER_DATA = {
 		mock_ThornArmor_1 = { definitionId = "ThornArmor", level = 1, rarity = (EquipmentConfig.GetById("ThornArmor") and EquipmentConfig.GetById("ThornArmor").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_RegenBooster_1 = { definitionId = "RegenBooster", level = 1, rarity = (EquipmentConfig.GetById("RegenBooster") and EquipmentConfig.GetById("RegenBooster").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_ShadowCloak_1 = { definitionId = "ShadowCloak", level = 1, rarity = (EquipmentConfig.GetById("ShadowCloak") and EquipmentConfig.GetById("ShadowCloak").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_SmokeBomb_1 = { definitionId = "SmokeBomb", level = 1, rarity = (EquipmentConfig.GetById("SmokeBomb") and EquipmentConfig.GetById("SmokeBomb").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_MagnetCore_1 = { definitionId = "MagnetCore", level = 1, rarity = (EquipmentConfig.GetById("MagnetCore") and EquipmentConfig.GetById("MagnetCore").rarity) or "Common", acquiredAt = 1786924800 },
 	},
 	EquippedEquipment = { [1] = "mock_Poison_1", [2] = "mock_GhostFlame_1", [3] = "mock_ThunderHammer_1" },
 	Equipped = {
@@ -75,10 +77,10 @@ local MOCK_PLAYER_DATA = {
 
 local ITEM_ALIASES = {
 	item_hp_potion = "hp_potion",
-	item_buff_exp = "exp_buff_x2",
+	item_buff_exp = "exp_buff_30",
 	item_size_up = "regen_boost",
 	item_speed_boost = "shield_tonic",
-	item_invisible = "DamagePotion",
+	item_invisible = "damage_buff_20",
 }
 
 local function deepClone(value: any): any
@@ -211,8 +213,8 @@ function MockPlayerData.UseItem(itemId: string, reason: string?): (boolean, stri
 	if MOCK_PLAYER_DATA.OwnedItems[normalizedId] <= 0 then
 		MOCK_PLAYER_DATA.OwnedItems[normalizedId] = nil
 	end
-	if normalizedId == "exp_buff_x2" then
-		MOCK_PLAYER_DATA.Exp += 100
+	if normalizedId == "exp_card_500" then
+		MOCK_PLAYER_DATA.Exp += 500
 	end
 	emitChanged(reason or "ItemUsed")
 	local definition = ItemConfig.GetById(normalizedId)

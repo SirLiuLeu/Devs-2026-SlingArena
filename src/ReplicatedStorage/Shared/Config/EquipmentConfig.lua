@@ -101,9 +101,9 @@ EquipmentConfig.Definitions = {
         { collisionFlag = "Petrify", collisionExtraDuration = 5, cannotPetrifyEquipmentIds = { GhostFlame = true } }, nil,
         { Add = {}, Multiply = {} }),
 
-    IceCrystal = equipment("IceCrystal", "Ice Crystal", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.CrowdControl, "Freeze",
-        { collisionFlag = "Freeze", collisionExtraDuration = 3 },
-        { type = "Freeze", params = { diagnostic = "Freeze flag dispatch is configured; full freeze rules depend on PlayerStateService flag support" } },
+    IceCrystal = equipment("IceCrystal", "Ice Crystal", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.CrowdControl, "Slow",
+        { collisionFlag = "Slow", collisionExtraDuration = 3 },
+        { type = "Slow", params = { diagnostic = "Ice Crystal applies the shared Slow flag." } },
         { Add = {}, Multiply = {} }),
 
     -- Damage Over Time
@@ -117,10 +117,10 @@ EquipmentConfig.Definitions = {
 
     -- Passive Stat Modifier
     HealthCore = equipment("HealthCore", "Health Core", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier,
-        nil, nil, nil, { Add = {}, Multiply = { maxHP = 1.3 } }),
+        nil, nil, nil, { Add = { maxHP = 5000 }, Multiply = {} }),
 
     PowerCore = equipment("PowerCore", "Power Core", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier,
-        nil, nil, nil, { Add = {}, Multiply = { baseDamage = 1.2 } }),
+        nil, nil, nil, { Add = { baseDamage = 500 }, Multiply = {} }),
 
     Shield = equipment("Shield", "Shield", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier, "Shield",
         nil, { type = "DamageReduction", percent = 0.2 }, { Add = {}, Multiply = {} }),
@@ -130,7 +130,7 @@ EquipmentConfig.Definitions = {
         { Add = { expBonus = 0.3 }, Multiply = {} }),
 
     TurboModule = equipment("TurboModule", "Turbo Module", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier,
-        nil, nil, nil, { Add = {}, Multiply = { moveSpeed = 1.2 } }),
+        nil, nil, nil, { Add = { moveSpeed = 10 }, Multiply = {} }),
 
     LaunchBooster = equipment("LaunchBooster", "Launch Booster", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.PassiveStatModifier,
         nil, nil, nil, { Add = {}, Multiply = { launchSpeed = 1.2 } }),
@@ -153,15 +153,9 @@ EquipmentConfig.Definitions = {
 
     -- Conditional Effect
     ShadowCloak = equipment("ShadowCloak", "Shadow Cloak", EquipmentConfig.Rarities.Epic, EquipmentConfig.Categories.ConditionalEffect, "ShadowCloak",
-        nil, { type = "IdleStealth", params = { idleSeconds = 5, revealOn = { "Launch", "Movement", "Knockback" } } },
+        nil, { type = "IdleStealth", params = { idleSeconds = 3, revealOn = { "Launch", "Movement", "Knockback" } } },
         { Add = {}, Multiply = {} }),
 
-    SmokeBomb = equipment("SmokeBomb", "Smoke Bomb", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.ConditionalEffect, "SmokeBomb",
-        nil, { type = "SmokeOnLaunch" }, { Add = {}, Multiply = {} }),
-
-    -- Utility / Area Effect
-    MagnetCore = equipment("MagnetCore", "Magnet Core", EquipmentConfig.Rarities.Rare, EquipmentConfig.Categories.UtilityAreaEffect, "Magnet",
-        nil, { type = "Magnet", value = 6 }, { Add = {}, Multiply = {} }),
 }
 
 function EquipmentConfig.GetMaxLevelForRarity(rarity: string): number

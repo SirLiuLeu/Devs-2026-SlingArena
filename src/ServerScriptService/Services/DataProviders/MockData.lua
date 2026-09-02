@@ -28,7 +28,7 @@ MockData.MOCK_SCHEMA_DEFAULTS = {
 	Level = 1,
 	Coin = 0,
 	Diamonds = 0,
-	OwnedItems = {},
+	OwnedItems = { hp_potion = 5, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5 },
 	OwnedEquipment = {},
 	EquippedEquipment = { [1] = nil, [2] = nil, [3] = nil },
 	OwnedLaunchers = {
@@ -50,7 +50,7 @@ MockData.PlayerProfiles = {
 		Level = 12,
 		Coin = 2500,
 		Diamonds = 750,
-		OwnedItems = { hp_potion = 8, exp_buff_x2 = 2, gacha_ticket = 5 },
+		OwnedItems = { hp_potion = 8, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5, gacha_ticket = 5 },
 		OwnedEquipment = {
 			eq_alpha_PlasmaCannon = { definitionId = "PlasmaCannon", level = 1, rarity = (EquipmentConfig.GetById("PlasmaCannon") and EquipmentConfig.GetById("PlasmaCannon").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_SlowBlaster = { definitionId = "SlowBlaster", level = 1, rarity = (EquipmentConfig.GetById("SlowBlaster") and EquipmentConfig.GetById("SlowBlaster").rarity) or "Common", acquiredAt = 1786924800 },
@@ -70,8 +70,6 @@ MockData.PlayerProfiles = {
 			eq_alpha_ThornArmor = { definitionId = "ThornArmor", level = 1, rarity = (EquipmentConfig.GetById("ThornArmor") and EquipmentConfig.GetById("ThornArmor").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_RegenBooster = { definitionId = "RegenBooster", level = 1, rarity = (EquipmentConfig.GetById("RegenBooster") and EquipmentConfig.GetById("RegenBooster").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_ShadowCloak = { definitionId = "ShadowCloak", level = 1, rarity = (EquipmentConfig.GetById("ShadowCloak") and EquipmentConfig.GetById("ShadowCloak").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_SmokeBomb = { definitionId = "SmokeBomb", level = 1, rarity = (EquipmentConfig.GetById("SmokeBomb") and EquipmentConfig.GetById("SmokeBomb").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_MagnetCore = { definitionId = "MagnetCore", level = 1, rarity = (EquipmentConfig.GetById("MagnetCore") and EquipmentConfig.GetById("MagnetCore").rarity) or "Common", acquiredAt = 1786924800 },
 		},
 		EquippedEquipment = { [1] = "eq_alpha_Poison", [2] = "eq_alpha_GhostFlame", [3] = "eq_alpha_ThunderHammer" },
 		OwnedLaunchers = {
@@ -88,7 +86,7 @@ MockData.PlayerProfiles = {
 		Level = 28,
 		Coin = 6400,
 		Diamonds = 1400,
-		OwnedItems = { hp_potion = 15, gacha_ticket = 12 },
+		OwnedItems = { hp_potion = 15, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5, gacha_ticket = 12 },
 		OwnedEquipment = {
 			eq_beta_charm_medusa = { definitionId = "Medusa", level = 5, rarity = "Legendary", acquiredAt = 1786924800 },
 			eq_beta_core_thunder = { definitionId = "ThunderHammer", level = 4, rarity = "Epic", acquiredAt = 1786924800 },

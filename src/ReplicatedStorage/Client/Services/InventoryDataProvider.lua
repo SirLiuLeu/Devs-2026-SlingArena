@@ -11,7 +11,7 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
 
 local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
-local consumeHpPotionRemote = remotes:FindFirstChild(RemoteContracts.Names.ConsumeHpPotion) :: RemoteEvent?
+local consumeItemRemote = remotes:FindFirstChild(RemoteContracts.Names.ConsumeItem) :: RemoteEvent?
 local equipEquipmentRemote = remotes:FindFirstChild(RemoteContracts.Names.EquipEquipment) :: RemoteEvent?
 local unequipEquipmentRemote = remotes:FindFirstChild(RemoteContracts.Names.UnequipEquipment) :: RemoteEvent?
 
@@ -28,6 +28,7 @@ export type InventorySnapshot = {
 	equippedEquipment: { [any]: string },
 	selectedEquipmentId: string?,
 	lastUseResult: string?,
+	itemCooldownEnds: { [string]: number },
 	pendingLauncherInstanceId: string?,
 }
 
@@ -102,6 +103,7 @@ function InventoryDataProvider.new()
 		selectedLauncherId = nil,
 		selectedEquipmentId = nil,
 		lastUseResult = nil,
+		itemCooldownEnds = {},
 		pendingLauncherInstanceId = nil,
 		equipmentCapacity = 40,
 		_launcherGiveCursor = 0,
@@ -127,6 +129,7 @@ function InventoryDataProvider:GetSnapshot(): InventorySnapshot
 		selectedItemId = self._state.selectedItemId,
 		selectedLauncherId = self._state.selectedLauncherId,
 		lastUseResult = self._state.lastUseResult,
+		itemCooldownEnds = table.clone(self._state.itemCooldownEnds),
 		ownedEquipment = cloneLaunchers(self._state.ownedEquipment),
 		equippedEquipment = table.clone(self._state.equippedEquipment),
 		selectedEquipmentId = self._state.selectedEquipmentId,
@@ -157,6 +160,9 @@ function InventoryDataProvider:SetFromState(state)
 	if typeof(state.HpPotions) == "number" then
 		nextItems.hp_potion = math.max(0, math.floor(state.HpPotions))
 	end
+
+	local nextItemCooldownEnds = self._state.itemCooldownEnds
+	if type(state.ItemCooldownEnds) == "table" then nextItemCooldownEnds = table.clone(state.ItemCooldownEnds) end
 
 	local nextLaunchers = self._state.ownedLaunchers
 	local incomingLaunchers = state.OwnedLaunchers
@@ -201,6 +207,7 @@ function InventoryDataProvider:SetFromState(state)
 	end
 
 	local changed = not deepEqual(nextItems, self._state.ownedItems)
+		or not deepEqual(nextItemCooldownEnds, self._state.itemCooldownEnds)
 		or not deepEqual(nextLaunchers, self._state.ownedLaunchers)
 		or not deepEqual(nextEquipment, self._state.ownedEquipment)
 		or not deepEqual(nextEquippedEquipment, self._state.equippedEquipment)
@@ -217,6 +224,7 @@ function InventoryDataProvider:SetFromState(state)
 	end
 
 	self._state.ownedItems = nextItems
+	self._state.itemCooldownEnds = nextItemCooldownEnds
 	self._state.ownedLaunchers = nextLaunchers
 	self._state.ownedEquipment = nextEquipment
 	self._state.equippedEquipment = nextEquippedEquipment
@@ -281,39 +289,33 @@ function InventoryDataProvider:GiveTestItem()
 end
 
 function InventoryDataProvider:UseSelectedItem(): boolean
-	print("[UI] Action called: Use Item")
 	local itemId = self._state.selectedItemId
-	if not itemId then
+	local itemDef = itemId and ItemConfig.GetById(itemId)
+	if not itemId or not itemDef then
 		self._state.lastUseResult = "Select an item first"
 		self:_emitChanged()
 		return false
 	end
-
-	if itemId == "hp_potion" and consumeHpPotionRemote then
-		local quantity = math.max(0, math.floor(self._state.ownedItems.hp_potion or 0))
-		if quantity <= 0 then
-			self._state.lastUseResult = "NoPotion"
-			self:_emitChanged()
-			return false
-		end
-		consumeHpPotionRemote:FireServer()
-		print("[UI] Action Success: Use Item")
-		print("[System]: Successfully used HP Potion")
+	if itemDef.consumeOnUse ~= true then
+		self._state.lastUseResult = "ItemCannotBeUsed"
+		self:_emitChanged()
+		return false
+	end
+	if math.max(0, math.floor(self._state.ownedItems[itemId] or 0)) <= 0 then
+		self._state.lastUseResult = "NotOwned"
+		self:_emitChanged()
+		return false
+	end
+	if consumeItemRemote then
+		-- Do not mutate local quantities: StateUpdate is the acknowledgement of use.
+		consumeItemRemote:FireServer({ itemId = itemId })
 		self._state.lastUseResult = "Requested"
 		self:_emitChanged()
 		return true
 	end
-
-	local success, message = MockPlayerData.UseItem(itemId, "InventoryUseItem")
-	self._state.lastUseResult = message
-	if success then
-		print("[UI] Action Success: Use Item")
-		local itemDef = ItemConfig.GetById(itemId)
-		print(string.format("[System]: Successfully used %s", itemDef and itemDef.name or itemId))
-	else
-		self:_emitChanged()
-	end
-	return success
+	self._state.lastUseResult = "ConsumeItemRemoteMissing"
+	self:_emitChanged()
+	return false
 end
 
 function InventoryDataProvider:EquipSelectedLauncher(): boolean

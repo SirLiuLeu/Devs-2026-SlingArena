@@ -26,6 +26,9 @@ local function buildStarterEquipmentInventory(): { [string]: any }
 	return inventory
 end
 
+local RETIRED_EQUIPMENT_IDS = { SmokeBomb = true, MagnetCore = true }
+local EQUIPMENT_ID_ALIASES = { ShadowCloakZ = "ShadowCloak" }
+
 local function currentMondayStamp(now: number): number
 	local date = os.date("!*t", now)
 	local daysSinceMonday = (date.wday + 5) % 7
@@ -115,7 +118,13 @@ function PlayerDataService:_ensureEquipmentData(data: { [string]: any })
 		data.EquippedEquipment = {}
 	end
 	for instanceId, equipment in pairs(data.OwnedEquipment) do
-		if type(instanceId) ~= "string" or type(equipment) ~= "table" or type(equipment.definitionId) ~= "string" or equipment.definitionId == "" then
+		if type(equipment) == "table" and type(equipment.definitionId) == "string" then
+			equipment.definitionId = EQUIPMENT_ID_ALIASES[equipment.definitionId] or equipment.definitionId
+		end
+		if type(equipment) == "table" and RETIRED_EQUIPMENT_IDS[equipment.definitionId] then
+			-- Migration: remove retired content before equipped-slot normalization can retain it.
+			data.OwnedEquipment[instanceId] = nil
+		elseif type(instanceId) ~= "string" or type(equipment) ~= "table" or type(equipment.definitionId) ~= "string" or equipment.definitionId == "" then
 			data.OwnedEquipment[instanceId] = nil
 		else
 			equipment.level = math.max(1, math.floor(tonumber(equipment.level) or 1))

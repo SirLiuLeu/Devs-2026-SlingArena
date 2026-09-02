@@ -549,7 +549,13 @@ function FoodService:_rewardFoodKill(entry: any)
 		return
 	end
 	self._context.EventBus:Fire("FoodConsumed", player, rule.Exp)
-	if rule.DiamondRate > 0 and rule.DiamondAmount > 0 and math.random() <= rule.DiamondRate then
+	-- LuckBoosted affects only this server-side roll; it never changes the diamond amount.
+	local diamondRate = rule.DiamondRate
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local luckFlag = stateService and stateService:GetFlag(player, "LuckBoosted")
+	local luckPercent = luckFlag and luckFlag.Data and tonumber(luckFlag.Data.DiamondDropChanceBonusPercent) or 0
+	diamondRate = math.clamp(diamondRate * (1 + math.max(0, luckPercent) / 100), 0, 1)
+	if diamondRate > 0 and rule.DiamondAmount > 0 and math.random() <= diamondRate then
 		local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 		if dataService and typeof(dataService.GrantReward) == "function" then
 			dataService:GrantReward(player, { Diamonds = rule.DiamondAmount }, "FoodConsumed")

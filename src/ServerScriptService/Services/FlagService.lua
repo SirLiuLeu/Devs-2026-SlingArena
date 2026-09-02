@@ -444,6 +444,7 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 		state.IsVisible = false
 	end
 	state.ActiveFlags = buildFlagSnapshot(flags)
+	if flagName == "HPBoosted" then stateService:RecalculateDerivedStats(player, false) end
 	stateService:PublishState(player)
 	if flagName == "Burn" or flagName == "Poison" or flagName == "Stun" or flagName == "Petrify" then print(`[EQUIPMENT_ATTACK_TRACE][FlagService] ApplyFlag success target={player.Name} flag={flagName} stacks={stacks} expiresAt={expiresAt}`) end
 	return true
@@ -468,6 +469,7 @@ function FlagService:RemoveFlag(player: Player, flagName: string, source: any?, 
 			state.IsVisible = not self:HasFlag(player, "Invisible") and not self:HasFlag(player, "Ghost")
 		end
 		state.ActiveFlags = buildFlagSnapshot(flags)
+		if flagName == "HPBoosted" then stateService:RecalculateDerivedStats(player, false) end
 		stateService:PublishState(player)
 	end
 end
@@ -496,6 +498,7 @@ function FlagService:TickFlags(dt: number)
 				if not self:HasFlag(player, flagName) then
 					self:_removeFlagVisual(player, flagName)
 				end
+				if flagName == "HPBoosted" and stateService then stateService:RecalculateDerivedStats(player, false) end
 				changed = true
 				continue
 			end

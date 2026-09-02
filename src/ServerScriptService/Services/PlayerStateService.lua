@@ -65,7 +65,6 @@ function PlayerStateService.new(context: Context)
 	self._launcherRuntime = {} :: { [Player]: any }
 	self._lastPublishedStates = {} :: { [Player]: any }
 	self._stateUpdateRemote = context.Remotes:FindFirstChild("StateUpdate") :: RemoteEvent
-	self._consumeHpPotionRemote = context.Remotes:FindFirstChild("ConsumeHpPotion") :: RemoteEvent?
 	self._attributeUpgradeRemote = context.Remotes:FindFirstChild("AttributeUpgrade") :: RemoteEvent?
 	self._setPlayerModeRemote = context.Remotes:FindFirstChild("SetPlayerMode") :: RemoteEvent?
 	return self
@@ -121,6 +120,8 @@ local function buildDefaultState(player: Player): PlayerState
 		LastDamageTime = 0,
 		InvulCooldownUntil = 0,
 		Diamonds = 0,
+		OwnedItems = {},
+		ItemCooldownEnds = {},
 		HpPotions = BalanceConfig.DefaultHpPotions,
 		NextHpPotionUseTime = 0,
 		RespawnCountThisMatch = 0,
@@ -176,11 +177,6 @@ local function getFlagService(context: Context)
 end
 
 function PlayerStateService:Init()
-	if self._consumeHpPotionRemote then
-		self._consumeHpPotionRemote.OnServerEvent:Connect(function(player: Player)
-			self:TryConsumeHpPotion(player)
-		end)
-	end
 	if self._attributeUpgradeRemote then
 		self._attributeUpgradeRemote.OnServerEvent:Connect(function(player: Player, attributeName: string)
 			self:TrySpendAttribute(player, attributeName)
@@ -207,6 +203,7 @@ function PlayerStateService:Init()
 		end
 		self._launcherRuntime[player] = {}
 		self:_syncProgressPoints(player)
+		self:_syncInventoryFromData(player)
 		self:_ensureStarterEquipment(player)
 		self:SyncEquipmentFromData(player)
 		self:RecalculateDerivedStats(player, true)
@@ -233,10 +230,21 @@ function PlayerStateService:Init()
 		end
 		self._launcherRuntime[player] = {}
 		self:_syncProgressPoints(player)
+		self:_syncInventoryFromData(player)
 		self:_ensureStarterEquipment(player)
 		self:SyncEquipmentFromData(player)
 		self:RecalculateDerivedStats(player, true)
 	end
+end
+
+function PlayerStateService:_syncInventoryFromData(player: Player)
+	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
+	local state = self._states[player]
+	if not (dataService and state) then return end
+	local data = dataService:GetData(player)
+	state.OwnedItems = data.OwnedItems or {}
+	state.HpPotions = math.max(0, math.floor(tonumber(state.OwnedItems.hp_potion) or 0))
+	state.ItemCooldownEnds = state.ItemCooldownEnds or {}
 end
 
 function PlayerStateService:_ensureStarterEquipment(player: Player)
@@ -287,7 +295,7 @@ function PlayerStateService:IsStunned(player: Player): boolean
 end
 
 function PlayerStateService:IsFrozen(player: Player): boolean
-	return self:HasFlag(player, "Petrify") or self:HasFlag(player, "Freeze")
+	return self:HasFlag(player, "Petrify")
 end
 
 function PlayerStateService:IsGhost(player: Player): boolean
@@ -487,11 +495,13 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	state.ExpBonus = resolved.expBonus
 	state.LaunchershotType = definitionId
 
-	state.MaxHP = resolved.maxHP
+	local hpBoost = self:GetFlag(player, "HPBoosted")
+	local hpBoostPercent = hpBoost and hpBoost.Data and tonumber(hpBoost.Data.MaxHPBonusPercent) or 0
+	state.MaxHP = resolved.maxHP * (1 + math.max(0, hpBoostPercent) / 100)
 	if refillHealth then
-		state.CurrentHP = resolved.maxHP
+		state.CurrentHP = state.MaxHP
 	else
-		state.CurrentHP = math.clamp(state.CurrentHP, 0, resolved.maxHP)
+		state.CurrentHP = math.clamp(state.CurrentHP, 0, state.MaxHP)
 	end
 	self:PublishState(player)
 end
@@ -636,39 +646,9 @@ function PlayerStateService:Heal(player: Player, amount: number, showOnHpBar: bo
 end
 
 function PlayerStateService:TryConsumeHpPotion(player: Player): (boolean, string?)
-	local state = self._states[player]
-	if not state then
-		return false, "MissingState"
-	end
-
-	local now = os.clock()
-	if (state.HpPotions or 0) <= 0 then
-		self:_sendPotionFeedback(player, "NoPotion")
-		return false, "NoPotion"
-	end
-	if now < (state.NextHpPotionUseTime or 0) then
-		self:_sendPotionFeedback(player, "Cooldown", { RetryAt = state.NextHpPotionUseTime })
-		return false, "Cooldown"
-	end
-	local item = ItemConfig.GetById("hp_potion")
-	local effect = item and item.effect
-	local params = effect and effect.flagParams or nil
-	local flagName = effect and effect.flagName or "HPRecovering"
-	local duration = params and params.Duration or nil
-	local cooldown = (item and item.useCooldown) or BalanceConfig.HpPotionCooldown
-
-	local applied = self:ApplyFlag(player, flagName, duration, player, params)
-	if not applied then
-		self:_sendPotionFeedback(player, "Rejected")
-		self:PublishState(player)
-		return false, "Rejected"
-	end
-
-	state.HpPotions = math.max(0, (state.HpPotions or 0) - 1)
-	state.NextHpPotionUseTime = now + cooldown
-	self:PublishState(player)
-	self:_sendPotionFeedback(player, "Consumed", { Count = state.HpPotions, CooldownEndTime = state.NextHpPotionUseTime })
-	return true, nil
+	local itemService = ServiceResolver.Get(self._context, "ItemService")
+	if itemService and typeof(itemService.TryConsume) == "function" then return itemService:TryConsume(player, "hp_potion") end
+	return false, "ItemServiceUnavailable"
 end
 
 function PlayerStateService:_sendPotionFeedback(player: Player, result: string, payload: any?)

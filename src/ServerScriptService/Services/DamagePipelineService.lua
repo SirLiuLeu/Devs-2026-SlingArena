@@ -47,7 +47,6 @@ local EQUIPMENT_EFFECT_OVERRIDES: { [string]: EffectConfig } = {
 	Stun = { Flag = "Stun" },
 	Petrify = { Flag = "Petrify" },
 	Slow = { Flag = "Slow" },
-	Freeze = { Flag = "Freeze" },
 }
 
 local LAUNCHER_DOT_EFFECTS: { [string]: EffectConfig } = {

@@ -16,8 +16,11 @@ local GameConfig = {
 		PoisonTrap = { Duration = 5, Stackable = true, MaxStack = 5, TickInterval = 1, DamagePerTick = 150, SourceScoped = true },
 
 		HPRecovering = { Duration = 3, Stackable = false, MaxStack = 1, TickInterval = 0.5, HealPerTick = 500 },
-		EXPBoosted = { Duration = 300, Stackable = false, MaxStack = 1, ExpBonusPercent = 100 },
-		DamageBoosted = { Duration = 30, Stackable = false, MaxStack = 1, DamageBonusPercent = 100 },
+		-- Temporary consumables are non-stacking: another use only refreshes the single flag.
+		EXPBoosted = { Duration = 300, Stackable = false, MaxStack = 1, ExpBonusPercent = 30 },
+		DamageBoosted = { Duration = 60, Stackable = false, MaxStack = 1, DamageBonusPercent = 20 },
+		HPBoosted = { Duration = 300, Stackable = false, MaxStack = 1, MaxHPBonusPercent = 30 },
+		LuckBoosted = { Duration = 300, Stackable = false, MaxStack = 1, DiamondDropChanceBonusPercent = 30 },
 
 		LavaTrap = {
 			Duration = 0.75,
