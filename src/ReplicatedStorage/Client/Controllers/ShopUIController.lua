@@ -5,6 +5,7 @@ local Players = game:GetService("Players")
 
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
+local PreviewRenderer = require(ReplicatedStorage.Shared.Utils.PreviewRenderer)
 
 local ShopUIController = {}
 ShopUIController.__index = ShopUIController
@@ -94,6 +95,7 @@ function ShopUIController:_resolveGuiAndBind()
 	self._dinamondsScroll = resolveGuiObject(self._playerGui, ProjectTreeSpec.UI.Shop.DinamondsScroll)
 
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	self._launcherAssets = assets and assets:FindFirstChild("Launchers")
 	local uiFolder = assets and assets:FindFirstChild("UI")
 	self._itemTemplate = uiFolder and uiFolder:FindFirstChild("SlotItemsTemplate_ShopUI")
 	self._launcherTemplate = uiFolder and uiFolder:FindFirstChild("SlotLauncherTemplate_shopUI")
@@ -102,6 +104,7 @@ function ShopUIController:_resolveGuiAndBind()
 	if not self._screenGui then warn("[SHOP_UI] ShopUI missing.") end
 	if not self._itemTemplate then warn("[SHOP_UI] ReplicatedStorage.Assets.UI.SlotItemsTemplate_ShopUI missing") end
 	if not self._launcherTemplate then warn("[SHOP_UI] ReplicatedStorage.Assets.UI.SlotLauncherTemplate_shopUI missing") end
+	if not self._launcherAssets then warn("[SHOP_UI] ReplicatedStorage.Assets.Launchers missing") end
 	if not self._dinamondTemplate then warn("[SHOP_UI] ReplicatedStorage.Assets.UI.SlotDiamondPackTemplate_ShopUI missing") end
 
 	if self._closeButton then
@@ -196,6 +199,15 @@ function ShopUIController:_applyIcon(slot: GuiObject, icon: string?)
 	end
 end
 
+function ShopUIController:_populateLauncherPreview(slot: GuiObject, launcherId: string)
+	local preview = slot:FindFirstChild("EquipmentPreview", true)
+	if preview and preview:IsA("ViewportFrame") then
+		PreviewRenderer.Populate(preview, self._launcherAssets, launcherId)
+	else
+		warn("[SHOP_UI] Launcher slot is missing EquipmentPreview ViewportFrame")
+	end
+end
+
 function ShopUIController:_hookBuyButton(slot: GuiObject, onClick)
 	local buyButton = slot:FindFirstChild("BuyButton", true)
 	if buyButton and buyButton:IsA("GuiButton") then
@@ -246,7 +258,7 @@ function ShopUIController:RenderSnapshot(snapshot)
 			slot.Parent = self._launchersScroll
 
 			self:_applyCommonText(slot, launcher.name, formatDinamond(launcher.price))
-			self:_applyIcon(slot, launcher.icon)
+			self:_populateLauncherPreview(slot, launcher.id)
 			self:_hookBuyButton(slot, function()
 				local _, message = self._logicService:PurchaseLauncher(launcher.id)
 			end)

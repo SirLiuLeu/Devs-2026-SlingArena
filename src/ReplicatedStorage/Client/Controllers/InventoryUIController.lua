@@ -9,6 +9,7 @@ local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
 local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
+local PreviewRenderer = require(ReplicatedStorage.Shared.Utils.PreviewRenderer)
 
 local InventoryUIController = {}
 InventoryUIController.__index = InventoryUIController
@@ -161,6 +162,7 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	if not assets then
 		warn("[INVENTORY_UI] ReplicatedStorage.Assets missing")
 	else
+		self._equipmentAssets = assets:FindFirstChild("Equipment")
 		local uiFolder = assets:FindFirstChild("UI")
 		if not uiFolder then
 			warn("[INVENTORY_UI] ReplicatedStorage.Assets.UI missing")
@@ -179,6 +181,7 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 			end
 		end
 	end
+	if not self._equipmentAssets then warn("[INVENTORY_UI] ReplicatedStorage.Assets.Equipment missing") end
 
 	if not self._inventoryGui then warn("[INVENTORY_UI] InventoryUI ScreenGui missing") end
 	if not self._itemsGrid then warn("[INVENTORY_UI] Items grid container missing") end
@@ -328,6 +331,23 @@ function InventoryUIController:_bindCommonSlot(slot: Instance, name: string, ico
 	if iconLabel and icon then
 		iconLabel.Image = icon
 	end
+end
+
+function InventoryUIController:_populateEquipmentPreview(slotRoot: Instance, definitionId: string)
+	local preview = slotRoot:FindFirstChild("EquipmentPreview", true)
+	if preview and preview:IsA("ViewportFrame") then
+		PreviewRenderer.Populate(preview, self._equipmentAssets, definitionId)
+	else
+		warn("[INVENTORY_UI] Equipment slot is missing EquipmentPreview ViewportFrame")
+	end
+end
+
+function InventoryUIController:_bindEquipmentSlot(slotRoot: Instance, name: string, definitionId: string)
+	local nameLabel = findDirectTemplateText(slotRoot, "Name")
+	if nameLabel then
+		nameLabel.Text = name
+	end
+	self:_populateEquipmentPreview(slotRoot, definitionId)
 end
 
 function InventoryUIController:_applySlotVisual(slot: GuiObject, isHovered: boolean, isSelected: boolean)
@@ -505,7 +525,7 @@ function InventoryUIController:_spawnEquipmentSlot(equipmentEntry)
 	slot.Name = string.format("GeneratedEquipment_%s", instanceId)
 	slot.Visible = true
 	slot.Parent = self._equipmentGrid
-	self:_bindCommonSlot(slotRoot, equipmentEntry.name or def.name, equipmentEntry.icon or def.iconId)
+	self:_bindEquipmentSlot(slotRoot, equipmentEntry.name or def.name, definitionId)
 	local remainingTimeText = findDirectTemplateText(slotRoot, "RemainingTimeText")
 	if remainingTimeText then remainingTimeText.Text = formatRemainingLifetime(equipmentEntry) end
 	local levelLabel = findDirectTemplateText(slotRoot, "Level")
@@ -553,7 +573,7 @@ function InventoryUIController:_updateEquipmentSlot(slot: GuiObject, equipmentEn
 	local def = EquipmentConfig.GetById(definitionId)
 	local slotRoot = getTemplateRoot(slot, EQUIPMENT_SLOT_TEMPLATE_NAME)
 	if not slotRoot or not def then return end
-	self:_bindCommonSlot(slotRoot, equipmentEntry.name or def.name, equipmentEntry.icon or def.iconId)
+	self:_bindEquipmentSlot(slotRoot, equipmentEntry.name or def.name, definitionId)
 	local remainingTimeText = findDirectTemplateText(slotRoot, "RemainingTimeText")
 	if remainingTimeText then remainingTimeText.Text = formatRemainingLifetime(equipmentEntry) end
 	local levelLabel = findDirectTemplateText(slotRoot, "Level")
