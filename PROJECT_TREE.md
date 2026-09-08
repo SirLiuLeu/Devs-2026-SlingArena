@@ -357,6 +357,13 @@ DataModel
 │  │     ├─ EndRoundButton
 │  │     └─ StartSafeZoneButton
 │  │
+│  ├─ ConfirmationGui (ScreenGui)
+│  │  └─ Root (Frame)
+│  │     ├─ UICorner
+│  │     ├─ Cancel (TextButton)
+│  │     ├─ Confirm (TextButton)
+│  │     └─ ConfirmText (TextLabel)
+│  │
 │  ├─ NotificationGui (ScreenGui)
 │  │  ├─ ToastContainer
 │  │  │  └─ UIListLayout
@@ -540,12 +547,25 @@ DataModel
 │  │  │           │   └─ ItemStat1, ItemStat2, ItemStat3 (TextLabels)
 │  │  │           ├─ Description (TextLabel)
 │  │  │           └─ SelectedName (TextLabel)
-│  │  ├── Overlay (Frame)
-│  │  └── UpgradePopup (Frame)
-│  │      ├─ Cancel (TextButton)
-│  │      ├─ Confirm (TextButton)
-│  │      ├─ ConfirmText (TextLabel)
-│  │      └─ PopupTitle (TextLabel)
+│  │  └── Overlay (Frame)
+│  │
+│  ├─ LauncherInventoryUI (ScreenGui)
+│  │  ├─ Overlay
+│  │  └─ Root (Frame)
+│  │     └─ BodyLauncher
+│  │        ├─ Footer
+│  │        │  └─ CapacityLabel (TextLabel)
+│  │        ├─ GridContainer
+│  │        │  └─  Slot1, Slot2, Slot3, Slot4 (LauncherSlotTemplate_InventoryUI Frames) -- Script Spawn in run time
+│  │        └─ RightPanel
+│  │           ├─ ActionButtons
+│  │           │  ├─ Upgrade
+│  │           │  ├─ DeleteButton (TextButton)
+│  │           │  └─ EquipButton (TextButton)
+│  │           ├─ Stats
+│  │           │  ├─ Damage, HP, Range, Regen (TextLabels)
+│  │           │  └─ Regen (TextLabel)
+│  │           └─ SelectedName (TextLabel)
 │  │
 │  ├─ MatchUI (ScreenGui)
 │  │  └─ RootFrame
@@ -673,6 +693,12 @@ DataModel
 │     │  ├─ GachaSpin
 │     │  │  └─ Spinwheel
 │     │  ├─ Gate (optional join trigger)
+│     │  ├─ Launcher (Folder)
+│     │  │  ├─ LauncherMaster (Model)
+│     │  │  └─ GUI_Part (Part)
+│     │  ├─ Shop (Folder)
+│     │  │  ├─ Shop (Model)
+│     │  │  └─ GUI_Part (Part)
 │     │  └─ Rank (Folder)
 │     │     └─ Table (Part)
 │     │        └─ SurfaceGui (SurfaceGui)
