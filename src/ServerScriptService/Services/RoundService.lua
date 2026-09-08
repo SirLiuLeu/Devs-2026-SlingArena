@@ -12,7 +12,7 @@ local RoundService = {}
 RoundService.__index = RoundService
 
 local MIN_PLAYERS_TO_START = 3
-local REJOIN_COOLDOWN_SECONDS = 15
+local REJOIN_COOLDOWN_SECONDS = 30
 local ROUND_END_FREEZE_SECONDS = 5
 local ROUND_END_RESULTS_SECONDS = 15
 local END_ROUND_RATE_LIMIT_SECONDS = 2
@@ -149,11 +149,10 @@ end
 
 function RoundService:JoinArena(player: Player)
 	if not self:_canJoinArena(player) then
-		local leaveAt = self._lastLeaveByUserId[player.UserId] or os.clock()
-		local remainingSeconds = REJOIN_COOLDOWN_SECONDS - (os.clock() - leaveAt)
-		if self._context.EventBus then
-			self._context.EventBus:Fire("ArenaJoinCooldown", player, remainingSeconds)
-		end
+		local leaveAt = self._lastLeaveByUserId[player.UserId] or os.time()
+		local remainingSeconds = REJOIN_COOLDOWN_SECONDS - (os.time() - leaveAt)
+		if self._context.EventBus then self._context.EventBus:Fire("ArenaJoinCooldown", player, remainingSeconds) end
+		if self._popupRemote then self._popupRemote:FireClient(player, string.format("You can rejoin in %d seconds.", math.max(1, math.ceil(remainingSeconds))) end
 		return
 	end
 	local arenaMapName = ServiceResolver.Get(self._context, "MapService"):GetDefaultArenaMapName()
@@ -169,7 +168,7 @@ function RoundService:JoinArena(player: Player)
 end
 
 function RoundService:LeaveArena(player: Player)
-	self._lastLeaveByUserId[player.UserId] = os.clock()
+	self._lastLeaveByUserId[player.UserId] = os.time()
 	local lobbyMode = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player) and ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player).SelectedPlayerMode or GameStates.PlayerMode.Human
 	ServiceResolver.Get(self._context, "PlayerService"):SpawnForActiveMode(player, 1, "LobbyMap", lobbyMode)
 	ServiceResolver.Get(self._context, "PlayerStateService"):SetCurrentMap(player, "LobbyMap")
@@ -187,7 +186,7 @@ function RoundService:_canJoinArena(player: Player): boolean
 	if not leaveAt then
 		return true
 	end
-	return (os.clock() - leaveAt) >= REJOIN_COOLDOWN_SECONDS
+	return (os.time() - leaveAt) >= REJOIN_COOLDOWN_SECONDS
 end
 
 function RoundService:_countArenaPlayers(): number

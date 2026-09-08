@@ -6,6 +6,9 @@ local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local InventoryUIController = require(ReplicatedStorage.Client.Controllers.InventoryUIController)
+local LauncherInventoryUIController = require(ReplicatedStorage.Client.Controllers.LauncherInventoryUIController)
+local ConfirmationUIController = require(ReplicatedStorage.Client.Controllers.ConfirmationUIController)
+local WorldProximityUIController = require(ReplicatedStorage.Client.Controllers.WorldProximityUIController)
 local InventoryDataProvider = require(ReplicatedStorage.Client.Services.InventoryDataProvider)
 local OnlineRewardUIController = require(ReplicatedStorage.Client.Controllers.OnlineRewardUIController)
 local OnlineRewardLogicService = require(ReplicatedStorage.Client.Services.OnlineRewardLogicService)
@@ -139,7 +142,9 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self._UiResolveRefreshHudQueued = false
 	self._lastAppliedUiState = nil
 	self._connectedScopedUiRoots = {}
+	self.ConfirmationUIController = ConfirmationUIController.new(playerGui)
 	self.InventoryUIController = InventoryUIController.new(playerGui)
+	self.LauncherInventoryUIController = LauncherInventoryUIController.new(playerGui)
 	self.SpinUIController = SpinUIController.new(playerGui)
 	self.OnlineRewardUIController = OnlineRewardUIController.new(playerGui)
 	self.ShopUIController = ShopUIController.new(playerGui)
@@ -157,6 +162,8 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.MatchScoreboardDataService = MatchScoreboardDataService.GetDefault()
 	self.MatchSummaryDataService = MatchSummaryDataService.GetDefault()
 	self.InventoryUIController:SetDataProvider(self.InventoryDataProvider)
+	self.LauncherInventoryUIController:SetDataProvider(self.InventoryDataProvider)
+	self.LauncherInventoryUIController:SetConfirmationController(self.ConfirmationUIController)
 	self.OnlineRewardUIController:SetLogicService(self.OnlineRewardLogicService)
 	self.ShopUIController:SetLogicService(self.ShopLogicService)
 	self.DailyLoginUIController:SetLogicService(self.DailyLoginLogicService)
@@ -173,6 +180,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.LastAuthoritativeState = nil
 	self.HasAuthoritativeInventoryState = false
 	self.QuickHpCooldownEndTime = 0
+	self.ConfirmationUIController:Start()
 	self:_resolveUiReferences()
 
 	-- UI may be cloned into PlayerGui after this controller is constructed.
@@ -314,7 +322,7 @@ function UIController:_bindResolvedUiReferences()
 	end
 	if self.LeaveButton then
 		self:_connectOnce("LeaveButton", self.LeaveButton.MouseButton1Click, function()
-			self.ClientService:RequestLeaveArena()
+			self.ConfirmationUIController:RequestConfirm("Leaving now will apply a 30s penalty. Are you sure?", function() self.ClientService:RequestLeaveArena() end)
 		end)
 	end
 	if self.StartSafeZoneButton then
@@ -405,7 +413,7 @@ function UIController:_bindResolvedUiReferences()
 	if self.HomeButton then
 		self.HomeButton.Active = true
 		self:_connectOnce("HomeButton", self.HomeButton.MouseButton1Click, function()
-			self.ClientService:RequestLeaveArena()
+			self.ConfirmationUIController:RequestConfirm("Leaving now will apply a 30s penalty. Are you sure?", function() self.ClientService:RequestLeaveArena() end)
 		end)
 	end
 	if self.QuickHpButton then
@@ -522,9 +530,14 @@ end
 
 function UIController:_startAvailableFeatureControllers()
 	if self.InventoryUIController then self.InventoryUIController:Start(self.UIReadySignal) end
+	if self.LauncherInventoryUIController then self.LauncherInventoryUIController:Start() end
 	if self.SpinUIController then self.SpinUIController:Start() end
 	if self.OnlineRewardUIController then self.OnlineRewardUIController:Start() end
 	if self.ShopUIController then self.ShopUIController:Start() end
+	if self.ShopUIController and self.LauncherInventoryUIController then
+		self.WorldProximityUIController = WorldProximityUIController.new(self.ShopUIController, self.LauncherInventoryUIController)
+		self.WorldProximityUIController:Start()
+	end
 	if self.DailyLoginUIController then self.DailyLoginUIController:Start() end
 	if self.MatchScoreboardUIController then self.MatchScoreboardUIController:Start() end
 	if self.MatchSummaryUIController then self.MatchSummaryUIController:Start() end
@@ -785,9 +798,10 @@ function UIController:Start()
 end
 
 function UIController:Destroy()
-	if self.InventoryUIController then
-		self.InventoryUIController:Destroy()
-	end
+	if self.InventoryUIController then self.InventoryUIController:Destroy() end
+	if self.LauncherInventoryUIController then self.LauncherInventoryUIController:Destroy() end
+	if self.ConfirmationUIController then self.ConfirmationUIController:Destroy() end
+	if self.WorldProximityUIController then self.WorldProximityUIController:Destroy() end
 	if self.SpinUIController then
 		self.SpinUIController:Destroy()
 	end

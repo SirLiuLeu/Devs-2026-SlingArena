@@ -155,6 +155,23 @@ function MockProvider:GetTopProgressPointProfiles(limit: number): { any }
 	return ranked
 end
 
+function MockProvider:GrantLauncher(player: Player, instanceId: string, launcher: { [string]: any }): boolean
+	local data = self._dataByUserId[player.UserId]
+	if not data then return false end
+	normalizeInventory(data)
+	data.OwnedLaunchers[instanceId] = launcher
+	return true
+end
+
+function MockProvider:EquipLauncher(player: Player, instanceId: string): boolean
+	local data = self._dataByUserId[player.UserId]
+	if not data then return false end
+	normalizeInventory(data)
+	if not data.OwnedLaunchers[instanceId] then return false end
+	data.EquippedLauncherInstanceId = instanceId
+	return true
+end
+
 function MockProvider:ClearPlayerData(player: Player)
 	local _ = player
 end

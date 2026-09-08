@@ -14,6 +14,8 @@ local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 local consumeItemRemote = remotes:FindFirstChild(RemoteContracts.Names.ConsumeItem) :: RemoteEvent?
 local equipEquipmentRemote = remotes:FindFirstChild(RemoteContracts.Names.EquipEquipment) :: RemoteEvent?
 local unequipEquipmentRemote = remotes:FindFirstChild(RemoteContracts.Names.UnequipEquipment) :: RemoteEvent?
+local equipLauncherRemote = remotes:FindFirstChild(RemoteContracts.Names.EquipLauncher) :: RemoteEvent?
+local unequipLauncherRemote = remotes:FindFirstChild(RemoteContracts.Names.UnequipLauncher) :: RemoteEvent?
 
 local InventoryDataProvider = {}
 InventoryDataProvider.__index = InventoryDataProvider
@@ -320,51 +322,19 @@ end
 
 function InventoryDataProvider:EquipSelectedLauncher(): boolean
 	local launcherId = self._state.selectedLauncherId
-	if not launcherId then
-		self:_emitChanged()
-		return false
-	end
-
-	local selectedIndex = self:_findLauncherIndex(launcherId)
-	if not selectedIndex then
-		self:_emitChanged()
-		return false
-	end
-
-	local selected = self._state.ownedLaunchers[selectedIndex]
-	local remotesFolder = ReplicatedStorage:FindFirstChild("LauncherArenaRemotes")
-	local abilityTrigger = remotesFolder and remotesFolder:FindFirstChild(RemoteContracts.Names.AbilityTrigger)
-	if not (abilityTrigger and abilityTrigger:IsA("RemoteEvent")) then
-		self._state.lastUseResult = "LauncherEquipRemoteMissing"
-		self:_emitChanged()
-		return false
-	end
-
-	-- Injection point: optimistic launcher UI now mirrors equipment flow: request, mark loading, and wait for StateUpdate ack.
+	local index = launcherId and self:_findLauncherIndex(launcherId)
+	if not index or not equipLauncherRemote then self._state.lastUseResult = "LauncherEquipRemoteMissing"; self:_emitChanged(); return false end
+	local selected = self._state.ownedLaunchers[index]
 	self._state.pendingLauncherInstanceId = selected.instanceId
 	self._state.lastUseResult = "LauncherEquipRequested"
 	self:_emitChanged()
-	abilityTrigger:FireServer({
-		action = "EquipLauncher",
-		launcherId = selected.id or selected.definitionId,
-		instanceId = selected.instanceId,
-	})
+	equipLauncherRemote:FireServer(selected.instanceId)
 	return true
 end
 
 function InventoryDataProvider:UnequipSelectedLauncher(): boolean
-	local launcherId = self._state.selectedLauncherId
-	if not launcherId then
-		self:_emitChanged()
-		return false
-	end
-	local selectedIndex = self:_findLauncherIndex(launcherId)
-	if not selectedIndex then
-		self:_emitChanged()
-		return false
-	end
-	self._state.ownedLaunchers[selectedIndex].equipped = false
-	self:_emitChanged()
+	if not self._state.selectedLauncherId or not unequipLauncherRemote then return false end
+	unequipLauncherRemote:FireServer()
 	return true
 end
 

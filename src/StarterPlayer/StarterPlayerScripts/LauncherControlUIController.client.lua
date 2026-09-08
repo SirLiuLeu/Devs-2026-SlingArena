@@ -95,7 +95,7 @@ local function logUiResolvedOnce(screenGui: ScreenGui)
 
 	loggedUiResolved = true
 	lastResolvedPath = screenGui:GetFullName()
-	debugLog(string.format("[LauncherUI] UI resolved: %s", lastResolvedPath))
+	debugLog(string.format("[LauncherControlUI] UI resolved: %s", lastResolvedPath))
 end
 
 local function warnMissingUiOnce(message: string)
@@ -105,7 +105,7 @@ local function warnMissingUiOnce(message: string)
 
 	warnedMissingUi = true
 	warn(message)
-	warn("[UI_CREATION_GUIDE] Required path: StarterGui.LauncherUI.ChargeBar(Fill), CancelZone(IconX), JoystickRoot(Base, Thumb, CooldownOverlay, DirectionIndicator, CooldownText).")
+	warn("[UI_CREATION_GUIDE] Required path: StarterGui.LauncherControlUI.ChargeBar(Fill), CancelZone(IconX), JoystickRoot(Base, Thumb, CooldownOverlay, DirectionIndicator, CooldownText).")
 end
 
 local function setVisibleSafe(instance: GuiObject?, visible: boolean)
@@ -241,7 +241,7 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 	local screenGui = resolveScreenGui(if waitForUi == nil then false else waitForUi)
 	if not screenGui then
 		if isLauncherMode(lastKnownServerState) then
-			warnMissingUiOnce("[LauncherUI] Missing LauncherUI ScreenGui at PlayerGui.LauncherUI; waiting for template clone.")
+			warnMissingUiOnce("[LauncherControlUI] Missing LauncherControlUI ScreenGui at PlayerGui.LauncherControlUI; waiting for template clone.")
 		end
 		return nil, nil, nil, nil, nil, nil, nil
 	end
@@ -265,7 +265,7 @@ local function resolveUi(waitForUi: boolean?): (ScreenGui?, GuiObject?, GuiObjec
 	end
 
 	if not joystickRoot or not base or not thumb or not chargeBar or not chargeFill or not cancelZone or not cancelIcon or not directionIndicator or not cooldownOverlay or not cooldownText then
-		warnMissingUiOnce("[LauncherUI] LauncherUI hierarchy is incomplete. Expected LauncherUI > ChargeBar(Fill), CancelZone(IconX), JoystickRoot(Base, Thumb, CooldownOverlay, DirectionIndicator, CooldownText).")
+		warnMissingUiOnce("[LauncherControlUI] LauncherControlUI hierarchy is incomplete. Expected LauncherControlUI > ChargeBar(Fill), CancelZone(IconX), JoystickRoot(Base, Thumb, CooldownOverlay, DirectionIndicator, CooldownText).")
 	end
 
 	cachedJoystickRoot = if joystickRoot and joystickRoot:IsA("GuiObject") then joystickRoot else nil
@@ -468,7 +468,7 @@ local function updateArrowPreview()
 	if not arrowPreview then
 		local arrowTemplate = prefabsFolder:FindFirstChild("ArrowModel")
 		if not arrowTemplate or not arrowTemplate:IsA("Model") then
-			warn("[LauncherUI] Missing ReplicatedStorage.Assets.Prefabs.ArrowModel for local charge preview.")
+			warn("[LauncherControlUI] Missing ReplicatedStorage.Assets.Prefabs.ArrowModel for local charge preview.")
 			return
 		end
 
@@ -669,7 +669,7 @@ local function startHold(input: InputObject)
 	updateArrowPreview()
 	ensureUiLoopRunning()
 
-	debugLog("[LauncherUI] StartCharge remote fired")
+	debugLog("[LauncherControlUI] StartCharge remote fired")
 
 	startChargeRemote:FireServer(currentChargeAimDirection)
 end
@@ -701,7 +701,7 @@ local function cancelHold()
 	inputObject = nil
 	cancelChargeRemote:FireServer()
 	resetVisualState()
-	debugLog("[LauncherUI] CancelCharge remote fired")
+	debugLog("[LauncherControlUI] CancelCharge remote fired")
 end
 
 local function resolveClientLaunchSpeed(chargeRatio: number): number
@@ -752,7 +752,7 @@ local function releaseHold(input: InputObject)
     destroyArrowPreview()
     applyJoystickVisibilityFromState(lastKnownServerState)
 
-    debugLog("[LauncherUI] RequestLaunch remote fired")
+    debugLog("[LauncherControlUI] RequestLaunch remote fired")
 end
 
 local function bindJoystickInput()

@@ -243,6 +243,8 @@ function PlayerStateService:_syncInventoryFromData(player: Player)
 	if not (dataService and state) then return end
 	local data = dataService:GetData(player)
 	state.OwnedItems = data.OwnedItems or {}
+	state.OwnedLaunchers = data.OwnedLaunchers or state.OwnedLaunchers
+	state.EquippedLauncherInstanceId = data.EquippedLauncherInstanceId or state.EquippedLauncherInstanceId
 	state.HpPotions = math.max(0, math.floor(tonumber(state.OwnedItems.hp_potion) or 0))
 	state.ItemCooldownEnds = state.ItemCooldownEnds or {}
 end
