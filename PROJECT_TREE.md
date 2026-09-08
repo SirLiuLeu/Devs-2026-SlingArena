@@ -663,7 +663,7 @@ DataModel
 │  │  │  └─ Title (TextLabel)
 │  │  └─ Overlay (Frame)
 │  │
-│  └─ LauncherUI (ScreenGui)
+│  └─ LauncherControlUI (ScreenGui)
 │     ├─ ChargeBar
 │     │  └─ Fill
 │     ├─ CancelZone
