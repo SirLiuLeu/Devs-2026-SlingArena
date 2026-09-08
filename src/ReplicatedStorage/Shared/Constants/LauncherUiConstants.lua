@@ -1,7 +1,7 @@
 --!strict
 
 local LauncherUiConstants = {
-	ScreenGuiName = "LauncherUI",
+	ScreenGuiName = "LauncherControlUI",
 	Elements = {
 		JoystickRoot = "JoystickRoot",
 		Base = "Base",

@@ -51,6 +51,8 @@ RemoteContracts.Names = {
 	UnequipEquipment = "UnequipEquipment",
 	UpgradeEquipment = "UpgradeEquipment",
 	RequestEquipmentGrant = "RequestEquipmentGrant",
+	EquipLauncher = "EquipLauncher",
+	UnequipLauncher = "UnequipLauncher",
 }
 
 RemoteContracts.Validators = {
@@ -167,6 +169,12 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.UpgradeEquipment] = function(instanceId: any): boolean
 		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
+	end,
+	[RemoteContracts.Names.EquipLauncher] = function(instanceId: any): boolean
+		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
+	end,
+	[RemoteContracts.Names.UnequipLauncher] = function(): boolean
+		return true
 	end,
 	[RemoteContracts.Names.RequestEquipmentGrant] = function(definitionId: any): boolean
 		return typeof(definitionId) == "string" and #definitionId > 0 and #definitionId <= 128

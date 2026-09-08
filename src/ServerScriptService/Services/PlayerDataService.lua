@@ -63,6 +63,8 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 		},
 		Diamonds = 0,
 		OwnedItems = {},
+		OwnedLaunchers = { default_normal_launcher = { definitionId = "NormalLauncher", star = 1, level = 1, acquiredAt = os.time() } },
+		EquippedLauncherInstanceId = "default_normal_launcher",
 		OwnedEquipment = buildStarterEquipmentInventory(),
 		EquippedEquipment = { [1] = nil, [2] = nil, [3] = nil },
 	}
@@ -84,6 +86,7 @@ function PlayerDataService:LoadPlayer(player: Player): { [string]: any }
 	local data = self._provider:LoadPlayerData(player, self:BuildDefaultData(player))
 	self:_ensureProgress(data)
 	self:_ensureEquipmentData(data)
+	self:_ensureLauncherData(data)
 	return data
 end
 
@@ -103,7 +106,25 @@ function PlayerDataService:UpdateData(player: Player, updater: ({ [string]: any 
 	local updated = self._provider:UpdatePlayerData(player, updater) or self:GetData(player)
 	self:_ensureProgress(updated)
 	self:_ensureEquipmentData(updated)
+	self:_ensureLauncherData(updated)
 	return updated
+end
+
+function PlayerDataService:_ensureLauncherData(data: { [string]: any })
+	if type(data.OwnedLaunchers) ~= "table" then data.OwnedLaunchers = {} end
+	for instanceId, launcher in pairs(data.OwnedLaunchers) do
+		if type(instanceId) ~= "string" or type(launcher) ~= "table" or type(launcher.definitionId) ~= "string" or launcher.definitionId == "" then
+			data.OwnedLaunchers[instanceId] = nil
+		else
+			launcher.star = math.max(1, math.floor(tonumber(launcher.star) or 1))
+			launcher.level = math.max(1, math.floor(tonumber(launcher.level) or 1))
+			launcher.acquiredAt = tonumber(launcher.acquiredAt) or os.time()
+		end
+	end
+	if type(data.EquippedLauncherInstanceId) ~= "string" or data.OwnedLaunchers[data.EquippedLauncherInstanceId] == nil then
+		data.OwnedLaunchers.default_normal_launcher = data.OwnedLaunchers.default_normal_launcher or { definitionId = "NormalLauncher", star = 1, level = 1, acquiredAt = os.time() }
+		data.EquippedLauncherInstanceId = "default_normal_launcher"
+	end
 end
 
 function PlayerDataService:_ensureEquipmentData(data: { [string]: any })
@@ -380,6 +401,37 @@ function PlayerDataService:GetRoundProgressPoints(player: Player): number
 	local data = self:GetData(player)
 	self:_ensureProgress(data)
 	return data.ProgressPoints.RoundPoints
+end
+
+function PlayerDataService:GrantLauncher(player: Player, definitionId: string, instanceId: string?): (boolean, string?)
+	local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+	if not LauncherConfig.GetById(definitionId) then return false, "InvalidLauncher" end
+	local id = instanceId or (definitionId .. "_" .. tostring(os.time()))
+	self:UpdateData(player, function(data)
+		self:_ensureLauncherData(data)
+		data.OwnedLaunchers[id] = data.OwnedLaunchers[id] or { definitionId = definitionId, star = 1, level = 1, acquiredAt = os.time() }
+		return data
+	end)
+	return true, id
+end
+
+function PlayerDataService:EquipLauncher(player: Player, instanceId: string): (boolean, string?)
+	local equipped = false
+	self:UpdateData(player, function(data)
+		self:_ensureLauncherData(data)
+		if data.OwnedLaunchers[instanceId] then data.EquippedLauncherInstanceId = instanceId; equipped = true end
+		return data
+	end)
+	return equipped, if equipped then nil else "NotOwned"
+end
+
+function PlayerDataService:UnequipLauncher(player: Player): boolean
+	self:UpdateData(player, function(data)
+		self:_ensureLauncherData(data)
+		data.EquippedLauncherInstanceId = "default_normal_launcher"
+		return data
+	end)
+	return true
 end
 
 return PlayerDataService

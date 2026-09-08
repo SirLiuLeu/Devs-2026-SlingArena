@@ -26,7 +26,7 @@ local STARTER_GUI_ROOTS = {
 	MatchUI = true,
 	MatchSummaryUI = true,
 	MatchScoreboardUI = true,
-	LauncherUI = true,
+	LauncherControlUI = true,
 }
 
 local function getRootSegment(path: string): string

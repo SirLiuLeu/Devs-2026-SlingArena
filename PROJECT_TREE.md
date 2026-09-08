@@ -329,7 +329,7 @@ DataModel
 │     ├─ InputController.client.lua                  (Active input / charge script)
 │     ├─ KnockbackReplicationClient.client.lua
 │     ├─ LaunchImpulseClient.client.lua
-│     ├─ LauncherUIController.client.lua             (Resolves LauncherUI ScreenGui)
+│     ├─ LauncherControlUIController.client.lua             (Resolves LauncherControlUI ScreenGui)
 │     ├─ PlayerModeController.client.lua
 │     ├─ SafeZoneVisualizer.client.lua
 │     ├─ UIBinder.client.lua                         (UI bootstrap; event-driven rebinding)

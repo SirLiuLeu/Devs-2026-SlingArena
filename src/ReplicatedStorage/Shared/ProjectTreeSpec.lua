@@ -58,6 +58,16 @@ local ProjectTreeSpec = {
 				SpawnName = "SpawnPoint", -- [PROJECT_TREE_SPEC] Workspace.Maps.LobbyMap.SpawnPoints.SpawnPoint
 			},
 		},
+		LauncherInventory = {
+			ScreenGui = "LauncherInventoryUI",
+			Body = "LauncherInventoryUI.Root.BodyLauncher",
+			GridContainer = "LauncherInventoryUI.Root.BodyLauncher.GridContainer",
+			CapacityLabel = "LauncherInventoryUI.Root.BodyLauncher.Footer.CapacityLabel",
+			SelectedName = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.SelectedName",
+			EquipButton = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.EquipButton",
+			DeleteButton = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.DeleteButton",
+		},
+		Confirmation = { ScreenGui = "ConfirmationGui", Root = "ConfirmationGui.Root", Cancel = "ConfirmationGui.Root.Cancel", Confirm = "ConfirmationGui.Root.Confirm", ConfirmText = "ConfirmationGui.Root.ConfirmText" },
 		Inventory = {
 			ScreenGui = "InventoryUI", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI
 			Root = "InventoryUI.Root", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root
@@ -82,6 +92,7 @@ local ProjectTreeSpec = {
 			EquipmentSelectedName = "InventoryUI.Root.BodyEquipment.RightPanel.SelectedName",
 			EquipmentEquipButton = "InventoryUI.Root.BodyEquipment.RightPanel.ActionButtons.EquipButton",
 			EquipmentDeleteButton = "InventoryUI.Root.BodyEquipment.RightPanel.ActionButtons.DeleteButton",
+			EquipmentUpgradeButton = "InventoryUI.Root.BodyEquipment.RightPanel.ActionButtons.UpgradeButton",
 			EquipmentStatDamage = "InventoryUI.Root.BodyEquipment.RightPanel.Stats.Damage",
 			EquipmentStatHP = "InventoryUI.Root.BodyEquipment.RightPanel.Stats.HP",
 			EquipmentStatRange = "InventoryUI.Root.BodyEquipment.RightPanel.Stats.Range",
@@ -153,19 +164,19 @@ local ProjectTreeSpec = {
 			RowTemplate = "MatchScoreboardUI.MainPanel.PlayerList.PlayerRowTemplate_MatchScoreboardUI", -- [PROJECT_TREE_SPEC]
 		},
 		LauncherTouch = {
-			ScreenGui = "LauncherUI", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI
-			JoystickRoot = "LauncherUI.JoystickRoot", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.JoystickRoot
-			JoystickBase = "LauncherUI.JoystickRoot.Base", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.JoystickRoot.Base
-			JoystickThumb = "LauncherUI.JoystickRoot.Thumb", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.JoystickRoot.Thumb
-			ChargeBar = "LauncherUI.ChargeBar", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.ChargeBar
-			CancelZone = "LauncherUI.CancelZone", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.CancelZone
-			CancelIcon = "LauncherUI.CancelZone.IconX", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.CancelZone.IconX
-			ChargeFill = "LauncherUI.ChargeBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.ChargeBar.Fill
-			DirectionIndicator = "LauncherUI.JoystickRoot.DirectionIndicator", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.JoystickRoot.DirectionIndicator
-			CooldownOverlay = "LauncherUI.JoystickRoot.CooldownOverlay", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.JoystickRoot.CooldownOverlay
-			CooldownOverlayLeftFill = "LauncherUI.JoystickRoot.CooldownOverlay.LeftHalf.Clip.Fill", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.JoystickRoot.CooldownOverlay.LeftHalf.Clip.Fill
-			CooldownOverlayRightFill = "LauncherUI.JoystickRoot.CooldownOverlay.RightHalf.Clip.Fill", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.JoystickRoot.CooldownOverlay.RightHalf.Clip.Fill
-			CooldownText = "LauncherUI.JoystickRoot.CooldownText", -- [PROJECT_TREE_SPEC] StarterGui.LauncherUI.JoystickRoot.CooldownText
+			ScreenGui = "LauncherControlUI", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI
+			JoystickRoot = "LauncherControlUI.JoystickRoot", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.JoystickRoot
+			JoystickBase = "LauncherControlUI.JoystickRoot.Base", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.JoystickRoot.Base
+			JoystickThumb = "LauncherControlUI.JoystickRoot.Thumb", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.JoystickRoot.Thumb
+			ChargeBar = "LauncherControlUI.ChargeBar", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.ChargeBar
+			CancelZone = "LauncherControlUI.CancelZone", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.CancelZone
+			CancelIcon = "LauncherControlUI.CancelZone.IconX", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.CancelZone.IconX
+			ChargeFill = "LauncherControlUI.ChargeBar.Fill", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.ChargeBar.Fill
+			DirectionIndicator = "LauncherControlUI.JoystickRoot.DirectionIndicator", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.JoystickRoot.DirectionIndicator
+			CooldownOverlay = "LauncherControlUI.JoystickRoot.CooldownOverlay", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.JoystickRoot.CooldownOverlay
+			CooldownOverlayLeftFill = "LauncherControlUI.JoystickRoot.CooldownOverlay.LeftHalf.Clip.Fill", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.JoystickRoot.CooldownOverlay.LeftHalf.Clip.Fill
+			CooldownOverlayRightFill = "LauncherControlUI.JoystickRoot.CooldownOverlay.RightHalf.Clip.Fill", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.JoystickRoot.CooldownOverlay.RightHalf.Clip.Fill
+			CooldownText = "LauncherControlUI.JoystickRoot.CooldownText", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.JoystickRoot.CooldownText
 		},
 	},
 	SharedModules = {
@@ -217,6 +228,8 @@ local ProjectTreeSpec = {
 		EquipEquipment = "LauncherArenaRemotes.EquipEquipment",
 		UnequipEquipment = "LauncherArenaRemotes.UnequipEquipment",
 		UpgradeEquipment = "LauncherArenaRemotes.UpgradeEquipment", -- [PROJECT_TREE_SPEC]
+		EquipLauncher = "LauncherArenaRemotes.EquipLauncher",
+		UnequipLauncher = "LauncherArenaRemotes.UnequipLauncher",
 	},
 	Services = {
 		Client = {

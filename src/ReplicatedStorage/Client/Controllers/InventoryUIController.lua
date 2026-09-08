@@ -8,6 +8,8 @@ local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
+local EquipmentUpgradeConfig = require(ReplicatedStorage.Shared.Config.EquipmentUpgradeConfig)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
 local PreviewRenderer = require(ReplicatedStorage.Shared.Utils.PreviewRenderer)
 
@@ -150,6 +152,8 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._equipmentStatRegen = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentStatRegen)
 	self._equipmentEquipButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentEquipButton)
 	self._equipmentDeleteButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentDeleteButton)
+	self._equipmentUpgradeButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentUpgradeButton)
+	self._upgradeEquipmentRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):FindFirstChild(RemoteContracts.Names.UpgradeEquipment) :: RemoteEvent?
 	self._launcherSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherSelectedName)
 	self._launcherStatDamage = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherStatDamage)
 	self._launcherStatHP = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.LauncherStatHP)
@@ -230,6 +234,7 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	end
 	if self._equipmentEquipButton then table.insert(self._connections, self._equipmentEquipButton.MouseButton1Click:Connect(function() if self._dataProvider then self._dataProvider:EquipSelectedEquipment() end end)) end
 	if self._equipmentDeleteButton then table.insert(self._connections, self._equipmentDeleteButton.MouseButton1Click:Connect(function() if self._dataProvider then self._dataProvider:UnequipSelectedEquipment() end end)) end
+	if self._equipmentUpgradeButton then table.insert(self._connections, self._equipmentUpgradeButton.MouseButton1Click:Connect(function() if self._selectedEquipmentId and self._upgradeEquipmentRemote then self._upgradeEquipmentRemote:FireServer(self._selectedEquipmentId) end end)) end
 	if self._launcherDeleteButton then
 		table.insert(self._connections, self._launcherDeleteButton.MouseButton1Click:Connect(function()
 			if self._dataProvider then
@@ -632,10 +637,13 @@ function InventoryUIController:_refreshEquipmentPanel(data)
 	local entry = equipmentId and self:_findEquipmentEntry(data.ownedEquipment, equipmentId) or nil
 	local def = entry and EquipmentConfig.GetById(entry.definitionId or entry.id or "") or nil
 	if self._equipmentSelectedName then self._equipmentSelectedName.Text = (entry and entry.name) or (def and def.name) or "No equipment selected" end
-	if self._equipmentStatDamage then self._equipmentStatDamage.Text = "Ability: " .. tostring(def and def.effectId or "-") end
-	if self._equipmentStatHP then self._equipmentStatHP.Text = "Level: " .. tostring(entry and entry.level or "-") end
+	local level = math.max(1, math.floor(tonumber(entry and entry.level) or 1))
+	local nextLevel = level + 1
+	if self._equipmentStatDamage then self._equipmentStatDamage.Text = "Ability: " .. tostring(def and def.effectId or "-") .. "  <font color="rgb(85,255,127)">Next Lv." .. nextLevel .. "</font>"; self._equipmentStatDamage.RichText = true end
+	if self._equipmentStatHP then self._equipmentStatHP.Text = "Level: " .. tostring(level) .. "  <font color="rgb(85,255,127)">Lv." .. nextLevel .. "</font>"; self._equipmentStatHP.RichText = true end
 	if self._equipmentStatRange then self._equipmentStatRange.Text = "Rarity: " .. tostring(def and def.rarity or "-") end
 	if self._equipmentStatRegen then self._equipmentStatRegen.Text = entry and (entry.equipped and "Equipped" or "Unequipped") or "-" end
+	if self._equipmentUpgradeButton then self._equipmentUpgradeButton.Text = string.format("Upgrade %d Diamonds", EquipmentUpgradeConfig.GetUpgradeCost(level)); self._equipmentUpgradeButton.Active = entry ~= nil end
 end
 
 function InventoryUIController:_findLauncherEntry(ownedLaunchers, launcherId)
