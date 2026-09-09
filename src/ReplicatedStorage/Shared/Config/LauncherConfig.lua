@@ -36,7 +36,7 @@ LauncherConfig.Types = {
 	NormalLauncher = {
 		id = "NormalLauncher",
 		name = "Normal Launcher",
-		iconId = "rbxassetid://0",
+		iconId = "rbxassetid://116884908373456",
 		stats = {
 			maxHP = 16000,
 			baseDamage = 1000,
@@ -49,15 +49,15 @@ LauncherConfig.Types = {
 		},
 	},
 	TitanBulwarkLauncher = {
-		id = "TitanBulwarkLauncher", name = "Titan Bulwark Launcher", description = "A reinforced launcher plated for the front line — soaks up punishment and shrugs off incoming fire, at the cost of raw mobility.", iconId = "rbxassetid://0",
+		id = "TitanBulwarkLauncher", name = "Titan Bulwark Launcher", description = "A reinforced launcher plated for the front line — soaks up punishment and shrugs off incoming fire, at the cost of raw mobility.", iconId = "rbxassetid://116884908373456",
 		stats = { maxHP = 28000, baseDamage = 700, armor = 0.30, regen = 1.4, speed = 12.5, launchPower = 0.85, control = 0.90, launchSpeed = 65 },
 	},
 	ZephyrDartLauncher = {
-		id = "ZephyrDartLauncher", name = "Zephyr Dart Launcher", description = "Built for hit-and-run tactics — outruns and outmaneuvers everything else on the field, but can't take a sustained fight.", iconId = "rbxassetid://0",
+		id = "ZephyrDartLauncher", name = "Zephyr Dart Launcher", description = "Built for hit-and-run tactics — outruns and outmaneuvers everything else on the field, but can't take a sustained fight.", iconId = "rbxassetid://116884908373456",
 		stats = { maxHP = 11000, baseDamage = 650, armor = 0.0, regen = 0.8, speed = 22.0, launchPower = 1.05, control = 1.30, launchSpeed = 130 },
 	},
 	RavagerCoreLauncher = {
-		id = "RavagerCoreLauncher", name = "Ravager Core Launcher", description = "An unstable overcharged core optimized purely for burst damage — devastating hits, fragile chassis.", iconId = "rbxassetid://0",
+		id = "RavagerCoreLauncher", name = "Ravager Core Launcher", description = "An unstable overcharged core optimized purely for burst damage — devastating hits, fragile chassis.", iconId = "rbxassetid://116884908373456",
 		stats = { maxHP = 13500, baseDamage = 1650, armor = 0.0, regen = 0.9, speed = 15.0, launchPower = 1.20, control = 0.95, launchSpeed = 90 },
 	},
 } :: { [string]: LauncherDefinition }
