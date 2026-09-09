@@ -105,6 +105,10 @@ function InventoryUIController:SetDataProvider(provider)
 	self._dataProvider = provider
 end
 
+function InventoryUIController:SetConfirmationController(controller)
+	self._confirmationController = controller
+end
+
 function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	-- The UI builder owns the readiness boundary. Resolving paths before it fires
 	-- creates false missing-path diagnostics while StarterGui is still cloning.
@@ -191,7 +195,21 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	end
 	if self._equipmentEquipButton then table.insert(self._connections, self._equipmentEquipButton.MouseButton1Click:Connect(function() if self._dataProvider then self._dataProvider:EquipSelectedEquipment() end end)) end
 	if self._equipmentDeleteButton then table.insert(self._connections, self._equipmentDeleteButton.MouseButton1Click:Connect(function() if self._dataProvider then self._dataProvider:UnequipSelectedEquipment() end end)) end
-	if self._equipmentUpgradeButton then table.insert(self._connections, self._equipmentUpgradeButton.MouseButton1Click:Connect(function() if self._selectedEquipmentId and self._upgradeEquipmentRemote then self._upgradeEquipmentRemote:FireServer(self._selectedEquipmentId) end end)) end
+	if self._equipmentUpgradeButton then
+		table.insert(self._connections, self._equipmentUpgradeButton.MouseButton1Click:Connect(function()
+			local equipmentId = self._selectedEquipmentId
+			if not equipmentId or not self._upgradeEquipmentRemote then
+				return
+			end
+			if not self._confirmationController then
+				warn("[INVENTORY_UI] ConfirmationUIController is required before upgrading equipment")
+				return
+			end
+			self._confirmationController:RequestConfirm("Upgrade this equipment?", function()
+				self._upgradeEquipmentRemote:FireServer(equipmentId)
+			end)
+		end))
+	end
 
 	self:SetActiveTab(self._activeTab)
 end
@@ -488,10 +506,34 @@ function InventoryUIController:_refreshEquipmentPanel(data)
 	if self._equipmentSelectedName then self._equipmentSelectedName.Text = (entry and entry.name) or (def and def.name) or "No equipment selected" end
 	local level = math.max(1, math.floor(tonumber(entry and entry.level) or 1))
 	local nextLevel = level + 1
-	if self._equipmentStatDamage then self._equipmentStatDamage.Text = "Ability: " .. tostring(def and def.effectId or "-") .. "  <font color='rgb(85,255,127)'>Next Lv." .. nextLevel .. "</font>"; self._equipmentStatDamage.RichText = true end
-	if self._equipmentStatHP then self._equipmentStatHP.Text = "Level: " .. tostring(level) .. "  <font color='rgb(85,255,127)'>Lv." .. nextLevel .. "</font>"; self._equipmentStatHP.RichText = true end
-	if self._equipmentStatRange then self._equipmentStatRange.Text = "Rarity: " .. tostring(def and def.rarity or "-") end
-	if self._equipmentStatRegen then self._equipmentStatRegen.Text = entry and (entry.equipped and "Equipped" or "Unequipped") or "-" end
+	local modifiers = def and def.statModifiers or nil
+	local additiveStats = modifiers and modifiers.Add or nil
+	local multiplierStats = modifiers and modifiers.Multiply or nil
+
+	local function formatStat(label: string, statName: string, fallbackMultiplierStatName: string?): string
+		local baseValue = additiveStats and additiveStats[statName]
+		local isMultiplier = false
+		if type(baseValue) ~= "number" and fallbackMultiplierStatName then
+			baseValue = multiplierStats and multiplierStats[fallbackMultiplierStatName]
+			isMultiplier = true
+		end
+		if type(baseValue) ~= "number" then
+			return label .. ": -"
+		end
+		local currentValue = EquipmentUpgradeConfig.GetStatAtLevel(baseValue, level)
+		local nextValue = EquipmentUpgradeConfig.GetStatAtLevel(baseValue, nextLevel)
+		local prefix = if isMultiplier then "x" else ""
+		return string.format("%s: %s%.2f <font color=\"#00ff00\">➔ %s%.2f</font>", label, prefix, currentValue, prefix, nextValue)
+	end
+
+	if self._equipmentStatDamage then self._equipmentStatDamage.Text = formatStat("Damage", "baseDamage", "damageMultiplier") ; self._equipmentStatDamage.RichText = true end
+	if self._equipmentStatHP then self._equipmentStatHP.Text = formatStat("HP", "maxHP") ; self._equipmentStatHP.RichText = true end
+	if self._equipmentStatRange then self._equipmentStatRange.Text = formatStat("Range", "launchRange", "launchSpeed") ; self._equipmentStatRange.RichText = true end
+	if self._equipmentStatRegen then self._equipmentStatRegen.Text = formatStat("Regen", "regen") ; self._equipmentStatRegen.RichText = true end
+	if self._equipmentEquipButton then
+		self._equipmentEquipButton.Text = if entry and entry.equipped then "Unequip" else "Equip"
+		self._equipmentEquipButton.Active = entry ~= nil
+	end
 	if self._equipmentUpgradeButton then self._equipmentUpgradeButton.Text = string.format("Upgrade %d Diamonds", EquipmentUpgradeConfig.GetUpgradeCost(level)); self._equipmentUpgradeButton.Active = entry ~= nil end
 end
 

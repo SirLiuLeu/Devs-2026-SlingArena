@@ -162,6 +162,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.MatchScoreboardDataService = MatchScoreboardDataService.GetDefault()
 	self.MatchSummaryDataService = MatchSummaryDataService.GetDefault()
 	self.InventoryUIController:SetDataProvider(self.InventoryDataProvider)
+	self.InventoryUIController:SetConfirmationController(self.ConfirmationUIController)
 	self.LauncherInventoryUIController:SetDataProvider(self.InventoryDataProvider)
 	self.LauncherInventoryUIController:SetConfirmationController(self.ConfirmationUIController)
 	self.OnlineRewardUIController:SetLogicService(self.OnlineRewardLogicService)
@@ -646,7 +647,6 @@ function UIController:Start()
 			self.NextHpPotionUseTime = state.NextHpPotionUseTime
 		end
 		if self.HudDataService then self.HudDataService:SetFromState(state) end
-		self:_renderHudValues(state.Diamonds or 0, self.AuthoritativeHpPotions or 0, state.Exp or 0, state.Level or 1)
 		self:_refreshQuickHpCooldown()
 
 		local activeFlags = state.ActiveFlags or {}
