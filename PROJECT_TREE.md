@@ -509,7 +509,6 @@ DataModel
 │  │  │   ├── Tabs (Frame)
 │  │  │   │   ├─ ItemsTab (TextButton)
 │  │  │   │   └─ EquipmentTab (TextButton)
-
 │  │  │   ├── BodyEquipment (Frame)
 │  │  │   │   ├── Footer (Frame)
 │  │  │   │   │   └─ CapacityLabel (TextLabel)
@@ -521,7 +520,6 @@ DataModel
 │  │  │   │       │   ├─ ToggleEquipButton (TextButton)
 │  │  │   │       │   └─ UpgradeButton (TextButton)
 │  │  │   │       ├─ Stats (Frame)
-│  │  │   │       │   ├─ Damage, HP, Range, Regen (TextLabels)
 │  │  │   │       │   └─ Damage, HP, Range, Regen (TextLabels)
 │  │  │   │       └─ SelectedName (TextLabel)
 │  │  │   └── BodyItems (Frame)

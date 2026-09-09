@@ -6,8 +6,8 @@ local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 local HudDataService = {}; HudDataService.__index = HudDataService
 local function deepCopy(v:any):any if type(v)~="table" then return v end local c={} for k,x in pairs(v) do c[deepCopy(k)]=deepCopy(x) end return c end
 local function defaultState() return { Diamonds = 0, HpPotions = 0, Exp = 0, Level = 1, NextHpPotionUseTime = 0, ActiveFlags = {}, DamageMultiplier = 1, ExpBonus = 0 } end
-function HudDataService.new() local self=setmetatable({},HudDataService); self._changed=Instance.new("BindableEvent"); self._snapshot=defaultState(); self._playerDataConnection=MockPlayerData.BindChanged(function(data) self:SetFromState(data) end); return self end
-function HudDataService:Destroy() if self._playerDataConnection then self._playerDataConnection:Disconnect() end; self._changed:Destroy() end
+function HudDataService.new() local self=setmetatable({},HudDataService); self._changed=Instance.new("BindableEvent"); self._snapshot=defaultState(); return self end
+function HudDataService:Destroy() self._changed:Destroy() end
 function HudDataService:GetSnapshot() return deepCopy(self._snapshot) end
 function HudDataService:BindChanged(cb) return self._changed.Event:Connect(cb) end
 function HudDataService:_emitChanged() self._changed:Fire(self:GetSnapshot()) end

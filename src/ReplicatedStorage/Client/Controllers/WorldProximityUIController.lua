@@ -8,8 +8,6 @@ local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 local WorldProximityUIController = {}
 WorldProximityUIController.__index = WorldProximityUIController
 local RANGE = 10
-local SHOP_PART_PATH = { "Maps", "LobbyMap", "Shop", "ShopGUI_Part" }
-local LAUNCHER_PART_PATH = { "Maps", "LobbyMap", "Launcher", "LauncherInventoryGUI_Part" }
 
 local function findPart(path: { string }): BasePart?
 	local current: Instance = Workspace
@@ -22,8 +20,8 @@ function WorldProximityUIController.new(shopController, launcherController)
 end
 
 function WorldProximityUIController:Start()
-	self._shopPart = findPart(SHOP_PART_PATH)
-	self._launcherPart = findPart(LAUNCHER_PART_PATH)
+	self._shopPart = findPart({ "Maps", "LobbyMap", "Shop", "GUI_Part" })
+	self._launcherPart = findPart({ "Maps", "LobbyMap", "Launcher", "LauncherMaster", "GUI_Part" })
 	-- Heartbeat + PawnLocator makes this independent of HumanoidRootPart and .Touched hitboxes.
 	self._connection = RunService.Heartbeat:Connect(function()
 		local pawn = PawnLocator.GetLocalPawn()
