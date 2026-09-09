@@ -639,8 +639,8 @@ function InventoryUIController:_refreshEquipmentPanel(data)
 	if self._equipmentSelectedName then self._equipmentSelectedName.Text = (entry and entry.name) or (def and def.name) or "No equipment selected" end
 	local level = math.max(1, math.floor(tonumber(entry and entry.level) or 1))
 	local nextLevel = level + 1
-	if self._equipmentStatDamage then self._equipmentStatDamage.Text = "Ability: " .. tostring(def and def.effectId or "-") .. "  <font color="rgb(85,255,127)">Next Lv." .. nextLevel .. "</font>"; self._equipmentStatDamage.RichText = true end
-	if self._equipmentStatHP then self._equipmentStatHP.Text = "Level: " .. tostring(level) .. "  <font color="rgb(85,255,127)">Lv." .. nextLevel .. "</font>"; self._equipmentStatHP.RichText = true end
+	if self._equipmentStatDamage then self._equipmentStatDamage.Text = "Ability: " .. tostring(def and def.effectId or "-") .. "  <font color='rgb(85,255,127)'>Next Lv." .. nextLevel .. "</font>"; self._equipmentStatDamage.RichText = true end
+	if self._equipmentStatHP then self._equipmentStatHP.Text = "Level: " .. tostring(level) .. "  <font color='rgb(85,255,127)'>Lv." .. nextLevel .. "</font>"; self._equipmentStatHP.RichText = true end
 	if self._equipmentStatRange then self._equipmentStatRange.Text = "Rarity: " .. tostring(def and def.rarity or "-") end
 	if self._equipmentStatRegen then self._equipmentStatRegen.Text = entry and (entry.equipped and "Equipped" or "Unequipped") or "-" end
 	if self._equipmentUpgradeButton then self._equipmentUpgradeButton.Text = string.format("Upgrade %d Diamonds", EquipmentUpgradeConfig.GetUpgradeCost(level)); self._equipmentUpgradeButton.Active = entry ~= nil end

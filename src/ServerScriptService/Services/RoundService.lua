@@ -152,7 +152,7 @@ function RoundService:JoinArena(player: Player)
 		local leaveAt = self._lastLeaveByUserId[player.UserId] or os.time()
 		local remainingSeconds = REJOIN_COOLDOWN_SECONDS - (os.time() - leaveAt)
 		if self._context.EventBus then self._context.EventBus:Fire("ArenaJoinCooldown", player, remainingSeconds) end
-		if self._popupRemote then self._popupRemote:FireClient(player, string.format("You can rejoin in %d seconds.", math.max(1, math.ceil(remainingSeconds))) end
+		if self._popupRemote then self._popupRemote:FireClient(player, string.format("You can rejoin in %d seconds.", math.max(1, math.ceil(remainingSeconds)))) end
 		return
 	end
 	local arenaMapName = ServiceResolver.Get(self._context, "MapService"):GetDefaultArenaMapName()
