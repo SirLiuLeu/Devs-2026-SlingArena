@@ -167,7 +167,7 @@ DataModel
 │  │      │       ├── Name (TextLabel)
 │  │      │       └── Quantity (TextLabel)
 │  │      │
-│  │      ├── LauncherSlotTemplate_InventoryUI (Frame)
+│  │      ├── LauncherSlotTemplate_LauncherInventoryUI (Frame)
 │  │      │   └── Root (Frame)
 │  │      │       ├── Stars (Frame)
 │  │      │       │   ├── Star1 (ImageLabel)
@@ -542,7 +542,7 @@ DataModel
 │  │        ├─ Footer
 │  │        │  └─ CapacityLabel (TextLabel)
 │  │        ├─ GridContainer
-│  │        │  └─  Slot1, Slot2, Slot3, Slot4 (LauncherSlotTemplate_InventoryUI Frames) -- Script Spawn in run time
+│  │        │  └─  Slot1, Slot2, Slot3, Slot4 (LauncherSlotTemplate_LauncherInventoryUI Frames) -- Script Spawn in run time
 │  │        └─ RightPanel
 │  │           ├─ ActionButtons
 │  │           │  ├─ Upgrade

@@ -530,7 +530,7 @@ end
 
 function UIController:_startAvailableFeatureControllers()
 	if self.InventoryUIController then self.InventoryUIController:Start(self.UIReadySignal) end
-	if self.LauncherInventoryUIController then self.LauncherInventoryUIController:Start() end
+	if self.LauncherInventoryUIController then self.LauncherInventoryUIController:Start(self.UIReadySignal) end
 	if self.SpinUIController then self.SpinUIController:Start() end
 	if self.OnlineRewardUIController then self.OnlineRewardUIController:Start() end
 	if self.ShopUIController then self.ShopUIController:Start() end

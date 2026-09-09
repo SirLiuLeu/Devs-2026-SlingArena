@@ -66,24 +66,27 @@ local ProjectTreeSpec = {
 			SelectedName = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.SelectedName",
 			EquipButton = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.EquipButton",
 			DeleteButton = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.DeleteButton",
+			UpgradeButton = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.UpgradeButton",
+			Level = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Level",
+			Stats = {
+				Damage = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Stats.Damage",
+				HP = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Stats.HP",
+				Range = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Stats.Range",
+				Regen = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Stats.Regen",
+			},
 		},
 		Confirmation = { ScreenGui = "ConfirmationGui", Root = "ConfirmationGui.Root", Cancel = "ConfirmationGui.Root.Cancel", Confirm = "ConfirmationGui.Root.Confirm", ConfirmText = "ConfirmationGui.Root.ConfirmText" },
 		Inventory = {
 			ScreenGui = "InventoryUI", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI
 			Root = "InventoryUI.Root", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root
 			BodyItems = "InventoryUI.Root.BodyItems", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems
-			BodyLauncher = "InventoryUI.Root.BodyLauncher",
-			BodyEquipment = "InventoryUI.Root.BodyEquipment", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher
+			BodyEquipment = "InventoryUI.Root.BodyEquipment", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyEquipment
 			ItemsTab = "InventoryUI.Root.Tabs.ItemsTab", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Tabs.ItemsTab
-			LauncherTab = "InventoryUI.Root.Tabs.LauncherTab",
-			EquipmentTab = "InventoryUI.Root.Tabs.EquipmentTab", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Tabs.LauncherTab
+			EquipmentTab = "InventoryUI.Root.Tabs.EquipmentTab", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Tabs.EquipmentTab
 			CloseButton = "InventoryUI.Root.Header.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Header.CloseButton
 			ItemsGridContainer = "InventoryUI.Root.BodyItems.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.GridContainer
-			LaunchersGridContainer = "InventoryUI.Root.BodyLauncher.GridContainer",
-			EquipmentGridContainer = "InventoryUI.Root.BodyEquipment.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.GridContainer
-			BodyLauncherGridContainer = "InventoryUI.Root.BodyLauncher.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.GridContainer
-			LauncherCapacityLabel = "InventoryUI.Root.BodyLauncher.Footer.CapacityLabel",
-			EquipmentCapacityLabel = "InventoryUI.Root.BodyEquipment.Footer.CapacityLabel", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.Footer.CapacityLabel
+			EquipmentGridContainer = "InventoryUI.Root.BodyEquipment.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyEquipment.GridContainer
+			EquipmentCapacityLabel = "InventoryUI.Root.BodyEquipment.Footer.CapacityLabel", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyEquipment.Footer.CapacityLabel
 			ItemsSelectedName = "InventoryUI.Root.BodyItems.RightPanel.SelectedName", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.SelectedName
 			ItemsUseButton = "InventoryUI.Root.BodyItems.RightPanel.ActionButtons.UseButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.ActionButtons.UseButton
 			ItemsStat1 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat1", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat1
@@ -97,13 +100,6 @@ local ProjectTreeSpec = {
 			EquipmentStatHP = "InventoryUI.Root.BodyEquipment.RightPanel.Stats.HP",
 			EquipmentStatRange = "InventoryUI.Root.BodyEquipment.RightPanel.Stats.Range",
 			EquipmentStatRegen = "InventoryUI.Root.BodyEquipment.RightPanel.Stats.Regen",
-			LauncherSelectedName = "InventoryUI.Root.BodyLauncher.RightPanel.SelectedName", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.RightPanel.SelectedName
-			LauncherEquipButton = "InventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.EquipButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.EquipButton
-			LauncherDeleteButton = "InventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.DeleteButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.DeleteButton
-			LauncherStatDamage = "InventoryUI.Root.BodyLauncher.RightPanel.Stats.Damage", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.RightPanel.Stats.Damage
-			LauncherStatHP = "InventoryUI.Root.BodyLauncher.RightPanel.Stats.HP", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.RightPanel.Stats.HP
-			LauncherStatRange = "InventoryUI.Root.BodyLauncher.RightPanel.Stats.Range", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.RightPanel.Stats.Range
-			LauncherStatRegen = "InventoryUI.Root.BodyLauncher.RightPanel.Stats.Regen", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyLauncher.RightPanel.Stats.Regen
 		},
 		OnlineReward = {
 			ScreenGui = "OnlineRewardUI", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI
@@ -288,7 +284,7 @@ local ProjectTreeSpec = {
 		--   Assets (Folder)
 		--     UI (Folder)
 		--       ItemSlotTemplate_InventoryUI (Frame)
-		--       LauncherSlotTemplate_InventoryUI (Frame)
+		--       LauncherSlotTemplate_LauncherInventoryUI (Frame)
 		--     Launchers (Folder)
 		--       SupportLauncher, StunLauncher, NormalLauncher, VacuumLauncher, StealthLauncher, HealLauncher, SpeedLauncher, BonusBuffLauncher, PetrifyLauncher, FireLauncher, PoisonLauncher
 		--     Food (Folder)
@@ -319,7 +315,7 @@ local ProjectTreeSpec = {
 		ReplicatedStorage = {
 			Assets = {
 				ItemSlotTemplate_InventoryUI = "Assets.UI.ItemSlotTemplate_InventoryUI",
-				LauncherSlotTemplate_InventoryUI = "Assets.UI.LauncherSlotTemplate_InventoryUI",
+				LauncherSlotTemplate_LauncherInventoryUI = "Assets.UI.LauncherSlotTemplate_LauncherInventoryUI",
 				EquipmentSlotTemplate_InventoryUI = "Assets.UI.EquipmentSlotTemplate_InventoryUI",
 				SlotRewardTemplate_DailyLoginUI = "Assets.UI.SlotRewardTemplate_DailyLoginUI",
 				SlotItemsTemplate_ShopUI = "Assets.UI.SlotItemsTemplate_ShopUI",
