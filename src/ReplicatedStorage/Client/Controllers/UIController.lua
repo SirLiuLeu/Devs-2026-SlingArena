@@ -162,6 +162,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.MatchScoreboardDataService = MatchScoreboardDataService.GetDefault()
 	self.MatchSummaryDataService = MatchSummaryDataService.GetDefault()
 	self.InventoryUIController:SetDataProvider(self.InventoryDataProvider)
+	self.InventoryUIController:SetConfirmationController(self.ConfirmationUIController)
 	self.LauncherInventoryUIController:SetDataProvider(self.InventoryDataProvider)
 	self.LauncherInventoryUIController:SetConfirmationController(self.ConfirmationUIController)
 	self.OnlineRewardUIController:SetLogicService(self.OnlineRewardLogicService)
@@ -606,6 +607,7 @@ function UIController:Start()
 	end
 
 	if self.InventoryDataProvider then
+		self.InventoryDataProvider:LoadMockInventory()
 		table.insert(self.Connections, self.InventoryDataProvider:BindChanged(function(snapshot)
 			if self.InventoryUIController then
 				self.InventoryUIController:RefreshWithData(snapshot)
@@ -613,8 +615,12 @@ function UIController:Start()
 		end))
 		-- Start from an explicit empty snapshot. StateUpdate is authoritative, so preview
 		-- data can never replace real inventory when the server reply arrives late.
+		local inventorySnapshot = self.InventoryDataProvider:GetSnapshot()
 		if self.InventoryUIController then
-			self.InventoryUIController:RefreshWithData(self.InventoryDataProvider:GetSnapshot())
+			self.InventoryUIController:RefreshWithData(inventorySnapshot)
+		end
+		if self.LauncherInventoryUIController then
+			self.LauncherInventoryUIController:Render(inventorySnapshot)
 		end
 	end
 	if self.OnlineRewardLogicService then

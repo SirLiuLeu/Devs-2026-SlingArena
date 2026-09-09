@@ -238,6 +238,57 @@ function MockPlayerData.AddLauncher(definitionId: string, reason: string?): Laun
 	return deepClone(launcher)
 end
 
+function MockPlayerData.UnequipLauncher(reason: string?): boolean
+	for _, launcher in ipairs(MOCK_PLAYER_DATA.OwnedLaunchers) do
+		launcher.equipped = false
+	end
+	MOCK_PLAYER_DATA.Equipped.LauncherInstanceId = nil
+	emitChanged(reason or "LauncherUnequipped")
+	return true
+end
+
+function MockPlayerData.EquipEquipment(instanceId: string, reason: string?): boolean
+	local entry = nil
+	for ownedInstanceId, owned in pairs(MOCK_PLAYER_DATA.OwnedEquipment) do
+		if ownedInstanceId == instanceId or owned.instanceId == instanceId then entry = owned break end
+	end
+	if not entry then return false end
+	for slot, equippedId in pairs(MOCK_PLAYER_DATA.EquippedEquipment) do
+		if equippedId == instanceId then MOCK_PLAYER_DATA.EquippedEquipment[slot] = nil end
+	end
+	for slot = 1, 3 do
+		if MOCK_PLAYER_DATA.EquippedEquipment[slot] == nil then
+			MOCK_PLAYER_DATA.EquippedEquipment[slot] = instanceId
+			emitChanged(reason or "EquipmentEquipped")
+			return true
+		end
+	end
+	return false
+end
+
+function MockPlayerData.UnequipEquipment(instanceId: string, reason: string?): boolean
+	for slot, equippedId in pairs(MOCK_PLAYER_DATA.EquippedEquipment) do
+		if equippedId == instanceId then
+			MOCK_PLAYER_DATA.EquippedEquipment[slot] = nil
+			emitChanged(reason or "EquipmentUnequipped")
+			return true
+		end
+	end
+	return false
+end
+
+function MockPlayerData.UpgradeEquipment(instanceId: string, cost: number, maxLevel: number, reason: string?): boolean
+	for ownedInstanceId, entry in pairs(MOCK_PLAYER_DATA.OwnedEquipment) do
+		if ownedInstanceId == instanceId or entry.instanceId == instanceId then
+			if (entry.level or 1) >= maxLevel or not MockPlayerData.SpendDiamonds(cost, reason or "EquipmentUpgrade") then return false end
+			entry.level += 1
+			emitChanged(reason or "EquipmentUpgraded")
+			return true
+		end
+	end
+	return false
+end
+
 function MockPlayerData.EquipLauncher(instanceOrDefinitionId: string, reason: string?): boolean
 	local index = findLauncherIndex(instanceOrDefinitionId)
 	if not index then

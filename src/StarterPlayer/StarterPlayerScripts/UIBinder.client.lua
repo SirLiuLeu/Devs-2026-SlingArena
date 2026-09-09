@@ -18,6 +18,7 @@ local STARTER_GUI_ROOTS = {
 	UnitTestUI = true,
 	MainHUD = true,
 	InventoryUI = true,
+	LauncherInventoryUI = true,
 	OnlineRewardUI = true,
 	ShopUI = true,
 	DailyLoginUI = true,

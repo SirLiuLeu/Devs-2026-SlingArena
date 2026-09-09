@@ -240,7 +240,7 @@ function InventoryDataProvider:LoadMockInventory()
 			self:SetFromState(MockPlayerData.GetInventoryState())
 		end)
 	end
-	self:SetFromState(MockData.GetInventoryState())
+	self:SetFromState(MockPlayerData.GetInventoryState())
 end
 
 function InventoryDataProvider:_findLauncherIndex(launcherId: string): number?
