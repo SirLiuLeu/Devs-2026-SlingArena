@@ -20,8 +20,8 @@ function WorldProximityUIController.new(shopController, launcherController)
 end
 
 function WorldProximityUIController:Start()
-	self._shopPart = findPart({ "Maps", "LobbyMap", "Shop", "ShopGUI_Part" })
-	self._launcherPart = findPart({ "Maps", "LobbyMap", "Launcher", "LauncherInventoryGUI_Part" })
+	self._shopPart = findPart({ "Maps", "LobbyMap", "Shop", "GUI_Part" })
+	self._launcherPart = findPart({ "Maps", "LobbyMap", "Launcher", "LauncherMaster", "GUI_Part" })
 	-- Heartbeat + PawnLocator makes this independent of HumanoidRootPart and .Touched hitboxes.
 	self._connection = RunService.Heartbeat:Connect(function()
 		local pawn = PawnLocator.GetLocalPawn()

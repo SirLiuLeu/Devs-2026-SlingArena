@@ -162,7 +162,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.MatchScoreboardDataService = MatchScoreboardDataService.GetDefault()
 	self.MatchSummaryDataService = MatchSummaryDataService.GetDefault()
 	self.InventoryUIController:SetDataProvider(self.InventoryDataProvider)
-	self.InventoryUIController:SetConfirmationController(self.ConfirmationUIController)
 	self.LauncherInventoryUIController:SetDataProvider(self.InventoryDataProvider)
 	self.LauncherInventoryUIController:SetConfirmationController(self.ConfirmationUIController)
 	self.OnlineRewardUIController:SetLogicService(self.OnlineRewardLogicService)
@@ -531,7 +530,7 @@ end
 
 function UIController:_startAvailableFeatureControllers()
 	if self.InventoryUIController then self.InventoryUIController:Start(self.UIReadySignal) end
-	if self.LauncherInventoryUIController then self.LauncherInventoryUIController:Start(self.UIReadySignal) end
+	if self.LauncherInventoryUIController then self.LauncherInventoryUIController:Start() end
 	if self.SpinUIController then self.SpinUIController:Start() end
 	if self.OnlineRewardUIController then self.OnlineRewardUIController:Start() end
 	if self.ShopUIController then self.ShopUIController:Start() end
@@ -602,6 +601,7 @@ function UIController:Start()
 
 	if self.HudDataService then
 		table.insert(self.Connections, self.HudDataService:BindChanged(function(snapshot) self:_renderHudValuesFromSnapshot(snapshot) end))
+		self.HudDataService:LoadMockData()
 		self:_renderHudValuesFromSnapshot(self.HudDataService:GetSnapshot())
 	end
 
