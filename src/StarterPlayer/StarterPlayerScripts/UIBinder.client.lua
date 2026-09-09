@@ -27,6 +27,7 @@ local STARTER_GUI_ROOTS = {
 	MatchSummaryUI = true,
 	MatchScoreboardUI = true,
 	LauncherControlUI = true,
+	LauncherInventoryUI = true,
 }
 
 local function getRootSegment(path: string): string
@@ -92,8 +93,13 @@ task.spawn(function()
 	end
 
 	uiBindManager:Start()
+	-- This is an infrastructure readiness signal, not a UI data slot. It guarantees
+	-- feature controllers resolve only after the binder has attempted every UI path.
+	local uiReadySignal = Instance.new("BindableEvent")
+	uiReadySignal:SetAttribute("IsReady", true)
 	local controller = UIController.new(playerGui, {
 		ClientService = clientService,
+		UIReadySignal = uiReadySignal,
 	})
 	controller:Start()
 
@@ -104,6 +110,7 @@ task.spawn(function()
 		if parent == nil then
 			controller:Destroy()
 			uiBindManager:Destroy()
+			uiReadySignal:Destroy()
 			leaderboardWorldController:Destroy()
 		end
 	end)
