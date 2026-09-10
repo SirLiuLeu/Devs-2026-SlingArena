@@ -547,12 +547,10 @@ DataModel
 │  │        │  └─  Slot1, Slot2, Slot3, Slot4 (LauncherSlotTemplate_LauncherInventoryUI Frames) -- Script Spawn in run time
 │  │        └─ RightPanel
 │  │           ├─ ActionButtons
-│  │           │  ├─ Upgrade
 │  │           │  ├─ DeleteButton (TextButton)
 │  │           │  └─ EquipButton (TextButton)
 │  │           ├─ Stats
-│  │           │  ├─ Damage, HP, Range, Regen (TextLabels)
-│  │           │  └─ Regen (TextLabel)
+│  │           │  └─ Damage, HP, Range, Regen (TextLabels)
 │  │           └─ SelectedName (TextLabel)
 │  │
 │  ├─ MatchUI (ScreenGui)
