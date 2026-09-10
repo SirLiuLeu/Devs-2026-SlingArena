@@ -175,7 +175,9 @@ DataModel
 │  │      │       │   ├── Star3 (ImageLabel)
 │  │      │       │   ├── Star4 (ImageLabel)
 │  │      │       │   └── Star5 (ImageLabel)
-│  │      │       ├── Icon (ImageLabel)
+│  │      │       ├── EquipmentPreview (ViewportFrame)
+│  │      │       │   ├── Model (Model Equipment)
+│  │      │       │   └── Camera
 │  │      │       ├── EquippedTag (TextLabel)
 │  │      │       ├── Level (TextLabel)
 │  │      │       └── Name (TextLabel)
