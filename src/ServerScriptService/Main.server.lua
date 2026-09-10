@@ -45,6 +45,7 @@ local MonetizationService = requireSafe(ServicesFolder:WaitForChild("Monetizatio
 local LeaderboardService = requireSafe(ServicesFolder:WaitForChild("LeaderboardService"), "LeaderboardService")
 local PlayerDataService = requireSafe(ServicesFolder:WaitForChild("PlayerDataService"), "PlayerDataService")
 local ItemService = requireSafe(ServicesFolder:WaitForChild("ItemService"), "ItemService")
+local ShopService = requireSafe(ServicesFolder:WaitForChild("ShopService"), "ShopService")
 local EquipmentService = requireSafe(ServicesFolder:WaitForChild("EquipmentService"):WaitForChild("EquipmentService"), "EquipmentService")
 local LauncherInventoryService = requireSafe(ServicesFolder:WaitForChild("LauncherInventoryService"), "LauncherInventoryService")
 local EquipmentEffectService = requireSafe(ServicesFolder:WaitForChild("EquipmentEffectService"):WaitForChild("EquipmentEffectService"), "EquipmentEffectService")
@@ -143,6 +144,7 @@ local serviceConstructors = {
 	LeaderboardService = LeaderboardService,
 	PlayerDataService = PlayerDataService,
 	ItemService = ItemService,
+	ShopService = ShopService,
 	EquipmentService = EquipmentService,
 	LauncherInventoryService = LauncherInventoryService,
 	EquipmentEffectService = EquipmentEffectService,
@@ -174,6 +176,7 @@ local initializationOrder = {
 	"PlayerDataService",
 	"PlayerStateService",
 	"ItemService",
+	"ShopService",
 	"EquipmentService",
 	"EquipmentEffectService",
 	"FlagService",

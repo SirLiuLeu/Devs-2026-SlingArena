@@ -60,14 +60,12 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._grid = resolveGui(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.GridContainer)
 	self._capacity = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.CapacityLabel)
 	self._name = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.SelectedName)
-	self._level = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Level)
 	self._damage = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.Damage)
 	self._hp = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.HP)
 	self._range = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.Range)
 	self._regen = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.Regen)
 	self._equip = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.EquipButton)
 	self._delete = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.DeleteButton)
-	self._upgrade = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.UpgradeButton)
 
 	local assets = ReplicatedStorage:WaitForChild("Assets")
 	self._launcherAssets = assets:FindFirstChild("Launchers")
@@ -198,7 +196,6 @@ function LauncherInventoryUIController:_refreshRightPanel()
 	local definition = entry and LauncherConfig.GetById(entry.id) or nil
 	local stats = entry and entry.stats or nil
 	if self._name then self._name.Text = (entry and (entry.name or (definition and definition.name))) or "No launcher selected" end
-	if self._level then self._level.Text = entry and string.format("Lv.%d", math.max(1, math.floor(tonumber(entry.level) or 1))) or "Level: -" end
 	if self._damage then self._damage.Text = string.format("Damage: %.2f", (stats and stats.damage) or (definition and definition.stats.launchPower) or 0) end
 	if self._hp then self._hp.Text = string.format("HP: %.0f", (stats and stats.hp) or 0) end
 	if self._range then self._range.Text = string.format("Range: %.2f", (stats and stats.range) or (definition and definition.stats.control) or 0) end
@@ -208,11 +205,6 @@ function LauncherInventoryUIController:_refreshRightPanel()
 		self._equip.Active = enabled
 		self._equip.AutoButtonColor = enabled
 		self._equip.TextTransparency = if enabled then 0 else 0.5
-	end
-	if self._upgrade then
-		self._upgrade.Active = enabled
-		self._upgrade.AutoButtonColor = enabled
-		self._upgrade.TextTransparency = if enabled then 0 else 0.5
 	end
 end
 

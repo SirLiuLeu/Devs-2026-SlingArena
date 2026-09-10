@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MockData = require(ReplicatedStorage.Client.Services.MockData)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local ShopLogicService = {}
 ShopLogicService.__index = ShopLogicService
@@ -23,6 +24,10 @@ function ShopLogicService.new()
 	self._items = {}
 	self._launchers = {}
 	self._dinamondPacks = {}
+	local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
+	self._purchaseDinamondPackRemote = remotes:FindFirstChild(RemoteContracts.Names.PurchaseDinamondPack) :: RemoteEvent?
+	self._purchaseItemRemote = remotes:FindFirstChild(RemoteContracts.Names.PurchaseItem) :: RemoteEvent?
+	self._purchaseLauncherRemote = remotes:FindFirstChild(RemoteContracts.Names.PurchaseLauncher) :: RemoteEvent?
 	return self
 end
 
@@ -103,19 +108,13 @@ function ShopLogicService:PurchaseItem(itemId: string, quantity: number): (boole
 		return false, "ITEM_NOT_FOUND"
 	end
 
-	local selectedQuantity = math.max(1, math.floor(quantity))
-	local price = item.priceX1
-	if selectedQuantity >= 10 then
-		selectedQuantity = 10
-		price = item.priceX10
+	local selectedQuantity = if quantity >= 10 then 10 else 1
+	if not self._purchaseItemRemote then
+		return false, "PURCHASE_REMOTE_UNAVAILABLE"
 	end
 
-	if not MockPlayerData.SpendDiamonds(price, "ShopPurchaseItem") then
-		return false, "NOT_ENOUGH_DINAMOND"
-	end
-
-	MockPlayerData.AddItem(item.id, selectedQuantity, "ShopPurchaseItem")
-	return true, string.format("Purchased %s x%d", tostring(item.name), selectedQuantity)
+	self._purchaseItemRemote:FireServer(item.id, selectedQuantity)
+	return true, string.format("Purchase requested: %s x%d", tostring(item.name), selectedQuantity)
 end
 
 function ShopLogicService:PurchaseLauncher(launcherId: string): (boolean, string)
@@ -123,12 +122,12 @@ function ShopLogicService:PurchaseLauncher(launcherId: string): (boolean, string
 	if not launcher then
 		return false, "LAUNCHER_NOT_FOUND"
 	end
-	if not MockPlayerData.SpendDiamonds(launcher.price, "ShopPurchaseLauncher") then
-		return false, "NOT_ENOUGH_DINAMOND"
+	if not self._purchaseLauncherRemote then
+		return false, "PURCHASE_REMOTE_UNAVAILABLE"
 	end
 
-	MockPlayerData.AddLauncher(launcher.id, "ShopPurchaseLauncher")
-	return true, string.format("Purchased %s", tostring(launcher.name))
+	self._purchaseLauncherRemote:FireServer(launcher.id)
+	return true, string.format("Purchase requested: %s", tostring(launcher.name))
 end
 
 function ShopLogicService:PurchaseDinamondPack(packId: string): (boolean, string)
@@ -136,9 +135,13 @@ function ShopLogicService:PurchaseDinamondPack(packId: string): (boolean, string
 	if not pack then
 		return false, "PACK_NOT_FOUND"
 	end
+	if not self._purchaseDinamondPackRemote then
+		return false, "PURCHASE_REMOTE_UNAVAILABLE"
+	end
 
-	MockPlayerData.AddDiamonds(math.max(0, math.floor(pack.dinamondAmount or 0)), "ShopPurchaseDiamonds")
-	return true, string.format("Mock purchase success: +%d Dinamond", pack.dinamondAmount)
+	-- Diamond grants are server-authoritative; StateUpdate publishes the new balance.
+	self._purchaseDinamondPackRemote:FireServer(pack.id)
+	return true, string.format("Purchase requested: +%d Dinamond", pack.dinamondAmount)
 end
 
 local defaultInstance = nil
