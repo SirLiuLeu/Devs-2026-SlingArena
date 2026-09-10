@@ -7,6 +7,7 @@ local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local PreviewRenderer = require(ReplicatedStorage.Shared.Utils.PreviewRenderer)
 
 local LauncherInventoryUIController = {}
 LauncherInventoryUIController.__index = LauncherInventoryUIController
@@ -36,11 +37,6 @@ end
 local function findText(root: Instance, name: string): TextLabel?
 	local value = root:FindFirstChild(name, true)
 	return if value and value:IsA("TextLabel") then value else nil
-end
-
-local function findImage(root: Instance, name: string): ImageLabel?
-	local value = root:FindFirstChild(name, true)
-	return if value and value:IsA("ImageLabel") then value else nil
 end
 
 function LauncherInventoryUIController.new(playerGui: PlayerGui)
@@ -73,12 +69,17 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._delete = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.DeleteButton)
 	self._upgrade = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.UpgradeButton)
 
-	local uiFolder = ReplicatedStorage:WaitForChild("Assets"):FindFirstChild("UI")
+	local assets = ReplicatedStorage:WaitForChild("Assets")
+	self._launcherAssets = assets:FindFirstChild("Launchers")
+	local uiFolder = assets:FindFirstChild("UI")
 	local template = uiFolder and uiFolder:FindFirstChild(LAUNCHER_SLOT_TEMPLATE_NAME)
 	self._template = if template and template:IsA("GuiObject") then template else nil
 	if not self._template then
 		warn("[LAUNCHER_INVENTORY_UI] " .. LAUNCHER_SLOT_TEMPLATE_NAME .. " missing in ReplicatedStorage.Assets.UI")
 		self._template = nil
+	end
+	if not self._launcherAssets then
+		warn("[LAUNCHER_INVENTORY_UI] ReplicatedStorage.Assets.Launchers missing")
 	end
 
 	local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
@@ -102,7 +103,7 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	end
 	if self._provider then
 		self._providerConnection = self._provider:BindChanged(function(snapshot) self:Render(snapshot) end)
-		self:Render(self._provider:GetSnapshot())
+		self._latestSnapshot = self._provider:GetSnapshot()
 	end
 	self:SetVisible(false)
 end
@@ -112,7 +113,12 @@ function LauncherInventoryUIController:_inLobby(): boolean
 end
 
 function LauncherInventoryUIController:SetVisible(value: boolean)
-	if self._gui then self._gui.Enabled = value end
+	if self._gui then
+		self._gui.Enabled = value
+		if value and self._latestSnapshot then
+			self:Render(self._latestSnapshot)
+		end
+	end
 end
 
 function LauncherInventoryUIController:_entryKey(entry): string
@@ -134,22 +140,37 @@ end
 function LauncherInventoryUIController:_updateSlot(slot: GuiObject, entry)
 	local root = getSlotRoot(slot)
 	local definition = LauncherConfig.GetById(entry.id)
-	if not root or not definition then return end
 	slot.Name = "GeneratedLauncher_" .. self:_entryKey(entry)
-	local name = findText(root, "Name")
-	if name then name.Text = entry.name or definition.name end
-	local icon = findImage(root, "Icon")
-	if icon then icon.Image = entry.icon or definition.icon end
-	local level = math.max(1, math.floor(tonumber(entry.level) or 1))
-	local levelText = findText(root, "Level")
-	if levelText then levelText.Text = string.format("Lv.%d", level) end
-	local equipped = findText(root, "EquippedTag")
-	if equipped then equipped.Visible = entry.equipped == true end
-	local stars = root:FindFirstChild("Stars")
-	if stars then
-		for index = 1, 5 do
-			local star = stars:FindFirstChild("Star" .. index)
-			if star and star:IsA("GuiObject") then star.Visible = index <= math.clamp(level, 1, 5) end
+	if not root then
+		warn("[LAUNCHER_INVENTORY_UI] Launcher slot is missing Root GuiObject")
+	else
+		if not definition then
+			warn(string.format("[LAUNCHER_INVENTORY_UI] Launcher definition missing for %q", tostring(entry.id)))
+		end
+
+		local name = findText(root, "Name")
+		if name then name.Text = entry.name or (definition and definition.name) or "Unknown launcher" end
+		local level = math.max(1, math.floor(tonumber(entry.level) or 1))
+		local levelText = findText(root, "Level")
+		if levelText then levelText.Text = string.format("Lv.%d", level) end
+		local equipped = findText(root, "EquippedTag")
+		if equipped then equipped.Visible = entry.equipped == true end
+		local stars = root:FindFirstChild("Stars")
+		if stars then
+			for index = 1, 5 do
+				local star = stars:FindFirstChild("Star" .. index)
+				if star and star:IsA("GuiObject") then star.Visible = index <= math.clamp(level, 1, 5) end
+			end
+		end
+
+		local equipmentPreviewViewport = root:FindFirstChild("EquipmentPreview")
+		if equipmentPreviewViewport and equipmentPreviewViewport:IsA("ViewportFrame") then
+			if slot:GetAttribute("CurrentRenderedId") ~= entry.id then
+				PreviewRenderer.Populate(equipmentPreviewViewport, self._launcherAssets, entry.id)
+				slot:SetAttribute("CurrentRenderedId", entry.id)
+			end
+		else
+			warn("[LAUNCHER_INVENTORY_UI] LauncherSlotTemplate_LauncherInventoryUI.Root.EquipmentPreview ViewportFrame missing; create it in Studio")
 		end
 	end
 end
@@ -196,6 +217,8 @@ function LauncherInventoryUIController:_refreshRightPanel()
 end
 
 function LauncherInventoryUIController:Render(snapshot)
+	self._latestSnapshot = snapshot
+	if self._gui and self._gui.Enabled == false then return end
 	if not self._grid then return end
 	local seen = {}
 	for _, entry in ipairs(snapshot.ownedLaunchers or {}) do
@@ -225,6 +248,11 @@ function LauncherInventoryUIController:Destroy()
 	for _, connection in ipairs(self._connections) do connection:Disconnect() end
 	for _, connection in pairs(self._slotConnections) do connection:Disconnect() end
 	if self._providerConnection then self._providerConnection:Disconnect() end
+	for key, slot in pairs(self._slotMap) do
+		if slot then slot:Destroy() end
+		self._slotMap[key] = nil
+	end
+	table.clear(self._slotConnections)
 end
 
 return LauncherInventoryUIController

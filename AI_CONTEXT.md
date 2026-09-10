@@ -86,3 +86,9 @@ Config modules store shared tuning and content tables (movement/combat constants
 ## Combat equipment investigation update (2026-08-24)
 
 - Server-side `[EQUIPMENT_ATTACK_TRACE]` prints are intentionally enabled across collision validation, `CollisionPlayerHit`, equipment dispatch, Medusa/ThunderHammer/GhostFlame effect handlers, flag application, and the damage pipeline. These traces identify equipment activation/validation, hook dispatch, effect calculations, and early exits while diagnosing collision equipment effects.
+
+## Launcher inventory viewport migration update (2026-09-10)
+
+- `LauncherInventoryUIController` renders the Studio-authored `LauncherSlotTemplate_LauncherInventoryUI.Root.EquipmentPreview` `ViewportFrame` through `PreviewRenderer`, using models from `ReplicatedStorage.Assets.Launchers`.
+- Generated launcher slots store `CurrentRenderedId`; the renderer only recreates a viewport preview when that launcher id changes. Snapshot refreshes while the panel is disabled are cached and rendered when it becomes visible.
+- Controller destruction disconnects slot events and destroys every slot retained in `_slotMap`, releasing each cloned preview model and camera.

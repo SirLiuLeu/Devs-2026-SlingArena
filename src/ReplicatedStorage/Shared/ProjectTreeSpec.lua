@@ -285,6 +285,8 @@ local ProjectTreeSpec = {
 		--     UI (Folder)
 		--       ItemSlotTemplate_InventoryUI (Frame)
 		--       LauncherSlotTemplate_LauncherInventoryUI (Frame)
+		--         Root (GuiObject)
+		--           EquipmentPreview (ViewportFrame; Studio-authored launcher model preview)
 		--     Launchers (Folder)
 		--       SupportLauncher, StunLauncher, NormalLauncher, VacuumLauncher, StealthLauncher, HealLauncher, SpeedLauncher, BonusBuffLauncher, PetrifyLauncher, FireLauncher, PoisonLauncher
 		--     Food (Folder)
