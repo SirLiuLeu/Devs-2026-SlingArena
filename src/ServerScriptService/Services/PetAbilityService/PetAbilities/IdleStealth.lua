@@ -1,8 +1,8 @@
 --!strict
 
-local ShadowCloak = {}
+local IdleStealth = {}
 
-function ShadowCloak.OnInit(context)
+function IdleStealth.OnInit(context)
 	local params = (context.definition.passiveAbility and context.definition.passiveAbility.params) or {}
 	context._idleSeconds = math.max(0, tonumber(params.idleSeconds) or 5)
 	context._idleElapsed = 0
@@ -19,19 +19,19 @@ local function reveal(context)
 	context._idleElapsed = 0
 end
 
-function ShadowCloak.OnLaunch(context, _payload)
+function IdleStealth.OnLaunch(context, _payload)
 	reveal(context)
 end
 
-function ShadowCloak.OnCollision(context, _collisionType, _target, _payload)
+function IdleStealth.OnCollision(context, _collisionType, _target, _payload)
 	reveal(context)
 end
 
-function ShadowCloak.OnAttack(context, _payload)
+function IdleStealth.OnAttack(context, _payload)
 	reveal(context)
 end
 
-function ShadowCloak.OnTick(context, dt: number)
+function IdleStealth.OnTick(context, dt: number)
 	if context._isInvisible then return end
 	context._idleElapsed = (context._idleElapsed or 0) + dt
 	if context._idleElapsed >= (context._idleSeconds or 5) then
@@ -43,8 +43,8 @@ function ShadowCloak.OnTick(context, dt: number)
 	end
 end
 
-function ShadowCloak.OnDestroy(context)
+function IdleStealth.OnDestroy(context)
 	reveal(context)
 end
 
-return ShadowCloak
+return IdleStealth

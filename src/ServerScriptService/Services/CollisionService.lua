@@ -249,8 +249,8 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		elseif maxDefenderOutSpeed <= 0
 		then Vector3.zero
 		else defenderOutRaw.Unit * maxDefenderOutSpeed
-	local outgoingKnockbackMultiplier = tonumber(player:GetAttribute("EquipmentOutgoingKnockbackMultiplier")) or 1
-	local incomingKnockbackMultiplier = tonumber(defender:GetAttribute("EquipmentIncomingKnockbackMultiplier")) or 1
+	local outgoingKnockbackMultiplier = tonumber(player:GetAttribute("PetOutgoingKnockbackMultiplier")) or 1
+	local incomingKnockbackMultiplier = tonumber(defender:GetAttribute("PetIncomingKnockbackMultiplier")) or 1
 	defenderOut *= math.max(0, outgoingKnockbackMultiplier) * math.max(0, incomingKnockbackMultiplier)
 	local attackerOut = collisionResult.AttackerVelocity
 	local transferEnergy = math.max(0, attackerAbsoluteSpeed)
@@ -266,7 +266,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 
 	local attackerState = stateService:GetState(player)
 	local launcherMaxSpeed = attackerState and attackerState.LaunchSpeed or PhysicsConfig.Launch.SpeedMin
-	print(`[EQUIPMENT_ATTACK_TRACE][CollisionService] collision accepted; firing hooks attacker={playerName(player)} victim={playerName(defender)} impactSpeed={impactSpeed} transferredVelocity={defenderOut.Magnitude} launchId={tostring(payload.launchId)}`)
+	print(`[PET_ATTACK_TRACE][CollisionService] collision accepted; firing hooks attacker={playerName(player)} victim={playerName(defender)} impactSpeed={impactSpeed} transferredVelocity={defenderOut.Magnitude} launchId={tostring(payload.launchId)}`)
 	self._context.EventBus:Fire("CollisionDetected", "Launcher", player, defender, {
 		Speed = impactSpeed,
 		ImpactNormal = normal,

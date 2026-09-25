@@ -10,9 +10,9 @@ local EffectUtil = {}
 
 local function trace(context, message: string)
 	local definition = context and context.definition
-	local equipmentId = definition and definition.id or "unknown"
-	if equipmentId == "Medusa" or equipmentId == "GhostFlame" or equipmentId == "ThunderHammer" or equipmentId == "Poison" then
-		print(string.format("[EQUIPMENT_ATTACK_TRACE][%s] %s", equipmentId, message))
+	local petId = definition and definition.id or "unknown"
+	if petId == "Medusa" or petId == "GhostFlame" or petId == "ThunderHammer" or petId == "Poison" then
+		print(string.format("[PET_ATTACK_TRACE][%s] %s", petId, message))
 	end
 end
 
@@ -48,7 +48,7 @@ function EffectUtil.CanAffectPlayers(context, attacker: Player, victim: Player):
 	return true
 end
 
-function EffectUtil.FireCCFeedback(context, victim: Player, flagName: string, duration: number)
+function EffectUtil.BurnCCFeedback(context, victim: Player, flagName: string, duration: number)
 	local remotes = context.Remotes
 	local feedbackRemote = remotes and remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
 	if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
@@ -66,7 +66,7 @@ function EffectUtil.ApplyCollisionFlag(context, victim: Player, collisionMeta: a
 	trace(context, string.format("ApplyCollisionFlag target=%s flag=%s duration=%.3f transferredVelocity=%s", victim.Name, flagName, duration, tostring(EffectUtil.GetCollisionTransferredVelocity(collisionMeta))))
 	local applied = stateService:ApplyFlag(victim, flagName, duration, context.player)
 	trace(context, string.format("ApplyCollisionFlag result=%s", tostring(applied)))
-	EffectUtil.FireCCFeedback(context, victim, flagName, duration)
+	EffectUtil.BurnCCFeedback(context, victim, flagName, duration)
 end
 
 function EffectUtil.ApplyDotFlag(context, victim: Player)

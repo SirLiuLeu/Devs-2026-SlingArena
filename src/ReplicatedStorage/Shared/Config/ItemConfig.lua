@@ -56,7 +56,7 @@ ItemConfig.Items = {
 	},
 	{ id = "gacha_ticket", name = "Gacha Ticket", description = "A ticket for the gacha.", icon = "rbxassetid://82067391881102", itemType = "Currency", stackable = true, consumeOnUse = false },
 	{ id = "shield_tonic", name = "Shield Tonic", description = "Reserved consumable.", icon = "rbxassetid://10000004", itemType = "Consumable", stackable = true, consumeOnUse = false },
-	{ id = "regen_boost", name = "Regen Boost", description = "Reserved consumable.", icon = "rbxassetid://10000005", itemType = "Consumable", stackable = true, consumeOnUse = false },
+	{ id = "regen_boost", name = "Regeneration Boost", description = "Reserved consumable.", icon = "rbxassetid://10000005", itemType = "Consumable", stackable = true, consumeOnUse = false },
 } :: { ItemDefinition }
 
 local byId = {} :: { [string]: ItemDefinition }

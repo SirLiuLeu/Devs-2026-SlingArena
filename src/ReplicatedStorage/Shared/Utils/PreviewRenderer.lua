@@ -68,7 +68,7 @@ local function fitCamera(camera: Camera, model: Model, viewportFrame: ViewportFr
 end
 
 -- Replaces every preview object in viewportFrame with itemId's model from
--- rootFolder. rootFolder is normally ReplicatedStorage.Assets.Equipment or
+-- rootFolder. rootFolder is normally ReplicatedStorage.Assets.Pets or
 -- ReplicatedStorage.Assets.Launchers; no asset paths are hardcoded here.
 function PreviewRenderer.Populate(viewportFrame: ViewportFrame, rootFolder: Instance?, itemId: string): Model
 	clearViewport(viewportFrame)

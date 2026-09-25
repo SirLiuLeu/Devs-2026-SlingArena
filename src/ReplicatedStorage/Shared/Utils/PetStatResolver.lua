@@ -1,8 +1,8 @@
 --!strict
 
-local EquipmentConfig = require(game:GetService("ReplicatedStorage").Shared.Config.EquipmentConfig)
+local PetsConfig = require(game:GetService("ReplicatedStorage").Shared.Config.PetsConfig)
 
-local EquipmentStatResolver = {}
+local PetStatResolver = {}
 
 local STAT_ALIASES = {
 	maxHP = "maxHP",
@@ -10,7 +10,7 @@ local STAT_ALIASES = {
 	baseDamage = "baseDamage",
 	BaseDamage = "baseDamage",
 	regen = "regen",
-	RegenRate = "regen",
+	RegenerationRate = "regen",
 	launchSpeed = "launchSpeed",
 	LaunchSpeed = "launchSpeed",
 	launchRange = "launchRange",
@@ -43,15 +43,15 @@ local function copyStats(baseStats: { [string]: number }): { [string]: number }
 	return result
 end
 
-function EquipmentStatResolver.GetEquippedDefinitions(ownedEquipment: { [string]: any }?, equippedEquipment: { [string]: any }?): { any }
+function PetStatResolver.GetEquippedDefinitions(ownedPets: { [string]: any }?, equippedPets: { [string]: any }?): { any }
 	local definitions = {}
-	if type(ownedEquipment) ~= "table" or type(equippedEquipment) ~= "table" then
+	if type(ownedPets) ~= "table" or type(equippedPets) ~= "table" then
 		return definitions
 	end
-	for _, instanceId in pairs(equippedEquipment) do
+	for _, instanceId in pairs(equippedPets) do
 		if type(instanceId) == "string" then
-			local ownedInstance = ownedEquipment[instanceId]
-			local definition = ownedInstance and EquipmentConfig.GetById(tostring(ownedInstance.definitionId or ""))
+			local ownedInstance = ownedPets[instanceId]
+			local definition = ownedInstance and PetsConfig.GetById(tostring(ownedInstance.definitionId or ""))
 			if definition then
 				table.insert(definitions, definition)
 			end
@@ -60,7 +60,7 @@ function EquipmentStatResolver.GetEquippedDefinitions(ownedEquipment: { [string]
 	return definitions
 end
 
-function EquipmentStatResolver.Apply(baseStats: { [string]: number }, equippedDefinitions: { any }?): { [string]: number }
+function PetStatResolver.Apply(baseStats: { [string]: number }, equippedDefinitions: { any }?): { [string]: number }
 	local result = copyStats(baseStats)
 	local multipliers = {}
 	for _, definition in ipairs(equippedDefinitions or {}) do
@@ -90,8 +90,8 @@ function EquipmentStatResolver.Apply(baseStats: { [string]: number }, equippedDe
 	return result
 end
 
-function EquipmentStatResolver.Resolve(baseStats: { [string]: number }, ownedEquipment: { [string]: any }?, equippedEquipment: { [string]: any }?): { [string]: number }
-	return EquipmentStatResolver.Apply(baseStats, EquipmentStatResolver.GetEquippedDefinitions(ownedEquipment, equippedEquipment))
+function PetStatResolver.Resolve(baseStats: { [string]: number }, ownedPets: { [string]: any }?, equippedPets: { [string]: any }?): { [string]: number }
+	return PetStatResolver.Apply(baseStats, PetStatResolver.GetEquippedDefinitions(ownedPets, equippedPets))
 end
 
-return EquipmentStatResolver
+return PetStatResolver

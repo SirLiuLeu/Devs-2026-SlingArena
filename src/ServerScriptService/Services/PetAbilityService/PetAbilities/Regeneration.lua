@@ -1,8 +1,8 @@
 --!strict
 
-local Regen = {}
+local Regeneration = {}
 
-function Regen.OnInit(context)
+function Regeneration.OnInit(context)
 	local passive = context.definition.passiveAbility or {}
 	local params = passive.params or {}
 	context._regenAmount = math.max(0, tonumber(passive.value) or 500)
@@ -10,7 +10,7 @@ function Regen.OnInit(context)
 	context._regenElapsed = 0
 end
 
-function Regen.OnTick(context, dt: number)
+function Regeneration.OnTick(context, dt: number)
 	context._regenElapsed = (context._regenElapsed or 0) + dt
 	if context._regenElapsed < (context._regenInterval or 5) then return end
 	context._regenElapsed = 0
@@ -20,4 +20,4 @@ function Regen.OnTick(context, dt: number)
 	end
 end
 
-return Regen
+return Regeneration

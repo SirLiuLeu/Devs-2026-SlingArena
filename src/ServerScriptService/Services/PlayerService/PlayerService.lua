@@ -409,133 +409,8 @@ function PlayerService:_applyLauncherVisual(pawn: Model, launcherId: string): bo
 end
 
 
-function PlayerService:_resolveEquipmentModelSource(equipmentId: string): Model?
-	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
-	local equipmentFolder = assetsFolder and assetsFolder:FindFirstChild("Equipment")
-	local equipmentModel = equipmentFolder and equipmentFolder:FindFirstChild(equipmentId)
-	if equipmentModel and equipmentModel:IsA("Model") then return equipmentModel end
-	return nil
-end
 
-function PlayerService:_findEquipmentModel(pawn: Model, slot: number): Model?
-	local model = pawn:FindFirstChild("EquippedEquipmentSlot" .. tostring(slot))
-	return if model and model:IsA("Model") then model else nil
-end
-
-function PlayerService:UnequipEquipmentModel(player: Player, slot: number): boolean
-	local pawn = self:GetPawn(player)
-	if not pawn then return false end
-	local existing = self:_findEquipmentModel(pawn, slot)
-	if existing then existing:Destroy() end
-	local pawnHitbox = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
-	if pawnHitbox and pawnHitbox:IsA("BasePart") then
-		self:_setEquipmentSlotOccupant(pawnHitbox, "EquipmentSlot" .. tostring(slot), nil)
-	end
-	return true
-end
-
-function PlayerService:_resolveEquipmentAttachment(hitbox: BasePart, slot: number): (Attachment?, string?)
-	local slotName = "EquipmentSlot" .. tostring(slot)
-	local slotAttachment = hitbox:FindFirstChild(slotName)
-	if slotAttachment and slotAttachment:IsA("Attachment") then
-		return slotAttachment, slotName
-	end
-	return nil, slotName
-end
-
-function PlayerService:_resolveEquipmentVisualTarget(pawn: Model, hitbox: BasePart): BasePart?
-	local launcher = pawn:FindFirstChild("Launcher", true)
-	if launcher and launcher:IsA("BasePart") then
-		return launcher
-	end
-	if launcher and launcher:IsA("Model") then
-		return launcher.PrimaryPart or launcher:FindFirstChildWhichIsA("BasePart", true)
-	end
-	return hitbox
-end
-
-function PlayerService:_setEquipmentSlotOccupant(hitbox: BasePart, slotName: string, model: Model?)
-	local markerName = slotName .. "Occupant"
-	local marker = hitbox:FindFirstChild(markerName)
-	if not (marker and marker:IsA("ObjectValue")) then
-		marker = Instance.new("ObjectValue")
-		marker.Name = markerName
-		marker.Parent = hitbox
-	end
-	marker.Value = model
-end
-
-function PlayerService:EquipEquipmentModel(player: Player, slot: number, equipmentId: string): boolean
-	if type(slot) ~= "number" or slot < 1 or slot > 3 then return false end
-	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
-	if not (stateService and stateService:IsLauncher(player)) then
-		self:UnequipEquipmentModel(player, slot)
-		return false
-	end
-	local pawn = self:GetPawn(player)
-	if not pawn then return false end
-	local hitbox = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
-	if not (hitbox and hitbox:IsA("BasePart")) then return false end
-	local modelTemplate = self:_resolveEquipmentModelSource(equipmentId)
-	if not modelTemplate then
-		warn(string.format("[PLAYER_SERVICE] Equipment model missing for %s", equipmentId))
-		return false
-	end
-	self:UnequipEquipmentModel(player, slot)
-	local model = modelTemplate:Clone()
-	model.Name = "EquippedEquipmentSlot" .. tostring(slot)
-	model.Parent = pawn
-	local root = model:FindFirstChild("Root")
-	if not (root and root:IsA("BasePart")) then
-		warn(string.format("[PLAYER_SERVICE] Equipment model %s must contain one BasePart child named Root", equipmentId))
-		model:Destroy()
-		return false
-	end
-	local attachment, attachName = self:_resolveEquipmentAttachment(hitbox, slot)
-	if not attachment then
-		warn(string.format("[PLAYER_SERVICE] Launcher Hitbox.%s attachment missing; create it in ReplicatedStorage.Assets.Launchers.Player.Hitbox.", tostring(attachName)))
-		model:Destroy()
-		return false
-	end
-	model.PrimaryPart = root
-	local visualTarget = self:_resolveEquipmentVisualTarget(pawn, hitbox)
-	model:PivotTo(attachment.WorldCFrame)
-	self:_configureVisualRig(model)
-	print("[Equipment] Model Cloned successfully")
-	local weld = Instance.new("WeldConstraint")
-	weld.Name = "WeldConstraint_EquipmentSlot" .. tostring(slot)
-	weld.Part0 = visualTarget or hitbox
-	weld.Part1 = root
-	weld.Parent = model
-	model:SetAttribute("EquipmentId", equipmentId)
-	model:SetAttribute("EquipmentSlot", slot)
-	model:SetAttribute("EquipmentAttachPoint", attachName)
-	model:SetAttribute("EquipmentVisualTarget", (visualTarget and visualTarget.Name) or hitbox.Name)
-	self:_setEquipmentSlotOccupant(hitbox, attachName or ("EquipmentSlot" .. tostring(slot)), model)
-	print(string.format("[Equipment] Attached to %s successfully", tostring(attachName)))
-	return true
-end
-
-function PlayerService:RefreshEquipmentModels(player: Player)
-	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
-	if not (stateService and stateService:IsLauncher(player)) then
-		for slot = 1, 3 do self:UnequipEquipmentModel(player, slot) end
-		return
-	end
-	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
-	if not dataService then return end
-	local owned = dataService:GetOwnedEquipment(player)
-	local equipped = dataService:GetEquippedEquipment(player)
-	for slot = 1, 3 do
-		local instanceId = equipped[slot]
-		local instance = instanceId and owned[instanceId]
-		if type(instance) == "table" and type(instance.definitionId) == "string" then
-			self:EquipEquipmentModel(player, slot, instance.definitionId)
-		else
-			self:UnequipEquipmentModel(player, slot)
-		end
-	end
-end
+-- Pets are client-rendered. The server owns only their data and gameplay effects.
 
 function PlayerService:_prepareLauncherModel(model: Model): BasePart?
 	local root = model:FindFirstChild("Hitbox", true) :: BasePart?
@@ -909,7 +784,6 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	pawn.PrimaryPart:SetNetworkOwner(player)
 	self._playerToLauncher[player] = pawn
 	self._launcherToPlayer[pawn] = player
-	self:RefreshEquipmentModels(player)
 	self:_attachWorldUi(pawn, player)
 	self:_initializeLauncherAnimations(player, pawn)
 	pawn:SetAttribute("ScaleValue", LauncherConfig.ModelScale)

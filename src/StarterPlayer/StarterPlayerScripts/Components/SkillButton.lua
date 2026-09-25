@@ -3,7 +3,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
+local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local Component = {}
@@ -34,34 +34,34 @@ function Component.new(parent: Instance)
 			warnMissing("StarterGui.MainHUD.SkillButton.Activate (GuiButton)")
 		end
 	end
-	table.insert(self._connections, player:GetAttributeChangedSignal("CurrentEquipmentAbilityId"):Connect(function()
-		self._currentAbilityId = player:GetAttribute("CurrentEquipmentAbilityId")
+	table.insert(self._connections, player:GetAttributeChangedSignal("CurrentPetAbilityId"):Connect(function()
+		self._currentAbilityId = player:GetAttribute("CurrentPetAbilityId")
 	end))
 	table.insert(self._connections, stateUpdate.OnClientEvent:Connect(function(state)
 		self:Update(state)
 	end))
-	self._currentAbilityId = player:GetAttribute("CurrentEquipmentAbilityId")
+	self._currentAbilityId = player:GetAttribute("CurrentPetAbilityId")
 	return self
 end
 
-function Component:SetEquipmentState(ownedEquipment: any, equippedEquipment: any)
+function Component:SetPetState(ownedPets: any, equippedPets: any)
 	self._currentAbilityId = nil
-	if type(ownedEquipment) ~= "table" or type(equippedEquipment) ~= "table" then return end
+	if type(ownedPets) ~= "table" or type(equippedPets) ~= "table" then return end
 	for slot = 1, 3 do
-		local instanceId = equippedEquipment[slot]
-		local instance = instanceId and ownedEquipment[instanceId]
-		local definition = type(instance) == "table" and EquipmentConfig.GetById(tostring(instance.definitionId or "")) or nil
+		local instanceId = equippedPets[slot]
+		local instance = instanceId and ownedPets[instanceId]
+		local definition = type(instance) == "table" and PetsConfig.GetById(tostring(instance.definitionId or "")) or nil
 		if definition and definition.abilityId then
 			self._currentAbilityId = definition.abilityId
-			player:SetAttribute("CurrentEquipmentAbilityId", self._currentAbilityId)
+			player:SetAttribute("CurrentPetAbilityId", self._currentAbilityId)
 			return
 		end
 	end
-	player:SetAttribute("CurrentEquipmentAbilityId", nil)
+	player:SetAttribute("CurrentPetAbilityId", nil)
 end
 
 function Component:Update(state: any)
-	if type(state) == "table" then self:SetEquipmentState(state.OwnedEquipment, state.EquippedEquipment) end
+	if type(state) == "table" then self:SetPetState(state.OwnedPets, state.EquippedPets) end
 end
 
 function Component:Destroy()

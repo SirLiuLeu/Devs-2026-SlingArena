@@ -70,7 +70,7 @@ local ProjectTreeSpec = {
 				Damage = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Stats.Damage",
 				HP = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Stats.HP",
 				Range = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Stats.Range",
-				Regen = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Stats.Regen",
+				Regeneration = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Stats.Regeneration",
 			},
 		},
 		Confirmation = { ScreenGui = "ConfirmationGui", Root = "ConfirmationGui.Root", Cancel = "ConfirmationGui.Root.Cancel", Confirm = "ConfirmationGui.Root.Confirm", ConfirmText = "ConfirmationGui.Root.ConfirmText" },
@@ -78,26 +78,26 @@ local ProjectTreeSpec = {
 			ScreenGui = "InventoryUI", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI
 			Root = "InventoryUI.Root", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root
 			BodyItems = "InventoryUI.Root.BodyItems", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems
-			BodyEquipment = "InventoryUI.Root.BodyEquipment", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyEquipment
+			BodyPet = "InventoryUI.Root.BodyPet", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyPet
 			ItemsTab = "InventoryUI.Root.Tabs.ItemsTab", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Tabs.ItemsTab
-			EquipmentTab = "InventoryUI.Root.Tabs.EquipmentTab", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Tabs.EquipmentTab
+			PetTab = "InventoryUI.Root.Tabs.PetTab", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Tabs.PetTab
 			CloseButton = "InventoryUI.Root.Header.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Header.CloseButton
 			ItemsGridContainer = "InventoryUI.Root.BodyItems.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.GridContainer
-			EquipmentGridContainer = "InventoryUI.Root.BodyEquipment.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyEquipment.GridContainer
-			EquipmentCapacityLabel = "InventoryUI.Root.BodyEquipment.Footer.CapacityLabel", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyEquipment.Footer.CapacityLabel
+			PetGridContainer = "InventoryUI.Root.BodyPet.GridContainer", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyPet.GridContainer
+			PetCapacityLabel = "InventoryUI.Root.BodyPet.Footer.CapacityLabel", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyPet.Footer.CapacityLabel
 			ItemsSelectedName = "InventoryUI.Root.BodyItems.RightPanel.SelectedName", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.SelectedName
 			ItemsUseButton = "InventoryUI.Root.BodyItems.RightPanel.ActionButtons.UseButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.ActionButtons.UseButton
 			ItemsStat1 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat1", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat1
 			ItemsStat2 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat2", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat2
 			ItemsStat3 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat3", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat3
-			EquipmentSelectedName = "InventoryUI.Root.BodyEquipment.RightPanel.SelectedName",
-			EquipmentEquipButton = "InventoryUI.Root.BodyEquipment.RightPanel.ActionButtons.ToggleEquipButton",
-			EquipmentDeleteButton = "InventoryUI.Root.BodyEquipment.RightPanel.ActionButtons.DeleteButton",
-			EquipmentUpgradeButton = "InventoryUI.Root.BodyEquipment.RightPanel.ActionButtons.UpgradeButton",
-			EquipmentStatDamage = "InventoryUI.Root.BodyEquipment.RightPanel.Stats.Damage",
-			EquipmentStatHP = "InventoryUI.Root.BodyEquipment.RightPanel.Stats.HP",
-			EquipmentStatRange = "InventoryUI.Root.BodyEquipment.RightPanel.Stats.Range",
-			EquipmentStatRegen = "InventoryUI.Root.BodyEquipment.RightPanel.Stats.Regen",
+			PetSelectedName = "InventoryUI.Root.BodyPet.RightPanel.SelectedName",
+			PetEquipButton = "InventoryUI.Root.BodyPet.RightPanel.ActionButtons.ToggleEquipButton",
+			PetDeleteButton = "InventoryUI.Root.BodyPet.RightPanel.ActionButtons.DeleteButton",
+			PetUpgradeButton = "InventoryUI.Root.BodyPet.RightPanel.ActionButtons.UpgradeButton",
+			PetStatDamage = "InventoryUI.Root.BodyPet.RightPanel.Stats.Damage",
+			PetStatHP = "InventoryUI.Root.BodyPet.RightPanel.Stats.HP",
+			PetStatRange = "InventoryUI.Root.BodyPet.RightPanel.Stats.Range",
+			PetStatRegeneration = "InventoryUI.Root.BodyPet.RightPanel.Stats.Regeneration",
 		},
 		OnlineReward = {
 			ScreenGui = "OnlineRewardUI", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI
@@ -219,9 +219,9 @@ local ProjectTreeSpec = {
 		GlobalTop100Update = "LauncherArenaRemotes.GlobalTop100Update", -- [PROJECT_TREE_SPEC]
 		MatchSummaryUpdate = "LauncherArenaRemotes.MatchSummaryUpdate", -- [PROJECT_TREE_SPEC]
 		Notification = "LauncherArenaRemotes.Notification",
-		EquipEquipment = "LauncherArenaRemotes.EquipEquipment",
-		UnequipEquipment = "LauncherArenaRemotes.UnequipEquipment",
-		UpgradeEquipment = "LauncherArenaRemotes.UpgradeEquipment", -- [PROJECT_TREE_SPEC]
+		EquipPet = "LauncherArenaRemotes.EquipPet",
+		UnequipPet = "LauncherArenaRemotes.UnequipPet",
+		UpgradePet = "LauncherArenaRemotes.UpgradePet", -- [PROJECT_TREE_SPEC]
 		EquipLauncher = "LauncherArenaRemotes.EquipLauncher",
 		UnequipLauncher = "LauncherArenaRemotes.UnequipLauncher",
 		PurchaseDinamondPack = "LauncherArenaRemotes.PurchaseDinamondPack",
@@ -287,7 +287,7 @@ local ProjectTreeSpec = {
 		--       ItemSlotTemplate_InventoryUI (Frame)
 		--       LauncherSlotTemplate_LauncherInventoryUI (Frame)
 		--         Root (GuiObject)
-		--           EquipmentPreview (ViewportFrame; Studio-authored launcher model preview)
+		--           PetPreview (ViewportFrame; Studio-authored launcher model preview)
 		--     Launchers (Folder)
 		--       SupportLauncher, StunLauncher, NormalLauncher, VacuumLauncher, StealthLauncher, HealLauncher, SpeedLauncher, BonusBuffLauncher, PetrifyLauncher, FireLauncher, PoisonLauncher
 		--     Food (Folder)
@@ -319,7 +319,7 @@ local ProjectTreeSpec = {
 			Assets = {
 				ItemSlotTemplate_InventoryUI = "Assets.UI.ItemSlotTemplate_InventoryUI",
 				LauncherSlotTemplate_LauncherInventoryUI = "Assets.UI.LauncherSlotTemplate_LauncherInventoryUI",
-				EquipmentSlotTemplate_InventoryUI = "Assets.UI.EquipmentSlotTemplate_InventoryUI",
+				PetSlotTemplate_InventoryUI = "Assets.UI.PetSlotTemplate_InventoryUI",
 				SlotRewardTemplate_DailyLoginUI = "Assets.UI.SlotRewardTemplate_DailyLoginUI",
 				SlotItemsTemplate_ShopUI = "Assets.UI.SlotItemsTemplate_ShopUI",
 				SlotLauncherTemplate_shopUI = "Assets.UI.SlotLauncherTemplate_shopUI",

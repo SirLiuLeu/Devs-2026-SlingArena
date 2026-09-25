@@ -1,8 +1,8 @@
 --!strict
 
-local SIZE_MULTIPLIER_ATTRIBUTE = "EquipmentTitanSizeMultiplier"
-local INCOMING_KNOCKBACK_ATTRIBUTE = "EquipmentIncomingKnockbackMultiplier"
-local OUTGOING_KNOCKBACK_ATTRIBUTE = "EquipmentOutgoingKnockbackMultiplier"
+local SIZE_MULTIPLIER_ATTRIBUTE = "PetTitanSizeMultiplier"
+local INCOMING_KNOCKBACK_ATTRIBUTE = "PetIncomingKnockbackMultiplier"
+local OUTGOING_KNOCKBACK_ATTRIBUTE = "PetOutgoingKnockbackMultiplier"
 
 local SIZE_MULTIPLIER = 1.2
 local INCOMING_KNOCKBACK_MULTIPLIER = 0.75

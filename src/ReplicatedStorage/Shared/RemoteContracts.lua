@@ -47,10 +47,10 @@ RemoteContracts.Names = {
 	QuestUpdate = "QuestUpdate",
 	QuestClaim = "QuestClaim",
 	Notification = "Notification",
-	EquipEquipment = "EquipEquipment",
-	UnequipEquipment = "UnequipEquipment",
-	UpgradeEquipment = "UpgradeEquipment",
-	RequestEquipmentGrant = "RequestEquipmentGrant",
+	EquipPet = "EquipPet",
+	UnequipPet = "UnequipPet",
+	UpgradePet = "UpgradePet",
+	RequestPetGrant = "RequestPetGrant",
 	EquipLauncher = "EquipLauncher",
 	UnequipLauncher = "UnequipLauncher",
 	PurchaseDinamondPack = "PurchaseDinamondPack",
@@ -164,13 +164,13 @@ RemoteContracts.Validators = {
 	[RemoteContracts.Names.QuestClaim] = function(questId: any): boolean
 		return typeof(questId) == "string" and #questId > 0 and #questId <= 80
 	end,
-	[RemoteContracts.Names.EquipEquipment] = function(instanceId: any): boolean
+	[RemoteContracts.Names.EquipPet] = function(instanceId: any): boolean
 		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
 	end,
-	[RemoteContracts.Names.UnequipEquipment] = function(slotType: any): boolean
+	[RemoteContracts.Names.UnequipPet] = function(slotType: any): boolean
 		return (typeof(slotType) == "number" and slotType >= 1 and slotType <= 3) or (typeof(slotType) == "string" and #slotType > 0 and #slotType <= 64)
 	end,
-	[RemoteContracts.Names.UpgradeEquipment] = function(instanceId: any): boolean
+	[RemoteContracts.Names.UpgradePet] = function(instanceId: any): boolean
 		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
 	end,
 	[RemoteContracts.Names.EquipLauncher] = function(instanceId: any): boolean
@@ -189,7 +189,7 @@ RemoteContracts.Validators = {
 	[RemoteContracts.Names.PurchaseLauncher] = function(launcherId: any): boolean
 		return typeof(launcherId) == "string" and #launcherId > 0 and #launcherId <= 80
 	end,
-	[RemoteContracts.Names.RequestEquipmentGrant] = function(definitionId: any): boolean
+	[RemoteContracts.Names.RequestPetGrant] = function(definitionId: any): boolean
 		return typeof(definitionId) == "string" and #definitionId > 0 and #definitionId <= 128
 	end,
 	[RemoteContracts.Names.ReportLaunchStopped] = function(payload: any): boolean

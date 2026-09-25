@@ -38,7 +38,7 @@ function LauncherAbilityService:Init()
 		self:_handleLaunch(player, chargeRatio, launchState)
 	end)
 
-	-- Player collisions still notify launcher-specific ability callbacks; equipment status effects are handled by EquipmentEffectService.
+	-- Player collisions still notify launcher-specific ability callbacks; pet status effects are handled by PetAbilityService.
 	self._context.EventBus:On("CollisionPlayerHit", function(
 		victim: Player,
 		attacker: Player?,
@@ -226,7 +226,7 @@ function LauncherAbilityService:_handleCollision(attacker: Player, victim: Playe
 		return
 	end
 
-	-- Equipment-owned collision status effects now execute through EquipmentEffectService.
+	-- Pet-owned collision status effects now execute through PetAbilityService.
 	-- LauncherAbilityService keeps launcher-specific ability callbacks and legacy launcher-only passives.
 
 	ability:OnCollision({ TargetPlayer = victim, CollisionMeta = collisionMeta })

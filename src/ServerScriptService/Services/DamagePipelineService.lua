@@ -7,7 +7,7 @@ local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
-local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
+local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 type Context = {
@@ -41,7 +41,7 @@ local DamagePipelineService = {}
 DamagePipelineService.__index = DamagePipelineService
 
 
-local EQUIPMENT_EFFECT_OVERRIDES: { [string]: EffectConfig } = {
+local PET_EFFECT_OVERRIDES: { [string]: EffectConfig } = {
 	Burn = { Flag = "Burn" },
 	Poison = { Flag = "Poison" },
 	Stun = { Flag = "Stun" },
@@ -90,7 +90,7 @@ local function playerName(player: Player?): string
 end
 
 local function damageLog(message: string)
-	print("[EQUIPMENT_ATTACK_TRACE][DamagePipeline] " .. message)
+	print("[PET_ATTACK_TRACE][DamagePipeline] " .. message)
 end
 
 -- Combat damage is allowed in active round phases; safe-zone and trap damage bypass this check.
@@ -174,7 +174,7 @@ function DamagePipelineService:Init()
 		damageLog(`collision hit attacker={playerName(attacker)} defender={playerName(victim)} impactSpeed={impactSpeed} damage={damage} applied={didApply}`)
 		if didApply then
 			self:_applyLauncherDotFromHit(victim, attacker, attackerState, collisionMeta)
-			self:_applyEquipmentCombatEffectsFromHit(victim, attacker, collisionMeta)
+			self:_applyPetCombatEffectsFromHit(victim, attacker, collisionMeta)
 		end
 	end)
 
@@ -276,8 +276,8 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 
 	local victimStats = playerStateService:GetFinalStats(victim)
 	local armor = victimStats and math.clamp(victimStats.Armor or 0, 0, 0.8) or 0
-	local equipmentDamageMultiplier = tonumber(victim:GetAttribute("EquipmentShieldDamageMultiplier")) or 1
-	local amount = math.clamp(rawDamage * equipmentDamageMultiplier * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
+	local petDamageMultiplier = tonumber(victim:GetAttribute("PetShieldDamageMultiplier")) or 1
+	local amount = math.clamp(rawDamage * petDamageMultiplier * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
 	local teamService = ServiceResolver.Get(self._context, "TeamService")
 	local friendly = attacker and teamService and teamService:IsFriendly(attacker, victim) or false
 	if friendly then
@@ -455,7 +455,7 @@ function DamagePipelineService:_applyLauncherDotFromHit(victim: Player, attacker
 end
 
 
-function DamagePipelineService:_applyEquipmentCombatEffectsFromHit(victim: Player, attacker: Player?, _collisionMeta: any?)
+function DamagePipelineService:_applyPetCombatEffectsFromHit(victim: Player, attacker: Player?, _collisionMeta: any?)
 	if not attacker or attacker == victim then
 		return
 	end
@@ -464,24 +464,24 @@ function DamagePipelineService:_applyEquipmentCombatEffectsFromHit(victim: Playe
 	if not (stateService and dataService) then
 		return
 	end
-	local owned = dataService:GetOwnedEquipment(attacker)
-	local equipped = dataService:GetEquippedEquipment(attacker)
+	local owned = dataService:GetOwnedPets(attacker)
+	local equipped = dataService:GetEquippedPets(attacker)
 	for slot = 1, 3 do
 		local instanceId = equipped[slot]
 		local instance = instanceId and owned[instanceId]
-		local definition = type(instance) == "table" and EquipmentConfig.GetById(tostring(instance.definitionId or "")) or nil
+		local definition = type(instance) == "table" and PetsConfig.GetById(tostring(instance.definitionId or "")) or nil
 		local combatEffect = definition and definition.combatEffect
 		if combatEffect then
 			local flagName = combatEffect.dotFlag or combatEffect.collisionFlag
-			local effectConfig = flagName and EQUIPMENT_EFFECT_OVERRIDES[flagName]
+			local effectConfig = flagName and PET_EFFECT_OVERRIDES[flagName]
 			if effectConfig then
-				if flagName == "Petrify" and combatEffect.cannotPetrifyEquipmentIds then
-					local victimOwned = dataService:GetOwnedEquipment(victim)
-					local victimEquipped = dataService:GetEquippedEquipment(victim)
+				if flagName == "Petrify" and combatEffect.cannotPetrifyPetIds then
+					local victimOwned = dataService:GetOwnedPets(victim)
+					local victimEquipped = dataService:GetEquippedPets(victim)
 					local immune = false
 					for victimSlot = 1, 3 do
 						local victimInstance = victimEquipped[victimSlot] and victimOwned[victimEquipped[victimSlot]]
-						if type(victimInstance) == "table" and combatEffect.cannotPetrifyEquipmentIds[tostring(victimInstance.definitionId)] then
+						if type(victimInstance) == "table" and combatEffect.cannotPetrifyPetIds[tostring(victimInstance.definitionId)] then
 							immune = true
 							break
 						end
@@ -494,9 +494,9 @@ function DamagePipelineService:_applyEquipmentCombatEffectsFromHit(victim: Playe
 				local duration = math.max(0, tonumber(combatEffect.collisionExtraDuration or merged.Duration) or 0)
 				if duration > 0 then
 					stateService:ApplyFlag(victim, flagName, duration, attacker, {
-						SourceId = getSourceId(attacker) .. ":EquipmentSlot" .. tostring(slot),
-						EquipmentId = definition.id,
-						EquipmentInstanceId = instanceId,
+						SourceId = getSourceId(attacker) .. ":PetSlot" .. tostring(slot),
+						PetId = definition.id,
+						PetInstanceId = instanceId,
 						TickInterval = merged.TickInterval,
 						DamagePerTick = merged.DamagePerTick,
 						SlowAmount = merged.SlowAmount,

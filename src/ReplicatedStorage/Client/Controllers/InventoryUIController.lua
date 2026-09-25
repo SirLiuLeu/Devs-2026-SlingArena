@@ -4,8 +4,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
-local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
-local EquipmentUpgradeConfig = require(ReplicatedStorage.Shared.Config.EquipmentUpgradeConfig)
+local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
+local PetsUpgradeConfig = require(ReplicatedStorage.Shared.Config.PetsUpgradeConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
 local PreviewRenderer = require(ReplicatedStorage.Shared.Utils.PreviewRenderer)
@@ -17,7 +17,7 @@ local NORMAL_COLOR = Color3.fromRGB(41, 43, 53)
 local HOVER_COLOR = Color3.fromRGB(62, 66, 82)
 local SELECTED_COLOR = Color3.fromRGB(88, 102, 132)
 local ITEM_SLOT_TEMPLATE_NAME = "ItemSlotTemplate_InventoryUI"
-local EQUIPMENT_SLOT_TEMPLATE_NAME = "EquipmentSlotTemplate_InventoryUI"
+local PET_SLOT_TEMPLATE_NAME = "PetSlotTemplate_InventoryUI"
 
 local function resolveGui(root: Instance, path: string): GuiObject?
 	local value = PathResolver.resolvePath(root, path)
@@ -88,15 +88,15 @@ function InventoryUIController.new(playerGui: PlayerGui)
 	local self = setmetatable({}, InventoryUIController)
 	self._playerGui = playerGui
 	self._spawnedItemSlots = {}
-	self._spawnedEquipmentSlots = {}
+	self._spawnedPetSlots = {}
 	self._connections = {}
 	self._activeTab = "Items"
 	self._slotConnections = {}
 	self._slotConnectionMap = {}
 	self._itemSlotMap = {}
-	self._equipmentSlotMap = {}
+	self._petSlotMap = {}
 	self._selectedItemId = nil
-	self._selectedEquipmentId = nil
+	self._selectedPetId = nil
 	self._cachedSnapshot = nil
 	return self
 end
@@ -119,12 +119,12 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._inventoryGui = PathResolver.resolvePath(self._playerGui, ProjectTreeSpec.UI.Inventory.ScreenGui)
 	self._itemsGrid = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsGridContainer)
 	self._itemsBody = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.BodyItems)
-	self._equipmentBody = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.BodyEquipment)
-	self._equipmentGrid = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentGridContainer)
+	self._petBody = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.BodyPet)
+	self._petGrid = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.PetGridContainer)
 	self._itemsTab = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsTab)
-	self._equipmentTab = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentTab)
+	self._petTab = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetTab)
 	self._closeButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.CloseButton)
-	self._equipmentCapacityLabel = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentCapacityLabel)
+	self._petCapacityLabel = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetCapacityLabel)
 
 	self._itemSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsSelectedName)
 	self._itemStat1 = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsStat1)
@@ -132,42 +132,42 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._itemStat3 = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsStat3)
 	self._itemUseButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsUseButton)
 
-	self._equipmentSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentSelectedName)
-	self._equipmentStatDamage = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentStatDamage)
-	self._equipmentStatHP = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentStatHP)
-	self._equipmentStatRange = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentStatRange)
-	self._equipmentStatRegen = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentStatRegen)
-	self._equipmentEquipButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentEquipButton)
-	self._equipmentDeleteButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentDeleteButton)
-	self._equipmentUpgradeButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.EquipmentUpgradeButton)
-	self._upgradeEquipmentRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):FindFirstChild(RemoteContracts.Names.UpgradeEquipment) :: RemoteEvent?
+	self._petSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetSelectedName)
+	self._petStatDamage = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetStatDamage)
+	self._petStatHP = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetStatHP)
+	self._petStatRange = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetStatRange)
+	self._petStatRegeneration = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetStatRegeneration)
+	self._petEquipButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetEquipButton)
+	self._petDeleteButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetDeleteButton)
+	self._petUpgradeButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetUpgradeButton)
+	self._upgradePetRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):FindFirstChild(RemoteContracts.Names.UpgradePet) :: RemoteEvent?
 
 	local assets = ReplicatedStorage:WaitForChild("Assets")
 	if not assets then
 		warn("[INVENTORY_UI] ReplicatedStorage.Assets missing")
 	else
-		self._equipmentAssets = assets:FindFirstChild("Equipment")
+		self._petAssets = assets:FindFirstChild("Pets")
 		local uiFolder = assets:FindFirstChild("UI")
 		if not uiFolder then
 			warn("[INVENTORY_UI] ReplicatedStorage.Assets.UI missing")
 		else
 			self._itemTemplate = findUiTemplate(uiFolder, ITEM_SLOT_TEMPLATE_NAME, nil)
-			self._equipmentTemplate = findUiTemplate(uiFolder, EQUIPMENT_SLOT_TEMPLATE_NAME, nil)
+			self._petTemplate = findUiTemplate(uiFolder, PET_SLOT_TEMPLATE_NAME, nil)
 			if not self._itemTemplate then
 				warn("[INVENTORY_UI] " .. ITEM_SLOT_TEMPLATE_NAME .. " missing in ReplicatedStorage.Assets.UI")
 			end
-			if not self._equipmentTemplate then
-				warn("[INVENTORY_UI] " .. EQUIPMENT_SLOT_TEMPLATE_NAME .. " missing in ReplicatedStorage.Assets.UI")
+			if not self._petTemplate then
+				warn("[INVENTORY_UI] " .. PET_SLOT_TEMPLATE_NAME .. " missing in ReplicatedStorage.Assets.UI")
 			end
 		end
 	end
-	if not self._equipmentAssets then warn("[INVENTORY_UI] ReplicatedStorage.Assets.Equipment missing") end
+	if not self._petAssets then warn("[INVENTORY_UI] ReplicatedStorage.Assets.Pets missing") end
 
 	if not self._inventoryGui then warn("[INVENTORY_UI] InventoryUI ScreenGui missing") end
 	if not self._itemsGrid then warn("[INVENTORY_UI] Items grid container missing") end
 	if not self._itemsBody then warn("[INVENTORY_UI] Items body frame missing") end
-	if not self._equipmentBody then warn("[INVENTORY_UI] BodyEquipment missing at StarterGui/InventoryUI/Root/BodyEquipment") end
-	if not self._equipmentGrid then warn("[INVENTORY_UI] GridContainer missing at StarterGui/InventoryUI/Root/BodyEquipment/GridContainer") end
+	if not self._petBody then warn("[INVENTORY_UI] BodyPet missing at StarterGui/InventoryUI/Root/BodyPet") end
+	if not self._petGrid then warn("[INVENTORY_UI] GridContainer missing at StarterGui/InventoryUI/Root/BodyPet/GridContainer") end
 	if not self._itemsTab then warn("[INVENTORY_UI] ItemsTab button missing") end
 	if not self._closeButton then warn("[INVENTORY_UI] CloseButton missing") end
 
@@ -176,8 +176,8 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 			self:SetActiveTab("Items")
 		end))
 	end
-	if self._equipmentTab then
-		table.insert(self._connections, self._equipmentTab.MouseButton1Click:Connect(function() self:SetActiveTab("Equipment") end))
+	if self._petTab then
+		table.insert(self._connections, self._petTab.MouseButton1Click:Connect(function() self:SetActiveTab("Pet") end))
 	end
 	if self._closeButton then
 		table.insert(self._connections, self._closeButton.MouseButton1Click:Connect(function()
@@ -193,20 +193,20 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	else
 		warn("[INVENTORY_UI] " .. ProjectTreeSpec.UI.Inventory.ItemsUseButton .. " missing")
 	end
-	if self._equipmentEquipButton then table.insert(self._connections, self._equipmentEquipButton.MouseButton1Click:Connect(function() if self._dataProvider then self._dataProvider:EquipSelectedEquipment() end end)) end
-	if self._equipmentDeleteButton then table.insert(self._connections, self._equipmentDeleteButton.MouseButton1Click:Connect(function() if self._dataProvider then self._dataProvider:UnequipSelectedEquipment() end end)) end
-	if self._equipmentUpgradeButton then
-		table.insert(self._connections, self._equipmentUpgradeButton.MouseButton1Click:Connect(function()
-			local equipmentId = self._selectedEquipmentId
-			if not equipmentId or not self._upgradeEquipmentRemote then
+	if self._petEquipButton then table.insert(self._connections, self._petEquipButton.MouseButton1Click:Connect(function() if self._dataProvider then self._dataProvider:EquipSelectedPet() end end)) end
+	if self._petDeleteButton then table.insert(self._connections, self._petDeleteButton.MouseButton1Click:Connect(function() if self._dataProvider then self._dataProvider:UnequipSelectedPet() end end)) end
+	if self._petUpgradeButton then
+		table.insert(self._connections, self._petUpgradeButton.MouseButton1Click:Connect(function()
+			local petId = self._selectedPetId
+			if not petId or not self._upgradePetRemote then
 				return
 			end
 			if not self._confirmationController then
-				warn("[INVENTORY_UI] ConfirmationUIController is required before upgrading equipment")
+				warn("[INVENTORY_UI] ConfirmationUIController is required before upgrading pet")
 				return
 			end
-			self._confirmationController:RequestConfirm("Upgrade this equipment?", function()
-				self._upgradeEquipmentRemote:FireServer(equipmentId)
+			self._confirmationController:RequestConfirm("Upgrade this pet?", function()
+				self._upgradePetRemote:FireServer(petId)
 			end)
 		end))
 	end
@@ -225,11 +225,11 @@ end
 
 function InventoryUIController:SetActiveTab(tabName: string)
 	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryUI] SetActiveTab requested=%s previous=%s t=%.3f", tostring(tabName), tostring(self._activeTab), os.clock())) end
-	self._activeTab = if tabName == "Equipment" then "Equipment" else "Items"
+	self._activeTab = if tabName == "Pet" then "Pet" else "Items"
 	if self._itemsBody then
 		self._itemsBody.Visible = self._activeTab == "Items"
 	end
-	if self._equipmentBody then self._equipmentBody.Visible = self._activeTab == "Equipment" end
+	if self._petBody then self._petBody.Visible = self._activeTab == "Pet" end
 end
 
 function InventoryUIController:_disconnectSlotConnections()
@@ -252,7 +252,7 @@ function InventoryUIController:_disconnectSlot(slot: Instance)
 end
 
 function InventoryUIController:_clearGeneratedSlots()
-	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryUI] clearGeneratedSlots items=%d equipment=%d slotConnections=%d t=%.3f", #self._spawnedItemSlots, #self._spawnedEquipmentSlots, #self._slotConnections, os.clock())) end
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryUI] clearGeneratedSlots items=%d pet=%d slotConnections=%d t=%.3f", #self._spawnedItemSlots, #self._spawnedPetSlots, #self._slotConnections, os.clock())) end
 	if self._itemsGrid then
 		for _, child in ipairs(self._itemsGrid:GetChildren()) do
 			if child:IsA("GuiObject") then
@@ -260,8 +260,8 @@ function InventoryUIController:_clearGeneratedSlots()
 			end
 		end
 	end
-	if self._equipmentGrid then
-		for _, child in ipairs(self._equipmentGrid:GetChildren()) do if child:IsA("GuiObject") then child:Destroy() end end
+	if self._petGrid then
+		for _, child in ipairs(self._petGrid:GetChildren()) do if child:IsA("GuiObject") then child:Destroy() end end
 	end
 	for _, slot in ipairs(self._spawnedItemSlots) do
 		if slot and slot.Parent then
@@ -269,9 +269,9 @@ function InventoryUIController:_clearGeneratedSlots()
 		end
 	end
 	table.clear(self._spawnedItemSlots)
-	table.clear(self._spawnedEquipmentSlots)
+	table.clear(self._spawnedPetSlots)
 	table.clear(self._itemSlotMap)
-	table.clear(self._equipmentSlotMap)
+	table.clear(self._petSlotMap)
 	self:_disconnectSlotConnections()
 end
 
@@ -287,21 +287,21 @@ function InventoryUIController:_bindCommonSlot(slot: Instance, name: string, ico
 	end
 end
 
-function InventoryUIController:_populateEquipmentPreview(slotRoot: Instance, definitionId: string)
-	local preview = slotRoot:FindFirstChild("EquipmentPreview", true)
+function InventoryUIController:_populatePetPreview(slotRoot: Instance, definitionId: string)
+	local preview = slotRoot:FindFirstChild("PetPreview", true)
 	if preview and preview:IsA("ViewportFrame") then
-		PreviewRenderer.Populate(preview, self._equipmentAssets, definitionId)
+		PreviewRenderer.Populate(preview, self._petAssets, definitionId)
 	else
-		warn("[INVENTORY_UI] Equipment slot is missing EquipmentPreview ViewportFrame")
+		warn("[INVENTORY_UI] Pet slot is missing PetPreview ViewportFrame")
 	end
 end
 
-function InventoryUIController:_bindEquipmentSlot(slotRoot: Instance, name: string, definitionId: string)
+function InventoryUIController:_bindPetSlot(slotRoot: Instance, name: string, definitionId: string)
 	local nameLabel = findDirectTemplateText(slotRoot, "Name")
 	if nameLabel then
 		nameLabel.Text = name
 	end
-	self:_populateEquipmentPreview(slotRoot, definitionId)
+	self:_populatePetPreview(slotRoot, definitionId)
 end
 
 function InventoryUIController:_applySlotVisual(slot: GuiObject, isHovered: boolean, isSelected: boolean)
@@ -336,12 +336,12 @@ function InventoryUIController:_bindSlotState(slot: GuiObject, listType: string,
 
 	track(clickTarget.MouseEnter:Connect(function()
 		hoverState = true
-		local selected = (listType == "Item" and self._selectedItemId == id) or (listType == "Equipment" and self._selectedEquipmentId == id)
+		local selected = (listType == "Item" and self._selectedItemId == id) or (listType == "Pet" and self._selectedPetId == id)
 		self:_applySlotVisual(slot, hoverState, selected)
 	end))
 	track(clickTarget.MouseLeave:Connect(function()
 		hoverState = false
-		local selected = (listType == "Item" and self._selectedItemId == id) or (listType == "Equipment" and self._selectedEquipmentId == id)
+		local selected = (listType == "Item" and self._selectedItemId == id) or (listType == "Pet" and self._selectedPetId == id)
 		self:_applySlotVisual(slot, hoverState, selected)
 	end))
 	track(clickTarget.InputBegan:Connect(function(input)
@@ -353,9 +353,9 @@ function InventoryUIController:_bindSlotState(slot: GuiObject, listType: string,
 			if self._dataProvider then
 				self._dataProvider:SelectItem(id)
 			end
-		elseif listType == "Equipment" then
-			self._selectedEquipmentId = id
-			if self._dataProvider then self._dataProvider:SelectEquipment(id) end
+		elseif listType == "Pet" then
+			self._selectedPetId = id
+			if self._dataProvider then self._dataProvider:SelectPet(id) end
 		end
 		if self._cachedSnapshot then
 			self:RefreshWithData(self._cachedSnapshot)
@@ -408,33 +408,33 @@ local function formatRemainingLifetime(entry): string
 	return "Permanent"
 end
 
-function InventoryUIController:_spawnEquipmentSlot(equipmentEntry)
-	if not self._equipmentGrid then warn("[INVENTORY_UI] Cannot spawn equipment: GridContainer missing at StarterGui/InventoryUI/Root/BodyEquipment/GridContainer"); return end
-	if not self._equipmentTemplate or not self._equipmentTemplate:IsA("GuiObject") then warn("[INVENTORY_UI] Cannot spawn equipment: template missing at ReplicatedStorage/Assets/UI/EquipmentSlotTemplate_InventoryUI"); return end
-	local instanceId = tostring(equipmentEntry.instanceId or "")
-	local definitionId = tostring(equipmentEntry.definitionId or equipmentEntry.id or "")
+function InventoryUIController:_spawnPetSlot(petEntry)
+	if not self._petGrid then warn("[INVENTORY_UI] Cannot spawn pet: GridContainer missing at StarterGui/InventoryUI/Root/BodyPet/GridContainer"); return end
+	if not self._petTemplate or not self._petTemplate:IsA("GuiObject") then warn("[INVENTORY_UI] Cannot spawn pet: template missing at ReplicatedStorage/Assets/UI/PetSlotTemplate_InventoryUI"); return end
+	local instanceId = tostring(petEntry.instanceId or "")
+	local definitionId = tostring(petEntry.definitionId or petEntry.id or "")
 	if instanceId == "" or definitionId == "" then return end
-	local def = EquipmentConfig.GetById(definitionId)
-	if not def then warn(string.format("[INVENTORY_UI] Unknown equipment definition id in owned data: %s", definitionId)); return end
-	local slot = self._equipmentTemplate:Clone()
-	local slotRoot = getTemplateRoot(slot, EQUIPMENT_SLOT_TEMPLATE_NAME)
+	local def = PetsConfig.GetById(definitionId)
+	if not def then warn(string.format("[INVENTORY_UI] Unknown pet definition id in owned data: %s", definitionId)); return end
+	local slot = self._petTemplate:Clone()
+	local slotRoot = getTemplateRoot(slot, PET_SLOT_TEMPLATE_NAME)
 	if not slotRoot then slot:Destroy(); return end
-	slot.Name = string.format("GeneratedEquipment_%s", instanceId)
+	slot.Name = string.format("GeneratedPet_%s", instanceId)
 	slot.Visible = true
-	slot.Parent = self._equipmentGrid
-	self:_bindEquipmentSlot(slotRoot, equipmentEntry.name or def.name, definitionId)
+	slot.Parent = self._petGrid
+	self:_bindPetSlot(slotRoot, petEntry.name or def.name, definitionId)
 	local remainingTimeText = findDirectTemplateText(slotRoot, "RemainingTimeText")
-	if remainingTimeText then remainingTimeText.Text = formatRemainingLifetime(equipmentEntry) end
+	if remainingTimeText then remainingTimeText.Text = formatRemainingLifetime(petEntry) end
 	local levelLabel = findDirectTemplateText(slotRoot, "Level")
-	if levelLabel then levelLabel.Text = string.format("Lv.%d", math.max(1, equipmentEntry.level or 1)) end
+	if levelLabel then levelLabel.Text = string.format("Lv.%d", math.max(1, petEntry.level or 1)) end
 	local equippedTag = findDirectTemplateText(slotRoot, "EquippedTag")
 	if equippedTag then
-		equippedTag.Visible = equipmentEntry.equipped == true
-		equippedTag.Text = equipmentEntry.equippedSlot and ("Slot " .. tostring(equipmentEntry.equippedSlot)) or "Equipped"
+		equippedTag.Visible = petEntry.equipped == true
+		equippedTag.Text = petEntry.equippedSlot and ("Slot " .. tostring(petEntry.equippedSlot)) or "Equipped"
 	end
-	self._equipmentSlotMap[instanceId] = slot
-	self:_bindSlotState(slot, "Equipment", instanceId)
-	table.insert(self._spawnedEquipmentSlots, slot)
+	self._petSlotMap[instanceId] = slot
+	self:_bindSlotState(slot, "Pet", instanceId)
+	table.insert(self._spawnedPetSlots, slot)
 end
 
 function InventoryUIController:_updateItemSlot(slot: GuiObject, itemId: string, quantity: number)
@@ -449,20 +449,20 @@ end
 
 
 
-function InventoryUIController:_updateEquipmentSlot(slot: GuiObject, equipmentEntry)
-	local definitionId = tostring(equipmentEntry.definitionId or equipmentEntry.id or "")
-	local def = EquipmentConfig.GetById(definitionId)
-	local slotRoot = getTemplateRoot(slot, EQUIPMENT_SLOT_TEMPLATE_NAME)
+function InventoryUIController:_updatePetSlot(slot: GuiObject, petEntry)
+	local definitionId = tostring(petEntry.definitionId or petEntry.id or "")
+	local def = PetsConfig.GetById(definitionId)
+	local slotRoot = getTemplateRoot(slot, PET_SLOT_TEMPLATE_NAME)
 	if not slotRoot or not def then return end
-	self:_bindEquipmentSlot(slotRoot, equipmentEntry.name or def.name, definitionId)
+	self:_bindPetSlot(slotRoot, petEntry.name or def.name, definitionId)
 	local remainingTimeText = findDirectTemplateText(slotRoot, "RemainingTimeText")
-	if remainingTimeText then remainingTimeText.Text = formatRemainingLifetime(equipmentEntry) end
+	if remainingTimeText then remainingTimeText.Text = formatRemainingLifetime(petEntry) end
 	local levelLabel = findDirectTemplateText(slotRoot, "Level")
-	if levelLabel then levelLabel.Text = string.format("Lv.%d", math.max(1, equipmentEntry.level or 1)) end
+	if levelLabel then levelLabel.Text = string.format("Lv.%d", math.max(1, petEntry.level or 1)) end
 	local equippedTag = findDirectTemplateText(slotRoot, "EquippedTag")
 	if equippedTag then
-		equippedTag.Visible = equipmentEntry.equipped == true
-		equippedTag.Text = equipmentEntry.equippedSlot and ("Slot " .. tostring(equipmentEntry.equippedSlot)) or "Equipped"
+		equippedTag.Visible = petEntry.equipped == true
+		equippedTag.Text = petEntry.equippedSlot and ("Slot " .. tostring(petEntry.equippedSlot)) or "Equipped"
 	end
 end
 
@@ -481,29 +481,29 @@ function InventoryUIController:_reconcileSlots(data)
 	end
 	for itemId, slot in pairs(self._itemSlotMap) do if not seenItems[itemId] then self._itemSlotMap[itemId] = nil; self:_destroyMappedSlot(slot) end end
 
-	local seenEquipment = {}
-	for _, equipmentEntry in ipairs(data.ownedEquipment or {}) do
-		local instanceId = tostring(equipmentEntry.instanceId or "")
+	local seenPet = {}
+	for _, petEntry in ipairs(data.ownedPets or {}) do
+		local instanceId = tostring(petEntry.instanceId or "")
 		if instanceId ~= "" then
-			seenEquipment[instanceId] = true
-			local slot = self._equipmentSlotMap[instanceId]
-			if slot and slot.Parent then self:_updateEquipmentSlot(slot, equipmentEntry) else self:_spawnEquipmentSlot(equipmentEntry) end
+			seenPet[instanceId] = true
+			local slot = self._petSlotMap[instanceId]
+			if slot and slot.Parent then self:_updatePetSlot(slot, petEntry) else self:_spawnPetSlot(petEntry) end
 		end
 	end
-	for equipmentId, slot in pairs(self._equipmentSlotMap) do if not seenEquipment[equipmentId] then self._equipmentSlotMap[equipmentId] = nil; self:_destroyMappedSlot(slot) end end
+	for petId, slot in pairs(self._petSlotMap) do if not seenPet[petId] then self._petSlotMap[petId] = nil; self:_destroyMappedSlot(slot) end end
 end
 
-function InventoryUIController:_findEquipmentEntry(ownedEquipment, equipmentId)
-	for _, entry in ipairs(ownedEquipment or {}) do if entry.instanceId == equipmentId or entry.id == equipmentId then return entry end end
+function InventoryUIController:_findPetEntry(ownedPets, petId)
+	for _, entry in ipairs(ownedPets or {}) do if entry.instanceId == petId or entry.id == petId then return entry end end
 	return nil
 end
 
-function InventoryUIController:_refreshEquipmentPanel(data)
-	local equipmentId = data.selectedEquipmentId or self._selectedEquipmentId
-	self._selectedEquipmentId = equipmentId
-	local entry = equipmentId and self:_findEquipmentEntry(data.ownedEquipment, equipmentId) or nil
-	local def = entry and EquipmentConfig.GetById(entry.definitionId or entry.id or "") or nil
-	if self._equipmentSelectedName then self._equipmentSelectedName.Text = (entry and entry.name) or (def and def.name) or "No equipment selected" end
+function InventoryUIController:_refreshPetPanel(data)
+	local petId = data.selectedPetId or self._selectedPetId
+	self._selectedPetId = petId
+	local entry = petId and self:_findPetEntry(data.ownedPets, petId) or nil
+	local def = entry and PetsConfig.GetById(entry.definitionId or entry.id or "") or nil
+	if self._petSelectedName then self._petSelectedName.Text = (entry and entry.name) or (def and def.name) or "No pet selected" end
 	local level = math.max(1, math.floor(tonumber(entry and entry.level) or 1))
 	local nextLevel = level + 1
 	local modifiers = def and def.statModifiers or nil
@@ -520,21 +520,21 @@ function InventoryUIController:_refreshEquipmentPanel(data)
 		if type(baseValue) ~= "number" then
 			return label .. ": -"
 		end
-		local currentValue = EquipmentUpgradeConfig.GetStatAtLevel(baseValue, level)
-		local nextValue = EquipmentUpgradeConfig.GetStatAtLevel(baseValue, nextLevel)
+		local currentValue = PetsUpgradeConfig.GetStatAtLevel(baseValue, level)
+		local nextValue = PetsUpgradeConfig.GetStatAtLevel(baseValue, nextLevel)
 		local prefix = if isMultiplier then "x" else ""
 		return string.format("%s: %s%.2f <font color=\"#00ff00\">➔ %s%.2f</font>", label, prefix, currentValue, prefix, nextValue)
 	end
 
-	if self._equipmentStatDamage then self._equipmentStatDamage.Text = formatStat("Damage", "baseDamage", "damageMultiplier") ; self._equipmentStatDamage.RichText = true end
-	if self._equipmentStatHP then self._equipmentStatHP.Text = formatStat("HP", "maxHP") ; self._equipmentStatHP.RichText = true end
-	if self._equipmentStatRange then self._equipmentStatRange.Text = formatStat("Range", "launchRange", "launchSpeed") ; self._equipmentStatRange.RichText = true end
-	if self._equipmentStatRegen then self._equipmentStatRegen.Text = formatStat("Regen", "regen") ; self._equipmentStatRegen.RichText = true end
-	if self._equipmentEquipButton then
-		self._equipmentEquipButton.Text = if entry and entry.equipped then "Unequip" else "Equip"
-		self._equipmentEquipButton.Active = entry ~= nil
+	if self._petStatDamage then self._petStatDamage.Text = formatStat("Damage", "baseDamage", "damageMultiplier") ; self._petStatDamage.RichText = true end
+	if self._petStatHP then self._petStatHP.Text = formatStat("HP", "maxHP") ; self._petStatHP.RichText = true end
+	if self._petStatRange then self._petStatRange.Text = formatStat("Range", "launchRange", "launchSpeed") ; self._petStatRange.RichText = true end
+	if self._petStatRegeneration then self._petStatRegeneration.Text = formatStat("Regeneration", "regen") ; self._petStatRegeneration.RichText = true end
+	if self._petEquipButton then
+		self._petEquipButton.Text = if entry and entry.equipped then "Unequip" else "Equip"
+		self._petEquipButton.Active = entry ~= nil
 	end
-	if self._equipmentUpgradeButton then self._equipmentUpgradeButton.Text = string.format("Upgrade %d Diamonds", EquipmentUpgradeConfig.GetUpgradeCost(level)); self._equipmentUpgradeButton.Active = entry ~= nil end
+	if self._petUpgradeButton then self._petUpgradeButton.Text = string.format("Upgrade %d Diamonds", PetsUpgradeConfig.GetUpgradeCost(level)); self._petUpgradeButton.Active = entry ~= nil end
 end
 
 
@@ -566,15 +566,15 @@ function InventoryUIController:_refreshAllSlotVisuals()
 			self:_applySlotVisual(slot, false, self._selectedItemId == itemId)
 		end
 	end
-	for equipmentId, slot in pairs(self._equipmentSlotMap) do
+	for petId, slot in pairs(self._petSlotMap) do
 		if slot and slot.Parent then
-			self:_applySlotVisual(slot, false, self._selectedEquipmentId == equipmentId)
+			self:_applySlotVisual(slot, false, self._selectedPetId == petId)
 		end
 	end
 end
 
 function InventoryUIController:RefreshWithData(data)
-	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryUI] RefreshWithData items=%s equipment=%s equippedEquipment=%s selectedEquipment=%s t=%.3f", tostring(type(data.ownedItems) == "table" and (function() local count = 0; for _ in pairs(data.ownedItems) do count += 1 end; return count end)() or "n/a"), tostring(type(data.ownedEquipment) == "table" and #data.ownedEquipment or "n/a"), tostring(type(data.equippedEquipment) == "table" and (function() local count = 0; for _ in pairs(data.equippedEquipment) do count += 1 end; return count end)() or "n/a"), tostring(data.selectedEquipmentId), os.clock())) end
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryUI] RefreshWithData items=%s pet=%s equippedPets=%s selectedPet=%s t=%.3f", tostring(type(data.ownedItems) == "table" and (function() local count = 0; for _ in pairs(data.ownedItems) do count += 1 end; return count end)() or "n/a"), tostring(type(data.ownedPets) == "table" and #data.ownedPets or "n/a"), tostring(type(data.equippedPets) == "table" and (function() local count = 0; for _ in pairs(data.equippedPets) do count += 1 end; return count end)() or "n/a"), tostring(data.selectedPetId), os.clock())) end
 	self._cachedSnapshot = data
 	if self._inventoryGui and self._inventoryGui:IsA("ScreenGui") and not self._inventoryGui.Enabled then
 		return
@@ -582,10 +582,10 @@ function InventoryUIController:RefreshWithData(data)
 
 	self:_reconcileSlots(data)
 
-	if self._equipmentCapacityLabel then self._equipmentCapacityLabel.Text = string.format("Capacity: %d/%d | Equipped: %d/3", #(data.ownedEquipment or {}), data.equipmentCapacity or 0, (function() local count = 0; for _ in pairs(data.equippedEquipment or {}) do count += 1 end; return count end)()) end
+	if self._petCapacityLabel then self._petCapacityLabel.Text = string.format("Capacity: %d/%d | Equipped: %d/3", #(data.ownedPets or {}), data.petCapacity or 0, (function() local count = 0; for _ in pairs(data.equippedPets or {}) do count += 1 end; return count end)()) end
 
 	self:_refreshItemPanel(data)
-	self:_refreshEquipmentPanel(data)
+	self:_refreshPetPanel(data)
 	self:_refreshAllSlotVisuals()
 end
 

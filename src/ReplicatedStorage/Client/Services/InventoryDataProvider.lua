@@ -3,7 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
-local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
+local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local MockData = require(ReplicatedStorage.Client.Services.MockData)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
@@ -12,8 +12,8 @@ local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
 
 local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 local consumeItemRemote = remotes:FindFirstChild(RemoteContracts.Names.ConsumeItem) :: RemoteEvent?
-local equipEquipmentRemote = remotes:FindFirstChild(RemoteContracts.Names.EquipEquipment) :: RemoteEvent?
-local unequipEquipmentRemote = remotes:FindFirstChild(RemoteContracts.Names.UnequipEquipment) :: RemoteEvent?
+local equipPetRemote = remotes:FindFirstChild(RemoteContracts.Names.EquipPet) :: RemoteEvent?
+local unequipPetRemote = remotes:FindFirstChild(RemoteContracts.Names.UnequipPet) :: RemoteEvent?
 local equipLauncherRemote = remotes:FindFirstChild(RemoteContracts.Names.EquipLauncher) :: RemoteEvent?
 local unequipLauncherRemote = remotes:FindFirstChild(RemoteContracts.Names.UnequipLauncher) :: RemoteEvent?
 
@@ -26,9 +26,9 @@ export type InventorySnapshot = {
 	launcherCapacity: number,
 	selectedItemId: string?,
 	selectedLauncherId: string?,
-	ownedEquipment: { any },
-	equippedEquipment: { [any]: string },
-	selectedEquipmentId: string?,
+	ownedPets: { any },
+	equippedPets: { [any]: string },
+	selectedPetId: string?,
 	lastUseResult: string?,
 	itemCooldownEnds: { [string]: number },
 	pendingLauncherInstanceId: string?,
@@ -98,16 +98,16 @@ function InventoryDataProvider.new()
 	self._state = {
 		ownedItems = {},
 		ownedLaunchers = {},
-		ownedEquipment = {},
-		equippedEquipment = {},
+		ownedPets = {},
+		equippedPets = {},
 		launcherCapacity = 40,
 		selectedItemId = nil,
 		selectedLauncherId = nil,
-		selectedEquipmentId = nil,
+		selectedPetId = nil,
 		lastUseResult = nil,
 		itemCooldownEnds = {},
 		pendingLauncherInstanceId = nil,
-		equipmentCapacity = 40,
+		petCapacity = 40,
 		_launcherGiveCursor = 0,
 	}
 	return self
@@ -132,15 +132,15 @@ function InventoryDataProvider:GetSnapshot(): InventorySnapshot
 		selectedLauncherId = self._state.selectedLauncherId,
 		lastUseResult = self._state.lastUseResult,
 		itemCooldownEnds = table.clone(self._state.itemCooldownEnds),
-		ownedEquipment = cloneLaunchers(self._state.ownedEquipment),
-		equippedEquipment = table.clone(self._state.equippedEquipment),
-		selectedEquipmentId = self._state.selectedEquipmentId,
-		equipmentCapacity = self._state.equipmentCapacity,
+		ownedPets = cloneLaunchers(self._state.ownedPets),
+		equippedPets = table.clone(self._state.equippedPets),
+		selectedPetId = self._state.selectedPetId,
+		petCapacity = self._state.petCapacity,
 	}
 end
 
 function InventoryDataProvider:_emitChanged()
-	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryData] emitChanged items=%d launchers=%d equipment=%d selectedEquipment=%s t=%.3f", (function() local count = 0; for _ in pairs(self._state.ownedItems) do count += 1 end; return count end)(), #self._state.ownedLaunchers, #self._state.ownedEquipment, tostring(self._state.selectedEquipmentId), os.clock())) end
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryData] emitChanged items=%d launchers=%d pet=%d selectedPet=%s t=%.3f", (function() local count = 0; for _ in pairs(self._state.ownedItems) do count += 1 end; return count end)(), #self._state.ownedLaunchers, #self._state.ownedPets, tostring(self._state.selectedPetId), os.clock())) end
 	self._changed:Fire(self:GetSnapshot())
 end
 
@@ -149,7 +149,7 @@ function InventoryDataProvider:BindChanged(callback: (InventorySnapshot) -> ())
 end
 
 function InventoryDataProvider:SetFromState(state)
-	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryData] SetFromState incomingType=%s ownedEquipment=%s equippedEquipment=%s t=%.3f", type(state), tostring(type(state) == "table" and type(state.OwnedEquipment) == "table" and (function() local count = 0; for _ in pairs(state.OwnedEquipment) do count += 1 end; return count end)() or "n/a"), tostring(type(state) == "table" and type(state.EquippedEquipment) == "table" and (function() local count = 0; for _ in pairs(state.EquippedEquipment) do count += 1 end; return count end)() or "n/a"), os.clock())) end
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryData] SetFromState incomingType=%s ownedPets=%s equippedPets=%s t=%.3f", type(state), tostring(type(state) == "table" and type(state.OwnedPets) == "table" and (function() local count = 0; for _ in pairs(state.OwnedPets) do count += 1 end; return count end)() or "n/a"), tostring(type(state) == "table" and type(state.EquippedPets) == "table" and (function() local count = 0; for _ in pairs(state.EquippedPets) do count += 1 end; return count end)() or "n/a"), os.clock())) end
 	if type(state) ~= "table" then
 		return
 	end
@@ -178,26 +178,26 @@ function InventoryDataProvider:SetFromState(state)
 		end
 	end
 
-	local nextEquipment = self._state.ownedEquipment
-	local incomingEquipment = state.OwnedEquipment
-	if type(incomingEquipment) == "table" then
-		nextEquipment = cloneLaunchers(incomingEquipment)
-		for _, entry in ipairs(nextEquipment) do
-			local def = EquipmentConfig.GetById(entry.definitionId or entry.id or "")
+	local nextPet = self._state.ownedPets
+	local incomingPet = state.OwnedPets
+	if type(incomingPet) == "table" then
+		nextPet = cloneLaunchers(incomingPet)
+		for _, entry in ipairs(nextPet) do
+			local def = PetsConfig.GetById(entry.definitionId or entry.id or "")
 			entry.id = entry.definitionId or entry.id
 			entry.name = entry.name or (def and def.name)
 			entry.icon = entry.icon or (def and def.iconId)
 		end
 	end
 
-	local nextEquippedEquipment = self._state.equippedEquipment
-	if type(state.EquippedEquipment) == "table" then
-		nextEquippedEquipment = table.clone(state.EquippedEquipment)
-		nextEquipment = cloneLaunchers(nextEquipment)
-		for _, entry in ipairs(nextEquipment) do
+	local nextEquippedPets = self._state.equippedPets
+	if type(state.EquippedPets) == "table" then
+		nextEquippedPets = table.clone(state.EquippedPets)
+		nextPet = cloneLaunchers(nextPet)
+		for _, entry in ipairs(nextPet) do
 			entry.equipped = false
 			entry.equippedSlot = nil
-			for slot, instanceId in pairs(nextEquippedEquipment) do
+			for slot, instanceId in pairs(nextEquippedPets) do
 				if instanceId == entry.instanceId then entry.equipped = true; entry.equippedSlot = tonumber(slot) or slot end
 			end
 		end
@@ -211,8 +211,8 @@ function InventoryDataProvider:SetFromState(state)
 	local changed = not deepEqual(nextItems, self._state.ownedItems)
 		or not deepEqual(nextItemCooldownEnds, self._state.itemCooldownEnds)
 		or not deepEqual(nextLaunchers, self._state.ownedLaunchers)
-		or not deepEqual(nextEquipment, self._state.ownedEquipment)
-		or not deepEqual(nextEquippedEquipment, self._state.equippedEquipment)
+		or not deepEqual(nextPet, self._state.ownedPets)
+		or not deepEqual(nextEquippedPets, self._state.equippedPets)
 		or nextLauncherCapacity ~= self._state.launcherCapacity
 
 	if type(state.EquippedLauncherInstanceId) == "string" and self._state.pendingLauncherInstanceId ~= nil then
@@ -228,8 +228,8 @@ function InventoryDataProvider:SetFromState(state)
 	self._state.ownedItems = nextItems
 	self._state.itemCooldownEnds = nextItemCooldownEnds
 	self._state.ownedLaunchers = nextLaunchers
-	self._state.ownedEquipment = nextEquipment
-	self._state.equippedEquipment = nextEquippedEquipment
+	self._state.ownedPets = nextPet
+	self._state.equippedPets = nextEquippedPets
 	self._state.launcherCapacity = nextLauncherCapacity
 	self:_emitChanged()
 end
@@ -257,8 +257,8 @@ function InventoryDataProvider:SelectItem(itemId: string?)
 	self:_emitChanged()
 end
 
-function InventoryDataProvider:SelectEquipment(equipmentId: string?)
-	self._state.selectedEquipmentId = equipmentId
+function InventoryDataProvider:SelectPet(petId: string?)
+	self._state.selectedPetId = petId
 	self:_emitChanged()
 end
 
@@ -347,27 +347,27 @@ function InventoryDataProvider.GetDefault()
 	return defaultProvider
 end
 
-function InventoryDataProvider:_findEquipmentIndex(equipmentId: string): number?
-	for index, entry in ipairs(self._state.ownedEquipment) do
-		if entry.instanceId == equipmentId or entry.id == equipmentId then return index end
+function InventoryDataProvider:_findPetIndex(petId: string): number?
+	for index, entry in ipairs(self._state.ownedPets) do
+		if entry.instanceId == petId or entry.id == petId then return index end
 	end
 	return nil
 end
 
-function InventoryDataProvider:EquipSelectedEquipment(): boolean
+function InventoryDataProvider:EquipSelectedPet(): boolean
 	print("[UI] Action called: Equip Item")
-	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryData] EquipSelectedEquipment selected=%s t=%.3f", tostring(self._state.selectedEquipmentId), os.clock())) end
-	local equipmentId = self._state.selectedEquipmentId
-	local index = equipmentId and self:_findEquipmentIndex(equipmentId)
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryData] EquipSelectedPet selected=%s t=%.3f", tostring(self._state.selectedPetId), os.clock())) end
+	local petId = self._state.selectedPetId
+	local index = petId and self:_findPetIndex(petId)
 	if not index then self:_emitChanged(); return false end
-	local selected = self._state.ownedEquipment[index]
-	if selected.equipped and unequipEquipmentRemote then
-		unequipEquipmentRemote:FireServer(selected.equippedSlot)
+	local selected = self._state.ownedPets[index]
+	if selected.equipped and unequipPetRemote then
+		unequipPetRemote:FireServer(selected.equippedSlot)
 		print("[UI] Action Success: Equip Item")
 		return true
 	end
-	if equipEquipmentRemote then
-		equipEquipmentRemote:FireServer(selected.instanceId)
+	if equipPetRemote then
+		equipPetRemote:FireServer(selected.instanceId)
 		print("[UI] Action Success: Equip Item")
 		print(string.format("[System]: Successfully equipped %s", selected.name or selected.id or selected.instanceId))
 		return true
@@ -375,12 +375,12 @@ function InventoryDataProvider:EquipSelectedEquipment(): boolean
 	return false
 end
 
-function InventoryDataProvider:UnequipSelectedEquipment(): boolean
-	local equipmentId = self._state.selectedEquipmentId
-	local index = equipmentId and self:_findEquipmentIndex(equipmentId)
+function InventoryDataProvider:UnequipSelectedPet(): boolean
+	local petId = self._state.selectedPetId
+	local index = petId and self:_findPetIndex(petId)
 	if not index then self:_emitChanged(); return false end
-	local selected = self._state.ownedEquipment[index]
-	if selected.equippedSlot and unequipEquipmentRemote then unequipEquipmentRemote:FireServer(selected.equippedSlot); return true end
+	local selected = self._state.ownedPets[index]
+	if selected.equippedSlot and unequipPetRemote then unequipPetRemote:FireServer(selected.equippedSlot); return true end
 	return false
 end
 

@@ -8,7 +8,7 @@ local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local LauncherStatResolver = require(ReplicatedStorage.Shared.Utils.LauncherStatResolver)
-local EquipmentStatResolver = require(ReplicatedStorage.Shared.Utils.EquipmentStatResolver)
+local PetStatResolver = require(ReplicatedStorage.Shared.Utils.PetStatResolver)
 local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
@@ -91,7 +91,7 @@ local function buildDefaultState(player: Player): PlayerState
 		MaxHP = launcher.maxHP,
 		CurrentHP = launcher.maxHP,
 		BaseDamage = launcher.baseDamage,
-		RegenRate = launcher.regenPerSecond,
+		RegenerationRate = launcher.regenPerSecond,
 		ReflectDamage = launcher.reflectDamagePercent,
 		LaunchSpeed = PhysicsConfig.Launch.SpeedMax,
 		LaunchRange = launcher.maxShootRange,
@@ -100,7 +100,7 @@ local function buildDefaultState(player: Player): PlayerState
 		DamageMultiplier = 1,
 		HPBonus = 0,
 		LaunchSpeedBonus = 0,
-		RegenBonus = 0,
+		RegenerationBonus = 0,
 		KnockbackResistance = 0,
 		LaunchershotType = "NormalLauncher",
 		EquippedLauncherInstanceId = "default_normal_launcher",
@@ -112,8 +112,8 @@ local function buildDefaultState(player: Player): PlayerState
 				acquiredAt = os.time(),
 			},
 		},
-		OwnedEquipment = {},
-		EquippedEquipment = { [1] = nil, [2] = nil, [3] = nil },
+		OwnedPets = {},
+		EquippedPets = { [1] = nil, [2] = nil, [3] = nil },
 		ChargeValue = 0,
 		CurrentVelocity = Vector3.zero,
 		InvulnerableUntil = 0,
@@ -138,7 +138,7 @@ local function buildDefaultState(player: Player): PlayerState
 		Attributes = {
 			Damage = 0,
 			MaxHP = 0,
-			Regen = 0,
+			Regeneration = 0,
 			Range = 0,
 			Reflect = 0,
 			LaunchSpeed = 0,
@@ -204,8 +204,8 @@ function PlayerStateService:Init()
 		self._launcherRuntime[player] = {}
 		self:_syncProgressPoints(player)
 		self:_syncInventoryFromData(player)
-		self:_ensureStarterEquipment(player)
-		self:SyncEquipmentFromData(player)
+		self:_ensureStarterPet(player)
+		self:SyncPetFromData(player)
 		self:RecalculateDerivedStats(player, true)
 	end)
 	Players.PlayerRemoving:Connect(function(player)
@@ -231,8 +231,8 @@ function PlayerStateService:Init()
 		self._launcherRuntime[player] = {}
 		self:_syncProgressPoints(player)
 		self:_syncInventoryFromData(player)
-		self:_ensureStarterEquipment(player)
-		self:SyncEquipmentFromData(player)
+		self:_ensureStarterPet(player)
+		self:SyncPetFromData(player)
 		self:RecalculateDerivedStats(player, true)
 	end
 end
@@ -249,12 +249,12 @@ function PlayerStateService:_syncInventoryFromData(player: Player)
 	state.ItemCooldownEnds = state.ItemCooldownEnds or {}
 end
 
-function PlayerStateService:_ensureStarterEquipment(player: Player)
-	local equipmentService = ServiceResolver.Get(self._context, "EquipmentService")
-	if not equipmentService or typeof(equipmentService.GrantStarterEquipment) ~= "function" then
+function PlayerStateService:_ensureStarterPet(player: Player)
+	local petService = ServiceResolver.Get(self._context, "PetService")
+	if not petService or typeof(petService.GrantStarterPet) ~= "function" then
 		return
 	end
-	equipmentService:GrantStarterEquipment(player)
+	petService:GrantStarterPet(player)
 end
 
 function PlayerStateService:_syncProgressPoints(player: Player)
@@ -343,24 +343,15 @@ function PlayerStateService:SetSelectedPlayerMode(player: Player, modeName: stri
 	return true
 end
 
-function PlayerStateService:_syncEquipmentLifecycleForMode(player: Player, modeName: string)
-	local playerService = ServiceResolver.Get(self._context, "PlayerService")
-	local effectService = ServiceResolver.Get(self._context, "EquipmentEffectService")
+function PlayerStateService:_syncPetLifecycleForMode(player: Player, modeName: string)
+	local effectService = ServiceResolver.Get(self._context, "PetAbilityService")
 	if modeName == GameStates.PlayerMode.Launcher then
-		if playerService and typeof(playerService.RefreshEquipmentModels) == "function" then
-			playerService:RefreshEquipmentModels(player)
-		end
-		if effectService and typeof(effectService.ActivateEquippedEquipment) == "function" then
-			effectService:ActivateEquippedEquipment(player)
+		if effectService and typeof(effectService.ActivateEquippedPets) == "function" then
+			effectService:ActivateEquippedPets(player)
 		end
 	else
-		if effectService and typeof(effectService.DeactivateAllEquipment) == "function" then
-			effectService:DeactivateAllEquipment(player)
-		end
-		if playerService and typeof(playerService.UnequipEquipmentModel) == "function" then
-			for slot = 1, 3 do
-				playerService:UnequipEquipmentModel(player, slot)
-			end
+		if effectService and typeof(effectService.DeactivateAllPet) == "function" then
+			effectService:DeactivateAllPet(player)
 		end
 	end
 end
@@ -391,7 +382,7 @@ function PlayerStateService:SetActivePlayerMode(player: Player, modeName: string
 		state.ForcedHuman = true
 	end
 	if previousMode ~= modeName then
-		self:_syncEquipmentLifecycleForMode(player, modeName)
+		self:_syncPetLifecycleForMode(player, modeName)
 	end
 	if publishNow ~= false then
 		self:PublishState(player)
@@ -475,19 +466,19 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if dataService and typeof(dataService.GetData) == "function" then
 		local data = dataService:GetData(player)
-		resolved = EquipmentStatResolver.Resolve(resolved :: any, data.OwnedEquipment, data.EquippedEquipment) :: any
-		state.OwnedEquipment = data.OwnedEquipment or {}
-		state.EquippedEquipment = data.EquippedEquipment or {}
+		resolved = PetStatResolver.Resolve(resolved :: any, data.OwnedPets, data.EquippedPets) :: any
+		state.OwnedPets = data.OwnedPets or {}
+		state.EquippedPets = data.EquippedPets or {}
 		state.Diamonds = dataService:GetDiamonds(player)
 	end
 
 	state.HPBonus = 0
-	state.RegenBonus = 0
+	state.RegenerationBonus = 0
 	state.LaunchSpeedBonus = 0
 	state.Size = (BalanceConfig.BaseSize * (1 + (math.max(state.Level - 1, 0) * 0.03))) * state.ScaleMultiplier
 	state.BaseDamage = resolved.baseDamage
 	state.DamageMultiplier = resolved.damageMultiplier
-	state.RegenRate = resolved.regen
+	state.RegenerationRate = resolved.regen
 	state.ReflectDamage = resolved.reflectDamage
 	state.LaunchSpeed = resolved.launchSpeed
 	state.LaunchRange = resolved.launchRange
@@ -516,7 +507,7 @@ function PlayerStateService:GetFinalStats(player: Player)
 	return {
 		Damage = state.BaseDamage * (state.DamageMultiplier or 1),
 		HP = state.MaxHP,
-		Regen = state.RegenRate,
+		Regeneration = state.RegenerationRate,
 		Range = state.LaunchRange,
 		Reflect = state.ReflectDamage,
 		Armor = state.Armor or 0,
@@ -618,7 +609,6 @@ function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
 	local before = state.CurrentHP
 	state.CurrentHP = math.max(0, state.CurrentHP - math.max(0, amount))
 	applyDamageLog(`PlayerStateService:ApplyDamage applied player={playerName(player)} amount={amount} beforeHP={before} afterHP={state.CurrentHP}`)
-	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	local root = playerService and playerService:GetRoot(player)
 	if root and state.CurrentHP ~= before then
 		playerService:ShowFloatingHpChange(root, state.CurrentHP - before)
@@ -635,7 +625,6 @@ function PlayerStateService:Heal(player: Player, amount: number, showOnHpBar: bo
 	local before = state.CurrentHP
 	state.CurrentHP = math.min(state.MaxHP, state.CurrentHP + math.max(0, amount))
 	local restored = state.CurrentHP - before
-	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	local root = playerService and playerService:GetRoot(player)
 	if root and restored ~= 0 then
 		playerService:ShowFloatingHpChange(root, restored)
@@ -981,52 +970,52 @@ function PlayerStateService:ClearLastAttacker(victim: Player)
 end
 
 
-function PlayerStateService:SyncEquipmentFromData(player: Player)
+function PlayerStateService:SyncPetFromData(player: Player)
 	local state = self._states[player]
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not (state and dataService and typeof(dataService.GetData) == "function") then return end
 	local data = dataService:GetData(player)
-	state.OwnedEquipment = data.OwnedEquipment or {}
-	state.EquippedEquipment = data.EquippedEquipment or {}
+	state.OwnedPets = data.OwnedPets or {}
+	state.EquippedPets = data.EquippedPets or {}
 	self:PublishState(player)
 end
 
-function PlayerStateService:GetOwnedEquipment(player: Player): { [string]: any }
-	self:SyncEquipmentFromData(player)
+function PlayerStateService:GetOwnedPets(player: Player): { [string]: any }
+	self:SyncPetFromData(player)
 	local state = self._states[player]
-	return (state and state.OwnedEquipment) or {}
+	return (state and state.OwnedPets) or {}
 end
 
-function PlayerStateService:GetEquippedEquipment(player: Player): { [any]: string }
-	self:SyncEquipmentFromData(player)
+function PlayerStateService:GetEquippedPets(player: Player): { [any]: string }
+	self:SyncPetFromData(player)
 	local state = self._states[player]
-	return (state and state.EquippedEquipment) or {}
+	return (state and state.EquippedPets) or {}
 end
 
-function PlayerStateService:GetEquipmentBySlot(player: Player, slot: any): string?
-	local equipped = self:GetEquippedEquipment(player)
+function PlayerStateService:GetPetBySlot(player: Player, slot: any): string?
+	local equipped = self:GetEquippedPets(player)
 	return equipped[tonumber(slot) or slot]
 end
 
-function PlayerStateService:HasEquipment(player: Player, equipmentId: string): boolean
-	local owned = self:GetOwnedEquipment(player)
-	for _, instanceId in pairs(self:GetEquippedEquipment(player)) do
+function PlayerStateService:HasPet(player: Player, petId: string): boolean
+	local owned = self:GetOwnedPets(player)
+	for _, instanceId in pairs(self:GetEquippedPets(player)) do
 		local instance = owned[instanceId]
-		if instance and instance.definitionId == equipmentId then return true end
+		if instance and instance.definitionId == petId then return true end
 	end
 	return false
 end
 
-function PlayerStateService:EquipEquipment(player: Player, instanceId: string, slot: any?): (boolean, string?)
-	local equipmentService = ServiceResolver.Get(self._context, "EquipmentService")
-	if equipmentService and typeof(equipmentService.Equip) == "function" then return equipmentService:Equip(player, instanceId, slot) end
-	return false, "MissingEquipmentService"
+function PlayerStateService:EquipPet(player: Player, instanceId: string, slot: any?): (boolean, string?)
+	local petService = ServiceResolver.Get(self._context, "PetService")
+	if petService and typeof(petService.Equip) == "function" then return petService:Equip(player, instanceId, slot) end
+	return false, "MissingPetService"
 end
 
-function PlayerStateService:UnequipEquipment(player: Player, slot: any): (boolean, string?)
-	local equipmentService = ServiceResolver.Get(self._context, "EquipmentService")
-	if equipmentService and typeof(equipmentService.Unequip) == "function" then return equipmentService:Unequip(player, slot) end
-	return false, "MissingEquipmentService"
+function PlayerStateService:UnequipPet(player: Player, slot: any): (boolean, string?)
+	local petService = ServiceResolver.Get(self._context, "PetService")
+	if petService and typeof(petService.Unequip) == "function" then return petService:Unequip(player, slot) end
+	return false, "MissingPetService"
 end
 
 function PlayerStateService:SetLauncherType(player: Player, launcherId: string): boolean

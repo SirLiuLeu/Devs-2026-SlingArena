@@ -33,8 +33,8 @@ local function normalizeInventory(data: { [string]: any })
 	-- Injection point: keep server-owned inventory state canonical here until DataStores are implemented.
 	applyDefaults(data, MOCK_SCHEMA_DEFAULTS)
 	if type(data.OwnedItems) ~= "table" then data.OwnedItems = {} end
-	if type(data.OwnedEquipment) ~= "table" then data.OwnedEquipment = {} end
-	if type(data.EquippedEquipment) ~= "table" then data.EquippedEquipment = { [1] = nil, [2] = nil, [3] = nil } end
+	if type(data.OwnedPets) ~= "table" then data.OwnedPets = {} end
+	if type(data.EquippedPets) ~= "table" then data.EquippedPets = { [1] = nil, [2] = nil, [3] = nil } end
 	if type(data.OwnedLaunchers) ~= "table" then data.OwnedLaunchers = DeepCopy.Copy(MOCK_SCHEMA_DEFAULTS.OwnedLaunchers) end
 	if type(data.EquippedLauncherInstanceId) ~= "string" or data.OwnedLaunchers[data.EquippedLauncherInstanceId] == nil then
 		data.EquippedLauncherInstanceId = "default_normal_launcher"

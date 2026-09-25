@@ -4,10 +4,10 @@ local EffectUtil = require(script.Parent.EffectUtil)
 local Dot = {}
 
 function Dot.OnCollision(context, collisionType: string, target: any, _payload: any)
-	print(string.format("[EQUIPMENT_ATTACK_TRACE][GhostFlame] OnCollision fired attacker=%s type=%s target=%s", context.player.Name, collisionType, target and target.Name or "nil"))
+	print(string.format("[PET_ATTACK_TRACE][GhostFlame] OnCollision fired attacker=%s type=%s target=%s", context.player.Name, collisionType, target and target.Name or "nil"))
 	if collisionType == "Player" and target then
 		if not EffectUtil.CanAffectPlayers(context, context.player, target) then
-			print("[EQUIPMENT_ATTACK_TRACE][GhostFlame] OnCollision aborted: target cannot be affected")
+			print("[PET_ATTACK_TRACE][GhostFlame] OnCollision aborted: target cannot be affected")
 			return
 		end
 		EffectUtil.ApplyDotFlag(context, target)

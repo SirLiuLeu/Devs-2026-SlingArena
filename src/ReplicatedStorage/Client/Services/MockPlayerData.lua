@@ -5,7 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
-local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
+local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 
 local MockPlayerData = {}
@@ -47,27 +47,27 @@ local MOCK_PLAYER_DATA = {
 			equipped = true,
 		},
 	},
-	OwnedEquipment = {
-		mock_PlasmaCannon_1 = { definitionId = "PlasmaCannon", level = 1, rarity = (EquipmentConfig.GetById("PlasmaCannon") and EquipmentConfig.GetById("PlasmaCannon").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_SlowBlaster_1 = { definitionId = "SlowBlaster", level = 1, rarity = (EquipmentConfig.GetById("SlowBlaster") and EquipmentConfig.GetById("SlowBlaster").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_ThunderHammer_1 = { definitionId = "ThunderHammer", level = 1, rarity = (EquipmentConfig.GetById("ThunderHammer") and EquipmentConfig.GetById("ThunderHammer").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_Medusa_1 = { definitionId = "Medusa", level = 1, rarity = (EquipmentConfig.GetById("Medusa") and EquipmentConfig.GetById("Medusa").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_IceCrystal_1 = { definitionId = "IceCrystal", level = 1, rarity = (EquipmentConfig.GetById("IceCrystal") and EquipmentConfig.GetById("IceCrystal").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_GhostFlame_1 = { definitionId = "GhostFlame", level = 1, rarity = (EquipmentConfig.GetById("GhostFlame") and EquipmentConfig.GetById("GhostFlame").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_Poison_1 = { definitionId = "Poison", level = 1, rarity = (EquipmentConfig.GetById("Poison") and EquipmentConfig.GetById("Poison").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_HealthCore_1 = { definitionId = "HealthCore", level = 1, rarity = (EquipmentConfig.GetById("HealthCore") and EquipmentConfig.GetById("HealthCore").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_PowerCore_1 = { definitionId = "PowerCore", level = 1, rarity = (EquipmentConfig.GetById("PowerCore") and EquipmentConfig.GetById("PowerCore").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_Shield_1 = { definitionId = "Shield", level = 1, rarity = (EquipmentConfig.GetById("Shield") and EquipmentConfig.GetById("Shield").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_BrainBoost_1 = { definitionId = "BrainBoost", level = 1, rarity = (EquipmentConfig.GetById("BrainBoost") and EquipmentConfig.GetById("BrainBoost").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_TurboModule_1 = { definitionId = "TurboModule", level = 1, rarity = (EquipmentConfig.GetById("TurboModule") and EquipmentConfig.GetById("TurboModule").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_LaunchBooster_1 = { definitionId = "LaunchBooster", level = 1, rarity = (EquipmentConfig.GetById("LaunchBooster") and EquipmentConfig.GetById("LaunchBooster").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_TitanCore_1 = { definitionId = "TitanCore", level = 1, rarity = (EquipmentConfig.GetById("TitanCore") and EquipmentConfig.GetById("TitanCore").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_QuickReload_1 = { definitionId = "QuickReload", level = 1, rarity = (EquipmentConfig.GetById("QuickReload") and EquipmentConfig.GetById("QuickReload").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_ThornArmor_1 = { definitionId = "ThornArmor", level = 1, rarity = (EquipmentConfig.GetById("ThornArmor") and EquipmentConfig.GetById("ThornArmor").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_RegenBooster_1 = { definitionId = "RegenBooster", level = 1, rarity = (EquipmentConfig.GetById("RegenBooster") and EquipmentConfig.GetById("RegenBooster").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_ShadowCloak_1 = { definitionId = "ShadowCloak", level = 1, rarity = (EquipmentConfig.GetById("ShadowCloak") and EquipmentConfig.GetById("ShadowCloak").rarity) or "Common", acquiredAt = 1786924800 },
+	OwnedPets = {
+		mock_PlasmaCannon_1 = { definitionId = "PlasmaCannon", level = 1, rarity = (PetsConfig.GetById("PlasmaCannon") and PetsConfig.GetById("PlasmaCannon").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_SlowBlaster_1 = { definitionId = "SlowBlaster", level = 1, rarity = (PetsConfig.GetById("SlowBlaster") and PetsConfig.GetById("SlowBlaster").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_ThunderHammer_1 = { definitionId = "ThunderHammer", level = 1, rarity = (PetsConfig.GetById("ThunderHammer") and PetsConfig.GetById("ThunderHammer").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_Medusa_1 = { definitionId = "Medusa", level = 1, rarity = (PetsConfig.GetById("Medusa") and PetsConfig.GetById("Medusa").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_IceCrystal_1 = { definitionId = "IceCrystal", level = 1, rarity = (PetsConfig.GetById("IceCrystal") and PetsConfig.GetById("IceCrystal").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_GhostFlame_1 = { definitionId = "GhostFlame", level = 1, rarity = (PetsConfig.GetById("GhostFlame") and PetsConfig.GetById("GhostFlame").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_Poison_1 = { definitionId = "Poison", level = 1, rarity = (PetsConfig.GetById("Poison") and PetsConfig.GetById("Poison").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_HealthCore_1 = { definitionId = "HealthCore", level = 1, rarity = (PetsConfig.GetById("HealthCore") and PetsConfig.GetById("HealthCore").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_PowerCore_1 = { definitionId = "PowerCore", level = 1, rarity = (PetsConfig.GetById("PowerCore") and PetsConfig.GetById("PowerCore").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_Shield_1 = { definitionId = "Shield", level = 1, rarity = (PetsConfig.GetById("Shield") and PetsConfig.GetById("Shield").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_BrainBoost_1 = { definitionId = "BrainBoost", level = 1, rarity = (PetsConfig.GetById("BrainBoost") and PetsConfig.GetById("BrainBoost").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_TurboModule_1 = { definitionId = "TurboModule", level = 1, rarity = (PetsConfig.GetById("TurboModule") and PetsConfig.GetById("TurboModule").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_LaunchBooster_1 = { definitionId = "LaunchBooster", level = 1, rarity = (PetsConfig.GetById("LaunchBooster") and PetsConfig.GetById("LaunchBooster").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_TitanCore_1 = { definitionId = "TitanCore", level = 1, rarity = (PetsConfig.GetById("TitanCore") and PetsConfig.GetById("TitanCore").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_QuickReload_1 = { definitionId = "QuickReload", level = 1, rarity = (PetsConfig.GetById("QuickReload") and PetsConfig.GetById("QuickReload").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_ThornArmor_1 = { definitionId = "ThornArmor", level = 1, rarity = (PetsConfig.GetById("ThornArmor") and PetsConfig.GetById("ThornArmor").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_RegenBooster_1 = { definitionId = "RegenBooster", level = 1, rarity = (PetsConfig.GetById("RegenBooster") and PetsConfig.GetById("RegenBooster").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_IdleStealth_1 = { definitionId = "ShadowCloak", level = 1, rarity = (PetsConfig.GetById("ShadowCloak") and PetsConfig.GetById("ShadowCloak").rarity) or "Common", acquiredAt = 1786924800 },
 	},
-	EquippedEquipment = { [1] = "mock_Poison_1", [2] = "mock_GhostFlame_1", [3] = "mock_ThunderHammer_1" },
+	EquippedPets = { [1] = "mock_Poison_1", [2] = "mock_GhostFlame_1", [3] = "mock_ThunderHammer_1" },
 	Equipped = {
 		LauncherInstanceId = "mock_NormalLauncher_1",
 		ActiveItems = {},
@@ -140,8 +140,8 @@ function MockPlayerData.GetInventoryState()
 		OwnedLaunchers = deepClone(MOCK_PLAYER_DATA.OwnedLaunchers),
 		EquippedLauncherInstanceId = MOCK_PLAYER_DATA.Equipped.LauncherInstanceId,
 		LauncherCapacity = MOCK_PLAYER_DATA.LauncherCapacity,
-		OwnedEquipment = deepClone(MOCK_PLAYER_DATA.OwnedEquipment),
-		EquippedEquipment = deepClone(MOCK_PLAYER_DATA.EquippedEquipment),
+		OwnedPets = deepClone(MOCK_PLAYER_DATA.OwnedPets),
+		EquippedPets = deepClone(MOCK_PLAYER_DATA.EquippedPets),
 	}
 end
 

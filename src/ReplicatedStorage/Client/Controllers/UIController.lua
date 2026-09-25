@@ -629,7 +629,7 @@ function UIController:Start()
 	end
 
 	local stateConnection = self.ClientService:BindStateUpdate(function(state)
-		if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] StateUpdate received level=%s exp=%s hp=%s ownedEquipment=%s equippedEquipment=%s t=%.3f", tostring(state.Level), tostring(state.Exp), tostring(state.HpPotions), tostring(type(state.OwnedEquipment) == "table" and #state.OwnedEquipment or "n/a"), tostring(type(state.EquippedEquipment) == "table" and (function() local count = 0; for _ in pairs(state.EquippedEquipment) do count += 1 end; return count end)() or "n/a"), os.clock())) end
+		if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] StateUpdate received level=%s exp=%s hp=%s ownedPets=%s equippedPets=%s t=%.3f", tostring(state.Level), tostring(state.Exp), tostring(state.HpPotions), tostring(type(state.OwnedPets) == "table" and #state.OwnedPets or "n/a"), tostring(type(state.EquippedPets) == "table" and (function() local count = 0; for _ in pairs(state.EquippedPets) do count += 1 end; return count end)() or "n/a"), os.clock())) end
 		local previousState = self.LastAuthoritativeState
 		self.LastAuthoritativeState = state
 		if not previousState or previousState.Level ~= state.Level or previousState.Exp ~= state.Exp then
@@ -639,7 +639,7 @@ function UIController:Start()
 			self.AuthoritativeHpPotions = math.max(0, math.floor(state.HpPotions))
 		end
 		if self.InventoryDataProvider then
-			-- Injection point: consume the full authoritative equipment/launcher/item payload from StateUpdate.
+			-- Injection point: consume the full authoritative pet/launcher/item payload from StateUpdate.
 			self.HasAuthoritativeInventoryState = true
 			self.InventoryDataProvider:SetFromState(state)
 		end
@@ -748,12 +748,12 @@ function UIController:Start()
 			if type(message) ~= "table" then
 				return
 			end
-			if message.EventType == "EquipmentEquipResult" then
+			if message.EventType == "PetEquipResult" then
 				local payload = message.Payload or {}
 				if self.ToastUIController then
 					self.ToastUIController:Enqueue({
-						Type = tostring(payload.Status or "Equipment"),
-						Text = tostring(payload.Message or payload.Reason or "Equipment updated."),
+						Type = tostring(payload.Status or "Pet"),
+						Text = tostring(payload.Message or payload.Reason or "Pet updated."),
 						CreatedAt = os.clock(),
 					})
 				end

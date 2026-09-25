@@ -46,9 +46,9 @@ local LeaderboardService = requireSafe(ServicesFolder:WaitForChild("LeaderboardS
 local PlayerDataService = requireSafe(ServicesFolder:WaitForChild("PlayerDataService"), "PlayerDataService")
 local ItemService = requireSafe(ServicesFolder:WaitForChild("ItemService"), "ItemService")
 local ShopService = requireSafe(ServicesFolder:WaitForChild("ShopService"), "ShopService")
-local EquipmentService = requireSafe(ServicesFolder:WaitForChild("EquipmentService"):WaitForChild("EquipmentService"), "EquipmentService")
+local PetService = requireSafe(ServicesFolder:WaitForChild("PetService"):WaitForChild("PetService"), "PetService")
 local LauncherInventoryService = requireSafe(ServicesFolder:WaitForChild("LauncherInventoryService"), "LauncherInventoryService")
-local EquipmentEffectService = requireSafe(ServicesFolder:WaitForChild("EquipmentEffectService"):WaitForChild("EquipmentEffectService"), "EquipmentEffectService")
+local PetAbilityService = requireSafe(ServicesFolder:WaitForChild("PetAbilityService"):WaitForChild("PetAbilityService"), "PetAbilityService")
 local ProgressPointService = requireSafe(ServicesFolder:WaitForChild("ProgressPointService"), "ProgressPointService")
 local QuestService = requireSafe(ServicesFolder:WaitForChild("QuestService"), "QuestService")
 local NotificationService = requireSafe(ServicesFolder:WaitForChild("NotificationService"), "NotificationService")
@@ -145,9 +145,9 @@ local serviceConstructors = {
 	PlayerDataService = PlayerDataService,
 	ItemService = ItemService,
 	ShopService = ShopService,
-	EquipmentService = EquipmentService,
+	PetService = PetService,
 	LauncherInventoryService = LauncherInventoryService,
-	EquipmentEffectService = EquipmentEffectService,
+	PetAbilityService = PetAbilityService,
 	ProgressPointService = ProgressPointService,
 	QuestService = QuestService,
 	NotificationService = NotificationService,
@@ -177,8 +177,8 @@ local initializationOrder = {
 	"PlayerStateService",
 	"ItemService",
 	"ShopService",
-	"EquipmentService",
-	"EquipmentEffectService",
+	"PetService",
+	"PetAbilityService",
 	"FlagService",
 	"TeamService",
 	"MapService",

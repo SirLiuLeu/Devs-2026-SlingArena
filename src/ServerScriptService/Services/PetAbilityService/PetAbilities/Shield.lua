@@ -1,6 +1,6 @@
 --!strict
 
-local DAMAGE_MULTIPLIER_ATTRIBUTE = "EquipmentShieldDamageMultiplier"
+local DAMAGE_MULTIPLIER_ATTRIBUTE = "PetShieldDamageMultiplier"
 local DAMAGE_MULTIPLIER = 0.8
 
 local Shield = {}

@@ -3,7 +3,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local EquipmentConfig = require(ReplicatedStorage.Shared.Config.EquipmentConfig)
+local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local MockProvider = require(script.Parent.DataProviders.MockProvider)
 
 type Context = { EventBus: any?, Services: any?, ServiceRegistry: any? }
@@ -12,11 +12,11 @@ local PlayerDataService = {}
 PlayerDataService.__index = PlayerDataService
 
 
-local function buildStarterEquipmentInventory(): { [string]: any }
+local function buildStarterPetInventory(): { [string]: any }
 	local inventory = {}
-	for _, definitionId in ipairs(EquipmentConfig.GetAllIds()) do
-		local definition = EquipmentConfig.GetById(definitionId)
-		inventory["starter_equipment_" .. definitionId] = {
+	for _, definitionId in ipairs(PetsConfig.GetAllIds()) do
+		local definition = PetsConfig.GetById(definitionId)
+		inventory["starter_pet_" .. definitionId] = {
 			definitionId = definitionId,
 			level = 1,
 			rarity = (definition and definition.rarity) or "Common",
@@ -26,8 +26,13 @@ local function buildStarterEquipmentInventory(): { [string]: any }
 	return inventory
 end
 
-local RETIRED_EQUIPMENT_IDS = { SmokeBomb = true, MagnetCore = true }
-local EQUIPMENT_ID_ALIASES = { ShadowCloakZ = "ShadowCloak" }
+local RETIRED_PET_IDS = { SmokeBomb = true, MagnetCore = true }
+local PET_ID_ALIASES = { ShadowCloakZ = "ShadowCloak" }
+local ABILITY_ID_ALIASES = {
+	Fire = "Burn",
+	Regen = "Regeneration",
+	ShadowCloak = "IdleStealth",
+}
 
 local function currentMondayStamp(now: number): number
 	local date = os.date("!*t", now)
@@ -65,8 +70,8 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 		OwnedItems = {},
 		OwnedLaunchers = { default_normal_launcher = { definitionId = "NormalLauncher", star = 1, level = 1, acquiredAt = os.time() } },
 		EquippedLauncherInstanceId = "default_normal_launcher",
-		OwnedEquipment = buildStarterEquipmentInventory(),
-		EquippedEquipment = { [1] = nil, [2] = nil, [3] = nil },
+		OwnedPets = buildStarterPetInventory(),
+		EquippedPets = { [1] = nil, [2] = nil, [3] = nil },
 	}
 end
 
@@ -85,7 +90,7 @@ end
 function PlayerDataService:LoadPlayer(player: Player): { [string]: any }
 	local data = self._provider:LoadPlayerData(player, self:BuildDefaultData(player))
 	self:_ensureProgress(data)
-	self:_ensureEquipmentData(data)
+	self:_ensurePetData(data)
 	self:_ensureLauncherData(data)
 	return data
 end
@@ -105,7 +110,7 @@ function PlayerDataService:UpdateData(player: Player, updater: ({ [string]: any 
 	end
 	local updated = self._provider:UpdatePlayerData(player, updater) or self:GetData(player)
 	self:_ensureProgress(updated)
-	self:_ensureEquipmentData(updated)
+	self:_ensurePetData(updated)
 	self:_ensureLauncherData(updated)
 	return updated
 end
@@ -127,38 +132,59 @@ function PlayerDataService:_ensureLauncherData(data: { [string]: any })
 	end
 end
 
-function PlayerDataService:_ensureEquipmentData(data: { [string]: any })
+function PlayerDataService:_ensurePetData(data: { [string]: any })
+	-- Lazy migration keeps existing profiles usable without a one-time data-store job.
+	-- The legacy keys are removed after being aliased to the Pets schema.
+	local legacyOwnedKey = "Owned" .. "Equipment"
+	local legacyEquippedKey = "Equipped" .. "Equipment"
+	if type(data.OwnedPets) ~= "table" and type(data[legacyOwnedKey]) == "table" then
+		data.OwnedPets = data[legacyOwnedKey]
+	end
+	if type(data.EquippedPets) ~= "table" and type(data[legacyEquippedKey]) == "table" then
+		data.EquippedPets = data[legacyEquippedKey]
+	end
+	data[legacyOwnedKey] = nil
+	data[legacyEquippedKey] = nil
+
 	data.Diamonds = math.max(0, math.floor(tonumber(data.Diamonds) or 0))
 	if type(data.OwnedItems) ~= "table" then
 		data.OwnedItems = {}
 	end
-	if type(data.OwnedEquipment) ~= "table" then
-		data.OwnedEquipment = {}
+	if type(data.OwnedPets) ~= "table" then
+		data.OwnedPets = {}
 	end
-	if type(data.EquippedEquipment) ~= "table" then
-		data.EquippedEquipment = {}
+	if type(data.EquippedPets) ~= "table" then
+		data.EquippedPets = {}
 	end
-	for instanceId, equipment in pairs(data.OwnedEquipment) do
-		if type(equipment) == "table" and type(equipment.definitionId) == "string" then
-			equipment.definitionId = EQUIPMENT_ID_ALIASES[equipment.definitionId] or equipment.definitionId
+	for instanceId, pet in pairs(data.OwnedPets) do
+		if type(pet) == "table" then
+			if type(pet.definitionId) == "string" then
+				pet.definitionId = PET_ID_ALIASES[pet.definitionId] or pet.definitionId
+			end
+			if type(pet.abilityId) == "string" then
+				pet.abilityId = ABILITY_ID_ALIASES[pet.abilityId] or pet.abilityId
+			end
+			if type(pet.effectId) == "string" then
+				pet.effectId = ABILITY_ID_ALIASES[pet.effectId] or pet.effectId
+			end
 		end
-		if type(equipment) == "table" and RETIRED_EQUIPMENT_IDS[equipment.definitionId] then
+		if type(pet) == "table" and RETIRED_PET_IDS[pet.definitionId] then
 			-- Migration: remove retired content before equipped-slot normalization can retain it.
-			data.OwnedEquipment[instanceId] = nil
-		elseif type(instanceId) ~= "string" or type(equipment) ~= "table" or type(equipment.definitionId) ~= "string" or equipment.definitionId == "" then
-			data.OwnedEquipment[instanceId] = nil
+			data.OwnedPets[instanceId] = nil
+		elseif type(instanceId) ~= "string" or type(pet) ~= "table" or type(pet.definitionId) ~= "string" or pet.definitionId == "" then
+			data.OwnedPets[instanceId] = nil
 		else
-			equipment.level = math.max(1, math.floor(tonumber(equipment.level) or 1))
-			equipment.rarity = tostring(equipment.rarity or "Common")
-			equipment.isTemporary = equipment.isTemporary == true
-			equipment.expiresAt = tonumber(equipment.expiresAt)
-			equipment.acquiredAt = tonumber(equipment.acquiredAt) or os.time()
-			if type(equipment.pity) ~= "table" then
-				equipment.pity = {}
+			pet.level = math.max(1, math.floor(tonumber(pet.level) or 1))
+			pet.rarity = tostring(pet.rarity or "Common")
+			pet.isTemporary = pet.isTemporary == true
+			pet.expiresAt = tonumber(pet.expiresAt)
+			pet.acquiredAt = tonumber(pet.acquiredAt) or os.time()
+			if type(pet.pity) ~= "table" then
+				pet.pity = {}
 			end
 		end
 	end
-	-- Do not mutate EquippedEquipment while iterating it: legacy and numeric keys can
+	-- Do not mutate EquippedPets while iterating it: legacy and numeric keys can
 	-- represent the same slot, and pairs() does not define an order. Numeric keys take
 	-- precedence over numeric-string aliases and then legacy slot names.
 	local legacySlotNames = { "Core", "Module", "Charm" }
@@ -166,14 +192,14 @@ function PlayerDataService:_ensureEquipmentData(data: { [string]: any })
 	for slot = 1, 3 do
 		local candidateKeys = { slot, tostring(slot), legacySlotNames[slot] }
 		for _, candidateKey in ipairs(candidateKeys) do
-			local instanceId = data.EquippedEquipment[candidateKey]
-			if type(instanceId) == "string" and data.OwnedEquipment[instanceId] ~= nil then
+			local instanceId = data.EquippedPets[candidateKey]
+			if type(instanceId) == "string" and data.OwnedPets[instanceId] ~= nil then
 				normalizedEquipped[slot] = instanceId
 				break
 			end
 		end
 	end
-	data.EquippedEquipment = normalizedEquipped
+	data.EquippedPets = normalizedEquipped
 end
 
 function PlayerDataService:_ensureProgress(data: { [string]: any })
@@ -267,7 +293,7 @@ end
 
 function PlayerDataService:GrantReward(player: Player, reward: any, reason: string?)
 	self:UpdateData(player, function(data)
-		self:_ensureEquipmentData(data)
+		self:_ensurePetData(data)
 		local diamonds = tonumber(reward.Diamonds or reward.diamonds) or 0
 		data.Diamonds += math.max(0, math.floor(diamonds))
 		for _, itemReward in ipairs(reward.Items or reward.items or {}) do
@@ -286,7 +312,7 @@ end
 
 function PlayerDataService:GetDiamonds(player: Player): number
 	local data = self:GetData(player)
-	self:_ensureEquipmentData(data)
+	self:_ensurePetData(data)
 	return data.Diamonds
 end
 
@@ -294,7 +320,7 @@ function PlayerDataService:SpendDiamonds(player: Player, amount: number, reason:
 	local cost = math.max(0, math.floor(tonumber(amount) or 0))
 	local spent = false
 	self:UpdateData(player, function(data)
-		self:_ensureEquipmentData(data)
+		self:_ensurePetData(data)
 		if data.Diamonds >= cost then
 			data.Diamonds -= cost
 			spent = true
@@ -307,16 +333,16 @@ function PlayerDataService:SpendDiamonds(player: Player, amount: number, reason:
 	return spent
 end
 
-function PlayerDataService:GetOwnedEquipment(player: Player): { [string]: any }
+function PlayerDataService:GetOwnedPets(player: Player): { [string]: any }
 	local data = self:GetData(player)
-	self:_ensureEquipmentData(data)
-	return data.OwnedEquipment
+	self:_ensurePetData(data)
+	return data.OwnedPets
 end
 
-function PlayerDataService:GetEquippedEquipment(player: Player): { [string]: any }
+function PlayerDataService:GetEquippedPets(player: Player): { [string]: any }
 	local data = self:GetData(player)
-	self:_ensureEquipmentData(data)
-	return data.EquippedEquipment
+	self:_ensurePetData(data)
+	return data.EquippedPets
 end
 
 function PlayerDataService:ConsumePendingWeeklyReward(player: Player): any?
