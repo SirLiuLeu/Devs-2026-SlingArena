@@ -64,7 +64,19 @@ local function fitCamera(camera: Camera, model: Model, viewportFrame: ViewportFr
 	local distance = (math.max(distanceForHeight, distanceForWidth) + depth / 2) * FRAME_PADDING
 
 	camera.FieldOfView = DEFAULT_FOV
-	camera.CFrame = CFrame.lookAt(center.Position + Vector3.new(distance, distance * 0.2, distance), center.Position)
+
+	-- Pet models use RootPart as their centre and are authored facing local -Y.
+	-- A conventional diagonal world-space camera makes those assets appear sideways;
+	-- instead, view them along their native forward axis and use local Z as camera up.
+	local rootPart = model:FindFirstChild("RootPart", true)
+	if rootPart and rootPart:IsA("BasePart") then
+		local focusPosition = rootPart.Position
+		local forward = rootPart.CFrame:VectorToWorldSpace(Vector3.new(0, -1, 0))
+		local up = rootPart.CFrame:VectorToWorldSpace(Vector3.new(0, 0, 1))
+		camera.CFrame = CFrame.lookAt(focusPosition + forward * distance, focusPosition, up)
+	else
+		camera.CFrame = CFrame.lookAt(center.Position + Vector3.new(distance, distance * 0.2, distance), center.Position)
+	end
 end
 
 -- Replaces every preview object in viewportFrame with itemId's model from

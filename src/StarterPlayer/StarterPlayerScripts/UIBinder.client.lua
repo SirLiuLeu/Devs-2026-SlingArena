@@ -10,6 +10,7 @@ local LobbyClientService = require(ReplicatedStorage.Client.Services.LobbyClient
 local UiBindManager = require(ReplicatedStorage.Shared.Utils.UiBindManager)
 local UIController = require(ReplicatedStorage.Client.Controllers.UIController)
 local LeaderboardWorldUIController = require(ReplicatedStorage.Client.Controllers.LeaderboardWorldUIController)
+local ClientPetController = require(ReplicatedStorage.Client.Controllers.ClientPetController)
 
 local PLAYER_GUI_TIMEOUT_SECONDS = 8
 local ROOT_SCREEN_GUI_TIMEOUT_SECONDS = 8
@@ -100,12 +101,15 @@ task.spawn(function()
 
 	local leaderboardWorldController = LeaderboardWorldUIController.new(clientService)
 	leaderboardWorldController:Start()
+	local clientPetController = ClientPetController.new(player)
+	clientPetController:Start()
 
 	player.AncestryChanged:Connect(function(_, parent)
 		if parent == nil then
 			controller:Destroy()
 			uiBindManager:Destroy()
 			leaderboardWorldController:Destroy()
+			clientPetController:Destroy()
 		end
 	end)
 end)

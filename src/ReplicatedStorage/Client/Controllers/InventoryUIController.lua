@@ -119,12 +119,12 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._inventoryGui = PathResolver.resolvePath(self._playerGui, ProjectTreeSpec.UI.Inventory.ScreenGui)
 	self._itemsGrid = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsGridContainer)
 	self._itemsBody = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.BodyItems)
-	self._petBody = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.BodyPet)
-	self._petGrid = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.PetGridContainer)
+	self._petBody = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.BodyPets)
+	self._petGrid = resolveGui(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsGridContainer)
 	self._itemsTab = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsTab)
-	self._petTab = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetTab)
+	self._petTab = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsTab)
 	self._closeButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.CloseButton)
-	self._petCapacityLabel = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetCapacityLabel)
+	self._petCapacityLabel = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsCapacityLabel)
 
 	self._itemSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsSelectedName)
 	self._itemStat1 = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsStat1)
@@ -132,14 +132,14 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._itemStat3 = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsStat3)
 	self._itemUseButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsUseButton)
 
-	self._petSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetSelectedName)
-	self._petStatDamage = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetStatDamage)
-	self._petStatHP = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetStatHP)
-	self._petStatRange = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetStatRange)
-	self._petStatRegeneration = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetStatRegeneration)
-	self._petEquipButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetEquipButton)
-	self._petDeleteButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetDeleteButton)
-	self._petUpgradeButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetUpgradeButton)
+	self._petSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsSelectedName)
+	self._petStatDamage = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsStatDamage)
+	self._petStatHP = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsStatHP)
+	self._petStatRange = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsStatRange)
+	self._petStatRegeneration = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsStatRegeneration)
+	self._petEquipButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsEquipButton)
+	self._petDeleteButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsDeleteButton)
+	self._petUpgradeButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsUpgradeButton)
 	self._upgradePetRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):FindFirstChild(RemoteContracts.Names.UpgradePet) :: RemoteEvent?
 
 	local assets = ReplicatedStorage:WaitForChild("Assets")
@@ -166,8 +166,8 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	if not self._inventoryGui then warn("[INVENTORY_UI] InventoryUI ScreenGui missing") end
 	if not self._itemsGrid then warn("[INVENTORY_UI] Items grid container missing") end
 	if not self._itemsBody then warn("[INVENTORY_UI] Items body frame missing") end
-	if not self._petBody then warn("[INVENTORY_UI] BodyPet missing at StarterGui/InventoryUI/Root/BodyPet") end
-	if not self._petGrid then warn("[INVENTORY_UI] GridContainer missing at StarterGui/InventoryUI/Root/BodyPet/GridContainer") end
+	if not self._petBody then warn("[INVENTORY_UI] BodyPets missing at StarterGui/InventoryUI/Root/BodyPets") end
+	if not self._petGrid then warn("[INVENTORY_UI] GridContainer missing at StarterGui/InventoryUI/Root/BodyPets/GridContainer") end
 	if not self._itemsTab then warn("[INVENTORY_UI] ItemsTab button missing") end
 	if not self._closeButton then warn("[INVENTORY_UI] CloseButton missing") end
 
@@ -409,7 +409,7 @@ local function formatRemainingLifetime(entry): string
 end
 
 function InventoryUIController:_spawnPetSlot(petEntry)
-	if not self._petGrid then warn("[INVENTORY_UI] Cannot spawn pet: GridContainer missing at StarterGui/InventoryUI/Root/BodyPet/GridContainer"); return end
+	if not self._petGrid then warn("[INVENTORY_UI] Cannot spawn pet: GridContainer missing at StarterGui/InventoryUI/Root/BodyPets/GridContainer"); return end
 	if not self._petTemplate or not self._petTemplate:IsA("GuiObject") then warn("[INVENTORY_UI] Cannot spawn pet: template missing at ReplicatedStorage/Assets/UI/PetSlotTemplate_InventoryUI"); return end
 	local instanceId = tostring(petEntry.instanceId or "")
 	local definitionId = tostring(petEntry.definitionId or petEntry.id or "")
