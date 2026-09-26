@@ -161,14 +161,14 @@ function LauncherInventoryUIController:_updateSlot(slot: GuiObject, entry)
 			end
 		end
 
-		local petPreviewViewport = root:FindFirstChild("PetPreview")
-		if petPreviewViewport and petPreviewViewport:IsA("ViewportFrame") then
+		local launcherPreviewViewport = root:FindFirstChild("LauncherPreview")
+		if launcherPreviewViewport and launcherPreviewViewport:IsA("ViewportFrame") then
 			if slot:GetAttribute("CurrentRenderedId") ~= entry.id then
-				PreviewRenderer.Populate(petPreviewViewport, self._launcherAssets, entry.id)
+				PreviewRenderer.Populate(launcherPreviewViewport, self._launcherAssets, entry.id)
 				slot:SetAttribute("CurrentRenderedId", entry.id)
 			end
 		else
-			warn("[LAUNCHER_INVENTORY_UI] LauncherSlotTemplate_LauncherInventoryUI.Root.PetPreview ViewportFrame missing; create it in Studio")
+			warn("[LAUNCHER_INVENTORY_UI] LauncherSlotTemplate_LauncherInventoryUI.Root.LauncherPreview ViewportFrame missing; create it in Studio")
 		end
 	end
 end

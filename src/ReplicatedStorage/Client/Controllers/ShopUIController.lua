@@ -200,11 +200,11 @@ function ShopUIController:_applyIcon(slot: GuiObject, icon: string?)
 end
 
 function ShopUIController:_populateLauncherPreview(slot: GuiObject, launcherId: string)
-	local preview = slot:FindFirstChild("PetPreview", true)
+	local preview = slot:FindFirstChild("LauncherPreview", true)
 	if preview and preview:IsA("ViewportFrame") then
 		PreviewRenderer.Populate(preview, self._launcherAssets, launcherId)
 	else
-		warn("[SHOP_UI] Launcher slot is missing PetPreview ViewportFrame")
+		warn("[SHOP_UI] Launcher slot is missing LauncherPreview ViewportFrame")
 	end
 end
 

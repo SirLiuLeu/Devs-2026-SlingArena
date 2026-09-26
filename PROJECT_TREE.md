@@ -177,17 +177,17 @@ DataModel
 │  │      │       │   ├── Star3 (ImageLabel)
 │  │      │       │   ├── Star4 (ImageLabel)
 │  │      │       │   └── Star5 (ImageLabel)
-│  │      │       ├── EquipmentPreview (ViewportFrame)
+│  │      │       ├── LauncherPreview (ViewportFrame)
 │  │      │       │   ├── Model (Model Equipment)
 │  │      │       │   └── Camera
 │  │      │       ├── EquippedTag (TextLabel)
 │  │      │       ├── Level (TextLabel)
 │  │      │       └── Name (TextLabel)
 │  │      │
-│  │      ├── EquipmentSlotTemplate_InventoryUI (Frame)
+│  │      ├── PetsSlotTemplate_InventoryUI (Frame)
 │  │      │   └── Root (Frame)
 │  │      │       ├── RemainingTimeText (TextLabel)
-│  │      │       ├── EquipmentPreview (ViewportFrame)
+│  │      │       ├── PetPreview (ViewportFrame)
 │  │      │       │   ├── Model (Model Equipment)
 │  │      │       │   └── Camera
 │  │      │       ├── EquippedTag (TextLabel)
@@ -242,7 +242,7 @@ DataModel
 │  │      │   ├── UICorner
 │  │      │   ├── InfoButton (ImageButton)
 │  │      │   ├── BuyButton (TextButton/ImageButton)
-│  │      │   ├── EquipmentPreview (ViewportFrame)
+│  │      │   ├── LauncherPreview (ViewportFrame)
 │  │      │   │   ├── Model (Model Equipment)
 │  │      │   │   └── Camera
 │  │      │   └── Title (TextLabel)
@@ -524,7 +524,7 @@ DataModel
 │  │  │   │       │   ├─ ToggleEquipButton (TextButton)
 │  │  │   │       │   └─ UpgradeButton (TextButton)
 │  │  │   │       ├─ Stats (Frame)
-│  │  │   │       │   └─ Damage, HP, Range, Regen (TextLabels)
+│  │  │   │       │   └─ Damage, HP, Range, Regeneration (TextLabels)
 │  │  │   │       └─ SelectedName (TextLabel)
 │  │  │   └── BodyItems (Frame)
 │  │  │       ├── GridContainer (ScrollingFrame)
@@ -552,7 +552,7 @@ DataModel
 │  │           │  ├─ DeleteButton (TextButton)
 │  │           │  └─ EquipButton (TextButton)
 │  │           ├─ Stats
-│  │           │  └─ Damage, HP, Range, Regen (TextLabels)
+│  │           │  └─ Damage, HP, Range, Regeneration (TextLabels)
 │  │           └─ SelectedName (TextLabel)
 │  │
 │  ├─ MatchUI (ScreenGui)
