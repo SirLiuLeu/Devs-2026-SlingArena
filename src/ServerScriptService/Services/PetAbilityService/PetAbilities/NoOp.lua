@@ -7,7 +7,7 @@ local function diagnostic(context, lifecycle: string)
 	local params = type(passive) == "table" and passive.params or nil
 	local message = type(params) == "table" and params.diagnostic or nil
 	if type(message) == "string" and message ~= "" then
-		warn(string.format("[PET_EFFECT][%s] %s (%s)", lifecycle, message, tostring(context.definition.id)))
+		warn(string.format("[PET_EFFECT][%s] %s (%s)", lifecycle, message, tostring(context.definition.PetId)))
 	end
 end
 

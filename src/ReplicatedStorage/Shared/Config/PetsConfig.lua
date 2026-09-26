@@ -22,10 +22,9 @@ export type PassiveAbility = {
 }
 
 export type PetDefinition = {
-	id: string,
 	PetId: string,
-	name: string,
 	Name: string,
+	DisplayName: string,
 	slotType: string,
 	category: string,
 	rarity: string,
@@ -36,9 +35,6 @@ export type PetDefinition = {
 	statModifiers: StatModifiers?,
 	metadata: { [string]: any }?,
 	iconId: string?,
-	modelName: string,
-	DisplayName: string,
-	modelPath: string,
 }
 
 PetsConfig.EquippedSlotCount = 3
@@ -60,23 +56,11 @@ PetsConfig.Categories = {
 	UtilityAreaEffect = "Utility / Area Effect",
 }
 
-function PetsConfig.DeriveDisplayName(modelName: string): string
-	local animalName = string.match(modelName, "^animal%-(.+)$")
-	if not animalName then
-		return modelName
-	end
-	local normalizedName = string.gsub(animalName, "[^%w]+", " ")
-	return string.gsub(normalizedName, "(%a)(%w*)", function(first, remainder)
-		return string.upper(first) .. string.lower(remainder)
-	end)
-end
-
-local function pet(id: string, name: string, rarity: string, category: string, abilityId: string?, combatEffect: CombatEffect?, passiveAbility: PassiveAbility?, statModifiers: StatModifiers?): PetDefinition
+local function pet(petId: string, name: string, displayName: string, rarity: string, category: string, abilityId: string?, combatEffect: CombatEffect?, passiveAbility: PassiveAbility?, statModifiers: StatModifiers?): PetDefinition
 	return {
-		id = id,
-		PetId = id,
-		name = name,
+		PetId = petId,
 		Name = name,
+		DisplayName = displayName,
 		slotType = PetsConfig.SlotTypes.Universal,
 		category = category,
 		rarity = rarity,
@@ -87,85 +71,82 @@ local function pet(id: string, name: string, rarity: string, category: string, a
 		statModifiers = statModifiers or { Add = {}, Multiply = {} },
 		metadata = { inventoryCapacityCost = 1 },
 		iconId = "rbxassetid://0",
-		modelName = id,
-		DisplayName = PetsConfig.DeriveDisplayName(id),
-		modelPath = "ReplicatedStorage.Assets.Pets." .. id,
 	}
 end
 
 PetsConfig.Definitions = {
 
     -- Active Attack
-    PlasmaCannon = pet("PlasmaCannon", "Plasma Cannon", PetsConfig.Rarities.Epic, PetsConfig.Categories.ActiveAttack, "NoOp", nil,
+    PlasmaCannon = pet("PlasmaCannon", "Octopus", "Octopus", PetsConfig.Rarities.Epic, PetsConfig.Categories.ActiveAttack, "NoOp", nil,
         { type = "ActiveAttack", value = 1000, params = { cooldown = 10, diagnostic = "Plasma Cannon active attack is not yet implemented" } },
         { Add = {}, Multiply = {} }),
 
-    SlowBlaster = pet("SlowBlaster", "Slow Blaster", PetsConfig.Rarities.Rare, PetsConfig.Categories.ActiveAttack, "Slow",
+    SlowBlaster = pet("SlowBlaster", "Dragon", "Dragon", PetsConfig.Rarities.Rare, PetsConfig.Categories.ActiveAttack, "Slow",
         { collisionFlag = "Slow", collisionExtraDuration = 3 },
         { type = "ProjectileSlow", params = { cooldown = 3, diagnostic = "Slow Blaster projectile is not yet implemented; collision slow uses the shared Slow effect" } },
         { Add = {}, Multiply = {} }),
 
     -- Crowd Control
-    ThunderHammer = pet("ThunderHammer", "Thunder Hammer", PetsConfig.Rarities.Epic, PetsConfig.Categories.CrowdControl, "Stun",
+    ThunderHammer = pet("ThunderHammer", "Yeti", "Yeti", PetsConfig.Rarities.Epic, PetsConfig.Categories.CrowdControl, "Stun",
         { collisionFlag = "Stun", collisionExtraDuration = 1.25 }, nil,
         { Add = {}, Multiply = { damageMultiplier = 1.05 } }),
 
-    Medusa = pet("Medusa", "Medusa", PetsConfig.Rarities.Legendary, PetsConfig.Categories.CrowdControl, "Petrify",
+    Medusa = pet("Medusa", "Snake", "Snake", PetsConfig.Rarities.Legendary, PetsConfig.Categories.CrowdControl, "Petrify",
         { collisionFlag = "Petrify", collisionExtraDuration = 5, cannotPetrifyPetIds = { GhostFlame = true } }, nil,
         { Add = {}, Multiply = {} }),
 
-    IceCrystal = pet("IceCrystal", "Ice Crystal", PetsConfig.Rarities.Rare, PetsConfig.Categories.CrowdControl, "Slow",
+    IceCrystal = pet("IceCrystal", "Penguin", "Penguin", PetsConfig.Rarities.Rare, PetsConfig.Categories.CrowdControl, "Slow",
         { collisionFlag = "Slow", collisionExtraDuration = 3 },
         { type = "Slow", params = { diagnostic = "Ice Crystal applies the shared Slow flag." } },
         { Add = {}, Multiply = {} }),
 
     -- Damage Over Time
-    GhostFlame = pet("GhostFlame", "Ghost Flame", PetsConfig.Rarities.Epic, PetsConfig.Categories.DamageOverTime, "Burn",
+    GhostFlame = pet("GhostFlame", "Phoenix", "Phoenix", PetsConfig.Rarities.Epic, PetsConfig.Categories.DamageOverTime, "Burn",
         { dotFlag = "Burn" }, nil,
         { Add = { baseDamage = 50 }, Multiply = {} }),
 
-    Poison = pet("Poison", "Poison", PetsConfig.Rarities.Rare, PetsConfig.Categories.DamageOverTime, "Poison",
+    Poison = pet("Poison", "Caterpillar", "Caterpillar", PetsConfig.Rarities.Rare, PetsConfig.Categories.DamageOverTime, "Poison",
         { dotFlag = "Poison" }, nil,
         { Add = { baseDamage = 25 }, Multiply = {} }),
 
     -- Passive Stat Modifier
-    HealthCore = pet("HealthCore", "Health Core", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
+    HealthCore = pet("HealthCore", "Cow", "Cow", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
         nil, nil, nil, { Add = { maxHP = 5000 }, Multiply = {} }),
 
-    PowerCore = pet("PowerCore", "Power Core", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
+    PowerCore = pet("PowerCore", "Elephant", "Elephant", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
         nil, nil, nil, { Add = { baseDamage = 500 }, Multiply = {} }),
 
-    Shield = pet("Shield", "Shield", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "Shield",
+    Shield = pet("Shield", "Panda", "Panda", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "Shield",
         nil, { type = "DamageReduction", percent = 0.2 }, { Add = {}, Multiply = {} }),
 
-    BrainBoost = pet("BrainBoost", "Brain Boost", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "ExpBonus",
+    BrainBoost = pet("BrainBoost", "Monkey", "Monkey", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "ExpBonus",
         nil, { type = "ExpBonus", value = 0.3, params = { expBonus = 0.3 } },
         { Add = { expBonus = 0.3 }, Multiply = {} }),
 
-    TurboModule = pet("TurboModule", "Turbo Module", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
+    TurboModule = pet("TurboModule", "Bunny", "Bunny", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
         nil, nil, nil, { Add = { moveSpeed = 10 }, Multiply = {} }),
 
-    LaunchBooster = pet("LaunchBooster", "Launch Booster", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
+    LaunchBooster = pet("LaunchBooster", "Bee", "Bee", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
         nil, nil, nil, { Add = {}, Multiply = { launchSpeed = 1.2 } }),
 
-    TitanCore = pet("TitanCore", "Titan Core", PetsConfig.Rarities.Epic, PetsConfig.Categories.PassiveStatModifier, "Titan",
+    TitanCore = pet("TitanCore", "Hydra", "Hydra", PetsConfig.Rarities.Epic, PetsConfig.Categories.PassiveStatModifier, "Titan",
         nil, { type = "Titan", params = { sizeMultiplier = 1.2, incomingKnockbackMultiplier = 0.75, outgoingKnockbackMultiplier = 1.25 } },
         { Add = {}, Multiply = {} }),
 
-    QuickReload = pet("QuickReload", "Quick Reload", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
+    QuickReload = pet("QuickReload", "Dog", "Dog", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
         nil, nil, nil, { Add = { launchCooldown = -1 }, Multiply = {} }),
 
-    ThornArmor = pet("ThornArmor", "Thorn Armor", PetsConfig.Rarities.Epic, PetsConfig.Categories.PassiveStatModifier, "NoOp",
+    ThornArmor = pet("ThornArmor", "Pig", "Pig", PetsConfig.Rarities.Epic, PetsConfig.Categories.PassiveStatModifier, "NoOp",
         nil, { type = "ReflectDamage", percent = 0.2, params = { diagnostic = "Thorn Armor damage reflection is not yet wired into DamagePipelineService" } },
         { Add = { reflectDamage = 0.2 }, Multiply = {} }),
 
     -- Regeneration / Healing
-    RegenBooster = pet("RegenBooster", "Regeneration Booster", PetsConfig.Rarities.Rare, PetsConfig.Categories.RegenerationHealing, "Regeneration",
+    RegenBooster = pet("RegenBooster", "Fish", "Fish", PetsConfig.Rarities.Rare, PetsConfig.Categories.RegenerationHealing, "Regeneration",
         nil, { type = "Regeneration", value = 500, params = { tickInterval = 5 } },
         { Add = {}, Multiply = {} }),
 
     -- Conditional Effect
-    ShadowCloak = pet("ShadowCloak", "Shadow Cloak", PetsConfig.Rarities.Epic, PetsConfig.Categories.ConditionalEffect, "IdleStealth",
+    ShadowCloak = pet("ShadowCloak", "Unicorn", "Unicorn", PetsConfig.Rarities.Epic, PetsConfig.Categories.ConditionalEffect, "IdleStealth",
         nil, { type = "IdleStealth", params = { idleSeconds = 3, revealOn = { "Launch", "Movement", "Knockback" } } },
         { Add = {}, Multiply = {} }),
 

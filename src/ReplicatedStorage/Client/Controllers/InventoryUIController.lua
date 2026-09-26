@@ -287,21 +287,21 @@ function InventoryUIController:_bindCommonSlot(slot: Instance, name: string, ico
 	end
 end
 
-function InventoryUIController:_populatePetPreview(slotRoot: Instance, definitionId: string)
+function InventoryUIController:_populatePetPreview(slotRoot: Instance, definition: PetsConfig.PetDefinition)
 	local preview = slotRoot:FindFirstChild("PetPreview", true)
 	if preview and preview:IsA("ViewportFrame") then
-		PreviewRenderer.Populate(preview, self._petAssets, definitionId)
+		PreviewRenderer.Populate(preview, self._petAssets, definition.Name)
 	else
 		warn("[INVENTORY_UI] Pet slot is missing PetPreview ViewportFrame")
 	end
 end
 
-function InventoryUIController:_bindPetSlot(slotRoot: Instance, name: string, definitionId: string)
+function InventoryUIController:_bindPetSlot(slotRoot: Instance, displayName: string, definition: PetsConfig.PetDefinition)
 	local nameLabel = findDirectTemplateText(slotRoot, "Name")
 	if nameLabel then
-		nameLabel.Text = name
+		nameLabel.Text = displayName
 	end
-	self:_populatePetPreview(slotRoot, definitionId)
+	self:_populatePetPreview(slotRoot, definition)
 end
 
 function InventoryUIController:_applySlotVisual(slot: GuiObject, isHovered: boolean, isSelected: boolean)
@@ -422,7 +422,7 @@ function InventoryUIController:_spawnPetSlot(petEntry)
 	slot.Name = string.format("GeneratedPet_%s", instanceId)
 	slot.Visible = true
 	slot.Parent = self._petGrid
-	self:_bindPetSlot(slotRoot, petEntry.name or def.name, definitionId)
+	self:_bindPetSlot(slotRoot, def.DisplayName, def)
 	local remainingTimeText = findDirectTemplateText(slotRoot, "RemainingTimeText")
 	if remainingTimeText then remainingTimeText.Text = formatRemainingLifetime(petEntry) end
 	local levelLabel = findDirectTemplateText(slotRoot, "Level")
@@ -454,7 +454,7 @@ function InventoryUIController:_updatePetSlot(slot: GuiObject, petEntry)
 	local def = PetsConfig.GetById(definitionId)
 	local slotRoot = getTemplateRoot(slot, PET_SLOT_TEMPLATE_NAME)
 	if not slotRoot or not def then return end
-	self:_bindPetSlot(slotRoot, petEntry.name or def.name, definitionId)
+	self:_bindPetSlot(slotRoot, def.DisplayName, def)
 	local remainingTimeText = findDirectTemplateText(slotRoot, "RemainingTimeText")
 	if remainingTimeText then remainingTimeText.Text = formatRemainingLifetime(petEntry) end
 	local levelLabel = findDirectTemplateText(slotRoot, "Level")
@@ -503,7 +503,7 @@ function InventoryUIController:_refreshPetPanel(data)
 	self._selectedPetId = petId
 	local entry = petId and self:_findPetEntry(data.ownedPets, petId) or nil
 	local def = entry and PetsConfig.GetById(entry.definitionId or entry.id or "") or nil
-	if self._petSelectedName then self._petSelectedName.Text = (entry and entry.name) or (def and def.name) or "No pet selected" end
+	if self._petSelectedName then self._petSelectedName.Text = (def and def.DisplayName) or "No pet selected" end
 	local level = math.max(1, math.floor(tonumber(entry and entry.level) or 1))
 	local nextLevel = level + 1
 	local modifiers = def and def.statModifiers or nil

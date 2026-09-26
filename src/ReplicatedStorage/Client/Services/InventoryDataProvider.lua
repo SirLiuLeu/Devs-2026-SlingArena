@@ -185,7 +185,7 @@ function InventoryDataProvider:SetFromState(state)
 		for _, entry in ipairs(nextPet) do
 			local def = PetsConfig.GetById(entry.definitionId or entry.id or "")
 			entry.id = entry.definitionId or entry.id
-			entry.name = entry.name or (def and def.name)
+			entry.name = entry.name or (def and def.DisplayName)
 			entry.icon = entry.icon or (def and def.iconId)
 		end
 	end

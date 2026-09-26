@@ -495,7 +495,7 @@ function DamagePipelineService:_applyPetCombatEffectsFromHit(victim: Player, att
 				if duration > 0 then
 					stateService:ApplyFlag(victim, flagName, duration, attacker, {
 						SourceId = getSourceId(attacker) .. ":PetSlot" .. tostring(slot),
-						PetId = definition.id,
+						PetId = definition.PetId,
 						PetInstanceId = instanceId,
 						TickInterval = merged.TickInterval,
 						DamagePerTick = merged.DamagePerTick,
