@@ -21,9 +21,6 @@ local SLOT_SPACING = 3
 local FOLLOW_LERP_SPEED = 10
 local BOB_HEIGHT = 0.35
 local BOB_SPEED = 2.5
--- Pet assets face local -Y. Rotating +90 degrees about X maps that forward
--- direction to local -Z, the normal Roblox character-forward direction.
-local PET_FORWARD_OFFSET = CFrame.Angles(math.rad(90), 0, 0)
 
 type RenderedPet = {
 	instanceId: string,
@@ -115,7 +112,7 @@ end
 
 function ClientPetController:_createPet(slot: number, instanceId: string, definitionId: string): RenderedPet?
 	local definition = PetsConfig.GetById(definitionId)
-	local modelName = definition and definition.modelName or definitionId
+	local modelName = definition and definition.Name or definitionId
 	local source = self._assets:FindFirstChild(modelName)
 	if not source or not source:IsA("Model") then
 		warn(string.format("[CLIENT_PET] Missing pet model %q for equipped pet %q", modelName, instanceId))
@@ -178,9 +175,8 @@ function ClientPetController:_render(deltaTime: number)
 		end
 		local lateralOffset = (slot - ((PetsConfig.EquippedSlotCount + 1) / 2)) * SLOT_SPACING
 		local bobOffset = math.sin(now * BOB_SPEED + slot) * BOB_HEIGHT
-		local target = rootPart.CFrame
-			* CFrame.new(lateralOffset, FOLLOW_HEIGHT + bobOffset, FOLLOW_DISTANCE)
-			* PET_FORWARD_OFFSET
+		-- Pet assets are authored facing local -Z, so no corrective rotation is needed.
+		local target = rootPart.CFrame * CFrame.new(lateralOffset, FOLLOW_HEIGHT + bobOffset, FOLLOW_DISTANCE)
 		rendered.model:PivotTo(rendered.model:GetPivot():Lerp(target, alpha))
 	end
 end

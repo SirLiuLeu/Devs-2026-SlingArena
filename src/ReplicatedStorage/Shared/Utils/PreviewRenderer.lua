@@ -65,14 +65,13 @@ local function fitCamera(camera: Camera, model: Model, viewportFrame: ViewportFr
 
 	camera.FieldOfView = DEFAULT_FOV
 
-	-- Pet models use RootPart as their centre and are authored facing local -Y.
-	-- A conventional diagonal world-space camera makes those assets appear sideways;
-	-- instead, view them along their native forward axis and use local Z as camera up.
+	-- Pet models use RootPart as their centre and are authored facing local -Z.
+	-- View along their native forward axis while retaining the conventional local-Y up.
 	local rootPart = model:FindFirstChild("RootPart", true)
 	if rootPart and rootPart:IsA("BasePart") then
 		local focusPosition = rootPart.Position
-		local forward = rootPart.CFrame:VectorToWorldSpace(Vector3.new(0, -1, 0))
-		local up = rootPart.CFrame:VectorToWorldSpace(Vector3.new(0, 0, 1))
+		local forward = rootPart.CFrame:VectorToWorldSpace(Vector3.new(0, 0, -1))
+		local up = rootPart.CFrame:VectorToWorldSpace(Vector3.new(0, 1, 0))
 		camera.CFrame = CFrame.lookAt(focusPosition + forward * distance, focusPosition, up)
 	else
 		camera.CFrame = CFrame.lookAt(center.Position + Vector3.new(distance, distance * 0.2, distance), center.Position)
