@@ -1,6 +1,6 @@
 --!strict
 
-local PetsConfig = require(game:GetService("ReplicatedStorage").Shared.Config.PetsConfig)
+local PetProgression = require(game:GetService("ReplicatedStorage").Shared.Utils.PetProgression)
 
 local PetStatResolver = {}
 
@@ -43,28 +43,26 @@ local function copyStats(baseStats: { [string]: number }): { [string]: number }
 	return result
 end
 
-function PetStatResolver.GetEquippedDefinitions(ownedPets: { [string]: any }?, equippedPets: { [string]: any }?): { any }
-	local definitions = {}
+function PetStatResolver.GetEquippedProgressions(ownedPets: { [string]: any }?, equippedPets: { [string]: any }?): { any }
+	local progressions = {}
 	if type(ownedPets) ~= "table" or type(equippedPets) ~= "table" then
-		return definitions
+		return progressions
 	end
 	for _, instanceId in pairs(equippedPets) do
 		if type(instanceId) == "string" then
 			local ownedInstance = ownedPets[instanceId]
-			local definition = ownedInstance and PetsConfig.GetById(tostring(ownedInstance.definitionId or ""))
-			if definition then
-				table.insert(definitions, definition)
-			end
+			local progression = type(ownedInstance) == "table" and PetProgression.Resolve(ownedInstance)
+			if progression then table.insert(progressions, progression) end
 		end
 	end
-	return definitions
+	return progressions
 end
 
-function PetStatResolver.Apply(baseStats: { [string]: number }, equippedDefinitions: { any }?): { [string]: number }
+function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgressions: { any }?): { [string]: number }
 	local result = copyStats(baseStats)
 	local multipliers = {}
-	for _, definition in ipairs(equippedDefinitions or {}) do
-		local modifiers = definition.statModifiers
+	for _, progression in ipairs(equippedProgressions or {}) do
+		local modifiers = progression.statModifiers
 		local add = type(modifiers) == "table" and modifiers.Add or nil
 		if type(add) == "table" then
 			for statName, amount in pairs(add) do
@@ -91,7 +89,7 @@ function PetStatResolver.Apply(baseStats: { [string]: number }, equippedDefiniti
 end
 
 function PetStatResolver.Resolve(baseStats: { [string]: number }, ownedPets: { [string]: any }?, equippedPets: { [string]: any }?): { [string]: number }
-	return PetStatResolver.Apply(baseStats, PetStatResolver.GetEquippedDefinitions(ownedPets, equippedPets))
+	return PetStatResolver.Apply(baseStats, PetStatResolver.GetEquippedProgressions(ownedPets, equippedPets))
 end
 
 return PetStatResolver

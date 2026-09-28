@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
+local PetProgression = require(ReplicatedStorage.Shared.Utils.PetProgression)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
 local ServiceResolver = require(script.Parent.Parent.Infrastructure.ServiceResolver)
@@ -227,6 +228,7 @@ function PetAbilityService:ActivatePet(player, _slotType: string, instanceId: st
 		instanceId = instanceId,
 		definition = definition,
 		ownedInstance = ownedInstance,
+		progression = PetProgression.Resolve(ownedInstance),
 		FlagService = ServiceResolver.Get(self._context, "FlagService"),
 		PlayerStateService = ServiceResolver.Get(self._context, "PlayerStateService"),
 		PlayerDataService = ServiceResolver.Get(self._context, "PlayerDataService"),

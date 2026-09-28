@@ -3,9 +3,8 @@
 local Regeneration = {}
 
 function Regeneration.OnInit(context)
-	local passive = context.definition.passiveAbility or {}
-	local params = passive.params or {}
-	context._regenAmount = math.max(0, tonumber(passive.value) or 500)
+	local params = context.progression and context.progression.abilityParams or {}
+	context._regenAmount = math.max(0, tonumber(params.healAmount) or 0)
 	context._regenInterval = math.max(0.1, tonumber(params.tickInterval) or 5)
 	context._regenElapsed = 0
 end
@@ -16,7 +15,7 @@ function Regeneration.OnTick(context, dt: number)
 	context._regenElapsed = 0
 	local stateService = context.PlayerStateService
 	if stateService and typeof(stateService.Heal) == "function" then
-		stateService:Heal(context.player, context._regenAmount or 500)
+		stateService:Heal(context.player, context._regenAmount or 0)
 	end
 end
 

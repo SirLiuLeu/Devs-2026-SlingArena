@@ -4,7 +4,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
-local PetsUpgradeConfig = require(ReplicatedStorage.Shared.Config.PetsUpgradeConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local ServiceResolver = require(script.Parent.Parent.Infrastructure.ServiceResolver)
@@ -41,12 +40,15 @@ function PetService:Init()
 		end)
 	end
 	if self._upgradeRemote then
-		self._upgradeRemote.OnServerEvent:Connect(function(player: Player, instanceId: string)
-			if RemoteContracts.Validate(RemoteContracts.Names.UpgradePet, instanceId) then
-				local success, reason = self:Upgrade(player, instanceId)
-				if not success then
-					self:_publishUpgradeResult(player, { Status = "Rejected", Reason = reason, InstanceId = instanceId })
-				end
+		self._upgradeRemote.OnServerEvent:Connect(function(player: Player, instanceId: string, expectedLevel: number)
+			if RemoteContracts.Validate(RemoteContracts.Names.UpgradePet, instanceId, expectedLevel) then
+				local success, reason, upgradedPet = self:Upgrade(player, instanceId, expectedLevel)
+				self:_publishUpgradeResult(player, {
+					Status = if success then "Upgraded" else "Rejected",
+					Reason = reason,
+					InstanceId = instanceId,
+					Level = upgradedPet and upgradedPet.level,
+				})
 			end
 		end)
 	end
@@ -233,25 +235,21 @@ function PetService:GetPityState(player: Player, instanceId: string): any?
 	return type(owned) == "table" and owned.pity or nil
 end
 
-function PetService:Upgrade(player: Player, instanceId: string): (boolean, string?)
+function PetService:Upgrade(player: Player, instanceId: string, expectedLevel: number): (boolean, string?, any?)
 	local dataService = self:_dataService()
-	if not dataService or not self:OwnsInstance(player, instanceId) then return false, "NotOwned" end
-	local owned = self:GetOwnedPets(player)[instanceId]
-	local definition = PetsConfig.GetById(tostring(owned.definitionId or ""))
-	local maxLevel = definition and PetsConfig.GetMaxLevelForRarity(definition.rarity) or PetsUpgradeConfig.MaxLevel
-	local currentLevel = math.max(1, math.floor(tonumber(owned.level) or 1))
-	if currentLevel >= maxLevel then return false, "MaxLevel" end
-	local cost = PetsUpgradeConfig.GetUpgradeCost(currentLevel)
-	if not dataService:SpendDiamonds(player, cost, "PetUpgrade") then return false, "InsufficientDiamonds" end
-	dataService:UpdateData(player, function(data)
-		dataService:_ensurePetData(data)
-		data.OwnedPets[instanceId].level = math.min(maxLevel, currentLevel + 1)
-		return data
-	end)
-	if self._context.EventBus then
-		self._context.EventBus:Fire("PetUpdated", player, instanceId, self:GetOwnedPets(player)[instanceId])
+	if not dataService or typeof(dataService.CommitPetUpgrade) ~= "function" then
+		return false, "MissingPlayerDataService", nil
 	end
-	return true, nil
+	local success, reason, upgradedPet = dataService:CommitPetUpgrade(player, instanceId, expectedLevel)
+	if not success then return false, reason, nil end
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
+		stateService:RecalculateDerivedStats(player, false)
+	end
+	if self._context.EventBus then
+		self._context.EventBus:Fire("PetUpdated", player, instanceId, upgradedPet)
+	end
+	return true, nil, upgradedPet
 end
 
 return PetService

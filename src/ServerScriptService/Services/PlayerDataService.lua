@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local MockProvider = require(script.Parent.DataProviders.MockProvider)
+local PetsUpgradeConfig = require(ReplicatedStorage.Shared.Config.PetsUpgradeConfig)
 
 type Context = { EventBus: any?, Services: any?, ServiceRegistry: any? }
 
@@ -27,7 +28,8 @@ local function buildStarterPetInventory(): { [string]: any }
 end
 
 local RETIRED_PET_IDS = { SmokeBomb = true, MagnetCore = true }
-local PET_ID_ALIASES = { ShadowCloakZ = "ShadowCloak" }
+local PET_ID_ALIASES = { ShadowCloakZ = "ShadowCloak", Pufferfish = "ThornArmor", SlowBlaster = "Hydra", TitanCore = "Dragon" }
+local PET_IDENTITY_MIGRATION_VERSION = 1
 local ABILITY_ID_ALIASES = {
 	Fire = "Burn",
 	Regen = "Regeneration",
@@ -45,6 +47,7 @@ function PlayerDataService.new(context: Context, provider: any?)
 	local self = setmetatable({}, PlayerDataService)
 	self._context = context
 	self._provider = provider or MockProvider.new()
+	self._petUpgradeLocks = {}
 	return self
 end
 
@@ -72,6 +75,7 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 		EquippedLauncherInstanceId = "default_normal_launcher",
 		OwnedPets = buildStarterPetInventory(),
 		EquippedPets = { [1] = nil, [2] = nil, [3] = nil },
+		PetIdentityMigrationVersion = PET_IDENTITY_MIGRATION_VERSION,
 	}
 end
 
@@ -156,10 +160,21 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 	if type(data.EquippedPets) ~= "table" then
 		data.EquippedPets = {}
 	end
+
+	-- Versioned identity migration preserves ability ownership after Dragon and
+	-- Hydra exchanged visual models. Only unmigrated profiles use the legacy
+	-- Dragon/Hydra mapping, preventing subsequent loads from swapping again.
+	local needsIdentityMigration = (tonumber(data.PetIdentityMigrationVersion) or 0) < PET_IDENTITY_MIGRATION_VERSION
 	for instanceId, pet in pairs(data.OwnedPets) do
 		if type(pet) == "table" then
 			if type(pet.definitionId) == "string" then
-				pet.definitionId = PET_ID_ALIASES[pet.definitionId] or pet.definitionId
+				if needsIdentityMigration and pet.definitionId == "Hydra" then
+					pet.definitionId = "Dragon"
+				elseif needsIdentityMigration and pet.definitionId == "Dragon" then
+					pet.definitionId = "Hydra"
+				else
+					pet.definitionId = PET_ID_ALIASES[pet.definitionId] or pet.definitionId
+				end
 			end
 			if type(pet.abilityId) == "string" then
 				pet.abilityId = ABILITY_ID_ALIASES[pet.abilityId] or pet.abilityId
@@ -174,8 +189,9 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 		elseif type(instanceId) ~= "string" or type(pet) ~= "table" or type(pet.definitionId) ~= "string" or pet.definitionId == "" then
 			data.OwnedPets[instanceId] = nil
 		else
-			pet.level = math.max(1, math.floor(tonumber(pet.level) or 1))
-			pet.rarity = tostring(pet.rarity or "Common")
+			pet.level = math.clamp(math.floor(tonumber(pet.level) or 1), 1, PetsConfig.MaxLevel)
+			local definition = PetsConfig.GetById(pet.definitionId)
+			pet.rarity = (definition and definition.rarity) or tostring(pet.rarity or "Common")
 			pet.isTemporary = pet.isTemporary == true
 			pet.expiresAt = tonumber(pet.expiresAt)
 			pet.acquiredAt = tonumber(pet.acquiredAt) or os.time()
@@ -184,6 +200,7 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 			end
 		end
 	end
+	data.PetIdentityMigrationVersion = PET_IDENTITY_MIGRATION_VERSION
 	-- Do not mutate EquippedPets while iterating it: legacy and numeric keys can
 	-- represent the same slot, and pairs() does not define an order. Numeric keys take
 	-- precedence over numeric-string aliases and then legacy slot names.
@@ -331,6 +348,59 @@ function PlayerDataService:SpendDiamonds(player: Player, amount: number, reason:
 		self._context.EventBus:Fire("DiamondsSpent", player, cost, reason)
 	end
 	return spent
+end
+
+
+-- Upgrades are committed as one in-memory mutation followed by persistence. A
+-- failed save refunds this transaction's diamond deduction and level increase.
+function PlayerDataService:CommitPetUpgrade(player: Player, instanceId: string, expectedLevel: number): (boolean, string?, any?)
+	if type(instanceId) ~= "string" or instanceId == "" then return false, "InvalidInstanceId", nil end
+	if self._petUpgradeLocks[player] then return false, "UpgradeInProgress", nil end
+	self._petUpgradeLocks[player] = true
+	local expected = math.floor(tonumber(expectedLevel) or 0)
+	local resultPet = nil
+	local failure = nil
+	local cost = 0
+	self:UpdateData(player, function(data)
+		self:_ensurePetData(data)
+		local pet = data.OwnedPets[instanceId]
+		if type(pet) ~= "table" then failure = "NotOwned"; return data end
+		local currentLevel = PetsUpgradeConfig.NormalizeLevel(tonumber(pet.level) or 1)
+		if expected ~= currentLevel then failure = "StaleLevel"; return data end
+		if currentLevel >= PetsUpgradeConfig.MaxLevel then failure = "MaxLevel"; return data end
+		cost = PetsUpgradeConfig.GetUpgradeCost(currentLevel)
+		if data.Diamonds < cost then failure = "InsufficientDiamonds"; return data end
+		data.Diamonds -= cost
+		pet.level = currentLevel + 1
+		resultPet = pet
+		return data
+	end)
+	if failure then
+		self._petUpgradeLocks[player] = nil
+		return false, failure, nil
+	end
+	local saveCallOk, saveOk = pcall(function()
+		return self:SavePlayer(player)
+	end)
+	if not saveCallOk or not saveOk then
+		-- Refund only this transaction's changes so unrelated state changes that
+		-- happened while persistence yielded are not overwritten.
+		self:UpdateData(player, function(data)
+			local pet = data.OwnedPets[instanceId]
+			if type(pet) == "table" and pet.level == expected + 1 then
+				pet.level = expected
+				data.Diamonds += cost
+			end
+			return data
+		end)
+		self._petUpgradeLocks[player] = nil
+		return false, "SaveFailed", nil
+	end
+	self._petUpgradeLocks[player] = nil
+	if self._context.EventBus then
+		self._context.EventBus:Fire("DiamondsSpent", player, cost, "PetUpgrade")
+	end
+	return true, nil, resultPet
 end
 
 function PlayerDataService:GetOwnedPets(player: Player): { [string]: any }

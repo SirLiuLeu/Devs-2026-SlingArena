@@ -49,7 +49,7 @@ local MOCK_PLAYER_DATA = {
 	},
 	OwnedPets = {
 		mock_PlasmaCannon_1 = { definitionId = "PlasmaCannon", level = 1, rarity = (PetsConfig.GetById("PlasmaCannon") and PetsConfig.GetById("PlasmaCannon").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_SlowBlaster_1 = { definitionId = "SlowBlaster", level = 1, rarity = (PetsConfig.GetById("SlowBlaster") and PetsConfig.GetById("SlowBlaster").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_Hydra_1 = { definitionId = "Hydra", level = 1, rarity = (PetsConfig.GetById("Hydra") and PetsConfig.GetById("Hydra").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_ThunderHammer_1 = { definitionId = "ThunderHammer", level = 1, rarity = (PetsConfig.GetById("ThunderHammer") and PetsConfig.GetById("ThunderHammer").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_Medusa_1 = { definitionId = "Medusa", level = 1, rarity = (PetsConfig.GetById("Medusa") and PetsConfig.GetById("Medusa").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_IceCrystal_1 = { definitionId = "IceCrystal", level = 1, rarity = (PetsConfig.GetById("IceCrystal") and PetsConfig.GetById("IceCrystal").rarity) or "Common", acquiredAt = 1786924800 },
@@ -61,7 +61,7 @@ local MOCK_PLAYER_DATA = {
 		mock_BrainBoost_1 = { definitionId = "BrainBoost", level = 1, rarity = (PetsConfig.GetById("BrainBoost") and PetsConfig.GetById("BrainBoost").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_TurboModule_1 = { definitionId = "TurboModule", level = 1, rarity = (PetsConfig.GetById("TurboModule") and PetsConfig.GetById("TurboModule").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_LaunchBooster_1 = { definitionId = "LaunchBooster", level = 1, rarity = (PetsConfig.GetById("LaunchBooster") and PetsConfig.GetById("LaunchBooster").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_TitanCore_1 = { definitionId = "TitanCore", level = 1, rarity = (PetsConfig.GetById("TitanCore") and PetsConfig.GetById("TitanCore").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_Dragon_1 = { definitionId = "Dragon", level = 1, rarity = (PetsConfig.GetById("Dragon") and PetsConfig.GetById("Dragon").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_QuickReload_1 = { definitionId = "QuickReload", level = 1, rarity = (PetsConfig.GetById("QuickReload") and PetsConfig.GetById("QuickReload").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_ThornArmor_1 = { definitionId = "ThornArmor", level = 1, rarity = (PetsConfig.GetById("ThornArmor") and PetsConfig.GetById("ThornArmor").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_RegenBooster_1 = { definitionId = "RegenBooster", level = 1, rarity = (PetsConfig.GetById("RegenBooster") and PetsConfig.GetById("RegenBooster").rarity) or "Common", acquiredAt = 1786924800 },

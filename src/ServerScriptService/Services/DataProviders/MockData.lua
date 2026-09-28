@@ -53,7 +53,7 @@ MockData.PlayerProfiles = {
 		OwnedItems = { hp_potion = 8, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5, gacha_ticket = 5 },
 		OwnedPets = {
 			eq_alpha_PlasmaCannon = { definitionId = "PlasmaCannon", level = 1, rarity = (PetsConfig.GetById("PlasmaCannon") and PetsConfig.GetById("PlasmaCannon").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_SlowBlaster = { definitionId = "SlowBlaster", level = 1, rarity = (PetsConfig.GetById("SlowBlaster") and PetsConfig.GetById("SlowBlaster").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_Hydra = { definitionId = "Hydra", level = 1, rarity = (PetsConfig.GetById("Hydra") and PetsConfig.GetById("Hydra").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_ThunderHammer = { definitionId = "ThunderHammer", level = 1, rarity = (PetsConfig.GetById("ThunderHammer") and PetsConfig.GetById("ThunderHammer").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_Medusa = { definitionId = "Medusa", level = 1, rarity = (PetsConfig.GetById("Medusa") and PetsConfig.GetById("Medusa").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_IceCrystal = { definitionId = "IceCrystal", level = 1, rarity = (PetsConfig.GetById("IceCrystal") and PetsConfig.GetById("IceCrystal").rarity) or "Common", acquiredAt = 1786924800 },
@@ -65,7 +65,7 @@ MockData.PlayerProfiles = {
 			eq_alpha_BrainBoost = { definitionId = "BrainBoost", level = 1, rarity = (PetsConfig.GetById("BrainBoost") and PetsConfig.GetById("BrainBoost").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_TurboModule = { definitionId = "TurboModule", level = 1, rarity = (PetsConfig.GetById("TurboModule") and PetsConfig.GetById("TurboModule").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_LaunchBooster = { definitionId = "LaunchBooster", level = 1, rarity = (PetsConfig.GetById("LaunchBooster") and PetsConfig.GetById("LaunchBooster").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_TitanCore = { definitionId = "TitanCore", level = 1, rarity = (PetsConfig.GetById("TitanCore") and PetsConfig.GetById("TitanCore").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_Dragon = { definitionId = "Dragon", level = 1, rarity = (PetsConfig.GetById("Dragon") and PetsConfig.GetById("Dragon").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_QuickReload = { definitionId = "QuickReload", level = 1, rarity = (PetsConfig.GetById("QuickReload") and PetsConfig.GetById("QuickReload").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_ThornArmor = { definitionId = "ThornArmor", level = 1, rarity = (PetsConfig.GetById("ThornArmor") and PetsConfig.GetById("ThornArmor").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_RegenBooster = { definitionId = "RegenBooster", level = 1, rarity = (PetsConfig.GetById("RegenBooster") and PetsConfig.GetById("RegenBooster").rarity) or "Common", acquiredAt = 1786924800 },

@@ -33,6 +33,7 @@ export type PetDefinition = {
 	combatEffect: CombatEffect?,
 	passiveAbility: PassiveAbility?,
 	statModifiers: StatModifiers?,
+	progression: { [string]: any }?,
 	metadata: { [string]: any }?,
 	iconId: string?,
 }
@@ -40,12 +41,7 @@ export type PetDefinition = {
 PetsConfig.EquippedSlotCount = 3
 PetsConfig.SlotTypes = { Universal = "Universal", Core = "Core", Module = "Module", Charm = "Charm" }
 PetsConfig.Rarities = { Common = "Common", Rare = "Rare", Epic = "Epic", Legendary = "Legendary" }
-PetsConfig.RarityMaxLevel = {
-	[PetsConfig.Rarities.Common] = 5,
-	[PetsConfig.Rarities.Rare] = 10,
-	[PetsConfig.Rarities.Epic] = 15,
-	[PetsConfig.Rarities.Legendary] = 20,
-}
+PetsConfig.MaxLevel = 20
 PetsConfig.Categories = {
 	ActiveAttack = "Active Attack",
 	CrowdControl = "Crowd Control",
@@ -56,7 +52,7 @@ PetsConfig.Categories = {
 	UtilityAreaEffect = "Utility / Area Effect",
 }
 
-local function pet(petId: string, name: string, displayName: string, rarity: string, category: string, abilityId: string?, combatEffect: CombatEffect?, passiveAbility: PassiveAbility?, statModifiers: StatModifiers?): PetDefinition
+local function pet(petId: string, name: string, displayName: string, rarity: string, category: string, abilityId: string?, combatEffect: CombatEffect?, passiveAbility: PassiveAbility?, statModifiers: StatModifiers?, progression: { [string]: any }?): PetDefinition
 	return {
 		PetId = petId,
 		Name = name,
@@ -69,6 +65,7 @@ local function pet(petId: string, name: string, displayName: string, rarity: str
 		combatEffect = combatEffect,
 		passiveAbility = passiveAbility,
 		statModifiers = statModifiers or { Add = {}, Multiply = {} },
+		progression = progression or { abilityTiers = {} },
 		metadata = { inventoryCapacityCost = 1 },
 		iconId = "rbxassetid://0",
 	}
@@ -81,10 +78,11 @@ PetsConfig.Definitions = {
         { type = "ActiveAttack", value = 1000, params = { cooldown = 10, diagnostic = "Plasma Cannon active attack is not yet implemented" } },
         { Add = {}, Multiply = {} }),
 
-    SlowBlaster = pet("SlowBlaster", "Dragon", "Dragon", PetsConfig.Rarities.Rare, PetsConfig.Categories.ActiveAttack, "Slow",
+    Hydra = pet("Hydra", "Hydra", "Hydra", PetsConfig.Rarities.Rare, PetsConfig.Categories.ActiveAttack, "Slow",
         { collisionFlag = "Slow", collisionExtraDuration = 3 },
         { type = "ProjectileSlow", params = { cooldown = 3, diagnostic = "Slow Blaster projectile is not yet implemented; collision slow uses the shared Slow effect" } },
-        { Add = {}, Multiply = {} }),
+        { Add = {}, Multiply = {} },
+        { abilityTiers = { { collisionExtraDuration = 3 }, { collisionExtraDuration = 3.5 }, { collisionExtraDuration = 4 }, { collisionExtraDuration = 4.5 }, { collisionExtraDuration = 5 } } }),
 
     -- Crowd Control
     ThunderHammer = pet("ThunderHammer", "Yeti", "Yeti", PetsConfig.Rarities.Epic, PetsConfig.Categories.CrowdControl, "Stun",
@@ -117,7 +115,8 @@ PetsConfig.Definitions = {
         nil, nil, nil, { Add = { baseDamage = 500 }, Multiply = {} }),
 
     Shield = pet("Shield", "Panda", "Panda", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "Shield",
-        nil, { type = "DamageReduction", percent = 0.2 }, { Add = {}, Multiply = {} }),
+        nil, { type = "DamageReduction", percent = 0.2 }, { Add = {}, Multiply = {} },
+        { abilityTiers = { { damageMultiplier = 0.8 }, { damageMultiplier = 0.75 }, { damageMultiplier = 0.7 }, { damageMultiplier = 0.65 }, { damageMultiplier = 0.6 } } }),
 
     BrainBoost = pet("BrainBoost", "Monkey", "Monkey", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "ExpBonus",
         nil, { type = "ExpBonus", value = 0.3, params = { expBonus = 0.3 } },
@@ -129,9 +128,10 @@ PetsConfig.Definitions = {
     LaunchBooster = pet("LaunchBooster", "Bee", "Bee", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
         nil, nil, nil, { Add = {}, Multiply = { launchSpeed = 1.2 } }),
 
-    TitanCore = pet("TitanCore", "Hydra", "Hydra", PetsConfig.Rarities.Epic, PetsConfig.Categories.PassiveStatModifier, "Titan",
+    Dragon = pet("Dragon", "Dragon", "Dragon", PetsConfig.Rarities.Epic, PetsConfig.Categories.PassiveStatModifier, "Titan",
         nil, { type = "Titan", params = { sizeMultiplier = 1.2, incomingKnockbackMultiplier = 0.75, outgoingKnockbackMultiplier = 1.25 } },
-        { Add = {}, Multiply = {} }),
+        { Add = {}, Multiply = {} },
+        { abilityTiers = { { sizeMultiplier = 1.2, incomingKnockbackMultiplier = 0.75, outgoingKnockbackMultiplier = 1.25 }, { sizeMultiplier = 1.25, incomingKnockbackMultiplier = 0.7, outgoingKnockbackMultiplier = 1.3 }, { sizeMultiplier = 1.3, incomingKnockbackMultiplier = 0.65, outgoingKnockbackMultiplier = 1.35 }, { sizeMultiplier = 1.35, incomingKnockbackMultiplier = 0.6, outgoingKnockbackMultiplier = 1.4 }, { sizeMultiplier = 1.4, incomingKnockbackMultiplier = 0.55, outgoingKnockbackMultiplier = 1.45 } } }),
 
     QuickReload = pet("QuickReload", "Dog", "Dog", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
         nil, nil, nil, { Add = { launchCooldown = -1 }, Multiply = {} }),
@@ -143,7 +143,8 @@ PetsConfig.Definitions = {
     -- Regeneration / Healing
     RegenBooster = pet("RegenBooster", "Fish", "Fish", PetsConfig.Rarities.Rare, PetsConfig.Categories.RegenerationHealing, "Regeneration",
         nil, { type = "Regeneration", value = 500, params = { tickInterval = 5 } },
-        { Add = {}, Multiply = {} }),
+        { Add = {}, Multiply = {} },
+        { abilityTiers = { { healAmount = 500, tickInterval = 5 }, { healAmount = 650, tickInterval = 5 }, { healAmount = 800, tickInterval = 5 }, { healAmount = 950, tickInterval = 5 }, { healAmount = 1100, tickInterval = 5 } } }),
 
     -- Conditional Effect
     ShadowCloak = pet("ShadowCloak", "Unicorn", "Unicorn", PetsConfig.Rarities.Epic, PetsConfig.Categories.ConditionalEffect, "IdleStealth",
@@ -152,8 +153,8 @@ PetsConfig.Definitions = {
 
 }
 
-function PetsConfig.GetMaxLevelForRarity(rarity: string): number
-	return PetsConfig.RarityMaxLevel[rarity] or PetsConfig.RarityMaxLevel[PetsConfig.Rarities.Common]
+function PetsConfig.GetMaxLevelForRarity(_rarity: string): number
+	return PetsConfig.MaxLevel
 end
 
 function PetsConfig.GetById(definitionId: string): PetDefinition?
