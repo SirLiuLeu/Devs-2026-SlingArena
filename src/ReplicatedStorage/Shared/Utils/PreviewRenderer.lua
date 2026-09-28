@@ -81,8 +81,7 @@ end
 -- ReplicatedStorage.Assets.Launchers; no asset paths are hardcoded here.
 function PreviewRenderer.Populate(viewportFrame: ViewportFrame, rootFolder: Instance?, itemId: string, config: any?): Model
 	local sourceAsset = if rootFolder then rootFolder:FindFirstChild(itemId) else nil
-	local sourceIdentity = sourceAsset and sourceAsset:GetDebugId() or "Missing:" .. itemId
-	local signature = sourceIdentity .. "|" .. itemId
+	local signature = itemId
 	local existingModel = viewportFrame:FindFirstChild(PREVIEW_MODEL_NAME)
 	local existingCamera = viewportFrame:FindFirstChild(PREVIEW_CAMERA_NAME)
 	if viewportFrame:GetAttribute("PreviewSignature") == signature
