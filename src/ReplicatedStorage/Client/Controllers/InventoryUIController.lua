@@ -98,9 +98,6 @@ function InventoryUIController.new(playerGui: PlayerGui)
 	self._selectedItemId = nil
 	self._selectedPetId = nil
 	self._cachedSnapshot = nil
-	self._upgradePreviewPetId = nil
-	self._upgradeRequestPetId = nil
-	self._upgradeRequestLevel = nil
 	return self
 end
 
@@ -140,7 +137,6 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._petStatHP = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsStatHP)
 	self._petStatRange = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsStatRange)
 	self._petStatRegeneration = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsStatRegeneration)
-	self._petStatScript = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsStatScript)
 	self._petEquipButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsEquipButton)
 	self._petDeleteButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsDeleteButton)
 	self._petUpgradeButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsUpgradeButton)
@@ -205,23 +201,13 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 			if not petId or not self._upgradePetRemote then
 				return
 			end
-			if self._upgradePreviewPetId ~= petId then
-				self._upgradePreviewPetId = petId
-				self:_refreshPetPanel(self._cachedSnapshot or {})
+			if not self._confirmationController then
+				warn("[INVENTORY_UI] ConfirmationUIController is required before upgrading pet")
 				return
 			end
-			self._upgradeRequestPetId = petId
-			local entry = self:_findPetEntry((self._cachedSnapshot or {}).ownedPets, petId)
-			self._upgradeRequestLevel = math.max(1, math.floor(tonumber(entry and entry.level) or 1))
-			self._upgradePetRemote:FireServer(petId)
-		end))
-	end
-	local feedbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):FindFirstChild(RemoteContracts.Names.GameplayFeedback)
-	if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
-		table.insert(self._connections, feedbackRemote.OnClientEvent:Connect(function(message)
-			if type(message) == "table" and message.EventType == "PetUpgradeResult" and message.Payload and message.Payload.Success ~= true then
-				self:_resetUpgradePreview()
-			end
+			self._confirmationController:RequestConfirm("Upgrade this pet?", function()
+				self._upgradePetRemote:FireServer(petId)
+			end)
 		end))
 	end
 
@@ -240,17 +226,10 @@ end
 function InventoryUIController:SetActiveTab(tabName: string)
 	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryUI] SetActiveTab requested=%s previous=%s t=%.3f", tostring(tabName), tostring(self._activeTab), os.clock())) end
 	self._activeTab = if tabName == "Pet" then "Pet" else "Items"
-	self:_resetUpgradePreview()
 	if self._itemsBody then
 		self._itemsBody.Visible = self._activeTab == "Items"
 	end
 	if self._petBody then self._petBody.Visible = self._activeTab == "Pet" end
-end
-
-function InventoryUIController:_resetUpgradePreview()
-	self._upgradePreviewPetId = nil
-	self._upgradeRequestPetId = nil
-	self._upgradeRequestLevel = nil
 end
 
 function InventoryUIController:_disconnectSlotConnections()
@@ -375,7 +354,6 @@ function InventoryUIController:_bindSlotState(slot: GuiObject, listType: string,
 				self._dataProvider:SelectItem(id)
 			end
 		elseif listType == "Pet" then
-			if self._selectedPetId ~= id then self:_resetUpgradePreview() end
 			self._selectedPetId = id
 			if self._dataProvider then self._dataProvider:SelectPet(id) end
 		end
@@ -528,7 +506,6 @@ function InventoryUIController:_refreshPetPanel(data)
 	if self._petSelectedName then self._petSelectedName.Text = (def and def.DisplayName) or "No pet selected" end
 	local level = math.max(1, math.floor(tonumber(entry and entry.level) or 1))
 	local nextLevel = level + 1
-	local previewing = self._upgradePreviewPetId == petId
 	local modifiers = def and def.statModifiers or nil
 	local additiveStats = modifiers and modifiers.Add or nil
 	local multiplierStats = modifiers and modifiers.Multiply or nil
@@ -546,45 +523,18 @@ function InventoryUIController:_refreshPetPanel(data)
 		local currentValue = PetsUpgradeConfig.GetStatAtLevel(baseValue, level)
 		local nextValue = PetsUpgradeConfig.GetStatAtLevel(baseValue, nextLevel)
 		local prefix = if isMultiplier then "x" else ""
-		if previewing then
-			return string.format("%s: %s%.2f <font color=\"#00ff00\">➔ %s%.2f</font>", label, prefix, currentValue, prefix, nextValue)
-		end
-		return string.format("%s: %s%.2f", label, prefix, currentValue)
+		return string.format("%s: %s%.2f <font color=\"#00ff00\">➔ %s%.2f</font>", label, prefix, currentValue, prefix, nextValue)
 	end
 
 	if self._petStatDamage then self._petStatDamage.Text = formatStat("Damage", "baseDamage", "damageMultiplier") ; self._petStatDamage.RichText = true end
 	if self._petStatHP then self._petStatHP.Text = formatStat("HP", "maxHP") ; self._petStatHP.RichText = true end
 	if self._petStatRange then self._petStatRange.Text = formatStat("Range", "launchRange", "launchSpeed") ; self._petStatRange.RichText = true end
 	if self._petStatRegeneration then self._petStatRegeneration.Text = formatStat("Regeneration", "regen") ; self._petStatRegeneration.RichText = true end
-	if self._petStatScript then
-		local passive = def and def.passiveAbility
-		local baseAbility = passive and (tonumber(passive.percent) or tonumber(passive.value))
-		if baseAbility then
-			local currentAbility = PetsUpgradeConfig.GetAbilityValueAtLevel(baseAbility, level)
-			local nextAbility = PetsUpgradeConfig.GetAbilityValueAtLevel(baseAbility, nextLevel)
-			local isPercent = passive.percent ~= nil
-			local suffix = if isPercent then "%" else ""
-			local displayCurrent = if isPercent then currentAbility * 100 else currentAbility
-			local displayNext = if isPercent then nextAbility * 100 else nextAbility
-			if previewing and nextLevel % PetsUpgradeConfig.AbilityTierInterval == 0 then
-				self._petStatScript.Text = string.format("Script: %.0f%s <font color=\"#00ff00\">➔ %.0f%s</font>", displayCurrent, suffix, displayNext, suffix)
-			else
-				self._petStatScript.Text = string.format("Script: %.0f%s", displayCurrent, suffix)
-			end
-			self._petStatScript.RichText = true
-		else
-			self._petStatScript.Text = "Script: -"
-		end
-	end
 	if self._petEquipButton then
 		self._petEquipButton.Text = if entry and entry.equipped then "Unequip" else "Equip"
 		self._petEquipButton.Active = entry ~= nil
 	end
-	if self._petUpgradeButton then
-		local cost = PetsUpgradeConfig.GetUpgradeCost(level)
-		self._petUpgradeButton.Text = if previewing then string.format("Confirm %d Diamonds", cost) else string.format("Upgrade %d Diamonds", cost)
-		self._petUpgradeButton.Active = entry ~= nil and self._upgradeRequestPetId == nil
-	end
+	if self._petUpgradeButton then self._petUpgradeButton.Text = string.format("Upgrade %d Diamonds", PetsUpgradeConfig.GetUpgradeCost(level)); self._petUpgradeButton.Active = entry ~= nil end
 end
 
 
@@ -626,10 +576,6 @@ end
 function InventoryUIController:RefreshWithData(data)
 	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryUI] RefreshWithData items=%s pet=%s equippedPets=%s selectedPet=%s t=%.3f", tostring(type(data.ownedItems) == "table" and (function() local count = 0; for _ in pairs(data.ownedItems) do count += 1 end; return count end)() or "n/a"), tostring(type(data.ownedPets) == "table" and #data.ownedPets or "n/a"), tostring(type(data.equippedPets) == "table" and (function() local count = 0; for _ in pairs(data.equippedPets) do count += 1 end; return count end)() or "n/a"), tostring(data.selectedPetId), os.clock())) end
 	self._cachedSnapshot = data
-	if self._upgradeRequestPetId then
-		local updated = self:_findPetEntry(data.ownedPets, self._upgradeRequestPetId)
-		if updated and math.max(1, math.floor(tonumber(updated.level) or 1)) > (self._upgradeRequestLevel or math.huge) then self:_resetUpgradePreview() end
-	end
 	if self._inventoryGui and self._inventoryGui:IsA("ScreenGui") and not self._inventoryGui.Enabled then
 		return
 	end
