@@ -9,6 +9,7 @@ local Workspace = game:GetService("Workspace")
 
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
 
 local ClientPetController = {}
 ClientPetController.__index = ClientPetController
@@ -21,6 +22,9 @@ local SLOT_SPACING = 3
 local FOLLOW_LERP_SPEED = 10
 local BOB_HEIGHT = 0.35
 local BOB_SPEED = 2.5
+local SWAY_DISTANCE = 0.3
+local SWAY_SPEED = 1.75
+local SNAP_DISTANCE = 60
 
 type RenderedPet = {
 	instanceId: string,
@@ -98,8 +102,37 @@ function ClientPetController.new(player: Player)
 	self._renderFolder = getOrCreateRenderFolder()
 	self._renderedPets = {} :: { [number]: RenderedPet }
 	self._connections = {} :: { RBXScriptConnection }
+	self._cachedCharacter = nil :: Model?
+	self._cachedPawn = nil :: Model?
+	self._cachedRootPart = nil :: BasePart?
+	self._cachedMode = nil :: any
 	self._started = false
 	return self
+end
+
+function ClientPetController:_getFollowRoot(): BasePart?
+	local character = self._player.Character
+	local mode = self._player:GetAttribute("ActivePlayerMode") or self._player:GetAttribute("State")
+	local pawn = PawnLocator.GetPawnByPlayer(self._player)
+	local root = self._cachedRootPart
+	if character ~= self._cachedCharacter or pawn ~= self._cachedPawn or mode ~= self._cachedMode
+		or not root or root.Parent == nil then
+		self._cachedCharacter = character
+		self._cachedPawn = pawn
+		self._cachedMode = mode
+		self._cachedRootPart = PawnLocator.GetRootPart(pawn)
+	end
+	return self._cachedRootPart
+end
+
+local function setModelVisible(model: Model, visible: boolean)
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			descendant.Transparency = if visible then 0 else 1
+		elseif descendant:IsA("Decal") or descendant:IsA("Texture") then
+			descendant.Transparency = if visible then 0 else 1
+		end
+	end
 end
 
 function ClientPetController:_destroyPet(slot: number)
@@ -160,9 +193,13 @@ function ClientPetController:ApplyState(state: any)
 end
 
 function ClientPetController:_render(deltaTime: number)
-	local character = self._player.Character
-	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-	if not rootPart or not rootPart:IsA("BasePart") then
+	local rootPart = self:_getFollowRoot()
+	local humanoid = self._player.Character and self._player.Character:FindFirstChildWhichIsA("Humanoid")
+	local isDead = humanoid ~= nil and humanoid.Health <= 0
+	if not rootPart or isDead then
+		for _, rendered in pairs(self._renderedPets) do
+			setModelVisible(rendered.model, false)
+		end
 		return
 	end
 
@@ -173,11 +210,22 @@ function ClientPetController:_render(deltaTime: number)
 			self._renderedPets[slot] = nil
 			continue
 		end
+		setModelVisible(rendered.model, true)
 		local lateralOffset = (slot - ((PetsConfig.EquippedSlotCount + 1) / 2)) * SLOT_SPACING
 		local bobOffset = math.sin(now * BOB_SPEED + slot) * BOB_HEIGHT
-		-- Pet assets are authored facing local -Z, so no corrective rotation is needed.
-		local target = rootPart.CFrame * CFrame.new(lateralOffset, FOLLOW_HEIGHT + bobOffset, FOLLOW_DISTANCE)
-		rendered.model:PivotTo(rendered.model:GetPivot():Lerp(target, alpha))
+		local swayOffset = math.cos(now * SWAY_SPEED + slot * 0.7) * SWAY_DISTANCE
+		-- Launcher pawns roll in flight. Only use their heading to keep pets upright.
+		local look = rootPart.CFrame.LookVector
+		local flatLook = Vector3.new(look.X, 0, look.Z)
+		if flatLook.Magnitude < 0.001 then flatLook = Vector3.zAxis end
+		local heading = CFrame.lookAt(rootPart.Position, rootPart.Position + flatLook.Unit)
+		local target = heading * CFrame.new(lateralOffset + swayOffset, FOLLOW_HEIGHT + bobOffset, FOLLOW_DISTANCE)
+		local current = rendered.model:GetPivot()
+		if (current.Position - target.Position).Magnitude >= SNAP_DISTANCE then
+			rendered.model:PivotTo(target)
+		else
+			rendered.model:PivotTo(current:Lerp(target, alpha))
+		end
 	end
 end
 

@@ -96,8 +96,7 @@ local ProjectTreeSpec = {
 			PetsUpgradeButton = "InventoryUI.Root.BodyPets.RightPanel.ActionButtons.UpgradeButton",
 			PetsStatDamage = "InventoryUI.Root.BodyPets.RightPanel.Stats.Damage",
 			PetsStatHP = "InventoryUI.Root.BodyPets.RightPanel.Stats.HP",
-			PetsStatRange = "InventoryUI.Root.BodyPets.RightPanel.Stats.Range",
-			PetsStatRegeneration = "InventoryUI.Root.BodyPets.RightPanel.Stats.Regeneration",
+			PetsStatScript = "InventoryUI.Root.BodyPets.RightPanel.Stats.Script",
 		},
 		OnlineReward = {
 			ScreenGui = "OnlineRewardUI", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI

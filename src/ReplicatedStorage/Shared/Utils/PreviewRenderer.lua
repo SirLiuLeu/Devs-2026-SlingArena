@@ -1,8 +1,8 @@
 --!strict
 
--- Renders an asset model into a ViewportFrame without retaining models/cameras
--- from previous uses of the frame. This is intentionally stateless so it is safe
--- to call whenever a scrolling-list slot is recycled.
+-- Renders an asset model into a ViewportFrame. Each frame retains its preview
+-- until its requested definition changes, avoiding clone/rebuild storms during
+-- inventory state refreshes.
 local PreviewRenderer = {}
 
 local PREVIEW_MODEL_NAME = "PreviewModel"
@@ -50,7 +50,7 @@ local function createPlaceholder(itemId: string): Model
 	return model
 end
 
-local function fitCamera(camera: Camera, model: Model, viewportFrame: ViewportFrame)
+local function fitCamera(camera: Camera, model: Model, viewportFrame: ViewportFrame, config: any?)
 	local center, size = model:GetBoundingBox()
 	local width = math.max(size.X, 0.01)
 	local height = math.max(size.Y, 0.01)
@@ -65,26 +65,34 @@ local function fitCamera(camera: Camera, model: Model, viewportFrame: ViewportFr
 
 	camera.FieldOfView = DEFAULT_FOV
 
-	-- Pet models use RootPart as their centre and are authored facing local -Z.
-	-- View along their native forward axis while retaining the conventional local-Y up.
-	local rootPart = model:FindFirstChild("RootPart", true)
-	if rootPart and rootPart:IsA("BasePart") then
-		local focusPosition = rootPart.Position
-		local forward = rootPart.CFrame:VectorToWorldSpace(Vector3.new(0, 0, -1))
-		local up = rootPart.CFrame:VectorToWorldSpace(Vector3.new(0, 1, 0))
-		camera.CFrame = CFrame.lookAt(focusPosition + forward * distance, focusPosition, up)
-	else
-		camera.CFrame = CFrame.lookAt(center.Position + Vector3.new(distance, distance * 0.2, distance), center.Position)
-	end
+	local rotation = config and config.Rotation
+	local rotationCFrame = if typeof(rotation) == "CFrame" then rotation
+		elseif typeof(rotation) == "Vector3" then CFrame.fromOrientation(math.rad(rotation.X), math.rad(rotation.Y), math.rad(rotation.Z))
+		else CFrame.identity
+	local offset = if config and typeof(config.Offset) == "Vector3" then config.Offset else Vector3.zero
+	-- The bounding-box center, rather than RootPart, correctly frames asymmetric pets.
+	local viewDirection = rotationCFrame:VectorToWorldSpace(Vector3.new(1, 0.2, 1)).Unit
+	local focusPosition = center.Position + offset
+	camera.CFrame = CFrame.lookAt(focusPosition + viewDirection * distance, focusPosition)
 end
 
 -- Replaces every preview object in viewportFrame with itemId's model from
 -- rootFolder. rootFolder is normally ReplicatedStorage.Assets.Pets or
 -- ReplicatedStorage.Assets.Launchers; no asset paths are hardcoded here.
-function PreviewRenderer.Populate(viewportFrame: ViewportFrame, rootFolder: Instance?, itemId: string): Model
+function PreviewRenderer.Populate(viewportFrame: ViewportFrame, rootFolder: Instance?, itemId: string, config: any?): Model
+	local sourceAsset = if rootFolder then rootFolder:FindFirstChild(itemId) else nil
+	local sourceIdentity = sourceAsset and sourceAsset:GetDebugId() or "Missing:" .. itemId
+	local signature = sourceIdentity .. "|" .. itemId
+	local existingModel = viewportFrame:FindFirstChild(PREVIEW_MODEL_NAME)
+	local existingCamera = viewportFrame:FindFirstChild(PREVIEW_CAMERA_NAME)
+	if viewportFrame:GetAttribute("PreviewSignature") == signature
+		and existingModel and existingModel:IsA("Model") and existingCamera and existingCamera:IsA("Camera") then
+		fitCamera(existingCamera, existingModel, viewportFrame, config)
+		viewportFrame.CurrentCamera = existingCamera
+		return existingModel
+	end
 	clearViewport(viewportFrame)
 
-	local sourceAsset = if rootFolder then rootFolder:FindFirstChild(itemId) else nil
 	local sourceModel = sourceAsset and findSourceModel(sourceAsset) or nil
 	local previewModel: Model
 
@@ -119,8 +127,9 @@ function PreviewRenderer.Populate(viewportFrame: ViewportFrame, rootFolder: Inst
 	previewCamera.Name = PREVIEW_CAMERA_NAME
 	previewCamera.Parent = viewportFrame
 
-	fitCamera(previewCamera, previewModel, viewportFrame)
+	fitCamera(previewCamera, previewModel, viewportFrame, config)
 	viewportFrame.CurrentCamera = previewCamera
+	viewportFrame:SetAttribute("PreviewSignature", signature)
 	return previewModel
 end
 

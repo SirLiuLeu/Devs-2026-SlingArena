@@ -43,9 +43,19 @@ function PetService:Init()
 	if self._upgradeRemote then
 		self._upgradeRemote.OnServerEvent:Connect(function(player: Player, instanceId: string)
 			if RemoteContracts.Validate(RemoteContracts.Names.UpgradePet, instanceId) then
-				self:Upgrade(player, instanceId)
+				local success, reason = self:Upgrade(player, instanceId)
+				if not success then
+					self:_publishUpgradeResult(player, { Status = "Rejected", Reason = reason, InstanceId = instanceId })
+				end
 			end
 		end)
+	end
+end
+
+function PetService:_publishUpgradeResult(player: Player, result: { [string]: any })
+	local feedbackRemote = self._context.Remotes and self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
+	if feedbackRemote then
+		feedbackRemote:FireClient(player, { EventType = "PetUpgradeResult", Payload = result })
 	end
 end
 
