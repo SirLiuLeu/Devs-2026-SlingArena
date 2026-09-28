@@ -43,7 +43,8 @@ function PetService:Init()
 	if self._upgradeRemote then
 		self._upgradeRemote.OnServerEvent:Connect(function(player: Player, instanceId: string)
 			if RemoteContracts.Validate(RemoteContracts.Names.UpgradePet, instanceId) then
-				self:Upgrade(player, instanceId)
+				local success, reason = self:Upgrade(player, instanceId)
+				self:_publishUpgradeResult(player, success, reason)
 			end
 		end)
 	end
@@ -60,6 +61,16 @@ function PetService:_publishEquipResult(player: Player, result: { [string]: any 
 	end
 	if self._context.EventBus then
 		self._context.EventBus:Fire("PetEquipResult", player, result)
+	end
+end
+
+function PetService:_publishUpgradeResult(player: Player, success: boolean, reason: string?)
+	local feedbackRemote = self._context.Remotes and self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
+	if feedbackRemote then
+		feedbackRemote:FireClient(player, {
+			EventType = "PetUpgradeResult",
+			Payload = { Success = success, Reason = reason },
+		})
 	end
 end
 
