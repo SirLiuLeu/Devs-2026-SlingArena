@@ -366,9 +366,12 @@ function PlayerDataService:CommitPetUpgrade(player: Player, instanceId: string, 
 		local pet = data.OwnedPets[instanceId]
 		if type(pet) ~= "table" then failure = "NotOwned"; return data end
 		local currentLevel = PetsUpgradeConfig.NormalizeLevel(tonumber(pet.level) or 1)
+		pet.level = currentLevel
 		if expected ~= currentLevel then failure = "StaleLevel"; return data end
 		if currentLevel >= PetsUpgradeConfig.MaxLevel then failure = "MaxLevel"; return data end
-		cost = PetsUpgradeConfig.GetUpgradeCost(currentLevel)
+		local definition = PetsConfig.GetById(tostring(pet.definitionId or ""))
+		if not definition then failure = "InvalidPetDefinition"; return data end
+		cost = PetsUpgradeConfig.GetUpgradeCost(currentLevel, definition.rarity)
 		if data.Diamonds < cost then failure = "InsufficientDiamonds"; return data end
 		data.Diamonds -= cost
 		pet.level = currentLevel + 1

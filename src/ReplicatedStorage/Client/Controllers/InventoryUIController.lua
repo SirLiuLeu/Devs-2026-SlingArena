@@ -7,6 +7,8 @@ local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local PetsUpgradeConfig = require(ReplicatedStorage.Shared.Config.PetsUpgradeConfig)
 local PetProgression = require(ReplicatedStorage.Shared.Utils.PetProgression)
+local PetAbilityProgressionConfig = require(ReplicatedStorage.Shared.Config.PetAbilityProgressionConfig)
+local PetPreviewConfig = require(ReplicatedStorage.Shared.Config.PetPreviewConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
 local PreviewRenderer = require(ReplicatedStorage.Shared.Utils.PreviewRenderer)
@@ -311,7 +313,7 @@ end
 function InventoryUIController:_populatePetPreview(slotRoot: Instance, definition: PetsConfig.PetDefinition)
 	local preview = slotRoot:FindFirstChild("PetPreview", true)
 	if preview and preview:IsA("ViewportFrame") then
-		PreviewRenderer.Populate(preview, self._petAssets, definition.Name, definition.metadata and definition.metadata.preview)
+		PreviewRenderer.Populate(preview, self._petAssets, definition.Name, PetPreviewConfig.Get(definition.PetId))
 	else
 		warn("[INVENTORY_UI] Pet slot is missing PetPreview ViewportFrame")
 	end
@@ -538,46 +540,35 @@ function InventoryUIController:_refreshPetPanel(data)
 	local currentProgression = entry and PetProgression.Resolve(entry)
 	local nextProgression = entry and PetProgression.Resolve(def, nextLevel)
 
-	local function formatStat(label: string, statName: string, fallbackMultiplierStatName: string?): string
-		local add = currentProgression and currentProgression.statModifiers.Add or {}
-		local nextAdd = nextProgression and nextProgression.statModifiers.Add or {}
-		local multiply = currentProgression and currentProgression.statModifiers.Multiply or {}
-		local nextMultiply = nextProgression and nextProgression.statModifiers.Multiply or {}
-		local currentValue = add[statName]
-		local nextValue = nextAdd[statName]
-		local isMultiplier = false
-		if type(currentValue) ~= "number" and fallbackMultiplierStatName then
-			currentValue = multiply[fallbackMultiplierStatName]
-			nextValue = nextMultiply[fallbackMultiplierStatName]
-			isMultiplier = true
-		end
-		if type(currentValue) ~= "number" or type(nextValue) ~= "number" then
-			return label .. ": -"
-		end
-		local prefix = if isMultiplier then "x" else ""
-		if isPreviewing then
-			return string.format("%s: %s%.2f <font color=\"#00ff00\">➔ %s%.2f</font>", label, prefix, currentValue, prefix, nextValue)
-		end
-		return string.format("%s: %s%.2f", label, prefix, currentValue)
+	local function formatBaseStat(label: string, statName: string): string
+		local currentStats = currentProgression and currentProgression.baseStats or {}
+		local nextStats = nextProgression and nextProgression.baseStats or {}
+		local currentValue = tonumber(currentStats[statName])
+		local nextValue = tonumber(nextStats[statName])
+		if not currentValue or not nextValue then return label .. ": -" end
+		if isPreviewing then return string.format("%s: %.2f <font color=\"#00ff00\">➔ %.2f</font>", label, currentValue, nextValue) end
+		return string.format("%s: %.2f", label, currentValue)
 	end
 
-	if self._petStatDamage then self._petStatDamage.Text = formatStat("Damage", "baseDamage", "damageMultiplier") ; self._petStatDamage.RichText = true end
-	if self._petStatHP then self._petStatHP.Text = formatStat("HP", "maxHP") ; self._petStatHP.RichText = true end
+	if self._petStatDamage then self._petStatDamage.Text = formatBaseStat("Damage", "baseDamage"); self._petStatDamage.RichText = true end
+	if self._petStatHP then self._petStatHP.Text = formatBaseStat("HP", "maxHP"); self._petStatHP.RichText = true end
 	if self._petStatScript then
-		local ability = def and def.passiveAbility
-		local label = ability and tostring(ability.type or def.abilityId or "NoOp") or "-"
+		local abilityId = def and def.abilityId
+		local display = PetAbilityProgressionConfig.GetDisplay(abilityId)
 		local currentParams = currentProgression and currentProgression.abilityParams or {}
 		local nextParams = nextProgression and nextProgression.abilityParams or {}
-		local currentValue = tonumber(currentParams.healAmount) or tonumber(currentParams.damageMultiplier) or tonumber(currentParams.collisionExtraDuration)
-		local nextValue = tonumber(nextParams.healAmount) or tonumber(nextParams.damageMultiplier) or tonumber(nextParams.collisionExtraDuration)
-		if currentValue and nextValue then
-			if isPreviewing and currentValue ~= nextValue then
-				self._petStatScript.Text = string.format("Script: %s %.2f <font color=\"#00ff00\">➔ %.2f</font>", label, currentValue, nextValue)
-			else
-				self._petStatScript.Text = string.format("Script: %s %.2f", label, currentValue)
+		local statName = if abilityId == "ExpBonus" then "expBonus" elseif abilityId == "Shield" then "damageMultiplier" elseif abilityId == "Regeneration" then "healAmount" elseif abilityId == "Slow" then "collisionExtraDuration" elseif abilityId == "Titan" then "sizeMultiplier" else nil
+		local currentValue = statName and tonumber(currentParams[statName]) or nil
+		local nextValue = statName and tonumber(nextParams[statName]) or nil
+		if display and currentValue and nextValue then
+			local function formatValue(value: number): string
+				if display.Format == "percent" then return string.format("%.0f%%", value * 100) end
+				return string.format("%.2f", value)
 			end
+			local template = display.Templates.en
+			self._petStatScript.Text = (template:gsub("{current}", formatValue(currentValue)):gsub("{next}", formatValue(nextValue)))
 		else
-			self._petStatScript.Text = "Script: " .. label
+			self._petStatScript.Text = "Script: " .. tostring(abilityId or "-")
 		end
 		self._petStatScript.RichText = true
 	end
@@ -587,9 +578,9 @@ function InventoryUIController:_refreshPetPanel(data)
 		self._petEquipButton.Active = entry ~= nil
 	end
 	if self._petUpgradeButton then
-		local cost = PetsUpgradeConfig.GetUpgradeCost(level)
+		local cost = PetsUpgradeConfig.GetUpgradeCost(level, (def and def.rarity) or "Common")
 		self._petUpgradeButton.Text = if isPreviewing then string.format("Confirm Upgrade (%d Diamonds)", cost) else string.format("Upgrade %d Diamonds", cost)
-		self._petUpgradeButton.Active = entry ~= nil
+		self._petUpgradeButton.Active = entry ~= nil and level < PetsUpgradeConfig.MaxLevel
 	end
 end
 

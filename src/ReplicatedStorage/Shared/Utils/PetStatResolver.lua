@@ -60,30 +60,12 @@ end
 
 function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgressions: { any }?): { [string]: number }
 	local result = copyStats(baseStats)
-	local multipliers = {}
 	for _, progression in ipairs(equippedProgressions or {}) do
-		local modifiers = progression.statModifiers
-		local add = type(modifiers) == "table" and modifiers.Add or nil
-		if type(add) == "table" then
-			for statName, amount in pairs(add) do
-				if type(amount) == "number" then
-					local key = canonical(statName)
-					result[key] = (result[key] or 0) + amount
-				end
-			end
+		local petBaseStats = progression.baseStats
+		if type(petBaseStats) == "table" then
+			result.maxHP = (result.maxHP or 0) + (tonumber(petBaseStats.maxHP) or 0)
+			result.baseDamage = (result.baseDamage or 0) + (tonumber(petBaseStats.baseDamage) or 0)
 		end
-		local multiply = type(modifiers) == "table" and modifiers.Multiply or nil
-		if type(multiply) == "table" then
-			for statName, multiplier in pairs(multiply) do
-				if type(multiplier) == "number" then
-					local key = canonical(statName)
-					multipliers[key] = (multipliers[key] or 1) * multiplier
-				end
-			end
-		end
-	end
-	for statName, multiplier in pairs(multipliers) do
-		result[statName] = (result[statName] or 0) * multiplier
 	end
 	return result
 end

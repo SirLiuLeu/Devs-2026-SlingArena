@@ -30,6 +30,8 @@ type RenderedPet = {
 	instanceId: string,
 	definitionId: string,
 	model: Model,
+	transparencies: { [Instance]: number },
+	visible: boolean,
 }
 
 local function getOrCreateRenderFolder(): Folder
@@ -75,24 +77,29 @@ local function getDefinitionId(ownedPet: any, instanceId: string): string?
 	return nil
 end
 
-local function prepareModel(model: Model): boolean
+local function prepareModel(model: Model): { [Instance]: number }?
 	local rootPart = model:FindFirstChild(ROOT_PART_NAME, true)
 	if not rootPart or not rootPart:IsA("BasePart") then
 		warn(string.format("[CLIENT_PET] %s is missing its required %s BasePart", model.Name, ROOT_PART_NAME))
-		return false
+		return nil
 	end
 	model.PrimaryPart = rootPart
+	local transparencies = {}
 	for _, descendant in ipairs(model:GetDescendants()) do
 		if descendant:IsA("BasePart") then
+			if descendant ~= rootPart then transparencies[descendant] = descendant.Transparency end
 			descendant.Anchored = true
 			descendant.CanCollide = false
 			descendant.CanQuery = false
 			descendant.CanTouch = false
+		elseif descendant:IsA("Decal") or descendant:IsA("Texture") then
+			transparencies[descendant] = descendant.Transparency
 		elseif descendant:IsA("Script") or descendant:IsA("LocalScript") then
 			descendant:Destroy()
 		end
 	end
-	return true
+	rootPart.Transparency = 1
+	return transparencies
 end
 
 function ClientPetController.new(player: Player)
@@ -125,14 +132,18 @@ function ClientPetController:_getFollowRoot(): BasePart?
 	return self._cachedRootPart
 end
 
-local function setModelVisible(model: Model, visible: boolean)
-	for _, descendant in ipairs(model:GetDescendants()) do
-		if descendant:IsA("BasePart") then
-			descendant.Transparency = if visible then 0 else 1
-		elseif descendant:IsA("Decal") or descendant:IsA("Texture") then
-			descendant.Transparency = if visible then 0 else 1
+local function setModelVisible(rendered: RenderedPet, visible: boolean)
+	if rendered.visible == visible then return end
+	rendered.visible = visible
+	for instance, authoredTransparency in pairs(rendered.transparencies) do
+		if instance.Parent ~= nil then
+			if instance:IsA("BasePart") or instance:IsA("Decal") or instance:IsA("Texture") then
+				instance.Transparency = if visible then authoredTransparency else 1
+			end
 		end
 	end
+	local rootPart = rendered.model.PrimaryPart
+	if rootPart then rootPart.Transparency = 1 end
 end
 
 function ClientPetController:_destroyPet(slot: number)
@@ -154,12 +165,13 @@ function ClientPetController:_createPet(slot: number, instanceId: string, defini
 
 	local model = source:Clone()
 	model.Name = string.format("Pet_%d_%s", slot, instanceId)
-	if not prepareModel(model) then
+	local transparencies = prepareModel(model)
+	if not transparencies then
 		model:Destroy()
 		return nil
 	end
 	model.Parent = self._renderFolder
-	local rendered = { instanceId = instanceId, definitionId = definitionId, model = model }
+	local rendered = { instanceId = instanceId, definitionId = definitionId, model = model, transparencies = transparencies, visible = true }
 	self._renderedPets[slot] = rendered
 	return rendered
 end
@@ -198,7 +210,7 @@ function ClientPetController:_render(deltaTime: number)
 	local isDead = humanoid ~= nil and humanoid.Health <= 0
 	if not rootPart or isDead then
 		for _, rendered in pairs(self._renderedPets) do
-			setModelVisible(rendered.model, false)
+			setModelVisible(rendered, false)
 		end
 		return
 	end
@@ -210,7 +222,7 @@ function ClientPetController:_render(deltaTime: number)
 			self._renderedPets[slot] = nil
 			continue
 		end
-		setModelVisible(rendered.model, true)
+		setModelVisible(rendered, true)
 		local lateralOffset = (slot - ((PetsConfig.EquippedSlotCount + 1) / 2)) * SLOT_SPACING
 		local bobOffset = math.sin(now * BOB_SPEED + slot) * BOB_HEIGHT
 		local swayOffset = math.cos(now * SWAY_SPEED + slot * 0.7) * SWAY_DISTANCE

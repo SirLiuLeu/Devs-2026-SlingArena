@@ -17,7 +17,6 @@ export type CombatEffect = {
 export type PassiveAbility = {
 	type: string,
 	percent: number?,
-	value: number?,
 	params: { [string]: any }?,
 }
 
@@ -33,7 +32,6 @@ export type PetDefinition = {
 	combatEffect: CombatEffect?,
 	passiveAbility: PassiveAbility?,
 	statModifiers: StatModifiers?,
-	progression: { [string]: any }?,
 	metadata: { [string]: any }?,
 	iconId: string?,
 }
@@ -52,7 +50,7 @@ PetsConfig.Categories = {
 	UtilityAreaEffect = "Utility / Area Effect",
 }
 
-local function pet(petId: string, name: string, displayName: string, rarity: string, category: string, abilityId: string?, combatEffect: CombatEffect?, passiveAbility: PassiveAbility?, statModifiers: StatModifiers?, progression: { [string]: any }?): PetDefinition
+local function pet(petId: string, name: string, displayName: string, rarity: string, category: string, abilityId: string?, combatEffect: CombatEffect?, passiveAbility: PassiveAbility?, statModifiers: StatModifiers?): PetDefinition
 	return {
 		PetId = petId,
 		Name = name,
@@ -65,7 +63,6 @@ local function pet(petId: string, name: string, displayName: string, rarity: str
 		combatEffect = combatEffect,
 		passiveAbility = passiveAbility,
 		statModifiers = statModifiers or { Add = {}, Multiply = {} },
-		progression = progression or { abilityTiers = {} },
 		metadata = { inventoryCapacityCost = 1 },
 		iconId = "rbxassetid://0",
 	}
@@ -75,14 +72,13 @@ PetsConfig.Definitions = {
 
     -- Active Attack
     PlasmaCannon = pet("PlasmaCannon", "Octopus", "Octopus", PetsConfig.Rarities.Epic, PetsConfig.Categories.ActiveAttack, "NoOp", nil,
-        { type = "ActiveAttack", value = 1000, params = { cooldown = 10, diagnostic = "Plasma Cannon active attack is not yet implemented" } },
+        { type = "ActiveAttack", params = { cooldown = 10, diagnostic = "Plasma Cannon active attack is not yet implemented" } },
         { Add = {}, Multiply = {} }),
 
     Hydra = pet("Hydra", "Hydra", "Hydra", PetsConfig.Rarities.Rare, PetsConfig.Categories.ActiveAttack, "Slow",
         { collisionFlag = "Slow", collisionExtraDuration = 3 },
         { type = "ProjectileSlow", params = { cooldown = 3, diagnostic = "Slow Blaster projectile is not yet implemented; collision slow uses the shared Slow effect" } },
-        { Add = {}, Multiply = {} },
-        { abilityTiers = { { collisionExtraDuration = 3 }, { collisionExtraDuration = 3.5 }, { collisionExtraDuration = 4 }, { collisionExtraDuration = 4.5 }, { collisionExtraDuration = 5 } } }),
+        { Add = {}, Multiply = {} }),
 
     -- Crowd Control
     ThunderHammer = pet("ThunderHammer", "Yeti", "Yeti", PetsConfig.Rarities.Epic, PetsConfig.Categories.CrowdControl, "Stun",
@@ -115,11 +111,10 @@ PetsConfig.Definitions = {
         nil, nil, nil, { Add = { baseDamage = 500 }, Multiply = {} }),
 
     Shield = pet("Shield", "Panda", "Panda", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "Shield",
-        nil, { type = "DamageReduction", percent = 0.2 }, { Add = {}, Multiply = {} },
-        { abilityTiers = { { damageMultiplier = 0.8 }, { damageMultiplier = 0.75 }, { damageMultiplier = 0.7 }, { damageMultiplier = 0.65 }, { damageMultiplier = 0.6 } } }),
+        nil, { type = "DamageReduction", percent = 0.2 }, { Add = {}, Multiply = {} }),
 
     BrainBoost = pet("BrainBoost", "Monkey", "Monkey", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "ExpBonus",
-        nil, { type = "ExpBonus", value = 0.3, params = { expBonus = 0.3 } },
+        nil, { type = "ExpBonus" },
         { Add = { expBonus = 0.3 }, Multiply = {} }),
 
     TurboModule = pet("TurboModule", "Bunny", "Bunny", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
@@ -129,9 +124,8 @@ PetsConfig.Definitions = {
         nil, nil, nil, { Add = {}, Multiply = { launchSpeed = 1.2 } }),
 
     Dragon = pet("Dragon", "Dragon", "Dragon", PetsConfig.Rarities.Epic, PetsConfig.Categories.PassiveStatModifier, "Titan",
-        nil, { type = "Titan", params = { sizeMultiplier = 1.2, incomingKnockbackMultiplier = 0.75, outgoingKnockbackMultiplier = 1.25 } },
-        { Add = {}, Multiply = {} },
-        { abilityTiers = { { sizeMultiplier = 1.2, incomingKnockbackMultiplier = 0.75, outgoingKnockbackMultiplier = 1.25 }, { sizeMultiplier = 1.25, incomingKnockbackMultiplier = 0.7, outgoingKnockbackMultiplier = 1.3 }, { sizeMultiplier = 1.3, incomingKnockbackMultiplier = 0.65, outgoingKnockbackMultiplier = 1.35 }, { sizeMultiplier = 1.35, incomingKnockbackMultiplier = 0.6, outgoingKnockbackMultiplier = 1.4 }, { sizeMultiplier = 1.4, incomingKnockbackMultiplier = 0.55, outgoingKnockbackMultiplier = 1.45 } } }),
+        nil, { type = "Titan" },
+        { Add = {}, Multiply = {} }),
 
     QuickReload = pet("QuickReload", "Dog", "Dog", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
         nil, nil, nil, { Add = { launchCooldown = -1 }, Multiply = {} }),
@@ -142,9 +136,8 @@ PetsConfig.Definitions = {
 
     -- Regeneration / Healing
     RegenBooster = pet("RegenBooster", "Fish", "Fish", PetsConfig.Rarities.Rare, PetsConfig.Categories.RegenerationHealing, "Regeneration",
-        nil, { type = "Regeneration", value = 500, params = { tickInterval = 5 } },
-        { Add = {}, Multiply = {} },
-        { abilityTiers = { { healAmount = 500, tickInterval = 5 }, { healAmount = 650, tickInterval = 5 }, { healAmount = 800, tickInterval = 5 }, { healAmount = 950, tickInterval = 5 }, { healAmount = 1100, tickInterval = 5 } } }),
+        nil, { type = "Regeneration", params = { tickInterval = 5 } },
+        { Add = {}, Multiply = {} }),
 
     -- Conditional Effect
     ShadowCloak = pet("ShadowCloak", "Unicorn", "Unicorn", PetsConfig.Rarities.Epic, PetsConfig.Categories.ConditionalEffect, "IdleStealth",

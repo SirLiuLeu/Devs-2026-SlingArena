@@ -1,7 +1,10 @@
 --!strict
+
 local ExpBonus = {}
+
 function ExpBonus.OnInit(context)
-	local passive = context.definition.passiveAbility
-	context.expBonus = passive and (passive.value or (passive.params and passive.params.expBonus)) or 0
+	local params = context.progression and context.progression.abilityParams or {}
+	context.expBonus = math.max(0, tonumber(params.expBonus) or 0)
 end
+
 return ExpBonus

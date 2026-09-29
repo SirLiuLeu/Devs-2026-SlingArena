@@ -118,8 +118,8 @@ function PetService:Grant(player: Player, definitionId: string, fields: { [strin
 		dataService:_ensurePetData(data)
 		data.OwnedPets[instanceId] = {
 			definitionId = definitionId,
-			level = math.max(1, math.floor(tonumber(fields and fields.level) or 1)),
-			rarity = tostring((fields and fields.rarity) or definition.rarity),
+			level = math.clamp(math.floor(tonumber(fields and fields.level) or 1), 1, 20),
+			rarity = definition.rarity,
 			isTemporary = (fields and fields.isTemporary) == true,
 			expiresAt = tonumber(fields and fields.expiresAt),
 			acquiredAt = tonumber(fields and fields.acquiredAt) or os.time(),
