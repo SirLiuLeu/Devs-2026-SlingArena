@@ -94,6 +94,7 @@ local ProjectTreeSpec = {
 			PetsEquipButton = "InventoryUI.Root.BodyPets.RightPanel.ActionButtons.ToggleEquipButton",
 			PetsDeleteButton = "InventoryUI.Root.BodyPets.RightPanel.ActionButtons.DeleteButton",
 			PetsUpgradeButton = "InventoryUI.Root.BodyPets.RightPanel.ActionButtons.UpgradeButton",
+			PetsStatLevel = "InventoryUI.Root.BodyPets.RightPanel.Stats.Level",
 			PetsStatDamage = "InventoryUI.Root.BodyPets.RightPanel.Stats.Damage",
 			PetsStatHP = "InventoryUI.Root.BodyPets.RightPanel.Stats.HP",
 			PetsStatScript = "InventoryUI.Root.BodyPets.RightPanel.Stats.Script",
