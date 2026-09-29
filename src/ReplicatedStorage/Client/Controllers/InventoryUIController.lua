@@ -1,14 +1,14 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalizationService = game:GetService("LocalizationService")
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local PetsUpgradeConfig = require(ReplicatedStorage.Shared.Config.PetsUpgradeConfig)
-local PetProgression = require(ReplicatedStorage.Shared.Utils.PetProgression)
-local PetAbilityProgressionConfig = require(ReplicatedStorage.Shared.Config.PetAbilityProgressionConfig)
 local PetPreviewConfig = require(ReplicatedStorage.Shared.Config.PetPreviewConfig)
+local PetDisplayFormatter = require(ReplicatedStorage.Shared.Utils.PetDisplayFormatter)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
 local PreviewRenderer = require(ReplicatedStorage.Shared.Utils.PreviewRenderer)
@@ -139,6 +139,7 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._itemUseButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.Inventory.ItemsUseButton)
 
 	self._petSelectedName = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsSelectedName)
+	self._petStatLevel = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsStatLevel)
 	self._petStatDamage = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsStatDamage)
 	self._petStatHP = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsStatHP)
 	self._petStatScript = resolveTextLabel(self._playerGui, ProjectTreeSpec.UI.Inventory.PetsStatScript)
@@ -172,6 +173,10 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	if not self._itemsGrid then warn("[INVENTORY_UI] Items grid container missing") end
 	if not self._itemsBody then warn("[INVENTORY_UI] Items body frame missing") end
 	if not self._petBody then warn("[INVENTORY_UI] BodyPets missing at StarterGui/InventoryUI/Root/BodyPets") end
+	if not self._petStatLevel then warn("[INVENTORY_UI] Level TextLabel missing at StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Level") end
+	if not self._petStatDamage then warn("[INVENTORY_UI] Damage TextLabel missing at StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Damage") end
+	if not self._petStatHP then warn("[INVENTORY_UI] HP TextLabel missing at StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/HP") end
+	if not self._petStatScript then warn("[INVENTORY_UI] Script TextLabel missing at StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Script") end
 	if not self._petGrid then warn("[INVENTORY_UI] GridContainer missing at StarterGui/InventoryUI/Root/BodyPets/GridContainer") end
 	if not self._itemsTab then warn("[INVENTORY_UI] ItemsTab button missing") end
 	if not self._closeButton then warn("[INVENTORY_UI] CloseButton missing") end
@@ -203,24 +208,27 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	if self._petUpgradeButton then
 		table.insert(self._connections, self._petUpgradeButton.MouseButton1Click:Connect(function()
 			local petId = self._selectedPetId
-			if not petId or not self._upgradePetRemote then
+			if not petId or not self._upgradePetRemote or self._upgradePendingPetId then
 				return
 			end
+			local entry = self._cachedSnapshot and self:_findPetEntry(self._cachedSnapshot.ownedPets, petId)
+			local level = entry and PetsUpgradeConfig.NormalizeLevel(tonumber(entry.level) or 1) or PetsUpgradeConfig.MaxLevel
+			if level >= PetsUpgradeConfig.MaxLevel then return end
 			if self._upgradePreviewPetId ~= petId then
 				self._upgradePreviewPetId = petId
 				if self._cachedSnapshot then self:_refreshPetPanel(self._cachedSnapshot) end
 				return
 			end
 			self._upgradePendingPetId = petId
-			local entry = self._cachedSnapshot and self:_findPetEntry(self._cachedSnapshot.ownedPets, petId)
-			self._upgradePendingLevel = entry and math.max(1, math.floor(tonumber(entry.level) or 1)) or nil
+			self._upgradePendingLevel = level
+			if self._cachedSnapshot then self:_refreshPetPanel(self._cachedSnapshot) end
 			self._upgradePetRemote:FireServer(petId, self._upgradePendingLevel)
 		end))
 	end
 	local feedbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):FindFirstChild(RemoteContracts.Names.GameplayFeedback)
 	if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
 		table.insert(self._connections, feedbackRemote.OnClientEvent:Connect(function(message)
-			if type(message) == "table" and message.EventType == "PetUpgradeResult" and message.Payload and message.Payload.Status == "Rejected" then
+			if type(message) == "table" and message.EventType == "PetUpgradeResult" and message.Payload then
 				self:_resetUpgradePreview()
 			end
 		end))
@@ -233,6 +241,7 @@ function InventoryUIController:SetVisible(isVisible: boolean)
 	if self._inventoryGui and self._inventoryGui:IsA("ScreenGui") then
 		self._inventoryGui.Enabled = isVisible
 	end
+	if not isVisible then self:_resetUpgradePreview() end
 	if isVisible and self._cachedSnapshot then
 		self:RefreshWithData(self._cachedSnapshot)
 	end
@@ -313,7 +322,8 @@ end
 function InventoryUIController:_populatePetPreview(slotRoot: Instance, definition: PetsConfig.PetDefinition)
 	local preview = slotRoot:FindFirstChild("PetPreview", true)
 	if preview and preview:IsA("ViewportFrame") then
-		PreviewRenderer.Populate(preview, self._petAssets, definition.Name, PetPreviewConfig.Get(definition.PetId))
+		local previewConfig = PetPreviewConfig.Get(definition.PetId)
+		PreviewRenderer.Populate(preview, self._petAssets, definition.Name, previewConfig)
 	else
 		warn("[INVENTORY_UI] Pet slot is missing PetPreview ViewportFrame")
 	end
@@ -528,8 +538,7 @@ function InventoryUIController:_refreshPetPanel(data)
 	local entry = petId and self:_findPetEntry(data.ownedPets, petId) or nil
 	local def = entry and PetsConfig.GetById(entry.definitionId or entry.id or "") or nil
 	if self._petSelectedName then self._petSelectedName.Text = (def and def.DisplayName) or "No pet selected" end
-	local level = math.max(1, math.floor(tonumber(entry and entry.level) or 1))
-	local nextLevel = level + 1
+	local level = PetsUpgradeConfig.NormalizeLevel(tonumber(entry and entry.level) or 1)
 	local isPreviewing = entry ~= nil and self._upgradePreviewPetId == petId
 	if self._upgradePendingPetId == petId and self._upgradePendingLevel and level > self._upgradePendingLevel then
 		self._upgradePreviewPetId = nil
@@ -537,48 +546,12 @@ function InventoryUIController:_refreshPetPanel(data)
 		self._upgradePendingLevel = nil
 		isPreviewing = false
 	end
-	local currentProgression = entry and PetProgression.Resolve(entry)
-	local nextProgression = entry and PetProgression.Resolve(def, nextLevel)
 
-	local function formatBaseStat(label: string, statName: string): string
-		local currentStats = currentProgression and currentProgression.baseStats or {}
-		local nextStats = nextProgression and nextProgression.baseStats or {}
-		local currentValue = tonumber(currentStats[statName])
-		local nextValue = tonumber(nextStats[statName])
-		if not currentValue or not nextValue then return label .. ": -" end
-		if isPreviewing then return string.format("%s: %.2f <font color=\"#00ff00\">➔ %.2f</font>", label, currentValue, nextValue) end
-		return string.format("%s: %.2f", label, currentValue)
-	end
-
-	if self._petStatDamage then self._petStatDamage.Text = formatBaseStat("Damage", "baseDamage"); self._petStatDamage.RichText = true end
-	if self._petStatHP then self._petStatHP.Text = formatBaseStat("HP", "maxHP"); self._petStatHP.RichText = true end
-	if self._petStatScript then
-		local abilityId = def and def.abilityId
-		local display = PetAbilityProgressionConfig.GetDisplay(abilityId)
-		local currentParams = currentProgression and currentProgression.abilityParams or {}
-		local nextParams = nextProgression and nextProgression.abilityParams or {}
-		local statName = if abilityId == "ExpBonus" then "expBonus" elseif abilityId == "Shield" then "damageMultiplier" elseif abilityId == "Regeneration" then "healAmount" elseif abilityId == "Slow" then "collisionExtraDuration" elseif abilityId == "Titan" then "sizeMultiplier" else nil
-		local currentValue = statName and tonumber(currentParams[statName]) or nil
-		local nextValue = statName and tonumber(nextParams[statName]) or nil
-		if display and currentValue and nextValue then
-			local function formatValue(value: number): string
-				if display.Format == "percent" then return string.format("%.0f%%", value * 100) end
-				return string.format("%.2f", value)
-			end
-			local template = display.Templates.en
-			self._petStatScript.Text = (
-				template
-					:gsub("{current}", function()
-						return formatValue(currentValue)
-					end)
-					:gsub("{next}", function()
-						return formatValue(nextValue)
-					end))
-		else
-			self._petStatScript.Text = "Script: " .. tostring(abilityId or "-")
-		end
-		self._petStatScript.RichText = true
-	end
+	local displayText = PetDisplayFormatter.Format(def, level, isPreviewing, LocalizationService.RobloxLocaleId)
+	if self._petStatLevel then self._petStatLevel.Text = displayText.LevelText; self._petStatLevel.RichText = true end
+	if self._petStatDamage then self._petStatDamage.Text = displayText.DamageText; self._petStatDamage.RichText = true end
+	if self._petStatHP then self._petStatHP.Text = displayText.HPText; self._petStatHP.RichText = true end
+	if self._petStatScript then self._petStatScript.Text = displayText.ScriptText; self._petStatScript.RichText = true end
 
 	if self._petEquipButton then
 		self._petEquipButton.Text = if entry and entry.equipped then "Unequip" else "Equip"
@@ -586,11 +559,10 @@ function InventoryUIController:_refreshPetPanel(data)
 	end
 	if self._petUpgradeButton then
 		local cost = PetsUpgradeConfig.GetUpgradeCost(level, (def and def.rarity) or "Common")
-		self._petUpgradeButton.Text = if isPreviewing then string.format("Confirm Upgrade (%d Diamonds)", cost) else string.format("Upgrade %d Diamonds", cost)
-		self._petUpgradeButton.Active = entry ~= nil and level < PetsUpgradeConfig.MaxLevel
+		self._petUpgradeButton.Text = if level >= PetsUpgradeConfig.MaxLevel then "MAX" elseif self._upgradePendingPetId == petId then "Upgrading..." elseif isPreviewing then string.format("Confirm Upgrade (%d Diamonds)", cost) else string.format("Upgrade %d Diamonds", cost)
+		self._petUpgradeButton.Active = entry ~= nil and level < PetsUpgradeConfig.MaxLevel and self._upgradePendingPetId == nil
 	end
 end
-
 
 
 function InventoryUIController:_refreshItemPanel(data)

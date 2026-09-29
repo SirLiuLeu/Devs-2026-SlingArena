@@ -30,15 +30,23 @@ DataModel
 │  │  │  ├─ AbilityConfig.lua
 │  │  │  ├─ BalanceConfig.lua
 │  │  │  ├─ Config.lua
-│  │  │  ├─ EquipmentConfig.lua
-│  │  │  ├─ EquipmentUpgradeConfig.lua
-│  │  │  ├─ FoodConfig.lua
+│  │  │  ├─ DebugConfig.lua
 │  │  │  ├─ GachaRewardConfig.lua
 │  │  │  ├─ GameConfig.lua
 │  │  │  ├─ ItemConfig.lua
 │  │  │  ├─ LevelConfig.lua
+│  │  │  ├─ LauncherAnimationIds.lua
 │  │  │  ├─ LauncherConfig.lua
-│  │  │  ├─ LaunchershotConfig.lua
+│  │  │  ├─ NotificationConfigData.lua
+│  │  │  ├─ PetAbilityProgressionConfig.lua
+│  │  │  ├─ PetPreviewConfig.lua
+│  │  │  ├─ PetRarityStatsConfig.lua
+│  │  │  ├─ PetsConfig.lua
+│  │  │  ├─ PetsUpgradeConfig.lua
+│  │  │  ├─ PhysicsConfig.lua
+│  │  │  ├─ QuestConfig.lua
+│  │  │  ├─ RankConfig.lua
+│  │  │  ├─ SafeZoneConfig.lua
 │  │  │  └─ TrapConfig.lua
 │  │  │
 │  │  ├─ Constants
@@ -51,9 +59,10 @@ DataModel
 │  │  │
 │  │  ├─ Utils
 │  │  │  ├─ DeepCopy.lua
-│  │  │  ├─ EquipmentStatResolver.lua
 │  │  │  ├─ GachaSpinLogic.lua
 │  │  │  ├─ PathResolver.lua
+│  │  │  ├─ PetDisplayFormatter.lua
+│  │  │  ├─ PetProgression.lua
 │  │  │  ├─ PlayerModeState.lua
 │  │  │  ├─ RewardRoller.lua
 │  │  │  ├─ UiBindManager.lua
@@ -752,3 +761,7 @@ Notes:
 - All production `ReplicatedStorage.LauncherArenaRemotes.*` instances are defined statically through `src/ReplicatedStorage/LauncherArenaRemotes/*.model.json`.
 - Several runtime-critical map/template instances (e.g. `Workspace/Maps`, `ServerStorage/FoodTemplates`)
   are not present as files in the repo and must be created manually in Roblox Studio.
+
+## Pet inventory progression notes
+
+`StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Level` is the bound pet-level display. Pet base stats advance on every level; ability values advance only at milestones 1, 5, 10, 15, and 20. `PetAbilityProgressionConfig.Abilities[abilityId].Display` stores `{ Format, Templates = { en, vi } }` for localized display text, while `PetPreviewConfig.Get(petId)` provides the viewport `Rotation` and `Offset`.

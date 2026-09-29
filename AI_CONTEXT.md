@@ -58,16 +58,24 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `AbilityConfig.lua` | No runtime table currently present (empty file). | usage unclear |
 | `BalanceConfig.lua` | Core balance constants for combat, collisions, growth, launch, respawn, food, and economy values. | `LauncherService`, `GrowthService`, `PlayerStateService`, `CollisionService`, `DamagePipelineService`, `FoodService`, `LevelConfig` |
 | `Config.lua` | Base gameplay constants (force/charge/physics/arena/player defaults and movement speed). | `LauncherService`, `PlayerService`, `SafeZoneService`, `CollisionService` |
-| `FoodConfig.lua` | Placeholder comments for food design fields (EXP/HP/respawn/drop-rate); no exported config table. | usage unclear |
+| `DebugConfig.lua` | Debug and diagnostic feature flags. | client and server diagnostics |
 | `GachaRewardConfig.lua` | Gacha reward entries (id/type/weight/icon/name/teamBonus) and reward accessor. | `GachaSpinLogic`, `SpinUIController`, `GachaSpinLogicTests` |
 | `GameConfig.lua` | Placeholder comments for player cap/phase/respawn/join rules; no exported config table. | usage unclear |
 | `ItemConfig.lua` | Item catalog (`Items`) with metadata (`id`, `name`, `effect`, `icon`, `stackable`) and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
-| `EquipmentConfig.lua` | Phase 1 Equipment definition catalog with slot/category/rarity/effect/stat-modifier metadata, separate from owned instances. | `EquipmentService`, `EquipmentEffectService`, `EquipmentStatResolver`, `EquipmentFoundationTests` |
-| `EquipmentUpgradeConfig.lua` | Reusable Equipment upgrade cost formula (`BaseCost * 1.35^(L-1) * LateGameMultiplier(L)`). | `EquipmentService`, `EquipmentFoundationTests` |
 | `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
+| `PetAbilityProgressionConfig.lua` | Ability parameters at levels 1/5/10/15/20 plus `Display = { Format, Templates = { en, vi } }` localization data. | `PetProgression`, `PetDisplayFormatter` |
+| `PetPreviewConfig.lua` | Per-pet viewport camera `Rotation` and `Offset`, accessed through `Get(petId)`. | `InventoryUIController`, `PreviewRenderer` |
+| `PetRarityStatsConfig.lua` | Base HP and damage values by pet rarity. | `PetProgression`, pet UI |
+| `PetsConfig.lua` | Pet definition catalog, ability IDs, rarity, and max-level settings. | `PetService`, `PetProgression`, `InventoryUIController` |
+| `PetsUpgradeConfig.lua` | Level normalization, costs, 10% per-level base-stat growth, and milestone predicates. | `PetService`, `PetProgression`, `PetDisplayFormatter` |
 | `LauncherConfig.lua` | Canonical 11-launcher catalog (`Types`) with `NormalLauncher` as `DefaultLauncherId`, per-launcher `modelPath` values under `ReplicatedStorage/Assets/Launchers`, rarity/stats, and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
-| `LaunchershotConfig.lua` | Launch/charge/recovery constants, launchershot modifiers, and launcher combat baseline values. | `LauncherService`, `PlayerStateService`, `LauncherUIController` |
 | `TrapConfig.lua` | Trap tuning constants (EXP penalty, cooldown, count, color). | `TrapService` |
+
+## Pet Inventory progression UI
+
+- The pet details level label is `StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Level`; `ProjectTreeSpec.UI.Inventory.PetsStatLevel` is the code path used to bind it.
+- `PetDisplayFormatter.Format(definition, level, previewNextLevel, languageCode)` is presentation-only and returns `LevelText`, `HPText`, `DamageText`, and `ScriptText`. It selects the localized ability template by locale (with an English fallback) and encodes every RichText arrow as `-&gt;`.
+- Base HP and damage grow at every level. Ability parameters change only at levels 1, 5, 10, 15, and 20. The first Upgrade click previews base-stat changes; its ability text changes only when the next level is one of those milestones. The second click submits the upgrade, disables the button until a server result, and all selection/tab/hide/result events clear the preview.
 
 ## Recent implementation update (2026-08-21)
 
