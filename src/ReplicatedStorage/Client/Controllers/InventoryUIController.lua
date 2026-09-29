@@ -566,7 +566,14 @@ function InventoryUIController:_refreshPetPanel(data)
 				return string.format("%.2f", value)
 			end
 			local template = display.Templates.en
-			self._petStatScript.Text = (template:gsub("{current}", formatValue(currentValue)):gsub("{next}", formatValue(nextValue)))
+			self._petStatScript.Text = (
+				template
+					:gsub("{current}", function()
+						return formatValue(currentValue)
+					end)
+					:gsub("{next}", function()
+						return formatValue(nextValue)
+					end))
 		else
 			self._petStatScript.Text = "Script: " .. tostring(abilityId or "-")
 		end
