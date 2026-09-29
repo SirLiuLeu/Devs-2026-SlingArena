@@ -8,6 +8,10 @@ for _, petId in ipairs({ "PlasmaCannon", "Hydra", "ThunderHammer", "Medusa", "Ic
 	PetPreviewConfig[petId] = { Rotation = Vector3.new(0, 35, 0), Offset = Vector3.zero }
 end
 
+for _, petId in ipairs({"Medusa"}) do
+	PetPreviewConfig[petId] = { Rotation = Vector3.new(0, -15, 0), Offset = Vector3.zero }
+end
+
 function PetPreviewConfig.Get(petId: string): { Rotation: Vector3, Offset: Vector3 }
 	return PetPreviewConfig[petId] or PetPreviewConfig.Default
 end
