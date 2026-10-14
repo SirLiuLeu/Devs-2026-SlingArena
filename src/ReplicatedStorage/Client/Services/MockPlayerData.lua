@@ -38,14 +38,11 @@ local MOCK_PLAYER_DATA = {
 		gacha_ticket = 100,
 	},
 	OwnedLaunchers = {
-		{
-			instanceId = "mock_NormalLauncher_1",
-			definitionId = "NormalLauncher",
-			id = "NormalLauncher",
-			star = 1,
-			level = 1,
-			equipped = true,
-		},
+		{ instanceId = "mock_Normalduck_1", definitionId = "Normalduck", id = "Normalduck", star = 1, level = 1, equipped = true },
+		{ instanceId = "mock_Kingduck_1", definitionId = "Kingduck", id = "Kingduck", star = 1, level = 1, equipped = false },
+		{ instanceId = "mock_Witchduck_1", definitionId = "Witchduck", id = "Witchduck", star = 1, level = 1, equipped = false },
+		{ instanceId = "mock_Drakeduck_1", definitionId = "Drakeduck", id = "Drakeduck", star = 1, level = 1, equipped = false },
+		{ instanceId = "mock_Shielduck_1", definitionId = "Shielduck", id = "Shielduck", star = 1, level = 1, equipped = false },
 	},
 	OwnedPets = {
 		mock_PlasmaCannon_1 = { definitionId = "PlasmaCannon", level = 1, rarity = (PetsConfig.GetById("PlasmaCannon") and PetsConfig.GetById("PlasmaCannon").rarity) or "Common", acquiredAt = 1786924800 },
@@ -69,7 +66,7 @@ local MOCK_PLAYER_DATA = {
 	},
 	EquippedPets = { [1] = "mock_Poison_1", [2] = "mock_GhostFlame_1", [3] = "mock_ThunderHammer_1" },
 	Equipped = {
-		LauncherInstanceId = "mock_NormalLauncher_1",
+		LauncherInstanceId = "mock_Normalduck_1",
 		ActiveItems = {},
 	},
 	LauncherCapacity = 40,
