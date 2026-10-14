@@ -1049,7 +1049,7 @@ end
 function PlayerStateService:GetLauncherAbilityType(player: Player): string
 	local state = self._states[player]
 	local launcher = state and LauncherConfig.GetById(state.LaunchershotType or "")
-	return (launcher and (launcher.abilityType or launcher.id)) or "NormalLauncher"
+	return (launcher and (launcher.abilityType or launcher.id)) or "Normalduck"
 end
 
 function PlayerStateService:GetLauncherRuntime(player: Player): any
