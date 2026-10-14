@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local LauncherPreviewConfig = require(ReplicatedStorage.Shared.Config.LauncherPreviewConfig)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
@@ -164,7 +165,7 @@ function LauncherInventoryUIController:_updateSlot(slot: GuiObject, entry)
 		local launcherPreviewViewport = root:FindFirstChild("LauncherPreview")
 		if launcherPreviewViewport and launcherPreviewViewport:IsA("ViewportFrame") then
 			if slot:GetAttribute("CurrentRenderedId") ~= entry.id then
-				PreviewRenderer.Populate(launcherPreviewViewport, self._launcherAssets, entry.id)
+				PreviewRenderer.Populate(launcherPreviewViewport, self._launcherAssets, entry.id, LauncherPreviewConfig.Get(entry.id))
 				slot:SetAttribute("CurrentRenderedId", entry.id)
 			end
 		else
