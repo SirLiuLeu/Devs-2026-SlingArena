@@ -114,12 +114,13 @@ Confirmed via `IsHuman()` gates across services:
 
 Exactly **4 launchers** exist in the runtime catalog:
 
-| ID | Role | maxHP | baseDamage | speed | launchPower | armor |
-|---|---|---|---|---|---|---|
-| `NormalLauncher` (default) | Balanced | 16,000 | 1,000 | 16 | 1.00 | 0 |
-| `TitanBulwarkLauncher` | Tank | 28,000 | 700 | 12.5 | 0.85 | 0.30 |
-| `ZephyrDartLauncher` | Speed | 11,000 | 650 | 22.0 | 1.05 | 0 |
-| `RavagerCoreLauncher` | Burst | 13,500 | 1,650 | 15.0 | 1.20 | 0 |
+| ID | Role | maxHP | baseDamage | armor | regen | speed | launchPower | control | launchSpeed | reflectDamage | weight |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `Normalduck` (default) | Balanced | 16,000 | 1,000 | 0 | 1.0 | 16 | 1.00 | 1.00 | 100 | 0.05 | 100 |
+| `Kingduck` | Tank | 28,000 | 700 | 0.30 | 1.4 | 12.5 | 0.85 | 0.90 | 65 | 0.12 | 130 |
+| `Witchduck` | Speed | 11,000 | 650 | 0 | 0.8 | 22 | 1.05 | 1.30 | 110 | 0.03 | 80 |
+| `Drakeduck` | Burst | 13,500 | 1,650 | 0 | 0.9 | 15 | 1.20 | 0.95 | 90 | 0.08 | 115 |
+| `Shielduck` | Defense | 23,000 | 850 | 0.22 | 1.2 | 14 | 0.90 | 0.95 | 80 | 0.10 | 120 |
 
 * A Launcher owns base stats, size, movement profile, and launch profile.
 * A Launcher does **not** own combat status effects (Stun, Slow, DoT, etc.) — those belong exclusively to Equipment (§5).
