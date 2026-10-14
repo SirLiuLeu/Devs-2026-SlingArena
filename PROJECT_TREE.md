@@ -148,10 +148,11 @@ DataModel
 │  │  │  │     │  └── HpBarFill
 │  │  │  │     ├── LevelLabel
 │  │  │  │     └── Name
-│  │  │  ├── NormalLauncher (Launcher_Template format; default launcher)
-│  │  │  ├── TitanBulwarkLauncher (Launcher_Template format) -- new update, replace FreezeLauncher
-│  │  │  ├── ZephyrDartLauncher (Launcher_Template format)
-│  │  │  └── RavagerCoreLauncher (Launcher_Template format)
+│  │  │  ├── Normalduck (Launcher visual; default)
+│  │  │  ├── Kingduck (Launcher visual)
+│  │  │  ├── Witchduck (Launcher visual)
+│  │  │  ├── Drakeduck (Launcher visual)
+│  │  │  └── Shielduck (Launcher visual)
 │  │  │
 │  │  ├── Icons
 │  │  │   ├── Items
@@ -160,7 +161,7 @@ DataModel
 │  │  │   │   └── EXP_Buff (Image)
 │  │  │   │
 │  │  │   └── Launchers
-│  │  │       └── Launcher icons for the canonical 11 launcher ids (Image)
+│  │  │       └── Launcher icons for the five Duck Launcher IDs (Image)
 │  │  │
 │  │  └── UI
 │  │      ├── FloatingDamage (BillboardGui)
