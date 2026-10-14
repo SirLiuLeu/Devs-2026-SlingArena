@@ -112,8 +112,8 @@ end
 
 function LauncherAbilityService:_ensureAbility(player: Player)
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
-	local abilityType = stateService and stateService:GetLauncherAbilityType(player) or "NormalLauncher"
-	local config = AbilityConfig.GetById(abilityType) or AbilityConfig.GetById("NormalLauncher")
+	local abilityType = stateService and stateService:GetLauncherAbilityType(player) or "Normalduck"
+	local config = AbilityConfig.GetById(abilityType) or AbilityConfig.GetById("Normalduck")
 	local current = self._abilities[player]
 	if current and current.Config == config then
 		return current
