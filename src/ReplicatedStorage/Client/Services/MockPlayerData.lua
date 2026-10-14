@@ -259,7 +259,7 @@ function MockPlayerData.GrantReward(rewardType: string, amount: number?, itemId:
 	elseif normalizedType == "item" then
 		MockPlayerData.AddItem(itemId or "hp_potion", amount or 1, reason or "RewardItem")
 	elseif normalizedType == "launcher" or normalizedType == "launcher" then
-		MockPlayerData.AddLauncher(itemId or "NormalLauncher", reason or "RewardLauncher")
+		MockPlayerData.AddLauncher(itemId or "Normalduck", reason or "RewardLauncher")
 	end
 end
 
