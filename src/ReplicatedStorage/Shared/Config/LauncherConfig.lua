@@ -11,6 +11,8 @@ export type LauncherStats = {
 	launchPower: number,
 	control: number,
 	launchSpeed: number,
+	reflectDamage: number,
+	weight: number,
 }
 
 export type LauncherDefinition = {
@@ -21,7 +23,7 @@ export type LauncherDefinition = {
 	stats: LauncherStats,
 }
 
-LauncherConfig.DefaultLauncherId = "NormalLauncher"
+LauncherConfig.DefaultLauncherId = "Normalduck"
 LauncherConfig.ModelScale = 1
 LauncherConfig.BaseStats = {
 	maxHP = 30000,
@@ -30,35 +32,101 @@ LauncherConfig.BaseStats = {
 	regenPerSecond = 2,
 	maxShootRange = 120,
 	size = 1,
+	weight = 100,
 }
 
+local DEFAULT_ICON = "rbxassetid://116884908373456"
+
 LauncherConfig.Types = {
-	NormalLauncher = {
-		id = "NormalLauncher",
-		name = "Normal Launcher",
-		iconId = "rbxassetid://116884908373456",
+	Normalduck = {
+		id = "Normalduck",
+		name = "Normal Duck",
+		description = "A balanced all-rounder.",
+		iconId = DEFAULT_ICON,
 		stats = {
 			maxHP = 16000,
 			baseDamage = 1000,
 			armor = 0,
-			regen = 1,
+			regen = 1.0,
 			speed = 16,
 			launchPower = 1.0,
 			control = 1.0,
 			launchSpeed = 100,
+			reflectDamage = 0.05,
+			weight = 100,
 		},
 	},
-	TitanBulwarkLauncher = {
-		id = "TitanBulwarkLauncher", name = "Titan Bulwark Launcher", description = "A reinforced launcher plated for the front line — soaks up punishment and shrugs off incoming fire, at the cost of raw mobility.", iconId = "rbxassetid://116884908373456",
-		stats = { maxHP = 28000, baseDamage = 700, armor = 0.30, regen = 1.4, speed = 12.5, launchPower = 0.85, control = 0.90, launchSpeed = 65 },
+	Kingduck = {
+		id = "Kingduck",
+		name = "King Duck",
+		description = "A heavy defensive launcher with high durability.",
+		iconId = DEFAULT_ICON,
+		stats = {
+			maxHP = 28000,
+			baseDamage = 700,
+			armor = 0.30,
+			regen = 1.4,
+			speed = 12.5,
+			launchPower = 0.85,
+			control = 0.90,
+			launchSpeed = 65,
+			reflectDamage = 0.12,
+			weight = 130,
+		},
 	},
-	ZephyrDartLauncher = {
-		id = "ZephyrDartLauncher", name = "Zephyr Dart Launcher", description = "Built for hit-and-run tactics — outruns and outmaneuvers everything else on the field, but can't take a sustained fight.", iconId = "rbxassetid://116884908373456",
-		stats = { maxHP = 11000, baseDamage = 650, armor = 0.0, regen = 0.8, speed = 22.0, launchPower = 1.05, control = 1.30, launchSpeed = 130 },
+	Witchduck = {
+		id = "Witchduck",
+		name = "Witch Duck",
+		description = "A light, highly mobile launcher.",
+		iconId = DEFAULT_ICON,
+		stats = {
+			maxHP = 11000,
+			baseDamage = 650,
+			armor = 0,
+			regen = 0.8,
+			speed = 22,
+			launchPower = 1.05,
+			control = 1.30,
+			launchSpeed = 110,
+			reflectDamage = 0.03,
+			weight = 80,
+		},
 	},
-	RavagerCoreLauncher = {
-		id = "RavagerCoreLauncher", name = "Ravager Core Launcher", description = "An unstable overcharged core optimized purely for burst damage — devastating hits, fragile chassis.", iconId = "rbxassetid://116884908373456",
-		stats = { maxHP = 13500, baseDamage = 1650, armor = 0.0, regen = 0.9, speed = 15.0, launchPower = 1.20, control = 0.95, launchSpeed = 90 },
+	Drakeduck = {
+		id = "Drakeduck",
+		name = "Drake Duck",
+		description = "A high-impact launcher focused on damage.",
+		iconId = DEFAULT_ICON,
+		stats = {
+			maxHP = 13500,
+			baseDamage = 1650,
+			armor = 0,
+			regen = 0.9,
+			speed = 15,
+			launchPower = 1.20,
+			control = 0.95,
+			launchSpeed = 90,
+			reflectDamage = 0.08,
+			weight = 115,
+		},
+	},
+	Shielduck = {
+		id = "Shielduck",
+		name = "Shield Duck",
+		description = "A resilient launcher with strong defensive stats.",
+		iconId = DEFAULT_ICON,
+		stats = {
+			maxHP = 23000,
+			baseDamage = 850,
+			armor = 0.22,
+			regen = 1.2,
+			speed = 14,
+			launchPower = 0.90,
+			control = 0.95,
+			launchSpeed = 80,
+			reflectDamage = 0.10,
+			weight = 120,
+		},
 	},
 } :: { [string]: LauncherDefinition }
 
