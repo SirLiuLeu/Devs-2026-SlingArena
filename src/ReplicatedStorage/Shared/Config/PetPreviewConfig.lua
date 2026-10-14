@@ -4,12 +4,12 @@ local PetPreviewConfig = {
 	Default = { Rotation = Vector3.new(0, 35, 0), Offset = Vector3.zero },
 }
 
-for _, petId in ipairs({ "PlasmaCannon", "Hydra", "ThunderHammer", "Medusa", "IceCrystal", "GhostFlame", "Poison", "HealthCore", "PowerCore", "Shield", "BrainBoost", "TurboModule", "LaunchBooster", "Dragon", "QuickReload", "ThornArmor", "RegenBooster", "ShadowCloak" }) do
+for _, petId in ipairs({ "PlasmaCannon", "Hydra", "ThunderHammer", "IceCrystal", "GhostFlame", "Poison", "HealthCore", "PowerCore", "Shield", "BrainBoost", "TurboModule", "LaunchBooster", "Dragon", "QuickReload", "ThornArmor", "RegenBooster", "ShadowCloak" }) do
 	PetPreviewConfig[petId] = { Rotation = Vector3.new(0, 35, 0), Offset = Vector3.zero }
 end
 
 for _, petId in ipairs({"Medusa"}) do
-	PetPreviewConfig[petId] = { Rotation = Vector3.new(0, -15, 0), Offset = Vector3.zero }
+	PetPreviewConfig[petId] = { Rotation = Vector3.new(0, 10, -90), Offset = Vector3.zero }
 end
 
 function PetPreviewConfig.Get(petId: string): { Rotation: Vector3, Offset: Vector3 }

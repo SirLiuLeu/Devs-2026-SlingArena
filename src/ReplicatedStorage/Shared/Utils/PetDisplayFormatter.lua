@@ -82,9 +82,15 @@ function PetDisplayFormatter.Format(definition: any, level: number, previewNextL
 	-- into a milestone is rendered as a changing ability value.
 	local useNextValue = showPreview and PetsUpgradeConfig.IsMilestone(nextLevel)
 	local renderedNextValue = if useNextValue then nextValue else currentValue
-	result.ScriptText = encodeRichText((template
-		:gsub("{current}", formatAbilityValue(currentValue, display.Format))
-		:gsub("{next}", formatAbilityValue(renderedNextValue, display.Format))))
+	result.ScriptText = encodeRichText((
+		template
+			:gsub("{current}", function()
+				return formatAbilityValue(currentValue, display.Format)
+			end)
+			:gsub("{next}", function()
+				return formatAbilityValue(renderedNextValue, display.Format)
+			end)
+	))
 	return result
 end
 
