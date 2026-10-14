@@ -32,7 +32,11 @@ MockData.MOCK_SCHEMA_DEFAULTS = {
 	OwnedPets = {},
 	EquippedPets = { [1] = nil, [2] = nil, [3] = nil },
 	OwnedLaunchers = {
-		default_normal_launcher = { definitionId = "NormalLauncher", star = 1, level = 1 },
+		default_normal_launcher = { definitionId = "Normalduck", star = 1, level = 1 },
+		mock_kingduck_1 = { definitionId = "Kingduck", star = 1, level = 1 },
+		mock_witchduck_1 = { definitionId = "Witchduck", star = 1, level = 1 },
+		mock_drakeduck_1 = { definitionId = "Drakeduck", star = 1, level = 1 },
+		mock_shielduck_1 = { definitionId = "Shielduck", star = 1, level = 1 },
 	},
 	EquippedLauncherInstanceId = "default_normal_launcher",
 	ProgressPoints = {
@@ -73,8 +77,8 @@ MockData.PlayerProfiles = {
 		},
 		EquippedPets = { [1] = "eq_alpha_Poison", [2] = "eq_alpha_GhostFlame", [3] = "eq_alpha_ThunderHammer" },
 		OwnedLaunchers = {
-			ln_alpha_normal = { definitionId = "NormalLauncher", star = 1, level = 2 },
-			ln_alpha_fire = { definitionId = "FireLauncher", star = 3, level = 4, temporaryState = { skin = "TrialRed" } },
+			ln_alpha_normal = { definitionId = "Normalduck", star = 1, level = 2 },
+			ln_alpha_fire = { definitionId = "Drakeduck", star = 3, level = 4, temporaryState = { skin = "TrialRed" } },
 		},
 		EquippedLauncherInstanceId = "ln_alpha_fire",
 	},
@@ -94,9 +98,9 @@ MockData.PlayerProfiles = {
 		},
 		EquippedPets = { [1] = "eq_beta_core_thunder", [2] = "eq_beta_temp_brain", [3] = "eq_beta_charm_medusa" },
 		OwnedLaunchers = {
-			ln_beta_normal = { definitionId = "NormalLauncher", star = 1, level = 1 },
-			ln_beta_petrify = { definitionId = "PetrifyLauncher", star = 4, level = 6 },
-			ln_beta_vacuum = { definitionId = "VacuumLauncher", star = 2, level = 3 },
+			ln_beta_normal = { definitionId = "Normalduck", star = 1, level = 1 },
+			ln_beta_petrify = { definitionId = "Shielduck", star = 4, level = 6 },
+			ln_beta_vacuum = { definitionId = "Witchduck", star = 2, level = 3 },
 		},
 		EquippedLauncherInstanceId = "ln_beta_petrify",
 	},
