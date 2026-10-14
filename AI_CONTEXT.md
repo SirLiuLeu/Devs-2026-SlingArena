@@ -65,10 +65,11 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
 | `PetAbilityProgressionConfig.lua` | Ability parameters at levels 1/5/10/15/20 plus `Display = { Format, Templates = { en, vi } }` localization data. | `PetProgression`, `PetDisplayFormatter` |
 | `PetPreviewConfig.lua` | Per-pet viewport camera `Rotation` and `Offset`, accessed through `Get(petId)`. | `InventoryUIController`, `PreviewRenderer` |
+| `LauncherPreviewConfig.lua` | Per-Launcher viewport camera `Rotation` and `Offset`, accessed through `Get(launcherId)`. | `LauncherInventoryUIController`, `PreviewRenderer` |
 | `PetRarityStatsConfig.lua` | Base HP and damage values by pet rarity. | `PetProgression`, pet UI |
 | `PetsConfig.lua` | Pet definition catalog, ability IDs, rarity, and max-level settings. | `PetService`, `PetProgression`, `InventoryUIController` |
 | `PetsUpgradeConfig.lua` | Level normalization, costs, 10% per-level base-stat growth, and milestone predicates. | `PetService`, `PetProgression`, `PetDisplayFormatter` |
-| `LauncherConfig.lua` | Canonical 11-launcher catalog (`Types`) with `NormalLauncher` as `DefaultLauncherId`, per-launcher `modelPath` values under `ReplicatedStorage/Assets/Launchers`, rarity/stats, and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
+| `LauncherConfig.lua` | Five Duck Launcher definitions (`Normalduck`, `Kingduck`, `Witchduck`, `Drakeduck`, `Shielduck`), default ID, combat stats, weight, reflect damage, and lookup helpers. | `PlayerStateService`, `LauncherStatResolver`, launcher inventory/shop and mock data |
 | `TrapConfig.lua` | Trap tuning constants (EXP penalty, cooldown, count, color). | `TrapService` |
 
 ## Pet Inventory progression UI
