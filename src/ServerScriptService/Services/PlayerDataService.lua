@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local MockProvider = require(script.Parent.DataProviders.MockProvider)
 local PetsUpgradeConfig = require(ReplicatedStorage.Shared.Config.PetsUpgradeConfig)
 
@@ -30,6 +31,22 @@ end
 local RETIRED_PET_IDS = { SmokeBomb = true, MagnetCore = true }
 local PET_ID_ALIASES = { ShadowCloakZ = "ShadowCloak", Pufferfish = "ThornArmor", SlowBlaster = "Hydra", TitanCore = "Dragon" }
 local PET_IDENTITY_MIGRATION_VERSION = 1
+local LAUNCHER_ID_ALIASES = {
+	NormalLauncher = "Normalduck",
+	TitanBulwarkLauncher = "Kingduck",
+	ZephyrDartLauncher = "Witchduck",
+	RavagerCoreLauncher = "Drakeduck",
+	SupportLauncher = "Shielduck",
+	StunLauncher = "Drakeduck",
+	PetrifyLauncher = "Shielduck",
+	FireLauncher = "Drakeduck",
+	PoisonLauncher = "Witchduck",
+	VacuumLauncher = "Witchduck",
+	StealthLauncher = "Witchduck",
+	HealLauncher = "Shielduck",
+	SpeedLauncher = "Witchduck",
+	BonusBuffLauncher = "Kingduck",
+}
 local ABILITY_ID_ALIASES = {
 	Fire = "Burn",
 	Regen = "Regeneration",
@@ -71,7 +88,7 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 		},
 		Diamonds = 0,
 		OwnedItems = {},
-		OwnedLaunchers = { default_normal_launcher = { definitionId = "NormalLauncher", star = 1, level = 1, acquiredAt = os.time() } },
+		OwnedLaunchers = { default_normal_launcher = { definitionId = "Normalduck", star = 1, level = 1, acquiredAt = os.time() } },
 		EquippedLauncherInstanceId = "default_normal_launcher",
 		OwnedPets = buildStarterPetInventory(),
 		EquippedPets = { [1] = nil, [2] = nil, [3] = nil },
@@ -125,6 +142,10 @@ function PlayerDataService:_ensureLauncherData(data: { [string]: any })
 		if type(instanceId) ~= "string" or type(launcher) ~= "table" or type(launcher.definitionId) ~= "string" or launcher.definitionId == "" then
 			data.OwnedLaunchers[instanceId] = nil
 		else
+			launcher.definitionId = LAUNCHER_ID_ALIASES[launcher.definitionId] or launcher.definitionId
+			if not LauncherConfig.GetById(launcher.definitionId) then
+				launcher.definitionId = LauncherConfig.DefaultLauncherId
+			end
 			launcher.star = math.max(1, math.floor(tonumber(launcher.star) or 1))
 			launcher.level = math.max(1, math.floor(tonumber(launcher.level) or 1))
 			launcher.acquiredAt = tonumber(launcher.acquiredAt) or os.time()
