@@ -42,10 +42,11 @@ local MOCK_SHOP_STATE = {
 		{ id = "item_invisible", name = "Invisibility (30s)", description = "Invisible for 30s", priceX1 = 3, priceX10 = 27, icon = "rbxassetid://0" },
 	},
 	launchers = {
-		{ id = "NormalLauncher", name = "Normal Launcher", price = 100, icon = "rbxassetid://0" },
-		{ id = "TitanBulwarkLauncher", name = "Titan Bulwark Launcher", price = 900, icon = "rbxassetid://0" },
-		{ id = "ZephyrDartLauncher", name = "Zephyr Dart Launcher", price = 1200, icon = "rbxassetid://0" },
-		{ id = "RavagerCoreLauncher", name = "Ravager Core Launcher", price = 1800, icon = "rbxassetid://0" },
+		{ id = "Normalduck", name = "Normal Duck", price = 100, icon = "rbxassetid://0" },
+		{ id = "Kingduck", name = "King Duck", price = 900, icon = "rbxassetid://0" },
+		{ id = "Witchduck", name = "Witch Duck", price = 1200, icon = "rbxassetid://0" },
+		{ id = "Drakeduck", name = "Drake Duck", price = 1800, icon = "rbxassetid://0" },
+		{ id = "Shielduck", name = "Shield Duck", price = 1500, icon = "rbxassetid://0" },
 	},
 	dinamondPacks = {
 		{ id = "pack_1usd", usd = 1, dinamondAmount = 125, note = "Base rate", icon = "rbxassetid://0" },
