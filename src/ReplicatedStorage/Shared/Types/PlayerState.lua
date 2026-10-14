@@ -32,6 +32,7 @@ export type PlayerState = {
 	RegenRate: number,
 	ReflectDamage: number,
 	LaunchSpeed: number,
+	Weight: number,
 	LaunchRange: number,
 	ChargeSpeed: number,
 	MoveSpeed: number,
