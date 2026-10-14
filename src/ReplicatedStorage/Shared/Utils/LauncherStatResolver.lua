@@ -16,6 +16,7 @@ export type ResolvedLauncherStats = {
 	launchPower: number,
 	control: number,
 	launchSpeed: number,
+	weight: number,
 	launchRange: number,
 	moveSpeed: number,
 	damageMultiplier: number,
@@ -83,10 +84,11 @@ function LauncherStatResolver.Resolve(definitionId: string, star: number?, level
 		launchPower = launchPower,
 		control = control,
 		launchSpeed = math.clamp(launcherStats.launchSpeed or PhysicsConfig.Launch.SpeedMax, PhysicsConfig.Launch.SpeedMin, PhysicsConfig.Launch.SpeedMax),
+		weight = math.max(1, tonumber(launcherStats.weight) or base.weight or 100),
 		launchRange = base.maxShootRange * control,
 		moveSpeed = speed,
 		damageMultiplier = readPassiveMultiplier(passive, "finalDamageMultiplier"),
-		reflectDamage = math.max(base.reflectDamagePercent, readPassiveAdd(passive, "reflectDamage")),
+		reflectDamage = math.clamp(math.max(launcherStats.reflectDamage or base.reflectDamagePercent, readPassiveAdd(passive, "reflectDamage")), 0, 0.5),
 		expBonus = resolveExpBonus(passive),
 	}
 end
