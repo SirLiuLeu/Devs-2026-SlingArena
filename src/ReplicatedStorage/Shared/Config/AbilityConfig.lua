@@ -32,8 +32,8 @@ AbilityConfig.Types = {
 		collisionFlag = LauncherFlagMap.StunLauncher,
 		collisionExtraDuration = flagDuration("Stun"),
 	},
-	NormalLauncher = {
-		id = "NormalLauncher",
+	Normalduck = {
+		id = "Normalduck",
 		expBonus = 0.5,
 	},
 	VacuumLauncher = {
