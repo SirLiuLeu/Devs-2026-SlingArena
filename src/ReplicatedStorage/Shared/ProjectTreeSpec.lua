@@ -281,7 +281,8 @@ local ProjectTreeSpec = {
 		-- ReplicatedStorage
 		--   Assets (Folder)
 		--     Launchers (Folder)
-		--       NormalLauncher (Model default)
+		--       Player (Model base pawn)
+--       Normalduck, Kingduck, Witchduck, Drakeduck, Shielduck (Launcher visual models)
 		--   Assets (Folder)
 		--     UI (Folder)
 		--       ItemSlotTemplate_InventoryUI (Frame)
@@ -289,7 +290,7 @@ local ProjectTreeSpec = {
 		--         Root (GuiObject)
 		--           PetPreview (ViewportFrame; Studio-authored launcher model preview)
 		--     Launchers (Folder)
-		--       SupportLauncher, StunLauncher, NormalLauncher, VacuumLauncher, StealthLauncher, HealLauncher, SpeedLauncher, BonusBuffLauncher, PetrifyLauncher, FireLauncher, PoisonLauncher
+		--       Player, Normalduck, Kingduck, Witchduck, Drakeduck, Shielduck
 		--     Food (Folder)
 		--       BasicFood (Model) [fallback]
 		--		 Food1, Food2, Food3, ...Food7 (Model)
