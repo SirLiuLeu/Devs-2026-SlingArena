@@ -94,6 +94,7 @@ local function buildDefaultState(player: Player): PlayerState
 		RegenerationRate = launcher.regenPerSecond,
 		ReflectDamage = launcher.reflectDamagePercent,
 		LaunchSpeed = PhysicsConfig.Launch.SpeedMax,
+		Weight = launcher.weight or 100,
 		LaunchRange = launcher.maxShootRange,
 		ChargeSpeed = 1,
 		MoveSpeed = PhysicsConfig.Movement.MoveSpeed,
@@ -102,11 +103,11 @@ local function buildDefaultState(player: Player): PlayerState
 		LaunchSpeedBonus = 0,
 		RegenerationBonus = 0,
 		KnockbackResistance = 0,
-		LaunchershotType = "NormalLauncher",
+		LaunchershotType = "Normalduck",
 		EquippedLauncherInstanceId = "default_normal_launcher",
 		OwnedLaunchers = {
 			default_normal_launcher = {
-				definitionId = "NormalLauncher",
+				definitionId = "Normalduck",
 				star = 1,
 				level = 1,
 				acquiredAt = os.time(),
@@ -481,6 +482,7 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	state.RegenerationRate = resolved.regen
 	state.ReflectDamage = resolved.reflectDamage
 	state.LaunchSpeed = resolved.launchSpeed
+	state.Weight = resolved.weight
 	state.LaunchRange = resolved.launchRange
 	state.ChargeSpeed = 1
 	state.MoveSpeed = resolved.moveSpeed
