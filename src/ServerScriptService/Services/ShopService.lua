@@ -27,10 +27,11 @@ local ITEMS = {
 }
 
 local LAUNCHERS = {
-	NormalLauncher = { price = 100 },
-	TitanBulwarkLauncher = { price = 900 },
-	ZephyrDartLauncher = { price = 1200 },
-	RavagerCoreLauncher = { price = 1800 },
+	Normalduck = { price = 100 },
+	Kingduck = { price = 900 },
+	Witchduck = { price = 1200 },
+	Drakeduck = { price = 1800 },
+	Shielduck = { price = 1500 },
 }
 
 function ShopService.new(context)
