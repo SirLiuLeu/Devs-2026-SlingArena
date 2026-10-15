@@ -62,6 +62,8 @@ local function fitCamera(camera: Camera, model: Model, viewportFrame: ViewportFr
 	local distanceForHeight = (height / 2) / halfVerticalFovTangent
 	local distanceForWidth = (width / 2) / (halfVerticalFovTangent * math.max(aspectRatio, 0.01))
 	local distance = (math.max(distanceForHeight, distanceForWidth) + depth / 2) * FRAME_PADDING
+	local previewScale = math.max(0.05, tonumber(config and config.Scale) or 1)
+	distance /= previewScale
 
 	camera.FieldOfView = DEFAULT_FOV
 
