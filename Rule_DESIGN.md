@@ -323,23 +323,13 @@ Only **two** trap types actually exist in the codebase — **Totem** and **Toxic
 
 ---
 
-# 10. TEAM SYSTEM — ❌ Largely Unimplemented
+# 10. TEAM SYSTEM — ✅ Server foundations implemented; UI/skins remain pending
 
-`TeamService.lua` is a stub:
-
-```lua
-function TeamService:Init()
-    -- Teams are intentionally uninitialized at startup.
-    -- Team creation/assignment will be implemented in a future feature.
-end
-```
-
-* `AssignBalancedTeam` unconditionally sets `player.Team = nil` and returns `nil`.
-* `IsFriendly(playerA, playerB)` compares `state.TeamId` on both players — but **nothing in the codebase ever sets a real `TeamId`** via `PlayerStateService:SetTeamId` except the initial `nil` default. No remote, UI flow, or service creates a 2-player team at runtime.
-* ❌ No Friendly Fire toggle logic, no shared-win rank logic, no assist-reward logic (10-second assist window / +50% EXP+Diamonds), and no teammate-tracking UI logic exist in any server service.
-* `SYSTEM_OWNERSHIP.md` and `PlayerService.lua` still reference a legacy `TeamRed`/`TeamBlue` concept (`state.TeamId == "TeamRed"`), which the same document explicitly lists as **Deprecated**.
-
-**Bottom line:** document Team as a planned system, not a live one, until `TeamService` is actually built out. See §13.
+- `TeamService` assigns arena participants to `TeamRed`, `TeamBlue`, or `TeamGreen` as evenly as possible when a new round begins.
+- The server accepts `ChangeTeam` requests only during an active round before Rage, validates the requested team ID, and enforces a 30-second cooldown after a successful change.
+- `RoundService` starts Rage/FFA at 480 elapsed round seconds, independently of the Safe Zone entering `FinalPhase`. During Rage, the original `TeamId` remains available for presentation, but `IsFriendly` returns false for all distinct players.
+- `DamagePipelineService` rejects friendly direct damage and player-sourced DoT; `CollisionService` checks the same damage-policy API before applying collision knockback.
+- Team-change UI, team texture selection, Rage skin selection, shared-win/rank behavior, assist rewards, and teammate-tracking UI are not part of this change and remain unimplemented.
 
 ---
 
@@ -396,7 +386,7 @@ This section exists so nobody has to guess. Each item below is a **real, verifie
 15. **`CombatService`, cited in `SYSTEM_OWNERSHIP.md` as the pure-formula combat service, does not exist as a file.** Bounce/depenetration geometry lives in `CombatCollision.lua`; damage math is inlined directly in `DamagePipelineService`. `SYSTEM_OWNERSHIP.md` needs reconciling with actual module boundaries.
 16. **Launcher roster count is inconsistent across project docs.** `Rule_DESIGN.md` (previous draft) and `LauncherConfig.lua` agree on **4** launchers; `AI_CONTEXT.md` claims an "11-launcher catalog," which does not match the code. Treat `AI_CONTEXT.md`'s launcher-count claim as stale.
 17. **Arena size and max-player-count (20) could not be verified from source.** No `MaxPlayers`, `ArenaSize`, or similar constant exists in any `.lua` config file — these are presumably Studio/place-level settings not represented in this Rojo tree. Additionally, `SafeZoneConfig.StartRadius = 300` implies a play space with a ~600-stud diameter, which is larger than a "400×400 stud arena" claim if both are meant to describe the same space. Needs confirmation from whoever owns the Studio place file.
-18. **Thorn Armor's reflect-damage passive is defined in config but not wired into the damage pipeline** — its own definition comment says so directly ("Thorn Armor damage reflection is not yet wired into DamagePipelineService").
+18. **Thorn Armor reflect integration** was previously missing; the implementation now adds equipped pet `statModifiers.Add.reflectDamage` to the resolved Launcher reflect stat (maximum 50%). Runtime validation of lethal reflection remains part of the gameplay test plan.
 19. **`AI_CONTEXT.md`'s claim that `PlayerAttack`/`AbilityTrigger` are fully generalized is only partially true** — several Equipment abilities (Plasma Cannon's Active Attack, Ice Crystal's Freeze) are marked in their own `params.diagnostic` fields as not yet implemented; treat any Equipment whose config contains a `diagnostic` string as a stub pending implementation, not shipped behavior.
 
 ---
