@@ -288,7 +288,8 @@ DataModel
 │  │          └─ Timer (TextLabel)
 │  │
 │  ├─ LauncherArenaRemotes
-│  │  └─ (RemoteEvents from *.model.json + freeze contracts)
+│  │  ├─ ChangeTeam.model.json (RemoteEvent)
+│  │  └─ (Other RemoteEvents from *.model.json + freeze contracts)
 │  │     ├─ MoveRequest
 │  │     ├─ StartCharge
 │  │     ├─ ReleaseCharge
