@@ -317,9 +317,11 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 				local reflectPct = math.clamp(victimStats.Reflect, 0, 0.5)
 				if reflectPct > 0 then
 					local reflected = amount * reflectPct
-					playerStateService:ApplyDamage(attacker, reflected)
+					local reflectedApplied = playerStateService:ApplyDamage(attacker, reflected)
 					local attackerState = playerStateService:GetState(attacker)
-					if attackerState and attackerState.CurrentHP <= 0 then self:HandlePlayerDeath(attacker) end
+					if reflectedApplied and attackerState and attackerState.CurrentHP <= 0 then
+						self:HandlePlayerDeath(attacker)
+					end
 				end
 			end
 			self._context.EventBus:Fire("DamageDealt", attacker, victim, amount)
