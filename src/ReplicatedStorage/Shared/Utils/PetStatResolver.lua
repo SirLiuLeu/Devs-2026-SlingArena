@@ -66,6 +66,12 @@ function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgress
 			result.maxHP = (result.maxHP or 0) + (tonumber(petBaseStats.maxHP) or 0)
 			result.baseDamage = (result.baseDamage or 0) + (tonumber(petBaseStats.baseDamage) or 0)
 		end
+
+		local definition = progression.definition
+		local statModifiers = type(definition) == "table" and definition.statModifiers
+		local additions = type(statModifiers) == "table" and statModifiers.Add
+		local reflectAddition = type(additions) == "table" and tonumber(additions.reflectDamage) or 0
+		result.reflectDamage = math.clamp((result.reflectDamage or 0) + math.max(0, reflectAddition or 0), 0, 0.5)
 	end
 	return result
 end
