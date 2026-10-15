@@ -9,6 +9,7 @@ RemoteContracts.Names = {
 	CancelCharge = "CancelCharge",
 	RequestLaunch = "RequestLaunch",
 	AbilityTrigger = "AbilityTrigger",
+	ChangeTeam = "ChangeTeam",
 	GameplayFeedback = "GameplayFeedback",
 	StateUpdate = "StateUpdate",
 	UIStateUpdate = "UIStateUpdate",
@@ -154,6 +155,9 @@ RemoteContracts.Validators = {
 			return false
 		end
 		return true
+	end,
+	[RemoteContracts.Names.ChangeTeam] = function(teamId: any): boolean
+		return typeof(teamId) == "string" and (teamId == "TeamRed" or teamId == "TeamBlue" or teamId == "TeamGreen")
 	end,
 	[RemoteContracts.Names.SetPlayerMode] = function(modeName: any): boolean
 		return modeName == "Launcher" or modeName == "Human"

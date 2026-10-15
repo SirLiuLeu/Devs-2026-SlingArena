@@ -5,6 +5,7 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local BaseAbility = require(script.Parent.Parent.Shared.BaseAbility)
@@ -87,6 +88,8 @@ function LauncherAbilityService:_onAbilityTrigger(player: Player, payload)
 	end
 	if type(payload) == "table" and payload.action == "EquipLauncher" and typeof(payload.launcherId) == "string" then
 		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+		local state = stateService and stateService:GetState(player)
+		if not state or state.LocationState ~= GameStates.SessionState.Lobby then return end
 		local equipped = false
 		if stateService and typeof(payload.instanceId) == "string" and typeof(stateService.SetEquippedLauncherInstance) == "function" then
 			equipped = stateService:SetEquippedLauncherInstance(player, payload.instanceId)

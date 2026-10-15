@@ -42,14 +42,20 @@ function LauncherInventoryService:Equip(player: Player, instanceId: string)
 end
 
 function LauncherInventoryService:Unequip(player: Player)
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local state = stateService and stateService:GetState(player)
+	if not state or state.LocationState ~= GameStates.SessionState.Lobby then
+		self:_feedback(player, false, "LobbyOnly")
+		return false, "LobbyOnly"
+	end
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not dataService then return false, "MissingPlayerDataService" end
 	dataService:UnequipLauncher(player)
-	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateService then
 		stateService:_syncInventoryFromData(player)
 		stateService:SetEquippedLauncherInstance(player, "default_normal_launcher")
 	end
+	self:_feedback(player, true, nil)
 	return true, nil
 end
 

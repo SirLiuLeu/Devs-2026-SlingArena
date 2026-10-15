@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local CombatCollision = require(ReplicatedStorage.Shared.Utils.CombatCollision)
@@ -201,6 +202,12 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		logValidation(false, validation.Reason or "validation_failed")
 		return
 	end
+	local damagePipelineService = ServiceResolver.Get(self._context, "DamagePipelineService")
+	if damagePipelineService and typeof(damagePipelineService.CanDamagePlayer) == "function"
+		and not damagePipelineService:CanDamagePlayer(player, defender) then
+		logValidation(false, "friendly_fire_blocked")
+		return
+	end
 	logValidation(true, "sweep_intersects_hitbox")
 	local now = os.clock()
 	local dedupeService = ServiceResolver.Get(self._context, "HitCooldownDedupe")
@@ -241,6 +248,11 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	end
 
 	local attackerAbsoluteSpeed = attackerVelocity.Magnitude
+	local attackerState = stateService:GetState(player)
+	local defenderState = stateService:GetState(defender)
+	local attackerWeight = math.max(1, tonumber(attackerState and attackerState.Weight) or 100)
+	local defenderWeight = math.max(1, tonumber(defenderState and defenderState.Weight) or 100)
+	local weightFactor = math.min(1.4, attackerWeight / defenderWeight)
 	local defenderOutRaw = collisionResult.DefenderVelocity
 	local defenderOutRawSpeed = defenderOutRaw.Magnitude
 	local maxDefenderOutSpeed = attackerAbsoluteSpeed * PhysicsConfig.Collision.DefenderVelocityTransferScale
@@ -251,7 +263,8 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		else defenderOutRaw.Unit * maxDefenderOutSpeed
 	local outgoingKnockbackMultiplier = tonumber(player:GetAttribute("PetOutgoingKnockbackMultiplier")) or 1
 	local incomingKnockbackMultiplier = tonumber(defender:GetAttribute("PetIncomingKnockbackMultiplier")) or 1
-	defenderOut *= math.max(0, outgoingKnockbackMultiplier) * math.max(0, incomingKnockbackMultiplier)
+	defenderOut *= math.max(0, outgoingKnockbackMultiplier) * math.max(0, incomingKnockbackMultiplier) * weightFactor
+	if defenderOut.Magnitude > BalanceConfig.MaxVelocity then defenderOut = defenderOut.Unit * BalanceConfig.MaxVelocity end
 	local attackerOut = collisionResult.AttackerVelocity
 	local transferEnergy = math.max(0, attackerAbsoluteSpeed)
 	local shouldKnockback = defenderOut.Magnitude >= PhysicsConfig.Collision.KnockbackMinActivationSpeed
@@ -264,7 +277,6 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		end
 	end
 
-	local attackerState = stateService:GetState(player)
 	local launcherMaxSpeed = attackerState and attackerState.LaunchSpeed or PhysicsConfig.Launch.SpeedMin
 	print(`[PET_ATTACK_TRACE][CollisionService] collision accepted; firing hooks attacker={playerName(player)} victim={playerName(defender)} impactSpeed={impactSpeed} transferredVelocity={defenderOut.Magnitude} launchId={tostring(payload.launchId)}`)
 	self._context.EventBus:Fire("CollisionDetected", "Launcher", player, defender, {
@@ -299,6 +311,8 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 			InitialImpactSpeed = math.max(attackerAbsoluteSpeed, impactSpeed),
 			AttackerAbsoluteSpeed = attackerAbsoluteSpeed,
 			TransferredEnergy = transferEnergy,
+			WeightFactor = weightFactor,
+			KnockbackSpeedCap = BalanceConfig.MaxVelocity,
 		})
 	end
 	print(`[Knockback Status] attacker={playerName(player)} defender={playerName(defender)} applied={tostring(shouldKnockback)} impactSpeed={impactSpeed}`)

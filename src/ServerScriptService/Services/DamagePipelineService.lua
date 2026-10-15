@@ -24,6 +24,7 @@ type DamageOptions = {
 	KnockbackDuration: number?,
 	AttackerAbsoluteSpeed: number?,
 	InitialImpactSpeed: number?,
+	KnockbackSpeedCap: number?,
 	SourceType: string?,
 }
 
@@ -55,6 +56,8 @@ local LAUNCHER_DOT_EFFECTS: { [string]: EffectConfig } = {
 }
 
 local function getKnockbackSpeedCap(collisionMeta: any?): number
+	local explicitCap = collisionMeta and collisionMeta.KnockbackSpeedCap
+	if type(explicitCap) == "number" then return math.max(0, explicitCap) end
 	local attackerAbsoluteSpeed = collisionMeta and collisionMeta.AttackerAbsoluteSpeed
 	if type(attackerAbsoluteSpeed) == "number" then
 		return math.max(0, attackerAbsoluteSpeed)
@@ -253,6 +256,11 @@ function DamagePipelineService:_sendFeedback(player: Player, eventType: string, 
 	end
 end
 
+function DamagePipelineService:CanDamagePlayer(attacker: Player, victim: Player): boolean
+	local teamService = ServiceResolver.Get(self._context, "TeamService")
+	return not (teamService and teamService:IsFriendly(attacker, victim))
+end
+
 function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
 	local playerStateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not playerStateService then
@@ -274,15 +282,14 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 		return false
 	end
 
+	if attacker and not self:CanDamagePlayer(attacker, victim) then
+		damageLog("ApplyHitDamage aborted: friendly fire blocked")
+		return false
+	end
 	local victimStats = playerStateService:GetFinalStats(victim)
 	local armor = victimStats and math.clamp(victimStats.Armor or 0, 0, 0.8) or 0
 	local petDamageMultiplier = tonumber(victim:GetAttribute("PetShieldDamageMultiplier")) or 1
 	local amount = math.clamp(rawDamage * petDamageMultiplier * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
-	local teamService = ServiceResolver.Get(self._context, "TeamService")
-	local friendly = attacker and teamService and teamService:IsFriendly(attacker, victim) or false
-	if friendly then
-		amount = 0
-	end
 	local didDamage = true
 	if amount > 0 then
 		didDamage = playerStateService:ApplyDamage(victim, amount)
@@ -306,11 +313,13 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 			if not suppressFeedback then
 				self:_sendFeedback(attacker, "DamageDealt", { Amount = amount })
 			end
-			if victimStats then
+			if victimStats and attacker ~= victim then
 				local reflectPct = math.clamp(victimStats.Reflect, 0, 0.5)
 				if reflectPct > 0 then
 					local reflected = amount * reflectPct
 					playerStateService:ApplyDamage(attacker, reflected)
+					local attackerState = playerStateService:GetState(attacker)
+					if attackerState and attackerState.CurrentHP <= 0 then self:HandlePlayerDeath(attacker) end
 				end
 			end
 			self._context.EventBus:Fire("DamageDealt", attacker, victim, amount)
@@ -355,6 +364,10 @@ function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number,
 		return false
 	end
 	local sourceIsPlayer = typeof(source) == "Instance" and source:IsA("Player")
+	if sourceIsPlayer and source ~= victim and not self:CanDamagePlayer(source, victim) then
+		damageLog("ApplyDoTDamage aborted: friendly fire blocked")
+		return false
+	end
 	if playerStateService.IsHuman and playerStateService:IsHuman(victim) and sourceIsPlayer then
 		damageLog("ApplyDoTDamage aborted: player-sourced DoT cannot damage a Human victim")
 		return false
