@@ -1,6 +1,9 @@
 --!strict
 
 local ProjectTreeSpec = {
+	Remotes = {
+		ChangeTeam = "LauncherArenaRemotes.ChangeTeam", -- [PROJECT_TREE_SPEC] ReplicatedStorage.LauncherArenaRemotes.ChangeTeam (RemoteEvent)
+	},
 	UI = {
 		Lobby = {
 			ScreenGui = "UnitTestUI", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI
