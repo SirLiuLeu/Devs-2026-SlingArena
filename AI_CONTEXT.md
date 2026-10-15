@@ -101,3 +101,14 @@ Config modules store shared tuning and content tables (movement/combat constants
 - `LauncherInventoryUIController` renders the Studio-authored `LauncherSlotTemplate_LauncherInventoryUI.Root.EquipmentPreview` `ViewportFrame` through `PreviewRenderer`, using models from `ReplicatedStorage.Assets.Launchers`.
 - Generated launcher slots store `CurrentRenderedId`; the renderer only recreates a viewport preview when that launcher id changes. Snapshot refreshes while the panel is disabled are cached and rendered when it becomes visible.
 - Controller destruction disconnects slot events and destroys every slot retained in `_slotMap`, releasing each cloned preview model and camera.
+
+
+## Team/Rage, knockback, preview, and reflect update (2026-10-16)
+
+- `TeamService` assigns active round participants to three balanced teams (`TeamRed`, `TeamBlue`, `TeamGreen`), accepts server-validated team-change requests, and enforces a 30-second successful-change cooldown.
+- `RoundService` activates Rage/FFA at 480 elapsed round seconds independently of the Safe Zone's transition to `FinalPhase`; the `UIStateUpdate` payload exposes `RageActive`. Team identity remains in player state while friendly-fire checks are disabled during Rage.
+- `DamagePipelineService` owns the friendly-damage query and rejects same-team direct and player-sourced DoT damage. `CollisionService` uses that query before emitting knockback, so a teammate collision is blocked before physical knockback/effect dispatch.
+- `LauncherConfig` already resolves each Launcher `weight` to `PlayerState.Weight`; collision knockback now applies the attacker/defender weight ratio, capped at 1.4, and a global velocity cap.
+- `LauncherPreviewConfig` and `PetPreviewConfig` expose per-model `Scale` (default 1). `PreviewRenderer` adjusts preview camera distance from this value instead of changing runtime model size.
+- `PetStatResolver` now includes equipped pet `statModifiers.Add.reflectDamage` in the derived reflect stat, clamped to 50%. The damage pipeline also processes attacker death if reflected damage is lethal.
+- `LauncherInventoryService` enforces Lobby-only equip and unequip; the legacy Launcher ability equip route has the same server-side Lobby gate. `ChangeTeam` is defined in `RemoteContracts` and has a Rojo `model.json` asset. The team-selection UI, team/Rage textures, Titan scaling, PlasmaCannon, and SlowBlaster remain outside this change because their UI/assets/specs are not finalized.
