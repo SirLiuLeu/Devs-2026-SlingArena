@@ -97,10 +97,12 @@ function PlasmaCannon.OnAbilityTrigger(context)
 	if projectile:IsA("Model") then projectile:PivotTo(spawnCFrame) else part.CFrame = spawnCFrame end
 	projectile.Parent = Workspace
 	pcall(function() part:SetNetworkOwner(nil) end)
-	part.AssemblyLinearVelocity = direction * CONFIG.ProjectileSpeed + Vector3.new(0, 4, 0)
+	local projectileSpeed = tonumber(context.progression and context.progression.abilityParams and context.progression.abilityParams.projectileSpeed) or CONFIG.ProjectileSpeed
+	part.AssemblyLinearVelocity = direction * projectileSpeed + Vector3.new(0, 4, 0)
 	context._projectiles = context._projectiles or {}
 	context._projectiles[projectile] = true
-	context._nextAbilityAt = now + CONFIG.Cooldown
+	local cooldown = tonumber(context.progression and context.progression.abilityParams and context.progression.abilityParams.cooldown) or CONFIG.Cooldown
+	context._nextAbilityAt = now + cooldown
 	local hitConnection
 	hitConnection = part.Touched:Connect(function(hit)
 		if not hit or not hit.Parent or hit:IsDescendantOf(projectile) then return end
