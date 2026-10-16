@@ -76,7 +76,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 
 - The pet details level label is `StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Level`; `ProjectTreeSpec.UI.Inventory.PetsStatLevel` is the code path used to bind it.
 - `PetDisplayFormatter.Format(definition, level, previewNextLevel, languageCode)` is presentation-only and returns `LevelText`, `HPText`, `DamageText`, and `ScriptText`. It selects the localized ability template by locale (with an English fallback) and encodes every RichText arrow as `-&gt;`.
-- Base HP and damage grow at every level. Ability parameters change only at levels 1, 5, 10, 15, and 20. The first Upgrade click previews base-stat changes; its ability text changes only when the next level is one of those milestones. The second click submits the upgrade, disables the button until a server result, and all selection/tab/hide/result events clear the preview.
+- Base HP and damage grow at every level. Most ability parameters change at levels 1, 5, 10, 15, and 20; Titan weight/hitbox/visual multipliers are calculated at every level. The first Upgrade click previews base-stat changes; milestone-based ability text changes only when the next level is one of those milestones. The second click submits the upgrade, disables the button until a server result, and all selection/tab/hide/result events clear the preview.
 
 ## Recent implementation update (2026-08-21)
 
