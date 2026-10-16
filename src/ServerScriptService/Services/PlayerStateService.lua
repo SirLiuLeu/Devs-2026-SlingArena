@@ -95,7 +95,6 @@ local function buildDefaultState(player: Player): PlayerState
 		ReflectDamage = launcher.reflectDamagePercent,
 		LaunchSpeed = PhysicsConfig.Launch.SpeedMax,
 		Weight = launcher.weight or 100,
-		LaunchRange = launcher.maxShootRange,
 		ChargeSpeed = 1,
 		MoveSpeed = PhysicsConfig.Movement.MoveSpeed,
 		DamageMultiplier = 1,
@@ -483,7 +482,6 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	state.ReflectDamage = resolved.reflectDamage
 	state.LaunchSpeed = resolved.launchSpeed
 	state.Weight = resolved.weight
-	state.LaunchRange = resolved.launchRange
 	state.ChargeSpeed = 1
 	state.MoveSpeed = resolved.moveSpeed
 	state.Armor = resolved.armor
@@ -510,7 +508,6 @@ function PlayerStateService:GetFinalStats(player: Player)
 		Damage = state.BaseDamage * (state.DamageMultiplier or 1),
 		HP = state.MaxHP,
 		Regeneration = state.RegenerationRate,
-		Range = state.LaunchRange,
 		Reflect = state.ReflectDamage,
 		Armor = state.Armor or 0,
 		ExpBonus = state.ExpBonus or 0,
