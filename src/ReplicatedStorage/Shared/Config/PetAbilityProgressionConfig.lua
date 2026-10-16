@@ -64,6 +64,7 @@ function PetAbilityProgressionConfig.GetParams(abilityId: string?, level: number
 		params.weightMultiplier = math.min(1.5, 1 + ((safeLevel - 1) * 0.015) + (if safeLevel >= 20 then 0.005 else 0))
 		params.hitboxMultiplier = math.min(1.5, 1 + ((safeLevel - 1) * 0.02))
 		params.visualMultiplier = math.min(2, 1 + ((safeLevel - 1) * 0.04))
+		params.sizeMultiplier = params.visualMultiplier -- Compatibility for existing pet stat display formatters.
 		params.incomingKnockbackMultiplier = math.max(0.74, 0.90 - ((safeLevel - 1) * (0.16 / 19)))
 		params.outgoingKnockbackMultiplier = math.min(1.22, 1.10 + ((safeLevel - 1) * (0.12 / 19)))
 	end
