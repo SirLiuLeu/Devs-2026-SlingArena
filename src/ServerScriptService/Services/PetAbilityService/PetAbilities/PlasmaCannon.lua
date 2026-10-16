@@ -62,8 +62,9 @@ function PlasmaCannon.OnAbilityTrigger(context: any, _payload: any): boolean
 				if not EffectUtil.CanAffectPlayers(context, context.player, victim) then return end
 				record.hit = true
 				if context.DamagePipelineService then
-					context.DamagePipelineService:ApplyHitDamage(victim, damage, context.player, direction, {
+					context.DamagePipelineService:ApplyHitDamage(victim, damage, context.player, nil, {
 						SourceType = "PetProjectile",
+						SuppressKnockback = true,
 					})
 				else
 					warn("[PlasmaCannon] DamagePipelineService is missing; projectile hit could not apply damage.")

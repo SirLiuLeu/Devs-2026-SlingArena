@@ -112,7 +112,7 @@ Confirmed via `IsHuman()` gates across services:
 
 ## 4.1 Current Launcher Roster (`LauncherConfig.lua`)
 
-Exactly **4 launchers** exist in the runtime catalog:
+Exactly **5 launchers** exist in the runtime catalog:
 
 | ID | Role | maxHP | baseDamage | armor | regen | speed | launchPower | launchSpeed | reflectDamage | weight |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|

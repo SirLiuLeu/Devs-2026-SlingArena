@@ -204,6 +204,15 @@ function TeamService:Init()
 		local team = Teams:FindFirstChild(teamId)
 		if not (team and team:IsA("Team")) then
 			warn(string.format("[TeamService] Required Teams.%s is missing; create it manually in Studio.", teamId))
+		else
+			team.AutoAssignable = false
+		end
+	end
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	for _, player in ipairs(Players:GetPlayers()) do
+		local state = stateService and stateService:GetState(player)
+		if not state or state.LocationState == GameStates.SessionState.Lobby then
+			self:_setTeamId(player, nil)
 		end
 	end
 	if self._changeTeamRemote and self._changeTeamRemote:IsA("RemoteEvent") then
@@ -217,6 +226,10 @@ function TeamService:Init()
 	else
 		warn("Missing ReplicatedStorage.LauncherArenaRemotes.ChangeTeam (RemoteEvent). Create it from src/ReplicatedStorage/LauncherArenaRemotes/ChangeTeam.model.json.")
 	end
+	Players.PlayerAdded:Connect(function(player)
+		-- Team assignment starts when the player joins the arena round, not in the lobby.
+		player.Team = nil
+	end)
 	Players.PlayerRemoving:Connect(function(player)
 		self._lastTeamChangeAt[player.UserId] = nil
 	end)

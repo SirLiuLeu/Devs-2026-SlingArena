@@ -23,6 +23,7 @@ if not (feedbackRemote and feedbackRemote:IsA("RemoteEvent")) then
 end
 
 local guiConnections: { RBXScriptConnection } = {}
+local globalConnections: { RBXScriptConnection } = {}
 local playerConnections: { [Player]: RBXScriptConnection } = {}
 local screenGui: ScreenGui? = nil
 local toggleButton: GuiButton? = nil
@@ -109,6 +110,20 @@ local function bindGui(candidate: Instance)
 				if not teamId then teamId = findTeamId(descendant, popup) end
 				if teamId then
 					teamButtons[teamId] = descendant
+					local item: Instance? = descendant.Parent
+					while item and item ~= popup do
+						local nameLabel = item:FindFirstChild("TeamName", true)
+						if nameLabel and nameLabel:IsA("TextLabel") then
+							nameLabel.Text = teamId
+							local icon = item:FindFirstChild("TeamIcon", true)
+							local team = Teams:FindFirstChild(teamId)
+							if icon and icon:IsA("ImageLabel") and team and team:IsA("Team") then
+								icon.ImageColor3 = team.TeamColor.Color
+							end
+							break
+						end
+						item = item.Parent
+					end
 					table.insert(guiConnections, descendant.Activated:Connect(function()
 						if isRage then return end
 						if changeTeamRemote and changeTeamRemote:IsA("RemoteEvent") then
@@ -150,7 +165,7 @@ if existingGui then
 else
 	warn("[TeamSelectionController] Missing PlayerGui.TeamSelectionGui. Ensure the Studio-authored ScreenGui is included in Rojo sync.")
 end
-table.insert(guiConnections, playerGui.ChildAdded:Connect(function(child)
+table.insert(globalConnections, playerGui.ChildAdded:Connect(function(child)
 	if child.Name == "TeamSelectionGui" then bindGui(child) end
 end))
 
@@ -168,9 +183,9 @@ Players.PlayerRemoving:Connect(function(candidate)
 	if connection then connection:Disconnect(); playerConnections[candidate] = nil end
 	task.defer(refreshCounts)
 end)
-table.insert(guiConnections, Workspace:GetAttributeChangedSignal("RageActive"):Connect(refreshRageState))
+table.insert(globalConnections, Workspace:GetAttributeChangedSignal("RageActive"):Connect(refreshRageState))
 if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
-	table.insert(guiConnections, feedbackRemote.OnClientEvent:Connect(function(message)
+	table.insert(globalConnections, feedbackRemote.OnClientEvent:Connect(function(message)
 		if type(message) == "table" and message.EventType == "TeamChangeResult" and type(message.Payload) == "table" then
 			if message.Payload.Success ~= true then
 				warn(string.format("[TeamSelectionController] Team change rejected: %s", tostring(message.Payload.Reason or "Unknown")))
