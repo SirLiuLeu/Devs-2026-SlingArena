@@ -11,6 +11,7 @@ local UiBindManager = require(ReplicatedStorage.Shared.Utils.UiBindManager)
 local UIController = require(ReplicatedStorage.Client.Controllers.UIController)
 local LeaderboardWorldUIController = require(ReplicatedStorage.Client.Controllers.LeaderboardWorldUIController)
 local ClientPetController = require(ReplicatedStorage.Client.Controllers.ClientPetController)
+local TeamSelectionUIController = require(ReplicatedStorage.Client.Controllers.TeamSelectionUIController)
 
 local PLAYER_GUI_TIMEOUT_SECONDS = 8
 local ROOT_SCREEN_GUI_TIMEOUT_SECONDS = 8
@@ -29,6 +30,7 @@ local STARTER_GUI_ROOTS = {
 	MatchSummaryUI = true,
 	MatchScoreboardUI = true,
 	LauncherControlUI = true,
+	TeamSelectionGui = true,
 }
 
 local function getRootSegment(path: string): string
@@ -103,6 +105,8 @@ task.spawn(function()
 	leaderboardWorldController:Start()
 	local clientPetController = ClientPetController.new(player)
 	clientPetController:Start()
+	local teamSelectionController = TeamSelectionUIController.new(playerGui)
+	teamSelectionController:Start()
 
 	player.AncestryChanged:Connect(function(_, parent)
 		if parent == nil then
@@ -110,6 +114,7 @@ task.spawn(function()
 			uiBindManager:Destroy()
 			leaderboardWorldController:Destroy()
 			clientPetController:Destroy()
+			teamSelectionController:Destroy()
 		end
 	end)
 end)
