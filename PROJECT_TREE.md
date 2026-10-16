@@ -414,6 +414,15 @@ DataModel
 │  │     ├─ Background
 │  │     └─ Header
 │  │
+│  ├─ TeamSelectionGui (ScreenGui)
+│  │  ├─ TeamPopupFrame
+│  │  │  └─ Yellow, White, Red, Blue (TextButton)
+│  │  │     ├─ UICorner
+│  │  │     ├─ TeamIcon (Image)
+│  │  │     ├─ PlayerCount (TextLabel)
+│  │  │     └─ TeamName (TextLabel)
+│  │  └─ ToggleBtn (TextButton)
+│  │
 │  ├─ MatchScoreboardUI (ScreenGui)
 │  │  ├─ MainPanel (Frame)
 │  │  │  ├─ UICorner
