@@ -61,7 +61,11 @@ function TeamService:SetRageActive(active: boolean)
 	if self._rageActive == active then return end
 	self._rageActive = active
 	if active then
-		for _, player in ipairs(Players:GetPlayers()) do self:_setTeamId(player, nil) end
+		-- Preserve state.TeamId for scoreboard/history while Roblox Team membership becomes FFA.
+		for _, player in ipairs(Players:GetPlayers()) do
+			player.Neutral = true
+			player.Team = nil
+		end
 	end
 	if self._context.EventBus then self._context.EventBus:Fire("RageModeChanged", active) end
 end
