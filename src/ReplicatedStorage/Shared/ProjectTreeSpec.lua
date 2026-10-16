@@ -5,6 +5,31 @@ local ProjectTreeSpec = {
 		ChangeTeam = "LauncherArenaRemotes.ChangeTeam", -- [PROJECT_TREE_SPEC] ReplicatedStorage.LauncherArenaRemotes.ChangeTeam (RemoteEvent)
 	},
 	UI = {
+		TeamSelection = {
+			ScreenGui = "TeamSelectionGui", -- Studio-authored; do not create through code.
+			ToggleButton = "TeamSelectionGui.ToggleBtn",
+			Popup = "TeamSelectionGui.TeamPopupFrame",
+			WhiteItem = "TeamSelectionGui.TeamPopupFrame.White (TeamItem Frame)",
+			WhiteButton = "TeamSelectionGui.TeamPopupFrame.White.TextButton",
+			WhiteIcon = "TeamSelectionGui.TeamPopupFrame.White.TeamIcon",
+			WhiteName = "TeamSelectionGui.TeamPopupFrame.White.TeamName",
+			WhitePlayerCount = "TeamSelectionGui.TeamPopupFrame.White.PlayerCount",
+			YellowItem = "TeamSelectionGui.TeamPopupFrame.Yellow (TeamItem Frame)",
+			YellowButton = "TeamSelectionGui.TeamPopupFrame.Yellow.TextButton",
+			YellowIcon = "TeamSelectionGui.TeamPopupFrame.Yellow.TeamIcon",
+			YellowName = "TeamSelectionGui.TeamPopupFrame.Yellow.TeamName",
+			YellowPlayerCount = "TeamSelectionGui.TeamPopupFrame.Yellow.PlayerCount",
+			BlueItem = "TeamSelectionGui.TeamPopupFrame.Blue (TeamItem Frame)",
+			BlueButton = "TeamSelectionGui.TeamPopupFrame.Blue.TextButton",
+			BlueIcon = "TeamSelectionGui.TeamPopupFrame.Blue.TeamIcon",
+			BlueName = "TeamSelectionGui.TeamPopupFrame.Blue.TeamName",
+			BluePlayerCount = "TeamSelectionGui.TeamPopupFrame.Blue.PlayerCount",
+			RedItem = "TeamSelectionGui.TeamPopupFrame.Red (TeamItem Frame)",
+			RedButton = "TeamSelectionGui.TeamPopupFrame.Red.TextButton",
+			RedIcon = "TeamSelectionGui.TeamPopupFrame.Red.TeamIcon",
+			RedName = "TeamSelectionGui.TeamPopupFrame.Red.TeamName",
+			RedPlayerCount = "TeamSelectionGui.TeamPopupFrame.Red.PlayerCount",
+		},
 		Lobby = {
 			ScreenGui = "UnitTestUI", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI
 			Root = "UnitTestUI.RootFrame", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame
@@ -72,7 +97,7 @@ local ProjectTreeSpec = {
 			Stats = {
 				Damage = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Stats.Damage",
 				HP = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Stats.HP",
-				Range = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Stats.Range",
+				Weight = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Stats.Range", -- Reuses existing Studio TextLabel; now displays Weight.
 				Regeneration = "LauncherInventoryUI.Root.BodyLauncher.RightPanel.Stats.Regeneration",
 			},
 		},

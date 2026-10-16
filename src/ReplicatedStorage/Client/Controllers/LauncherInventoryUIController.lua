@@ -63,7 +63,7 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._name = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.SelectedName)
 	self._damage = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.Damage)
 	self._hp = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.HP)
-	self._range = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.Range)
+	self._weight = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.Weight)
 	self._regen = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.Regeneration)
 	self._equip = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.EquipButton)
 	self._delete = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.DeleteButton)
@@ -199,7 +199,7 @@ function LauncherInventoryUIController:_refreshRightPanel()
 	if self._name then self._name.Text = (entry and (entry.name or (definition and definition.name))) or "No launcher selected" end
 	if self._damage then self._damage.Text = string.format("Damage: %.2f", (stats and stats.damage) or (definition and definition.stats.launchPower) or 0) end
 	if self._hp then self._hp.Text = string.format("HP: %.0f", (stats and stats.hp) or 0) end
-	if self._range then self._range.Text = string.format("Range: %.2f", (stats and stats.range) or (definition and definition.stats.control) or 0) end
+	if self._weight then self._weight.Text = string.format("Weight: %.2f", (stats and stats.weight) or (definition and definition.stats.weight) or 0) end
 	if self._regen then self._regen.Text = string.format("Regeneration: %.2f", (stats and stats.regen) or 0) end
 	local enabled = self:_inLobby() and entry ~= nil
 	if self._equip then
