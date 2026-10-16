@@ -771,7 +771,7 @@ Notes:
 
 ## Pet inventory progression notes
 
-`StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Level` is the bound pet-level display. Pet base stats advance on every level; ability values advance only at milestones 1, 5, 10, 15, and 20. `PetAbilityProgressionConfig.Abilities[abilityId].Display` stores `{ Format, Templates = { en, vi } }` for localized display text, while `PetPreviewConfig.Get(petId)` provides the viewport `Rotation` and `Offset`.
+`StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Level` is the bound pet-level display. Pet base stats advance on every level; most ability values advance at milestones 1, 5, 10, 15, and 20. Titan's weight, hitbox, and visual multipliers scale at every level. `PetAbilityProgressionConfig.Abilities[abilityId].Display` stores `{ Format, Templates = { en, vi } }` for localized display text, while `PetPreviewConfig.Get(petId)` provides the viewport `Rotation` and `Offset`.
 
 
 ## Team / Pet projectile implementation notes
