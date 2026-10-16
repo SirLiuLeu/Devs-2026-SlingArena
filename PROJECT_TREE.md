@@ -374,6 +374,7 @@ DataModel
 │  │     ├─ JoinButton
 │  │     ├─ LeaveButton
 │  │     ├─ Plus1Minute
+│  │     ├─ LevelUp5
 │  │     ├─ EndRoundButton
 │  │     └─ StartSafeZoneButton
 │  │
