@@ -61,6 +61,15 @@ local ProjectTreeSpec = {
 				SpawnName = "SpawnPoint", -- [PROJECT_TREE_SPEC] Workspace.Maps.LobbyMap.SpawnPoints.SpawnPoint
 			},
 		},
+		TeamSelection = {
+			ScreenGui = "TeamSelectionGui", -- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui (ScreenGui)
+			ToggleButton = "TeamSelectionGui.ToggleBtn", -- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.ToggleBtn (ImageButton)
+			PopupFrame = "TeamSelectionGui.TeamPopupFrame", -- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame (Frame, Visible=false)
+			WhiteButton = "TeamSelectionGui.TeamPopupFrame.White", -- [PROJECT_TREE_SPEC] team item containing TextButton, TeamIcon, TeamName, PlayerCount
+			YellowButton = "TeamSelectionGui.TeamPopupFrame.Yellow",
+			BlueButton = "TeamSelectionGui.TeamPopupFrame.Blue",
+			RedButton = "TeamSelectionGui.TeamPopupFrame.Red",
+		},
 		LauncherInventory = {
 			ScreenGui = "LauncherInventoryUI",
 			Body = "LauncherInventoryUI.Root.BodyLauncher",
