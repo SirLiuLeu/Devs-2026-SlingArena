@@ -99,10 +99,12 @@ function SlowBlaster.OnAbilityTrigger(context)
 	if projectile:IsA("Model") then projectile:PivotTo(spawnCFrame) else part.CFrame = spawnCFrame end
 	projectile.Parent = Workspace
 	pcall(function() part:SetNetworkOwner(nil) end)
-	part.AssemblyLinearVelocity = direction * CONFIG.ProjectileSpeed
+	local projectileSpeed = tonumber(context.progression and context.progression.abilityParams and context.progression.abilityParams.projectileSpeed) or CONFIG.ProjectileSpeed
+	part.AssemblyLinearVelocity = direction * projectileSpeed
 	context._projectiles = context._projectiles or {}
 	context._projectiles[projectile] = { target = target, part = part }
-	context._nextAbilityAt = now + CONFIG.Cooldown
+	local cooldown = tonumber(context.progression and context.progression.abilityParams and context.progression.abilityParams.cooldown) or CONFIG.Cooldown
+	context._nextAbilityAt = now + cooldown
 	local finished = false
 	local hitConnection
 	local function finish(victim: Player?)
