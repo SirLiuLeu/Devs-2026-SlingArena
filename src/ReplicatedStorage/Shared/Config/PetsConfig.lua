@@ -28,6 +28,7 @@ export type PetDefinition = {
 	category: string,
 	rarity: string,
 	abilityId: string?,
+	activeAbilityId: string?,
 	effectId: string?,
 	combatEffect: CombatEffect?,
 	passiveAbility: PassiveAbility?,
@@ -59,6 +60,7 @@ local function pet(petId: string, name: string, displayName: string, rarity: str
 		category = category,
 		rarity = rarity,
 		abilityId = abilityId,
+		activeAbilityId = nil,
 		effectId = abilityId or "NoOp",
 		combatEffect = combatEffect,
 		passiveAbility = passiveAbility,
@@ -72,13 +74,11 @@ PetsConfig.Definitions = {
 
     -- Active Attack
     PlasmaCannon = pet("PlasmaCannon", "Octopus", "Octopus", PetsConfig.Rarities.Epic, PetsConfig.Categories.ActiveAttack, "NoOp", nil,
-        { type = "ActiveAttack", params = { cooldown = 10, diagnostic = "Plasma Cannon active attack is not yet implemented" } },
+        { type = "ActiveAttack", params = { cooldown = 10 } },
         { Add = {}, Multiply = {} }),
 
-    Hydra = pet("Hydra", "Hydra", "Hydra", PetsConfig.Rarities.Rare, PetsConfig.Categories.ActiveAttack, "Slow",
-        { collisionFlag = "Slow", collisionExtraDuration = 3 },
-        { type = "ProjectileSlow", params = { cooldown = 3, diagnostic = "Slow Blaster projectile is not yet implemented; collision slow uses the shared Slow effect" } },
-        { Add = {}, Multiply = {} }),
+    Hydra = pet("Hydra", "Hydra", "Hydra", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "Titan",
+        nil, { type = "Titan" }, { Add = {}, Multiply = {} }),
 
     -- Crowd Control
     ThunderHammer = pet("ThunderHammer", "Yeti", "Yeti", PetsConfig.Rarities.Epic, PetsConfig.Categories.CrowdControl, "Stun",
@@ -123,8 +123,8 @@ PetsConfig.Definitions = {
     LaunchBooster = pet("LaunchBooster", "Bee", "Bee", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
         nil, nil, nil, { Add = {}, Multiply = { launchSpeed = 1.2 } }),
 
-    Dragon = pet("Dragon", "Dragon", "Dragon", PetsConfig.Rarities.Epic, PetsConfig.Categories.PassiveStatModifier, "Titan",
-        nil, { type = "Titan" },
+    Dragon = pet("Dragon", "Dragon", "Dragon", PetsConfig.Rarities.Epic, PetsConfig.Categories.ActiveAttack, nil,
+        nil, { type = "ActiveAttack", params = { cooldown = 8 } },
         { Add = {}, Multiply = {} }),
 
     QuickReload = pet("QuickReload", "Dog", "Dog", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
@@ -145,6 +145,9 @@ PetsConfig.Definitions = {
         { Add = {}, Multiply = {} }),
 
 }
+
+PetsConfig.Definitions.PlasmaCannon.activeAbilityId = "PlasmaCannon"
+PetsConfig.Definitions.Dragon.activeAbilityId = "SlowBlaster"
 
 function PetsConfig.GetMaxLevelForRarity(_rarity: string): number
 	return PetsConfig.MaxLevel
