@@ -323,13 +323,14 @@ Only **two** trap types actually exist in the codebase — **Totem** and **Toxic
 
 ---
 
-# 10. TEAM SYSTEM — ✅ Server foundations implemented; UI/skins remain pending
+# 10. TEAM SYSTEM — four-team selection and Rage textures
 
-- `TeamService` assigns arena participants to `TeamRed`, `TeamBlue`, or `TeamGreen` as evenly as possible when a new round begins.
-- The server accepts `ChangeTeam` requests only during an active round before Rage, validates the requested team ID, and enforces a 30-second cooldown after a successful change.
-- `RoundService` starts Rage/FFA at 480 elapsed round seconds, independently of the Safe Zone entering `FinalPhase`. During Rage, the original `TeamId` remains available for presentation, but `IsFriendly` returns false for all distinct players.
-- `DamagePipelineService` rejects friendly direct damage and player-sourced DoT; `CollisionService` checks the same damage-policy API before applying collision knockback.
-- Team-change UI, team texture selection, Rage skin selection, shared-win/rank behavior, assist rewards, and teammate-tracking UI are not part of this change and remain unimplemented.
+- `TeamService` assigns active-round participants across `White`, `Yellow`, `Blue`, and `Red`; each team is capped at 10 players. `PlayerState.TeamId` is canonical and is synchronized to Roblox `Player.Team` while team play is active.
+- The Studio-authored `StarterGui.TeamSelectionGui` toggles `TeamPopupFrame`, displays current counts, and sends team changes through `ChangeTeam`. Server validation enforces active-round timing, a 30-second successful-change cooldown, and team capacity.
+- Rage/FFA activates at 480 elapsed round seconds. Roblox team membership becomes neutral, but `PlayerState.TeamId` remains for presentation/history and `IsFriendly` returns false for distinct players.
+- `LauncherTextureConfig` provides shared texture slots for White, Yellow, Blue, Red, and Rage. Replace the five `rbxassetid://0` placeholders with uploaded texture IDs. The same config is applied to all equipped Launcher visuals.
+- `DamagePipelineService` remains the authority for direct damage and friendly-fire checks; `CollisionService` incorporates Titan's effective weight multiplier into collision knockback.
+- The Studio-only `Assets.Prefabs.PlasmaBall` and `Assets.Prefabs.SlowBall` are required by the Octopus PlasmaCannon and Dragon SlowBlaster. Keep these models available after Rojo sync; missing prefabs produce warnings rather than runtime crashes.
 
 ---
 
@@ -387,7 +388,7 @@ This section exists so nobody has to guess. Each item below is a **real, verifie
 16. **Launcher roster count is inconsistent across project docs.** `Rule_DESIGN.md` (previous draft) and `LauncherConfig.lua` agree on **4** launchers; `AI_CONTEXT.md` claims an "11-launcher catalog," which does not match the code. Treat `AI_CONTEXT.md`'s launcher-count claim as stale.
 17. **Arena size and max-player-count (20) could not be verified from source.** No `MaxPlayers`, `ArenaSize`, or similar constant exists in any `.lua` config file — these are presumably Studio/place-level settings not represented in this Rojo tree. Additionally, `SafeZoneConfig.StartRadius = 300` implies a play space with a ~600-stud diameter, which is larger than a "400×400 stud arena" claim if both are meant to describe the same space. Needs confirmation from whoever owns the Studio place file.
 18. **Thorn Armor reflect integration** was previously missing; the implementation now adds equipped pet `statModifiers.Add.reflectDamage` to the resolved Launcher reflect stat (maximum 50%). Runtime validation of lethal reflection remains part of the gameplay test plan.
-19. **`AI_CONTEXT.md`'s claim that `PlayerAttack`/`AbilityTrigger` are fully generalized is only partially true** — several Equipment abilities (Plasma Cannon's Active Attack, Ice Crystal's Freeze) are marked in their own `params.diagnostic` fields as not yet implemented; treat any Equipment whose config contains a `diagnostic` string as a stub pending implementation, not shipped behavior.
+19. **`AbilityTrigger` dispatches active pet abilities by `activeAbilityId`** — the SkillButton chooses the first equipped pet with that field, while server dispatch validates it separately from passive/effect identity. Legacy effects with `diagnostic` strings may still be stubs.
 
 ---
 
