@@ -14,10 +14,8 @@ export type ResolvedLauncherStats = {
 	regen: number,
 	speed: number,
 	launchPower: number,
-	control: number,
 	launchSpeed: number,
 	weight: number,
-	launchRange: number,
 	moveSpeed: number,
 	damageMultiplier: number,
 	reflectDamage: number,
@@ -72,7 +70,6 @@ function LauncherStatResolver.Resolve(definitionId: string, star: number?, level
 	local baseDamage = (launcherStats.baseDamage or base.baseDamage) * growthMultiplier * readPassiveMultiplier(passive, "damageMultiplier")
 	local regen = (launcherStats.regen or base.regenPerSecond) * growthMultiplier * readPassiveMultiplier(passive, "regenMultiplier")
 	local launchPower = (launcherStats.launchPower or 1) * growthMultiplier
-	local control = (launcherStats.control or 1) * growthMultiplier
 	local speed = (launcherStats.speed or PhysicsConfig.Movement.MoveSpeed) * readPassiveMultiplier(passive, "moveSpeedMultiplier")
 
 	return {
@@ -82,10 +79,8 @@ function LauncherStatResolver.Resolve(definitionId: string, star: number?, level
 		regen = regen,
 		speed = speed,
 		launchPower = launchPower,
-		control = control,
 		launchSpeed = math.clamp(launcherStats.launchSpeed or PhysicsConfig.Launch.SpeedMax, PhysicsConfig.Launch.SpeedMin, PhysicsConfig.Launch.SpeedMax),
 		weight = math.max(1, tonumber(launcherStats.weight) or base.weight or 100),
-		launchRange = base.maxShootRange * control,
 		moveSpeed = speed,
 		damageMultiplier = readPassiveMultiplier(passive, "finalDamageMultiplier"),
 		reflectDamage = math.clamp(math.max(launcherStats.reflectDamage or base.reflectDamagePercent, readPassiveAdd(passive, "reflectDamage")), 0, 0.5),
