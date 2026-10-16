@@ -35,6 +35,7 @@ function PetProgression.Resolve(petOrDefinition: any, petOrLevel: any?): { [stri
 			baseDamage = PetsUpgradeConfig.GetStatAtLevel(rarityStats.BaseDamage, level),
 		},
 		abilityParams = PetAbilityProgressionConfig.GetParams(definition.abilityId, level),
+		activeAbilityId = definition.activeAbilityId,
 	}
 end
 
