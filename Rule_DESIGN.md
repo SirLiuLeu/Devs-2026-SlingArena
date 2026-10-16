@@ -116,11 +116,11 @@ Exactly **4 launchers** exist in the runtime catalog:
 
 | ID | Role | maxHP | baseDamage | armor | regen | speed | launchPower | launchSpeed | reflectDamage | weight |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `Normalduck` (default) | Balanced | 16,000 | 1,000 | 0 | 1.0 | 16 | 1.00 | 1.00 | 100 | 0.05 | 100 |
-| `Kingduck` | Tank | 28,000 | 700 | 0.30 | 1.4 | 12.5 | 0.85 | 0.90 | 65 | 0.12 | 130 |
-| `Witchduck` | Speed | 11,000 | 650 | 0 | 0.8 | 22 | 1.05 | 1.30 | 110 | 0.03 | 80 |
-| `Drakeduck` | Burst | 13,500 | 1,650 | 0 | 0.9 | 15 | 1.20 | 0.95 | 90 | 0.08 | 115 |
-| `Shielduck` | Defense | 23,000 | 850 | 0.22 | 1.2 | 14 | 0.90 | 0.95 | 80 | 0.10 | 120 |
+| `Normalduck` (default) | Balanced | 16,000 | 1,000 | 0 | 1.0 | 16 | 1.00 | 100 | 0.05 | 100 |
+| `Kingduck` | Tank | 28,000 | 700 | 0.30 | 1.4 | 12.5 | 0.85 | 65 | 0.12 | 130 |
+| `Witchduck` | Speed | 11,000 | 650 | 0 | 0.8 | 22 | 1.05 | 110 | 0.03 | 80 |
+| `Drakeduck` | Burst | 13,500 | 1,650 | 0 | 0.9 | 15 | 1.20 | 90 | 0.08 | 115 |
+| `Shielduck` | Defense | 23,000 | 850 | 0.22 | 1.2 | 14 | 0.90 | 80 | 0.10 | 120 |
 
 * A Launcher owns base stats, size, movement profile, and launch profile.
 * A Launcher does **not** own combat status effects (Stun, Slow, DoT, etc.) — those belong exclusively to Equipment (§5).
@@ -184,10 +184,10 @@ Standard lifecycle hooks, dispatched per active effect instance: **`OnInit → O
 
 | Category | Items |
 |---|---|
-| Active Attack | Plasma Cannon (Epic, unimplemented "NoOp" ability), Slow Blaster (Rare, applies Slow on hit) |
+| Active Attack | Octopus / Plasma Cannon (Epic, 10s cooldown, physical PlasmaBall projectile); Dragon / Slow Blaster (Epic, 8s cooldown, homing SlowBall) |
 | Crowd Control | Thunder Hammer (Epic, applies Stun), Medusa (Legendary, applies Petrify; cannot Petrify a target that has GhostFlame active), Ice Crystal (Rare, dispatches a `Freeze` effect — see §5.7 for what this actually does) |
 | Damage Over Time | Ghost Flame (Epic, applies Burn), Poison (Rare, applies Poison) |
-| Passive Stat Modifier | Health Core (+30% maxHP), Power Core (+20% damage), Shield (20% damage reduction), Brain Boost (+30% EXP), Turbo Module (+20% move speed), Launch Booster (+20% launch speed), Titan Core (+20% size, altered knockback transfer), Quick Reload (−1s launch cooldown), Thorn Armor (20% reflect damage — ⚠️ not yet wired into `DamagePipelineService`, see §13) |
+| Passive Stat Modifier | Health Core (+30% maxHP), Power Core (+20% damage), Shield (20% damage reduction), Brain Boost (+30% EXP), Turbo Module (+20% move speed), Launch Booster (+20% launch speed), Hydra / Titan (per-level weight, hitbox and visual scaling with knockback modifiers), Quick Reload (−1s launch cooldown), Thorn Armor (20% reflect damage) |
 | Regeneration / Healing | Regen Booster (500 HP every 5s) |
 | Conditional Effect | Shadow Cloak (goes Invisible after 5s idle; breaks on Launch/Movement/Knockback), Smoke Bomb (smoke on launch) |
 | Utility / Area Effect | Magnet Core (pulls nearby items, radius 6) |
@@ -374,7 +374,7 @@ This section exists so nobody has to guess. Each item below is a **real, verifie
 3. **"3 identical Launchers → +1★" fusion has no implementation.** The star-multiplier math exists and is applied, but nothing increments `star` at runtime. Seed/mock data even contains `star = 4`, exceeding a supposed 3★ cap, and references non-existent launcher IDs.
 4. **Equipment upgrade level caps are 5/10/15/20 by rarity (Common/Rare/Epic/Legendary), not a flat 10–20 range.** `EquipmentUpgradeConfig.MaxLevel = 50` is an unused fallback constant.
 5. **"Freeze" equipment/flag is an alias for Slow.** `EquipmentEffectService` registers the `Freeze` effect id using the `Slow` module. There is no independent hard-CC Freeze behavior in `FlagService`/`GameConfig.FlagConfig`.
-6. **Team system is a stub.** No team creation, no `TeamId` assignment at runtime, no Friendly Fire toggle logic, no assist-reward logic, no shared-win logic, no teammate-tracking UI logic. Treat all "Team" rules as design intent, not shipped behavior, until `TeamService` is built out.
+6. **Team selection and Rage skins are implemented in source.** Studio must still contain `Teams.White/Yellow/Blue/Red`, the `TeamSelectionGui` hierarchy, and actual texture IDs. Shared-win/rank, assist-reward, and teammate-tracking UI logic remain unimplemented.
 7. **No EXP-loss-on-death penalty runs**, despite the relevant functions (`TryApplyExpPenalty`, `ApplyExpPenalty`) existing in code — they are simply never called from the death path.
 8. **Kill EXP is a flat 120, not 50% of the victim's lost EXP.** There is also **no per-kill Diamond reward** anywhere in source; Diamonds only ever come from a chance-based HP Food drop.
 9. **No EXP-rate difference between `Awaits` and `EarlyGame`.** `GrantExp` is round-state agnostic; the previously documented "50% EXP in Awaits, 100% in EarlyGame" scaling does not exist in code.
@@ -387,7 +387,7 @@ This section exists so nobody has to guess. Each item below is a **real, verifie
 16. **Launcher roster count is inconsistent across project docs.** `Rule_DESIGN.md` (previous draft) and `LauncherConfig.lua` agree on **4** launchers; `AI_CONTEXT.md` claims an "11-launcher catalog," which does not match the code. Treat `AI_CONTEXT.md`'s launcher-count claim as stale.
 17. **Arena size and max-player-count (20) could not be verified from source.** No `MaxPlayers`, `ArenaSize`, or similar constant exists in any `.lua` config file — these are presumably Studio/place-level settings not represented in this Rojo tree. Additionally, `SafeZoneConfig.StartRadius = 300` implies a play space with a ~600-stud diameter, which is larger than a "400×400 stud arena" claim if both are meant to describe the same space. Needs confirmation from whoever owns the Studio place file.
 18. **Thorn Armor reflect integration** was previously missing; the implementation now adds equipped pet `statModifiers.Add.reflectDamage` to the resolved Launcher reflect stat (maximum 50%). Runtime validation of lethal reflection remains part of the gameplay test plan.
-19. **`AI_CONTEXT.md`'s claim that `PlayerAttack`/`AbilityTrigger` are fully generalized is only partially true** — several Equipment abilities (Plasma Cannon's Active Attack, Ice Crystal's Freeze) are marked in their own `params.diagnostic` fields as not yet implemented; treat any Equipment whose config contains a `diagnostic` string as a stub pending implementation, not shipped behavior.
+19. **Active pet abilities now use separate `activeAbilityId` values** from module/passive `abilityId`. Plasma Cannon and Slow Blaster have server-triggered projectile implementations; other pets that still carry diagnostic strings should be considered pending until their behavior is verified.
 
 ---
 
