@@ -42,6 +42,7 @@ function PlayerService.new(context)
 	self._playerToLauncher = {}
 	self._launcherToPlayer = {}
 	self._animationControllers = {}
+	self._titanConnections = {}
 	if not self._pawnsFolder then
 		self._pawnsFolder = Instance.new("Folder")
 		self._pawnsFolder.Name = "LauncherPawns"
@@ -77,6 +78,9 @@ function PlayerService:Init()
 	Players.PlayerRemoving:Connect(function(player)
 		self:_disconnectDeathSignal(player)
 		self:_destroyPawn(player)
+		local titanConnections = self._titanConnections[player]
+		if titanConnections then for _, connection in ipairs(titanConnections) do connection:Disconnect() end end
+		self._titanConnections[player] = nil
 		self._playerToLauncher[player] = nil
 	end)
 
@@ -302,6 +306,67 @@ function PlayerService:_applyTeamTexture(pawn: Model, teamId: string?)
 			descendant.ColorMap = if validTexture then textureId :: string else (if type(original) == "string" then original else "")
 		end
 	end
+end
+
+function PlayerService:_applyTitanModifiers(player: Player, pawn: Model)
+	local hitbox = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
+	if not (hitbox and hitbox:IsA("BasePart")) then return end
+	local baseScale = tonumber(pawn:GetAttribute("ScaleValue")) or pawn:GetScale()
+	local visualMultiplier = math.clamp(tonumber(player:GetAttribute("PetTitanVisualMultiplier")) or 1, 1, 2)
+	local hitboxMultiplier = math.clamp(tonumber(player:GetAttribute("PetTitanHitboxMultiplier")) or 1, 1, 1.5)
+	local weightMultiplier = math.clamp(tonumber(player:GetAttribute("PetTitanWeightMultiplier")) or 1, 1, 1.5)
+	local baseHitboxSize = pawn:GetAttribute("TitanBaseHitboxSize")
+	if typeof(baseHitboxSize) ~= "Vector3" then
+		baseHitboxSize = hitbox.Size / math.max(baseScale, 0.001)
+		pawn:SetAttribute("TitanBaseHitboxSize", baseHitboxSize)
+	end
+	hitbox.Size = baseHitboxSize * baseScale * hitboxMultiplier
+	local baseDensity = tonumber(pawn:GetAttribute("TitanBaseDensity"))
+	local baseFriction = tonumber(pawn:GetAttribute("TitanBaseFriction"))
+	local baseElasticity = tonumber(pawn:GetAttribute("TitanBaseElasticity"))
+	local baseFrictionWeight = tonumber(pawn:GetAttribute("TitanBaseFrictionWeight"))
+	local baseElasticityWeight = tonumber(pawn:GetAttribute("TitanBaseElasticityWeight"))
+	if baseDensity == nil then
+		local physical = hitbox.CustomPhysicalProperties or PhysicalProperties.new(1, 0.3, 0.5)
+		baseDensity = physical.Density
+		baseFriction = physical.Friction
+		baseElasticity = physical.Elasticity
+		baseFrictionWeight = physical.FrictionWeight
+		baseElasticityWeight = physical.ElasticityWeight
+		pawn:SetAttribute("TitanBaseDensity", baseDensity)
+		pawn:SetAttribute("TitanBaseFriction", baseFriction)
+		pawn:SetAttribute("TitanBaseElasticity", baseElasticity)
+		pawn:SetAttribute("TitanBaseFrictionWeight", baseFrictionWeight)
+		pawn:SetAttribute("TitanBaseElasticityWeight", baseElasticityWeight)
+	end
+	hitbox.CustomPhysicalProperties = PhysicalProperties.new(
+		math.max(0.01, (baseDensity or 1) * weightMultiplier),
+		baseFriction or 0.3,
+		baseElasticity or 0.5,
+		baseFrictionWeight or 1,
+		baseElasticityWeight or 1
+	)
+	local equipped = self:_findEquippedLauncherModel(pawn)
+	if equipped then
+		local baseVisualScale = tonumber(equipped:GetAttribute("TitanBaseVisualScale"))
+		if baseVisualScale == nil then
+			baseVisualScale = equipped:GetScale() / math.max(baseScale, 0.001)
+			equipped:SetAttribute("TitanBaseVisualScale", baseVisualScale)
+		end
+		equipped:ScaleTo(math.max(0.001, baseVisualScale * baseScale * visualMultiplier))
+	end
+end
+
+function PlayerService:_bindTitanAttributes(player: Player)
+	if self._titanConnections[player] then return end
+	local connections = {}
+	for _, attributeName in ipairs({ "PetTitanWeightMultiplier", "PetTitanHitboxMultiplier", "PetTitanVisualMultiplier" }) do
+		table.insert(connections, player:GetAttributeChangedSignal(attributeName):Connect(function()
+			local pawn = self:GetPawn(player)
+			if pawn then self:_applyTitanModifiers(player, pawn) end
+		end))
+	end
+	self._titanConnections[player] = connections
 end
 
 function PlayerService:_resolveLauncherModelSource(launcherId: string): Model?
@@ -825,7 +890,9 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	pawn.PrimaryPart:SetNetworkOwner(player)
 	self._playerToLauncher[player] = pawn
 	self._launcherToPlayer[pawn] = player
+	self:_bindTitanAttributes(player)
 	self:_applyTeamTexture(pawn, playerState and playerState.TeamId or nil)
+	self:_applyTitanModifiers(player, pawn)
 	self:_attachWorldUi(pawn, player)
 	self:_initializeLauncherAnimations(player, pawn)
 	pawn:SetAttribute("ScaleValue", LauncherConfig.ModelScale)
@@ -872,6 +939,7 @@ function PlayerService:EquipLauncherModel(player: Player, launcherId: string): b
 	local textureState = stateForTexture and stateForTexture:GetState(player)
 	pawn:SetAttribute("AppliedLauncherTextureKey", nil)
 	self:_applyTeamTexture(pawn, textureState and textureState.TeamId or nil)
+	self:_applyTitanModifiers(player, pawn)
 	self:_initializeLauncherAnimations(player, pawn)
 
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
@@ -949,6 +1017,7 @@ function PlayerService:GrowPawn(player: Player, growthDelta: number)
 	local newScale = math.max(0.5, currentScale + math.max(0, growthDelta))
 	pawn:SetAttribute("ScaleValue", newScale)
 	pawn:ScaleTo(newScale)
+	self:_applyTitanModifiers(player, pawn)
 end
 
 function PlayerService:TeleportCharacterToSpawn(player: Player, spawn: BasePart?): boolean
