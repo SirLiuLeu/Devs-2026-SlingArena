@@ -37,6 +37,8 @@ DataModel
 │  │  │  ├─ LevelConfig.lua
 │  │  │  ├─ LauncherAnimationIds.lua
 │  │  │  ├─ LauncherConfig.lua
+│  │  │  ├─ LauncherTextureConfig.lua
+│  │  │  ├─ TeamConfig.lua
 │  │  │  ├─ NotificationConfigData.lua
 │  │  │  ├─ PetAbilityProgressionConfig.lua
 │  │  │  ├─ PetPreviewConfig.lua
@@ -320,6 +322,7 @@ DataModel
 │  │
 │  └─ Client  -> src/ReplicatedStorage/Client
 │     ├─ Controllers
+│     │  ├─ TeamSelectionUIController.lua
 │     │  └─ UIController.lua
 │     └─ Services
 │        └─ LobbyClientService.lua 
@@ -769,3 +772,11 @@ Notes:
 ## Pet inventory progression notes
 
 `StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Level` is the bound pet-level display. Pet base stats advance on every level; ability values advance only at milestones 1, 5, 10, 15, and 20. `PetAbilityProgressionConfig.Abilities[abilityId].Display` stores `{ Format, Templates = { en, vi } }` for localized display text, while `PetPreviewConfig.Get(petId)` provides the viewport `Rotation` and `Offset`.
+
+
+## Team / Pet projectile implementation notes
+
+- Team config: `src/ReplicatedStorage/Shared/Config/TeamConfig.lua` and `LauncherTextureConfig.lua`.
+- Team selection controller: `src/ReplicatedStorage/Client/Controllers/TeamSelectionUIController.lua`; it binds the Studio-authored `StarterGui.TeamSelectionGui` hierarchy documented in `ProjectTreeSpec.lua`.
+- Pet projectile modules: `src/ServerScriptService/Services/PetAbilityService/PetAbilities/PlasmaCannon.lua` and `SlowBlaster.lua`.
+- Required Studio prefab instances: `ReplicatedStorage.Assets.Prefabs.PlasmaBall` and `SlowBall`. These assets are documented but are not source-controlled by Rojo in this repository; verify they remain in Studio after sync.
