@@ -1,6 +1,6 @@
 --!strict
 
--- Ability values change only at the listed pet-level milestones.
+-- Most ability values use milestones; Titan growth is calculated for every level.
 local PetAbilityProgressionConfig = {}
 
 PetAbilityProgressionConfig.Milestones = { 1, 5, 10, 15, 20 }
@@ -14,7 +14,11 @@ PetAbilityProgressionConfig.Abilities = {
 		Display = { Format = "percent", Templates = { vi = "Giảm sát thương nhận vào {current} -> {next}", en = "Reduce incoming damage {current} -> {next}" } },
 	},
 	Titan = {
-		[1] = { sizeMultiplier = 1.20, incomingKnockbackMultiplier = 0.75, outgoingKnockbackMultiplier = 1.25 }, [5] = { sizeMultiplier = 1.25, incomingKnockbackMultiplier = 0.70, outgoingKnockbackMultiplier = 1.30 }, [10] = { sizeMultiplier = 1.30, incomingKnockbackMultiplier = 0.65, outgoingKnockbackMultiplier = 1.35 }, [15] = { sizeMultiplier = 1.35, incomingKnockbackMultiplier = 0.60, outgoingKnockbackMultiplier = 1.40 }, [20] = { sizeMultiplier = 1.40, incomingKnockbackMultiplier = 0.55, outgoingKnockbackMultiplier = 1.45 },
+		[1] = { sizeMultiplier = 1, weightMultiplier = 1, hitboxMultiplier = 1, visualMultiplier = 1, incomingKnockbackMultiplier = 0.90, outgoingKnockbackMultiplier = 1.10 },
+		[5] = { sizeMultiplier = 1.06, weightMultiplier = 1.06, hitboxMultiplier = 1.08, visualMultiplier = 1.16, incomingKnockbackMultiplier = 0.86, outgoingKnockbackMultiplier = 1.13 },
+		[10] = { sizeMultiplier = 1.135, weightMultiplier = 1.135, hitboxMultiplier = 1.18, visualMultiplier = 1.36, incomingKnockbackMultiplier = 0.82, outgoingKnockbackMultiplier = 1.16 },
+		[15] = { sizeMultiplier = 1.21, weightMultiplier = 1.21, hitboxMultiplier = 1.28, visualMultiplier = 1.56, incomingKnockbackMultiplier = 0.78, outgoingKnockbackMultiplier = 1.19 },
+		[20] = { sizeMultiplier = 1.29, weightMultiplier = 1.29, hitboxMultiplier = 1.38, visualMultiplier = 1.76, incomingKnockbackMultiplier = 0.74, outgoingKnockbackMultiplier = 1.22 },
 		Display = { Format = "multiplier", Templates = { vi = "Tăng kích thước {current} -> {next}", en = "Increase size {current} -> {next}" } },
 	},
 	Regeneration = {
@@ -36,6 +40,18 @@ end
 function PetAbilityProgressionConfig.GetParams(abilityId: string?, level: number): { [string]: any }
 	local ability = abilityId and PetAbilityProgressionConfig.Abilities[abilityId]
 	if not ability then return {} end
+	if abilityId == "Titan" then
+		local safeLevel = math.clamp(math.floor(level), 1, 20)
+		local weightMultiplier = 1 + math.min(safeLevel - 1, 18) * 0.015 + (if safeLevel >= 20 then 0.02 else 0)
+		return {
+			sizeMultiplier = weightMultiplier,
+			weightMultiplier = weightMultiplier,
+			hitboxMultiplier = math.min(1.5, 1 + (safeLevel - 1) * 0.02),
+			visualMultiplier = math.min(2, 1 + (safeLevel - 1) * 0.04),
+			incomingKnockbackMultiplier = 0.90 - (safeLevel - 1) * (0.16 / 19),
+			outgoingKnockbackMultiplier = 1.10 + (safeLevel - 1) * (0.12 / 19),
+		}
+	end
 	local selected = 1
 	for _, milestone in ipairs(PetAbilityProgressionConfig.Milestones) do
 		if level >= milestone then selected = milestone else break end
