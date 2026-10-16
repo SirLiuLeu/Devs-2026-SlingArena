@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeamConfig = require(ReplicatedStorage.Shared.Config.TeamConfig)
 local RunService = game:GetService("RunService")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
@@ -17,7 +18,7 @@ local ROUND_END_FREEZE_SECONDS = 5
 local ROUND_END_RESULTS_SECONDS = 15
 local END_ROUND_RATE_LIMIT_SECONDS = 2
 local UI_STATE_TIMER_INTERVAL_SECONDS = 0.5
-local RAGE_START_SECONDS = 8 * 60
+local RAGE_START_SECONDS = TeamConfig.RageStartSeconds
 
 function RoundService.new(context)
 	local self = setmetatable({}, RoundService)
