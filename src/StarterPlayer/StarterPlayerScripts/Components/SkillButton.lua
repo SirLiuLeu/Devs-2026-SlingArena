@@ -51,8 +51,8 @@ function Component:SetPetState(ownedPets: any, equippedPets: any)
 		local instanceId = equippedPets[slot]
 		local instance = instanceId and ownedPets[instanceId]
 		local definition = type(instance) == "table" and PetsConfig.GetById(tostring(instance.definitionId or "")) or nil
-		if definition and definition.abilityId then
-			self._currentAbilityId = definition.abilityId
+		if definition and definition.activeAbilityId then
+			self._currentAbilityId = definition.activeAbilityId
 			player:SetAttribute("CurrentPetAbilityId", self._currentAbilityId)
 			return
 		end
