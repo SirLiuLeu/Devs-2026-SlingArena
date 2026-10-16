@@ -73,7 +73,7 @@ function TeamService:GetTeamChangeCooldownRemaining(player: Player): number
 end
 
 function TeamService:_getTeamCounts(stateService: any): { [string]: number }
-	local counts = {}
+	local counts: { [string]: number } = {}
 	for _, teamId in ipairs(TEAM_IDS) do counts[teamId] = 0 end
 	for _, candidate in ipairs(Players:GetPlayers()) do
 		local state = stateService:GetState(candidate)
@@ -123,7 +123,7 @@ function TeamService:AssignBalancedTeams(playersInRound: { Player })
 		shuffledPlayers[index], shuffledPlayers[swapIndex] = shuffledPlayers[swapIndex], shuffledPlayers[index]
 	end
 	for _, player in ipairs(shuffledPlayers) do self:_setTeamId(player, nil) end
-	local counts = {}
+	local counts: { [string]: number } = {}
 	for _, teamId in ipairs(TEAM_IDS) do counts[teamId] = 0 end
 	for _, player in ipairs(shuffledPlayers) do
 		local selectedTeam: string? = nil
