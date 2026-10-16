@@ -268,6 +268,8 @@ function PlayerService:_updateWorldUi(player: Player, state)
 			hpFill.BackgroundColor3 = team.TeamColor.Color
 		elseif state.TeamId and TeamConfig.TeamColors[state.TeamId] then
 			hpFill.BackgroundColor3 = TeamConfig.TeamColors[state.TeamId]
+		else
+			hpFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 		end
 	end
 
