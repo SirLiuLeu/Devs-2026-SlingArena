@@ -340,7 +340,7 @@ function PlayerService:_applyTitanModifiers(player: Player, pawn: Model)
 		pawn:SetAttribute("TitanBaseElasticityWeight", baseElasticityWeight)
 	end
 	hitbox.CustomPhysicalProperties = PhysicalProperties.new(
-		math.max(0.01, (baseDensity or 1) * weightMultiplier),
+		math.max(0.01, (baseDensity or 1) * weightMultiplier / math.max(hitboxMultiplier ^ 3, 0.001)),
 		baseFriction or 0.3,
 		baseElasticity or 0.5,
 		baseFrictionWeight or 1,
