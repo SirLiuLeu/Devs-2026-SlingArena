@@ -1,19 +1,23 @@
 --!strict
 
 local Players = game:GetService("Players")
+local Teams = game:GetService("Teams")
+local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
+local TeamConfig = require(ReplicatedStorage.Shared.Config.TeamConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 local TeamService = {}
 TeamService.__index = TeamService
 
-local TEAM_IDS = { "TeamRed", "TeamBlue", "TeamGreen" }
-local TEAM_ID_SET: { [string]: boolean } = { TeamRed = true, TeamBlue = true, TeamGreen = true }
-local TEAM_CHANGE_COOLDOWN_SECONDS = 30
-local RAGE_START_SECONDS = 8 * 60
+local TEAM_IDS = TeamConfig.TeamIds
+local TEAM_ID_SET: { [string]: boolean } = {}
+for _, teamId in ipairs(TEAM_IDS) do TEAM_ID_SET[teamId] = true end
+local TEAM_CHANGE_COOLDOWN_SECONDS = TeamConfig.TeamChangeCooldownSeconds
+local RAGE_START_SECONDS = TeamConfig.RageStartSeconds
 
 function TeamService.new(context)
 	local self = setmetatable({}, TeamService)
@@ -26,6 +30,16 @@ function TeamService.new(context)
 end
 
 function TeamService:_setTeamId(player: Player, teamId: string?)
+	if teamId ~= nil and not TEAM_ID_SET[teamId] then
+		warn(string.format("[TeamService] Refusing unknown team ID %q for %s.", tostring(teamId), player.Name))
+		return
+	end
+	local teamInstance = if teamId then Teams:FindFirstChild(teamId) else nil
+	if teamId and not (teamInstance and teamInstance:IsA("Team")) then
+		warn(string.format("[TeamService] Teams.%s is missing. Create the Team instance in Studio.", teamId))
+		teamInstance = nil
+	end
+	player.Team = if teamInstance and teamInstance:IsA("Team") then teamInstance else nil
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateService then stateService:SetTeamId(player, teamId) end
 end
@@ -44,9 +58,10 @@ function TeamService:IsRageActive(): boolean
 end
 
 function TeamService:SetRageActive(active: boolean)
-	if self._rageActive == active then return end
+	local changed = self._rageActive ~= active
 	self._rageActive = active
-	if self._context.EventBus then self._context.EventBus:Fire("RageModeChanged", active) end
+	Workspace:SetAttribute("RageActive", active)
+	if changed and self._context.EventBus then self._context.EventBus:Fire("RageModeChanged", active) end
 end
 
 function TeamService:GetTeamChangeCooldownRemaining(player: Player): number
@@ -67,18 +82,27 @@ function TeamService:AssignBalancedTeam(player: Player): string?
 		return nil
 	end
 
-	local counts: { [string]: number } = { TeamRed = 0, TeamBlue = 0, TeamGreen = 0 }
+	local counts: { [string]: number } = {}
+	for _, teamId in ipairs(TEAM_IDS) do counts[teamId] = 0 end
 	for _, candidate in ipairs(Players:GetPlayers()) do
 		local candidateState = stateService:GetState(candidate)
 		local teamId = candidateState and candidateState.TeamId
-		if candidateState and candidateState.LocationState ~= GameStates.SessionState.Lobby
+		if candidate ~= player and candidateState and candidateState.LocationState ~= GameStates.SessionState.Lobby
 			and type(teamId) == "string" and TEAM_ID_SET[teamId] then
 			counts[teamId] += 1
 		end
 	end
-	local selectedTeam = TEAM_IDS[1]
+	local selectedTeam: string? = nil
 	for _, teamId in ipairs(TEAM_IDS) do
-		if counts[teamId] < counts[selectedTeam] then selectedTeam = teamId end
+		if counts[teamId] < TeamConfig.MaxPlayersPerTeam
+			and (selectedTeam == nil or counts[teamId] < counts[selectedTeam]) then
+			selectedTeam = teamId
+		end
+	end
+	if not selectedTeam then
+		self:_setTeamId(player, nil)
+		warn(string.format("[TeamService] No team capacity remains for %s.", player.Name))
+		return nil
 	end
 	self:_setTeamId(player, selectedTeam)
 	return selectedTeam
@@ -98,8 +122,19 @@ function TeamService:AssignBalancedTeams(playersInRound: { Player })
 		shuffledPlayers[index], shuffledPlayers[swapIndex] = shuffledPlayers[swapIndex], shuffledPlayers[index]
 	end
 	for _, player in ipairs(shuffledPlayers) do self:_setTeamId(player, nil) end
-	for index, player in ipairs(shuffledPlayers) do
-		self:_setTeamId(player, TEAM_IDS[((index - 1) % #TEAM_IDS) + 1])
+	local counts: { [string]: number } = {}
+	for _, teamId in ipairs(TEAM_IDS) do counts[teamId] = 0 end
+	for _, player in ipairs(shuffledPlayers) do
+		local selectedTeam: string? = nil
+		for _, teamId in ipairs(TEAM_IDS) do
+			if counts[teamId] < TeamConfig.MaxPlayersPerTeam
+				and (selectedTeam == nil or counts[teamId] < counts[selectedTeam]) then
+				selectedTeam = teamId
+			end
+		end
+		self:_setTeamId(player, selectedTeam)
+		if selectedTeam then counts[selectedTeam] += 1
+		else warn(string.format("[TeamService] No team capacity remains for %s.", player.Name)) end
 	end
 end
 
@@ -138,6 +173,19 @@ function TeamService:ChangeTeam(player: Player, teamId: string)
 		self:_sendFeedback(player, false, "AlreadyOnTeam", state.TeamId)
 		return false, "AlreadyOnTeam"
 	end
+	local teamCount = 0
+	for _, candidate in ipairs(Players:GetPlayers()) do
+		if candidate ~= player then
+			local candidateState = stateService:GetState(candidate)
+			if candidateState and candidateState.LocationState ~= GameStates.SessionState.Lobby and candidateState.TeamId == teamId then
+				teamCount += 1
+			end
+		end
+	end
+	if teamCount >= TeamConfig.MaxPlayersPerTeam then
+		self:_sendFeedback(player, false, "TeamFull", state.TeamId)
+		return false, "TeamFull"
+	end
 	local remaining = self:GetTeamChangeCooldownRemaining(player)
 	if remaining > 0 then
 		local cooldownRemaining = math.ceil(remaining)
@@ -151,6 +199,13 @@ function TeamService:ChangeTeam(player: Player, teamId: string)
 end
 
 function TeamService:Init()
+	Workspace:SetAttribute("RageActive", self._rageActive)
+	for _, teamId in ipairs(TEAM_IDS) do
+		local team = Teams:FindFirstChild(teamId)
+		if not (team and team:IsA("Team")) then
+			warn(string.format("[TeamService] Required Teams.%s is missing; create it manually in Studio.", teamId))
+		end
+	end
 	if self._changeTeamRemote and self._changeTeamRemote:IsA("RemoteEvent") then
 		self._changeTeamRemote.OnServerEvent:Connect(function(player: Player, teamId: any)
 			if not RemoteContracts.Validate(RemoteContracts.Names.ChangeTeam, teamId) then

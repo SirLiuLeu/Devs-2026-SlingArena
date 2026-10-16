@@ -1,5 +1,8 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeamConfig = require(ReplicatedStorage.Shared.Config.TeamConfig)
+
 local RemoteContracts = {}
 
 RemoteContracts.Names = {
@@ -80,6 +83,9 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.AbilityTrigger] = function(payload: any): boolean
 		return type(payload) == "table"
+			and typeof(payload.abilityId) == "string"
+			and #payload.abilityId > 0
+			and #payload.abilityId <= 80
 	end,
 	[RemoteContracts.Names.AttributeUpgrade] = function(attributeName: any): boolean
 		return typeof(attributeName) == "string"
@@ -157,7 +163,7 @@ RemoteContracts.Validators = {
 		return true
 	end,
 	[RemoteContracts.Names.ChangeTeam] = function(teamId: any): boolean
-		return typeof(teamId) == "string" and (teamId == "TeamRed" or teamId == "TeamBlue" or teamId == "TeamGreen")
+		return TeamConfig.IsTeamId(teamId)
 	end,
 	[RemoteContracts.Names.SetPlayerMode] = function(modeName: any): boolean
 		return modeName == "Launcher" or modeName == "Human"
