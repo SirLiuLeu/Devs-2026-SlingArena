@@ -1,6 +1,7 @@
 --!strict
 
 local Players = game:GetService("Players")
+local Teams = game:GetService("Teams")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -10,6 +11,7 @@ local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local LauncherTextureConfig = require(ReplicatedStorage.Shared.Config.LauncherTextureConfig)
 local StatusEffectVfx = require(ReplicatedStorage.Shared.Utils.StatusEffectVfx)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local LauncherAnimationController = require(script.Parent.AnimationController)
@@ -21,6 +23,14 @@ local PLAYER_CHARACTER_MODEL_NAME = "Player"
 local LAUNCHER_ROOT_PART_NAME = "RootPart"
 local HITBOX_ROOT_WELD_NAME = "WeldConstraint_HitboxRootPart"
 local LEGACY_HITBOX_MESH_WELD_NAME = "WeldConstraint_HitboxMesh"
+
+local function getTextureProperty(instance: Instance): string?
+	if instance:IsA("MeshPart") then return "TextureID" end
+	if instance:IsA("SpecialMesh") then return "TextureId" end
+	if instance:IsA("Decal") or instance:IsA("Texture") then return "Texture" end
+	if instance:IsA("SurfaceAppearance") then return "ColorMap" end
+	return nil
+end
 
 local function setPreplacedStatusEffectsEnabled(root: BasePart, enabled: boolean)
 	StatusEffectVfx.SetAllStatusEffectsEnabled(root, enabled)
@@ -39,6 +49,8 @@ function PlayerService.new(context)
 	self._playerToLauncher = {}
 	self._launcherToPlayer = {}
 	self._animationControllers = {}
+	self._textureSnapshots = setmetatable({}, { __mode = "k" })
+	self._textureWarnings = {}
 	if not self._pawnsFolder then
 		self._pawnsFolder = Instance.new("Folder")
 		self._pawnsFolder.Name = "LauncherPawns"
@@ -55,6 +67,11 @@ function PlayerService:Init()
 	self._context.EventBus:On("PlayerStateUpdated", function(player: Player, state)
 		self:_updateWorldUi(player, state)
 		self:_updateLauncherAnimations(player, state)
+		self:_applyCurrentLauncherTexture(player)
+		self:RefreshPetScaling(player)
+	end)
+	self._context.EventBus:On("RageModeChanged", function(_active: boolean)
+		for _, player in ipairs(Players:GetPlayers()) do self:_applyCurrentLauncherTexture(player) end
 	end)
 
 	Players.PlayerAdded:Connect(function(player)
@@ -246,10 +263,11 @@ function PlayerService:_updateWorldUi(player: Player, state)
 		local maxHp = math.max(state.MaxHP or 1, 1)
 		local hpRatio = math.clamp((state.CurrentHP or 0) / maxHp, 0, 1)
 		hpFill.Size = UDim2.new(hpRatio, 0, 1, 0)
-		if state.TeamId == "TeamRed" then
-			hpFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-		elseif state.TeamId == "TeamBlue" then
-			hpFill.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
+		local team = state.TeamId and Teams:FindFirstChild(state.TeamId)
+		if team and team:IsA("Team") then
+			hpFill.BackgroundColor3 = team.TeamColor.Color
+		else
+			hpFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 		end
 	end
 
@@ -294,6 +312,54 @@ function PlayerService:_findEquippedLauncherModel(pawn: Model): Model?
 		return legacy
 	end
 	return nil
+end
+
+function PlayerService:_applyTextureKey(model: Model, key: string, textureId: string?)
+	local currentKey = model:GetAttribute("AppliedLauncherTextureKey")
+	if currentKey == key then return end
+
+	local snapshots = self._textureSnapshots[model]
+	if not snapshots then
+		snapshots = {}
+		for _, descendant in ipairs(model:GetDescendants()) do
+			local property = getTextureProperty(descendant)
+			if property then
+				local ok, original = pcall(function() return (descendant :: any)[property] end)
+				if ok then table.insert(snapshots, { Instance = descendant, Property = property, Original = original }) end
+			end
+		end
+		self._textureSnapshots[model] = snapshots
+	end
+
+	local hasUsableTexture = typeof(textureId) == "string" and textureId ~= "" and textureId ~= "rbxassetid://0"
+	if textureId == "rbxassetid://0" and not self._textureWarnings[key] then
+		self._textureWarnings[key] = true
+		warn(string.format("[LauncherTextureConfig] Texture ID for %s is still the placeholder rbxassetid://0; keeping the model's original texture.", key))
+	end
+	for _, snapshot in ipairs(snapshots) do
+		local target = snapshot.Instance
+		if target and target.Parent then
+			pcall(function()
+				(target :: any)[snapshot.Property] = if hasUsableTexture then textureId else snapshot.Original
+			end)
+		end
+	end
+	model:SetAttribute("AppliedLauncherTextureKey", key)
+end
+
+function PlayerService:_applyCurrentLauncherTexture(player: Player, explicitPawn: Model?)
+	local pawn = explicitPawn or self:GetPawn(player)
+	if not pawn then return end
+	local launcherModel = self:_findEquippedLauncherModel(pawn)
+	if not launcherModel then return end
+
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local state = stateService and stateService:GetState(player)
+	local teamService = ServiceResolver.Get(self._context, "TeamService")
+	local rageActive = (teamService and teamService:IsRageActive()) == true or Workspace:GetAttribute("RageActive") == true
+	local key = LauncherTextureConfig.GetKey(state and state.TeamId, rageActive) or "Default"
+	local textureId = LauncherTextureConfig.Textures[key]
+	self:_applyTextureKey(launcherModel, key, textureId)
 end
 
 function PlayerService:_resolveLauncherVisualRoot(model: Model): BasePart?
@@ -408,7 +474,30 @@ function PlayerService:_applyLauncherVisual(pawn: Model, launcherId: string): bo
 	return true
 end
 
+function PlayerService:RefreshPetScaling(player: Player)
+	local pawn = self:GetPawn(player)
+	if not pawn then return end
 
+	local hitbox = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
+	if hitbox and hitbox:IsA("BasePart") then
+		local applied = math.max(0.001, tonumber(pawn:GetAttribute("PetTitanAppliedHitboxMultiplier")) or 1)
+		local requested = math.clamp(tonumber(player:GetAttribute("PetTitanHitboxMultiplier")) or 1, 1, 1.5)
+		if math.abs(requested - applied) > 0.001 then
+			hitbox.Size *= requested / applied
+			pawn:SetAttribute("PetTitanAppliedHitboxMultiplier", requested)
+		end
+	end
+
+	local equipped = self:_findEquippedLauncherModel(pawn)
+	if equipped then
+		local applied = math.max(0.001, tonumber(equipped:GetAttribute("PetTitanAppliedVisualMultiplier")) or 1)
+		local requested = math.clamp(tonumber(player:GetAttribute("PetTitanSizeMultiplier")) or 1, 1, 2)
+		if math.abs(requested - applied) > 0.001 then
+			equipped:ScaleTo(math.clamp(equipped:GetScale() * requested / applied, 0.01, 100))
+			equipped:SetAttribute("PetTitanAppliedVisualMultiplier", requested)
+		end
+	end
+end
 
 -- Pets are client-rendered. The server owns only their data and gameplay effects.
 
@@ -802,6 +891,8 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	if state then
 		self:_updateWorldUi(player, state)
 	end
+	self:_applyCurrentLauncherTexture(player, pawn)
+	self:RefreshPetScaling(player)
 
 	return pawn
 end
@@ -903,6 +994,7 @@ function PlayerService:GrowPawn(player: Player, growthDelta: number)
 	local newScale = math.max(0.5, currentScale + math.max(0, growthDelta))
 	pawn:SetAttribute("ScaleValue", newScale)
 	pawn:ScaleTo(newScale)
+	self:RefreshPetScaling(player)
 end
 
 function PlayerService:TeleportCharacterToSpawn(player: Player, spawn: BasePart?): boolean

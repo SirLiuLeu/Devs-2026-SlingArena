@@ -251,7 +251,9 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 	local attackerState = stateService:GetState(player)
 	local defenderState = stateService:GetState(defender)
 	local attackerWeight = math.max(1, tonumber(attackerState and attackerState.Weight) or 100)
+		* math.clamp(tonumber(player:GetAttribute("PetTitanWeightMultiplier")) or 1, 1, 1.5)
 	local defenderWeight = math.max(1, tonumber(defenderState and defenderState.Weight) or 100)
+		* math.clamp(tonumber(defender:GetAttribute("PetTitanWeightMultiplier")) or 1, 1, 1.5)
 	local weightFactor = math.min(1.4, attackerWeight / defenderWeight)
 	local defenderOutRaw = collisionResult.DefenderVelocity
 	local defenderOutRawSpeed = defenderOutRaw.Magnitude
