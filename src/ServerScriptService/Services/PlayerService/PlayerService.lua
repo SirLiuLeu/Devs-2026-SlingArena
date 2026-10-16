@@ -264,10 +264,10 @@ function PlayerService:_updateWorldUi(player: Player, state)
 		local hpRatio = math.clamp((state.CurrentHP or 0) / maxHp, 0, 1)
 		hpFill.Size = UDim2.new(hpRatio, 0, 1, 0)
 		local team = state.TeamId and Teams:FindFirstChild(state.TeamId)
-		if team and team:IsA("Team") then
-			hpFill.BackgroundColor3 = team.TeamColor.Color
-		elseif state.TeamId and TeamConfig.TeamColors[state.TeamId] then
+		if state.TeamId and TeamConfig.TeamColors[state.TeamId] then
 			hpFill.BackgroundColor3 = TeamConfig.TeamColors[state.TeamId]
+		elseif team and team:IsA("Team") then
+			hpFill.BackgroundColor3 = team.TeamColor.Color
 		else
 			hpFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 		end
@@ -329,7 +329,7 @@ function PlayerService:_applyTitanModifiers(player: Player, pawn: Model)
 	local baseFrictionWeight = tonumber(pawn:GetAttribute("TitanBaseFrictionWeight"))
 	local baseElasticityWeight = tonumber(pawn:GetAttribute("TitanBaseElasticityWeight"))
 	if baseDensity == nil then
-		local physical = hitbox.CustomPhysicalProperties or PhysicalProperties.new(1, 0.3, 0.5)
+		local physical = hitbox.CustomPhysicalProperties or PhysicalProperties.new(0.7, 0.3, 0.5)
 		baseDensity = physical.Density
 		baseFriction = physical.Friction
 		baseElasticity = physical.Elasticity
