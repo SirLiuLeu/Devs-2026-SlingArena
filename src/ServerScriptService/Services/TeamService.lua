@@ -5,15 +5,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local TeamConfig = require(ReplicatedStorage.Shared.Config.TeamConfig)
+local Teams = game:GetService("Teams")
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 local TeamService = {}
 TeamService.__index = TeamService
 
-local TEAM_IDS = { "TeamRed", "TeamBlue", "TeamGreen" }
-local TEAM_ID_SET: { [string]: boolean } = { TeamRed = true, TeamBlue = true, TeamGreen = true }
-local TEAM_CHANGE_COOLDOWN_SECONDS = 30
-local RAGE_START_SECONDS = 8 * 60
+local TEAM_IDS = TeamConfig.TeamIds
+local TEAM_ID_SET: { [string]: boolean } = { White = true, Yellow = true, Blue = true, Red = true }
+local TEAM_CHANGE_COOLDOWN_SECONDS = TeamConfig.ChangeCooldownSeconds
+local RAGE_START_SECONDS = TeamConfig.RageStartSeconds
 
 function TeamService.new(context)
 	local self = setmetatable({}, TeamService)
@@ -67,7 +69,7 @@ function TeamService:AssignBalancedTeam(player: Player): string?
 		return nil
 	end
 
-	local counts: { [string]: number } = { TeamRed = 0, TeamBlue = 0, TeamGreen = 0 }
+	local counts: { [string]: number } = { White = 0, Yellow = 0, Blue = 0, Red = 0 }
 	for _, candidate in ipairs(Players:GetPlayers()) do
 		local candidateState = stateService:GetState(candidate)
 		local teamId = candidateState and candidateState.TeamId
@@ -79,6 +81,10 @@ function TeamService:AssignBalancedTeam(player: Player): string?
 	local selectedTeam = TEAM_IDS[1]
 	for _, teamId in ipairs(TEAM_IDS) do
 		if counts[teamId] < counts[selectedTeam] then selectedTeam = teamId end
+	end
+	if counts[selectedTeam] >= TeamConfig.MaxPlayersPerTeam then
+		self:_setTeamId(player, nil)
+		return nil
 	end
 	self:_setTeamId(player, selectedTeam)
 	return selectedTeam
@@ -99,7 +105,8 @@ function TeamService:AssignBalancedTeams(playersInRound: { Player })
 	end
 	for _, player in ipairs(shuffledPlayers) do self:_setTeamId(player, nil) end
 	for index, player in ipairs(shuffledPlayers) do
-		self:_setTeamId(player, TEAM_IDS[((index - 1) % #TEAM_IDS) + 1])
+		local teamId = TEAM_IDS[((index - 1) % #TEAM_IDS) + 1]
+		self:_setTeamId(player, teamId)
 	end
 end
 
@@ -143,6 +150,19 @@ function TeamService:ChangeTeam(player: Player, teamId: string)
 		local cooldownRemaining = math.ceil(remaining)
 		self:_sendFeedback(player, false, "Cooldown", state.TeamId, cooldownRemaining)
 		return false, "Cooldown"
+	end
+	local count = 0
+	for _, candidate in ipairs(Players:GetPlayers()) do
+		if candidate ~= player then
+			local candidateState = stateService:GetState(candidate)
+			if candidateState and candidateState.LocationState ~= GameStates.SessionState.Lobby and candidateState.TeamId == teamId then
+				count += 1
+			end
+		end
+	end
+	if count >= TeamConfig.MaxPlayersPerTeam then
+		self:_sendFeedback(player, false, "TeamFull", state.TeamId)
+		return false, "TeamFull"
 	end
 	self:_setTeamId(player, teamId)
 	self._lastTeamChangeAt[player.UserId] = os.clock()
