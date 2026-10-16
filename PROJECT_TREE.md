@@ -73,10 +73,12 @@ DataModel
 │  │
 │  ├─ Assets
 │  │  ├── Prefabs
-│  │  │   └── ArrowModel (Model)
-│  │  │       ├── EndAttachment (Attachment)
-│  │  │       ├── StartAttachment (Attachment)
-│  │  │       └── Arrow (MeshPart/Part)
+│  │  │   ├── ArrowModel (Model)
+│  │  │   │   ├── EndAttachment (Attachment)
+│  │  │   │   ├── StartAttachment (Attachment)
+│  │  │   │   └── Arrow (MeshPart/Part)
+│  │  │   ├── PlasmaBall (Model)
+│  │  │   └── SlowBall (Model)
 │  │  │
 │  │  ├── Pets (Folder)
 │  │  │   ├── Dragon (Model)
