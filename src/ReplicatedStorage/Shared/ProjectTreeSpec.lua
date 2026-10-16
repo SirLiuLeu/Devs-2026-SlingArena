@@ -65,10 +65,7 @@ local ProjectTreeSpec = {
 			ScreenGui = "TeamSelectionGui", -- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui (ScreenGui)
 			ToggleButton = "TeamSelectionGui.ToggleBtn", -- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.ToggleBtn (ImageButton)
 			PopupFrame = "TeamSelectionGui.TeamPopupFrame", -- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame (Frame, Visible=false)
-			WhiteButton = "TeamSelectionGui.TeamPopupFrame.White", -- [PROJECT_TREE_SPEC] team item containing TextButton, TeamIcon, TeamName, PlayerCount
-			YellowButton = "TeamSelectionGui.TeamPopupFrame.Yellow",
-			BlueButton = "TeamSelectionGui.TeamPopupFrame.Blue",
-			RedButton = "TeamSelectionGui.TeamPopupFrame.Red",
+			-- TeamPopupFrame contains four Studio-authored TeamItem frames; each has a TextButton, TeamIcon, TeamName, and PlayerCount.
 		},
 		LauncherInventory = {
 			ScreenGui = "LauncherInventoryUI",
@@ -310,8 +307,10 @@ local ProjectTreeSpec = {
 		--       LavaTrap (Model) / SpikeTrap (Model)
 		--
 		-- Teams
-		--   TeamRed (Team)
-		--   TeamBlue (Team)
+		--   White (Team)
+		--   Yellow (Team)
+		--   Blue (Team)
+		--   Red (Team)
 		Workspace = {
 			LauncherPawns = "LauncherPawns",
 			Maps = {
@@ -339,6 +338,8 @@ local ProjectTreeSpec = {
 				SlotDiamondPackTemplate_ShopUI = "Assets.UI.SlotDiamondPackTemplate_ShopUI",
 				SlotRewardTemplate_OnlineRewardUI = "Assets.UI.SlotRewardTemplate_OnlineRewardUI",
 				LauncherWorldUI = "Assets.UI.LauncherWorldUI",
+				PlasmaBall = "Assets.Prefabs.PlasmaBall", -- [PROJECT_TREE_SPEC] Model/BasePart projectile prefab
+				SlowBall = "Assets.Prefabs.SlowBall", -- [PROJECT_TREE_SPEC] Model/BasePart projectile prefab
 				Food1 = "Assets.Food.Food1",
 				Food2 = "Assets.Food.Food2",
 				Food3 = "Assets.Food.Food3",
