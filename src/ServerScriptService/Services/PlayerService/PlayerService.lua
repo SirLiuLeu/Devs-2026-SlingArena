@@ -10,6 +10,9 @@ local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local LauncherTextureConfig = require(ReplicatedStorage.Shared.Config.LauncherTextureConfig)
+local TeamConfig = require(ReplicatedStorage.Shared.Config.TeamConfig)
+local Teams = game:GetService("Teams")
 local StatusEffectVfx = require(ReplicatedStorage.Shared.Utils.StatusEffectVfx)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local LauncherAnimationController = require(script.Parent.AnimationController)
@@ -55,6 +58,16 @@ function PlayerService:Init()
 	self._context.EventBus:On("PlayerStateUpdated", function(player: Player, state)
 		self:_updateWorldUi(player, state)
 		self:_updateLauncherAnimations(player, state)
+		local pawn = self:GetPawn(player)
+		if pawn then self:_applyTeamTexture(pawn, state and state.TeamId or nil) end
+	end)
+
+	self._context.EventBus:On("RageModeChanged", function(_active: boolean)
+		for player, pawn in pairs(self._playerToLauncher) do
+			local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+			local state = stateService and stateService:GetState(player)
+			if pawn and pawn.Parent then self:_applyTeamTexture(pawn, state and state.TeamId or nil) end
+		end
 	end)
 
 	Players.PlayerAdded:Connect(function(player)
@@ -246,10 +259,11 @@ function PlayerService:_updateWorldUi(player: Player, state)
 		local maxHp = math.max(state.MaxHP or 1, 1)
 		local hpRatio = math.clamp((state.CurrentHP or 0) / maxHp, 0, 1)
 		hpFill.Size = UDim2.new(hpRatio, 0, 1, 0)
-		if state.TeamId == "TeamRed" then
-			hpFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-		elseif state.TeamId == "TeamBlue" then
-			hpFill.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
+		local team = state.TeamId and Teams:FindFirstChild(state.TeamId)
+		if team and team:IsA("Team") then
+			hpFill.BackgroundColor3 = team.TeamColor.Color
+		elseif state.TeamId and TeamConfig.TeamColors[state.TeamId] then
+			hpFill.BackgroundColor3 = TeamConfig.TeamColors[state.TeamId]
 		end
 	end
 
@@ -260,6 +274,33 @@ function PlayerService:_updateWorldUi(player: Player, state)
 	local teamLabel = worldUi:FindFirstChild("TeamLabel")
 	if teamLabel and teamLabel:IsA("TextLabel") then
 		teamLabel.Text = tostring(state.TeamId or "NoTeam")
+	end
+end
+
+function PlayerService:_applyTeamTexture(pawn: Model, teamId: string?)
+	local teamService = ServiceResolver.Get(self._context, "TeamService")
+	local rageActive = teamService and teamService:IsRageActive() == true or false
+	local textureId = LauncherTextureConfig.GetTextureId(teamId, rageActive)
+	local validTexture = type(textureId) == "string" and textureId ~= "" and textureId ~= "rbxassetid://0"
+	local textureKey = if validTexture then textureId else "Default"
+	local equipped = self:_findEquippedLauncherModel(pawn)
+	if not equipped then return end
+	if pawn:GetAttribute("AppliedLauncherTextureKey") == textureKey then return end
+	pawn:SetAttribute("AppliedLauncherTextureKey", textureKey)
+	for _, descendant in ipairs(equipped:GetDescendants()) do
+		if descendant:IsA("MeshPart") then
+			if descendant:GetAttribute("OriginalTeamTextureId") == nil then descendant:SetAttribute("OriginalTeamTextureId", descendant.TextureID) end
+			local original = descendant:GetAttribute("OriginalTeamTextureId")
+			descendant.TextureID = if validTexture then textureId :: string else (if type(original) == "string" then original else "")
+		elseif descendant:IsA("SpecialMesh") then
+			if descendant:GetAttribute("OriginalTeamTextureId") == nil then descendant:SetAttribute("OriginalTeamTextureId", descendant.TextureId) end
+			local original = descendant:GetAttribute("OriginalTeamTextureId")
+			descendant.TextureId = if validTexture then textureId :: string else (if type(original) == "string" then original else "")
+		elseif descendant:IsA("SurfaceAppearance") then
+			if descendant:GetAttribute("OriginalTeamColorMap") == nil then descendant:SetAttribute("OriginalTeamColorMap", descendant.ColorMap) end
+			local original = descendant:GetAttribute("OriginalTeamColorMap")
+			descendant.ColorMap = if validTexture then textureId :: string else (if type(original) == "string" then original else "")
+		end
 	end
 end
 
@@ -784,6 +825,7 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 	pawn.PrimaryPart:SetNetworkOwner(player)
 	self._playerToLauncher[player] = pawn
 	self._launcherToPlayer[pawn] = player
+	self:_applyTeamTexture(pawn, playerState and playerState.TeamId or nil)
 	self:_attachWorldUi(pawn, player)
 	self:_initializeLauncherAnimations(player, pawn)
 	pawn:SetAttribute("ScaleValue", LauncherConfig.ModelScale)
@@ -826,6 +868,10 @@ function PlayerService:EquipLauncherModel(player: Player, launcherId: string): b
 	if not self:_applyLauncherVisual(pawn, launcherId) then
 		return false
 	end
+	local stateForTexture = ServiceResolver.Get(self._context, "PlayerStateService")
+	local textureState = stateForTexture and stateForTexture:GetState(player)
+	pawn:SetAttribute("AppliedLauncherTextureKey", nil)
+	self:_applyTeamTexture(pawn, textureState and textureState.TeamId or nil)
 	self:_initializeLauncherAnimations(player, pawn)
 
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
