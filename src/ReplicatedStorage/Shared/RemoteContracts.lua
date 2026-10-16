@@ -157,7 +157,7 @@ RemoteContracts.Validators = {
 		return true
 	end,
 	[RemoteContracts.Names.ChangeTeam] = function(teamId: any): boolean
-		return typeof(teamId) == "string" and (teamId == "TeamRed" or teamId == "TeamBlue" or teamId == "TeamGreen")
+		return typeof(teamId) == "string" and (teamId == "White" or teamId == "Yellow" or teamId == "Blue" or teamId == "Red")
 	end,
 	[RemoteContracts.Names.SetPlayerMode] = function(modeName: any): boolean
 		return modeName == "Launcher" or modeName == "Human"
