@@ -33,7 +33,9 @@ local function findTarget(context): (Player?, BasePart?)
 	local stateService = context.PlayerStateService
 	local attackerRoot = playerService and playerService:GetRoot(context.player)
 	if not attackerRoot then return nil, nil end
-	local bestPlayer, bestRoot, bestDistance = nil, nil, CONFIG.TargetRange
+	local bestPlayer: Player? = nil
+	local bestRoot: BasePart? = nil
+	local bestDistance = CONFIG.TargetRange
 	for _, candidate in ipairs(Players:GetPlayers()) do
 		if candidate ~= context.player and stateService and not stateService:IsHuman(candidate)
 			and not stateService:HasFlag(candidate, "Ghost")
