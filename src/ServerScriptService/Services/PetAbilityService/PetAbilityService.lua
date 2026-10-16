@@ -66,6 +66,8 @@ function PetAbilityService:Init()
 	self:RegisterEffect("ExpBonus", require(petEffects.ExpBonus))
 	self:RegisterEffect("Shield", require(petEffects.Shield))
 	self:RegisterEffect("Titan", require(petEffects.Titan))
+	self:RegisterEffect("PlasmaCannon", require(petEffects.PlasmaCannon))
+	self:RegisterEffect("SlowBlaster", require(petEffects.SlowBlaster))
 	self:RegisterEffect("Regeneration", require(petEffects.Regeneration))
 	self:RegisterEffect("IdleStealth", require(petEffects.IdleStealth))
 	if self._abilityTriggerRemote then
@@ -139,12 +141,12 @@ function PetAbilityService:Init()
 end
 
 function PetAbilityService:_onAbilityTrigger(player: Player, payload: any)
-	if type(payload) ~= "table" or type(payload.abilityId) ~= "string" then return end
+	if type(payload) ~= "table" or type(payload.abilityId) ~= "string" or #payload.abilityId > 64 then return end
 	local playerEffects = self._activeEffects[player]
 	if not playerEffects then return end
 	for _, effectState in pairs(playerEffects) do
 		local definition = effectState.context.definition
-		if definition and definition.abilityId == payload.abilityId then
+		if definition and definition.activeAbilityId == payload.abilityId then
 			local handler = effectState.module.OnAbilityTrigger or effectState.module.OnAttack
 			if typeof(handler) == "function" then
 				handler(effectState.context, payload)
@@ -236,6 +238,7 @@ function PetAbilityService:ActivatePet(player, _slotType: string, instanceId: st
 		Remotes = self._context.Remotes,
 		FoodService = ServiceResolver.Get(self._context, "FoodService"),
 		PlayerService = ServiceResolver.Get(self._context, "PlayerService"),
+		DamagePipelineService = ServiceResolver.Get(self._context, "DamagePipelineService"),
 	}
 	local effectState = { module = module, context = context }
 	self._activeEffects[player][instanceId] = effectState
