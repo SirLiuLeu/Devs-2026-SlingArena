@@ -7,6 +7,8 @@ local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local TeamConfig = require(ReplicatedStorage.Shared.Config.TeamConfig)
 local Teams = game:GetService("Teams")
+local TeamConfig = require(ReplicatedStorage.Shared.Config.TeamConfig)
+local Teams = game:GetService("Teams")
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 local TeamService = {}
@@ -30,6 +32,16 @@ end
 function TeamService:_setTeamId(player: Player, teamId: string?)
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateService then stateService:SetTeamId(player, teamId) end
+	local team = teamId and Teams:FindFirstChild(teamId)
+	if team and team:IsA("Team") then
+		player.Neutral = false
+		player.Team = team
+	elseif teamId == nil then
+		player.Neutral = true
+		player.Team = nil
+	else
+		warn(string.format("[TeamService] Teams.%s is missing; Player.Team could not be synchronized.", tostring(teamId)))
+	end
 end
 
 function TeamService:_sendFeedback(player: Player, success: boolean, reason: string?, teamId: string?, cooldownRemaining: number?)
@@ -81,6 +93,10 @@ function TeamService:AssignBalancedTeam(player: Player): string?
 	local selectedTeam = TEAM_IDS[1]
 	for _, teamId in ipairs(TEAM_IDS) do
 		if counts[teamId] < counts[selectedTeam] then selectedTeam = teamId end
+	end
+	if counts[selectedTeam] >= TeamConfig.MaxPlayersPerTeam then
+		self:_setTeamId(player, nil)
+		return nil
 	end
 	if counts[selectedTeam] >= TeamConfig.MaxPlayersPerTeam then
 		self:_setTeamId(player, nil)
@@ -158,6 +174,17 @@ function TeamService:ChangeTeam(player: Player, teamId: string)
 			if candidateState and candidateState.LocationState ~= GameStates.SessionState.Lobby and candidateState.TeamId == teamId then
 				count += 1
 			end
+		end
+	end
+	if count >= TeamConfig.MaxPlayersPerTeam then
+		self:_sendFeedback(player, false, "TeamFull", state.TeamId)
+		return false, "TeamFull"
+	end
+	local count = 0
+	for _, candidate in ipairs(Players:GetPlayers()) do
+		if candidate ~= player then
+			local candidateState = stateService:GetState(candidate)
+			if candidateState and candidateState.LocationState ~= GameStates.SessionState.Lobby and candidateState.TeamId == teamId then count += 1 end
 		end
 	end
 	if count >= TeamConfig.MaxPlayersPerTeam then
