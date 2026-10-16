@@ -4,12 +4,10 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local Debris = game:GetService("Debris")
-local EffectUtil = require(script.Parent.EffectUtil)
 
 local CONFIG = {
 	Cooldown = 10,
 	ProjectileSpeed = 60,
-	Damage = 700,
 	TargetRange = 120,
 	Lifetime = 10,
 }
@@ -109,11 +107,9 @@ function PlasmaCannon.OnAbilityTrigger(context)
 		local victim = resolvePlayerFromHit(hit, context)
 		if not victim or victim == context.player then return end
 		if context.TeamService and context.TeamService:IsFriendly(context.player, victim) then return end
-		local damagePipeline = game:GetService("ServerScriptService"):FindFirstChild("Services")
-		local _ = damagePipeline
-		local serviceResolver = require(script.Parent.Parent.Infrastructure.ServiceResolver)
-		local damageService = serviceResolver.Get(context, "DamagePipelineService")
-		if damageService then damageService:ApplyDamage(victim, CONFIG.Damage, context.player, nil, { SourceType = "PetProjectile", SuppressKnockback = true }) end
+		local damageService = context.DamagePipelineService
+		local damage = tonumber(context.progression and context.progression.abilityParams and context.progression.abilityParams.damage) or 700
+		if damageService then damageService:ApplyDamage(victim, damage, context.player, nil, { SourceType = "PetProjectile", SuppressKnockback = true }) end
 		if hitConnection then hitConnection:Disconnect() end
 		context._projectiles[projectile] = nil
 		projectile:Destroy()
