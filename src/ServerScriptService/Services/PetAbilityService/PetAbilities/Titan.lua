@@ -1,6 +1,8 @@
 --!strict
 
-local SIZE_MULTIPLIER_ATTRIBUTE = "PetTitanSizeMultiplier"
+local WEIGHT_MULTIPLIER_ATTRIBUTE = "PetTitanWeightMultiplier"
+local HITBOX_MULTIPLIER_ATTRIBUTE = "PetTitanHitboxMultiplier"
+local VISUAL_MULTIPLIER_ATTRIBUTE = "PetTitanVisualMultiplier"
 local INCOMING_KNOCKBACK_ATTRIBUTE = "PetIncomingKnockbackMultiplier"
 local OUTGOING_KNOCKBACK_ATTRIBUTE = "PetOutgoingKnockbackMultiplier"
 
@@ -13,16 +15,22 @@ function Titan.OnAttack(_context, _payload: any) end
 
 function Titan.OnInit(context)
 	local params = context.progression and context.progression.abilityParams or {}
-	context._sizeMultiplier = math.max(0, tonumber(params.sizeMultiplier) or 1)
+	context._weightMultiplier = math.clamp(tonumber(params.weightMultiplier) or 1, 1, 1.5)
+	context._hitboxMultiplier = math.clamp(tonumber(params.hitboxMultiplier) or 1, 1, 1.5)
+	context._visualMultiplier = math.clamp(tonumber(params.visualMultiplier) or 1, 1, 2)
 	context._incomingKnockbackMultiplier = math.max(0, tonumber(params.incomingKnockbackMultiplier) or 1)
 	context._outgoingKnockbackMultiplier = math.max(0, tonumber(params.outgoingKnockbackMultiplier) or 1)
-	context.player:SetAttribute(SIZE_MULTIPLIER_ATTRIBUTE, context._sizeMultiplier)
+	context.player:SetAttribute(WEIGHT_MULTIPLIER_ATTRIBUTE, context._weightMultiplier)
+	context.player:SetAttribute(HITBOX_MULTIPLIER_ATTRIBUTE, context._hitboxMultiplier)
+	context.player:SetAttribute(VISUAL_MULTIPLIER_ATTRIBUTE, context._visualMultiplier)
 	context.player:SetAttribute(INCOMING_KNOCKBACK_ATTRIBUTE, context._incomingKnockbackMultiplier)
 	context.player:SetAttribute(OUTGOING_KNOCKBACK_ATTRIBUTE, context._outgoingKnockbackMultiplier)
 end
 
 function Titan.OnDestroy(context)
-	if context.player:GetAttribute(SIZE_MULTIPLIER_ATTRIBUTE) == context._sizeMultiplier then context.player:SetAttribute(SIZE_MULTIPLIER_ATTRIBUTE, nil) end
+	if context.player:GetAttribute(WEIGHT_MULTIPLIER_ATTRIBUTE) == context._weightMultiplier then context.player:SetAttribute(WEIGHT_MULTIPLIER_ATTRIBUTE, nil) end
+	if context.player:GetAttribute(HITBOX_MULTIPLIER_ATTRIBUTE) == context._hitboxMultiplier then context.player:SetAttribute(HITBOX_MULTIPLIER_ATTRIBUTE, nil) end
+	if context.player:GetAttribute(VISUAL_MULTIPLIER_ATTRIBUTE) == context._visualMultiplier then context.player:SetAttribute(VISUAL_MULTIPLIER_ATTRIBUTE, nil) end
 	if context.player:GetAttribute(INCOMING_KNOCKBACK_ATTRIBUTE) == context._incomingKnockbackMultiplier then context.player:SetAttribute(INCOMING_KNOCKBACK_ATTRIBUTE, nil) end
 	if context.player:GetAttribute(OUTGOING_KNOCKBACK_ATTRIBUTE) == context._outgoingKnockbackMultiplier then context.player:SetAttribute(OUTGOING_KNOCKBACK_ATTRIBUTE, nil) end
 end
