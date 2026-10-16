@@ -62,6 +62,11 @@ local function refreshCounts()
 	for teamId, label in pairs(playerCountLabels) do
 		if label.Parent then label.Text = string.format("%d/%d", counts[teamId] or 0, TeamConfig.MaxPlayersPerTeam) end
 	end
+	for teamId, button in pairs(teamButtons) do
+		local available = not isRage and (counts[teamId] or 0) < TeamConfig.MaxPlayersPerTeam
+		button.Active = available
+		button.AutoButtonColor = available
+	end
 end
 
 local function refreshRageState()
@@ -75,6 +80,7 @@ local function refreshRageState()
 		button.Active = not isRage
 		button.AutoButtonColor = not isRage
 	end
+	refreshCounts()
 end
 
 local function bindGui(candidate: Instance)

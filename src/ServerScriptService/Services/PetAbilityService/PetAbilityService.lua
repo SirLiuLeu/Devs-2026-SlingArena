@@ -166,8 +166,14 @@ function PetAbilityService:_onAbilityTrigger(player: Player, payload: any)
 			if not cooldownMap then cooldownMap = {}; self._abilityCooldownEnds[player] = cooldownMap end
 			local now = os.clock()
 			if (cooldownMap[payload.abilityId] or 0) > now then return end
+			-- A short attempt throttle also protects the server when the target/prefab is missing.
+			cooldownMap[payload.abilityId] = now + math.max(0.25, cooldown)
 			local activated = handler(effectState.context, payload)
-			if activated ~= false then cooldownMap[payload.abilityId] = now + cooldown end
+			if activated ~= false then
+				cooldownMap[payload.abilityId] = now + cooldown
+			else
+				cooldownMap[payload.abilityId] = now + 0.25
+			end
 			return
 		end
 	end
