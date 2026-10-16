@@ -2,7 +2,7 @@
 
 -- Replace each placeholder with the uploaded texture asset ID.
 -- These five texture IDs are shared by every Launcher model.
-local LauncherTextureConfig = {
+local LauncherTextureConfig: { [string]: any } = {
 	White = "rbxassetid://0",
 	Yellow = "rbxassetid://0",
 	Blue = "rbxassetid://0",
