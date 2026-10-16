@@ -350,7 +350,7 @@ function PlayerService:_applyTitanModifiers(player: Player, pawn: Model)
 	if equipped then
 		local baseVisualScale = tonumber(equipped:GetAttribute("TitanBaseVisualScale"))
 		if baseVisualScale == nil then
-			baseVisualScale = equipped:GetScale() / math.max(baseScale, 0.001)
+			baseVisualScale = equipped:GetScale()
 			equipped:SetAttribute("TitanBaseVisualScale", baseVisualScale)
 		end
 		equipped:ScaleTo(math.max(0.001, baseVisualScale * baseScale * visualMultiplier))
@@ -509,6 +509,7 @@ function PlayerService:_applyLauncherVisual(pawn: Model, launcherId: string): bo
 	self:_configureVisualRig(equipped)
 	self:_validateLauncherMotor6Ds(equipped, launcherId)
 	equipped:SetAttribute("LauncherId", launcherId)
+	equipped:SetAttribute("TitanBaseVisualScale", equipped:GetScale())
 	pawn:SetAttribute("LauncherId", launcherId)
 	self:_updateHitboxRootPartWeld(pawn, hitbox, visualRoot)
 	return true
