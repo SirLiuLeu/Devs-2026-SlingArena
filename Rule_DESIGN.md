@@ -114,7 +114,7 @@ Confirmed via `IsHuman()` gates across services:
 
 Exactly **4 launchers** exist in the runtime catalog:
 
-| ID | Role | maxHP | baseDamage | armor | regen | speed | launchPower | control | launchSpeed | reflectDamage | weight |
+| ID | Role | maxHP | baseDamage | armor | regen | speed | launchPower | launchSpeed | reflectDamage | weight |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | `Normalduck` (default) | Balanced | 16,000 | 1,000 | 0 | 1.0 | 16 | 1.00 | 1.00 | 100 | 0.05 | 100 |
 | `Kingduck` | Tank | 28,000 | 700 | 0.30 | 1.4 | 12.5 | 0.85 | 0.90 | 65 | 0.12 | 130 |
@@ -129,7 +129,7 @@ Exactly **4 launchers** exist in the runtime catalog:
 
 * **Star multiplier:** `1 + (star - 1) × 0.08` — i.e., **+8% per star**.
 * **Level multiplier:** `1 + (level - 1) × 0.03` — i.e., **+3% per in-match level**.
-* Total growth = `starMultiplier × levelMultiplier`, applied to maxHP, baseDamage, regen, launchPower, and control.
+* Total growth = `starMultiplier × levelMultiplier`, applied to maxHP, baseDamage, regen and launchPower; the unused `control` / `maxShootRange` values were removed.
 * ❌ **The "3 identical Launchers → +1★" fusion mechanic has no implementation anywhere in the codebase.** The `star` field exists on owned-launcher data and the multiplier math is real, but nothing sets or increments `star` at runtime except hardcoded seed/mock data. See §13.
 * ⚠️ Mock/seed data (`MockData.lua`) contains a `star = 4` entry, exceeding the design intent of a 3★ cap, and references launcher IDs (`FireLauncher`, `PetrifyLauncher`, `VacuumLauncher`) that **do not exist** in `LauncherConfig.Types`. Treat these as stale fixtures, not canonical content.
 
@@ -323,13 +323,13 @@ Only **two** trap types actually exist in the codebase — **Totem** and **Toxic
 
 ---
 
-# 10. TEAM SYSTEM — ✅ Server foundations implemented; UI/skins remain pending
+# 10. TEAM SYSTEM — Four team selection and Rage skin implementation
 
-- `TeamService` assigns arena participants to `TeamRed`, `TeamBlue`, or `TeamGreen` as evenly as possible when a new round begins.
-- The server accepts `ChangeTeam` requests only during an active round before Rage, validates the requested team ID, and enforces a 30-second cooldown after a successful change.
+- `TeamService` assigns arena participants as evenly as possible to `White`, `Yellow`, `Blue`, and `Red` (maximum 10 players per team), synchronizing the Roblox `Player.Team` and canonical `PlayerState.TeamId`.
+- The server accepts `ChangeTeam` requests only during an active round before Rage, validates the requested team ID, rejects full teams, and enforces a 30-second cooldown after a successful change.
 - `RoundService` starts Rage/FFA at 480 elapsed round seconds, independently of the Safe Zone entering `FinalPhase`. During Rage, the original `TeamId` remains available for presentation, but `IsFriendly` returns false for all distinct players.
 - `DamagePipelineService` rejects friendly direct damage and player-sourced DoT; `CollisionService` checks the same damage-policy API before applying collision knockback.
-- Team-change UI, team texture selection, Rage skin selection, shared-win/rank behavior, assist rewards, and teammate-tracking UI are not part of this change and remain unimplemented.
+- `TeamSelectionController.client.lua` binds the existing Studio `TeamSelectionGui` and renders player counts. `LauncherTextureConfig.lua` maps one texture each for White, Yellow, Blue, Red and Rage; replace all placeholder IDs. Shared-win/rank behavior, assist rewards, and teammate-tracking UI remain separate features.
 
 ---
 

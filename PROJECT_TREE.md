@@ -37,6 +37,8 @@ DataModel
 │  │  │  ├─ LevelConfig.lua
 │  │  │  ├─ LauncherAnimationIds.lua
 │  │  │  ├─ LauncherConfig.lua
+│  │  │  ├─ TeamConfig.lua
+│  │  │  ├─ LauncherTextureConfig.lua
 │  │  │  ├─ NotificationConfigData.lua
 │  │  │  ├─ PetAbilityProgressionConfig.lua
 │  │  │  ├─ PetPreviewConfig.lua
@@ -348,6 +350,7 @@ DataModel
 │     ├─ LaunchImpulseClient.client.lua
 │     ├─ LauncherControlUIController.client.lua             (Resolves LauncherControlUI ScreenGui)
 │     ├─ PlayerModeController.client.lua
+│     ├─ TeamSelectionController.client.lua
 │     ├─ SafeZoneVisualizer.client.lua
 │     ├─ UIBinder.client.lua                         (UI bootstrap; event-driven rebinding)
 │     └─ Components
@@ -769,3 +772,14 @@ Notes:
 ## Pet inventory progression notes
 
 `StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Level` is the bound pet-level display. Pet base stats advance on every level; ability values advance only at milestones 1, 5, 10, 15, and 20. `PetAbilityProgressionConfig.Abilities[abilityId].Display` stores `{ Format, Templates = { en, vi } }` for localized display text, while `PetPreviewConfig.Get(petId)` provides the viewport `Rotation` and `Offset`.
+
+
+## Team and pet-projectile additions (implemented in source; required instances remain Studio-authored)
+
+- `ReplicatedStorage.Shared.Config.TeamConfig`: team IDs `White`, `Yellow`, `Blue`, `Red`; each team capacity is 10.
+- `ReplicatedStorage.Shared.Config.LauncherTextureConfig`: five texture IDs for White, Yellow, Blue, Red and Rage. Fill in the actual `rbxassetid://...` values.
+- `StarterPlayer.StarterPlayerScripts.TeamSelectionController.client.lua`: binds the existing `StarterGui.TeamSelectionGui` hierarchy; no UI instances are constructed by code.
+- Required UI: `TeamSelectionGui (ScreenGui) > ToggleBtn (ImageButton)`; `TeamPopupFrame (Frame, Visible=false)` contains four TeamItem frames (White, Yellow, Blue, Red), each with a `TextButton`, `TeamIcon (ImageLabel)`, `TeamName (TextLabel)`, `PlayerCount (TextLabel)`, `UICorner` and `UIStroke`.
+- Required Teams service instances: `Teams.White`, `Teams.Yellow`, `Teams.Blue`, `Teams.Red` (class `Team`).
+- Required projectile prefabs: `ReplicatedStorage.Assets.Prefabs.PlasmaBall` and `SlowBall` (each a `Model` containing at least one `BasePart`). Missing instances trigger warnings; restore them to the Rojo-managed project before syncing.
+- Active pet ability modules: `PlasmaCannon` (physical `PlasmaBall` projectile) and `SlowBlaster` (homing `SlowBall`); `Hydra` uses the passive `Titan` scaling effect.

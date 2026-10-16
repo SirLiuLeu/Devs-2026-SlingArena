@@ -41,6 +41,7 @@
 | `InputController.client.lua` | Captures keyboard/touch movement input, right-mouse hold state, computes camera-relative movement direction, and sends `MoveRequest` with aim target. | Input |
 | `CameraController.client.lua` | Keeps the local camera in `Custom` mode and sets camera subject to the local pawn root when available. | Input |
 | `LauncherUIController.client.lua` | Runs launcher joystick/charge/cooldown HUD behavior and sends `StartCharge` / `ReleaseCharge` remotes from UI input. | UI |
+| `TeamSelectionController.client.lua` | Binds the Studio-authored `TeamSelectionGui`, submits `ChangeTeam`, displays live team counts and closes/disables team selection during Rage. | UI |
 | `UIController.lua` | Composes and starts feature UI controllers, wires top-level hub toggles, and routes snapshot updates into UI. | UI |
 | `InventoryUIController.lua` | Renders and updates inventory UI (items/launchers), slot interactions, and equipped launcher preview model. | UI |
 | `ShopUIController.lua` | Renders shop tabs/slots and binds buy actions through shop logic service snapshots. | UI |
@@ -63,13 +64,15 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `GameConfig.lua` | Placeholder comments for player cap/phase/respawn/join rules; no exported config table. | usage unclear |
 | `ItemConfig.lua` | Item catalog (`Items`) with metadata (`id`, `name`, `effect`, `icon`, `stackable`) and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
 | `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
-| `PetAbilityProgressionConfig.lua` | Ability parameters at levels 1/5/10/15/20 plus `Display = { Format, Templates = { en, vi } }` localization data. | `PetProgression`, `PetDisplayFormatter` |
+| `PetAbilityProgressionConfig.lua` | Pet ability values at levels 1/5/10/15/20; Titan weight, hitbox, visual and knockback multipliers are resolved continuously per level. | `PetProgression`, `PetDisplayFormatter`, pet active attacks |
 | `PetPreviewConfig.lua` | Per-pet viewport camera `Rotation` and `Offset`, accessed through `Get(petId)`. | `InventoryUIController`, `PreviewRenderer` |
 | `LauncherPreviewConfig.lua` | Per-Launcher viewport camera `Rotation` and `Offset`, accessed through `Get(launcherId)`. | `LauncherInventoryUIController`, `PreviewRenderer` |
 | `PetRarityStatsConfig.lua` | Base HP and damage values by pet rarity. | `PetProgression`, pet UI |
 | `PetsConfig.lua` | Pet definition catalog, ability IDs, rarity, and max-level settings. | `PetService`, `PetProgression`, `InventoryUIController` |
 | `PetsUpgradeConfig.lua` | Level normalization, costs, 10% per-level base-stat growth, and milestone predicates. | `PetService`, `PetProgression`, `PetDisplayFormatter` |
-| `LauncherConfig.lua` | Five Duck Launcher definitions (`Normalduck`, `Kingduck`, `Witchduck`, `Drakeduck`, `Shielduck`), default ID, combat stats, weight, reflect damage, and lookup helpers. | `PlayerStateService`, `LauncherStatResolver`, launcher inventory/shop and mock data |
+| `LauncherConfig.lua` | Five Launcher definitions, default ID, combat stats, weight, reflect damage, and lookup helpers; unused `control`/range stats removed. | `PlayerStateService`, `LauncherStatResolver`, launcher inventory/shop and mock data |
+| `TeamConfig.lua` | Four team IDs, 10-player team capacity, team-change cooldown and Rage start time. | `TeamService`, `RoundService`, `RemoteContracts`, team-selection UI |
+| `LauncherTextureConfig.lua` | Shared White/Yellow/Blue/Red/Rage texture IDs applied to all equipped Launcher models. | `PlayerService` |
 | `TrapConfig.lua` | Trap tuning constants (EXP penalty, cooldown, count, color). | `TrapService` |
 
 ## Pet Inventory progression UI
@@ -105,10 +108,10 @@ Config modules store shared tuning and content tables (movement/combat constants
 
 ## Team/Rage, knockback, preview, and reflect update (2026-10-16)
 
-- `TeamService` assigns active round participants to three balanced teams (`TeamRed`, `TeamBlue`, `TeamGreen`), accepts server-validated team-change requests, and enforces a 30-second successful-change cooldown.
+- `TeamService` assigns active participants across `White`, `Yellow`, `Blue`, and `Red`, synchronizes `Player.Team` with `PlayerState.TeamId`, enforces 10 players per team and a 30-second successful-change cooldown.
 - `RoundService` activates Rage/FFA at 480 elapsed round seconds independently of the Safe Zone's transition to `FinalPhase`; the `UIStateUpdate` payload exposes `RageActive`. Team identity remains in player state while friendly-fire checks are disabled during Rage.
 - `DamagePipelineService` owns the friendly-damage query and rejects same-team direct and player-sourced DoT damage. `CollisionService` uses that query before emitting knockback, so a teammate collision is blocked before physical knockback/effect dispatch.
-- `LauncherConfig` already resolves each Launcher `weight` to `PlayerState.Weight`; collision knockback now applies the attacker/defender weight ratio, capped at 1.4, and a global velocity cap.
+- `LauncherConfig` resolves each Launcher `weight` to `PlayerState.Weight`; collision knockback applies the attacker/defender weight ratio and the Hydra/Titan weight multiplier, capped by the existing 1.4 ratio and global velocity limit.
 - `LauncherPreviewConfig` and `PetPreviewConfig` expose per-model `Scale` (default 1). `PreviewRenderer` adjusts preview camera distance from this value instead of changing runtime model size.
 - `PetStatResolver` now includes equipped pet `statModifiers.Add.reflectDamage` in the derived reflect stat, clamped to 50%. The damage pipeline also processes attacker death if reflected damage is lethal.
-- `LauncherInventoryService` enforces Lobby-only equip and unequip; the legacy Launcher ability equip route has the same server-side Lobby gate. `ChangeTeam` is defined in `RemoteContracts` and has a Rojo `model.json` asset. The team-selection UI, team/Rage textures, Titan scaling, PlasmaCannon, and SlowBlaster remain outside this change because their UI/assets/specs are not finalized.
+- `LauncherInventoryService` enforces Lobby-only equip and unequip. `TeamSelectionController.client.lua` binds the Studio UI without creating UI instances. Launcher texture IDs remain placeholders until filled in `LauncherTextureConfig.lua`; missing Studio team/GUI/projectile instances warn and must be restored to Rojo sync manually. `PlasmaCannon` uses `PlasmaBall` with physical flight and `DamagePipelineService`; `SlowBlaster` homes with `SlowBall`; active ability IDs are distinct from passive ability IDs.
