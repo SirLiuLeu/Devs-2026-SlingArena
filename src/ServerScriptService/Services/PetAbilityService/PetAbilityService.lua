@@ -46,6 +46,7 @@ function PetAbilityService.new(context)
 	local self = setmetatable({}, PetAbilityService)
 	self._context = context
 	self._activeEffects = {}
+	self._abilityCooldownEnds = {}
 	self._effectModules = {}
 	self._connections = {}
 	self._heartbeatConnection = nil
@@ -58,6 +59,8 @@ function PetAbilityService:Init()
 	-- [DEBUG_TRACE] print("[ROUND_END_TRACE][PetAbilityService] Init START; registering effect modules")
 	local petEffects = script.Parent.PetAbilities
 	self:RegisterEffect("NoOp", require(petEffects.NoOp))
+	self:RegisterEffect("PlasmaCannon", require(petEffects.PlasmaCannon))
+	self:RegisterEffect("SlowBlaster", require(petEffects.SlowBlaster))
 	self:RegisterEffect("Poison", require(petEffects.Poison))
 	self:RegisterEffect("Burn", require(petEffects.Burn))
 	self:RegisterEffect("Slow", require(petEffects.Slow))
@@ -83,6 +86,7 @@ function PetAbilityService:Init()
 			end
 		end
 		self._activeEffects[player] = nil
+		self._abilityCooldownEnds[player] = nil
 	end))
 	if bus then
 		if DebugConfig.VerboseTrace then print("[ROUND_END_TRACE][PetAbilityService] EventBus found; binding pet/effect lifecycle handlers") end
@@ -140,17 +144,31 @@ end
 
 function PetAbilityService:_onAbilityTrigger(player: Player, payload: any)
 	if type(payload) ~= "table" or type(payload.abilityId) ~= "string" then return end
+	local playerStateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local roundService = ServiceResolver.Get(self._context, "RoundService")
+	if not (playerStateService and playerStateService:IsLauncher(player)) then return end
+	if not (roundService and roundService:IsPlayingState()) then return end
+
 	local playerEffects = self._activeEffects[player]
 	if not playerEffects then return end
 	for _, effectState in pairs(playerEffects) do
 		local definition = effectState.context.definition
-		if definition and definition.abilityId == payload.abilityId then
+		if definition and definition.activeAbilityId == payload.abilityId then
 			local handler = effectState.module.OnAbilityTrigger or effectState.module.OnAttack
-			if typeof(handler) == "function" then
-				handler(effectState.context, payload)
-			else
-				warn(string.format("[PET_EFFECT] Ability trigger for %s is not implemented.", tostring(definition.PetId)))
+			if typeof(handler) ~= "function" then
+				warn(string.format("[PET_EFFECT] Active ability %s has no trigger handler.", tostring(definition.PetId)))
+				return
 			end
+			local params = effectState.context.progression and effectState.context.progression.abilityParams or {}
+			local passiveParams = definition.passiveAbility and definition.passiveAbility.params or {}
+			local cooldown = math.max(0, tonumber(params.cooldown) or tonumber(passiveParams.cooldown) or 0)
+			local cooldownMap = self._abilityCooldownEnds[player]
+			if not cooldownMap then cooldownMap = {}; self._abilityCooldownEnds[player] = cooldownMap end
+			local now = os.clock()
+			if (cooldownMap[payload.abilityId] or 0) > now then return end
+			local activated = handler(effectState.context, payload)
+			if activated ~= false then cooldownMap[payload.abilityId] = now + cooldown end
+			return
 		end
 	end
 end
@@ -236,6 +254,8 @@ function PetAbilityService:ActivatePet(player, _slotType: string, instanceId: st
 		Remotes = self._context.Remotes,
 		FoodService = ServiceResolver.Get(self._context, "FoodService"),
 		PlayerService = ServiceResolver.Get(self._context, "PlayerService"),
+		DamagePipelineService = ServiceResolver.Get(self._context, "DamagePipelineService"),
+		RoundService = ServiceResolver.Get(self._context, "RoundService"),
 	}
 	local effectState = { module = module, context = context }
 	self._activeEffects[player][instanceId] = effectState

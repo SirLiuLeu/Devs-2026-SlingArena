@@ -34,13 +34,13 @@ function Component.new(parent: Instance)
 			warnMissing("StarterGui.MainHUD.SkillButton.Activate (GuiButton)")
 		end
 	end
-	table.insert(self._connections, player:GetAttributeChangedSignal("CurrentPetAbilityId"):Connect(function()
-		self._currentAbilityId = player:GetAttribute("CurrentPetAbilityId")
+	table.insert(self._connections, player:GetAttributeChangedSignal("CurrentPetActiveAbilityId"):Connect(function()
+		self._currentAbilityId = player:GetAttribute("CurrentPetActiveAbilityId")
 	end))
 	table.insert(self._connections, stateUpdate.OnClientEvent:Connect(function(state)
 		self:Update(state)
 	end))
-	self._currentAbilityId = player:GetAttribute("CurrentPetAbilityId")
+	self._currentAbilityId = player:GetAttribute("CurrentPetActiveAbilityId")
 	return self
 end
 
@@ -51,13 +51,13 @@ function Component:SetPetState(ownedPets: any, equippedPets: any)
 		local instanceId = equippedPets[slot]
 		local instance = instanceId and ownedPets[instanceId]
 		local definition = type(instance) == "table" and PetsConfig.GetById(tostring(instance.definitionId or "")) or nil
-		if definition and definition.abilityId then
-			self._currentAbilityId = definition.abilityId
-			player:SetAttribute("CurrentPetAbilityId", self._currentAbilityId)
+		if definition and definition.activeAbilityId then
+			self._currentAbilityId = definition.activeAbilityId
+			player:SetAttribute("CurrentPetActiveAbilityId", self._currentAbilityId)
 			return
 		end
 	end
-	player:SetAttribute("CurrentPetAbilityId", nil)
+	player:SetAttribute("CurrentPetActiveAbilityId", nil)
 end
 
 function Component:Update(state: any)

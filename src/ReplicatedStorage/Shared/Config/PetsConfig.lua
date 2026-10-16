@@ -28,6 +28,7 @@ export type PetDefinition = {
 	category: string,
 	rarity: string,
 	abilityId: string?,
+	activeAbilityId: string?,
 	effectId: string?,
 	combatEffect: CombatEffect?,
 	passiveAbility: PassiveAbility?,
@@ -50,7 +51,7 @@ PetsConfig.Categories = {
 	UtilityAreaEffect = "Utility / Area Effect",
 }
 
-local function pet(petId: string, name: string, displayName: string, rarity: string, category: string, abilityId: string?, combatEffect: CombatEffect?, passiveAbility: PassiveAbility?, statModifiers: StatModifiers?): PetDefinition
+local function pet(petId: string, name: string, displayName: string, rarity: string, category: string, abilityId: string?, combatEffect: CombatEffect?, passiveAbility: PassiveAbility?, statModifiers: StatModifiers?, activeAbilityId: string?): PetDefinition
 	return {
 		PetId = petId,
 		Name = name,
@@ -59,6 +60,7 @@ local function pet(petId: string, name: string, displayName: string, rarity: str
 		category = category,
 		rarity = rarity,
 		abilityId = abilityId,
+		activeAbilityId = activeAbilityId,
 		effectId = abilityId or "NoOp",
 		combatEffect = combatEffect,
 		passiveAbility = passiveAbility,
@@ -71,13 +73,12 @@ end
 PetsConfig.Definitions = {
 
     -- Active Attack
-    PlasmaCannon = pet("PlasmaCannon", "Octopus", "Octopus", PetsConfig.Rarities.Epic, PetsConfig.Categories.ActiveAttack, "NoOp", nil,
-        { type = "ActiveAttack", params = { cooldown = 10, diagnostic = "Plasma Cannon active attack is not yet implemented" } },
-        { Add = {}, Multiply = {} }),
+    PlasmaCannon = pet("PlasmaCannon", "Octopus", "Octopus", PetsConfig.Rarities.Epic, PetsConfig.Categories.ActiveAttack, "PlasmaCannon", nil,
+        { type = "ActiveAttack", params = { cooldown = 10 } },
+        { Add = {}, Multiply = {} }, "PlasmaCannon"),
 
-    Hydra = pet("Hydra", "Hydra", "Hydra", PetsConfig.Rarities.Rare, PetsConfig.Categories.ActiveAttack, "Slow",
-        { collisionFlag = "Slow", collisionExtraDuration = 3 },
-        { type = "ProjectileSlow", params = { cooldown = 3, diagnostic = "Slow Blaster projectile is not yet implemented; collision slow uses the shared Slow effect" } },
+    Hydra = pet("Hydra", "Hydra", "Hydra", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "Titan",
+        nil, { type = "Titan" },
         { Add = {}, Multiply = {} }),
 
     -- Crowd Control
@@ -123,9 +124,9 @@ PetsConfig.Definitions = {
     LaunchBooster = pet("LaunchBooster", "Bee", "Bee", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
         nil, nil, nil, { Add = {}, Multiply = { launchSpeed = 1.2 } }),
 
-    Dragon = pet("Dragon", "Dragon", "Dragon", PetsConfig.Rarities.Epic, PetsConfig.Categories.PassiveStatModifier, "Titan",
-        nil, { type = "Titan" },
-        { Add = {}, Multiply = {} }),
+    Dragon = pet("Dragon", "Dragon", "Dragon", PetsConfig.Rarities.Epic, PetsConfig.Categories.ActiveAttack, "SlowBlaster",
+        nil, { type = "ActiveAttack", params = { cooldown = 8, projectileSpeed = 15, lifetime = 10, maxRange = 120 } },
+        { Add = {}, Multiply = {} }, "SlowBlaster"),
 
     QuickReload = pet("QuickReload", "Dog", "Dog", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
         nil, nil, nil, { Add = { launchCooldown = -1 }, Multiply = {} }),
