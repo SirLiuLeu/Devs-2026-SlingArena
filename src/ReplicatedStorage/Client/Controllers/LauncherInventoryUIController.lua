@@ -68,6 +68,9 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._regen = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.Regeneration)
 	self._equip = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.EquipButton)
 	self._sell = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.SellButton)
+	if not self._sell then
+		warn("[LAUNCHER_INVENTORY_UI] Missing StarterGui.LauncherInventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.SellButton; create/rename this TextButton in Studio.")
+	end
 
 	local assets = ReplicatedStorage:WaitForChild("Assets")
 	self._launcherAssets = assets:FindFirstChild("Launchers")
