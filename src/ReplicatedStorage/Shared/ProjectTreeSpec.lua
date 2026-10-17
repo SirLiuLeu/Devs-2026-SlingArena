@@ -9,7 +9,7 @@ local ProjectTreeSpec = {
 			LeaveButton = "UnitTestUI.RootFrame.LeaveButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.LeaveButton
 			StartSafeZoneButton = "UnitTestUI.RootFrame.StartSafeZoneButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.StartSafeZoneButton
 			Plus1MinuteButton = "UnitTestUI.RootFrame.Plus1Minute", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.Plus1Minute
-			LevelUp5Button = "UnitTestUI.RootFrame.LevelUp5", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.LevelUp5, -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.Plus1Minute
+			LevelUp5Button = "UnitTestUI.RootFrame.LevelUp5", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.LevelUp5
 			DebugResetButton = "UnitTestUI.RootFrame.DebugReset", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.DebugReset
 			EndRoundButton = "UnitTestUI.RootFrame.EndRoundButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.EndRoundButton
 		},
