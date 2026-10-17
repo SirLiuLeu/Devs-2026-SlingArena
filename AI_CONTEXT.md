@@ -58,6 +58,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `AbilityConfig.lua` | No runtime table currently present (empty file). | usage unclear |
 | `BalanceConfig.lua` | Core balance constants for combat, collisions, growth, launch, respawn, food, and economy values. | `LauncherService`, `GrowthService`, `PlayerStateService`, `CollisionService`, `DamagePipelineService`, `FoodService`, `LevelConfig` |
 | `Config.lua` | Base gameplay constants (force/charge/physics/arena/player defaults and movement speed). | `LauncherService`, `PlayerService`, `SafeZoneService`, `CollisionService` |
+| `ConfirmationTextConfig.lua` | Shared confirmation and team-feedback messages, with `vi`/`en` lookup and placeholder substitution. | `TeamSelectionUIController`, `UIController`, `LauncherInventoryUIController` |
 | `DebugConfig.lua` | Debug and diagnostic feature flags. | client and server diagnostics |
 | `GachaRewardConfig.lua` | Gacha reward entries (id/type/weight/icon/name/teamBonus) and reward accessor. | `GachaSpinLogic`, `SpinUIController`, `GachaSpinLogicTests` |
 | `GameConfig.lua` | Placeholder comments for player cap/phase/respawn/join rules; no exported config table. | usage unclear |
@@ -65,6 +66,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
 | `PetAbilityProgressionConfig.lua` | Ability parameters at levels 1/5/10/15/20 plus `Display = { Format, Templates = { en, vi } }` localization data. | `PetProgression`, `PetDisplayFormatter` |
 | `PetPreviewConfig.lua` | Per-pet viewport camera `Rotation` and `Offset`, accessed through `Get(petId)`. | `InventoryUIController`, `PreviewRenderer` |
+| `PetRenderConfig.lua` | Client-side nearby Pet render distance, range-check interval, and exit hysteresis. | `ClientPetController` |
 | `LauncherPreviewConfig.lua` | Per-Launcher viewport camera `Rotation` and `Offset`, accessed through `Get(launcherId)`. | `LauncherInventoryUIController`, `PreviewRenderer` |
 | `PetRarityStatsConfig.lua` | Base HP and damage values by pet rarity. | `PetProgression`, pet UI |
 | `PetsConfig.lua` | Pet definition catalog, ability IDs, rarity, and max-level settings. | `PetService`, `PetProgression`, `InventoryUIController` |
@@ -111,9 +113,19 @@ Config modules store shared tuning and content tables (movement/combat constants
 - `LauncherConfig` already resolves each Launcher `weight` to `PlayerState.Weight`; collision knockback now applies the attacker/defender weight ratio, capped at 1.4, and a global velocity cap.
 - `LauncherPreviewConfig` and `PetPreviewConfig` expose per-model `Scale` (default 1). `PreviewRenderer` adjusts preview camera distance from this value instead of changing runtime model size.
 - `PetStatResolver` now includes equipped pet `statModifiers.Add.reflectDamage` in the derived reflect stat, clamped to 50%. The damage pipeline also processes attacker death if reflected damage is lethal.
-- `TeamConfig` and `LauncherTextureConfig` define four teams, a 10-player cap, and shared texture slots for White/Yellow/Blue/Red/Rage. `TeamSelectionUIController` binds the Studio-authored `StarterGui.TeamSelectionGui` and sends validated `ChangeTeam` requests. Replace the five `rbxassetid://0` texture placeholders before release.
+- `TeamConfig` and `LauncherTextureConfig` define four teams, a 10-player cap, and shared texture slots for White/Yellow/Blue/Red/Rage. `TeamSelectionUIController` binds the Studio-authored `StarterGui.TeamSelectionGui` and sends validated `ChangeTeam` requests; texture IDs are configured and still need visual verification in Studio.
 - `PlayerService` applies configured team/Rage textures to each equipped Launcher model and applies team colors to world HP bars. Rage switches Roblox team membership to neutral while preserving `PlayerState.TeamId` for scoreboard/history.
 - `LauncherConfig.control`, `maxShootRange`, `PlayerState.LaunchRange`, and the unused Range stat were removed. The Launcher inventory reuses its existing Range label to display Weight.
 - Hydra uses Titan passive scaling (weight multiplier grows 1.5% per level, with a final-level +0.5%; hitbox +2%/level capped at 1.5x; visual +4%/level capped at 2x). Titan modifiers affect collision weight ratios, physical density, hitbox size, and visual scale.
 - Octopus uses the server-authoritative PlasmaCannon projectile (10s cooldown, 60 studs/s, 700–1100 damage by level) via `Assets.Prefabs.PlasmaBall`. Dragon uses SlowBlaster (8s cooldown, 15 studs/s homing, 10s max lifetime, 3–5s Slow by level) via `Assets.Prefabs.SlowBall`. Both prefab instances are Studio assets and must remain present after Rojo sync; server modules warn and continue safely when absent.
 - Only the first equipped pet with `activeAbilityId` controls the single SkillButton. Active ability dispatch checks `activeAbilityId` on the server, separate from passive/effect identity.
+
+
+## Implementation update (2026-10-17)
+
+- Team selection uses the shared ConfirmationUIController and ConfirmationTextConfig; the confirmation copy supports Vietnamese/English. Team counts use the replicated Player.TeamId attribute, full teams flash red twice, and ToggleBtn shows the current team name/color when it is a TextButton.
+- PlayerService:_applyTeamTexture intentionally inspects only direct children of the equipped Launcher model (GetChildren()), per the agreed asset requirement. Texture changes on nested descendants are not applied.
+- Octopus PlasmaCannon and Dragon SlowBlaster scan for valid targets on a 0.5-second interval and auto-trigger when their cooldown is ready. PetAbilityService no longer listens for click-driven active-Pet triggers. Successful attacks log [PET_ABILITY_ACTIVATED].
+- PlayerStateService:SyncPetFromData replicates equipped Pet IDs as Player attributes. ClientPetController creates local Pet visuals only for players within PetRenderConfig.NearbyRenderDistance and destroys remote visuals when they move out of range.
+- UnitTestUI.RootFrame.LevelUp5 is wired through ProjectTreeSpec, LobbyClientService, and a Studio-only DebugLevelUp5 RemoteEvent; the server grants up to five levels and fires the normal LevelUp events.
+- Runtime status: these changes have been source-reviewed against the repository, but have not been executed in Roblox Studio in this pass. Verify the Team GUI/Teams instances, all Launcher textures, Assets.Prefabs.PlasmaBall and SlowBall, level-up growth, and two/multi-client nearby-Pet behavior in Studio.
