@@ -372,8 +372,12 @@ end
 function ClientPetController:Destroy()
 	for _, connection in ipairs(self._connections) do connection:Disconnect() end
 	table.clear(self._connections)
-	for player in pairs(self._ownerConnections) do self:_unwatchPlayer(player) end
-	for player in pairs(self._renderedPets) do self:_destroyOwnerModels(player) end
+	local watchedPlayers = {}
+	for player in pairs(self._ownerConnections) do table.insert(watchedPlayers, player) end
+	for _, player in ipairs(watchedPlayers) do self:_unwatchPlayer(player) end
+	local renderedOwners = {}
+	for player in pairs(self._renderedPets) do table.insert(renderedOwners, player) end
+	for _, player in ipairs(renderedOwners) do self:_destroyOwnerModels(player) end
 	table.clear(self._ownerNear)
 	self._started = false
 end
