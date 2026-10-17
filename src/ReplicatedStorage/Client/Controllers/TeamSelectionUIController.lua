@@ -4,7 +4,6 @@ local Players = game:GetService("Players")
 local Teams = game:GetService("Teams")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
 
 local TeamConfig = require(ReplicatedStorage.Shared.Config.TeamConfig)
 local ConfirmationTextConfig = require(ReplicatedStorage.Shared.Config.ConfirmationTextConfig)
@@ -77,7 +76,8 @@ function TeamSelectionUIController:_refreshToggleStyle()
 end
 
 function TeamSelectionUIController:_flashFullTeam(teamId: string?)
-	local entry = teamId and self._teamButtons[teamId]
+	if type(teamId) ~= "string" then return end
+	local entry = self._teamButtons[teamId]
 	local button = entry and entry.button
 	if not button or not button.Parent then return end
 	local version = (self._flashVersions[teamId] or 0) + 1
@@ -98,8 +98,13 @@ function TeamSelectionUIController:_flashFullTeam(teamId: string?)
 end
 
 function TeamSelectionUIController:_teamPlayerCount(teamId: string): number
-	local team = Teams:FindFirstChild(teamId)
-	return if team and team:IsA("Team") then #team:GetPlayers() else 0
+	local count = 0
+	for _, player in ipairs(Players:GetPlayers()) do
+		local assignedTeamId = player:GetAttribute("TeamId")
+		if type(assignedTeamId) ~= "string" and player.Team then assignedTeamId = player.Team.Name end
+		if assignedTeamId == teamId then count += 1 end
+	end
+	return count
 end
 
 function TeamSelectionUIController:_requestTeamChange(teamId: string)
@@ -229,10 +234,12 @@ function TeamSelectionUIController:Start()
 	table.insert(self._connections, Teams.ChildRemoved:Connect(function() self:_refreshCounts() end))
 	table.insert(self._connections, Players.PlayerAdded:Connect(function(player)
 		table.insert(self._connections, player:GetPropertyChangedSignal("Team"):Connect(function() self:_refreshCounts() end))
+		table.insert(self._connections, player:GetAttributeChangedSignal("TeamId"):Connect(function() self:_refreshCounts() end))
 		self:_refreshCounts()
 	end))
 	for _, player in ipairs(Players:GetPlayers()) do
 		table.insert(self._connections, player:GetPropertyChangedSignal("Team"):Connect(function() self:_refreshCounts() end))
+		table.insert(self._connections, player:GetAttributeChangedSignal("TeamId"):Connect(function() self:_refreshCounts() end))
 	end
 	self:_refreshCounts()
 	self:_refreshToggleStyle()
