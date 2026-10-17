@@ -210,12 +210,37 @@ function PlasmaCannon.OnTick(context, dt: number)
 		local nextPosition = data.position + data.velocity * dt + gravity * (0.5 * dt * dt)
 		local displacement = nextPosition - data.position
 		if displacement.Magnitude > 0.001 then
-			local params = RaycastParams.new()
-			params.FilterType = Enum.RaycastFilterType.Include
-			params.FilterDescendantsInstances = candidatePawns(context)
-			params.IgnoreWater = true
-			local ok, result = pcall(function() return Workspace:Spherecast(data.position, data.radius, displacement, params) end)
-			local victim = if ok and result then resolvePlayerFromHit(result.Instance, context) else nil
+			local targetPawns = candidatePawns(context)
+			local targetParams = RaycastParams.new()
+			targetParams.FilterType = Enum.RaycastFilterType.Include
+			targetParams.FilterDescendantsInstances = targetPawns
+			targetParams.IgnoreWater = true
+			local targetCastOk, targetResult = pcall(function()
+				return Workspace:Spherecast(data.position, data.radius, displacement, targetParams)
+			end)
+
+			-- PlasmaBall was collidable before this change; retain wall/solid-obstacle blocking
+			-- while excluding player models from this second, environment-only sweep.
+			local excludedPlayerModels = {}
+			for _, candidate in ipairs(Players:GetPlayers()) do
+				local pawn = context.PlayerService and context.PlayerService:GetPawn(candidate)
+				if pawn and pawn.Parent then table.insert(excludedPlayerModels, pawn) end
+				if candidate.Character and candidate.Character.Parent then table.insert(excludedPlayerModels, candidate.Character) end
+			end
+			local environmentParams = RaycastParams.new()
+			environmentParams.FilterType = Enum.RaycastFilterType.Exclude
+			environmentParams.FilterDescendantsInstances = excludedPlayerModels
+			environmentParams.IgnoreWater = true
+			local environmentCastOk, environmentResult = pcall(function()
+				return Workspace:Spherecast(data.position, data.radius, displacement, environmentParams)
+			end)
+			local hitPlayersFirst = targetCastOk and targetResult ~= nil
+				and (not (environmentCastOk and environmentResult) or targetResult.Distance < environmentResult.Distance)
+			if environmentCastOk and environmentResult and not hitPlayersFirst then
+				endProjectile(context, projectile, data)
+				continue
+			end
+			local victim = if hitPlayersFirst then resolvePlayerFromHit(targetResult.Instance, context) else nil
 			if victim and victim ~= context.player and not (context.TeamService and context.TeamService:IsFriendly(context.player, victim)) then
 				local damage = tonumber(context.progression and context.progression.abilityParams and context.progression.abilityParams.damage) or 700
 				local damageService = context.DamagePipelineService
