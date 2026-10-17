@@ -61,7 +61,7 @@ local ProjectTreeSpec = {
 		},
 		TeamSelection = {
 			ScreenGui = "TeamSelectionGui", -- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui (ScreenGui)
-			ToggleButton = "TeamSelectionGui.ToggleBtn", -- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.ToggleBtn (ImageButton)
+			ToggleButton = "TeamSelectionGui.ToggleBtn", -- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.ToggleBtn (TextButton/ImageButton)
 			PopupFrame = "TeamSelectionGui.TeamPopupFrame", -- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame (Frame, Visible=false)
 			-- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame.UIListLayout (UIListLayout) or UIGridLayout (UIGridLayout)
 			-- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame.UIPadding (UIPadding)
