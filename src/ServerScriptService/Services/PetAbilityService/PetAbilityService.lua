@@ -110,15 +110,21 @@ function PetAbilityService:Init()
 			local equipped = dataService and dataService:GetEquippedPets(player) or {}
 			for slotType, equippedInstanceId in pairs(equipped) do
 				if equippedInstanceId == instanceId then
-					local preservedTitanGrowth = nil
 					local oldEffect = self._activeEffects[player] and self._activeEffects[player][instanceId]
 					if oldEffect and oldEffect.context.definition and oldEffect.context.definition.effectId == "Titan" then
-						preservedTitanGrowth = {
-							multiplier = tonumber(oldEffect.context._visualMultiplier) or 1,
-							levels = math.max(0, math.floor(tonumber(oldEffect.context._visualGrowthLevels) or 0)),
+						-- Refresh Titan's pet-level stats in place so the player-level visual factor
+						-- survives upgrades without clearing/reapplying scale attributes.
+						local context = oldEffect.context
+						context.ownedInstance = ownedInstance
+						context.progression = PetProgression.Resolve(ownedInstance)
+						context.preservedTitanVisualGrowth = {
+							multiplier = tonumber(context._visualMultiplier) or 1,
+							levels = math.max(0, math.floor(tonumber(context._visualGrowthLevels) or 0)),
 						}
+						if typeof(oldEffect.module.OnInit) == "function" then oldEffect.module.OnInit(context) end
+					else
+						self:ActivatePet(player, slotType, instanceId, ownedInstance)
 					end
-					self:ActivatePet(player, slotType, instanceId, ownedInstance, preservedTitanGrowth)
 					break
 				end
 			end
@@ -205,7 +211,7 @@ function PetAbilityService:DeactivateAllPet(player): ()
 	end
 end
 
-function PetAbilityService:ActivatePet(player, _slotType: string, instanceId: string, ownedInstance: any, preservedTitanGrowth: any?): boolean
+function PetAbilityService:ActivatePet(player, _slotType: string, instanceId: string, ownedInstance: any): boolean
 	print(string.format("[PET_EFFECT][SUCCESS] ActivatePet player=%s instanceId=%s definitionId=%s", player and player.Name or "nil", tostring(instanceId), tostring(ownedInstance and ownedInstance.definitionId)))
 	local definition = ownedInstance and PetsConfig.GetById(tostring(ownedInstance.definitionId or ""))
 	if not definition or not definition.effectId then
@@ -225,7 +231,6 @@ function PetAbilityService:ActivatePet(player, _slotType: string, instanceId: st
 		instanceId = instanceId,
 		definition = definition,
 		ownedInstance = ownedInstance,
-		preservedTitanVisualGrowth = preservedTitanGrowth,
 		progression = PetProgression.Resolve(ownedInstance),
 		FlagService = ServiceResolver.Get(self._context, "FlagService"),
 		PlayerStateService = ServiceResolver.Get(self._context, "PlayerStateService"),
