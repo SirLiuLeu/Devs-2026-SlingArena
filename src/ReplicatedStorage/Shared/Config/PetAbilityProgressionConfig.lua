@@ -1,7 +1,11 @@
 --!strict
 
--- Most ability values change at milestones; Titan size/weight values scale every level.
+-- Most ability values change at milestones; Titan weight/hitbox scale with pet level,
+-- while equipped Titan's visual growth is earned from player level-ups in real time.
 local PetAbilityProgressionConfig = {}
+
+PetAbilityProgressionConfig.TitanVisualGrowthPerPlayerLevel = 0.04
+PetAbilityProgressionConfig.TitanVisualMultiplierCap = 2
 
 PetAbilityProgressionConfig.Milestones = { 1, 5, 10, 15, 20 }
 PetAbilityProgressionConfig.Abilities = {
@@ -15,7 +19,7 @@ PetAbilityProgressionConfig.Abilities = {
 	},
 	Titan = {
 		[1] = { weightMultiplier = 1.00, hitboxMultiplier = 1.00, visualMultiplier = 1.00, incomingKnockbackMultiplier = 0.90, outgoingKnockbackMultiplier = 1.10 }, [5] = { weightMultiplier = 1.06, hitboxMultiplier = 1.08, visualMultiplier = 1.16, incomingKnockbackMultiplier = 0.86, outgoingKnockbackMultiplier = 1.14 }, [10] = { weightMultiplier = 1.135, hitboxMultiplier = 1.18, visualMultiplier = 1.36, incomingKnockbackMultiplier = 0.81, outgoingKnockbackMultiplier = 1.19 }, [15] = { weightMultiplier = 1.21, hitboxMultiplier = 1.28, visualMultiplier = 1.56, incomingKnockbackMultiplier = 0.76, outgoingKnockbackMultiplier = 1.24 }, [20] = { weightMultiplier = 1.29, hitboxMultiplier = 1.38, visualMultiplier = 1.76, incomingKnockbackMultiplier = 0.71, outgoingKnockbackMultiplier = 1.29 },
-		Display = { Format = "multiplier", Templates = { vi = "Tăng kích thước {current} -> {next}", en = "Increase size {current} -> {next}" } },
+		Display = { Format = "text", Templates = { vi = "Khi Hydra được trang bị: Launcher tăng 4% kích thước mỗi cấp người chơi (tối đa 2x)", en = "While Hydra is equipped: Launcher size grows 4% per player level (up to 2x)" } },
 	},
 	Regeneration = {
 		[1] = { healAmount = 500, tickInterval = 5 }, [5] = { healAmount = 650, tickInterval = 5 }, [10] = { healAmount = 800, tickInterval = 5 }, [15] = { healAmount = 950, tickInterval = 5 }, [20] = { healAmount = 1100, tickInterval = 5 },
@@ -47,8 +51,8 @@ function PetAbilityProgressionConfig.GetParams(abilityId: string?, level: number
 		return {
 			weightMultiplier = math.min(1.5, 1 + 0.015 * (safeLevel - 1) + (if safeLevel >= 20 then 0.005 else 0)),
 			hitboxMultiplier = math.min(1.5, 1 + 0.02 * (safeLevel - 1)),
-			visualMultiplier = math.min(2, 1 + 0.04 * (safeLevel - 1)),
-			sizeMultiplier = math.min(2, 1 + 0.04 * (safeLevel - 1)),
+			visualMultiplier = 1,
+			sizeMultiplier = 1,
 			incomingKnockbackMultiplier = math.max(0.70, 0.90 - 0.01 * (safeLevel - 1)),
 			outgoingKnockbackMultiplier = 1.10 + 0.01 * (safeLevel - 1),
 		}
