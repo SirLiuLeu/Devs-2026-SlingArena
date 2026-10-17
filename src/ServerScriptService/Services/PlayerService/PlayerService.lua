@@ -293,7 +293,7 @@ function PlayerService:_applyTeamTexture(pawn: Model, teamId: string?)
 	if not equipped then return end
 	if pawn:GetAttribute("AppliedLauncherTextureKey") == textureKey then return end
 	pawn:SetAttribute("AppliedLauncherTextureKey", textureKey)
-	for _, descendant in ipairs(equipped:GetDescendants()) do
+	for _, descendant in ipairs(equipped:GetChildren()) do
 		if descendant:IsA("MeshPart") then
 			if descendant:GetAttribute("OriginalTeamTextureId") == nil then descendant:SetAttribute("OriginalTeamTextureId", descendant.TextureID) end
 			local original = descendant:GetAttribute("OriginalTeamTextureId")
