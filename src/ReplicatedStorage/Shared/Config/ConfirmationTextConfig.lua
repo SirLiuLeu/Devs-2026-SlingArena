@@ -29,6 +29,10 @@ local TEXTS = {
 		vi = "Bạn có chắc chắn muốn bỏ trang bị Launcher này không?",
 		en = "Are you sure you want to unequip this launcher?",
 	},
+	SellLauncher = {
+		vi = "Bạn có chắc chắn muốn bán Launcher này để nhận {price} kim cương không?",
+		en = "Are you sure you want to sell this launcher for {price} Diamonds?",
+	},
 	LeaveArena = {
 		vi = "Rời đấu trường lúc này sẽ bị phạt 30 giây. Bạn có chắc chắn không?",
 		en = "Leaving now will apply a 30-second penalty. Are you sure?",
