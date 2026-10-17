@@ -149,6 +149,12 @@ function PlayerDataService:_ensureLauncherData(data: { [string]: any })
 			launcher.star = math.max(1, math.floor(tonumber(launcher.star) or 1))
 			launcher.level = math.max(1, math.floor(tonumber(launcher.level) or 1))
 			launcher.acquiredAt = tonumber(launcher.acquiredAt) or os.time()
+			launcher.expiresAt = tonumber(launcher.expiresAt)
+			if launcher.isTemporary == true or launcher.expiresAt ~= nil then
+				launcher.isTemporary = true
+			else
+				launcher.isTemporary = nil
+			end
 		end
 	end
 	if type(data.EquippedLauncherInstanceId) ~= "string" or data.OwnedLaunchers[data.EquippedLauncherInstanceId] == nil then
@@ -523,16 +529,31 @@ function PlayerDataService:GetRoundProgressPoints(player: Player): number
 	return data.ProgressPoints.RoundPoints
 end
 
-function PlayerDataService:GrantLauncher(player: Player, definitionId: string, instanceId: string?): (boolean, string?)
-	local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+function PlayerDataService:GrantLauncher(player: Player, definitionId: string, instanceId: string?, options: { isTemporary: boolean?, durationSeconds: number?, expiresAt: number? }?): (boolean, string?)
 	if not LauncherConfig.GetById(definitionId) then return false, "InvalidLauncher" end
 	local id = instanceId or (definitionId .. "_" .. tostring(os.time()))
+	local expiresAt = options and (tonumber(options.expiresAt) or (options.durationSeconds and (os.time() + math.max(1, math.floor(options.durationSeconds))))) or nil
+	local isTemporary = options ~= nil and options.isTemporary == true or expiresAt ~= nil
 	self:UpdateData(player, function(data)
 		self:_ensureLauncherData(data)
-		data.OwnedLaunchers[id] = data.OwnedLaunchers[id] or { definitionId = definitionId, star = 1, level = 1, acquiredAt = os.time() }
+		if data.OwnedLaunchers[id] == nil then
+			data.OwnedLaunchers[id] = {
+				definitionId = definitionId,
+				star = 1,
+				level = 1,
+				acquiredAt = os.time(),
+				isTemporary = if isTemporary then true else nil,
+				expiresAt = expiresAt,
+			}
+		end
 		return data
 	end)
 	return true, id
+end
+
+function PlayerDataService:GrantTemporaryLauncher(player: Player, definitionId: string, durationSeconds: number, instanceId: string?): (boolean, string?)
+	local duration = math.max(1, math.floor(tonumber(durationSeconds) or 1))
+	return self:GrantLauncher(player, definitionId, instanceId, { isTemporary = true, durationSeconds = duration })
 end
 
 function PlayerDataService:EquipLauncher(player: Player, instanceId: string): (boolean, string?)
@@ -552,6 +573,46 @@ function PlayerDataService:UnequipLauncher(player: Player): boolean
 		return data
 	end)
 	return true
+end
+
+-- Removes ownership and awards the sale price in the same authoritative data mutation.
+-- Client payloads contain only instanceId; eligibility and price are always decided here.
+function PlayerDataService:SellLauncher(player: Player, instanceId: string): (boolean, string?, number?)
+	if type(instanceId) ~= "string" or instanceId == "" then return false, "InvalidInstanceId", 0 end
+	local failure: string? = nil
+	local salePrice = 0
+	self:UpdateData(player, function(data)
+		self:_ensureLauncherData(data)
+		data.Diamonds = math.max(0, math.floor(tonumber(data.Diamonds) or 0))
+		local launcher = data.OwnedLaunchers[instanceId]
+		if type(launcher) ~= "table" then failure = "NotOwned"; return data end
+		if instanceId == "default_normal_launcher" then failure = "ProtectedLauncher"; return data end
+		if data.EquippedLauncherInstanceId == instanceId then failure = "Equipped"; return data end
+		local expiresAt = tonumber(launcher.expiresAt)
+		if expiresAt and expiresAt <= os.time() then failure = "Expired"; return data end
+		local isTemporary = launcher.isTemporary == true or expiresAt ~= nil
+		local definition = LauncherConfig.GetById(tostring(launcher.definitionId or ""))
+		if not definition then failure = "InvalidLauncher"; return data end
+		if isTemporary then
+			salePrice = LauncherConfig.TemporarySellPrice
+		else
+			local duplicateCount = 0
+			for otherId, other in pairs(data.OwnedLaunchers) do
+				local otherExpiresAt = type(other) == "table" and tonumber(other.expiresAt) or nil
+				local otherTemporary = type(other) == "table" and (other.isTemporary == true or otherExpiresAt ~= nil)
+				if otherId ~= instanceId and type(other) == "table" and other.definitionId == launcher.definitionId and not otherTemporary then
+					duplicateCount += 1
+				end
+			end
+			if duplicateCount < 1 then failure = "NotDuplicate"; return data end
+			salePrice = math.max(0, math.floor(tonumber(definition.sellPrice) or 0))
+		end
+		data.OwnedLaunchers[instanceId] = nil
+		data.Diamonds += salePrice
+		return data
+	end)
+	if failure then return false, failure, 0 end
+	return true, nil, salePrice
 end
 
 return PlayerDataService
