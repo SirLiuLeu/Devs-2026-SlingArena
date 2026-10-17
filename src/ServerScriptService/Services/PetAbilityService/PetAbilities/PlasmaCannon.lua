@@ -10,6 +10,7 @@ local CONFIG = {
 	ProjectileSpeed = 60,
 	TargetRange = 120,
 	Lifetime = 10,
+	TargetScanInterval = 0.5,
 }
 
 local PlasmaCannon = {}
@@ -66,14 +67,17 @@ function PlasmaCannon.OnAbilityTrigger(context)
 	if now < (context._nextAbilityAt or 0) then return end
 	local stateService = context.PlayerStateService
 	if not stateService or not stateService:IsLauncher(context.player) or stateService:HasFlag(context.player, "Ghost") then return end
-	local _, targetRoot = findTarget(context)
-	if not targetRoot then return end
+	local target, targetRoot = findTarget(context)
+	if not (target and targetRoot) then return end
 
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
 	local prefabs = assets and assets:FindFirstChild("Prefabs")
 	local template = prefabs and prefabs:FindFirstChild("PlasmaBall")
 	if not template then
-		warn("[PET_EFFECT][PlasmaCannon] ReplicatedStorage.Assets.Prefabs.PlasmaBall is missing; create the projectile model in Studio.")
+		if not context._warnedMissingProjectile then
+			warn("[PET_EFFECT][PlasmaCannon] ReplicatedStorage.Assets.Prefabs.PlasmaBall is missing; create the projectile model in Studio.")
+			context._warnedMissingProjectile = true
+		end
 		return
 	end
 	local attackerRoot = context.PlayerService and context.PlayerService:GetRoot(context.player)
@@ -81,7 +85,10 @@ function PlasmaCannon.OnAbilityTrigger(context)
 	local projectile = template:Clone()
 	local part = getProjectilePart(projectile)
 	if not part then
-		warn("[PET_EFFECT][PlasmaCannon] PlasmaBall must be a BasePart or Model containing a BasePart.")
+		if not context._warnedInvalidProjectile then
+			warn("[PET_EFFECT][PlasmaCannon] PlasmaBall must be a BasePart or Model containing a BasePart.")
+			context._warnedInvalidProjectile = true
+		end
 		projectile:Destroy()
 		return
 	end
@@ -105,6 +112,7 @@ function PlasmaCannon.OnAbilityTrigger(context)
 	context._projectiles[projectile] = true
 	local cooldown = tonumber(context.progression and context.progression.abilityParams and context.progression.abilityParams.cooldown) or CONFIG.Cooldown
 	context._nextAbilityAt = now + cooldown
+	print(string.format("[PET_ABILITY_ACTIVATED] player=%s pet=%s ability=PlasmaCannon target=%s cooldown=%.1fs", context.player.Name, tostring(context.definition and context.definition.PetId or "PlasmaCannon"), target.Name, cooldown))
 	local hitConnection
 	hitConnection = part.Touched:Connect(function(hit)
 		if not hit or not hit.Parent or hit:IsDescendantOf(projectile) then return end
@@ -123,6 +131,15 @@ function PlasmaCannon.OnAbilityTrigger(context)
 		if hitConnection then hitConnection:Disconnect() end
 		if context._projectiles then context._projectiles[projectile] = nil end
 	end)
+end
+
+function PlasmaCannon.OnTick(context, _dt: number)
+	local now = os.clock()
+	if now < (context._nextTargetScanAt or 0) then return end
+	context._nextTargetScanAt = now + CONFIG.TargetScanInterval
+	if now >= (context._nextAbilityAt or 0) then
+		PlasmaCannon.OnAbilityTrigger(context)
+	end
 end
 
 function PlasmaCannon.OnDestroy(context)
