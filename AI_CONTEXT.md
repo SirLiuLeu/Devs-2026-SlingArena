@@ -21,6 +21,7 @@
 | PrestigeReset | C->S | MonetizationService | `{}` | Prestige reset request. |
 | DebugSpawnFood | C->S | MapService | `{ mapName: string }` | Debug force food spawn for map. |
 | DebugResetLauncher | C->S | PlayerService | `{}` | Debug reset player launcher pawn/state. |
+| SellLauncher | C->S | LauncherInventoryService | `{ instanceId: string }` | Sells an eligible owned Launcher instance; the server decides eligibility and payout. |
 
 # Server → Client (Sync / Feedback)
 
@@ -33,6 +34,7 @@
 | GameplayFeedback | S->C | DamagePipelineService | `{ eventType: string, payload: { [string]: any } }` | Combat/damage feedback (damage dealt, impact, level-up, etc.). |
 | PopupMessage | S->C | TrapService | `{ type: string, text: string }` | Contextual popup notification (trap or gameplay warnings). |
 | ZoneUpdate | S->C | SafeZoneService | `{ phase: string, radius: number, center: Vector3, dpsPercent: number, nextShrinkAt?: number }` | Safe-zone visual and damage sync (freeze-required). |
+| PetProjectileVisual | S->C | PlasmaCannon / SlowBlaster | `Spawn` or `End` visual message | Client-local projectile cosmetics; hit/damage/Slow remain server-authoritative. |
 
 # Controllers (Current)
 
@@ -67,6 +69,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `PetAbilityProgressionConfig.lua` | Ability parameters at levels 1/5/10/15/20 plus `Display = { Format, Templates = { en, vi } }` localization data. | `PetProgression`, `PetDisplayFormatter` |
 | `PetPreviewConfig.lua` | Per-pet viewport camera `Rotation` and `Offset`, accessed through `Get(petId)`. | `InventoryUIController`, `PreviewRenderer` |
 | `PetRenderConfig.lua` | Client-side nearby Pet render distance, range-check interval, and exit hysteresis. | `ClientPetController` |
+| `PetProjectileRenderConfig.lua` | Client-only projectile visual distance and count cap. | `PetProjectileVisualController.client.lua` |
 | `LauncherPreviewConfig.lua` | Per-Launcher viewport camera `Rotation` and `Offset`, accessed through `Get(launcherId)`. | `LauncherInventoryUIController`, `PreviewRenderer` |
 | `PetRarityStatsConfig.lua` | Base HP and damage values by pet rarity. | `PetProgression`, pet UI |
 | `PetsConfig.lua` | Pet definition catalog, ability IDs, rarity, and max-level settings. | `PetService`, `PetProgression`, `InventoryUIController` |
