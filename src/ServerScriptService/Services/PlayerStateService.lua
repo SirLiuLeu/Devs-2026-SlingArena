@@ -684,6 +684,21 @@ function PlayerStateService:GrantExp(player: Player, amount: number)
 	self:PublishState(player)
 end
 
+function PlayerStateService:GrantLevelsForDebug(player: Player, requestedLevels: number): number
+	local state = self._states[player]
+	if not state or typeof(requestedLevels) ~= "number" then return 0 end
+	local levelsToGrant = math.clamp(math.floor(requestedLevels), 0, 5)
+	local granted = 0
+	while granted < levelsToGrant and state.Level < LevelConfig.MaxLevel do
+		state.Level += 1
+		state.AttributePoints += 1
+		granted += 1
+		self._context.EventBus:Fire("LevelUp", player, state.Level)
+	end
+	if granted > 0 then self:PublishState(player) end
+	return granted
+end
+
 function PlayerStateService:AddGrowth(player: Player, amount: number)
 	local state = self._states[player]
 	if not state then return end
@@ -976,6 +991,18 @@ function PlayerStateService:SyncPetFromData(player: Player)
 	local data = dataService:GetData(player)
 	state.OwnedPets = data.OwnedPets or {}
 	state.EquippedPets = data.EquippedPets or {}
+	local ownedPets = state.OwnedPets
+	local equippedPets = state.EquippedPets
+	for slot = 1, 3 do
+		local instanceValue = equippedPets[slot] or equippedPets[tostring(slot)]
+		local instanceId = if instanceValue == nil then nil else tostring(instanceValue)
+		local ownedInstance = instanceId and ownedPets[instanceId] or nil
+		local definitionId = if type(ownedInstance) == "table" and type(ownedInstance.definitionId) == "string" then ownedInstance.definitionId else nil
+		local instanceAttribute = string.format("EquippedPetSlot%dInstanceId", slot)
+		local definitionAttribute = string.format("EquippedPetSlot%dDefinitionId", slot)
+		if player:GetAttribute(instanceAttribute) ~= instanceId then player:SetAttribute(instanceAttribute, instanceId) end
+		if player:GetAttribute(definitionAttribute) ~= definitionId then player:SetAttribute(definitionAttribute, definitionId) end
+	end
 	self:PublishState(player)
 end
 
