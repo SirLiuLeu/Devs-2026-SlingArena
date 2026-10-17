@@ -16,10 +16,10 @@ export type LobbyClientService = {
 	RemotesRoot: Instance?,
 	JoinArenaRemote: RemoteEvent?, LeaveArenaRemote: RemoteEvent?, StartSafeZoneRemote: RemoteEvent?, Plus1MinuteRemote: RemoteEvent?, EndRoundRemote: RemoteEvent?,
 	MatchSummaryUpdateRemote: RemoteEvent?, StateUpdateRemote: RemoteEvent?, UIStateUpdateRemote: RemoteEvent?, RoundResultRemote: RemoteEvent?, MatchScoreboardUpdateRemote: RemoteEvent?, GlobalTop100UpdateRemote: RemoteEvent?,
-	TeleportRemote: RemoteEvent?, DebugSpawnFoodRemote: RemoteEvent?, DebugResetLauncherRemote: RemoteEvent?, AttributeUpgradeRemote: RemoteEvent?, ConsumeHpPotionRemote: RemoteEvent?,
+	TeleportRemote: RemoteEvent?, DebugSpawnFoodRemote: RemoteEvent?, DebugResetLauncherRemote: RemoteEvent?, DebugLevelUp5Remote: RemoteEvent?, AttributeUpgradeRemote: RemoteEvent?, ConsumeHpPotionRemote: RemoteEvent?,
 	RequestJoinArena: (self: LobbyClientService) -> (), RequestLeaveArena: (self: LobbyClientService) -> (), RequestTeleport: (self: LobbyClientService, mapName: string, spawnName: string) -> (),
 	RequestStartSafeZone: (self: LobbyClientService) -> (), RequestPlus1Minute: (self: LobbyClientService) -> (), RequestEndRound: (self: LobbyClientService) -> (),
-	RequestDebugSpawnFood: (self: LobbyClientService, mapName: string) -> (), RequestDebugResetLauncher: (self: LobbyClientService) -> (), RequestAttributeUpgrade: (self: LobbyClientService, attributeName: string) -> (), RequestConsumeHpPotion: (self: LobbyClientService) -> (),
+	RequestDebugSpawnFood: (self: LobbyClientService, mapName: string) -> (), RequestDebugResetLauncher: (self: LobbyClientService) -> (), RequestDebugLevelUp5: (self: LobbyClientService) -> (), RequestAttributeUpgrade: (self: LobbyClientService, attributeName: string) -> (), RequestConsumeHpPotion: (self: LobbyClientService) -> (),
 	GetLastSnapshot: (self: LobbyClientService, remoteName: CachedRemoteName?) -> any,
 	BindStateUpdate: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?, BindUIStateUpdate: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?, BindRoundResult: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?,
 	BindMatchScoreboardUpdate: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?, BindMatchSummaryUpdate: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?, BindGlobalTop100Update: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?,
@@ -52,6 +52,7 @@ function LobbyClientService.new(): LobbyClientService
 	self.StartSafeZoneRemote = resolveRemote(ProjectTreeSpec.Remotes.StartSafeZone)
 	self.Plus1MinuteRemote = resolveRemote(ProjectTreeSpec.Remotes.Plus1Minute)
 	self.EndRoundRemote = resolveRemote(ProjectTreeSpec.Remotes.EndRound)
+	self.DebugLevelUp5Remote = resolveRemote(ProjectTreeSpec.Remotes.DebugLevelUp5)
 	self.StateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.StateUpdate)
 	self.UIStateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.UIStateUpdate)
 	self.RoundResultRemote = resolveRemote(ProjectTreeSpec.Remotes.RoundResult)
@@ -112,6 +113,7 @@ end
 function LobbyClientService:RequestTeleport(mapName: string, spawnName: string) if RemoteContracts.Validate(RemoteContracts.Names.TeleportRequest, mapName, spawnName) and self.TeleportRemote then self.TeleportRemote:FireServer(mapName, spawnName) end end
 function LobbyClientService:RequestDebugSpawnFood(mapName: string) if self.DebugSpawnFoodRemote then self.DebugSpawnFoodRemote:FireServer(mapName) end end
 function LobbyClientService:RequestDebugResetLauncher() if self.DebugResetLauncherRemote then self.DebugResetLauncherRemote:FireServer() end end
+function LobbyClientService:RequestDebugLevelUp5() if RemoteContracts.Validate(RemoteContracts.Names.DebugLevelUp5) and self.DebugLevelUp5Remote then self.DebugLevelUp5Remote:FireServer() end end
 function LobbyClientService:RequestAttributeUpgrade(attributeName: string) if RemoteContracts.Validate(RemoteContracts.Names.AttributeUpgrade, attributeName) and self.AttributeUpgradeRemote then self.AttributeUpgradeRemote:FireServer(attributeName) end end
 function LobbyClientService:RequestConsumeHpPotion() if RemoteContracts.Validate(RemoteContracts.Names.ConsumeHpPotion) and self.ConsumeHpPotionRemote then self.ConsumeHpPotionRemote:FireServer() end end
 function LobbyClientService:BindStateUpdate(handler: Handler): RBXScriptConnection? return self:_bindCached("StateUpdate", handler) end
