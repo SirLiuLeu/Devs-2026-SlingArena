@@ -68,14 +68,22 @@ function PetDisplayFormatter.Format(definition: any, level: number, previewNextL
 
 	local abilityId = definition and definition.abilityId
 	local display = PetAbilityProgressionConfig.GetDisplay(abilityId)
-	local statName = abilityId and ABILITY_VALUE_KEYS[abilityId]
-	local currentValue = statName and tonumber(current and current.abilityParams[statName]) or nil
-	local nextValue = statName and tonumber(next and next.abilityParams[statName]) or nil
-	if not display or not currentValue or not nextValue then return result end
+	if not display then return result end
 
 	local locale = string.lower(languageCode or "en")
 	local template = display.Templates[locale] or display.Templates[string.sub(locale, 1, 2)] or display.Templates.en
 	if type(template) ~= "string" then return result end
+	if abilityId == "Titan" then
+		-- Titan's visual growth is based on player levels earned after equipping it,
+		-- not the pet's current level, so a current/next pet-level preview would be misleading.
+		result.ScriptText = encodeRichText(template)
+		return result
+	end
+
+	local statName = abilityId and ABILITY_VALUE_KEYS[abilityId]
+	local currentValue = statName and tonumber(current and current.abilityParams[statName]) or nil
+	local nextValue = statName and tonumber(next and next.abilityParams[statName]) or nil
+	if not currentValue or not nextValue then return result end
 
 	-- Ability templates describe their current and next milestone values. During a
 	-- normal view, a non-milestone level remains standard text; only a preview
