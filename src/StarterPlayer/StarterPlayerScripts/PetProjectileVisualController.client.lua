@@ -8,8 +8,6 @@ local Workspace = game:GetService("Workspace")
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local RenderConfig = require(ReplicatedStorage.Shared.Config.PetProjectileRenderConfig)
 local localPlayer = Players.LocalPlayer
-local assets = ReplicatedStorage:FindFirstChild("Assets")
-local prefabs = assets and assets:FindFirstChild("Prefabs")
 local active = {}
 local warnedMissingPrefab = {}
 
@@ -65,6 +63,8 @@ local function spawnVisual(payload: any)
 	if active[payload.id] then destroyVisual(payload.id) end
 	local prefabName = PREFABS[payload.projectileType]
 	if not prefabName then return end
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local prefabs = assets and assets:FindFirstChild("Prefabs")
 	local template = prefabs and prefabs:FindFirstChild(prefabName)
 	if not template then
 		if not warnedMissingPrefab[prefabName] then
