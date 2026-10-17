@@ -110,7 +110,15 @@ function PetAbilityService:Init()
 			local equipped = dataService and dataService:GetEquippedPets(player) or {}
 			for slotType, equippedInstanceId in pairs(equipped) do
 				if equippedInstanceId == instanceId then
-					self:ActivatePet(player, slotType, instanceId, ownedInstance)
+					local preservedTitanGrowth = nil
+					local oldEffect = self._activeEffects[player] and self._activeEffects[player][instanceId]
+					if oldEffect and oldEffect.context.definition and oldEffect.context.definition.effectId == "Titan" then
+						preservedTitanGrowth = {
+							multiplier = tonumber(oldEffect.context._visualMultiplier) or 1,
+							levels = math.max(0, math.floor(tonumber(oldEffect.context._visualGrowthLevels) or 0)),
+						}
+					end
+					self:ActivatePet(player, slotType, instanceId, ownedInstance, preservedTitanGrowth)
 					break
 				end
 			end
@@ -197,7 +205,7 @@ function PetAbilityService:DeactivateAllPet(player): ()
 	end
 end
 
-function PetAbilityService:ActivatePet(player, _slotType: string, instanceId: string, ownedInstance: any): boolean
+function PetAbilityService:ActivatePet(player, _slotType: string, instanceId: string, ownedInstance: any, preservedTitanGrowth: any?): boolean
 	print(string.format("[PET_EFFECT][SUCCESS] ActivatePet player=%s instanceId=%s definitionId=%s", player and player.Name or "nil", tostring(instanceId), tostring(ownedInstance and ownedInstance.definitionId)))
 	local definition = ownedInstance and PetsConfig.GetById(tostring(ownedInstance.definitionId or ""))
 	if not definition or not definition.effectId then
@@ -217,6 +225,7 @@ function PetAbilityService:ActivatePet(player, _slotType: string, instanceId: st
 		instanceId = instanceId,
 		definition = definition,
 		ownedInstance = ownedInstance,
+		preservedTitanVisualGrowth = preservedTitanGrowth,
 		progression = PetProgression.Resolve(ownedInstance),
 		FlagService = ServiceResolver.Get(self._context, "FlagService"),
 		PlayerStateService = ServiceResolver.Get(self._context, "PlayerStateService"),
