@@ -106,6 +106,8 @@ task.spawn(function()
 	local clientPetController = ClientPetController.new(player)
 	clientPetController:Start()
 	local teamSelectionController = TeamSelectionUIController.new(playerGui)
+	teamSelectionController:SetConfirmationController(controller.ConfirmationUIController)
+	teamSelectionController:SetToastController(controller.ToastUIController)
 	teamSelectionController:Start()
 
 	player.AncestryChanged:Connect(function(_, parent)
