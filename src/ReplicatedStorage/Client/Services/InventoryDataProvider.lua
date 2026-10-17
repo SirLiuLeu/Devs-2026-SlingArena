@@ -84,6 +84,9 @@ local function cloneLaunchers(launchers): any
 			name = launcherEntry.name,
 			icon = launcherEntry.icon,
 			stats = launcherEntry.stats and table.clone(launcherEntry.stats) or nil,
+			isTemporary = launcherEntry.isTemporary == true,
+			expiresAt = tonumber(launcherEntry.expiresAt),
+			sellPrice = tonumber(launcherEntry.sellPrice),
 		})
 	end
 	table.sort(result, function(a, b)
