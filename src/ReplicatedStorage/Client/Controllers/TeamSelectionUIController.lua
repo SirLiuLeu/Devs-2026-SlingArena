@@ -67,11 +67,16 @@ function TeamSelectionUIController:_refreshToggleStyle()
 		toggle.BackgroundColor3 = color
 		if toggle:IsA("ImageButton") then toggle.ImageColor3 = color end
 		if toggle:IsA("TextButton") then
+			toggle.Text = self._currentTeamId
 			toggle.TextColor3 = if self._currentTeamId == "White" or self._currentTeamId == "Yellow" then Color3.fromRGB(30, 30, 30) else Color3.new(1, 1, 1)
 		end
 	else
 		if self._toggleOriginalBackground then toggle.BackgroundColor3 = self._toggleOriginalBackground end
 		if toggle:IsA("ImageButton") and self._toggleOriginalImageColor then toggle.ImageColor3 = self._toggleOriginalImageColor end
+		if toggle:IsA("TextButton") then
+			if self._toggleOriginalText then toggle.Text = self._toggleOriginalText end
+			if self._toggleOriginalTextColor then toggle.TextColor3 = self._toggleOriginalTextColor end
+		end
 	end
 end
 
@@ -148,6 +153,10 @@ function TeamSelectionUIController:Start()
 	if self._toggle and self._toggle:IsA("GuiButton") then
 		self._toggleOriginalBackground = self._toggle.BackgroundColor3
 		if self._toggle:IsA("ImageButton") then self._toggleOriginalImageColor = self._toggle.ImageColor3 end
+		if self._toggle:IsA("TextButton") then
+			self._toggleOriginalText = self._toggle.Text
+			self._toggleOriginalTextColor = self._toggle.TextColor3
+		end
 	end
 	if self._popup and self._popup:IsA("GuiObject") then self._popup.Visible = false end
 	if self._toggle and self._toggle:IsA("GuiButton") and self._popup and self._popup:IsA("GuiObject") then
