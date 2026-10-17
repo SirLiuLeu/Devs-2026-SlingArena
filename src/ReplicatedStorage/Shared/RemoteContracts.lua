@@ -58,6 +58,8 @@ RemoteContracts.Names = {
 	PurchaseDinamondPack = "PurchaseDinamondPack",
 	PurchaseItem = "PurchaseItem",
 	PurchaseLauncher = "PurchaseLauncher",
+	SellLauncher = "SellLauncher",
+	PetProjectileVisual = "PetProjectileVisual",
 }
 
 RemoteContracts.Validators = {
@@ -161,7 +163,8 @@ RemoteContracts.Validators = {
 		return true
 	end,
 	[RemoteContracts.Names.ChangeTeam] = function(teamId: any): boolean
-		return typeof(teamId) == "string" and (teamId == "White" or teamId == "Yellow" or teamId == "Blue" or teamId == "Red")
+		-- Shape validation is separate from team-ID validation so unknown strings are logged as InvalidTeam.
+		return typeof(teamId) == "string" and #teamId > 0 and #teamId <= 32
 	end,
 	[RemoteContracts.Names.SetPlayerMode] = function(modeName: any): boolean
 		return modeName == "Launcher" or modeName == "Human"
@@ -197,6 +200,9 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.PurchaseLauncher] = function(launcherId: any): boolean
 		return typeof(launcherId) == "string" and #launcherId > 0 and #launcherId <= 80
+	end,
+	[RemoteContracts.Names.SellLauncher] = function(instanceId: any): boolean
+		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
 	end,
 	[RemoteContracts.Names.RequestPetGrant] = function(definitionId: any): boolean
 		return typeof(definitionId) == "string" and #definitionId > 0 and #definitionId <= 128
