@@ -22,11 +22,11 @@ PetAbilityProgressionConfig.Abilities = {
 		Display = { Format = "number", Templates = { vi = "Hồi {current} -> {next} HP", en = "Restore {current} -> {next} HP" } },
 	},
 	PlasmaCannon = {
-		[1] = { damage = 700, cooldown = 10, projectileSpeed = 60 }, [5] = { damage = 800, cooldown = 10, projectileSpeed = 60 }, [10] = { damage = 900, cooldown = 10, projectileSpeed = 60 }, [15] = { damage = 1000, cooldown = 10, projectileSpeed = 60 }, [20] = { damage = 1100, cooldown = 10, projectileSpeed = 60 },
+		[1] = { damage = 700, cooldown = 10, projectileSpeed = 15 }, [5] = { damage = 800, cooldown = 10, projectileSpeed = 60 }, [10] = { damage = 900, cooldown = 10, projectileSpeed = 60 }, [15] = { damage = 1000, cooldown = 10, projectileSpeed = 60 }, [20] = { damage = 1100, cooldown = 10, projectileSpeed = 60 },
 		Display = { Format = "number", Templates = { vi = "Sát thương {current} -> {next}", en = "Damage {current} -> {next}" } },
 	},
 	SlowBlaster = {
-		[1] = { slowDuration = 3, cooldown = 8, projectileSpeed = 15, lifetime = 10 }, [5] = { slowDuration = 3.5, cooldown = 8, projectileSpeed = 15, lifetime = 10 }, [10] = { slowDuration = 4, cooldown = 8, projectileSpeed = 15, lifetime = 10 }, [15] = { slowDuration = 4.5, cooldown = 8, projectileSpeed = 15, lifetime = 10 }, [20] = { slowDuration = 5, cooldown = 8, projectileSpeed = 15, lifetime = 10 },
+		[1] = { slowDuration = 3, cooldown = 8, projectileSpeed = 10, lifetime = 10 }, [5] = { slowDuration = 3.5, cooldown = 8, projectileSpeed = 15, lifetime = 10 }, [10] = { slowDuration = 4, cooldown = 8, projectileSpeed = 15, lifetime = 10 }, [15] = { slowDuration = 4.5, cooldown = 8, projectileSpeed = 15, lifetime = 10 }, [20] = { slowDuration = 5, cooldown = 8, projectileSpeed = 15, lifetime = 10 },
 		Display = { Format = "number", Templates = { vi = "Làm chậm {current} -> {next}s", en = "Slow for {current} -> {next}s" } },
 	},
 	Slow = {
