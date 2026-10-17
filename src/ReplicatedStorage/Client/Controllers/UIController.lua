@@ -8,6 +8,7 @@ local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local InventoryUIController = require(ReplicatedStorage.Client.Controllers.InventoryUIController)
 local LauncherInventoryUIController = require(ReplicatedStorage.Client.Controllers.LauncherInventoryUIController)
 local ConfirmationUIController = require(ReplicatedStorage.Client.Controllers.ConfirmationUIController)
+local ConfirmationTextConfig = require(ReplicatedStorage.Shared.Config.ConfirmationTextConfig)
 local WorldProximityUIController = require(ReplicatedStorage.Client.Controllers.WorldProximityUIController)
 local InventoryDataProvider = require(ReplicatedStorage.Client.Services.InventoryDataProvider)
 local OnlineRewardUIController = require(ReplicatedStorage.Client.Controllers.OnlineRewardUIController)
@@ -323,7 +324,7 @@ function UIController:_bindResolvedUiReferences()
 	end
 	if self.LeaveButton then
 		self:_connectOnce("LeaveButton", self.LeaveButton.MouseButton1Click, function()
-			self.ConfirmationUIController:RequestConfirm("Leaving now will apply a 30s penalty. Are you sure?", function() self.ClientService:RequestLeaveArena() end)
+			self.ConfirmationUIController:RequestConfirm(ConfirmationTextConfig.Get("LeaveArena"), function() self.ClientService:RequestLeaveArena() end)
 		end)
 	end
 	if self.StartSafeZoneButton then
@@ -414,7 +415,7 @@ function UIController:_bindResolvedUiReferences()
 	if self.HomeButton then
 		self.HomeButton.Active = true
 		self:_connectOnce("HomeButton", self.HomeButton.MouseButton1Click, function()
-			self.ConfirmationUIController:RequestConfirm("Leaving now will apply a 30s penalty. Are you sure?", function() self.ClientService:RequestLeaveArena() end)
+			self.ConfirmationUIController:RequestConfirm(ConfirmationTextConfig.Get("LeaveArena"), function() self.ClientService:RequestLeaveArena() end)
 		end)
 	end
 	if self.QuickHpButton then
