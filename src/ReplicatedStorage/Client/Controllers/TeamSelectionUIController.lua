@@ -157,7 +157,14 @@ function TeamSelectionUIController:Start()
 	end
 
 	local localPlayer = Players.LocalPlayer
-	if localPlayer.Team then self._currentTeamId = localPlayer.Team.Name end
+	local attributedTeamId = localPlayer:GetAttribute("TeamId")
+	self._currentTeamId = if type(attributedTeamId) == "string" then attributedTeamId else (if localPlayer.Team then localPlayer.Team.Name else nil)
+	table.insert(self._connections, localPlayer:GetAttributeChangedSignal("TeamId"):Connect(function()
+		local teamId = localPlayer:GetAttribute("TeamId")
+		self._currentTeamId = if type(teamId) == "string" then teamId else nil
+		self:_refreshToggleStyle()
+		self:_refreshCounts()
+	end))
 	local remotes = ReplicatedStorage:FindFirstChild("LauncherArenaRemotes")
 	self._changeTeamRemote = remotes and remotes:FindFirstChild(RemoteContracts.Names.ChangeTeam) :: RemoteEvent?
 	self._feedbackRemote = remotes and remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
