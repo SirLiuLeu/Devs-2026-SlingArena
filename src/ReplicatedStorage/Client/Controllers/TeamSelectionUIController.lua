@@ -112,22 +112,38 @@ function TeamSelectionUIController:_teamPlayerCount(teamId: string): number
 	return count
 end
 
+function TeamSelectionUIController:_logRejectedRequest(reason: string, teamId: any, detail: string?)
+	local message = string.format("[TEAM_SELECTION_REJECTED] player=%s reason=%s team=%s detail=%s", Players.LocalPlayer.Name, reason, tostring(teamId), detail or "-")
+	if reason == "InvalidRequest" or reason == "InvalidTeam" or reason == "Cooldown" or reason == "RageActive" then
+		warn(message)
+	else
+		print(message)
+	end
+end
+
 function TeamSelectionUIController:_requestTeamChange(teamId: string)
-	if teamId == self._currentTeamId then return end
+	if teamId == self._currentTeamId then
+		self:_logRejectedRequest("AlreadyOnTeam", teamId, "Already assigned locally")
+		return
+	end
 	if self._rageActive then
+		self:_logRejectedRequest("RageActive", teamId, "Client blocked request because Rage is active")
 		self:_showToast(ConfirmationTextConfig.Get("RageActive"))
 		return
 	end
 	local remaining = self._localCooldownEndsAt - os.clock()
 	if remaining > 0 then
+		self:_logRejectedRequest("Cooldown", teamId, string.format("remaining=%.2f localCooldownEndsAt=%.2f", remaining, self._localCooldownEndsAt))
 		self:_showToast(ConfirmationTextConfig.Get("Cooldown", { seconds = math.ceil(remaining) }))
 		return
 	end
 	if self:_teamPlayerCount(teamId) >= TeamConfig.MaxPlayersPerTeam then
+		self:_logRejectedRequest("TeamFull", teamId, string.format("clientCount=%d cap=%d", self:_teamPlayerCount(teamId), TeamConfig.MaxPlayersPerTeam))
 		self:_flashFullTeam(teamId)
 		return
 	end
 	if not self._changeTeamRemote then
+		self:_logRejectedRequest("MissingRemote", teamId, "LauncherArenaRemotes.ChangeTeam does not exist")
 		warnMissing("ReplicatedStorage.LauncherArenaRemotes.ChangeTeam (RemoteEvent)")
 		return
 	end
@@ -228,6 +244,7 @@ function TeamSelectionUIController:Start()
 				self:_refreshToggleStyle()
 			else
 				local reason = tostring(payload.Reason or "")
+				self:_logRejectedRequest(reason ~= "" and reason or "Unknown", self._lastRequestedTeamId, "Server rejected the team-change request")
 				if reason == "TeamFull" then
 					self:_flashFullTeam(self._lastRequestedTeamId)
 					self:_showToast(ConfirmationTextConfig.Get("TeamFull"))
@@ -235,7 +252,7 @@ function TeamSelectionUIController:Start()
 					self:_showToast(ConfirmationTextConfig.Get("Cooldown", { seconds = math.max(1, tonumber(payload.CooldownRemaining) or 1) }))
 				elseif reason == "RageActive" then
 					self:_showToast(ConfirmationTextConfig.Get("RageActive"))
-				elseif reason == "RoundInactive" then
+				elseif reason == "RoundInactive" or reason == "InvalidRequest" or reason == "InvalidTeam" or reason == "AlreadyOnTeam" then
 					self:_showToast(ConfirmationTextConfig.Get("TeamChangeUnavailable"))
 				end
 			end
