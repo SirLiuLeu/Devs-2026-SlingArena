@@ -45,6 +45,24 @@ function TeamService:_setTeamId(player: Player, teamId: string?)
 	self:_syncRobloxTeam(player, teamId)
 end
 
+function TeamService:_logRejectedRequest(player: Player, reason: string, teamId: any, detail: string?)
+	local requested = tostring(teamId)
+	if reason == "InvalidRequest" or reason == "InvalidTeam" or reason == "Cooldown" or reason == "RageActive" then
+		warn(string.format(
+			"[TEAM_CHANGE_REJECTED][DETAIL] player=%s userId=%d reason=%s requestedType=%s requestedTeam=%s currentTeam=%s detail=%s",
+			player.Name,
+			player.UserId,
+			reason,
+			type(teamId),
+			requested,
+			tostring(player:GetAttribute("TeamId") or (player.Team and player.Team.Name) or "None"),
+			detail or "-"
+		))
+	else
+		print(string.format("[TEAM_CHANGE_REJECTED] player=%s reason=%s requestedTeam=%s", player.Name, reason, requested))
+	end
+end
+
 function TeamService:_sendFeedback(player: Player, success: boolean, reason: string?, teamId: string?, cooldownRemaining: number?)
 	if self._feedbackRemote and self._feedbackRemote:IsA("RemoteEvent") then
 		self._feedbackRemote:FireClient(player, {
@@ -161,6 +179,7 @@ end
 
 function TeamService:ChangeTeam(player: Player, teamId: string)
 	if not TEAM_ID_SET[teamId] then
+		self:_logRejectedRequest(player, "InvalidTeam", teamId, "Allowed IDs: " .. table.concat(TEAM_IDS, ", "))
 		self:_sendFeedback(player, false, "InvalidTeam")
 		return false, "InvalidTeam"
 	end
@@ -169,26 +188,33 @@ function TeamService:ChangeTeam(player: Player, teamId: string)
 	local roundService = ServiceResolver.Get(self._context, "RoundService")
 	if not state or state.LocationState == GameStates.SessionState.Lobby
 		or not (roundService and roundService:IsRoundActive() and roundService:IsPlayingState()) then
+		self:_logRejectedRequest(player, "RoundInactive", teamId, "Player is not in an active playable round")
 		self:_sendFeedback(player, false, "RoundInactive")
 		return false, "RoundInactive"
 	end
 	if self._rageActive or roundService:GetRoundElapsed() >= TeamConfig.RageStartSeconds then
+		local elapsed = roundService:GetRoundElapsed()
 		self:SetRageActive(true)
+		self:_logRejectedRequest(player, "RageActive", teamId, string.format("rageActive=%s elapsed=%.2f threshold=%.2f", tostring(self._rageActive), elapsed, TeamConfig.RageStartSeconds))
 		self:_sendFeedback(player, false, "RageActive")
 		return false, "RageActive"
 	end
 	if state.TeamId == teamId then
+		self:_logRejectedRequest(player, "AlreadyOnTeam", teamId, "Requested team is already assigned")
 		self:_sendFeedback(player, false, "AlreadyOnTeam", state.TeamId)
 		return false, "AlreadyOnTeam"
 	end
 	local remaining = self:GetTeamChangeCooldownRemaining(player)
 	if remaining > 0 then
 		local cooldownRemaining = math.ceil(remaining)
+		local changedAt = self._lastTeamChangeAt[player.UserId]
+		self:_logRejectedRequest(player, "Cooldown", teamId, string.format("remaining=%.2f configuredCooldown=%.2f lastChangeAt=%s", remaining, TeamConfig.ChangeCooldownSeconds, tostring(changedAt)))
 		self:_sendFeedback(player, false, "Cooldown", state.TeamId, cooldownRemaining)
 		return false, "Cooldown"
 	end
 	local counts = stateService and self:_getTeamCounts(stateService) or {}
 	if (counts[teamId] or 0) >= TeamConfig.MaxPlayersPerTeam then
+		self:_logRejectedRequest(player, "TeamFull", teamId, string.format("count=%d cap=%d", counts[teamId] or 0, TeamConfig.MaxPlayersPerTeam))
 		self:_sendFeedback(player, false, "TeamFull", state.TeamId)
 		return false, "TeamFull"
 	end
@@ -202,6 +228,7 @@ function TeamService:Init()
 	if self._changeTeamRemote and self._changeTeamRemote:IsA("RemoteEvent") then
 		self._changeTeamRemote.OnServerEvent:Connect(function(player: Player, teamId: any)
 			if not RemoteContracts.Validate(RemoteContracts.Names.ChangeTeam, teamId) then
+				self:_logRejectedRequest(player, "InvalidRequest", teamId, "Payload must be a non-empty team-ID string of at most 32 characters")
 				self:_sendFeedback(player, false, "InvalidRequest")
 				return
 			end
