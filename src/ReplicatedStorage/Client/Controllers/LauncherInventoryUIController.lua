@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local ConfirmationTextConfig = require(ReplicatedStorage.Shared.Config.ConfirmationTextConfig)
 local LauncherPreviewConfig = require(ReplicatedStorage.Shared.Config.LauncherPreviewConfig)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
@@ -63,7 +64,7 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._name = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.SelectedName)
 	self._damage = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.Damage)
 	self._hp = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.HP)
-	self._weight = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.Range)
+	self._range = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.Range)
 	self._regen = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.Regeneration)
 	self._equip = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.EquipButton)
 	self._delete = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.DeleteButton)
@@ -92,9 +93,10 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 		end))
 	end
 	if self._delete then
+		self._delete.Text = "Unequip"
 		table.insert(self._connections, self._delete.MouseButton1Click:Connect(function()
-			if self._selected and self._confirmation then
-				self._confirmation:RequestConfirm("Unequip this launcher?", function()
+			if self:_inLobby() and self._selected and self._selected.equipped and self._confirmation then
+				self._confirmation:RequestConfirm(ConfirmationTextConfig.Get("UnequipLauncher"), function()
 					if self._unequipRemote then self._unequipRemote:FireServer() end
 				end)
 			end
@@ -199,13 +201,22 @@ function LauncherInventoryUIController:_refreshRightPanel()
 	if self._name then self._name.Text = (entry and (entry.name or (definition and definition.name))) or "No launcher selected" end
 	if self._damage then self._damage.Text = string.format("Damage: %.2f", (stats and stats.damage) or (definition and definition.stats.launchPower) or 0) end
 	if self._hp then self._hp.Text = string.format("HP: %.0f", (stats and stats.hp) or 0) end
-	if self._range then self._range.Text = string.format("Range: %.2f", (stats and stats.range) or (definition and definition.stats.control) or 0) end
-	if self._regen then self._regen.Text = string.format("Regeneration: %.2f", (stats and stats.regen) or 0) end
-	local enabled = self:_inLobby() and entry ~= nil
+	if self._range then self._range.Text = string.format("Weight: %.2f", (stats and stats.weight) or (definition and definition.stats.weight) or 0) end
+	if self._regen then self._regen.Text = string.format("Regeneration: %.2f", (stats and stats.regen) or (definition and definition.stats.regenPerSecond) or 0) end
+	local canAct = self:_inLobby() and entry ~= nil
+	local canEquip = canAct and entry.equipped ~= true
+	local canUnequip = canAct and entry.equipped == true
 	if self._equip then
-		self._equip.Active = enabled
-		self._equip.AutoButtonColor = enabled
-		self._equip.TextTransparency = if enabled then 0 else 0.5
+		self._equip.Text = if entry and entry.equipped then "Equipped" else "Equip"
+		self._equip.Active = canEquip
+		self._equip.AutoButtonColor = canEquip
+		self._equip.TextTransparency = if canEquip then 0 else 0.5
+	end
+	if self._delete then
+		self._delete.Text = "Unequip"
+		self._delete.Active = canUnequip
+		self._delete.AutoButtonColor = canUnequip
+		self._delete.TextTransparency = if canUnequip then 0 else 0.5
 	end
 end
 
