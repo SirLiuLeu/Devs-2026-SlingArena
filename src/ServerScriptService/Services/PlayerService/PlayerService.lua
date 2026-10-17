@@ -12,6 +12,7 @@ local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local LauncherTextureConfig = require(ReplicatedStorage.Shared.Config.LauncherTextureConfig)
 local TeamConfig = require(ReplicatedStorage.Shared.Config.TeamConfig)
+local PetAbilityProgressionConfig = require(ReplicatedStorage.Shared.Config.PetAbilityProgressionConfig)
 local Teams = game:GetService("Teams")
 local StatusEffectVfx = require(ReplicatedStorage.Shared.Utils.StatusEffectVfx)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
@@ -355,7 +356,29 @@ function PlayerService:_applyTitanModifiers(player: Player, pawn: Model)
 			baseVisualScale = equipped:GetScale()
 			equipped:SetAttribute("TitanBaseVisualScale", baseVisualScale)
 		end
-		equipped:ScaleTo(math.max(0.001, baseVisualScale * baseScale * visualMultiplier))
+		local targetScale = math.max(0.001, baseVisualScale * baseScale * visualMultiplier)
+		local currentScale = equipped:GetScale()
+		if math.abs(currentScale - targetScale) > 0.001 then
+			equipped:ScaleTo(targetScale)
+			local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+			local playerState = stateService and stateService:GetState(player)
+			local playerLevel = math.max(1, math.floor(tonumber(playerState and playerState.Level) or 1))
+			local growthLevels = math.max(0, math.floor(tonumber(player:GetAttribute("PetTitanVisualGrowthLevels")) or 0))
+			print(string.format(
+				"[TITAN_VISUAL_SCALE_CHANGED] player=%s playerLevel=%d earnedLevels=%d increment=%.4f factor=%.4fx basePawnScale=%.4f baseLauncherScale=%.4f previousScale=%.4f targetScale=%.4f hitboxFactor=%.4fx weightFactor=%.4fx",
+				player.Name,
+				playerLevel,
+				growthLevels,
+				PetAbilityProgressionConfig.TitanVisualGrowthPerPlayerLevel,
+				visualMultiplier,
+				baseScale,
+				baseVisualScale,
+				currentScale,
+				targetScale,
+				hitboxMultiplier,
+				weightMultiplier
+			))
+		end
 	end
 end
 
