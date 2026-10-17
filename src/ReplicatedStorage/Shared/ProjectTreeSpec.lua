@@ -65,13 +65,8 @@ local ProjectTreeSpec = {
 			PopupFrame = "TeamSelectionGui.TeamPopupFrame", -- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame (Frame, Visible=false)
 			-- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame.UIListLayout (UIListLayout) or UIGridLayout (UIGridLayout)
 			-- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame.UIPadding (UIPadding)
-			-- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame.TeamItem (Frame; four copies for White/Yellow/Blue/Red)
-			-- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame.TeamItem.<TeamName> (TextButton named White, Yellow, Blue, or Red)
-			-- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame.TeamItem.TeamIcon (ImageLabel)
-			-- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame.TeamItem.TeamName (TextLabel)
-			-- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame.TeamItem.PlayerCount (TextLabel, e.g. "3/10")
-			-- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame.TeamItem.UICorner (UICorner)
-			-- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame.TeamItem.UIStroke (UIStroke)
+			-- [PROJECT_TREE_SPEC] StarterGui.TeamSelectionGui.TeamPopupFrame.<TeamName> (TextButton named White, Yellow, Blue, or Red)
+			-- [PROJECT_TREE_SPEC] Each team TextButton contains TeamIcon (ImageLabel), TeamName (TextLabel), PlayerCount (TextLabel, e.g. "3/10"), UICorner, and optional UIStroke.
 		},
 		LauncherInventory = {
 			ScreenGui = "LauncherInventoryUI",
