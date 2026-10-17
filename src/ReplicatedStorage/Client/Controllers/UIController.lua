@@ -200,6 +200,7 @@ function UIController:_resolveUiReferences()
 	self.LeaveButton = self.LeaveButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LeaveButton, false)
 	self.StartSafeZoneButton = self.StartSafeZoneButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.StartSafeZoneButton, false)
 	self.Plus1MinuteButton = self.Plus1MinuteButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.Plus1MinuteButton, false)
+	self.LevelUp5Button = self.LevelUp5Button or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LevelUp5Button, false)
 	self.EndRoundButton = self.EndRoundButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.EndRoundButton, false)
 	self.MatchStatusLabel = self.MatchStatusLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel, false)
 	self.TimerLabel = self.TimerLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel, false)
@@ -284,6 +285,7 @@ function UIController:_clearRemovedUiReferences(removedRoot: Instance)
 	self:_clearReferenceIfRemoved("LeaveButton", removedRoot, "LeaveButton")
 	self:_clearReferenceIfRemoved("StartSafeZoneButton", removedRoot, "StartSafeZoneButton")
 	self:_clearReferenceIfRemoved("Plus1MinuteButton", removedRoot, "Plus1MinuteButton")
+	self:_clearReferenceIfRemoved("LevelUp5Button", removedRoot, "LevelUp5Button")
 	self:_clearReferenceIfRemoved("EndRoundButton", removedRoot, "EndRoundButton")
 	self:_clearReferenceIfRemoved("DebugResetButton", removedRoot, "DebugResetButton")
 	self:_clearReferenceIfRemoved("DailyButton", removedRoot, "DailyButton")
@@ -335,6 +337,11 @@ function UIController:_bindResolvedUiReferences()
 	if self.Plus1MinuteButton then
 		self:_connectOnce("Plus1MinuteButton", self.Plus1MinuteButton.MouseButton1Click, function()
 			self.ClientService:RequestPlus1Minute()
+		end)
+	end
+	if self.LevelUp5Button then
+		self:_connectOnce("LevelUp5Button", self.LevelUp5Button.MouseButton1Click, function()
+			self.ClientService:RequestDebugLevelUp5()
 		end)
 	end
 	if self.DebugResetButton then
