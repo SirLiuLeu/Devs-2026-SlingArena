@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
 
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
@@ -531,7 +532,7 @@ end
 
 function PlayerDataService:GrantLauncher(player: Player, definitionId: string, instanceId: string?, options: { isTemporary: boolean?, durationSeconds: number?, expiresAt: number? }?): (boolean, string?)
 	if not LauncherConfig.GetById(definitionId) then return false, "InvalidLauncher" end
-	local id = instanceId or (definitionId .. "_" .. tostring(os.time()))
+	local id = instanceId or (definitionId .. "_" .. HttpService:GenerateGUID(false))
 	local expiresAt = options and (tonumber(options.expiresAt) or (options.durationSeconds and (os.time() + math.max(1, math.floor(options.durationSeconds))))) or nil
 	local isTemporary = options ~= nil and options.isTemporary == true or expiresAt ~= nil
 	self:UpdateData(player, function(data)
