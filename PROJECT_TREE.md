@@ -311,6 +311,7 @@ DataModel
 │  │     ├─ PrestigeReset
 │  │     ├─ DebugSpawnFood
 │  │     ├─ DebugResetLauncher
+│  │     ├─ DebugLevelUp5
 │  │     ├─ StateUpdate
 │  │     ├─ UIStateUpdate
 │  │     ├─ GameplayFeedback
