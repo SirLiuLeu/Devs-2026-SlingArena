@@ -12,6 +12,7 @@ local CONFIG = {
 	TargetRange = 120,
 	Lifetime = 10,
 	SlowDuration = 3,
+	TargetScanInterval = 0.5,
 }
 
 local SlowBlaster = {}
@@ -107,6 +108,7 @@ function SlowBlaster.OnAbilityTrigger(context)
 	context._projectiles[projectile] = { target = target, part = part }
 	local cooldown = tonumber(context.progression and context.progression.abilityParams and context.progression.abilityParams.cooldown) or CONFIG.Cooldown
 	context._nextAbilityAt = now + cooldown
+	print(string.format("[PET_ABILITY_ACTIVATED] player=%s pet=%s ability=SlowBlaster target=%s cooldown=%.1fs", context.player.Name, tostring(context.definition and context.definition.PetId or "Dragon"), target.Name, cooldown))
 	local finished = false
 	local hitConnection
 	local function finish(victim: Player?)
@@ -132,6 +134,13 @@ function SlowBlaster.OnAbilityTrigger(context)
 end
 
 function SlowBlaster.OnTick(context, _dt: number)
+	local now = os.clock()
+	if now >= (context._nextTargetScanAt or 0) then
+		context._nextTargetScanAt = now + CONFIG.TargetScanInterval
+		if now >= (context._nextAbilityAt or 0) then
+			SlowBlaster.OnAbilityTrigger(context)
+		end
+	end
 	for projectile, data in pairs(context._projectiles or {}) do
 		if not (projectile and projectile.Parent and data.part and data.part.Parent) then
 			context._projectiles[projectile] = nil
