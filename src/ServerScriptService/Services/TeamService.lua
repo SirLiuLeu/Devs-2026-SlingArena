@@ -41,6 +41,7 @@ function TeamService:_setTeamId(player: Player, teamId: string?)
 	end
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateService then stateService:SetTeamId(player, teamId) end
+	if player:GetAttribute("TeamId") ~= teamId then player:SetAttribute("TeamId", teamId) end
 	self:_syncRobloxTeam(player, teamId)
 end
 
