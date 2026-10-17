@@ -21,9 +21,11 @@ function Titan.OnInit(context)
 	local params = context.progression and context.progression.abilityParams or {}
 	context._weightMultiplier = math.clamp(tonumber(params.weightMultiplier) or 1, 1, 1.5)
 	context._hitboxMultiplier = math.clamp(tonumber(params.hitboxMultiplier) or 1, 1, 1.5)
-	-- No credit for player levels gained before Titan became active.
-	context._visualMultiplier = 1
-	context._visualGrowthLevels = 0
+	-- New equip starts at 1x. Refreshing an already-equipped Titan after an upgrade
+	-- retains only the growth earned during its current equipped session.
+	local preservedGrowth = context.preservedTitanVisualGrowth
+	context._visualMultiplier = math.clamp(tonumber(preservedGrowth and preservedGrowth.multiplier) or 1, 1, PetAbilityProgressionConfig.TitanVisualMultiplierCap)
+	context._visualGrowthLevels = math.max(0, math.floor(tonumber(preservedGrowth and preservedGrowth.levels) or 0))
 	context._incomingKnockbackMultiplier = math.max(0, tonumber(params.incomingKnockbackMultiplier) or 1)
 	context._outgoingKnockbackMultiplier = math.max(0, tonumber(params.outgoingKnockbackMultiplier) or 1)
 	context.player:SetAttribute(WEIGHT_MULTIPLIER_ATTRIBUTE, context._weightMultiplier)
