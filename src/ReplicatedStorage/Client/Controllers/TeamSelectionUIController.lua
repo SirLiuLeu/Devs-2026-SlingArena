@@ -67,7 +67,7 @@ function TeamSelectionUIController:_refreshToggleStyle()
 		toggle.BackgroundColor3 = color
 		if toggle:IsA("ImageButton") then toggle.ImageColor3 = color end
 		if toggle:IsA("TextButton") then
-			toggle.Text = self._currentTeamId
+			toggle.Text = self._currentTeamId or ""
 			toggle.TextColor3 = if self._currentTeamId == "White" or self._currentTeamId == "Yellow" then Color3.fromRGB(30, 30, 30) else Color3.new(1, 1, 1)
 		end
 	else
