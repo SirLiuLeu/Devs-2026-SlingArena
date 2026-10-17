@@ -202,7 +202,7 @@ function LauncherInventoryUIController:_refreshRightPanel()
 	if self._damage then self._damage.Text = string.format("Damage: %.2f", (stats and stats.damage) or (definition and definition.stats.launchPower) or 0) end
 	if self._hp then self._hp.Text = string.format("HP: %.0f", (stats and stats.hp) or 0) end
 	if self._range then self._range.Text = string.format("Weight: %.2f", (stats and stats.weight) or (definition and definition.stats.weight) or 0) end
-	if self._regen then self._regen.Text = string.format("Regeneration: %.2f", (stats and stats.regen) or (definition and definition.stats.regenPerSecond) or 0) end
+	if self._regen then self._regen.Text = string.format("Regeneration: %.2f", (stats and stats.regen) or (definition and definition.stats.regen) or 0) end
 	local canAct = self:_inLobby() and entry ~= nil
 	local canEquip = canAct and entry.equipped ~= true
 	local canUnequip = canAct and entry.equipped == true
