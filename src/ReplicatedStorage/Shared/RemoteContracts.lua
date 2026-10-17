@@ -31,6 +31,7 @@ RemoteContracts.Names = {
 	TeleportRequest = "TeleportRequest",
 	DebugSpawnFood = "DebugSpawnFood",
 	DebugResetLauncher = "DebugResetLauncher",
+	DebugLevelUp5 = "DebugLevelUp5",
 	ConsumeHpPotion = "ConsumeHpPotion",
 	ConsumeItem = "ConsumeItem",
 	ReportFoodHit = "ReportFoodHit",
@@ -97,6 +98,9 @@ RemoteContracts.Validators = {
 		return type(payload) == "table" and typeof(payload.itemId) == "string" and #payload.itemId > 0 and #payload.itemId <= 80
 	end,
 	[RemoteContracts.Names.Plus1Minute] = function(): boolean
+		return true
+	end,
+	[RemoteContracts.Names.DebugLevelUp5] = function(): boolean
 		return true
 	end,
 	[RemoteContracts.Names.EndRound] = function(): boolean
