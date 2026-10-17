@@ -1,9 +1,6 @@
 --!strict
 
 local ProjectTreeSpec = {
-	Remotes = {
-		ChangeTeam = "LauncherArenaRemotes.ChangeTeam", -- [PROJECT_TREE_SPEC] ReplicatedStorage.LauncherArenaRemotes.ChangeTeam (RemoteEvent)
-	},
 	UI = {
 		Lobby = {
 			ScreenGui = "UnitTestUI", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI
@@ -11,7 +8,8 @@ local ProjectTreeSpec = {
 			JoinButton = "UnitTestUI.RootFrame.JoinButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.JoinButton
 			LeaveButton = "UnitTestUI.RootFrame.LeaveButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.LeaveButton
 			StartSafeZoneButton = "UnitTestUI.RootFrame.StartSafeZoneButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.StartSafeZoneButton
-			Plus1MinuteButton = "UnitTestUI.RootFrame.Plus1Minute", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.Plus1Minute
+			Plus1MinuteButton = "UnitTestUI.RootFrame.Plus1Minute", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.Plus1Minute
+			LevelUp5Button = "UnitTestUI.RootFrame.LevelUp5", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.LevelUp5, -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.Plus1Minute
 			DebugResetButton = "UnitTestUI.RootFrame.DebugReset", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.DebugReset
 			EndRoundButton = "UnitTestUI.RootFrame.EndRoundButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.EndRoundButton
 		},
@@ -199,6 +197,8 @@ local ProjectTreeSpec = {
 	},
 	Remotes = {
 		Folder = "LauncherArenaRemotes", -- [PROJECT_TREE_SPEC] ReplicatedStorage.LauncherArenaRemotes
+		ChangeTeam = "LauncherArenaRemotes.ChangeTeam", -- [PROJECT_TREE_SPEC]
+		DebugLevelUp5 = "LauncherArenaRemotes.DebugLevelUp5", -- [PROJECT_TREE_SPEC]
 		MoveRequest = "LauncherArenaRemotes.MoveRequest", -- [PROJECT_TREE_SPEC]
 		StartCharge = "LauncherArenaRemotes.StartCharge", -- [PROJECT_TREE_SPEC]
 		ReleaseCharge = "LauncherArenaRemotes.ReleaseCharge", -- [PROJECT_TREE_SPEC]
