@@ -5,7 +5,6 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local PetProgression = require(ReplicatedStorage.Shared.Utils.PetProgression)
-local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
 local ServiceResolver = require(script.Parent.Parent.Infrastructure.ServiceResolver)
 
@@ -50,7 +49,6 @@ function PetAbilityService.new(context)
 	self._connections = {}
 	self._heartbeatConnection = nil
 	self._heartbeatConnectCount = 0
-	self._abilityTriggerRemote = context.Remotes and context.Remotes:FindFirstChild(RemoteContracts.Names.AbilityTrigger) :: RemoteEvent?
 	return self
 end
 
@@ -70,11 +68,6 @@ function PetAbilityService:Init()
 	self:RegisterEffect("SlowBlaster", require(petEffects.SlowBlaster))
 	self:RegisterEffect("Regeneration", require(petEffects.Regeneration))
 	self:RegisterEffect("IdleStealth", require(petEffects.IdleStealth))
-	if self._abilityTriggerRemote then
-		table.insert(self._connections, self._abilityTriggerRemote.OnServerEvent:Connect(function(player: Player, payload)
-			self:_onAbilityTrigger(player, payload)
-		end))
-	end
 	local bus = self._context.EventBus
 	table.insert(self._connections, Players.PlayerRemoving:Connect(function(player)
 		local effects = self._activeEffects[player]
@@ -138,24 +131,6 @@ function PetAbilityService:Init()
 	end
 	self:_ensureHeartbeat()
 	-- [DEBUG_TRACE] print("[ROUND_END_TRACE][PetAbilityService] Init END; heartbeat ensured")
-end
-
-function PetAbilityService:_onAbilityTrigger(player: Player, payload: any)
-	if type(payload) ~= "table" or type(payload.abilityId) ~= "string" then return end
-	local playerEffects = self._activeEffects[player]
-	if not playerEffects then return end
-	for _, effectState in pairs(playerEffects) do
-		local definition = effectState.context.definition
-		if definition and definition.activeAbilityId == payload.abilityId then
-			local handler = effectState.module.OnAbilityTrigger
-			if typeof(handler) == "function" then
-				handler(effectState.context, payload)
-			else
-				warn(string.format("[PET_EFFECT] Active ability for %s is not implemented.", tostring(definition.PetId)))
-			end
-			return
-		end
-	end
 end
 
 function PetAbilityService:RegisterEffect(effectId: string, effectModule: any)
