@@ -19,11 +19,13 @@ export type LauncherDefinition = {
 	name: string,
 	description: string?,
 	iconId: string,
+	sellPrice: number,
 	stats: LauncherStats,
 }
 
 LauncherConfig.DefaultLauncherId = "Normalduck"
 LauncherConfig.ModelScale = 1
+LauncherConfig.TemporarySellPrice = 5
 LauncherConfig.BaseStats = {
 	maxHP = 30000,
 	baseDamage = 1000,
@@ -41,6 +43,7 @@ LauncherConfig.Types = {
 		name = "Normal Duck",
 		description = "A balanced all-rounder.",
 		iconId = DEFAULT_ICON,
+		sellPrice = 1,
 		stats = {
 			maxHP = 16000,
 			baseDamage = 1000,
@@ -58,6 +61,7 @@ LauncherConfig.Types = {
 		name = "King Duck",
 		description = "A heavy defensive launcher with high durability.",
 		iconId = DEFAULT_ICON,
+		sellPrice = 2,
 		stats = {
 			maxHP = 28000,
 			baseDamage = 700,
@@ -75,6 +79,7 @@ LauncherConfig.Types = {
 		name = "Witch Duck",
 		description = "A light, highly mobile launcher.",
 		iconId = DEFAULT_ICON,
+		sellPrice = 2,
 		stats = {
 			maxHP = 11000,
 			baseDamage = 650,
@@ -92,6 +97,7 @@ LauncherConfig.Types = {
 		name = "Drake Duck",
 		description = "A high-impact launcher focused on damage.",
 		iconId = DEFAULT_ICON,
+		sellPrice = 3,
 		stats = {
 			maxHP = 13500,
 			baseDamage = 1650,
@@ -109,6 +115,7 @@ LauncherConfig.Types = {
 		name = "Shield Duck",
 		description = "A resilient launcher with strong defensive stats.",
 		iconId = DEFAULT_ICON,
+		sellPrice = 3,
 		stats = {
 			maxHP = 23000,
 			baseDamage = 850,
