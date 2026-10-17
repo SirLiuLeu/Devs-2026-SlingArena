@@ -81,6 +81,17 @@ function PetAbilityService:Init()
 	end))
 	if bus then
 		if DebugConfig.VerboseTrace then print("[ROUND_END_TRACE][PetAbilityService] EventBus found; binding pet/effect lifecycle handlers") end
+		table.insert(self._connections, bus:On("LevelUp", function(player: Player, playerLevel: number)
+			local effects = self._activeEffects[player]
+			if not effects then return end
+			for _, effectState in pairs(effects) do
+				local definition = effectState.context.definition
+				if definition and definition.effectId == "Titan" and typeof(effectState.module.OnLevelUp) == "function" then
+					effectState.module.OnLevelUp(effectState.context, playerLevel)
+					break -- A player-level event increments Titan visual growth once, even with multiple copies equipped.
+				end
+			end
+		end))
 		table.insert(self._connections, bus:On("PetEquipped", function(player, slotType, instanceId, ownedInstance)
 			if DebugConfig.VerboseTrace then print(string.format("[ROUND_END_TRACE][PetAbilityService] EventBus PetEquipped; player=%s slot=%s instanceId=%s", player and player.Name or "nil", tostring(slotType), tostring(instanceId))) end
 			local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
