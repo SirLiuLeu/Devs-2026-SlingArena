@@ -578,8 +578,8 @@ DataModel
 │  │        │  └─  Slot1, Slot2, Slot3, Slot4 (LauncherSlotTemplate_LauncherInventoryUI Frames) -- Script Spawn in run time
 │  │        └─ RightPanel
 │  │           ├─ ActionButtons
-│  │           │  ├─ DeleteButton (TextButton)
-│  │           │  └─ EquipButton (TextButton)
+│  │           │  ├─ SellButton (TextButton)
+│  │           │  └─ EquiptButton (TextButton)
 │  │           ├─ Stats
 │  │           │  └─ Damage, HP, Range, Regeneration (TextLabels)
 │  │           └─ SelectedName (TextLabel)
