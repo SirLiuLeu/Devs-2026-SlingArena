@@ -400,10 +400,45 @@ end
 function PlayerService:_resolveLauncherModelSource(launcherId: string): Model?
 	local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
 	local launchersFolder = assetsFolder and assetsFolder:FindFirstChild("Launchers")
-	local launcherModel = launchersFolder and launchersFolder:FindFirstChild(launcherId)
-	if launcherModel and launcherModel:IsA("Model") then
-		return launcherModel
+	if not launchersFolder then
+		warn(string.format("[PLAYER_SERVICE] stage=launcher_asset_lookup_failed launcherId=%s reason=LaunchersFolderMissing", launcherId))
+		return nil
 	end
+
+	local exact = launchersFolder:FindFirstChild(launcherId)
+	if exact and exact:IsA("Model") then
+		return exact
+	end
+
+	-- The data/config IDs predate the Studio model naming convention. Accept the
+	-- known ShieldDuck asset spelling and case-only differences without changing saved IDs.
+	local aliases = if launcherId == "Shielduck" then { "ShieldDuck", "Shieldduck" } else {}
+	for _, alias in ipairs(aliases) do
+		local candidate = launchersFolder:FindFirstChild(alias)
+		if candidate and candidate:IsA("Model") then
+			print(string.format("[PLAYER_SERVICE] stage=launcher_asset_alias_resolved launcherId=%s modelName=%s", launcherId, candidate.Name))
+			return candidate
+		end
+	end
+
+	local normalizedId = string.lower(launcherId)
+	for _, candidate in ipairs(launchersFolder:GetChildren()) do
+		if candidate:IsA("Model") and string.lower(candidate.Name) == normalizedId then
+			print(string.format("[PLAYER_SERVICE] stage=launcher_asset_case_resolved launcherId=%s modelName=%s", launcherId, candidate.Name))
+			return candidate
+		end
+	end
+
+	local availableModels = {}
+	for _, child in ipairs(launchersFolder:GetChildren()) do
+		if child:IsA("Model") then table.insert(availableModels, child.Name) end
+	end
+	table.sort(availableModels)
+	warn(string.format(
+		"[PLAYER_SERVICE] stage=launcher_asset_lookup_failed launcherId=%s availableModels=%s",
+		launcherId,
+		table.concat(availableModels, ",")
+	))
 	return nil
 end
 
@@ -518,7 +553,14 @@ function PlayerService:_applyLauncherVisual(pawn: Model, launcherId: string): bo
 
 	local sourceRoot = self:_resolveLauncherVisualRoot(launcherModel)
 	if not sourceRoot then
-		warn(string.format("[PLAYER_SERVICE] Launcher model %s has no RootPart/PrimaryPart", launcherId))
+		local directChildren = {}
+		for _, child in ipairs(launcherModel:GetChildren()) do table.insert(directChildren, child.Name .. ":" .. child.ClassName) end
+		warn(string.format(
+			"[PLAYER_SERVICE] stage=launcher_visual_failed launcherId=%s modelName=%s reason=MissingRootPartOrPrimaryPart children=%s",
+			launcherId,
+			launcherModel.Name,
+			table.concat(directChildren, ",")
+		))
 		return false
 	end
 
@@ -528,7 +570,7 @@ function PlayerService:_applyLauncherVisual(pawn: Model, launcherId: string): bo
 	local equipped = self:_cloneEquippedLauncherModel(pawn, launcherModel)
 	local visualRoot = self:_resolveLauncherVisualRoot(equipped)
 	if not visualRoot then
-		warn(string.format("[PLAYER_SERVICE] Cloned launcher model %s has no RootPart/PrimaryPart", launcherId))
+		warn(string.format("[PLAYER_SERVICE] stage=launcher_visual_failed launcherId=%s modelName=%s reason=ClonedModelMissingRootPartOrPrimaryPart", launcherId, launcherModel.Name))
 		return false
 	end
 	visualRoot.Name = LAUNCHER_ROOT_PART_NAME
@@ -981,6 +1023,13 @@ function PlayerService:EquipLauncherModel(player: Player, launcherId: string): b
 	if state then
 		self:_updateWorldUi(player, state)
 	end
+	print(string.format(
+		"[PLAYER_SERVICE] stage=launcher_visual_applied player=%s launcherId=%s modelName=%s pawn=%s",
+		player.Name,
+		launcherId,
+		tostring(self:_findEquippedLauncherModel(pawn) and self:_findEquippedLauncherModel(pawn).Name or "None"),
+		pawn.Name
+	))
 	return true
 end
 
