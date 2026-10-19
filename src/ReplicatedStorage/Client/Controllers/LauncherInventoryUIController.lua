@@ -53,6 +53,18 @@ function LauncherInventoryUIController:SetConfirmationController(controller)
 	self._confirmation = controller
 end
 
+function LauncherInventoryUIController:SetToastController(controller)
+	self._toast = controller
+end
+
+function LauncherInventoryUIController:_showToast(message: string)
+	if self._toast and typeof(self._toast.Enqueue) == "function" then
+		self._toast:Enqueue({ Type = "Generic", Text = message })
+	else
+		warn("[LAUNCHER_INVENTORY_UI] " .. message)
+	end
+end
+
 function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	if uiReadySignal and uiReadySignal:GetAttribute("IsReady") ~= true then
 		uiReadySignal.Event:Wait()
@@ -68,6 +80,9 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._regen = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.Regeneration)
 	self._equip = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.EquipButton)
 	self._sell = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.SellButton)
+	if not self._equip then
+		warn("[LAUNCHER_INVENTORY_UI] Missing StarterGui.LauncherInventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.EquiptButton; create/rename this GuiButton in Studio.")
+	end
 	if not self._sell then
 		warn("[LAUNCHER_INVENTORY_UI] Missing StarterGui.LauncherInventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.SellButton; create/rename this TextButton in Studio.")
 	end
@@ -90,39 +105,107 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._sellRemote = remotes:FindFirstChild(RemoteContracts.Names.SellLauncher) :: RemoteEvent?
 	self._feedbackRemote = remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
 	if self._equip then
-		table.insert(self._connections, self._equip.MouseButton1Click:Connect(function()
-			if self:_inLobby() and self._selected and self._equipRemote then
-				self._equipRemote:FireServer(self._selected.instanceId)
+		table.insert(self._connections, self._equip.Activated:Connect(function()
+			local entry = self._selected
+			if not self:_inLobby() then
+				warn("[LAUNCHER_INVENTORY_UI] Equip ignored: player is not in Lobby.")
+				return
 			end
+			if not entry then
+				warn("[LAUNCHER_INVENTORY_UI] Equip ignored: no Launcher is selected.")
+				return
+			end
+			if entry.equipped == true then
+				return
+			end
+			if type(entry.instanceId) ~= "string" or entry.instanceId == "" then
+				warn("[LAUNCHER_INVENTORY_UI] Equip ignored: selected Launcher has no owned instanceId.")
+				return
+			end
+			if not (self._equipRemote and self._equipRemote:IsA("RemoteEvent")) then
+				warn("[LAUNCHER_INVENTORY_UI] Missing ReplicatedStorage.LauncherArenaRemotes.EquipLauncher (RemoteEvent).")
+				return
+			end
+			print(string.format("[LAUNCHER_INVENTORY_UI] Equip request sent: player=%s instanceId=%s definitionId=%s", Players.LocalPlayer.Name, entry.instanceId, tostring(entry.id)))
+			self._pendingEquipInstanceId = entry.instanceId
+			self:_refreshRightPanel()
+			self._equipRemote:FireServer(entry.instanceId)
 		end))
 	end
 	if self._sell then
 		self._sell.Text = "Sell"
-		table.insert(self._connections, self._sell.MouseButton1Click:Connect(function()
+		table.insert(self._connections, self._sell.Activated:Connect(function()
 			local entry = self._selected
-			if not self:_inLobby() or not self:_canSell(entry) then return end
+			if not self:_inLobby() then
+				warn("[LAUNCHER_INVENTORY_UI] Sell ignored: player is not in Lobby.")
+				return
+			end
+			if not entry then
+				warn("[LAUNCHER_INVENTORY_UI] Sell ignored: no Launcher is selected.")
+				return
+			end
+			if not self:_canSell(entry) then
+				warn(string.format("[LAUNCHER_INVENTORY_UI] Sell ignored: selected Launcher is protected, expired, or has no positive sell price. instanceId=%s equipped=%s", tostring(entry.instanceId), tostring(entry.equipped)))
+				return
+			end
+			if type(entry.instanceId) ~= "string" or entry.instanceId == "" then
+				warn("[LAUNCHER_INVENTORY_UI] Sell ignored: selected Launcher has no owned instanceId.")
+				return
+			end
 			if not self._confirmation then
 				warn("[LAUNCHER_INVENTORY_UI] ConfirmationUIController unavailable; cannot confirm Launcher sale.")
 				return
 			end
+			local instanceId = entry.instanceId
 			local price = self:_getSellPrice(entry)
 			self._confirmation:RequestConfirm(ConfirmationTextConfig.Get("SellLauncher", { price = price }), function()
-				if self._sellRemote then
-					self._sellRemote:FireServer(entry.instanceId)
-				else
-					warn("[LAUNCHER_INVENTORY_UI] LauncherArenaRemotes.SellLauncher missing; create the RemoteEvent through Rojo.")
+				if not (self._sellRemote and self._sellRemote:IsA("RemoteEvent")) then
+					warn("[LAUNCHER_INVENTORY_UI] Missing ReplicatedStorage.LauncherArenaRemotes.SellLauncher (RemoteEvent).")
+					return
 				end
+				print(string.format("[LAUNCHER_INVENTORY_UI] Sell confirmed; request sent: player=%s instanceId=%s pricePreview=%d", Players.LocalPlayer.Name, instanceId, price))
+				self._pendingSellInstanceId = instanceId
+				self:_refreshRightPanel()
+				self._sellRemote:FireServer(instanceId)
 			end)
 		end))
 	end
 	if self._feedbackRemote and self._feedbackRemote:IsA("RemoteEvent") then
 		table.insert(self._connections, self._feedbackRemote.OnClientEvent:Connect(function(message)
-			if type(message) ~= "table" or message.EventType ~= "LauncherSellResult" or type(message.Payload) ~= "table" then return end
-			if message.Payload.Success ~= true then
-				warn(string.format("[LAUNCHER_INVENTORY_UI] Launcher sale rejected: %s", tostring(message.Payload.Reason or "Unknown")))
+			if type(message) ~= "table" or type(message.Payload) ~= "table" then return end
+			local payload = message.Payload
+			if message.EventType == "LauncherEquipResult" then
+				self._pendingEquipInstanceId = nil
+				if payload.Success == true then
+					local visualStatus = tostring(payload.VisualStatus or "Updated")
+					if visualStatus == "Failed" or visualStatus == "PawnUnavailable" then
+						warn(string.format("[LAUNCHER_INVENTORY_UI] Equip persisted, but live Launcher visual status is %s. launcherId=%s", visualStatus, tostring(payload.LauncherId)))
+						self:_showToast(ConfirmationTextConfig.Get("LauncherEquipVisualFailed"))
+					else
+						print(string.format("[LAUNCHER_INVENTORY_UI] Equip succeeded: launcherId=%s visualStatus=%s", tostring(payload.LauncherId), visualStatus))
+						self:_showToast(ConfirmationTextConfig.Get("LauncherEquipSuccess"))
+					end
+				else
+					local reason = tostring(payload.Reason or "Unknown")
+					warn(string.format("[LAUNCHER_INVENTORY_UI] Equip rejected: reason=%s", reason))
+					self:_showToast(ConfirmationTextConfig.Get("LauncherEquipFailed", { reason = reason }))
+				end
+			elseif message.EventType == "LauncherSellResult" then
+				self._pendingSellInstanceId = nil
+				if payload.Success == true then
+					local salePrice = math.max(0, math.floor(tonumber(payload.SalePrice) or 0))
+					print(string.format("[LAUNCHER_INVENTORY_UI] Sell succeeded: price=%d", salePrice))
+					self:_showToast(ConfirmationTextConfig.Get("LauncherSellSuccess", { price = salePrice }))
+				else
+					local reason = tostring(payload.Reason or "Unknown")
+					warn(string.format("[LAUNCHER_INVENTORY_UI] Launcher sale rejected: reason=%s", reason))
+					self:_showToast(ConfirmationTextConfig.Get("LauncherSellFailed", { reason = reason }))
+				end
 			end
+			self:_refreshRightPanel()
 		end))
 	end
+
 	if self._provider then
 		self._providerConnection = self._provider:BindChanged(function(snapshot) self:Render(snapshot) end)
 		self._latestSnapshot = self._provider:GetSnapshot()
@@ -161,17 +244,9 @@ function LauncherInventoryUIController:_canSell(entry): boolean
 	if not entry or entry.equipped == true or self:_entryKey(entry) == "default_normal_launcher" then return false end
 	local expiresAt = tonumber(entry.expiresAt)
 	if expiresAt and expiresAt <= os.time() then return false end
-	if self:_isTemporary(entry) then return self:_getSellPrice(entry) > 0 end
-	local owned = self._latestSnapshot and self._latestSnapshot.ownedLaunchers or {}
-	for _, other in ipairs(owned) do
-		if self:_entryKey(other) ~= self:_entryKey(entry)
-			and other.id == entry.id
-			and not self:_isTemporary(other)
-			and not (tonumber(other.expiresAt) and tonumber(other.expiresAt) <= os.time()) then
-			return self:_getSellPrice(entry) > 0
-		end
-	end
-	return false
+	-- Any owned Launcher may be sold regardless of duplicate status. The server
+	-- remains authoritative for ownership, protection rules, expiry, and payout.
+	return self:_getSellPrice(entry) > 0
 end
 
 function LauncherInventoryUIController:_bindSlot(slot: GuiObject, entry)
@@ -252,16 +327,19 @@ function LauncherInventoryUIController:_refreshRightPanel()
 	if self._range then self._range.Text = string.format("Weight: %.2f", (stats and stats.weight) or (definition and definition.stats.weight) or 0) end
 	if self._regen then self._regen.Text = string.format("Regeneration: %.2f", (stats and stats.regen) or (definition and definition.stats.regen) or 0) end
 	local canAct = self:_inLobby() and entry ~= nil
-	local canEquip = canAct and entry.equipped ~= true
-	local canSell = canAct and self:_canSell(entry)
+	local entryKey = if entry then self:_entryKey(entry) else ""
+	local equipPending = self._pendingEquipInstanceId ~= nil and self._pendingEquipInstanceId == entryKey
+	local sellPending = self._pendingSellInstanceId ~= nil and self._pendingSellInstanceId == entryKey
+	local canEquip = canAct and entry.equipped ~= true and not equipPending
+	local canSell = canAct and self:_canSell(entry) and not sellPending
 	if self._equip then
-		self._equip.Text = if entry and entry.equipped then "Equipped" else "Equip"
+		self._equip.Text = if entry and entry.equipped then "Equipped" elseif equipPending then "Equipping..." else "Equip"
 		self._equip.Active = canEquip
 		self._equip.AutoButtonColor = canEquip
 		self._equip.TextTransparency = if canEquip then 0 else 0.5
 	end
 	if self._sell then
-		self._sell.Text = "Sell"
+		self._sell.Text = if sellPending then "Selling..." else "Sell"
 		self._sell.Active = canSell
 		self._sell.AutoButtonColor = canSell
 		self._sell.TextTransparency = if canSell then 0 else 0.5
