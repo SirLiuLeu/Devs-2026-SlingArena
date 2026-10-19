@@ -208,6 +208,7 @@ function TeamSelectionUIController:_requestTeamChange(teamId: string)
 		end
 	end, function()
 		self._pendingTeamConfirmation = nil
+		if self._lastRequestedTeamId == teamId then self._lastRequestedTeamId = nil end
 		print(string.format(
 			"[TEAM_CHANGE_CLIENT] stage=confirm_action confirmed=false player=%s fromTeam=%s targetTeam=%s",
 			Players.LocalPlayer.Name,
