@@ -70,10 +70,23 @@ function LauncherInventoryService:Equip(player: Player, instanceId: string)
 	local pawn = playerService and playerService:GetPawn(player)
 	local visualStatus = "PawnUnavailable"
 	if owned and playerService and pawn then
-		local visualUpdated = playerService:EquipLauncherModel(player, owned.definitionId)
-		visualStatus = if visualUpdated then "Updated" else "Failed"
-		if not visualUpdated then
-			warn(string.format("[LAUNCHER_INVENTORY] Equipped state changed to %s, but live visual refresh failed for %s.", tostring(owned.definitionId), player.Name))
+		local visualCallOk, visualUpdatedOrError = pcall(function()
+			return playerService:EquipLauncherModel(player, owned.definitionId)
+		end)
+		if not visualCallOk then
+			visualStatus = "Failed"
+			warn(string.format(
+				"[LAUNCHER_INVENTORY] stage=visual_refresh_exception player=%s instanceId=%s launcherId=%s error=%s",
+				player.Name,
+				instanceId,
+				tostring(owned.definitionId),
+				tostring(visualUpdatedOrError)
+			))
+		else
+			visualStatus = if visualUpdatedOrError == true then "Updated" else "Failed"
+			if not visualUpdatedOrError then
+				warn(string.format("[LAUNCHER_INVENTORY] Equipped state changed to %s, but live visual refresh returned false for %s.", tostring(owned.definitionId), player.Name))
+			end
 		end
 	elseif state.ActivePlayerMode == GameStates.PlayerMode.Human then
 		visualStatus = "HumanMode"
@@ -157,7 +170,13 @@ function LauncherInventoryService:Init()
 				self:_feedback(player, false, "InvalidRequest")
 				return
 			end
-			self:Equip(player, instanceId)
+			local callOk, callError = pcall(function()
+				self:Equip(player, instanceId)
+			end)
+			if not callOk then
+				warn(string.format("[LAUNCHER_INVENTORY] stage=equip_handler_exception player=%s instanceId=%s error=%s", player.Name, tostring(instanceId), tostring(callError)))
+				self:_feedback(player, false, "InternalError")
+			end
 		end)
 	else
 		warn("[LAUNCHER_INVENTORY] Missing ReplicatedStorage.LauncherArenaRemotes.EquipLauncher (RemoteEvent); create it through Rojo.")
@@ -183,7 +202,13 @@ function LauncherInventoryService:Init()
 				self:_feedback(player, false, "InvalidRequest", "LauncherSellResult", 0)
 				return
 			end
-			self:Sell(player, instanceId)
+			local callOk, callError = pcall(function()
+				self:Sell(player, instanceId)
+			end)
+			if not callOk then
+				warn(string.format("[LAUNCHER_INVENTORY] stage=sell_handler_exception player=%s instanceId=%s error=%s", player.Name, tostring(instanceId), tostring(callError)))
+				self:_feedback(player, false, "InternalError", "LauncherSellResult", 0)
+			end
 		end)
 	else
 		warn("[LAUNCHER_INVENTORY] Missing ReplicatedStorage.LauncherArenaRemotes.SellLauncher (RemoteEvent); create it through Rojo.")
