@@ -17,43 +17,77 @@ function LauncherInventoryService.new(context)
 	return self
 end
 
-function LauncherInventoryService:_feedback(player: Player, success: boolean, reason: string?, eventType: string?, salePrice: number?)
+function LauncherInventoryService:_feedback(player: Player, success: boolean, reason: string?, eventType: string?, salePrice: number?, extraPayload: { [string]: any }?)
 	local remote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
+	local payload = { Success = success, Reason = reason, SalePrice = salePrice }
+	if extraPayload then
+		for key, value in pairs(extraPayload) do payload[key] = value end
+	end
 	if remote and remote:IsA("RemoteEvent") then
 		remote:FireClient(player, {
 			EventType = eventType or "LauncherEquipResult",
-			Payload = { Success = success, Reason = reason, SalePrice = salePrice },
+			Payload = payload,
 		})
+	else
+		warn(string.format("[LAUNCHER_INVENTORY] Cannot send %s feedback to %s: GameplayFeedback RemoteEvent missing.", eventType or "LauncherEquipResult", player.Name))
 	end
+	print(string.format("[LAUNCHER_INVENTORY] Feedback: player=%s event=%s success=%s reason=%s", player.Name, eventType or "LauncherEquipResult", tostring(success), tostring(reason or "-")))
 end
 
 function LauncherInventoryService:Equip(player: Player, instanceId: string)
+	print(string.format("[LAUNCHER_INVENTORY] Equip request received: player=%s instanceId=%s", player.Name, tostring(instanceId)))
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player)
 	if not state or state.LocationState ~= GameStates.SessionState.Lobby then
 		self:_feedback(player, false, "LobbyOnly")
 		return false, "LobbyOnly"
 	end
+
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
-	if not dataService then return false, "MissingPlayerDataService" end
-	local ok, reason = dataService:EquipLauncher(player, instanceId)
-	if ok and stateService then
-		stateService:_syncInventoryFromData(player)
-		local stateApplied = stateService:SetEquippedLauncherInstance(player, instanceId)
-		if not stateApplied then
-			warn(string.format("[LAUNCHER_INVENTORY] Persistent Launcher %s could not be applied to state for %s.", instanceId, player.Name))
-		end
-		local data = dataService:GetData(player)
-		local owned = data and data.OwnedLaunchers and data.OwnedLaunchers[instanceId]
-		local playerService = ServiceResolver.Get(self._context, "PlayerService")
-		if owned and playerService and playerService:GetPawn(player) then
-			if not playerService:EquipLauncherModel(player, owned.definitionId) then
-				warn(string.format("[LAUNCHER_INVENTORY] Equipped state changed to %s, but the live Launcher model could not be refreshed for %s; the next Launcher spawn will use it.", tostring(owned.definitionId), player.Name))
-			end
-		end
+	if not dataService then
+		self:_feedback(player, false, "MissingPlayerDataService")
+		return false, "MissingPlayerDataService"
 	end
-	self:_feedback(player, ok, reason)
-	return ok, reason
+
+	local ok, reason = dataService:EquipLauncher(player, instanceId)
+	if not ok then
+		warn(string.format("[LAUNCHER_INVENTORY] Equip rejected: player=%s instanceId=%s reason=%s", player.Name, instanceId, tostring(reason or "Unknown")))
+		self:_feedback(player, false, reason or "EquipFailed")
+		return false, reason
+	end
+
+	stateService:_syncInventoryFromData(player)
+	local stateApplied = stateService:SetEquippedLauncherInstance(player, instanceId)
+	if not stateApplied then
+		warn(string.format("[LAUNCHER_INVENTORY] Persistent equip changed to %s but runtime state rejected it for %s.", instanceId, player.Name))
+		self:_feedback(player, false, "StateApplyFailed", nil, nil, { LauncherId = instanceId, VisualStatus = "Failed" })
+		return false, "StateApplyFailed"
+	end
+
+	local data = dataService:GetData(player)
+	local owned = data and data.OwnedLaunchers and data.OwnedLaunchers[instanceId]
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
+	local pawn = playerService and playerService:GetPawn(player)
+	local visualStatus = "PawnUnavailable"
+	if owned and playerService and pawn then
+		local visualUpdated = playerService:EquipLauncherModel(player, owned.definitionId)
+		visualStatus = if visualUpdated then "Updated" else "Failed"
+		if not visualUpdated then
+			warn(string.format("[LAUNCHER_INVENTORY] Equipped state changed to %s, but live visual refresh failed for %s.", tostring(owned.definitionId), player.Name))
+		end
+	elseif state.ActivePlayerMode == GameStates.PlayerMode.Human then
+		visualStatus = "HumanMode"
+		print(string.format("[LAUNCHER_INVENTORY] Launcher %s equipped for %s while in Human mode; visual will apply when a Launcher pawn is spawned.", tostring(owned and owned.definitionId), player.Name))
+	else
+		warn(string.format("[LAUNCHER_INVENTORY] Equip state updated but Launcher pawn is unavailable for %s.", player.Name))
+	end
+
+	self:_feedback(player, true, nil, nil, nil, {
+		LauncherId = owned and owned.definitionId or instanceId,
+		VisualStatus = visualStatus,
+	})
+	print(string.format("[LAUNCHER_INVENTORY] Equip completed: player=%s instanceId=%s launcherId=%s visualStatus=%s", player.Name, instanceId, tostring(owned and owned.definitionId), visualStatus))
+	return true, nil
 end
 
 function LauncherInventoryService:Unequip(player: Player)
@@ -75,6 +109,7 @@ function LauncherInventoryService:Unequip(player: Player)
 end
 
 function LauncherInventoryService:Sell(player: Player, instanceId: string)
+	print(string.format("[LAUNCHER_INVENTORY] Sell request received: player=%s instanceId=%s", player.Name, tostring(instanceId)))
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player)
 	if not state or state.LocationState ~= GameStates.SessionState.Lobby then
@@ -86,27 +121,51 @@ function LauncherInventoryService:Sell(player: Player, instanceId: string)
 		self:_feedback(player, false, "MissingPlayerDataService", "LauncherSellResult", 0)
 		return false, "MissingPlayerDataService"
 	end
+
 	local ok, reason, salePrice = dataService:SellLauncher(player, instanceId)
 	if ok and stateService then
 		stateService:_syncInventoryFromData(player)
 		local updatedState = stateService:GetState(player)
 		if updatedState then updatedState.Diamonds = dataService:GetDiamonds(player) end
 		stateService:PublishState(player)
+		print(string.format("[LAUNCHER_INVENTORY] Sell completed: player=%s instanceId=%s salePrice=%d", player.Name, instanceId, salePrice or 0))
+	else
+		warn(string.format("[LAUNCHER_INVENTORY] Sell rejected: player=%s instanceId=%s reason=%s", player.Name, instanceId, tostring(reason or "Unknown")))
 	end
 	self:_feedback(player, ok, reason, "LauncherSellResult", salePrice or 0)
 	return ok, reason
 end
 
 function LauncherInventoryService:Init()
-	if self._equipRemote then self._equipRemote.OnServerEvent:Connect(function(player, instanceId)
-		if RemoteContracts.Validate(RemoteContracts.Names.EquipLauncher, instanceId) then self:Equip(player, instanceId) end
-	end) end
-	if self._unequipRemote then self._unequipRemote.OnServerEvent:Connect(function(player)
-		if RemoteContracts.Validate(RemoteContracts.Names.UnequipLauncher) then self:Unequip(player) end
-	end) end
+	if self._equipRemote then
+		self._equipRemote.OnServerEvent:Connect(function(player: Player, instanceId: any)
+			if not RemoteContracts.Validate(RemoteContracts.Names.EquipLauncher, instanceId) then
+				warn(string.format("[LAUNCHER_INVENTORY] Invalid equip payload: player=%s instanceIdType=%s", player.Name, typeof(instanceId)))
+				self:_feedback(player, false, "InvalidRequest")
+				return
+			end
+			self:Equip(player, instanceId)
+		end)
+	else
+		warn("[LAUNCHER_INVENTORY] Missing ReplicatedStorage.LauncherArenaRemotes.EquipLauncher (RemoteEvent); create it through Rojo.")
+	end
+
+	if self._unequipRemote then
+		self._unequipRemote.OnServerEvent:Connect(function(player)
+			if not RemoteContracts.Validate(RemoteContracts.Names.UnequipLauncher) then
+				self:_feedback(player, false, "InvalidRequest")
+				return
+			end
+			self:Unequip(player)
+		end)
+	else
+		warn("[LAUNCHER_INVENTORY] Missing ReplicatedStorage.LauncherArenaRemotes.UnequipLauncher (RemoteEvent); create it through Rojo.")
+	end
+
 	if self._sellRemote then
 		self._sellRemote.OnServerEvent:Connect(function(player: Player, instanceId: any)
 			if not RemoteContracts.Validate(RemoteContracts.Names.SellLauncher, instanceId) then
+				warn(string.format("[LAUNCHER_INVENTORY] Invalid sell payload: player=%s instanceIdType=%s", player.Name, typeof(instanceId)))
 				self:_feedback(player, false, "InvalidRequest", "LauncherSellResult", 0)
 				return
 			end
