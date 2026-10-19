@@ -185,6 +185,7 @@ local initializationOrder = {
 	"PlayerService",
 	"FoodService",
 	"LauncherService",
+	"LauncherInventoryService",
 	"HitCooldownDedupe",
 	"CollisionService",
 	"DamagePipelineService",
