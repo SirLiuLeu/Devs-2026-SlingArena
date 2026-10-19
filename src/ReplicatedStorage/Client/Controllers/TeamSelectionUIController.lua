@@ -155,17 +155,62 @@ function TeamSelectionUIController:_requestTeamChange(teamId: string)
 		warnMissing("ConfirmationGui / ConfirmationUIController")
 		return
 	end
+	if self._pendingTeamConfirmation then
+		warn(string.format(
+			"[TEAM_CHANGE_CLIENT] stage=confirmation_blocked player=%s pendingTarget=%s clickedTarget=%s",
+			Players.LocalPlayer.Name,
+			tostring(self._pendingTeamConfirmation.targetTeam),
+			teamId
+		))
+		return
+	end
+
+	local sourceTeamId = self._currentTeamId or "None"
 	self._lastRequestedTeamId = teamId
-	local message = ConfirmationTextConfig.Get("ChangeTeam", { team = teamId })
+	self._pendingTeamConfirmation = { sourceTeam = sourceTeamId, targetTeam = teamId }
+	local message = ConfirmationTextConfig.Get("ChangeTeam", {
+		currentTeam = sourceTeamId,
+		team = teamId,
+	})
+	print(string.format(
+		"[TEAM_CHANGE_CLIENT] stage=confirm_open player=%s fromTeam=%s targetTeam=%s message=%q",
+		Players.LocalPlayer.Name,
+		sourceTeamId,
+		teamId,
+		message
+	))
+
 	local confirmationShown = self._confirmation:RequestConfirm(message, function()
+		self._pendingTeamConfirmation = nil
+		print(string.format(
+			"[TEAM_CHANGE_CLIENT] stage=confirm_action confirmed=true player=%s fromTeam=%s targetTeam=%s",
+			Players.LocalPlayer.Name,
+			sourceTeamId,
+			teamId
+		))
 		if self._changeTeamRemote and self._changeTeamRemote:IsA("RemoteEvent") then
-			print(string.format("[TEAM_CHANGE_CLIENT] stage=confirmed_send player=%s requestedTeam=%s", Players.LocalPlayer.Name, teamId))
+			print(string.format(
+				"[TEAM_CHANGE_CLIENT] stage=confirmed_send player=%s fromTeam=%s requestedTeam=%s",
+				Players.LocalPlayer.Name,
+				sourceTeamId,
+				teamId
+			))
 			self._changeTeamRemote:FireServer(teamId)
 		else
 			warn("[TEAM_SELECTION_UI] Confirm callback could not send ChangeTeam because the RemoteEvent is missing.")
 		end
+	end, function()
+		self._pendingTeamConfirmation = nil
+		print(string.format(
+			"[TEAM_CHANGE_CLIENT] stage=confirm_action confirmed=false player=%s fromTeam=%s targetTeam=%s",
+			Players.LocalPlayer.Name,
+			sourceTeamId,
+			teamId
+		))
 	end)
+
 	if not confirmationShown then
+		self._pendingTeamConfirmation = nil
 		self._lastRequestedTeamId = nil
 		warn("[TEAM_SELECTION_UI] ChangeTeam request was not sent because confirmation UI could not be shown.")
 	end
