@@ -64,7 +64,7 @@ local function findTarget(context): (Player?, BasePart?)
 	local bestDistance = CONFIG.TargetRange
 	for _, candidate in ipairs(Players:GetPlayers()) do
 		if candidate ~= context.player and stateService and not stateService:IsHuman(candidate)
-			and not stateService:HasFlag(candidate, "Ghost")
+			
 			and not (context.TeamService and context.TeamService:IsFriendly(context.player, candidate)) then
 			local candidateRoot = playerService:GetRoot(candidate)
 			if candidateRoot then
@@ -82,7 +82,7 @@ local function candidatePawns(context): { Instance }
 	local playerService = context.PlayerService
 	for _, candidate in ipairs(Players:GetPlayers()) do
 		if candidate ~= context.player and stateService and not stateService:IsHuman(candidate)
-			and not stateService:HasFlag(candidate, "Ghost")
+			
 			and not (context.TeamService and context.TeamService:IsFriendly(context.player, candidate)) then
 			local pawn = playerService and playerService:GetPawn(candidate)
 			if pawn and pawn.Parent then table.insert(result, pawn) end
