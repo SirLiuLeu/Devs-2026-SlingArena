@@ -28,6 +28,10 @@
 | PrestigeReset | C->S | MonetizationService | `{}` | Prestige reset request. |
 | DebugSpawnFood | C->S | MapService | `{ mapName: string }` | Studio/debug contract only; the current `MapService:DebugSpawnFood` method is a stub. |
 | DebugResetLauncher | C->S | PlayerService | `{}` | Studio-only debug reset; server ignores requests outside Studio. |
+| DebugLevelUp5 | C->S | GrowthService | `{}` | Studio-only test hook; server ignores requests outside Studio. |
+| StartSafeZone | C->S | RoundService | `{}` | Studio-only round-start test hook; server ignores requests outside Studio. |
+| Plus1Minute | C->S | RoundService | `{}` | Studio-only round-time test hook; server ignores requests outside Studio. |
+| EndRound | C->S | RoundService | `{}` | Studio-only round-end test hook; server ignores requests outside Studio. |
 | SellLauncher | C->S | LauncherInventoryService | `{ instanceId: string }` | Sells an eligible owned Launcher instance; the server decides eligibility and payout. |
 
 # Server → Client (Sync / Feedback)
@@ -77,7 +81,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `PetPreviewConfig.lua` | Per-pet viewport camera `Rotation` and `Offset`, accessed through `Get(petId)`. | `InventoryUIController`, `PreviewRenderer` |
 | `PetRenderConfig.lua` | Client-side nearby Pet render distance, range-check interval, and exit hysteresis. | `ClientPetController` |
 | `PetProjectileRenderConfig.lua` | Client-only projectile visual distance and count cap. | `PetProjectileVisualController.client.lua` |
-| `LauncherPreviewConfig.lua` | Per-Launcher viewport camera `Rotation` and `Offset`, accessed through `Get(launcherId)`. | `LauncherInventoryUIController`, `PreviewRenderer` |
+| `LauncherPreviewConfig.lua` | Per-Launcher viewport camera `Rotation`, `Offset`, and preview `Scale`, accessed through `Get(launcherId)`. | `LauncherInventoryUIController`, `PreviewRenderer` |
 | `PetRarityStatsConfig.lua` | Base HP and damage values by pet rarity. | `PetProgression`, pet UI |
 | `PetsConfig.lua` | Pet definition catalog, ability IDs, rarity, and max-level settings. | `PetService`, `PetProgression`, `InventoryUIController` |
 | `PetsUpgradeConfig.lua` | Level normalization, costs, 10% per-level base-stat growth, and milestone predicates. | `PetService`, `PetProgression`, `PetDisplayFormatter` |
@@ -95,6 +99,8 @@ Config modules store shared tuning and content tables (movement/combat constants
 - The pet details level label is `StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Level`; `ProjectTreeSpec.UI.Inventory.PetsStatLevel` is the code path used to bind it.
 - `PetDisplayFormatter.Format(definition, level, previewNextLevel, languageCode)` is presentation-only and returns `LevelText`, `HPText`, `DamageText`, and `ScriptText`. It selects the localized ability template by locale (with an English fallback) and encodes every RichText arrow as `-&gt;`.
 - Base HP and damage grow at every level. Most ability parameters change at levels 1, 5, 10, 15, and 20; Titan weight/hitbox/visual multipliers are calculated at every level. The first Upgrade click previews base-stat changes; milestone-based ability text changes only when the next level is one of those milestones. The second click submits the upgrade, disables the button until a server result, and all selection/tab/hide/result events clear the preview.
+
+> **History note:** Entries below are dated implementation history, not a current-state inventory. Later notes and the current source supersede older Equipment-era descriptions; current gameplay ownership is Pets + Launcher Inventory.
 
 ## Recent implementation update (2026-08-21)
 
