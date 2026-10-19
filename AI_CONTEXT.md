@@ -70,7 +70,6 @@ Config modules store shared tuning and content tables (movement/combat constants
 |---|---|---|
 | `AbilityConfig.lua` | Launcher ability tuning and per-ability lookup helpers. | `LauncherAbilityService` |
 | `BalanceConfig.lua` | Core balance constants for combat, collisions, growth, launch, respawn, food, and economy values. | `LauncherService`, `GrowthService`, `PlayerStateService`, `CollisionService`, `DamagePipelineService`, `FoodService`, `LevelConfig` |
-
 | `ConfirmationTextConfig.lua` | Shared confirmation and team-feedback messages, with `vi`/`en` lookup and placeholder substitution. | `TeamSelectionUIController`, `UIController`, `LauncherInventoryUIController` |
 | `DebugConfig.lua` | Debug and diagnostic feature flags. | client and server diagnostics |
 | `GachaRewardConfig.lua` | Gacha reward entries (id/type/weight/icon/name/teamBonus) and reward accessor. | `GachaSpinLogic`, `SpinUIController`, `GachaSpinLogicTests` |
