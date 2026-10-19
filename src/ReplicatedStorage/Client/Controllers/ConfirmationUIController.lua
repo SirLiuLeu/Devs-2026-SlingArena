@@ -17,11 +17,19 @@ function ConfirmationUIController:Start()
 	self._text = PathResolver.resolvePath(self._playerGui, ProjectTreeSpec.UI.Confirmation.ConfirmText) :: TextLabel?
 	self._confirm = PathResolver.resolvePath(self._playerGui, ProjectTreeSpec.UI.Confirmation.Confirm) :: GuiButton?
 	self._cancel = PathResolver.resolvePath(self._playerGui, ProjectTreeSpec.UI.Confirmation.Cancel) :: GuiButton?
+	if not self._gui then warn("[CONFIRMATION_UI] Missing PlayerGui.ConfirmationGui (ScreenGui); create it in Studio.") end
+	if not self._root then warn("[CONFIRMATION_UI] Missing PlayerGui.ConfirmationGui.Root (GuiObject); create it in Studio.") end
+	if not self._text then warn("[CONFIRMATION_UI] Missing PlayerGui.ConfirmationGui.Root.ConfirmText (TextLabel); create it in Studio.") end
+	if not self._confirm then warn("[CONFIRMATION_UI] Missing PlayerGui.ConfirmationGui.Root.Confirm (GuiButton); create it in Studio.") end
+	if not self._cancel then warn("[CONFIRMATION_UI] Missing PlayerGui.ConfirmationGui.Root.Cancel (GuiButton); create it in Studio.") end
 	if self._gui then self._gui.Enabled = false end
 end
 
 function ConfirmationUIController:RequestConfirm(text: string, onConfirmCallback: () -> ())
-	if not self._gui or not self._confirm or not self._cancel then return end
+	if not self._gui or not self._confirm or not self._cancel then
+		warn("[CONFIRMATION_UI] Confirmation request was not shown; the GUI or Confirm/Cancel button is missing. Action was not sent.")
+		return
+	end
 	self:Close()
 	if self._text then self._text.Text = text end
 	self._gui.Enabled = true
@@ -32,8 +40,8 @@ function ConfirmationUIController:RequestConfirm(text: string, onConfirmCallback
 		self:Close()
 		if confirmed then onConfirmCallback() end
 	end
-	table.insert(self._connections, self._confirm.MouseButton1Click:Connect(function() finish(true) end))
-	table.insert(self._connections, self._cancel.MouseButton1Click:Connect(function() finish(false) end))
+	table.insert(self._connections, self._confirm.Activated:Connect(function() finish(true) end))
+	table.insert(self._connections, self._cancel.Activated:Connect(function() finish(false) end))
 end
 
 function ConfirmationUIController:Close()
