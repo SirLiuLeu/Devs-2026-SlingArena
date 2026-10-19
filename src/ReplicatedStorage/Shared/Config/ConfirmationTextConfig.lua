@@ -6,8 +6,8 @@ local ConfirmationTextConfig = {}
 
 local TEXTS = {
 	ChangeTeam = {
-		vi = "Bạn có chắc chắn muốn chuyển sang đội {team} không?",
-		en = "Are you sure you want to switch to team {team}?",
+		vi = "Bạn có chắc chắn muốn chuyển đội từ {currentTeam} sang {team} không?",
+		en = "Are you sure you want to switch teams from {currentTeam} to {team}?",
 	},
 	TeamFull = {
 		vi = "Đội này đã đủ người.",
