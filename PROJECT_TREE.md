@@ -3,25 +3,7 @@ DataModel
 ## 🟦 ReplicatedStorage
 ├─ ReplicatedStorage
 │  │  └─ FoodModels
-│  │     ├─ CommonBlue
-│  │     │  ├─ Hitbox
-│  │     │  └─ Visual
-│  │     ├─ CommonGreen
-│  │     │  ├─ Hitbox
-│  │     │  └─ Visual
-│  │     ├─ CommonRed
-│  │     │  ├─ Hitbox
-│  │     │  └─ Visual
-│  │     ├─ EpicViolet
-│  │     │  ├─ Hitbox
-│  │     │  └─ Visual
-│  │     ├─ LegendaryGold
-│  │     │  ├─ Hitbox
-│  │     │  └─ Visual
-│  │     ├─ RareAmber
-│  │     │  ├─ Hitbox
-│  │     │  └─ Visual
-│  │     └─ UncommonIce
+│  │     └─ CommonBlue, CommonGreen, CommonRed, EpicViolet, LegendaryGold, RareAmber, UncommonIce
 │  │        ├─ Hitbox
 │  │        └─ Visual
 │  │
