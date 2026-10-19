@@ -597,15 +597,7 @@ function PlayerDataService:SellLauncher(player: Player, instanceId: string): (bo
 		if isTemporary then
 			salePrice = LauncherConfig.TemporarySellPrice
 		else
-			local duplicateCount = 0
-			for otherId, other in pairs(data.OwnedLaunchers) do
-				local otherExpiresAt = type(other) == "table" and tonumber(other.expiresAt) or nil
-				local otherTemporary = type(other) == "table" and (other.isTemporary == true or otherExpiresAt ~= nil)
-				if otherId ~= instanceId and type(other) == "table" and other.definitionId == launcher.definitionId and not otherTemporary then
-					duplicateCount += 1
-				end
-			end
-			if duplicateCount < 1 then failure = "NotDuplicate"; return data end
+			-- Permanent owned Launchers may be sold even when the player owns only one.
 			salePrice = math.max(0, math.floor(tonumber(definition.sellPrice) or 0))
 		end
 		data.OwnedLaunchers[instanceId] = nil
