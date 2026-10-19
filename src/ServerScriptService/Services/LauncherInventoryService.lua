@@ -162,6 +162,13 @@ function LauncherInventoryService:Sell(player: Player, instanceId: string)
 end
 
 function LauncherInventoryService:Init()
+	print(string.format(
+		"[LAUNCHER_INVENTORY] stage=init equipRemoteBound=%s unequipRemoteBound=%s sellRemoteBound=%s remotesFolder=%s",
+		tostring(self._equipRemote ~= nil and self._equipRemote:IsA("RemoteEvent")),
+		tostring(self._unequipRemote ~= nil and self._unequipRemote:IsA("RemoteEvent")),
+		tostring(self._sellRemote ~= nil and self._sellRemote:IsA("RemoteEvent")),
+		self._context.Remotes:GetFullName()
+	))
 	if self._equipRemote and self._equipRemote:IsA("RemoteEvent") then
 		self._equipRemote.OnServerEvent:Connect(function(player: Player, instanceId: any)
 			print(string.format("[LAUNCHER_INVENTORY] stage=equip_remote_received player=%s instanceId=%s payloadType=%s", player.Name, tostring(instanceId), typeof(instanceId)))
