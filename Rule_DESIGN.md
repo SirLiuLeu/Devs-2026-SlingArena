@@ -62,7 +62,7 @@ Round states (`GameStates.MapRoundState`), verified in `RoundService.lua`:
 
 * Trigger: `SafeZoneService:IsAtMinimumRadius()` becomes true while in `EarlyGame` (or via the debug `+1 Minute` tool forcing the check). ✅
 * On entry: `RoundService:_setState(FinalPhase)`.
-* ❌ **No respawn-disable, no Ghost-flag activation, and no "new team creation disabled" logic exists** tied to entering `FinalPhase`. `DamagePipelineService:HandlePlayerDeath` always calls `RespawnAfterDelay(player, 3, ...)` regardless of round state — including during `FinalPhase`. See §13 for the full breakdown; this is the single largest gap between the old design doc and the actual game.
+* ❌ No respawn-disable or "new team creation disabled" logic is tied to entering `FinalPhase`. `DamagePipelineService:HandlePlayerDeath` still calls `RespawnAfterDelay(player, 3, ...)` during `FinalPhase`; see §13 for the current behavior.
 * What **is** real: dying while in `Launcher` mode, or dying at all while the round state is `FinalPhase`, permanently forces the player into `Human` mode for the rest of the match (`PlayerStateService:RecordDeath`) — see §4.
 
 ## 2.6 RoundEnd
@@ -173,7 +173,6 @@ Flags are modifiers layered on top of a player's core `MovementState`. Real, cod
 
 | Flag | Duration | Notes |
 |---|---|---|
-| `Ghost` | 9999s (if ever applied) | ❌ **No code path ever calls `ApplyFlag(..., "Ghost", ...)` anywhere in the repo.** Every service (`CollisionService`, `DamagePipelineService`, `PlayerStateService`, `LauncherAbilityService`, `EquipmentEffects/EffectUtil`, `CollisionValidation`) *checks* for the Ghost flag and would correctly no-collide/no-damage/hide a Ghost player if one existed — but nothing in the runtime ever grants it. This is the single most important gap for anyone implementing "Ghost/spectator on death in FinalPhase." See §13. |
 | `Invulnerable` | 30s default | Blocks damage and DoT |
 | `Petrify` | 5s | Interrupts charge; removes any active `Stun` on application; blocks new `Stun` while active |
 | `Stun` | 5s | Interrupts charge; cannot be applied over an active `Petrify` |
