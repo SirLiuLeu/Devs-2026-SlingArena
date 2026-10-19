@@ -26,7 +26,7 @@ local function findTarget(context): (Player?, BasePart?)
 	local bestDistance = CONFIG.TargetRange
 	for _, candidate in ipairs(Players:GetPlayers()) do
 		if candidate ~= context.player and not (context.TeamService and context.TeamService:IsFriendly(context.player, candidate))
-			and stateService and not stateService:IsHuman(candidate) and not stateService:HasFlag(candidate, "Ghost") then
+			and stateService and not stateService:IsHuman(candidate) then
 			local candidateRoot = playerService:GetRoot(candidate)
 			if candidateRoot then
 				local distance = (candidateRoot.Position - attackerRoot.Position).Magnitude
