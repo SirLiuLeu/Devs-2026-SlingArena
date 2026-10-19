@@ -68,7 +68,7 @@ function ConfirmationUIController:_resolveReferences(): boolean
 	if not self._cancel then warn("[CONFIRMATION_UI] Missing PlayerGui.ConfirmationGui.Root.Cancel (GuiButton).") end
 
 	self:_bindButtons()
-	return self._gui ~= nil and self._root ~= nil and self._confirm ~= nil and self._cancel ~= nil
+	return self._gui ~= nil and self._root ~= nil and self._text ~= nil and self._confirm ~= nil and self._cancel ~= nil
 end
 
 function ConfirmationUIController:Start()
