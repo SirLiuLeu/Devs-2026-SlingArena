@@ -157,7 +157,7 @@ function TeamSelectionUIController:_requestTeamChange(teamId: string)
 	end
 	self._lastRequestedTeamId = teamId
 	local message = ConfirmationTextConfig.Get("ChangeTeam", { team = teamId })
-	self._confirmation:RequestConfirm(message, function()
+	local confirmationShown = self._confirmation:RequestConfirm(message, function()
 		if self._changeTeamRemote and self._changeTeamRemote:IsA("RemoteEvent") then
 			print(string.format("[TEAM_CHANGE_CLIENT] stage=confirmed_send player=%s requestedTeam=%s", Players.LocalPlayer.Name, teamId))
 			self._changeTeamRemote:FireServer(teamId)
@@ -165,6 +165,10 @@ function TeamSelectionUIController:_requestTeamChange(teamId: string)
 			warn("[TEAM_SELECTION_UI] Confirm callback could not send ChangeTeam because the RemoteEvent is missing.")
 		end
 	end)
+	if not confirmationShown then
+		self._lastRequestedTeamId = nil
+		warn("[TEAM_SELECTION_UI] ChangeTeam request was not sent because confirmation UI could not be shown.")
+	end
 end
 
 function TeamSelectionUIController:Start()
