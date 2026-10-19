@@ -204,7 +204,7 @@ function LauncherAbilityService:_handleCollision(attacker: Player, victim: Playe
 	if not stateService then
 		return
 	end
-	if stateService:IsHuman(attacker) or stateService:IsHuman(victim) or stateService:HasFlag(attacker, "Ghost") or stateService:HasFlag(victim, "Ghost") then
+	if stateService:IsHuman(attacker) or stateService:IsHuman(victim) then
 		return
 	end
 	local ability = self:_ensureAbility(attacker)
