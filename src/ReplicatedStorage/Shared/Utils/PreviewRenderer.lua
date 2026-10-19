@@ -19,6 +19,34 @@ local function clearViewport(viewportFrame: ViewportFrame)
 	end
 end
 
+local SOURCE_NAME_ALIASES = {
+	Shielduck = { "ShieldDuck", "Shieldduck" },
+}
+
+local function findSourceAsset(rootFolder: Instance?, itemId: string): Instance?
+	if not rootFolder then return nil end
+
+	local exact = rootFolder:FindFirstChild(itemId)
+	if exact then return exact end
+
+	for _, alias in ipairs(SOURCE_NAME_ALIASES[itemId] or {}) do
+		local aliased = rootFolder:FindFirstChild(alias)
+		if aliased then
+			print(string.format("[PREVIEW_RENDERER] Resolved asset ID %s to Studio model %s", itemId, aliased.Name))
+			return aliased
+		end
+	end
+
+	local requestedName = string.lower(itemId)
+	for _, child in ipairs(rootFolder:GetChildren()) do
+		if string.lower(child.Name) == requestedName then
+			print(string.format("[PREVIEW_RENDERER] Resolved asset ID %s case-insensitively to Studio model %s", itemId, child.Name))
+			return child
+		end
+	end
+	return nil
+end
+
 local function findSourceModel(asset: Instance): Model?
 	if asset:IsA("Model") then
 		return asset
@@ -82,7 +110,7 @@ end
 -- rootFolder. rootFolder is normally ReplicatedStorage.Assets.Pets or
 -- ReplicatedStorage.Assets.Launchers; no asset paths are hardcoded here.
 function PreviewRenderer.Populate(viewportFrame: ViewportFrame, rootFolder: Instance?, itemId: string, config: any?): Model
-	local sourceAsset = if rootFolder then rootFolder:FindFirstChild(itemId) else nil
+	local sourceAsset = findSourceAsset(rootFolder, itemId)
 	local signature = itemId
 	local existingModel = viewportFrame:FindFirstChild(PREVIEW_MODEL_NAME)
 	local existingCamera = viewportFrame:FindFirstChild(PREVIEW_CAMERA_NAME)
