@@ -104,7 +104,7 @@ Confirmed via `IsHuman()` gates across services:
 ## 3.3 Launcher Mode
 
 * Full gameplay: movement, charge, launch, combat, all Food types, Pet effects.
-* `EquipmentEffectService` only activates equipped effects while `PlayerStateService:IsLauncher(player)` is true; switching to Human clears equipment visuals (`PlayerService`) and effects are re-activated on the next Launcher spawn.
+* `PetAbilityService` orchestrates equipped Pet effects. Effects are active only while the player is in Launcher mode; switching to Human stops/deactivates those effects, which may be reactivated on the next Launcher spawn.
 
 ---
 
@@ -193,7 +193,7 @@ Flags are modifiers layered on top of a player's core `MovementState`. Real, cod
 
 # 7. FOOD SYSTEM (`ServerScriptService/Config/FoodConfig.lua`)
 
-⚠️ **Note:** there are two separate `FoodConfig.lua` files in the repo — a real, fully-populated one under `ServerScriptService/Config/` (used by `FoodService`), and a placeholder/empty one under `ReplicatedStorage/Shared/Config/` (per `AI_CONTEXT.md`, "no exported config table"). Only the `ServerScriptService` one is live. See §13.
+`FoodConfig.lua` is source-controlled at `src/ServerScriptService/Config/FoodConfig.lua` and is consumed by `FoodService`. There is no `src/ReplicatedStorage/Shared/Config/FoodConfig.lua` in the current repository tree.
 
 ## 7.1 Global Settings
 
@@ -306,7 +306,7 @@ These architectural rules are verified in source and remain accurate:
 * Collision is event-driven (`Client Detects → Client Reports → Server Validates → Server Resolves → Replicate`), not fixed-interval polling.
 * Server validation is centralized in `CollisionValidation.lua` — do not duplicate manual distance/sweep checks in individual services.
 * Rate limiting (`RateLimiter`) and hit deduplication (`HitCooldownDedupe`) are mandatory parts of combat validation.
-* `CombatService`, referenced by `SYSTEM_OWNERSHIP.md` as the owner of "pure combat formulas," **does not exist as a runtime module** — no `CombatService.lua` file is present anywhere in `src/`. The closest real equivalent is `CombatCollision.lua` (pure bounce/depenetration geometry, no damage formula) plus damage math inlined in `DamagePipelineService`. See §13.
+* Bounce/depenetration geometry is in `CombatCollision.lua`; damage calculations and damage authority are in `DamagePipelineService`. No `CombatService.lua` exists in the current runtime tree.
 
 ---
 
@@ -343,11 +343,11 @@ This section exists so nobody has to guess. Each item below is a **real, verifie
 9. **No EXP-rate difference between `Awaits` and `EarlyGame`.** `GrantExp` is round-state agnostic; the previously documented "50% EXP in Awaits, 100% in EarlyGame" scaling does not exist in code.
 10. **Safe Zone outside-damage numbers were wrong.** Real ramp is 0.5%/s → 5%/s (+0.5% every 30s), plus a large fixed 15,000-point base component added to every tick — not a pure 1%→10% percent-of-HP ramp.
 11. **Only two trap types exist** (SpikeTrap, LavaTrap). Totem and Toxic Smoke traps referenced in earlier drafts have no implementation anywhere in the codebase.
-12. **Two conflicting `FoodConfig.lua` files exist** — the live one is under `src/ServerScriptService/Config/`; the one under `ReplicatedStorage/Shared/Config/` is an empty placeholder per the project's own `AI_CONTEXT.md`. Anyone editing Food balance must edit the ServerScriptService copy.
+12. **`FoodConfig.lua` has one source-controlled runtime path:** `src/ServerScriptService/Config/FoodConfig.lua`. Older documentation referenced a Shared/Config placeholder that does not exist in the current source tree.
 13. **Two conflicting HP Potion definitions exist** (`BalanceConfig.HpPotionHealAmount/Cooldown` vs. `ItemConfig`'s `hp_potion` entry). The `ItemConfig` definition is what actually runs; the `BalanceConfig` fields are dead fallback values.
 14. **Size-growth formula in earlier drafts (`sqrt(Level) × 0.08`) matches neither implementation found in code.** One implementation (`ComputeSize`, +8%/level linear) is dead code, never called. The live formula, applied to runtime state, is +3%/level multiplicative — matching the Launcher stat growth rate, not a square-root curve.
 15. **`CombatService`, cited in `SYSTEM_OWNERSHIP.md` as the pure-formula combat service, does not exist as a file.** Bounce/depenetration geometry lives in `CombatCollision.lua`; damage math is inlined directly in `DamagePipelineService`. `SYSTEM_OWNERSHIP.md` needs reconciling with actual module boundaries.
-16. **Launcher roster count is inconsistent across project docs.** `Rule_DESIGN.md` (previous draft) and `LauncherConfig.lua` agree on **4** launchers; `AI_CONTEXT.md` claims an "11-launcher catalog," which does not match the code. Treat `AI_CONTEXT.md`'s launcher-count claim as stale.
+16. **The current Launcher catalog has five entries:** `Normalduck`, `Kingduck`, `Witchduck`, `Drakeduck`, and `Shielduck`. The future catalog size is not fixed; `LauncherConfig` lookup helpers should be used instead of assuming a permanent count.
 17. **Arena size and max-player-count (20) could not be verified from source.** No `MaxPlayers`, `ArenaSize`, or similar constant exists in any `.lua` config file — these are presumably Studio/place-level settings not represented in this Rojo tree. Additionally, `SafeZoneConfig.StartRadius = 300` implies a play space with a ~600-stud diameter, which is larger than a "400×400 stud arena" claim if both are meant to describe the same space. Needs confirmation from whoever owns the Studio place file.
 18. **Thorn Armor reflect integration** was previously missing; the implementation now adds equipped pet `statModifiers.Add.reflectDamage` to the resolved Launcher reflect stat (maximum 50%). Runtime validation of lethal reflection remains part of the gameplay test plan.
 19. **`AbilityTrigger` dispatches active pet abilities by `activeAbilityId`** — the SkillButton chooses the first equipped pet with that field, while server dispatch validates it separately from passive/effect identity. Legacy effects with `diagnostic` strings may still be stubs.
