@@ -218,8 +218,10 @@ function TeamService:ChangeTeam(player: Player, teamId: string)
 		self:_sendFeedback(player, false, "TeamFull", state.TeamId)
 		return false, "TeamFull"
 	end
+	local previousTeamId = state.TeamId
 	self:_setTeamId(player, teamId)
 	self._lastTeamChangeAt[player.UserId] = os.clock()
+	print(string.format("[TEAM_CHANGE_SERVER] stage=changed player=%s userId=%d oldTeam=%s newTeam=%s cooldown=%d", player.Name, player.UserId, tostring(previousTeamId), teamId, TeamConfig.ChangeCooldownSeconds))
 	self:_sendFeedback(player, true, nil, teamId, TeamConfig.ChangeCooldownSeconds)
 	return true, nil
 end
@@ -227,12 +229,16 @@ end
 function TeamService:Init()
 	if self._changeTeamRemote and self._changeTeamRemote:IsA("RemoteEvent") then
 		self._changeTeamRemote.OnServerEvent:Connect(function(player: Player, teamId: any)
+			print(string.format("[TEAM_CHANGE_SERVER] stage=received player=%s userId=%d teamType=%s requestedTeam=%s currentTeam=%s", player.Name, player.UserId, typeof(teamId), tostring(teamId), tostring(player:GetAttribute("TeamId") or (player.Team and player.Team.Name) or "None")))
 			if not RemoteContracts.Validate(RemoteContracts.Names.ChangeTeam, teamId) then
 				self:_logRejectedRequest(player, "InvalidRequest", teamId, "Payload must be a non-empty team-ID string of at most 32 characters")
 				self:_sendFeedback(player, false, "InvalidRequest")
 				return
 			end
-			self:ChangeTeam(player, teamId)
+			local changed, reason = self:ChangeTeam(player, teamId)
+			if not changed then
+				print(string.format("[TEAM_CHANGE_SERVER] stage=result success=false player=%s requestedTeam=%s reason=%s", player.Name, tostring(teamId), tostring(reason or "Unknown")))
+			end
 		end)
 	else
 		warn("Missing ReplicatedStorage.LauncherArenaRemotes.ChangeTeam (RemoteEvent). Create it from src/ReplicatedStorage/LauncherArenaRemotes/ChangeTeam.model.json.")
