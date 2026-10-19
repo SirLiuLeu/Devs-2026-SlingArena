@@ -122,8 +122,15 @@ function TeamSelectionUIController:_logRejectedRequest(reason: string, teamId: a
 end
 
 function TeamSelectionUIController:_requestTeamChange(teamId: string)
+	local localPlayer = Players.LocalPlayer
+	local attributedTeamId = localPlayer:GetAttribute("TeamId")
+	if type(attributedTeamId) == "string" then
+		self._currentTeamId = attributedTeamId
+	elseif localPlayer.Team then
+		self._currentTeamId = localPlayer.Team.Name
+	end
 	print(string.format("[TEAM_CHANGE_CLIENT] stage=button_clicked player=%s requestedTeam=%s currentTeam=%s rageActive=%s cooldownRemaining=%.2f",
-		Players.LocalPlayer.Name, teamId, tostring(self._currentTeamId), tostring(self._rageActive), math.max(0, self._localCooldownEndsAt - os.clock())))
+		localPlayer.Name, teamId, tostring(self._currentTeamId), tostring(self._rageActive), math.max(0, self._localCooldownEndsAt - os.clock())))
 	if teamId == self._currentTeamId then
 		self:_logRejectedRequest("AlreadyOnTeam", teamId, "Already assigned locally")
 		return
@@ -165,11 +172,7 @@ function TeamSelectionUIController:_requestTeamChange(teamId: string)
 		return
 	end
 
-	local localPlayer = Players.LocalPlayer
-	local attributedTeamId = localPlayer:GetAttribute("TeamId")
-	local sourceTeamId = if type(attributedTeamId) == "string" then attributedTeamId
-		else (if localPlayer.Team then localPlayer.Team.Name else (self._currentTeamId or "None"))
-	self._currentTeamId = if sourceTeamId ~= "None" then sourceTeamId else self._currentTeamId
+	local sourceTeamId = self._currentTeamId or "None"
 	self._lastRequestedTeamId = teamId
 	self._pendingTeamConfirmation = { sourceTeam = sourceTeamId, targetTeam = teamId }
 	local message = ConfirmationTextConfig.Get("ChangeTeam", {
