@@ -2,7 +2,6 @@
 
 local GameConfig = {
 	FlagConfig = {
-		Ghost = { Duration = 9999, Priority = 90, BlocksCollision = true, BlocksDamage = true },
 		Invulnerable = { Duration = 30, Priority = 100, BlocksDamage = true, BlocksDot = true },
 
 		Petrify = { Duration = 5, Priority = 80, Stackable = false, InterruptCharge = true },
