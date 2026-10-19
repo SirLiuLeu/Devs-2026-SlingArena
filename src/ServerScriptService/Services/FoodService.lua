@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
+local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local CombatCollision = require(ReplicatedStorage.Shared.Utils.CombatCollision)
 local CollisionValidation = require(script.Parent.Helpers.CollisionValidation)
@@ -14,6 +15,8 @@ local FOOD_HIT_RADIUS_PADDING = PhysicsConfig.Collision.Range
 local NORMAL_EPSILON = 1e-5
 local MIN_SPEED_EPSILON = 1e-3
 local GRID_CELL_SIZE = 48
+local SPAWN_RETRY_DELAY_SECONDS = 2
+local MAX_SPAWN_RETRIES = 3
 local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
 local DEBUG_FOOD_HIT_REJECTS = false
 
@@ -108,11 +111,13 @@ local function pivotFoodToAnchorSurface(foodModel: Model, spawnAnchor: BasePart,
 		return nil
 	end
 
+	-- Keep the model unparented until it is at its final accepted position so clients
+	-- never observe the temporary random pivot generated during clone preparation.
 	foodModel:PivotTo(CFrame.new(targetPosition))
 	return targetPosition
 end
 
-local function spawnFood(foodModel: Model, spawnAnchor: BasePart): Model?
+local function spawnFood(foodModel: Model, spawnAnchor: BasePart, horizontalPosition: Vector3): Model?
 	local clone = foodModel:Clone()
 	if not resolveFoodHitbox(clone) then
 		clone:Destroy()
@@ -120,7 +125,7 @@ local function spawnFood(foodModel: Model, spawnAnchor: BasePart): Model?
 	end
 
 	anchorFoodModel(clone)
-	if not pivotFoodToAnchorSurface(clone, spawnAnchor) then
+	if not pivotFoodToAnchorSurface(clone, spawnAnchor, horizontalPosition) then
 		clone:Destroy()
 		return nil
 	end
@@ -154,6 +159,8 @@ function FoodService.new(context)
 	self._foodById = {}
 	self._foodGrid = {}
 	self._foodByInstance = {}
+	self._spawnRetryPending = {}
+	self._spawnRetryGeneration = {}
 	self._playerConsumeCooldown = {}
 	self._foodHitByLaunchTarget = {}
 	return self
@@ -345,6 +352,27 @@ function FoodService:_isSpawnPositionValid(candidate: Vector3, foodRadius: numbe
 		end
 	end
 
+	-- Do not place food directly under active arena participants. Clearance includes
+	-- both hitbox radii plus an authored extra buffer from FoodConfig.
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
+	if stateService and playerService then
+		for _, player in ipairs(Players:GetPlayers()) do
+			local state = stateService:GetState(player)
+			if not state or state.LocationState == GameStates.SessionState.Lobby or state.IsAlive ~= true then
+				continue
+			end
+			local root = playerService:GetRoot(player)
+			if root then
+				local playerRadius = math.max(root.Size.X, root.Size.Z) * 0.5
+				local spacing = foodRadius + playerRadius + math.max(0, FoodConfig.MinPlayerSpawnClearance or 0)
+				if sqrDistanceXZ(candidate, root.Position) <= spacing * spacing then
+					return false
+				end
+			end
+		end
+	end
+
 	return true
 end
 
@@ -405,22 +433,18 @@ function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Fol
 		return false
 	end
 
-	local clone = spawnFood(template, spawnPart)
+	local clone = spawnFood(template, spawnPart, spawnPos :: Vector3)
 	if not clone then
 		return false
 	end
 	clone.Name = foodType
-	clone.Parent = foodContainer
 	local hitbox = resolveFoodHitbox(clone)
 	if not hitbox then
 		clone:Destroy()
 		return false
 	end
-	local surfaceSpawnPos = pivotFoodToAnchorSurface(clone, spawnPart, spawnPos)
-	if not surfaceSpawnPos then
-		clone:Destroy()
-		return false
-	end
+	local surfaceSpawnPos = hitbox.Position
+	clone.Parent = foodContainer
 	local entry = {
 		Id = game:GetService("HttpService"):GenerateGUID(false),
 		Instance = clone,
@@ -449,8 +473,9 @@ function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Fol
 	return true
 end
 
-function FoodService:_spawnFoodBatchOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string, requestedCount: number?)
+function FoodService:_spawnFoodBatchOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string, requestedCount: number?, retryAttempt: number?)
 	local spawnCount = requestedCount or self:_getSpawnCountForZone(zoneName)
+	local currentRetryAttempt = retryAttempt or 0
 	if spawnCount <= 0 then
 		return
 	end
@@ -502,10 +527,36 @@ function FoodService:_spawnFoodBatchOnSpawn(mapModel: Model, foodContainer: Fold
 			spawnCount,
 			spawnPart:GetFullName()
 		))
+
+		local activeCount = self:_getActiveFoodCountForSpawn(spawnPart)
+		local targetCount = self:_getSpawnCountForZone(zoneName)
+		if activeCount < targetCount and currentRetryAttempt < MAX_SPAWN_RETRIES and not self._spawnRetryPending[spawnPart] then
+			local token = (self._spawnRetryGeneration[spawnPart] or 0) + 1
+			self._spawnRetryGeneration[spawnPart] = token
+			self._spawnRetryPending[spawnPart] = token
+			task.delay(SPAWN_RETRY_DELAY_SECONDS, function()
+				if self._spawnRetryPending[spawnPart] ~= token then return end
+				self._spawnRetryPending[spawnPart] = nil
+				if not (mapModel.Parent and foodContainer.Parent and spawnPart.Parent) then return end
+
+				local latestActiveCount = self:_getActiveFoodCountForSpawn(spawnPart)
+				local latestTargetCount = self:_getSpawnCountForZone(zoneName)
+				if latestActiveCount < latestTargetCount then
+					self:_spawnFoodBatchOnSpawn(mapModel, foodContainer, spawnPart, zoneName, latestTargetCount - latestActiveCount, currentRetryAttempt + 1)
+				end
+			end)
+		elseif activeCount < targetCount and currentRetryAttempt >= MAX_SPAWN_RETRIES then
+			warn(string.format("[FoodService] Food spawn retry limit reached for %s; active=%d target=%d.", spawnPart:GetFullName(), activeCount, targetCount))
+		end
 	end
 end
 
 function FoodService:ClearMapFood(mapModel: Model)
+	for spawnPart in pairs(self._spawnRetryPending) do
+		if spawnPart:IsDescendantOf(mapModel) then
+			self._spawnRetryPending[spawnPart] = nil
+		end
+	end
 	for instance, entry in pairs(self._foodEntries) do
 		if instance and instance.Parent and instance:IsDescendantOf(mapModel) then
 			entry.IsActive = false
