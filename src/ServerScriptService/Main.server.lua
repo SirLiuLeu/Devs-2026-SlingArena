@@ -93,7 +93,15 @@ local context = {
 	ServiceRegistry = ServiceRegistry and ServiceRegistry.new() or nil,
 }
 
+local phaseRuns: { [string]: boolean } = {}
+
 local function runServicePhase(serviceName: string, phase: "Init" | "Start")
+	local phaseKey = serviceName .. ":" .. phase
+	if phaseRuns[phaseKey] then
+		warn(string.format("[Bootstrap] Duplicate %s phase call for %s was skipped.", phase, serviceName))
+		return
+	end
+
 	local service = ServiceResolver.Get(context, serviceName)
 	if not service then
 		warn(string.format("[Bootstrap] Missing service %s during %s phase.", serviceName, phase))
@@ -102,25 +110,17 @@ local function runServicePhase(serviceName: string, phase: "Init" | "Start")
 
 	local phaseMethod = service[phase]
 	if typeof(phaseMethod) ~= "function" then
+		phaseRuns[phaseKey] = true
 		return
 	end
 
+	phaseRuns[phaseKey] = true
 	local ok, err = xpcall(function()
 		phaseMethod(service)
 	end, debug.traceback)
-	--- 
-	local ok, err = xpcall(function()
-			phaseMethod(service)
-		end, debug.traceback)
-		
-		if not ok then
-			-- SỬA TẠI ĐÂY: Ép server crash và báo lỗi đỏ chót khổng lồ
-			local errorMsg = string.format("\n!!! CRITICAL BOOTSTRAP ERROR !!!\nService: %s\nPhase: %s\nError:\n%s\n", serviceName, phase, tostring(err))
-			error(errorMsg, 0)
-		end
-	-- if not ok then
-	-- 	warn(string.format("[Bootstrap] %s:%s failed: %s", serviceName, phase, tostring(err)))
-	-- end
+	if not ok then
+		warn(string.format("[Bootstrap] %s:%s failed: %s", serviceName, phase, tostring(err)))
+	end
 end
 
 local serviceConstructors = {
