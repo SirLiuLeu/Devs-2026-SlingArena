@@ -165,7 +165,11 @@ function TeamSelectionUIController:_requestTeamChange(teamId: string)
 		return
 	end
 
-	local sourceTeamId = self._currentTeamId or "None"
+	local localPlayer = Players.LocalPlayer
+	local attributedTeamId = localPlayer:GetAttribute("TeamId")
+	local sourceTeamId = if type(attributedTeamId) == "string" then attributedTeamId
+		else (if localPlayer.Team then localPlayer.Team.Name else (self._currentTeamId or "None"))
+	self._currentTeamId = if sourceTeamId ~= "None" then sourceTeamId else self._currentTeamId
 	self._lastRequestedTeamId = teamId
 	self._pendingTeamConfirmation = { sourceTeam = sourceTeamId, targetTeam = teamId }
 	local message = ConfirmationTextConfig.Get("ChangeTeam", {
