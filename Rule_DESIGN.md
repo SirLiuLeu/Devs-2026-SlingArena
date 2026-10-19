@@ -123,7 +123,7 @@ The current runtime catalog defines five Launchers: `Normalduck`, `Kingduck`, `W
 | `Shielduck` | Defense | 23,000 | 850 | 0.22 | 1.2 | 14 | 0.90 | 0.95 | 80 | 0.10 | 120 |
 
 * A Launcher owns base stats, size, movement profile, and launch profile.
-* A Launcher does **not** own combat status effects (Stun, Slow, DoT, etc.) — those belong exclusively to Equipment (§5).
+* A Launcher does **not** own combat status effects (Stun, Slow, DoT, etc.); Pet effect modules and the damage/flag services handle those behaviors (§5–6).
 
 ## 4.2 Star & Level Scaling (`LauncherStatResolver.lua`)
 
