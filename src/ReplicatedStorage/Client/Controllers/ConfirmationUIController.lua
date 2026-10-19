@@ -25,10 +25,10 @@ function ConfirmationUIController:Start()
 	if self._gui then self._gui.Enabled = false end
 end
 
-function ConfirmationUIController:RequestConfirm(text: string, onConfirmCallback: () -> ())
+function ConfirmationUIController:RequestConfirm(text: string, onConfirmCallback: () -> ()): boolean
 	if not self._gui or not self._confirm or not self._cancel then
 		warn("[CONFIRMATION_UI] Confirmation request was not shown; the GUI or Confirm/Cancel button is missing. Action was not sent.")
-		return
+		return false
 	end
 	self:Close()
 	if self._text then self._text.Text = text end
@@ -42,6 +42,7 @@ function ConfirmationUIController:RequestConfirm(text: string, onConfirmCallback
 	end
 	table.insert(self._connections, self._confirm.Activated:Connect(function() finish(true) end))
 	table.insert(self._connections, self._cancel.Activated:Connect(function() finish(false) end))
+	return true
 end
 
 function ConfirmationUIController:Close()
