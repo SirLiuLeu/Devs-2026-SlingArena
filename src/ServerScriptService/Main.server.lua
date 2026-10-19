@@ -49,10 +49,10 @@ if LauncherAbilityFolder and LauncherAbilityFolder:IsA("Folder") then
 	if moduleScript then
 		LauncherAbilityService = requireSafe(moduleScript, "LauncherAbilityService")
 	else
-		warn("[Bootstrap] Missing Services.LauncherAbilityService.LauncherAbilityService module.")
+		error("[Bootstrap CRITICAL] Missing Services.LauncherAbilityService.LauncherAbilityService module.", 0)
 	end
 else
-	warn("[Bootstrap] Missing Services.LauncherAbilityService folder.")
+	error("[Bootstrap CRITICAL] Missing Services.LauncherAbilityService folder.", 0)
 end
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
