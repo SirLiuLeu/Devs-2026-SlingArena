@@ -12,6 +12,8 @@ FoodConfig.SpawnRadius = 20
 FoodConfig.CommonActivePerSpawn = 10
 FoodConfig.HpActivePerSpawn = 10
 FoodConfig.MinNoOverlapDistance = 3
+-- Extra XZ clearance added after accounting for the food/player hitbox radii.
+FoodConfig.MinPlayerSpawnClearance = 5
 
 --==================================================
 -- 2) FOOD DEFINITIONS (BY MODEL NAME)
