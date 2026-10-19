@@ -137,9 +137,20 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 				return
 			end
 			print(string.format("[LAUNCHER_INVENTORY_UI] Equip request sent: player=%s instanceId=%s definitionId=%s", Players.LocalPlayer.Name, entry.instanceId, tostring(entry.id)))
-			self._pendingEquipInstanceId = entry.instanceId
+			local requestedInstanceId = entry.instanceId
+			self._pendingEquipInstanceId = requestedInstanceId
 			self:_refreshRightPanel()
-			self._equipRemote:FireServer(entry.instanceId)
+			self._equipRemote:FireServer(requestedInstanceId)
+			task.delay(8, function()
+				if self._pendingEquipInstanceId == requestedInstanceId then
+					self._pendingEquipInstanceId = nil
+					warn(string.format(
+						"[LAUNCHER_INVENTORY_UI] stage=equip_feedback_timeout instanceId=%s timeoutSeconds=8; check GameplayFeedback remote and server logs",
+						requestedInstanceId
+					))
+					self:_refreshRightPanel()
+				end
+			end)
 		end))
 	end
 	if self._sell then
@@ -209,6 +220,16 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 						price
 					))
 					self._sellRemote:FireServer(instanceId)
+					task.delay(8, function()
+						if self._pendingSellInstanceId == instanceId then
+							self._pendingSellInstanceId = nil
+						warn(string.format(
+							"[LAUNCHER_INVENTORY_UI] stage=sell_feedback_timeout instanceId=%s timeoutSeconds=8; check GameplayFeedback remote and server logs",
+							instanceId
+						))
+							self:_refreshRightPanel()
+						end
+					end)
 				end,
 				function()
 					print(string.format("[LAUNCHER_INVENTORY_UI] stage=sell_confirm_action confirmed=false instanceId=%s", instanceId))
@@ -256,6 +277,10 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 			end
 			self:_refreshRightPanel()
 		end))
+	end
+
+	if not (self._feedbackRemote and self._feedbackRemote:IsA("RemoteEvent")) then
+		warn("[LAUNCHER_INVENTORY_UI] stage=startup_missing_feedback_remote path=ReplicatedStorage.LauncherArenaRemotes.GameplayFeedback")
 	end
 
 	if self._provider then
