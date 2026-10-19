@@ -82,6 +82,18 @@ function LauncherInventoryService:Equip(player: Player, instanceId: string)
 		warn(string.format("[LAUNCHER_INVENTORY] Equip state updated but Launcher pawn is unavailable for %s.", player.Name))
 	end
 
+	if stateService and typeof(stateService.PublishState) == "function" then
+		stateService:PublishState(player)
+		print(string.format(
+			"[LAUNCHER_INVENTORY] stage=state_published player=%s instanceId=%s launcherId=%s",
+			player.Name,
+			instanceId,
+			tostring(owned and owned.definitionId)
+		))
+	else
+		warn(string.format("[LAUNCHER_INVENTORY] stage=state_publish_skipped player=%s reason=PublishStateUnavailable", player.Name))
+	end
+
 	self:_feedback(player, true, nil, nil, nil, {
 		LauncherId = owned and owned.definitionId or instanceId,
 		VisualStatus = visualStatus,
@@ -137,8 +149,9 @@ function LauncherInventoryService:Sell(player: Player, instanceId: string)
 end
 
 function LauncherInventoryService:Init()
-	if self._equipRemote then
+	if self._equipRemote and self._equipRemote:IsA("RemoteEvent") then
 		self._equipRemote.OnServerEvent:Connect(function(player: Player, instanceId: any)
+			print(string.format("[LAUNCHER_INVENTORY] stage=equip_remote_received player=%s instanceId=%s payloadType=%s", player.Name, tostring(instanceId), typeof(instanceId)))
 			if not RemoteContracts.Validate(RemoteContracts.Names.EquipLauncher, instanceId) then
 				warn(string.format("[LAUNCHER_INVENTORY] Invalid equip payload: player=%s instanceIdType=%s", player.Name, typeof(instanceId)))
 				self:_feedback(player, false, "InvalidRequest")
@@ -162,8 +175,9 @@ function LauncherInventoryService:Init()
 		warn("[LAUNCHER_INVENTORY] Missing ReplicatedStorage.LauncherArenaRemotes.UnequipLauncher (RemoteEvent); create it through Rojo.")
 	end
 
-	if self._sellRemote then
+	if self._sellRemote and self._sellRemote:IsA("RemoteEvent") then
 		self._sellRemote.OnServerEvent:Connect(function(player: Player, instanceId: any)
+			print(string.format("[LAUNCHER_INVENTORY] stage=sell_remote_received player=%s instanceId=%s payloadType=%s", player.Name, tostring(instanceId), typeof(instanceId)))
 			if not RemoteContracts.Validate(RemoteContracts.Names.SellLauncher, instanceId) then
 				warn(string.format("[LAUNCHER_INVENTORY] Invalid sell payload: player=%s instanceIdType=%s", player.Name, typeof(instanceId)))
 				self:_feedback(player, false, "InvalidRequest", "LauncherSellResult", 0)
