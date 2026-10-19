@@ -19,7 +19,7 @@ Legend used throughout:
 
 # 1. CORE GAME LOOP
 
-* **Lobby:** select Launcher / Equipment, open Shop, Spin
+* **Lobby:** select Launcher / Pets, open Shop, Spin
 * **Join Arena:** player enters the map and is switched into `Launcher` mode
 * **Mid Round:** farm Food, level up, fight, use traps
 * **Late Round:** Safe Zone shrinks to minimum radius → `FinalPhase`
@@ -83,7 +83,7 @@ Backed by `GameStates.PlayerMode` (`Human` | `Launcher`) and `PlayerStateService
 
 ## 3.1 Mode Switching
 
-* **On joining the Arena:** the player's active mode resolves to `Launcher`, **unless** they are currently flagged to be forced into `Human` (`ShouldForceHuman`). ✅ (`RoundService:JoinArena` → `PlayerStateService:ResolveArenaSpawnMode`)
+* **On joining the Arena:** the player's active mode resolves to `Launcher`, **unless** they are currently forced into `Human` (`ShouldForceHuman`). (`RoundService:JoinArena` → `PlayerStateService:ResolveArenaSpawnMode`)
 * **On death:** `PlayerStateService:RecordDeath(player, roundState)` sets `ActivePlayerMode = Human` and `ForcedHuman = true` immediately if either:
   * the player died while in `Launcher` mode (the common case — Human-mode players cannot take damage, see below), **or**
   * the current round state is `FinalPhase`.
@@ -103,7 +103,7 @@ Confirmed via `IsHuman()` gates across services:
 
 ## 3.3 Launcher Mode
 
-* Full gameplay: movement, charge, launch, combat, all Food types, Equipment effects.
+* Full gameplay: movement, charge, launch, combat, all Food types, Pet effects.
 * `EquipmentEffectService` only activates equipped effects while `PlayerStateService:IsLauncher(player)` is true; switching to Human clears equipment visuals (`PlayerService`) and effects are re-activated on the next Launcher spawn.
 
 ---
@@ -112,7 +112,7 @@ Confirmed via `IsHuman()` gates across services:
 
 ## 4.1 Current Launcher Roster (`LauncherConfig.lua`)
 
-Exactly **4 launchers** exist in the runtime catalog:
+The current runtime catalog defines five Launchers: `Normalduck`, `Kingduck`, `Witchduck`, `Drakeduck`, and `Shielduck`. The future catalog size is not fixed; use `LauncherConfig` lookup helpers instead of assuming a permanent count.
 
 | ID | Role | maxHP | baseDamage | armor | regen | speed | launchPower | control | launchSpeed | reflectDamage | weight |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -139,70 +139,33 @@ Exactly **4 launchers** exist in the runtime catalog:
 
 ---
 
-# 5. EQUIPMENT SYSTEM
+# 5. PET SYSTEM (`PetsConfig.lua`, `PetService.lua`, `PetAbilityService.lua`)
 
-## 5.1 Slot Capacity
+## 5.1 Ownership and equipped slots
 
-* **`EquipmentConfig.EquippedSlotCount = 3`** — each player may equip up to 3 Equipment items simultaneously, alongside their single Launcher. ✅
+- `PetsConfig.lua` is the definition catalog for Pet identity, rarity, effect identity, active ability identity and stat modifiers.
+- `PlayerDataService` owns server-side `OwnedPets` and `EquippedPets` data. Pet ownership and equip requests are instance-based: the client supplies an `instanceId`, and `PetService` validates that the instance belongs to the player.
+- The runtime profile has three equipped Pet slots. `PetService` owns equip, unequip and upgrade mutations; Pet model presentation is handled separately on the client.
 
-## 5.2 Definition vs. Owned Instance
+## 5.2 Upgrade progression
 
-* **Definition** (`EquipmentConfig.Definitions`): static id, name, rarity, category, ability/effect id, stat modifiers.
-* **Owned Instance**: persistent per-player record with a unique `instanceId`. The client must supply an `instanceId`, never a `definitionId`, as proof of ownership — the server only accepts instance IDs already present in that player's authoritative data (`EquipmentService.lua`).
+- `PetsUpgradeConfig.lua` owns Pet-level normalization and upgrade-cost/stat-growth rules. `PetService` delegates the authoritative upgrade commit to `PlayerDataService`.
+- Upgrade requests include the expected current level so the server can reject stale requests. The client preview is informational; it does not determine the upgrade result or cost.
 
-## 5.3 Visual Attachment (`PlayerService:EquipEquipmentModel`)
+## 5.3 Ability/effect ownership
 
-Verified exact mechanism — more specific than "attach to an Attachment":
+- `PetAbilityService` orchestrates equipped Pet effect modules and dispatches their lifecycle hooks, including `OnInit`, `OnLaunch`, `OnCollision`, `OnTick`, `OnAttack` and `OnDestroy`.
+- `activeAbilityId` and `effectId` are distinct fields: the former identifies an active ability, while the latter identifies the Pet effect module. Do not assume every Pet has an active skill.
+- Server services remain authoritative for damage, flags, cooldowns, target validation and projectile hit resolution.
 
-1. The equipped Equipment's model template is resolved and cloned.
-2. The clone is renamed `EquippedEquipmentSlot{N}` and parented directly under the player's pawn.
-3. The clone **must contain a `BasePart` child named `Root`** — if missing, the equip is rejected and the clone is destroyed.
-4. The target attachment is resolved by name: `Hitbox.EquipmentSlot{N}` (`N` = 1, 2, or 3), found via `hitbox:FindFirstChild("EquipmentSlot" .. N, true)`.
-5. The clone is pivoted to the attachment's `WorldCFrame`, then **welded** (`WeldConstraint`) between the pawn's `Hitbox` and the clone's `Root` part — it is not parented into the Attachment itself, just positioned there and welded to the Hitbox.
-6. If the expected `EquipmentSlot{N}` Attachment doesn't exist under `Hitbox`, the equip fails with a warning (`"create it in ReplicatedStorage.Assets.Launchers.Player.Hitbox"`).
-7. Equipment visuals are cleared when switching to Human mode and restored when a Launcher pawn is (re)spawned.
+## 5.4 Pet visuals and projectiles
 
-## 5.4 Equipment Upgrade Levels — ⚠️ Corrected
+- Nearby Pet models are rendered locally by `ClientPetController` and range-gated through `PetRenderConfig`; the server replicates equipped Pet identity rather than welding Pet models to every pawn.
+- PlasmaCannon and SlowBlaster projectile visuals are client-local and distance/count gated. Projectile simulation and hit/damage decisions remain server-authoritative.
 
-**The "Level 10 to 20 scaling by rarity" concept is not what the code implements.** The actual per-rarity level cap (`EquipmentConfig.RarityMaxLevel`, enforced in `EquipmentService`) is:
+## 5.5 Legacy Equipment documentation
 
-| Rarity | Max Level |
-|---|---|
-| Common | 5 |
-| Rare | 10 |
-| Epic | 15 |
-| Legendary | 20 |
-
-* Upgrade cost formula (`EquipmentUpgradeConfig.lua`): `cost = BaseCost(100) × 1.35^(level-1) × LateGameMultiplier(level)`, where the late-game multiplier is ×1.5 at level ≥25 and ×2 at level ≥40.
-* A separate `EquipmentUpgradeConfig.MaxLevel = 50` exists as a **fallback default only** — it is not the enforced cap; `EquipmentConfig.GetMaxLevelForRarity(rarity)` is what `EquipmentService` actually checks against.
-
-## 5.5 Effect Lifecycle (`EquipmentEffectService.lua`)
-
-Standard lifecycle hooks, dispatched per active effect instance: **`OnInit → OnLaunch → OnAttack → OnCollision → OnTick → OnDestroy`**. One shared Heartbeat connection drives all `OnTick` calls — individual effects must not create their own.
-
-## 5.6 Equipment Catalog Summary (`EquipmentConfig.Definitions` — 20 items, 7 categories)
-
-| Category | Items |
-|---|---|
-| Active Attack | Plasma Cannon (Epic, unimplemented "NoOp" ability), Slow Blaster (Rare, applies Slow on hit) |
-| Crowd Control | Thunder Hammer (Epic, applies Stun), Medusa (Legendary, applies Petrify; cannot Petrify a target that has GhostFlame active), Ice Crystal (Rare, dispatches a `Freeze` effect — see §5.7 for what this actually does) |
-| Damage Over Time | Ghost Flame (Epic, applies Burn), Poison (Rare, applies Poison) |
-| Passive Stat Modifier | Health Core (+30% maxHP), Power Core (+20% damage), Shield (20% damage reduction), Brain Boost (+30% EXP), Turbo Module (+20% move speed), Launch Booster (+20% launch speed), Titan Core (+20% size, altered knockback transfer), Quick Reload (−1s launch cooldown), Thorn Armor (20% reflect damage — ⚠️ not yet wired into `DamagePipelineService`, see §13) |
-| Regeneration / Healing | Regen Booster (500 HP every 5s) |
-| Conditional Effect | Shadow Cloak (goes Invisible after 5s idle; breaks on Launch/Movement/Knockback), Smoke Bomb (smoke on launch) |
-| Utility / Area Effect | Magnet Core (pulls nearby items, radius 6) |
-
-## 5.7 "Freeze" Is Not a Distinct Effect — ⚠️
-
-`EquipmentEffectService:Init()` registers the effect id `"Freeze"` by literally reusing the `Slow` effect module:
-
-```lua
-self:RegisterEffect("Freeze", require(equipmentEffects.Slow))
-```
-
-There is **no independent Freeze flag, no hard-CC "Freeze" behavior** anywhere in `FlagService`/`GameConfig.FlagConfig`. Any Equipment configured to apply "Freeze" (e.g., Ice Crystal) currently just applies the same movement-speed reduction as Slow. Treat "Freeze" as a planned-but-unbuilt effect. See §13.
-
----
+The old Equipment catalog, `EquipmentService`, `EquipmentEffectService`, and Equipment model-attachment instructions no longer describe the current runtime. Use the Pet services/configuration above and verify any proposed ability against current source before treating it as implemented.
 
 # 6. FLAG SYSTEM (`FlagService.lua` + `GameConfig.FlagConfig`)
 
@@ -370,12 +333,12 @@ Verified legal transitions (`MovementStateTransitions`):
 
 This section exists so nobody has to guess. Each item below is a **real, verified gap** between prior design assumptions and the current codebase — not an invented rule.
 
-1. **Ghost flag is checked everywhere but granted nowhere.** Every combat/visibility/food system correctly no-ops for a Ghost player, but no service ever calls `ApplyFlag(player, "Ghost", ...)`. The entire "player becomes a Ghost on death/late-join during FinalPhase" mechanic from earlier design drafts is **unbuilt**. Anyone implementing FinalPhase spectating needs to add the activation trigger; the consuming code is already correct and ready.
-2. **FinalPhase does almost nothing mechanically today.** No respawn-disable, no new-team-creation-disable, and (per #1) no Ghost activation are wired to the `FinalPhase` state transition. The only real FinalPhase-linked behavior is that dying while in `FinalPhase` forces the player into `Human` mode.
+1. **The legacy Ghost player flag and its related collision/damage/visibility filters have been removed.** The current runtime does not provide a Ghost/spectator role; do not reintroduce this flag as part of FinalPhase behavior.
+2. **FinalPhase death/respawn rules remain limited.** `DamagePipelineService:HandlePlayerDeath` still calls `RespawnAfterDelay` after three seconds, and `PlayerStateService:RecordDeath` converts the player to Human when death occurs during `FinalPhase`. There is no Ghost/spectator branch in the current runtime.
 3. **"3 identical Launchers → +1★" fusion has no implementation.** The star-multiplier math exists and is applied, but nothing increments `star` at runtime. Seed/mock data even contains `star = 4`, exceeding a supposed 3★ cap, and references non-existent launcher IDs.
-4. **Equipment upgrade level caps are 5/10/15/20 by rarity (Common/Rare/Epic/Legendary), not a flat 10–20 range.** `EquipmentUpgradeConfig.MaxLevel = 50` is an unused fallback constant.
-5. **"Freeze" equipment/flag is an alias for Slow.** `EquipmentEffectService` registers the `Freeze` effect id using the `Slow` module. There is no independent hard-CC Freeze behavior in `FlagService`/`GameConfig.FlagConfig`.
-6. **Team system is a stub.** No team creation, no `TeamId` assignment at runtime, no Friendly Fire toggle logic, no assist-reward logic, no shared-win logic, no teammate-tracking UI logic. Treat all "Team" rules as design intent, not shipped behavior, until `TeamService` is built out.
+4. **Old Equipment rarity-level caps and `EquipmentUpgradeConfig` references are legacy documentation.** Pet upgrades are configured through `PetsConfig` and `PetsUpgradeConfig`; do not carry over the old Equipment caps without checking the current Pet definitions.
+5. **Legacy Equipment effect notes are not the current ability contract.** Review the Pet definition’s `effectId` and the matching module under `PetAbilityService/PetAbilities` before documenting an effect as shipped.
+6. **Team core behavior is implemented, but reward rules should be verified separately.** `TeamService` assigns balanced teams and validates team changes/capacity/cooldown; friendly-fire checks are integrated with `DamagePipelineService`. Do not assume assist rewards or shared-win rewards exist without a matching runtime path.
 7. **No EXP-loss-on-death penalty runs**, despite the relevant functions (`TryApplyExpPenalty`, `ApplyExpPenalty`) existing in code — they are simply never called from the death path.
 8. **Kill EXP is a flat 120, not 50% of the victim's lost EXP.** There is also **no per-kill Diamond reward** anywhere in source; Diamonds only ever come from a chance-based HP Food drop.
 9. **No EXP-rate difference between `Awaits` and `EarlyGame`.** `GrantExp` is round-state agnostic; the previously documented "50% EXP in Awaits, 100% in EarlyGame" scaling does not exist in code.
@@ -394,11 +357,11 @@ This section exists so nobody has to guess. Each item below is a **real, verifie
 
 # 14. ARCHITECTURE PRINCIPLES (Still Accurate)
 
-1. Server is authoritative for all gameplay truth (HP, damage, kills, Diamonds, Equipment ownership, Food state, Safe Zone, Round state).
+1. Server is authoritative for all gameplay truth (HP, damage, kills, Diamonds, Pet/Launcher ownership, Food state, Safe Zone, Round state).
 2. Client predicts for responsiveness only; prediction never becomes authority.
 3. State defines intent; Flags modify or override behavior; the server resolves the final result.
-4. Launcher defines base stats/movement role; Equipment defines combat effects — do not blur this boundary.
-5. Equipment ownership is instance-based (`instanceId`) and persistent; definition IDs are never accepted as proof of ownership.
+4. Launcher defines base stats/movement role; Pet abilities/effects provide combat effects — do not blur this boundary.
+5. Pet/Launcher ownership is instance-based (`instanceId`); definition IDs are never accepted as proof of ownership. Current `PlayerDataService` uses `MockProvider`, so production persistence is not implemented yet.
 6. Collision is event-driven and centrally validated in `CollisionValidation`.
 7. Rate limiting, hit deduplication, and clock sync are mandatory parts of combat validation.
 8. Physics constants come from `PhysicsConfig.lua`; do not hardcode.
