@@ -78,7 +78,7 @@ end
 
 function ConfirmationUIController:RequestConfirm(text: string, onConfirmCallback: () -> (), onCancelCallback: (() -> ())?): boolean
 	if not self:_resolveReferences() then
-		warn("[CONFIRMATION_UI] Confirmation request was not shown; GUI/root/Confirm/Cancel is missing.")
+		warn("[CONFIRMATION_UI] Confirmation request was not shown; GUI/root/ConfirmText/Confirm/Cancel is missing.")
 		return false
 	end
 
