@@ -5,22 +5,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ServicesFolder = script.Parent:WaitForChild("Services")
 
--- local function requireSafe(moduleScript: Instance, moduleName: string)
--- 	local ok, loaded = pcall(require, moduleScript)
-	
--- 	if not ok then
--- 		warn(string.format("[Bootstrap] Failed to require %s: %s", moduleName, tostring(loaded)))
--- 		return nil
--- 	end
--- 	return loaded
--- end
 local function requireSafe(moduleScript: Instance, moduleName: string)
-    local ok, loaded = pcall(require, moduleScript)
-    if not ok then
-        -- Dùng error() để bắn log đỏ và dừng server ngay lập tức
-        error(string.format("\n[Bootstrap CRITICAL] Failed to require %s!\nError:\n%s\n", moduleName, tostring(loaded)), 0)
-    end
-    return loaded
+	local ok, loaded = pcall(require, moduleScript)
+	if not ok then
+		error(string.format("[Bootstrap CRITICAL] Failed to require %s: %s", moduleName, tostring(loaded)), 0)
+	end
+	return loaded
 end
 
 local EventBus = requireSafe(ServicesFolder:WaitForChild("Infrastructure"):WaitForChild("EventBus"), "EventBus")
@@ -59,10 +49,10 @@ if LauncherAbilityFolder and LauncherAbilityFolder:IsA("Folder") then
 	if moduleScript then
 		LauncherAbilityService = requireSafe(moduleScript, "LauncherAbilityService")
 	else
-		warn("[Bootstrap] Missing Services.LauncherAbilityService.LauncherAbilityService module.")
+		error("[Bootstrap CRITICAL] Missing Services.LauncherAbilityService.LauncherAbilityService module.", 0)
 	end
 else
-	warn("[Bootstrap] Missing Services.LauncherAbilityService folder.")
+	error("[Bootstrap CRITICAL] Missing Services.LauncherAbilityService folder.", 0)
 end
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
@@ -98,14 +88,12 @@ local phaseRuns: { [string]: boolean } = {}
 local function runServicePhase(serviceName: string, phase: "Init" | "Start")
 	local phaseKey = serviceName .. ":" .. phase
 	if phaseRuns[phaseKey] then
-		warn(string.format("[Bootstrap] Duplicate %s phase call for %s was skipped.", phase, serviceName))
-		return
+		error(string.format("[Bootstrap CRITICAL] Duplicate %s phase call for %s.", phase, serviceName), 0)
 	end
 
 	local service = ServiceResolver.Get(context, serviceName)
 	if not service then
-		warn(string.format("[Bootstrap] Missing service %s during %s phase.", serviceName, phase))
-		return
+		error(string.format("[Bootstrap CRITICAL] Missing service %s during %s phase.", serviceName, phase), 0)
 	end
 
 	local phaseMethod = service[phase]
@@ -114,13 +102,13 @@ local function runServicePhase(serviceName: string, phase: "Init" | "Start")
 		return
 	end
 
-	phaseRuns[phaseKey] = true
 	local ok, err = xpcall(function()
 		phaseMethod(service)
 	end, debug.traceback)
 	if not ok then
-		warn(string.format("[Bootstrap] %s:%s failed: %s", serviceName, phase, tostring(err)))
+		error(string.format("[Bootstrap CRITICAL] %s:%s failed; startup aborted: %s", serviceName, phase, tostring(err)), 0)
 	end
+	phaseRuns[phaseKey] = true
 end
 
 local serviceConstructors = {
@@ -154,20 +142,20 @@ local serviceConstructors = {
 }
 
 for serviceName, constructor in pairs(serviceConstructors) do
-	if constructor and typeof(constructor.new) == "function" then
-		local ok, service = xpcall(function()
-			return constructor.new(context)
-		end, debug.traceback)
-		if ok and service then
-			context.Services[serviceName] = service
-			if context.ServiceRegistry then
-				context.ServiceRegistry:Register(serviceName, service)
-			end
-		else
-			warn(string.format("[Bootstrap] Failed to construct service %s: %s", serviceName, tostring(service)))
-		end
-	else
-		warn(string.format("[Bootstrap] Missing constructor for service %s.", serviceName))
+	if not constructor or typeof(constructor.new) ~= "function" then
+		error(string.format("[Bootstrap CRITICAL] Missing constructor for service %s.", serviceName), 0)
+	end
+
+	local ok, service = xpcall(function()
+		return constructor.new(context)
+	end, debug.traceback)
+	if not ok or not service then
+		error(string.format("[Bootstrap CRITICAL] Failed to construct service %s; startup aborted: %s", serviceName, tostring(service)), 0)
+	end
+
+	context.Services[serviceName] = service
+	if context.ServiceRegistry then
+		context.ServiceRegistry:Register(serviceName, service)
 	end
 end
 

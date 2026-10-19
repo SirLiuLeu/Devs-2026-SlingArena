@@ -26,7 +26,7 @@ local function findTarget(context): (Player?, BasePart?)
 	local bestDistance = CONFIG.TargetRange
 	for _, candidate in ipairs(Players:GetPlayers()) do
 		if candidate ~= context.player and not (context.TeamService and context.TeamService:IsFriendly(context.player, candidate))
-			and stateService and not stateService:IsHuman(candidate) and not stateService:HasFlag(candidate, "Ghost") then
+			and stateService and not stateService:IsHuman(candidate) then
 			local candidateRoot = playerService:GetRoot(candidate)
 			if candidateRoot then
 				local distance = (candidateRoot.Position - attackerRoot.Position).Magnitude
@@ -80,7 +80,6 @@ local function candidatePawns(context): { Instance }
 	for _, candidate in ipairs(Players:GetPlayers()) do
 		if candidate ~= context.player and stateService
 			and not stateService:IsHuman(candidate)
-			and not stateService:HasFlag(candidate, "Ghost")
 			and not (context.TeamService and context.TeamService:IsFriendly(context.player, candidate)) then
 			local pawn = playerService and playerService:GetPawn(candidate)
 			if pawn and pawn.Parent then table.insert(result, pawn) end
@@ -137,7 +136,7 @@ function PlasmaCannon.OnAbilityTrigger(context)
 	local now = os.clock()
 	if now < (context._nextAbilityAt or 0) then return end
 	local stateService = context.PlayerStateService
-	if not stateService or not stateService:IsLauncher(context.player) or stateService:HasFlag(context.player, "Ghost") then return end
+	if not stateService or not stateService:IsLauncher(context.player) then return end
 	local target, targetRoot = findTarget(context)
 	if not (target and targetRoot) then return end
 

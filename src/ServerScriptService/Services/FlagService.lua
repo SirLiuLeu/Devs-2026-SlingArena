@@ -440,7 +440,7 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 			state.MovementState = MOVEMENT_STATE.Idle
 		end
 	end
-	if flagName == "Invisible" or flagName == "Ghost" then
+	if flagName == "Invisible" then
 		state.IsVisible = false
 	end
 	state.ActiveFlags = buildFlagSnapshot(flags)
@@ -465,8 +465,8 @@ function FlagService:RemoveFlag(player: Player, flagName: string, source: any?, 
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player)
 	if state then
-		if flagName == "Invisible" or flagName == "Ghost" then
-			state.IsVisible = not self:HasFlag(player, "Invisible") and not self:HasFlag(player, "Ghost")
+		if flagName == "Invisible" then
+			state.IsVisible = not self:HasFlag(player, "Invisible")
 		end
 		state.ActiveFlags = buildFlagSnapshot(flags)
 		if flagName == "HPBoosted" then stateService:RecalculateDerivedStats(player, false) end
@@ -543,7 +543,7 @@ function FlagService:TickFlags(dt: number)
 				end
 			end
 		end
-		state.IsVisible = not flags.Invisible and not flags.Ghost
+		state.IsVisible = not flags.Invisible
 		state.ActiveFlags = buildFlagSnapshot(flags)
 		if changed then
 			stateService:PublishState(player)

@@ -1,3 +1,7 @@
+# SlingArena Runtime Context
+
+`LauncherConfig.lua` currently defines five Launcher models: `Normalduck`, `Kingduck`, `Witchduck`, `Drakeduck`, and `Shielduck`. Five is the current catalog size, not a fixed limit for future additions; runtime lookup should use `LauncherConfig.GetAllIds()`/`GetById()` rather than assume a permanent count.
+
 # Client → Server (Actions)
 
 | RemoteName | Direction | OwnerService | PayloadSchema | Description |
@@ -8,19 +12,26 @@
 | RequestLaunch | C->S | LauncherService | `{ aimTarget: Vector3, chargeRatio?: number }` | Canonical alias for launch request contract (freeze-required; map to StartCharge/ReleaseCharge flow). |
 | JoinArena | C->S | RoundService | `{}` | Player requests arena participation. |
 | LeaveArena | C->S | RoundService | `{}` | Player exits arena participation. |
-| TeleportRequest | C->S | MapService | `{ mapName: string, spawnName: string }` | Admin/debug teleport request. |
+| TeleportRequest | C->S | MapService | `{ mapName: string, spawnName: string }` | Legacy debug contract; current `MapService:RequestTeleport` is a stub and does not teleport players. Do not expose as a production feature. |
 | AbilityTrigger | C->S | LauncherAbilityService | `{ abilityId: string, phase: "Start"\|"Commit"\|"Cancel", target?: Vector3, contextId?: string }` | Ability activation intent routed to ability orchestrator. |
-| EquipEquipment | C->S | EquipmentService | `{ instanceId: string }` | Server-authoritative equip request for an owned Equipment instance; definition IDs are not accepted as ownership. |
-| UnequipEquipment | C->S | EquipmentService | `{ slotType: string }` | Server-authoritative unequip request for an Equipment slot. |
-| UpgradeEquipment | C->S | EquipmentService | `{ instanceId: string }` | Server-authoritative upgrade request; cost and result are computed on the server from PlayerData diamonds. |
+| EquipPet | C->S | PetService | `{ instanceId: string, slot?: number|string }` | Equip an owned Pet instance; the server validates ownership and slot selection. |
+| UnequipPet | C->S | PetService | `{ slot: number|string }` | Unequip the Pet occupying the requested slot. |
+| UpgradePet | C->S | PetService | `{ instanceId: string, expectedLevel: number }` | Server-authoritative Pet upgrade; the server verifies the expected level and commits the cost/result. |
+| EquipLauncher | C->S | LauncherInventoryService | `{ instanceId: string }` | Equip an owned Launcher instance by instance ID. |
+| UnequipLauncher | C->S | LauncherInventoryService | `{}` | Clear the selected Launcher equip state, subject to server validation. |
+| ChangeTeam | C->S | TeamService | `{ teamId: string }` | Request a team change; server validates team ID, capacity, round state and cooldown. |
 | AttributeUpgrade | C->S | PlayerStateService | `{ attributeName: string }` | Spend attribute point on selected stat. |
 | ConsumeHpPotion | C->S | PlayerStateService | `{}` | Consume HP potion request. |
 | RequestRespawn | C->S | MonetizationService | `{ mode: "Free" }` | Request free respawn flow. |
 | PurchaseRespawn | C->S | MonetizationService | `{}` | Purchase paid respawn with diamonds. |
 | PurchaseMatchBuff | C->S | MonetizationService | `{}` | Purchase in-match buff with diamonds. |
 | PrestigeReset | C->S | MonetizationService | `{}` | Prestige reset request. |
-| DebugSpawnFood | C->S | MapService | `{ mapName: string }` | Debug force food spawn for map. |
-| DebugResetLauncher | C->S | PlayerService | `{}` | Debug reset player launcher pawn/state. |
+| DebugSpawnFood | C->S | MapService | `{ mapName: string }` | Studio/debug contract only; the current `MapService:DebugSpawnFood` method is a stub. |
+| DebugResetLauncher | C->S | PlayerService | `{}` | Studio-only debug reset; server ignores requests outside Studio. |
+| DebugLevelUp5 | C->S | GrowthService | `{}` | Studio-only test hook; server ignores requests outside Studio. |
+| StartSafeZone | C->S | RoundService | `{}` | Studio-only round-start test hook; server ignores requests outside Studio. |
+| Plus1Minute | C->S | RoundService | `{}` | Studio-only round-time test hook; server ignores requests outside Studio. |
+| EndRound | C->S | RoundService | `{}` | Studio-only round-end test hook; server ignores requests outside Studio. |
 | SellLauncher | C->S | LauncherInventoryService | `{ instanceId: string }` | Sells an eligible owned Launcher instance; the server decides eligibility and payout. |
 
 # Server → Client (Sync / Feedback)
@@ -57,31 +68,38 @@ Config modules store shared tuning and content tables (movement/combat constants
 
 | Config file | Data it contains | Known users |
 |---|---|---|
-| `AbilityConfig.lua` | No runtime table currently present (empty file). | usage unclear |
+| `AbilityConfig.lua` | Launcher ability tuning and per-ability lookup helpers. | `LauncherAbilityService` |
 | `BalanceConfig.lua` | Core balance constants for combat, collisions, growth, launch, respawn, food, and economy values. | `LauncherService`, `GrowthService`, `PlayerStateService`, `CollisionService`, `DamagePipelineService`, `FoodService`, `LevelConfig` |
-| `Config.lua` | Base gameplay constants (force/charge/physics/arena/player defaults and movement speed). | `LauncherService`, `PlayerService`, `SafeZoneService`, `CollisionService` |
 | `ConfirmationTextConfig.lua` | Shared confirmation and team-feedback messages, with `vi`/`en` lookup and placeholder substitution. | `TeamSelectionUIController`, `UIController`, `LauncherInventoryUIController` |
 | `DebugConfig.lua` | Debug and diagnostic feature flags. | client and server diagnostics |
 | `GachaRewardConfig.lua` | Gacha reward entries (id/type/weight/icon/name/teamBonus) and reward accessor. | `GachaSpinLogic`, `SpinUIController`, `GachaSpinLogicTests` |
-| `GameConfig.lua` | Placeholder comments for player cap/phase/respawn/join rules; no exported config table. | usage unclear |
+| `GameConfig.lua` | Runtime flag durations, stacking/tick behavior and status-effect visual configuration. | `FlagService`, `PlayerStateService` |
 | `ItemConfig.lua` | Item catalog (`Items`) with metadata (`id`, `name`, `effect`, `icon`, `stackable`) and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
 | `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
 | `PetAbilityProgressionConfig.lua` | Ability parameters at levels 1/5/10/15/20 plus `Display = { Format, Templates = { en, vi } }` localization data. | `PetProgression`, `PetDisplayFormatter` |
 | `PetPreviewConfig.lua` | Per-pet viewport camera `Rotation` and `Offset`, accessed through `Get(petId)`. | `InventoryUIController`, `PreviewRenderer` |
 | `PetRenderConfig.lua` | Client-side nearby Pet render distance, range-check interval, and exit hysteresis. | `ClientPetController` |
 | `PetProjectileRenderConfig.lua` | Client-only projectile visual distance and count cap. | `PetProjectileVisualController.client.lua` |
-| `LauncherPreviewConfig.lua` | Per-Launcher viewport camera `Rotation` and `Offset`, accessed through `Get(launcherId)`. | `LauncherInventoryUIController`, `PreviewRenderer` |
+| `LauncherPreviewConfig.lua` | Per-Launcher viewport camera `Rotation`, `Offset`, and preview `Scale`, accessed through `Get(launcherId)`. | `LauncherInventoryUIController`, `PreviewRenderer` |
 | `PetRarityStatsConfig.lua` | Base HP and damage values by pet rarity. | `PetProgression`, pet UI |
 | `PetsConfig.lua` | Pet definition catalog, ability IDs, rarity, and max-level settings. | `PetService`, `PetProgression`, `InventoryUIController` |
 | `PetsUpgradeConfig.lua` | Level normalization, costs, 10% per-level base-stat growth, and milestone predicates. | `PetService`, `PetProgression`, `PetDisplayFormatter` |
-| `LauncherConfig.lua` | Five Duck Launcher definitions (`Normalduck`, `Kingduck`, `Witchduck`, `Drakeduck`, `Shielduck`), default ID, combat stats, weight, reflect damage, and lookup helpers. | `PlayerStateService`, `LauncherStatResolver`, launcher inventory/shop and mock data |
+| `LauncherConfig.lua` | Current five Duck Launcher definitions (`Normalduck`, `Kingduck`, `Witchduck`, `Drakeduck`, `Shielduck`), default ID, combat stats, weight, reflect damage, and lookup helpers. Future catalog size is not fixed. | `PlayerStateService`, `LauncherStatResolver`, launcher inventory/shop and mock data |
 | `TrapConfig.lua` | Trap tuning constants (EXP penalty, cooldown, count, color). | `TrapService` |
+| `PhysicsConfig.lua` | Centralized movement, launch, collision and physics thresholds. | `LauncherService`, `CollisionService`, `DamagePipelineService` |
+| `SafeZoneConfig.lua` | Safe Zone radius, shrink, relocation and replicated attribute names. | `SafeZoneService`, `SafeZoneVisualizer.client.lua` |
+| `TeamConfig.lua` | Team IDs, colors, capacity, change cooldown and Rage timing. | `TeamService`, team selection UI, `RoundService` |
+| `LauncherTextureConfig.lua` | Team/Rage texture IDs for equipped Launcher visuals. | `PlayerService` |
+| `QuestConfig.lua` | Quest definitions and progress requirements. | `QuestService`, quest UI |
+| `RankConfig.lua` | Rank/leaderboard progression settings. | leaderboard/progression services |
 
 ## Pet Inventory progression UI
 
 - The pet details level label is `StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Level`; `ProjectTreeSpec.UI.Inventory.PetsStatLevel` is the code path used to bind it.
 - `PetDisplayFormatter.Format(definition, level, previewNextLevel, languageCode)` is presentation-only and returns `LevelText`, `HPText`, `DamageText`, and `ScriptText`. It selects the localized ability template by locale (with an English fallback) and encodes every RichText arrow as `-&gt;`.
 - Base HP and damage grow at every level. Most ability parameters change at levels 1, 5, 10, 15, and 20; Titan weight/hitbox/visual multipliers are calculated at every level. The first Upgrade click previews base-stat changes; milestone-based ability text changes only when the next level is one of those milestones. The second click submits the upgrade, disables the button until a server result, and all selection/tab/hide/result events clear the preview.
+
+> **History note:** Entries below are dated implementation history, not a current-state inventory. Later notes and the current source supersede older Equipment-era descriptions; current gameplay ownership is Pets + Launcher Inventory.
 
 ## Recent implementation update (2026-08-21)
 

@@ -277,8 +277,8 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 		damageLog("ApplyHitDamage aborted: victim is Human for this source type")
 		return false
 	end
-	if playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
-		damageLog("ApplyHitDamage aborted: victim is invulnerable or Ghost")
+	if playerStateService:IsInvulnerable(victim) then
+		damageLog("ApplyHitDamage aborted: victim is invulnerable")
 		return false
 	end
 
@@ -374,8 +374,8 @@ function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number,
 		damageLog("ApplyDoTDamage aborted: player-sourced DoT cannot damage a Human victim")
 		return false
 	end
-	if playerStateService:IsInvulnerable(victim) or (typeof(playerStateService.HasFlag) == "function" and playerStateService:HasFlag(victim, "Ghost")) then
-		damageLog("ApplyDoTDamage aborted: victim is invulnerable or Ghost")
+	if playerStateService:IsInvulnerable(victim) then
+		damageLog("ApplyDoTDamage aborted: victim is invulnerable")
 		return false
 	end
 	local amount = math.max(0, rawDamage)

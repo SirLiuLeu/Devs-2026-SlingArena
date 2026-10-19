@@ -55,9 +55,6 @@ function CollisionValidation.ValidateAttackerTarget(context: Context, attacker: 
 		if target.Player == attacker or not defenderState or defenderState.IsAlive ~= true then
 			return fail("invalid_participants", nil)
 		end
-		if stateService.HasFlag and (stateService:HasFlag(attacker, "Ghost") or stateService:HasFlag(target.Player, "Ghost")) then
-			return fail("ghost_participant", nil)
-		end
 	end
 	local reportVelocity = if typeof(payload.velocity) == "Vector3" then CombatCollision.FlattenXZ(payload.velocity) else CombatCollision.FlattenXZ(root.AssemblyLinearVelocity)
 	local serverVelocity = CombatCollision.FlattenXZ(root.AssemblyLinearVelocity)

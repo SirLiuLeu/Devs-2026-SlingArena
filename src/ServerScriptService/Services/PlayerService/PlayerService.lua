@@ -1,6 +1,7 @@
 --!strict
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -93,6 +94,7 @@ function PlayerService:Init()
 	local debugResetRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.DebugResetLauncher)
 	if debugResetRemote and debugResetRemote:IsA("RemoteEvent") then
 		debugResetRemote.OnServerEvent:Connect(function(player)
+			if not RunService:IsStudio() then return end
 			self:RespawnCurrentMode(player, nil, ServiceResolver.Get(self._context, "MapService"):GetActiveMap() or "LobbyMap")
 		end)
 	end

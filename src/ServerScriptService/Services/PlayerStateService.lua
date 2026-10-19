@@ -299,10 +299,6 @@ function PlayerStateService:IsFrozen(player: Player): boolean
 	return self:HasFlag(player, "Petrify")
 end
 
-function PlayerStateService:IsGhost(player: Player): boolean
-	return self:HasFlag(player, "Ghost")
-end
-
 function PlayerStateService:GetActivePlayerMode(player: Player): string
 	local state = self._states[player]
 	return (state and state.ActivePlayerMode) or GameStates.PlayerMode.Human
@@ -601,8 +597,8 @@ end
 function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
 	applyDamageLog(`PlayerStateService:ApplyDamage enter player={playerName(player)} amount={amount}`)
 	local state = self._states[player]
-	if not state or not state.IsAlive or self:IsHuman(player) or self:IsInvulnerable(player) or self:HasFlag(player, "Ghost") then
-		applyDamageLog(`PlayerStateService:ApplyDamage return false player={playerName(player)} amount={amount} hasState={state ~= nil} isAlive={state and state.IsAlive or false} isHuman={self:IsHuman(player)} invulnerable={self:IsInvulnerable(player)} ghost={self:HasFlag(player, "Ghost")}`)
+	if not state or not state.IsAlive or self:IsHuman(player) or self:IsInvulnerable(player) then
+		applyDamageLog(`PlayerStateService:ApplyDamage return false player={playerName(player)} amount={amount} hasState={state ~= nil} isAlive={state and state.IsAlive or false} isHuman={self:IsHuman(player)} invulnerable={self:IsInvulnerable(player)}`)
 		return false
 	end
 	local before = state.CurrentHP

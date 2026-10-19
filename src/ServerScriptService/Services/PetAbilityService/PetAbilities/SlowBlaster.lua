@@ -64,7 +64,7 @@ local function findTarget(context): (Player?, BasePart?)
 	local bestDistance = CONFIG.TargetRange
 	for _, candidate in ipairs(Players:GetPlayers()) do
 		if candidate ~= context.player and stateService and not stateService:IsHuman(candidate)
-			and not stateService:HasFlag(candidate, "Ghost")
+			
 			and not (context.TeamService and context.TeamService:IsFriendly(context.player, candidate)) then
 			local candidateRoot = playerService:GetRoot(candidate)
 			if candidateRoot then
@@ -82,7 +82,7 @@ local function candidatePawns(context): { Instance }
 	local playerService = context.PlayerService
 	for _, candidate in ipairs(Players:GetPlayers()) do
 		if candidate ~= context.player and stateService and not stateService:IsHuman(candidate)
-			and not stateService:HasFlag(candidate, "Ghost")
+			
 			and not (context.TeamService and context.TeamService:IsFriendly(context.player, candidate)) then
 			local pawn = playerService and playerService:GetPawn(candidate)
 			if pawn and pawn.Parent then table.insert(result, pawn) end
@@ -139,7 +139,7 @@ function SlowBlaster.OnAbilityTrigger(context)
 	local now = os.clock()
 	if now < (context._nextAbilityAt or 0) then return end
 	local stateService = context.PlayerStateService
-	if not stateService or not stateService:IsLauncher(context.player) or stateService:HasFlag(context.player, "Ghost") then return end
+	if not stateService or not stateService:IsLauncher(context.player) then return end
 	local target, targetRoot = findTarget(context)
 	if not (target and targetRoot) then return end
 
@@ -214,7 +214,6 @@ function SlowBlaster.OnTick(context, dt: number)
 		local targetRoot = target and target.Parent and context.PlayerService and context.PlayerService:GetRoot(target)
 		if not targetRoot or not target.Parent
 			or context.PlayerStateService:IsHuman(target)
-			or context.PlayerStateService:HasFlag(target, "Ghost")
 			or (context.TeamService and context.TeamService:IsFriendly(context.player, target)) then
 			endProjectile(context, projectile, data)
 			continue

@@ -231,9 +231,7 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 		logValidation(false, "missing_state_service")
 		return
 	end
-	if (stateService.IsHuman and stateService:IsHuman(player)) or stateService.HasFlag and (
-		stateService:HasFlag(player, "Ghost") or stateService:HasFlag(defender, "Ghost")
-	) then
+	if stateService.IsHuman and stateService:IsHuman(player) then
 		logValidation(false, "blocked_participant_state")
 		return
 	end

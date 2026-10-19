@@ -72,17 +72,20 @@ function RoundService:Init()
 	end
 	if self._startSafeZoneRemote then
 		self._startSafeZoneRemote.OnServerEvent:Connect(function(player)
+			if not RunService:IsStudio() then return end
 			self:RequestStartSafeZone(player)
 		end)
 	end
 	if self._plus1MinuteRemote then
 		self._plus1MinuteRemote.OnServerEvent:Connect(function(player)
+			if not RunService:IsStudio() then return end
 			self:RequestPlus1Minute(player)
 		end)
 	end
 	if self._endRoundRemote then
-		-- TODO: RequestEndRound is a debug-only UnitTestUI hook. Remove this remote before public release.
+		-- EndRound is a Studio-only debug hook; public clients are ignored above.
 		self._endRoundRemote.OnServerEvent:Connect(function(player)
+			if not RunService:IsStudio() then return end
 			self:RequestEndRound(player)
 		end)
 	end

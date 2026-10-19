@@ -23,7 +23,6 @@ local GameStates = {
 		Knockback = {},
 	},
 	PlayerFlag = {
-		Ghost = "Ghost",
 		Slow = "Slow",
 		Stun = "Stun",
 		Petrify = "Petrify",

@@ -17,19 +17,19 @@ Cross-service communication must use `EventBus` for decoupled flow.
 ## 1) Core Services
 
 ### PlayerStateService
-- **Owns:** Canonical runtime player state (HP, EXP, Level, movement flags, visibility/stun flags, arena state, temporary buffs, final derived stats after launcher + Equipment modifiers).
+- **Owns:** Canonical runtime player state (HP, EXP, Level, movement flags, visibility/stun flags, arena state, temporary buffs, final derived stats after Launcher + Pet stat modifiers).
 - **Responsibilities:**
   - Read/write validated player state.
   - Publish `StateUpdate` snapshots.
   - Apply stat recalculation and derived values.
   - Provide state-query APIs to all gameplay systems.
 - **Called by:** LauncherService, DamagePipelineService, GrowthService, TeamService, RoundService, PlayerService, LauncherAbilityService, LeaderboardService, Meta services.
-- **Dependencies:** Shared config/constants, EventBus, `EquipmentStatResolver`, `PlayerDataService` for persistent Equipment and Diamond reads.
+- **Dependencies:** Shared config/constants, EventBus, `LauncherStatResolver`, `PetStatResolver`, and `PlayerDataService` for profile and Diamond reads.
 
 ### PlayerDataService
-- **Owns:** Persistent-oriented player profile data, including Diamonds, OwnedItems, instance-based `OwnedEquipment`, `EquippedEquipment`, quests, and progress points.
-- **Responsibilities:** Normalize/default profile schema, act as the canonical Diamond ledger, route Diamond spending/grants, and expose Equipment ownership/equipped state to server services.
-- **Called by:** EquipmentService, QuestService, FoodService, progression/meta reward services, PlayerStateService read-through synchronization.
+- **Owns:** Current profile data, including Diamonds, OwnedItems, instance-based `OwnedLaunchers`, `EquippedLauncherInstanceId`, `OwnedPets`, `EquippedPets`, quests, and progress points. The runtime currently uses `MockProvider`; durable production persistence is not implemented.
+- **Responsibilities:** Normalize/default profile schema, act as the canonical Diamond ledger, route Diamond spending/grants, and expose Pet and Launcher ownership/equipped state to server services.
+- **Called by:** PetService, QuestService, FoodService, progression/meta reward services, PlayerStateService read-through synchronization.
 - **Dependencies:** Data provider boundary and EventBus.
 
 ### PlayerService
@@ -71,12 +71,6 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - **Called by:** Heartbeat loop.
 - **Dependencies:** PlayerService, PlayerStateService, MapService, EventBus.
 
-### CombatService
-- **Owns:** Pure combat formulas only.
-- **Responsibilities:** Compute impact damage/knockback values from state + velocity.
-- **Called by:** DamagePipelineService (and collision preprocessing flow).
-- **Dependencies:** Balance config.
-
 ### DamagePipelineService
 - **Owns:** Final damage authority and damage rule enforcement.
 - **Responsibilities:**
@@ -85,13 +79,13 @@ Cross-service communication must use `EventBus` for decoupled flow.
   - Handle kill attribution, assist context emission, and downstream EXP context events.
   - Apply knockback/effects and publish combat feedback.
 - **Called by:** CollisionService, TrapService, SafeZoneService, LauncherAbilityService.
-- **Dependencies:** PlayerStateService, PlayerService, CombatService, TeamService, EventBus.
+- **Dependencies:** PlayerStateService, PlayerService, TeamService, EventBus, shared balance/physics config, and flag APIs.
 
 ### SafeZoneService
 - **Owns:** Shrinking safe-zone simulation and environment pressure.
 - **Responsibilities:**
   - Visual + logical safe-zone shrink timeline.
-  - Compute outside-zone DOT ramp from **1% → 10% HP/s**.
+  - Compute the outside-zone damage ramp from 0.5%/s to 5%/s, including the configured fixed-base damage component.
   - Forward environment damage events to `DamagePipelineService`.
 - **Called by:** RoundService tick/phase orchestration.
 - **Dependencies:** MapService, DamagePipelineService, EventBus.
@@ -111,18 +105,17 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - **Dependencies:** LauncherService signals, PlayerStateService, DamagePipelineService, EventBus.
 - **Constraint:** MUST NOT directly modify combat or player state bypassing owner services.
 
-### EquipmentService
-- **Owns:** Server-authoritative Equipment lifecycle and ownership mutations.
-- **Responsibilities:** Read owned/equipped Equipment from PlayerDataService, validate fail-closed instance ownership, equip/unequip by owned instance ID, expose upgrade/pity entry points, and publish `EquipmentEquipped`, `EquipmentUnequipped`, and `EquipmentUpdated`.
-- **Called by:** Equipment remotes and future shop/grant systems.
-- **Dependencies:** PlayerDataService, EventBus, EquipmentConfig, EquipmentUpgradeConfig.
-- **Constraint:** Client-supplied definition IDs are never accepted as proof of ownership.
+### PetService
+- **Owns:** Server-authoritative Pet ownership, equip/unequip, and upgrade mutations.
+- **Responsibilities:** Validate owned Pet instance IDs, enforce equipped-slot rules, commit upgrades through PlayerDataService, and publish Pet lifecycle/result events.
+- **Called by:** Pet inventory remotes and reward/grant flows.
+- **Dependencies:** PlayerDataService, PetsConfig, PetsUpgradeConfig, EventBus.
 
-### EquipmentEffectService
-- **Owns:** Runtime orchestration of active Equipment effects.
-- **Responsibilities:** Maintain multiple active effects per player, register modules under `EquipmentEffects`, dispatch `OnInit`, `OnLaunch`, `OnCollision`, `OnTick`, `OnAttack`, and `OnDestroy`, and use one shared Heartbeat connection for all Equipment effects.
-- **Called by:** EventBus Equipment and gameplay signals.
-- **Dependencies:** EventBus, EquipmentConfig, FlagService, PlayerStateService.
+### PetAbilityService
+- **Owns:** Runtime orchestration of equipped Pet effects and active abilities.
+- **Responsibilities:** Register Pet effect modules, maintain active effects per player, dispatch lifecycle hooks, and use a shared Heartbeat for effects that require ticking.
+- **Called by:** Pet lifecycle events and gameplay EventBus signals.
+- **Dependencies:** PetsConfig, PetProgression, FlagService, PlayerStateService, EventBus, and combat/target-validation services.
 
 ### FoodService
 - **Owns:** Food entity lifecycle and food-type classification.
@@ -218,12 +211,12 @@ Cross-service communication must use `EventBus` for decoupled flow.
 
 ### Pending review (not core freeze blockers)
 
-- `CombatService` currently invoked from collision-stage flow; formalize DamagePipelineService as the sole combat gate while preserving CombatService as pure formula module.
-- Existing respawn timing/flow in damage pipeline and monetization should be reconciled with round-phase ghost/final-phase restrictions before implementation lock.
+- Keep DamagePipelineService as the single damage authority; collision geometry is handled by CollisionService and shared collision utilities.
+- Keep round-phase respawn behavior documented against the current RoundService and DamagePipelineService implementation.
 
 ### TeamService
 - **Owns:** Team relationship domain.
-- **Responsibilities:** Team creation/management (max size 2), relationship query `IsTeammate(playerA, playerB)`.
+- **Responsibilities:** Assign active round participants across White/Yellow/Blue/Red, validate team changes/capacity/cooldown, expose `IsFriendly(playerA, playerB)`, and neutralize Roblox team membership during Rage while retaining PlayerState.TeamId.
 - **Called by:** DamagePipelineService, RoundService.
 - **Dependencies:** PlayerStateService.
 
@@ -242,7 +235,7 @@ Cross-service communication must use `EventBus` for decoupled flow.
 
 ### LeaderboardService
 - **Owns:** End-of-round ranking and reward sequencing.
-- **Responsibilities:** winner/rank resolve, reward trigger (EXP/Gems), enforce 15-second reward delay after round end.
+- **Responsibilities:** Maintain in-round ranks and scoreboard snapshots; obtain global top-progress profiles through PlayerDataService's active data provider.
 - **Called by:** Round end flow.
 - **Dependencies:** RoundService, PlayerStateService, GrowthService.
 
@@ -289,10 +282,10 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - Friendly-fire checks outside DamagePipelineService.
 
 ### Pending Review
-- Runtime still contains legacy `SkillService.lua` and wiring in `Main.server.lua`; remove after remote-owner reassignment.
-- SafeZoneService/LauncherAbilityService are not yet implemented as runtime modules.
-- Ghost/Spectating state machine is not yet enforced in runtime constants/services.
 
-## Equipment Ability Migration Re-ratification (2026-08-14)
 
-Equipment abilities are now owned by `EquipmentAbilityService`. Launchers remain responsible for core launcher stats and movement compatibility only; Equipment owns active combat effects, passive abilities, and visual equipment model attachment state through `PlayerStateService`, `EquipmentService`, and `PlayerService`.
+
+
+## Pet Ability Ownership (updated 2026-10-20)
+
+Pet effects and active abilities are orchestrated by `PetAbilityService`. `LauncherConfig` defines Launcher base stats; Pet definitions in `PetsConfig` identify active abilities, effects, and passive stat modifiers. Pet model presentation is handled client-side by `ClientPetController`; damage, effects, and target validation remain server-authoritative.
