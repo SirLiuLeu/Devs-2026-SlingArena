@@ -122,6 +122,8 @@ function TeamSelectionUIController:_logRejectedRequest(reason: string, teamId: a
 end
 
 function TeamSelectionUIController:_requestTeamChange(teamId: string)
+	print(string.format("[TEAM_CHANGE_CLIENT] stage=button_clicked player=%s requestedTeam=%s currentTeam=%s rageActive=%s cooldownRemaining=%.2f",
+		Players.LocalPlayer.Name, teamId, tostring(self._currentTeamId), tostring(self._rageActive), math.max(0, self._localCooldownEndsAt - os.clock())))
 	if teamId == self._currentTeamId then
 		self:_logRejectedRequest("AlreadyOnTeam", teamId, "Already assigned locally")
 		return
@@ -137,12 +139,14 @@ function TeamSelectionUIController:_requestTeamChange(teamId: string)
 		self:_showToast(ConfirmationTextConfig.Get("Cooldown", { seconds = math.ceil(remaining) }))
 		return
 	end
-	if self:_teamPlayerCount(teamId) >= TeamConfig.MaxPlayersPerTeam then
-		self:_logRejectedRequest("TeamFull", teamId, string.format("clientCount=%d cap=%d", self:_teamPlayerCount(teamId), TeamConfig.MaxPlayersPerTeam))
+	local teamCount = self:_teamPlayerCount(teamId)
+	if teamCount >= TeamConfig.MaxPlayersPerTeam then
+		self:_logRejectedRequest("TeamFull", teamId, string.format("clientCount=%d cap=%d", teamCount, TeamConfig.MaxPlayersPerTeam))
 		self:_flashFullTeam(teamId)
+		self:_showToast(ConfirmationTextConfig.Get("TeamFull"))
 		return
 	end
-	if not self._changeTeamRemote then
+	if not (self._changeTeamRemote and self._changeTeamRemote:IsA("RemoteEvent")) then
 		self:_logRejectedRequest("MissingRemote", teamId, "LauncherArenaRemotes.ChangeTeam does not exist")
 		warnMissing("ReplicatedStorage.LauncherArenaRemotes.ChangeTeam (RemoteEvent)")
 		return
@@ -154,7 +158,12 @@ function TeamSelectionUIController:_requestTeamChange(teamId: string)
 	self._lastRequestedTeamId = teamId
 	local message = ConfirmationTextConfig.Get("ChangeTeam", { team = teamId })
 	self._confirmation:RequestConfirm(message, function()
-		if self._changeTeamRemote then self._changeTeamRemote:FireServer(teamId) end
+		if self._changeTeamRemote and self._changeTeamRemote:IsA("RemoteEvent") then
+			print(string.format("[TEAM_CHANGE_CLIENT] stage=confirmed_send player=%s requestedTeam=%s", Players.LocalPlayer.Name, teamId))
+			self._changeTeamRemote:FireServer(teamId)
+		else
+			warn("[TEAM_SELECTION_UI] Confirm callback could not send ChangeTeam because the RemoteEvent is missing.")
+		end
 	end)
 end
 
@@ -238,12 +247,14 @@ function TeamSelectionUIController:Start()
 			if type(message) ~= "table" or message.EventType ~= "TeamChangeResult" or type(message.Payload) ~= "table" then return end
 			local payload = message.Payload
 			if payload.Success == true then
+				print(string.format("[TEAM_CHANGE_CLIENT] stage=result success=true requestedTeam=%s serverTeam=%s cooldownRemaining=%s", tostring(self._lastRequestedTeamId), tostring(payload.TeamId), tostring(payload.CooldownRemaining)))
 				self._currentTeamId = if type(payload.TeamId) == "string" then payload.TeamId else self._currentTeamId
 				self._localCooldownEndsAt = os.clock() + math.max(0, tonumber(payload.CooldownRemaining) or COOLDOWN_SECONDS)
 				if self._popup and self._popup:IsA("GuiObject") then self._popup.Visible = false end
 				self:_refreshToggleStyle()
 			else
 				local reason = tostring(payload.Reason or "")
+				print(string.format("[TEAM_CHANGE_CLIENT] stage=result success=false requestedTeam=%s reason=%s cooldownRemaining=%s", tostring(self._lastRequestedTeamId), reason, tostring(payload.CooldownRemaining)))
 				self:_logRejectedRequest(reason ~= "" and reason or "Unknown", self._lastRequestedTeamId, "Server rejected the team-change request")
 				if reason == "TeamFull" then
 					self:_flashFullTeam(self._lastRequestedTeamId)
