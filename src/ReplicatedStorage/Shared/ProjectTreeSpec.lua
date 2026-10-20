@@ -35,6 +35,7 @@ local ProjectTreeSpec = {
 				ValueLabel = "MainHUD.Root.ExpProress.ExpValueLabel", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.ExpValueLabel
 				LevelLabel = "MainHUD.Root.ExpProress.LevelOnBarLabel", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.LevelOnBarLabel
 			},
+			RankFrameList = "MainHUD.Root.RankFrame.List", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.RankFrame.List
 			DiamondValue = "MainHUD.Root.Diamond.Value", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.Diamond.Value
 			BuffContainer = {
 				Root = "MainHUD.Root.BuffContainer", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer
@@ -335,6 +336,7 @@ local ProjectTreeSpec = {
 				ItemSlotTemplate_InventoryUI = "Assets.UI.ItemSlotTemplate_InventoryUI",
 				LauncherSlotTemplate_LauncherInventoryUI = "Assets.UI.LauncherSlotTemplate_LauncherInventoryUI",
 				PetSlotTemplate_InventoryUI = "Assets.UI.PetSlotTemplate_InventoryUI",
+				PlayerRowTemplate_RankFrame = "Assets.UI.PlayerRowTemplate_RankFrame",
 				SlotRewardTemplate_DailyLoginUI = "Assets.UI.SlotRewardTemplate_DailyLoginUI",
 				SlotItemsTemplate_ShopUI = "Assets.UI.SlotItemsTemplate_ShopUI",
 				SlotLauncherTemplate_shopUI = "Assets.UI.SlotLauncherTemplate_shopUI",
