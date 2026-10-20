@@ -212,6 +212,24 @@ function RankFrameUIController:_render()
 		row.LayoutOrder = index
 		row.Visible = true
 
+		-- Studio's List may not contain a UIListLayout/UIGridLayout. In that case,
+		-- give each runtime clone a deterministic vertical position so rows do not overlap.
+		if not list:FindFirstChildWhichIsA("UIListLayout") and not list:FindFirstChildWhichIsA("UIGridLayout") then
+			local rowHeight = row.AbsoluteSize.Y
+			if rowHeight <= 0 then
+				rowHeight = row.Size.Y.Offset
+			end
+			if rowHeight <= 0 then
+				rowHeight = row.Size.Y.Scale * list.AbsoluteSize.Y
+			end
+			row.Position = UDim2.new(
+				row.Position.X.Scale,
+				row.Position.X.Offset,
+				0,
+				(index - 1) * rowHeight
+			)
+		end
+
 		local nameLabel = row:FindFirstChild("Name")
 		if nameLabel and nameLabel:IsA("TextLabel") then
 			nameLabel.Text = rankedPlayer.DisplayName ~= "" and rankedPlayer.DisplayName or rankedPlayer.Name
