@@ -40,6 +40,7 @@ local boundJoystickRoot: GuiObject? = nil
 local boundInputRegion: GuiObject? = nil
 
 local isHolding = false
+local isChargeConfirmed = false
 local awaitingReleaseAck = false
 local inputObject: InputObject? = nil
 local currentDragVector = Vector2.zero
@@ -300,14 +301,19 @@ local function getBoundInputRegion(): GuiObject?
 end
 
 
+local function isChargeUiActive(): boolean
+	return isHolding and isChargeConfirmed
+end
+
 local function setCancelZoneFeedback(isHovering: boolean)
-	isFingerOverCancelZone = isHovering
+	local chargeUiActive = isChargeUiActive()
+	isFingerOverCancelZone = chargeUiActive and isHovering
 	if cachedCancelZone then
-		cachedCancelZone.Visible = isHolding
-		cachedCancelZone.BackgroundTransparency = if isHovering then 0.25 else 0.45
+		cachedCancelZone.Visible = chargeUiActive
+		cachedCancelZone.BackgroundTransparency = if chargeUiActive and isHovering then 0.25 else 0.45
 	end
 	if cachedCancelIcon then
-		cachedCancelIcon.Visible = isHolding
+		cachedCancelIcon.Visible = chargeUiActive
 	end
 end
 
@@ -325,7 +331,7 @@ local function isPointInsideGuiObject(point: Vector2, guiObject: GuiObject?): bo
 end
 
 local function updateCancelZoneFromRawPosition(rawPosition: Vector2?)
-	if not isHolding then
+	if not isChargeUiActive() then
 		setCancelZoneFeedback(false)
 		setVisibleSafe(cachedCancelZone, false)
 		return
@@ -584,6 +590,7 @@ end
 
 local function resetVisualState()
 	isHolding = false
+	isChargeConfirmed = false
 	awaitingReleaseAck = false
 	inputObject = nil
 	currentDragVector = Vector2.zero
@@ -645,6 +652,7 @@ local function startHold(input: InputObject)
 	end
 
 	isHolding = true
+	isChargeConfirmed = false
 	awaitingReleaseAck = false
 	inputObject = input
 	currentDragVector = Vector2.zero
@@ -656,7 +664,7 @@ local function startHold(input: InputObject)
 
 	setVisibleSafe(joystickRoot, true)
 	setVisibleSafe(chargeBar, true)
-	setVisibleSafe(cachedCancelZone, true)
+	setVisibleSafe(cachedCancelZone, false)
 	updateCancelZoneFromRawPosition(currentRawFingerPosition)
 	resetThumbPosition()
 	updateDirectionIndicator(nil)
@@ -729,6 +737,9 @@ local function releaseHold(input: InputObject)
     end
 
     isHolding = false
+    isChargeConfirmed = false
+    setVisibleSafe(cachedCancelZone, false)
+    setCancelZoneFeedback(false)
     awaitingReleaseAck = true
     inputObject = nil
     player:SetAttribute("PredictedLaunchDirection", currentChargeAimDirection)
@@ -809,6 +820,9 @@ if stateUpdateRemote then
 			resetVisualState()
 			return
 		end
+
+		isChargeConfirmed = isHolding and state.IsCharging == true
+		updateCancelZoneFromRawPosition(currentRawFingerPosition)
 
 		if state.IsCharging == false and isHolding == true then
             -- Chỉ huỷ bỏ charge từ server nếu Client đã bắt đầu charge hơn 0.5 giây.
