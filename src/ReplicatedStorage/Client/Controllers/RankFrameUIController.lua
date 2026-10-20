@@ -267,7 +267,11 @@ end
 
 function RankFrameUIController:Destroy()
 	self._started = false
+	local players = {}
 	for player in pairs(self.PlayerBindings) do
+		table.insert(players, player)
+	end
+	for _, player in ipairs(players) do
 		self:_unbindPlayer(player)
 	end
 	disconnectAll(self.Connections)
