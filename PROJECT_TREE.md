@@ -11,7 +11,6 @@ DataModel
 │  │  ├─ Config
 │  │  │  ├─ AbilityConfig.lua
 │  │  │  ├─ BalanceConfig.lua
-│  │  │  ├─ Config.lua
 │  │  │  ├─ ConfirmationTextConfig.lua
 │  │  │  ├─ DebugConfig.lua
 │  │  │  ├─ GachaRewardConfig.lua
@@ -154,7 +153,11 @@ DataModel
 │  │  └── UI
 │  │      ├── FloatingDamage (BillboardGui)
 │  │      │   └── Value (TextLabel)
-│  │      │   
+│  │      │
+│  │      ├── PlayerRowTemplate_RankFrame (Frame)
+│  │      │   ├── Name (TextLabel) 
+│  │      │   └── Level (TextLabel)   
+│  │      │
 │  │      ├── FoodWorldUI (BillboardGui)
 │  │      │   └── HpBarBackground (Frame)
 │  │      │       ├── UICorner
@@ -317,14 +320,8 @@ DataModel
 │  ├─ Main.server.lua
 │  ├─ Config
 │  ├─ Tests
-│  │  └─ EquipmentFoundationTests.server.lua
+│  │  └─ CoreLoopTests.server.lua
 │  └─ Services
-│     ├─ EquipmentService
-│     │  └─ EquipmentService.lua
-│     └─ EquipmentEffectService
-│        ├─ EquipmentEffectService.lua
-│        └─ EquipmentEffects
-│           └─ NoOp.lua
 ## 🟩 StarterPlayer
 ├─ StarterPlayer
 │  └─ StarterPlayerScripts
@@ -630,9 +627,8 @@ DataModel
 │  │     │  ├─ Quest (ImageButton)
 │  │     │  └─ ShopButton (ImageButton)
 │  │     ├─ RankFrame
-│  │     │  ├─ List
-│  │     │  │  └─ Player1
-│  │     │  └─ Title (TextLabel)
+│  │     │  └─ List
+│  │     │     └─ PlayerRowTemplate_RankFrame (Slot 1 -> 5 ) -- Script Spawn in run time
 │  │     ├─ Diamond
 │  │     │  ├─ DiamondIcon (ImageLabel)
 │  │     │  └─ Value (TextLabel)
