@@ -22,6 +22,7 @@ local MatchScoreboardUIController = require(ReplicatedStorage.Client.Controllers
 local MatchSummaryUIController = require(ReplicatedStorage.Client.Controllers.MatchSummaryUIController)
 local ToastUIController = require(ReplicatedStorage.Client.Controllers.ToastUIController)
 local QuestUIController = require(ReplicatedStorage.Client.Controllers.QuestUIController)
+local RankFrameUIController = require(ReplicatedStorage.Client.Controllers.RankFrameUIController)
 local QuestLogicService = require(ReplicatedStorage.Client.Services.QuestLogicService)
 local HudDataService = require(ReplicatedStorage.Client.Services.HudDataService)
 local MatchScoreboardDataService = require(ReplicatedStorage.Client.Services.MatchScoreboardDataService)
@@ -154,6 +155,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.MatchSummaryUIController = MatchSummaryUIController.new(playerGui, self.ClientService)
 	self.ToastUIController = ToastUIController.new(playerGui)
 	self.QuestUIController = QuestUIController.new(playerGui)
+	self.RankFrameUIController = RankFrameUIController.new(playerGui)
 	self.InventoryDataProvider = InventoryDataProvider.GetDefault()
 	self.OnlineRewardLogicService = OnlineRewardLogicService.GetDefault()
 	self.ShopLogicService = ShopLogicService.GetDefault()
@@ -552,6 +554,7 @@ function UIController:_startAvailableFeatureControllers()
 	if self.MatchScoreboardUIController then self.MatchScoreboardUIController:Start() end
 	if self.MatchSummaryUIController then self.MatchSummaryUIController:Start() end
 	if self.QuestUIController then self.QuestUIController:Start() end
+	if self.RankFrameUIController then self.RankFrameUIController:Start() end
 end
 
 function UIController:_destroyFeatureController(_key: string, fieldName: string)
@@ -834,6 +837,9 @@ function UIController:Destroy()
 	end
 	if self.QuestUIController then
 		self.QuestUIController:Destroy()
+	end
+	if self.RankFrameUIController then
+		self.RankFrameUIController:Destroy()
 	end
 	for _, connection in ipairs(self.Connections) do
 		connection:Disconnect()
