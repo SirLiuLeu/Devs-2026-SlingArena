@@ -628,7 +628,7 @@ DataModel
 │  │     │  └─ ShopButton (ImageButton)
 │  │     ├─ RankFrame
 │  │     │  └─ List
-│  │     │     └─ PlayerRowTemplate_RankFrame (Slot 1 -> 5 ) -- Script Spawn in run time
+│  │     │     └─ Slot1, Slot2, Slot3, Slot4, Slot5 (PlayerRowTemplate_RankFrame clones) -- Script Spawn in run time
 │  │     ├─ Diamond
 │  │     │  ├─ DiamondIcon (ImageLabel)
 │  │     │  └─ Value (TextLabel)
