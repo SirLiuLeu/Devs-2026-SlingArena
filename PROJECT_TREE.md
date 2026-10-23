@@ -123,7 +123,7 @@ DataModel
 │  │  │  │  │  │  ├── Frost (ParticleEmitter)
 │  │  │  │  │  │  └── Poison (Smoke)
 │  │  │  │  │  ├── LinearVelocity
-│  │  │  │  │  ├── LauncherMovementAttachment (Attachment; Pet follow origin; no EquipmentSlot attachments)
+│  │  │  │  │  ├── LauncherMovementAttachment (Attachment; Pet follow origin)
 │  │  │  │  │  ├── TailAttachment (Attachment)
 │  │  │  │  │  │  └── RocketLaunchParticle (ParticleEmitter; default Enabled=false)
 │  │  │  │  │  ├── TrailEnd_A (Attachment)
