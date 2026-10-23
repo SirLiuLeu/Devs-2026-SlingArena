@@ -18,6 +18,17 @@ local Teams = game:GetService("Teams")
 local StatusEffectVfx = require(ReplicatedStorage.Shared.Utils.StatusEffectVfx)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local LauncherAnimationController = require(script.Parent.AnimationController)
+
+local LEGACY_EQUIPMENT_SLOT_NAMES = { "EquipmentSlot1", "EquipmentSlot2", "EquipmentSlot3" }
+local MOTION_TRAIL_SPECS = {
+	{ Name = "MotionTrail1", Attachment0 = "TrailStart_A", Attachment1 = "TrailEnd_A" },
+	{ Name = "MotionTrail2", Attachment0 = "TrailStart_B", Attachment1 = "TrailEnd_B" },
+}
+local MOVEMENT_EFFECT_STATES = {
+	[GameStates.PlayerState.Moving] = true,
+	[GameStates.PlayerState.Charging] = true,
+	[GameStates.PlayerState.Launching] = true,
+}
 local ServiceResolver = require(script.Parent.Parent.Infrastructure.ServiceResolver)
 
 local EQUIPPED_LAUNCHER_MODEL_NAME = "EquippedLauncherModel"
@@ -29,6 +40,24 @@ local LEGACY_HITBOX_MESH_WELD_NAME = "WeldConstraint_HitboxMesh"
 
 local function setPreplacedStatusEffectsEnabled(root: BasePart, enabled: boolean)
 	StatusEffectVfx.SetAllStatusEffectsEnabled(root, enabled)
+end
+
+local function setMovementEffectsEnabled(pawn: Model, enabled: boolean)
+	local root = pawn.PrimaryPart or pawn:FindFirstChild("Hitbox", true)
+	if root and root:IsA("BasePart") then
+		local tailAttachment = root:FindFirstChild("TailAttachment")
+		local rocketParticle = tailAttachment and tailAttachment:FindFirstChild("RocketLaunchParticle")
+		if rocketParticle and rocketParticle:IsA("ParticleEmitter") then
+			rocketParticle.Enabled = enabled
+		end
+	end
+
+	for _, trailSpec in ipairs(MOTION_TRAIL_SPECS) do
+		local trail = pawn:FindFirstChild(trailSpec.Name, true)
+		if trail and trail:IsA("Trail") then
+			trail.Enabled = enabled
+		end
+	end
 end
 
 local PlayerService = {}
@@ -602,16 +631,31 @@ function PlayerService:_prepareLauncherModel(model: Model): BasePart?
 	model.PrimaryPart = root
 	root.Massless = false
 
-	-- Status VFX are pre-placed under Hitbox attachments; keep them disabled until flags enable them.
+	-- Status and movement VFX start disabled; movement states below control the latter.
 	setPreplacedStatusEffectsEnabled(root, false)
+	for _, attachmentName in ipairs(LEGACY_EQUIPMENT_SLOT_NAMES) do
+		local legacyAttachment = root:FindFirstChild(attachmentName)
+		if legacyAttachment and legacyAttachment:IsA("Attachment") then
+			legacyAttachment:Destroy()
+		end
+	end
+
+	local tailAttachment = root:FindFirstChild("TailAttachment")
+	local rocketParticle = tailAttachment and tailAttachment:FindFirstChild("RocketLaunchParticle")
+	if rocketParticle and rocketParticle:IsA("ParticleEmitter") then
+		rocketParticle.Enabled = false
+	end
 
 	local attachment = root:FindFirstChild("LauncherMovementAttachment") or root:FindFirstChild("AttachmentOrientation") or root:FindFirstChild("Attachment")
 	local linearVelocity = root:FindFirstChild("LinearVelocity")
 	local alignOrientation = root:FindFirstChild("AlignOrientation")
 	local body = model:FindFirstChild("Body", true)
 	local bodyWeld = model:FindFirstChild("BodyWeld", true)
-	local attachments = model:FindFirstChild("Attachments")
-	local trail = model:FindFirstChild("Trail")
+
+	local legacyTrail = model:FindFirstChild("Trail")
+	if legacyTrail and legacyTrail:IsA("Trail") then
+		legacyTrail:Destroy()
+	end
 
 	if attachment and attachment:IsA("Attachment") then
 		if linearVelocity and linearVelocity:IsA("LinearVelocity") then
@@ -628,16 +672,21 @@ function PlayerService:_prepareLauncherModel(model: Model): BasePart?
 		end
 	end
 
-	if trail and trail:IsA("Trail") then
-		local trailStart = (attachments and attachments:FindFirstChild("TrailStart")) or root:FindFirstChild("TrailStart")
-		local trailEnd = (attachments and attachments:FindFirstChild("TrailEnd")) or root:FindFirstChild("TrailEnd")
-		if trailStart and trailStart:IsA("Attachment") then
-			trail.Attachment0 = trailStart
-		end
-		if trailEnd and trailEnd:IsA("Attachment") then
-			trail.Attachment1 = trailEnd
+	for _, trailSpec in ipairs(MOTION_TRAIL_SPECS) do
+		local trail = model:FindFirstChild(trailSpec.Name, true)
+		if trail and trail:IsA("Trail") then
+			local trailStart = root:FindFirstChild(trailSpec.Attachment0)
+			local trailEnd = root:FindFirstChild(trailSpec.Attachment1)
+			if trailStart and trailStart:IsA("Attachment") then
+				trail.Attachment0 = trailStart
+			end
+			if trailEnd and trailEnd:IsA("Attachment") then
+				trail.Attachment1 = trailEnd
+			end
+			trail.Enabled = false
 		end
 	end
+	setMovementEffectsEnabled(model, false)
 
 	root.CustomPhysicalProperties = PhysicalProperties.new(
 		PhysicsConfig.PhysicalProperties.Density,
@@ -901,6 +950,12 @@ function PlayerService:_updateLauncherAnimations(player: Player, state)
 	if not pawn then
 		return
 	end
+
+	local effectsEnabled = state ~= nil
+		and state.IsAlive ~= false
+		and MOVEMENT_EFFECT_STATES[state.MovementState] == true
+	setMovementEffectsEnabled(pawn, effectsEnabled)
+
 	local controller = self._animationControllers[pawn]
 	if not controller then
 		self:_initializeLauncherAnimations(player, pawn)
@@ -947,6 +1002,7 @@ function PlayerService:SpawnPawn(player, spawnIndex: number?, mapName: string?)
 		return nil
 	end
 	pawn.PrimaryPart.Massless = false
+	setMovementEffectsEnabled(pawn, false)
 	local index = spawnIndex or (player.UserId % 8) + 1
 	self:_applyLauncherVisual(pawn, currentLauncherId)
 	local mapService = ServiceResolver.Get(self._context, "MapService")
