@@ -123,11 +123,11 @@ DataModel
 │  │  │  │  │  │  └── Poison (Smoke)
 │  │  │  │  │  ├── LinearVelocity
 │  │  │  │  │  ├── LauncherMovementAttachment (Attachment)
-│  │  │  │  │  ├── EquipmentSlot1 (Attachment)
-│  │  │  │  │  ├── EquipmentSlot2 (Attachment)
-│  │  │  │  │  ├── EquipmentSlot3 (Attachment)
-│  │  │  │  │  ├── TrailEnd (Attachment)
-│  │  │  │  │  └── TrailStart (Attachment)
+│  │  │  │  │  ├── TailAttachment (Attachment)
+│  │  │  │  │  ├── TrailEnd_A (Attachment)
+│  │  │  │  │  ├── TrailStart_A (Attachment)
+│  │  │  │  │  ├── TrailEnd_B (Attachment)
+│  │  │  │  │  └── TrailStart_B (Attachment)
 │  │  │  │  └── LauncherWorldUI
 │  │  │  │     ├── UIListLayout
 │  │  │  │     ├── HpBarBackground

@@ -49,7 +49,7 @@ end
 
 function RankFrameUIController:_resolveUi()
 	local listPath = ProjectTreeSpec.UI.MainHub.RankFrameList
-	local templatePath = ProjectTreeSpec.ReplicatedStorage.Assets.PlayerRowTemplate_RankFrame
+	local templatePath = ProjectTreeSpec.GameplayInstances.ReplicatedStorage.Assets.PlayerRowTemplate_RankFrame
 	local list = PathResolver.resolvePath(self.PlayerGui, listPath, { shouldWarn = false })
 	local template = PathResolver.resolvePath(ReplicatedStorage, templatePath, { shouldWarn = false })
 
