@@ -103,7 +103,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 
 ## Recent implementation update (2026-08-21)
 
-- Equipment visuals are Launcher-only: `PlayerService` attaches cloned `Equipment/<Id>/Handle` models exclusively to `Player.Hitbox.EquipmentSlot1..3`, clears them for Human mode, and restores equipped visuals whenever a Launcher pawn is spawned.
+- The legacy `EquipmentSlot1..3` attachment contract is retired from the active Launcher pawn. Do not add these attachments back; equipped Pet visuals are client-rendered by `ClientPetController` relative to `Hitbox.LauncherMovementAttachment`.
 - Equipment active-input UI resolves the first equipped definition with an `abilityId` from authoritative `StateUpdate` data and fires `AbilityTrigger` with that id.
 - `RoundService` sends an immediate targeted `UIStateUpdate` snapshot to each joining client; Shop UI re-resolves and safely rebinds after `CharacterAdded`.
 - Debug lifecycle traces in the Equipment services are reduced/commented with `-- [DEBUG_TRACE]`.
@@ -167,3 +167,9 @@ Config modules store shared tuning and content tables (movement/combat constants
 - Team switching prints the exact source and target team used to build the confirmation message, logs Confirm/Cancel, and keeps the request target captured in the callback. ConfirmationUIController binds Confirm/Cancel once, hides both the root and ScreenGui after either action, and warns with authored paths when the GUI, text, Confirm, or Cancel controls are missing.
 - Food placement rejects candidate positions inside `FoodConfig.MinPlayerSpawnClearance` plus the food/player hitbox radii for alive non-Lobby players. Food models are positioned before being parented into `FoodContainer`; blocked batches retry after 2 seconds up to 3 times, with pending retries invalidated when map food is cleared.
 - Validation note: changes were reviewed statically against the source. Live Roblox Studio/multi-client runtime tests have not been run in this implementation pass.
+
+
+## Movement VFX and Pet attachment update (2026-10-24)
+
+- `Hitbox.TailAttachment.RocketLaunchParticle`, `MotionTrail1`, and `MotionTrail2` default to disabled. They are enabled only while the Launcher is `Moving`, `Charging`, or `Launching`, and disabled in `Idle`, `Knockback`, and other states.
+- Equipped Pet visuals remain client-rendered and now follow from `Hitbox.LauncherMovementAttachment` when present. Legacy `EquipmentSlot1..3` attachments are stripped from the server's Launcher template clone and must not be restored to the current asset tree.
