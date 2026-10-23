@@ -331,10 +331,15 @@ function ClientPetController:_render(deltaTime: number)
 			local lateralOffset = (slot - ((PetsConfig.EquippedSlotCount + 1) / 2)) * SLOT_SPACING
 			local bobOffset = math.sin(now * BOB_SPEED + slot) * BOB_HEIGHT
 			local swayOffset = math.cos(now * SWAY_SPEED + slot * 0.7) * SWAY_DISTANCE
-			local look = rootPart.CFrame.LookVector
+			local followOrigin = rootPart.CFrame
+			local movementAttachment = rootPart:FindFirstChild("LauncherMovementAttachment")
+			if movementAttachment and movementAttachment:IsA("Attachment") then
+				followOrigin = movementAttachment.WorldCFrame
+			end
+			local look = followOrigin.LookVector
 			local flatLook = Vector3.new(look.X, 0, look.Z)
 			if flatLook.Magnitude < 0.001 then flatLook = Vector3.zAxis end
-			local heading = CFrame.lookAt(rootPart.Position, rootPart.Position + flatLook.Unit)
+			local heading = CFrame.lookAt(followOrigin.Position, followOrigin.Position + flatLook.Unit)
 			local target = heading * CFrame.new(lateralOffset + swayOffset, FOLLOW_HEIGHT + bobOffset, FOLLOW_DISTANCE)
 			local current = rendered.model:GetPivot()
 			if (current.Position - target.Position).Magnitude >= SNAP_DISTANCE then
