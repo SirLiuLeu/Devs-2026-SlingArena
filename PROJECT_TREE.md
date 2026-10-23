@@ -107,7 +107,8 @@ DataModel
 │  │  │
 │  │  ├── Launchers
 │  │  │  ├── Player (Character Default)
-│  │  │  │  ├── Trail
+│  │  │  │  ├── MotionTrail1 (Trail; uses TrailStart_A / TrailEnd_A; default Enabled=false)
+│  │  │  │  ├── MotionTrail2 (Trail; uses TrailStart_B / TrailEnd_B; default Enabled=false)
 │  │  │  │  ├── WeldConstraint_HitboxRootPart
 │  │  │  │  ├── EquippedLauncherModel (Launcher_Template)
 │  │  │  │  │  ├── RootPart
@@ -122,8 +123,9 @@ DataModel
 │  │  │  │  │  │  ├── Frost (ParticleEmitter)
 │  │  │  │  │  │  └── Poison (Smoke)
 │  │  │  │  │  ├── LinearVelocity
-│  │  │  │  │  ├── LauncherMovementAttachment (Attachment)
+│  │  │  │  │  ├── LauncherMovementAttachment (Attachment; Pet follow origin)
 │  │  │  │  │  ├── TailAttachment (Attachment)
+│  │  │  │  │  │  └── RocketLaunchParticle (ParticleEmitter; default Enabled=false)
 │  │  │  │  │  ├── TrailEnd_A (Attachment)
 │  │  │  │  │  ├── TrailStart_A (Attachment)
 │  │  │  │  │  ├── TrailEnd_B (Attachment)
