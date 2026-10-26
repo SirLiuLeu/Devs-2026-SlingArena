@@ -273,6 +273,7 @@ TrapService._behaviorHandlers = {
 				return
 			end
 			self._activeContacts[contactKey] = true
+			SoundManager.Play("SFX_TrapHit", trapPart.Position)
 			task.spawn(function()
 				while self._activeContacts[contactKey] do
 					self:_applyContactDotTrapTick(player, trapPart, trapType, trapConfig, sourceRoot)

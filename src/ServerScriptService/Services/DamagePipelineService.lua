@@ -157,6 +157,9 @@ function DamagePipelineService:Init()
 		collisionMeta: any
 	)
 		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+		local playerService = ServiceResolver.Get(self._context, "PlayerService")
+		local victimRoot = playerService and playerService:GetRoot(victim)
+		if victimRoot then SoundManager.Play("SFX_ImpactLauncher", victimRoot.Position) end
 		local attackerState = attacker and stateService and stateService:GetState(attacker) or nil
 
 		local damage = self:ComputeCollisionDamage(attackerState or {}, impactSpeed, collisionMeta)
@@ -177,9 +180,6 @@ function DamagePipelineService:Init()
 		})
 		damageLog(`collision hit attacker={playerName(attacker)} defender={playerName(victim)} impactSpeed={impactSpeed} damage={damage} applied={didApply}`)
 		if didApply then
-			local playerService = ServiceResolver.Get(self._context, "PlayerService")
-			local victimRoot = playerService and playerService:GetRoot(victim)
-			if victimRoot then SoundManager.Play("SFX_ImpactLauncher", victimRoot.Position) end
 			self:_applyLauncherDotFromHit(victim, attacker, attackerState, collisionMeta)
 			self:_applyPetCombatEffectsFromHit(victim, attacker, collisionMeta)
 		end
