@@ -173,3 +173,12 @@ Config modules store shared tuning and content tables (movement/combat constants
 
 - `Hitbox.TailAttachment.RocketLaunchParticle`, `MotionTrail1`, and `MotionTrail2` default to disabled. They are enabled only while the Launcher is `Moving`, `Charging`, or `Launching`, and disabled in `Idle`, `Knockback`, and other states.
 - Equipped Pet visuals remain client-rendered and now follow from `Hitbox.LauncherMovementAttachment` when present. Legacy `EquipmentSlot1..3` attachments are stripped from the server's Launcher template clone and must not be restored to the current asset tree.
+
+
+## Audio SFX system (updated 2026-10-27)
+
+- Sound keys and default settings are declared in `src/ReplicatedStorage/Shared/Config/SoundConfig.lua`; `SoundId` intentionally starts empty so IDs can be filled after implementation. Configuration includes Volume, Pitch (mapped to PlaybackSpeed), 3D roll-off distances, emitter size, loop flags, pool limits, and per-key concurrency limits.
+- `src/ReplicatedStorage/Shared/Utils/SoundManager.lua` lazily creates Sound instances, reuses pooled instances, supports Play/PlayAt/PlayOn/PlayLoop/StopLoop and per-call overrides, and returns completed sounds and temporary 3D emitters to bounded pools.
+- `src/ReplicatedStorage/Client/Controllers/SFXController.lua` plays client-local click/success/hurt/death/kill/level-up/round-start/victory cues and binds existing or future GuiButtons for click SFX.
+- Server-side spatial cues are triggered from authoritative gameplay resolution points. Do not play success audio when a request is merely sent; wait for server success feedback.
+- The planned sound set is the 21 keys in SoundConfig. Unlisted statuses (including Slow and Petrify) remain silent. Populate SoundId values before runtime audio QA.

@@ -12,6 +12,7 @@ local UIController = require(ReplicatedStorage.Client.Controllers.UIController)
 local LeaderboardWorldUIController = require(ReplicatedStorage.Client.Controllers.LeaderboardWorldUIController)
 local ClientPetController = require(ReplicatedStorage.Client.Controllers.ClientPetController)
 local TeamSelectionUIController = require(ReplicatedStorage.Client.Controllers.TeamSelectionUIController)
+local SFXController = require(ReplicatedStorage.Client.Controllers.SFXController)
 
 local PLAYER_GUI_TIMEOUT_SECONDS = 8
 local ROOT_SCREEN_GUI_TIMEOUT_SECONDS = 8
@@ -74,6 +75,8 @@ task.spawn(function()
 	local startupUiPaths = buildStartupUiPaths(player)
 	local clientService = LobbyClientService.new()
 	local uiBindManager = UiBindManager.new(playerGui)
+	local sfxController = SFXController.new(player, playerGui)
+	sfxController:Start()
 	local resolvedRoots: { [string]: ScreenGui? } = {}
 	local attemptedRoots: { [string]: boolean } = {}
 
@@ -112,6 +115,7 @@ task.spawn(function()
 
 	player.AncestryChanged:Connect(function(_, parent)
 		if parent == nil then
+			sfxController:Destroy()
 			controller:Destroy()
 			uiBindManager:Destroy()
 			leaderboardWorldController:Destroy()

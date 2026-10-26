@@ -32,6 +32,7 @@ DataModel
 │  │  │  ├─ QuestConfig.lua
 │  │  │  ├─ RankConfig.lua
 │  │  │  ├─ SafeZoneConfig.lua
+│  │  │  ├─ SoundConfig.lua
 │  │  │  └─ TrapConfig.lua
 │  │  │
 │  │  ├─ Constants
@@ -50,6 +51,7 @@ DataModel
 │  │  │  ├─ PetProgression.lua
 │  │  │  ├─ PlayerModeState.lua
 │  │  │  ├─ RewardRoller.lua
+│  │  │  ├─ SoundManager.lua
 │  │  │  ├─ UiBindManager.lua
 │  │  │  ├─ LauncherUiState.lua
 │  │  │  └─ WaitForUI.lua
@@ -65,32 +67,8 @@ DataModel
 │  │  │   ├── PlasmaBall (Model)
 │  │  │   └── SlowBall (Model)
 │  │  │
-│  │  ├── Sounds (Folder)
-│  │  │   ├── Combat (Folder)
-│  │  │   │   ├── SFX_Death (Sound)
-│  │  │   │   ├── SFX_Hurt (Sound)
-│  │  │   │   ├── SFX_Kill (Sound)
-│  │  │   │   ├── SFX_PlasmaCannonFire (Sound)
-│  │  │   │   ├── SFX_ProjectileHit (Sound)
-│  │  │   │   ├── SFX_SlowBlasterFire (Sound)
-│  │  │   │   ├── SFX_StatusBurn (Sound)
-│  │  │   │   ├── SFX_StatusPoison (Sound)
-│  │  │   │   └── SFX_StatusStun (Sound)
-│  │  │   ├── Gameplay (Folder)
-│  │  │   │   ├── SFX_ChargeLoop (Sound)
-│  │  │   │   ├── SFX_Food_Consume (Sound)
-│  │  │   │   ├── SFX_Food_Destroy (Sound)
-│  │  │   │   ├── SFX_Food_Hit (Sound)
-│  │  │   │   ├── SFX_ImpactLauncher (Sound)
-│  │  │   │   ├── SFX_LaunchRelease (Sound)
-│  │  │   │   └── SFX_TrapHit (Sound)
-│  │  │   ├── Match (Folder)
-│  │  │   │   ├── SFX_LevelUp (Sound)
-│  │  │   │   ├── SFX_RoundStart (Sound)
-│  │  │   │   └── SFX_Victory (Sound)
-│  │  │   └── UI (Folder)
-│  │  │       ├── SFX_Success (Sound)
-│  │  │       └── SFX_UI_Click (Sound)
+│  │  ├── Sounds are config-driven; runtime Sound instances are created lazily
+│  │  │
 │  │  │
 │  │  ├── Pets (Folder)
 │  │  │   ├── Dragon (Model)
@@ -812,3 +790,10 @@ Notes:
 - Added local visual controller: `src/StarterPlayer/StarterPlayerScripts/PetProjectileVisualController.client.lua`.
 - Server-simulated projectile prefabs still must exist at `ReplicatedStorage.Assets.Prefabs.PlasmaBall` and `ReplicatedStorage.Assets.Prefabs.SlowBall` in Studio. Client render culling is cosmetic only; the server resolves hit/damage/Slow.
 - Launcher sale prices and time-limited sale value are defined in `src/ReplicatedStorage/Shared/Config/LauncherConfig.lua`; time-limited instances carry `isTemporary` and/or `expiresAt` metadata in owned Launcher data.
+
+## Audio SFX implementation (updated 2026-10-27)
+
+- Audio metadata lives in `src/ReplicatedStorage/Shared/Config/SoundConfig.lua`; fill `SoundId` values there after the audio choices are finalized. `Pitch` maps to Roblox `Sound.PlaybackSpeed`.
+- `src/ReplicatedStorage/Shared/Utils/SoundManager.lua` creates Sound instances lazily, pools them by sound key, supports per-play overrides, and releases completed sounds and temporary 3D emitters to bounded pools.
+- `src/ReplicatedStorage/Client/Controllers/SFXController.lua` owns client-local UI and gameplay feedback cues and binds current and dynamically-created GuiButtons for `SFX_UI_Click`.
+- No pre-instanced `ReplicatedStorage.Assets.Sounds` hierarchy is required. The configuration table is the source of truth for the planned 21 SFX keys.
