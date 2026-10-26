@@ -227,7 +227,15 @@ function PetService:Unequip(player: Player, slot: any): (boolean, string?)
 	if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
 		stateService:RecalculateDerivedStats(player, false)
 	end
-	return removedInstanceId ~= nil, if removedInstanceId then nil else "NothingEquipped"
+	local success = removedInstanceId ~= nil
+	local feedbackRemote = self._context.Remotes and self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
+	if feedbackRemote then
+		feedbackRemote:FireClient(player, {
+			EventType = "PetUnequipResult",
+			Payload = { Success = success, Reason = if success then nil else "NothingEquipped", InstanceId = removedInstanceId, Slot = slotNumber },
+		})
+	end
+	return success, if success then nil else "NothingEquipped"
 end
 
 function PetService:GetPityState(player: Player, instanceId: string): any?
