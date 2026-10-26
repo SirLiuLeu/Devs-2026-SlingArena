@@ -22,6 +22,16 @@ local DEBUG_FOOD_HIT_REJECTS = false
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
+
+local function getFoodWorldPosition(food: Instance?): Vector3?
+	if not food then return nil end
+	local hitbox = food:FindFirstChild("Hitbox")
+	if hitbox and hitbox:IsA("BasePart") then return hitbox.Position end
+	if food:IsA("BasePart") then return food.Position end
+	if food:IsA("Model") then return food:GetPivot().Position end
+	return nil
+end
 
 local function buildRequiredFoodModels(): { [string]: boolean }
 	local required = {}
@@ -632,6 +642,7 @@ function FoodService:_consumeFood(entry: any, player: Player)
 	if not entry.IsActive or entry.IsConsumed then
 		return
 	end
+	local soundPosition = getFoodWorldPosition(entry.Instance)
 	entry.IsConsumed = true
 	entry.IsActive = false
 	local instance = entry.Instance
@@ -646,6 +657,9 @@ function FoodService:_consumeFood(entry: any, player: Player)
 	end
 	local rule = FoodConfig.Foods[entry.FoodType]
 	if rule then
+		if rule.Touch and entry.FoodType == "Common" and soundPosition then
+			SoundManager.Play("SFX_Food_Consume", soundPosition)
+		end
 		self._context.EventBus:Fire("CollisionDetected", "Food", player, nil, {})
 		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 		if rule.Touch then
@@ -738,7 +752,7 @@ function FoodService:_resolveFoodCollisionVelocity(root: BasePart, hitbox: BaseP
 end
 
 
-function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player: Player?): boolean
+function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player: Player?, shouldPlayHitSound: boolean?): boolean
 	local entry = if type(foodOrEntry) == "table" then foodOrEntry else self._foodByInstance[foodOrEntry]
 	local rule = entry and FoodConfig.Foods[entry.FoodType]
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
@@ -752,6 +766,12 @@ function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player:
 	local before = entry.CurrentHP
 	entry.LastHitBy = player
 	entry.CurrentHP = math.max(0, entry.CurrentHP - damage)
+	local soundPosition = getFoodWorldPosition(entry.Instance)
+	if soundPosition and entry.CurrentHP <= 0 then
+		SoundManager.Play("SFX_Food_Destroy", soundPosition)
+	elseif soundPosition and shouldPlayHitSound ~= false then
+		SoundManager.Play("SFX_Food_Hit", soundPosition)
+	end
 	local hitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
 	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	if hitbox and hitbox:IsA("BasePart") and playerService and entry.CurrentHP ~= before then

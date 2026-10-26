@@ -146,7 +146,7 @@ function EffectUtil.TickFoodDots(context)
 			local foodService = context.FoodService
 			if totalDamage <= 0 or not (foodService and typeof(foodService.ApplyDamageToFood) == "function") then
 				table.insert(toRemove, stateKey)
-			elseif not foodService:ApplyDamageToFood(food, totalDamage, dotData.instigator) or not food.Parent then
+			elseif not foodService:ApplyDamageToFood(food, totalDamage, dotData.instigator, false) or not food.Parent then
 				table.insert(toRemove, stateKey)
 			end
 		end

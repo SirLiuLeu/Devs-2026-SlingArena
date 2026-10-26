@@ -9,6 +9,7 @@ local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 type Context = {
 	Services: any,
@@ -176,6 +177,9 @@ function DamagePipelineService:Init()
 		})
 		damageLog(`collision hit attacker={playerName(attacker)} defender={playerName(victim)} impactSpeed={impactSpeed} damage={damage} applied={didApply}`)
 		if didApply then
+			local playerService = ServiceResolver.Get(self._context, "PlayerService")
+			local victimRoot = playerService and playerService:GetRoot(victim)
+			if victimRoot then SoundManager.Play("SFX_ImpactLauncher", victimRoot.Position) end
 			self:_applyLauncherDotFromHit(victim, attacker, attackerState, collisionMeta)
 			self:_applyPetCombatEffectsFromHit(victim, attacker, collisionMeta)
 		end
@@ -318,6 +322,9 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 				if reflectPct > 0 then
 					local reflected = amount * reflectPct
 					local reflectedApplied = playerStateService:ApplyDamage(attacker, reflected)
+					if reflectedApplied and reflected > 0 then
+						self:_sendFeedback(attacker, "DamageTaken", { Amount = reflected, DamageType = "Reflect" })
+					end
 					local attackerState = playerStateService:GetState(attacker)
 					if reflectedApplied and attackerState and attackerState.CurrentHP <= 0 then
 						self:HandlePlayerDeath(attacker)
@@ -563,6 +570,8 @@ function DamagePipelineService:HandlePlayerDeath(player: Player)
 	local roundState = roundService and roundService:GetState() or nil
 	local convertToHuman = playerStateService:RecordDeath(player, roundState)
 	playerStateService:SetAlive(player, false)
+	SoundManager.StopLoop("Charge_" .. tostring(player.UserId))
+	self:_sendFeedback(player, "Death", {})
 	self._context.EventBus:Fire("PlayerDied", player)
 
 	local playerService = ServiceResolver.Get(self._context, "PlayerService")
@@ -577,6 +586,9 @@ function DamagePipelineService:HandlePlayerDeath(player: Player)
 	local killer = playerStateService:GetLastAttacker(player)
 	if killer then
 		self._context.EventBus:Fire("PlayerKilled", killer, player)
+		if killer ~= player then
+			self:_sendFeedback(killer, "PlayerKill", { Victim = player.Name })
+		end
 		playerStateService:ClearLastAttacker(player)
 	end
 end

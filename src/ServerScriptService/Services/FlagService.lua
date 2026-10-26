@@ -6,6 +6,7 @@ local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local StatusEffectVfx = require(ReplicatedStorage.Shared.Utils.StatusEffectVfx)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 local MOVEMENT_STATE = GameStates.PlayerState
 
@@ -401,6 +402,7 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 	local now = os.clock()
 	local flagKey = getFlagKey(flagName, source, data, defaults)
 	local existing = flags[flagKey]
+	local wasActive = existing ~= nil and existing.ExpiresAt > now
 	local maxStack = math.max(1, tonumber((data and data.MaxStack) or defaults.MaxStack) or 1)
 	local stackable = (data and data.Stackable) == true or defaults.Stackable == true
 	local sourceScoped = isSourceScopedFlag(flagName, defaults)
@@ -446,6 +448,17 @@ function FlagService:ApplyFlag(player: Player, flagName: string, duration: numbe
 	state.ActiveFlags = buildFlagSnapshot(flags)
 	if flagName == "HPBoosted" then stateService:RecalculateDerivedStats(player, false) end
 	stateService:PublishState(player)
+	if not wasActive then
+		local soundName = if flagName == "Burn" then "SFX_StatusBurn"
+			elseif flagName == "Poison" then "SFX_StatusPoison"
+			elseif flagName == "Stun" then "SFX_StatusStun"
+			else nil
+		if soundName then
+			local playerService = ServiceResolver.Get(self._context, "PlayerService")
+			local root = playerService and playerService:GetRoot(player)
+			if root then SoundManager.Play(soundName, root.Position) end
+		end
+	end
 	if flagName == "Burn" or flagName == "Poison" or flagName == "Stun" or flagName == "Petrify" then print(`[PET_ATTACK_TRACE][FlagService] ApplyFlag success target={player.Name} flag={flagName} stacks={stacks} expiresAt={expiresAt}`) end
 	return true
 end
