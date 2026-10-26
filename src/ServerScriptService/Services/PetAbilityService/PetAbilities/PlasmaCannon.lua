@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 local HttpService = game:GetService("HttpService")
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 local CONFIG = {
 	Cooldown = 10,
@@ -190,6 +191,7 @@ function PlasmaCannon.OnAbilityTrigger(context)
 	context._nextAbilityAt = now + cooldown
 	print(string.format("[PET_ABILITY_ACTIVATED] player=%s pet=%s ability=PlasmaCannon target=%s cooldown=%.1fs", context.player.Name, tostring(context.definition and context.definition.PetId or "PlasmaCannon"), target.Name, cooldown))
 	spawnVisual(context, data)
+	SoundManager.Play("SFX_PlasmaCannonFire", data.position)
 end
 
 function PlasmaCannon.OnTick(context, dt: number)
@@ -236,11 +238,13 @@ function PlasmaCannon.OnTick(context, dt: number)
 			local hitPlayersFirst = targetCastOk and targetResult ~= nil
 				and (not (environmentCastOk and environmentResult) or targetResult.Distance < environmentResult.Distance)
 			if environmentCastOk and environmentResult and not hitPlayersFirst then
+				SoundManager.Play("SFX_ProjectileHit", environmentResult.Position)
 				endProjectile(context, projectile, data)
 				continue
 			end
 			local victim = if hitPlayersFirst then resolvePlayerFromHit(targetResult.Instance, context) else nil
 			if victim and victim ~= context.player and not (context.TeamService and context.TeamService:IsFriendly(context.player, victim)) then
+				SoundManager.Play("SFX_ProjectileHit", targetResult.Position)
 				local damage = tonumber(context.progression and context.progression.abilityParams and context.progression.abilityParams.damage) or 700
 				local damageService = context.DamagePipelineService
 				if damageService then damageService:ApplyDamage(victim, damage, context.player, nil, { SourceType = "PetProjectile", SuppressKnockback = true }) end

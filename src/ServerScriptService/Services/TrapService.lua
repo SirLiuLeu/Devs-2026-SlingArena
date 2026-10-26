@@ -6,6 +6,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local TrapConfig = require(ReplicatedStorage.Shared.Config.TrapConfig)
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 local TrapService = {}
 TrapService.__index = TrapService
@@ -210,6 +211,7 @@ function TrapService:_applyHitCooldownTrap(player: Player, trapPart: BasePart, t
 		return
 	end
 	self._lastTriggeredAt[cooldownKey] = now
+	SoundManager.Play("SFX_TrapHit", trapPart.Position)
 
 	self:_emitPopup(player, trapConfig)
 end

@@ -12,10 +12,15 @@ local LauncherMovement = require(script.Parent.LauncherMovement)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local LaunchMotionModel = require(script.Parent.LaunchMotionModel)
 local ServiceResolver = require(script.Parent.Parent.Infrastructure.ServiceResolver)
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 local LauncherService = {}
 LauncherService.__index = LauncherService
 
+
+local function chargeLoopKey(player: Player): string
+	return "Charge_" .. tostring(player.UserId)
+end
 
 local function sanitizeNumber(value: number, fallback: number): number
 	if value ~= value or value == math.huge or value == -math.huge then
@@ -91,6 +96,7 @@ end
 
 
 function LauncherService:ResetPlayerRuntime(player: Player)
+	SoundManager.StopLoop(chargeLoopKey(player))
 	self._input[player] = nil
 	self._chargeState[player] = nil
 	self._activeLaunches[player] = nil
@@ -223,6 +229,7 @@ function LauncherService:Init()
 	end
 
 	Players.PlayerRemoving:Connect(function(player)
+		SoundManager.StopLoop(chargeLoopKey(player))
 		self._input[player] = nil
 		self._moveRateState[player] = nil
 		self._chargeState[player] = nil
@@ -486,24 +493,30 @@ function LauncherService:StartCharge(player: Player, aimDirection: Vector3)
 	}
 	ServiceResolver.Get(self._context, "PlayerStateService"):SetCharging(player, true, 0)
 	self._context.EventBus:Fire("ChargeStarted", player)
+	SoundManager.PlayLoop("SFX_ChargeLoop", chargeLoopKey(player), root)
 end
 
 function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3, clientLaunchSpeed: number?, clientLaunchDirection: Vector3?, clientChargeRatio: number?)
 	if not self:_canControl(player) then
+		self._chargeState[player] = nil
+		SoundManager.StopLoop(chargeLoopKey(player))
 		return
 	end
 	local chargeState = self._chargeState[player]
 	if not chargeState then
+		SoundManager.StopLoop(chargeLoopKey(player))
 		return
 	end
 	local _, root = self:_resolvePawnAndRoot(player)
 	local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
 	if not root or not state then
 		self._chargeState[player] = nil
+		SoundManager.StopLoop(chargeLoopKey(player))
 		return
 	end
 	if not root:IsA("BasePart") or root.Anchored or root.AssemblyMass <= 0 then
 		self._chargeState[player] = nil
+		SoundManager.StopLoop(chargeLoopKey(player))
 		return
 	end
 
@@ -558,6 +571,7 @@ function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3,
 	if not ServiceResolver.Get(self._context, "PlayerStateService"):TrySetMovementState(player, MOVEMENT_STATE.Launching) then
 		warn(string.format("[LauncherService] Launch rejected for %s from %s", player.Name, tostring(state.MovementState)))
 		self._chargeState[player] = nil
+		SoundManager.StopLoop(chargeLoopKey(player))
 		ServiceResolver.Get(self._context, "PlayerStateService"):SetCharging(player, false, chargeRatio)
 		return
 	end
@@ -572,6 +586,8 @@ function LauncherService:_authorizeLaunch(player: Player, aimDirection: Vector3,
 		launchRemote:FireClient(player, launchState.direction, launchState.initialSpeed, root.AssemblyMass, launchId)
 	end
 
+	SoundManager.StopLoop(chargeLoopKey(player))
+	SoundManager.Play("SFX_LaunchRelease", root.Position)
 	self._context.EventBus:Fire("LauncherLaunched", player, chargeRatio, launchState)
 	if chargeRatio >= PhysicsConfig.Charge.MaxChargeRatioThreshold then
 		self._context.EventBus:Fire("MaxChargeReleased", player, BalanceConfig.MaxChargeSelfDamage)
@@ -587,6 +603,7 @@ function LauncherService:CancelCharge(player: Player)
 	if not RemoteContracts.Validate(RemoteContracts.Names.CancelCharge) then
 		return
 	end
+	SoundManager.StopLoop(chargeLoopKey(player))
 
 	local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
 	self._chargeState[player] = nil
@@ -842,8 +859,19 @@ function LauncherService:_stepMovementStates(_dt: number)
 	local now = os.clock()
 	for _, player in self:_getTrackedPlayers() do
 		local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
-		if not state or state.ActivePlayerMode == GameStates.PlayerMode.Human then
+		if not state then
+			self._chargeState[player] = nil
+			SoundManager.StopLoop(chargeLoopKey(player))
 			continue
+		end
+		if state.ActivePlayerMode == GameStates.PlayerMode.Human then
+			self._chargeState[player] = nil
+			SoundManager.StopLoop(chargeLoopKey(player))
+			continue
+		end
+		if self._chargeState[player] and (state.IsCharging ~= true or state.MovementState ~= MOVEMENT_STATE.Charging) then
+			self._chargeState[player] = nil
+			SoundManager.StopLoop(chargeLoopKey(player))
 		end
 
 		local launchState = self._activeLaunches[player]

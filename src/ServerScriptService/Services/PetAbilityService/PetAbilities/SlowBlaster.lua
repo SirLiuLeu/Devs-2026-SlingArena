@@ -6,6 +6,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 local HttpService = game:GetService("HttpService")
 local EffectUtil = require(script.Parent.EffectUtil)
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 local CONFIG = {
 	Cooldown = 8,
@@ -195,6 +196,7 @@ function SlowBlaster.OnAbilityTrigger(context)
 	context._nextAbilityAt = now + cooldown
 	print(string.format("[PET_ABILITY_ACTIVATED] player=%s pet=%s ability=SlowBlaster target=%s cooldown=%.1fs", context.player.Name, tostring(context.definition and context.definition.PetId or "Dragon"), target.Name, cooldown))
 	spawnVisual(context, data)
+	SoundManager.Play("SFX_SlowBlasterFire", data.position)
 end
 
 function SlowBlaster.OnTick(context, dt: number)
@@ -231,6 +233,7 @@ function SlowBlaster.OnTick(context, dt: number)
 			local victim = if ok and result then resolvePlayerFromHit(result.Instance, context) else nil
 			if victim and victim ~= context.player and not (context.TeamService and context.TeamService:IsFriendly(context.player, victim))
 				and EffectUtil.CanAffectPlayers(context, context.player, victim) then
+				SoundManager.Play("SFX_ProjectileHit", result.Position)
 				local duration = tonumber(context.progression and context.progression.abilityParams and context.progression.abilityParams.slowDuration) or CONFIG.SlowDuration
 				context.PlayerStateService:ApplyFlag(victim, "Slow", duration, context.player, { SlowAmount = 0.25, Stackable = false, MaxStack = 1 })
 				EffectUtil.BurnCCFeedback(context, victim, "Slow", duration)
