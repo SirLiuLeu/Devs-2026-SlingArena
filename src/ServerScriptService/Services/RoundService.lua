@@ -314,6 +314,12 @@ function RoundService:_startEarlyGame()
 	local teamService = ServiceResolver.Get(self._context, "TeamService")
 	if teamService and typeof(teamService.AssignBalancedTeams) == "function" then teamService:AssignBalancedTeams(roundPlayers) end
 	self:_setState(GameStates.MapRoundState.EarlyGame)
+	local feedbackRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
+	if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
+		for _, player in ipairs(roundPlayers) do
+			feedbackRemote:FireClient(player, { EventType = "RoundStart", Payload = { RoundId = self._roundId } })
+		end
+	end
 	if self._popupRemote then
 		self._popupRemote:FireAllClients("Safe zone is shrinking. EXP gain is now 100%.")
 	end

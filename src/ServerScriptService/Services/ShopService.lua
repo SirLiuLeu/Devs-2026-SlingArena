@@ -40,6 +40,7 @@ function ShopService.new(context)
 	self._purchaseDinamondPackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.PurchaseDinamondPack) :: RemoteEvent?
 	self._purchaseItemRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.PurchaseItem) :: RemoteEvent?
 	self._purchaseLauncherRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.PurchaseLauncher) :: RemoteEvent?
+	self._feedbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
 	return self
 end
 
@@ -51,15 +52,26 @@ function ShopService:_publishState(player: Player)
 	end
 end
 
+function ShopService:_sendPurchaseFeedback(player: Player, success: boolean, purchaseType: string, itemId: string, reason: string?)
+	if self._feedbackRemote and self._feedbackRemote:IsA("RemoteEvent") then
+		self._feedbackRemote:FireClient(player, {
+			EventType = "ShopPurchaseResult",
+			Payload = { Success = success, PurchaseType = purchaseType, ItemId = itemId, Reason = reason },
+		})
+	end
+end
+
 function ShopService:PurchaseDinamondPack(player: Player, packId: string)
 	local pack = DIAMOND_PACKS[packId]
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not pack or not dataService then
+		self:_sendPurchaseFeedback(player, false, "Diamonds", packId, "Unavailable")
 		return false
 	end
 
 	dataService:GrantReward(player, { Diamonds = pack.dinamondAmount }, "ShopPurchaseDiamonds")
 	self:_publishState(player)
+	self:_sendPurchaseFeedback(player, true, "Diamonds", packId)
 	return true
 end
 
@@ -67,16 +79,19 @@ function ShopService:PurchaseItem(player: Player, itemId: string, quantity: numb
 	local item = ITEMS[itemId]
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not item or not dataService then
+		self:_sendPurchaseFeedback(player, false, "Item", itemId, "Unavailable")
 		return false
 	end
 
 	local price = if quantity == 10 then item.priceX10 else item.priceX1
 	if not dataService:SpendDiamonds(player, price, "ShopPurchaseItem") then
+		self:_sendPurchaseFeedback(player, false, "Item", itemId, "InsufficientDiamonds")
 		return false
 	end
 
 	dataService:GrantReward(player, { Items = { { Id = itemId, Quantity = quantity } } }, "ShopPurchaseItem")
 	self:_publishState(player)
+	self:_sendPurchaseFeedback(player, true, "Item", itemId)
 	return true
 end
 
@@ -84,9 +99,11 @@ function ShopService:PurchaseLauncher(player: Player, launcherId: string)
 	local launcher = LAUNCHERS[launcherId]
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not launcher or not dataService then
+		self:_sendPurchaseFeedback(player, false, "Launcher", launcherId, "Unavailable")
 		return false
 	end
 	if not dataService:SpendDiamonds(player, launcher.price, "ShopPurchaseLauncher") then
+		self:_sendPurchaseFeedback(player, false, "Launcher", launcherId, "InsufficientDiamonds")
 		return false
 	end
 
@@ -95,10 +112,12 @@ function ShopService:PurchaseLauncher(player: Player, launcherId: string)
 		-- Launcher IDs are validated by PlayerDataService before any inventory mutation.
 		dataService:GrantReward(player, { Diamonds = launcher.price }, "ShopPurchaseLauncherRefund")
 		self:_publishState(player)
+		self:_sendPurchaseFeedback(player, false, "Launcher", launcherId, "GrantFailed")
 		return false
 	end
 
 	self:_publishState(player)
+	self:_sendPurchaseFeedback(player, true, "Launcher", launcherId)
 	return true
 end
 
