@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 local QuestUIController = {}
 QuestUIController.__index = QuestUIController
@@ -133,6 +134,7 @@ function QuestUIController:RenderSnapshot(snapshot)
 end
 
 function QuestUIController:_handleClaimResult(result)
+	if result.Success then SoundManager.Play("SFX_Success") end
 	if not self._toastController then return end
 	if result.Success then
 		self._toastController:Enqueue({ Text = "Quest reward claimed!", Toast = true })

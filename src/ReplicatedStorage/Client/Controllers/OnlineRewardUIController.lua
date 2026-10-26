@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 local OnlineRewardUIController = {}
 OnlineRewardUIController.__index = OnlineRewardUIController
@@ -67,7 +68,8 @@ function OnlineRewardUIController:Start()
 	if self._claimAllButton then
 		table.insert(self._connections, self._claimAllButton.MouseButton1Click:Connect(function()
 			if self._logicService then
-				self._logicService:ClaimAllReady()
+				local claimedCount = self._logicService:ClaimAllReady()
+				if claimedCount > 0 then SoundManager.Play("SFX_Success") end
 			end
 		end))
 	else
@@ -183,7 +185,8 @@ function OnlineRewardUIController:_ensureSlot(data, layoutOrder: number): GuiObj
 	if claimButton and claimButton:IsA("TextButton") and not self._claimConnectionById[data.id] then
 		local connection = claimButton.MouseButton1Click:Connect(function()
 			if self._logicService then
-				self._logicService:ClaimReward(data.id)
+				local claimed = self._logicService:ClaimReward(data.id)
+				if claimed then SoundManager.Play("SFX_Success") end
 			end
 		end)
 		self._claimConnectionById[data.id] = connection

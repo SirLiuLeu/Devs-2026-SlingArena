@@ -9,6 +9,7 @@ local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local GachaRewardConfig = require(ReplicatedStorage.Shared.Config.GachaRewardConfig)
 local GachaSpinLogic = require(ReplicatedStorage.Shared.Utils.GachaSpinLogic)
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 local SpinUIController = {}
 SpinUIController.__index = SpinUIController
@@ -58,12 +59,15 @@ function SpinUIController:_playSpin(fullRotations: number)
 	})
 	self._activeTween = tween
 	tween:Play()
-	tween.Completed:Connect(function()
+	tween.Completed:Connect(function(playbackState)
+		if playbackState ~= Enum.PlaybackState.Completed then return end
 		local normalizedPointer = (360 - (self._wheel.Rotation % 360)) % 360
 		local slices = GachaSpinLogic.BuildSlices(GachaRewardConfig.GetRewards())
 		local resolvedReward = GachaSpinLogic.ResolveRewardAtAngle(slices, normalizedPointer)
 		if not resolvedReward or resolvedReward.id ~= reward.id then
 			warn(string.format("[SPIN_UI] UI mismatch logic=%s visual=%s", reward.id, resolvedReward and resolvedReward.id or "nil"))
+		else
+			SoundManager.Play("SFX_Success")
 		end
 	end)
 end

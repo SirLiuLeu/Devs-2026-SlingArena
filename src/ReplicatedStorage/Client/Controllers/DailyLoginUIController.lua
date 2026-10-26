@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 local DailyLoginUIController = {}
 DailyLoginUIController.__index = DailyLoginUIController
@@ -164,7 +165,8 @@ function DailyLoginUIController:RenderSnapshot(snapshot)
 				local claimButton = slot:FindFirstChild("ClaimButton", true)
 				if claimButton and claimButton:IsA("GuiButton") then
 					table.insert(self._slotConnections, claimButton.MouseButton1Click:Connect(function()
-						local _, message = self._logicService:ClaimDay(reward.day)
+						local success = self._logicService:ClaimDay(reward.day)
+						if success then SoundManager.Play("SFX_Success") end
 					end))
 				end
 			end
@@ -178,7 +180,8 @@ function DailyLoginUIController:RenderSnapshot(snapshot)
 				local claimButton = self._day7Big:FindFirstChild("ClaimButton", true)
 				if claimButton and claimButton:IsA("GuiButton") then
 					table.insert(self._slotConnections, claimButton.MouseButton1Click:Connect(function()
-						local _, message = self._logicService:ClaimDay(7)
+						local success = self._logicService:ClaimDay(7)
+						if success then SoundManager.Play("SFX_Success") end
 					end))
 				end
 			end
