@@ -67,9 +67,6 @@ DataModel
 │  │  │   ├── PlasmaBall (Model)
 │  │  │   └── SlowBall (Model)
 │  │  │
-│  │  ├── Sounds are config-driven; runtime Sound instances are created lazily
-│  │  │
-│  │  │
 │  │  ├── Pets (Folder)
 │  │  │   ├── Dragon (Model)
 │  │  │   ├── Hydra (Model)

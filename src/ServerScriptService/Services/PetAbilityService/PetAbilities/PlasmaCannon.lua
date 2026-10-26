@@ -244,7 +244,8 @@ function PlasmaCannon.OnTick(context, dt: number)
 			end
 			local victim = if hitPlayersFirst then resolvePlayerFromHit(targetResult.Instance, context) else nil
 			if victim and victim ~= context.player and not (context.TeamService and context.TeamService:IsFriendly(context.player, victim)) then
-				SoundManager.Play("SFX_ProjectileHit", targetResult.Position)
+				local victimRoot = context.PlayerService and context.PlayerService:GetRoot(victim)
+				if victimRoot then SoundManager.Play("SFX_ProjectileHit", victimRoot.Position) end
 				local damage = tonumber(context.progression and context.progression.abilityParams and context.progression.abilityParams.damage) or 700
 				local damageService = context.DamagePipelineService
 				if damageService then damageService:ApplyDamage(victim, damage, context.player, nil, { SourceType = "PetProjectile", SuppressKnockback = true }) end

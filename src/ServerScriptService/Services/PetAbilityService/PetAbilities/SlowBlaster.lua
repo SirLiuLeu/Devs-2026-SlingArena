@@ -233,7 +233,8 @@ function SlowBlaster.OnTick(context, dt: number)
 			local victim = if ok and result then resolvePlayerFromHit(result.Instance, context) else nil
 			if victim and victim ~= context.player and not (context.TeamService and context.TeamService:IsFriendly(context.player, victim))
 				and EffectUtil.CanAffectPlayers(context, context.player, victim) then
-				SoundManager.Play("SFX_ProjectileHit", result.Position)
+				local victimRoot = context.PlayerService and context.PlayerService:GetRoot(victim)
+				if victimRoot then SoundManager.Play("SFX_ProjectileHit", victimRoot.Position) end
 				local duration = tonumber(context.progression and context.progression.abilityParams and context.progression.abilityParams.slowDuration) or CONFIG.SlowDuration
 				context.PlayerStateService:ApplyFlag(victim, "Slow", duration, context.player, { SlowAmount = 0.25, Stackable = false, MaxStack = 1 })
 				EffectUtil.BurnCCFeedback(context, victim, "Slow", duration)
