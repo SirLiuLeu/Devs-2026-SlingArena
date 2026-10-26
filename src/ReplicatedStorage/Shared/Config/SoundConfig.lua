@@ -2,7 +2,7 @@
 
 -- Static sound metadata only. Fill SoundId values after the audio assets are finalized.
 -- Pitch is mapped to Sound.PlaybackSpeed by SoundManager.
-local SoundConfig = {
+local SoundConfig: { [string]: { [string]: any } } = {
 	-- Combat
 	SFX_Death = { Folder = "Combat", SoundId = "", Volume = 0.9, Pitch = 1, Spatial = false, MaxPoolSize = 3, MaxConcurrent = 1 },
 	SFX_Hurt = { Folder = "Combat", SoundId = "", Volume = 0.8, Pitch = 1, Spatial = false, MaxPoolSize = 4, MaxConcurrent = 2 },

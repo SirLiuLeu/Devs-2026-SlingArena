@@ -16,6 +16,7 @@ function SFXController.new(player: Player, playerGui: PlayerGui)
 	self._buttonConnections = {}
 	self._lastRoundStartId = nil
 	self._lastVictoryRoundId = nil
+	self._lastKnownHP = nil
 	return self
 end
 
@@ -39,9 +40,7 @@ function SFXController:_handleFeedback(message: any)
 	local eventType = message.EventType
 	local payload = if type(message.Payload) == "table" then message.Payload else {}
 
-	if eventType == "DamageTaken" then
-		SoundManager.Play("SFX_Hurt")
-	elseif eventType == "Death" then
+	if eventType == "Death" then
 		SoundManager.Play("SFX_Death")
 	elseif eventType == "PlayerKill" then
 		SoundManager.Play("SFX_Kill")
@@ -59,11 +58,14 @@ function SFXController:_handleFeedback(message: any)
 		or eventType == "ShopPurchaseResult" then
 		if payload.Success == true then SoundManager.Play("SFX_Success") end
 	elseif eventType == "PetEquipResult" then
-		if payload.Status == "Equipped" then SoundManager.Play("SFX_Success") end
+		local status = tostring(payload.Status or "")
+		if status == "EquippedActive" or status == "EquippedVisualPending" then SoundManager.Play("SFX_Success") end
 	elseif eventType == "PetUpgradeResult" then
 		if payload.Status == "Upgraded" then SoundManager.Play("SFX_LevelUp") end
 	elseif eventType == "ItemUseResult" or eventType == "HpPotionUseResult" then
 		if payload.Result == "Consumed" then SoundManager.Play("SFX_Success") end
+	elseif string.match(eventType, "Result$") and payload.Success == true then
+		SoundManager.Play("SFX_Success")
 	end
 end
 
@@ -77,6 +79,19 @@ function SFXController:Start()
 	end))
 
 	local remotes = ReplicatedStorage:FindFirstChild("LauncherArenaRemotes")
+	local stateUpdateRemote = remotes and remotes:FindFirstChild(RemoteContracts.Names.StateUpdate)
+	if stateUpdateRemote and stateUpdateRemote:IsA("RemoteEvent") then
+		table.insert(self._connections, stateUpdateRemote.OnClientEvent:Connect(function(state)
+			if type(state) ~= "table" then return end
+			local currentHP = tonumber(state.CurrentHP)
+			if not currentHP then return end
+			if self._lastKnownHP ~= nil and currentHP < self._lastKnownHP then
+				SoundManager.Play("SFX_Hurt")
+			end
+			self._lastKnownHP = currentHP
+		end))
+	end
+
 	local feedbackRemote = remotes and remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
 	if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
 		table.insert(self._connections, feedbackRemote.OnClientEvent:Connect(function(message)

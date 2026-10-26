@@ -657,7 +657,7 @@ function FoodService:_consumeFood(entry: any, player: Player)
 	end
 	local rule = FoodConfig.Foods[entry.FoodType]
 	if rule then
-		if rule.Touch and entry.FoodType == "Common" and soundPosition then
+		if rule.Touch and rule.Type == "Common" and soundPosition then
 			SoundManager.Play("SFX_Food_Consume", soundPosition)
 		end
 		self._context.EventBus:Fire("CollisionDetected", "Food", player, nil, {})

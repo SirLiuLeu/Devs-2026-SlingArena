@@ -214,7 +214,7 @@ function SoundManager.Play(soundName: string, parentOrPosition: any?, overrides:
 	sound.PlaybackSpeed = math.clamp(tonumber(descriptor.Pitch) or 1, 0.05, 4)
 	sound.Looped = descriptor.Looped == true
 	local rollOffMode = descriptor.RollOffMode
-	if type(rollOffMode) == "string" then rollOffMode = Enum.RollOffMode[rollOffMode] end
+	if type(rollOffMode) == "string" then rollOffMode = (Enum.RollOffMode :: any)[rollOffMode] end
 	if typeof(rollOffMode) == "EnumItem" then sound.RollOffMode = rollOffMode end
 	sound.RollOffMinDistance = math.max(0, tonumber(descriptor.RollOffMinDistance) or 5)
 	sound.RollOffMaxDistance = math.max(sound.RollOffMinDistance, tonumber(descriptor.RollOffMaxDistance) or 100)
