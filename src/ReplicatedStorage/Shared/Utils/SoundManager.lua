@@ -219,7 +219,11 @@ function SoundManager.Play(soundName: string, parentOrPosition: any?, overrides:
 	sound.RollOffMinDistance = math.max(0, tonumber(descriptor.RollOffMinDistance) or 5)
 	sound.RollOffMaxDistance = math.max(sound.RollOffMinDistance, tonumber(descriptor.RollOffMaxDistance) or 100)
 	sound.EmitterSize = math.max(0, tonumber(descriptor.EmitterSize) or 3)
-	local parent, anchor = resolveParent(parentOrPosition)
+	local parent: Instance = SoundService
+	local anchor: BasePart? = nil
+	if descriptor.Spatial == true then
+		parent, anchor = resolveParent(parentOrPosition)
+	end
 	local info = active[sound]
 	if info then info.Anchor = anchor end
 	sound.Parent = parent
