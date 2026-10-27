@@ -761,6 +761,10 @@ DataModel
          └─ LauncherPawns  [INFERRED auto-created by PlayerService]
 
 
+## 🔊 SoundService
+├─ SoundService
+│  └─ SlingArenaSoundGroup (SoundGroup, Volume=1; client-side toggle sets Volume to 0/1)
+
 Notes:
 - All production `ReplicatedStorage.LauncherArenaRemotes.*` instances are defined statically through `src/ReplicatedStorage/LauncherArenaRemotes/*.model.json`.
 - Several runtime-critical map/template instances (e.g. `Workspace/Maps`, `ServerStorage/FoodTemplates`)
