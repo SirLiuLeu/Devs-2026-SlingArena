@@ -374,6 +374,17 @@ local function sanitizeSurfaceNormal(surfaceNormal: Vector3?, attackerVelocity: 
 	return normal
 end
 
+local function approximatePartSurfacePosition(position: Vector3, part: BasePart): Vector3
+	local localPosition = part.CFrame:PointToObjectSpace(position)
+	local halfSize = part.Size * 0.5
+	local closestLocal = Vector3.new(
+		math.clamp(localPosition.X, -halfSize.X, halfSize.X),
+		math.clamp(localPosition.Y, -halfSize.Y, halfSize.Y),
+		math.clamp(localPosition.Z, -halfSize.Z, halfSize.Z)
+	)
+	return part.CFrame:PointToWorldSpace(closestLocal)
+end
+
 local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpeed: number?, surfaceNormal: Vector3?, sweepStart: Vector3, sweepEnd: Vector3, hitPosition: Vector3)
 	if not activeLaunchId then
 		return
@@ -469,17 +480,6 @@ local function approximateOverlapNormal(castStart: Vector3, part: BasePart, fall
 		return planarOffset.Unit
 	end
 	return -fallbackDirection
-end
-
-local function approximatePartSurfacePosition(position: Vector3, part: BasePart): Vector3
-	local localPosition = part.CFrame:PointToObjectSpace(position)
-	local halfSize = part.Size * 0.5
-	local closestLocal = Vector3.new(
-		math.clamp(localPosition.X, -halfSize.X, halfSize.X),
-		math.clamp(localPosition.Y, -halfSize.Y, halfSize.Y),
-		math.clamp(localPosition.Z, -halfSize.Z, halfSize.Z)
-	)
-	return part.CFrame:PointToWorldSpace(closestLocal)
 end
 
 local function processLaunchHit(part: Instance, root: BasePart, hitType: string, observedSpeed: number, surfaceNormal: Vector3?, sweepStart: Vector3, sweepEnd: Vector3, hitPosition: Vector3): boolean
