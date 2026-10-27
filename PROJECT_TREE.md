@@ -806,5 +806,5 @@ Notes:
 ## Audio collision SFX update (2026-10-28)
 
 - Successful consumption of `hp_potion` uses `SFX_Item_HealthPotion`; other consumables continue to use `SFX_Success`.
-- Added the static `src/ReplicatedStorage/LauncherArenaRemotes/ReportWallHit.model.json` RemoteEvent. `CollisionClientScanner.client.lua` reports collidable world parts intersected during a launch spherecast; the server validates the launch, contact geometry, speed, and per-player/per-part cooldown before playing `SFX_Wall_Hit` as spatial audio.
+- Added the static `src/ReplicatedStorage/LauncherArenaRemotes/ReportWallHit.model.json` RemoteEvent. `CollisionClientScanner.client.lua` reports collidable world parts intersected during a launch spherecast; the server validates the launch and contact geometry, applies per-part and per-player sound cooldowns, then plays `SFX_Wall_Hit` as spatial audio.
 - Generic wall contacts exclude all player characters and launcher pawns, food models carrying `FoodId`, and anything under a map `Traps` folder. Existing arena-boundary bounce also plays `SFX_Wall_Hit`. The new report is cosmetic only and does not authoritatively modify launch velocity.
