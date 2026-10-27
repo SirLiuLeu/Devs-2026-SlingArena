@@ -29,6 +29,7 @@ function CollisionService.new(context)
 	self._context = context
 	self._lastWallCollision = {}
 	self._lastWallHit = {} :: { [Player]: { [BasePart]: number } }
+	self._lastWallSfxAt = {} :: { [Player]: number }
 	return self
 end
 
@@ -42,6 +43,7 @@ function CollisionService:Init()
 	Players.PlayerRemoving:Connect(function(player)
 		self._lastWallHit[player] = nil
 		self._lastWallCollision[player] = nil
+		self._lastWallSfxAt[player] = nil
 	end)
 end
 
@@ -118,7 +120,11 @@ function CollisionService:_applyDragAndBounce(dt: number)
 			then
 				self._lastWallCollision[player] = now
 				root.AssemblyLinearVelocity = Vector3.new(horizontal.X, velocity.Y, horizontal.Z)
-				SoundManager.Play("SFX_Wall_Hit", root.Position)
+				local soundCooldown = math.max(0.05, tonumber(PhysicsConfig.World.WallCollisionCooldown) or 0.2)
+				if now - (self._lastWallSfxAt[player] or 0) >= soundCooldown then
+					self._lastWallSfxAt[player] = now
+					SoundManager.Play("SFX_Wall_Hit", root.Position)
+				end
 				self._context.EventBus:Fire("CollisionDetected", "Wall", player, nil,
 					{ Speed = horizontal.Magnitude })
 			end
@@ -382,11 +388,13 @@ function CollisionService:_resolveClientWallHit(player: Player, payload: any)
 		playerHits = {}
 		self._lastWallHit[player] = playerHits
 	end
-	local cooldown = math.max(0.05, tonumber(PhysicsConfig.Collision.Cooldown) or 0.25)
-	if now - (playerHits[targetPart] or 0) < cooldown then
+	local cooldown = math.max(0.05, tonumber(PhysicsConfig.World.WallCollisionCooldown) or 0.2)
+	if now - (playerHits[targetPart] or 0) < cooldown
+		or now - (self._lastWallSfxAt[player] or 0) < cooldown then
 		return
 	end
 	playerHits[targetPart] = now
+	self._lastWallSfxAt[player] = now
 
 	SoundManager.Play("SFX_Wall_Hit", payload.hitPosition)
 end
