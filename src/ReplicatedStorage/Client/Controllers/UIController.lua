@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 local InventoryUIController = require(ReplicatedStorage.Client.Controllers.InventoryUIController)
 local LauncherInventoryUIController = require(ReplicatedStorage.Client.Controllers.LauncherInventoryUIController)
 local ConfirmationUIController = require(ReplicatedStorage.Client.Controllers.ConfirmationUIController)
@@ -56,6 +57,12 @@ local function resolveGuiButton(root: Instance, path: string, shouldWarn: boolea
 	if value and value:IsA("GuiButton") then
 		return value
 	end
+	return nil
+end
+
+local function resolveImageLabel(root: Instance, path: string, shouldWarn: boolean?): ImageLabel?
+	local value = PathResolver.resolvePath(root, path, { shouldWarn = shouldWarn })
+	if value and value:IsA("ImageLabel") then return value end
 	return nil
 end
 
@@ -144,6 +151,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self._UiResolveRefreshHudQueued = false
 	self._lastAppliedUiState = nil
 	self._connectedScopedUiRoots = {}
+	self.SoundEnabled = SoundManager.IsEnabled()
 	self.ConfirmationUIController = ConfirmationUIController.new(playerGui)
 	self.InventoryUIController = InventoryUIController.new(playerGui)
 	self.LauncherInventoryUIController = LauncherInventoryUIController.new(playerGui)
@@ -196,6 +204,16 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	return self
 end
 
+function UIController:_refreshSoundToggleVisual()
+	local enabled = self.SoundEnabled ~= false
+	if self.SoundToggleButton then
+		self.SoundToggleButton.BackgroundTransparency = 1
+		self.SoundToggleButton.TextTransparency = 1
+	end
+	if self.SoundOnIcon then self.SoundOnIcon.Visible = enabled end
+	if self.SoundOffIcon then self.SoundOffIcon.Visible = not enabled end
+end
+
 function UIController:_resolveUiReferences()
 	if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] resolveUiReferences queued=%s t=%.3f", tostring(self._UiResolveQueued), os.clock())) end
 	local playerGui = self.PlayerGui
@@ -213,7 +231,9 @@ function UIController:_resolveUiReferences()
 	self.DailyButton = self.DailyButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.DailyButton, false)
 	self.InventoryButton = self.InventoryButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.InventoryButton, false)
 	self.OnlineRewardButton = self.OnlineRewardButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.OnlineRewardButton, false)
-	self.SettingButton = self.SettingButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.SettingButton, false)
+	self.SoundToggleButton = self.SoundToggleButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.SoundToggleButton, false)
+	self.SoundOnIcon = self.SoundOnIcon or resolveImageLabel(playerGui, ProjectTreeSpec.UI.MainHub.SoundOnIcon, false)
+	self.SoundOffIcon = self.SoundOffIcon or resolveImageLabel(playerGui, ProjectTreeSpec.UI.MainHub.SoundOffIcon, false)
 	self.ShopButton = self.ShopButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.ShopButton, false)
 	self.TabScoreButton = self.TabScoreButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabScore, false)
 	self.QuestButton = self.QuestButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuestButton, false)
@@ -238,9 +258,9 @@ function UIController:_resolveUiReferences()
 	self.PanelMap.Shop = self.PanelMap.Shop or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Shop, false) or resolveScreenGui(playerGui, "ShopUI", false)
 	self.PanelMap.Inventory = self.PanelMap.Inventory or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Inventory, false)
 	self.PanelMap.OnlineReward = self.PanelMap.OnlineReward or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.OnlineReward, false)
-	self.PanelMap.Settings = self.PanelMap.Settings or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Settings, false)
 	self.PanelMap.Spin = self.PanelMap.Spin or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Spin, false)
 	self.PanelMap.Quest = self.PanelMap.Quest or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Quest, false) or resolveScreenGui(playerGui, "QuestUI", false)
+	self:_refreshSoundToggleVisual()
 end
 
 function UIController:_scheduleResolveUiReferences(refreshHud: boolean?)
@@ -294,7 +314,9 @@ function UIController:_clearRemovedUiReferences(removedRoot: Instance)
 	self:_clearReferenceIfRemoved("DailyButton", removedRoot, "DailyButton")
 	self:_clearReferenceIfRemoved("InventoryButton", removedRoot, "InventoryButton")
 	self:_clearReferenceIfRemoved("OnlineRewardButton", removedRoot, "OnlineRewardButton")
-	self:_clearReferenceIfRemoved("SettingButton", removedRoot, "SettingButton")
+	self:_clearReferenceIfRemoved("SoundToggleButton", removedRoot, "SoundToggleButton")
+	self:_clearReferenceIfRemoved("SoundOnIcon", removedRoot, nil)
+	self:_clearReferenceIfRemoved("SoundOffIcon", removedRoot, nil)
 	self:_clearReferenceIfRemoved("ShopButton", removedRoot, "ShopButton")
 	self:_clearReferenceIfRemoved("TabScoreButton", removedRoot, "TabScoreButton")
 	self:_clearReferenceIfRemoved("QuestButton", removedRoot, "QuestButton")
@@ -400,9 +422,10 @@ function UIController:_bindResolvedUiReferences()
 			end
 		end)
 	end
-	if self.SettingButton then
-		self:_connectOnce("SettingButton", self.SettingButton.MouseButton1Click, function()
-			self:ShowMainHubPanel("Settings")
+	if self.SoundToggleButton then
+		self:_connectOnce("SoundToggleButton", self.SoundToggleButton.Activated, function()
+			self.SoundEnabled = SoundManager.SetEnabled(not (self.SoundEnabled ~= false))
+			self:_refreshSoundToggleVisual()
 		end)
 	end
 	if self.TabScoreButton then
