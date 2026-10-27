@@ -129,6 +129,18 @@ PhysicalProperties = {
 		DepenetrationSlop = 0.05,
 	},
 
+	CameraShake = {
+		-- Cosmetic feedback for the client that receives a validated player hit.
+		MinImpactSpeed = 20,
+		MaxImpactSpeed = 110,
+		MinDuration = 0.08,
+		MaxDuration = 0.24,
+		MaxPositionOffset = 0.16,
+		MaxRotationDegrees = 1.4,
+		AngleExponent = 1.35,
+		Frequency = 24,
+	},
+
 	Damage = {
 		BaseMultiplier = 1.0,
 		LaunchTimeBias = 0.45,
