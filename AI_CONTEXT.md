@@ -21,7 +21,8 @@
 | UnequipLauncher | C->S | LauncherInventoryService | `{}` | Clear the selected Launcher equip state, subject to server validation. |
 | ChangeTeam | C->S | TeamService | `{ teamId: string }` | Request a team change; server validates team ID, capacity, round state and cooldown. |
 | AttributeUpgrade | C->S | PlayerStateService | `{ attributeName: string }` | Spend attribute point on selected stat. |
-| ConsumeHpPotion | C->S | PlayerStateService | `{}` | Consume HP potion request. |
+| ConsumeHpPotion | C->S | PlayerStateService | `{}` | Legacy-compatible HP potion consume request. |
+| ReportWallHit | C->S | CollisionService | `{ launchId: string, timestamp: number, sweepStart: Vector3, sweepEnd: Vector3, hitPosition: Vector3, hitPart: BasePart, velocity?: Vector3, observedSpeed?: number, surfaceNormal?: Vector3, hitType?: string }` | Cosmetic report for launch sweeps hitting collidable world geometry. Server checks the active launch and hit geometry and excludes players/launchers, traps and food before playing spatial `SFX_Wall_Hit`. |
 | RequestRespawn | C->S | MonetizationService | `{ mode: "Free" }` | Request free respawn flow. |
 | PurchaseRespawn | C->S | MonetizationService | `{}` | Purchase paid respawn with diamonds. |
 | PurchaseMatchBuff | C->S | MonetizationService | `{}` | Purchase in-match buff with diamonds. |
@@ -90,6 +91,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `SafeZoneConfig.lua` | Safe Zone radius, shrink, relocation and replicated attribute names. | `SafeZoneService`, `SafeZoneVisualizer.client.lua` |
 | `TeamConfig.lua` | Team IDs, colors, capacity, change cooldown and Rage timing. | `TeamService`, team selection UI, `RoundService` |
 | `LauncherTextureConfig.lua` | Team/Rage texture IDs for equipped Launcher visuals. | `PlayerService` |
+| `SoundConfig.lua` | SFX keys and playback settings. HP potion consumption uses `SFX_Item_HealthPotion`; validated launcher contact with generic collidable world geometry uses spatial `SFX_Wall_Hit`, excluding players/launchers, traps, and food. | `SoundManager`, `SFXController`, `CollisionService` |
 | `QuestConfig.lua` | Quest definitions and progress requirements. | `QuestService`, quest UI |
 | `RankConfig.lua` | Rank/leaderboard progression settings. | leaderboard/progression services |
 
@@ -190,3 +192,10 @@ Config modules store shared tuning and content tables (movement/combat constants
 - `MainHUD.Root.LeftMenu.SoundToggleButton` toggles client-side sound. `SoundOnIcon` is visible when enabled; `SoundOffIcon` is visible when muted. The TextButton background and text are transparent so the icon images provide the visual state.
 - Managed audio routes through `SoundService.SlingArenaSoundGroup`; the toggle changes that group locally, so it does not mute audio for other players. The group is declared in `default.project.json` for consistent server/client identity.
 - Legacy `SettingButton` / `SettingsUI` path resolution and panel-opening logic are retired; no Settings panel is required by the current HUD.
+
+
+## Audio collision SFX update (2026-10-28)
+
+- Successful `hp_potion` consumption plays `SFX_Item_HealthPotion`; other consumed items keep `SFX_Success`.
+- Launcher wall-hit audio is triggered from the launch spherecast through `ReportWallHit`; `CollisionValidation.ValidateWallTarget` verifies the active launch and plausible contact, rejecting player/launcher models, food models tagged with `FoodId`, and parts under `Workspace.Maps.<map>.Traps`.
+- The server rate-limits valid wall-hit reports per player/part and plays spatial `SFX_Wall_Hit`. Arena-radius boundary bounce also plays that sound. This cue is cosmetic and does not change collision physics.
