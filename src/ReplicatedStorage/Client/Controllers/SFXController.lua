@@ -62,8 +62,16 @@ function SFXController:_handleFeedback(message: any)
 		if status == "EquippedActive" or status == "EquippedVisualPending" then SoundManager.Play("SFX_Success") end
 	elseif eventType == "PetUpgradeResult" then
 		if payload.Status == "Upgraded" then SoundManager.Play("SFX_LevelUp") end
-	elseif eventType == "ItemUseResult" or eventType == "HpPotionUseResult" then
-		if payload.Result == "Consumed" then SoundManager.Play("SFX_Success") end
+	elseif eventType == "HpPotionUseResult" then
+		if payload.Result == "Consumed" then SoundManager.Play("SFX_Item_HealthPotion") end
+	elseif eventType == "ItemUseResult" then
+		if payload.Result == "Consumed" then
+			if payload.ItemId == "hp_potion" then
+				SoundManager.Play("SFX_Item_HealthPotion")
+			else
+				SoundManager.Play("SFX_Success")
+			end
+		end
 	elseif string.match(eventType, "Result$") and payload.Success == true then
 		SoundManager.Play("SFX_Success")
 	end
