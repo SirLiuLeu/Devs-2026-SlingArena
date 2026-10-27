@@ -11,6 +11,9 @@ type SoundDescriptor = { [string]: any }
 type ActiveSoundInfo = { Name: string, PoolLimit: number, Anchor: BasePart?, StartedAt: number }
 
 local SoundManager = {}
+local MASTER_SOUND_GROUP_NAME = "SlingArenaSoundGroup"
+local soundEnabled = true
+local masterSoundGroup: SoundGroup? = nil
 local pools: { [string]: { Sound } } = {}
 local active: { [Sound]: ActiveSoundInfo } = {}
 local loops: { [string]: Sound } = {}
@@ -37,6 +40,22 @@ local function normalizeSoundId(value: any): string?
 	if trimmed == "" then return nil end
 	if string.match(trimmed, "^%d+$") then return "rbxassetid://" .. trimmed end
 	return trimmed
+end
+
+local function ensureMasterSoundGroup(): SoundGroup?
+	if masterSoundGroup and masterSoundGroup.Parent == SoundService then return masterSoundGroup end
+	local existing = SoundService:FindFirstChild(MASTER_SOUND_GROUP_NAME)
+	if existing then
+		if existing:IsA("SoundGroup") then masterSoundGroup = existing; return existing end
+		warnOnce("master-group-class", "SoundService." .. MASTER_SOUND_GROUP_NAME .. " exists but is not a SoundGroup.")
+		return nil
+	end
+	local group = Instance.new("SoundGroup")
+	group.Name = MASTER_SOUND_GROUP_NAME
+	group.Volume = if soundEnabled then 1 else 0
+	group.Parent = SoundService
+	masterSoundGroup = group
+	return group
 end
 
 local function resolveDescriptor(soundName: string, overrides: SoundDescriptor?): SoundDescriptor?
@@ -200,6 +219,7 @@ local function resolveParent(parentOrPosition: any): (Instance, BasePart?)
 end
 
 function SoundManager.Play(soundName: string, parentOrPosition: any?, overrides: SoundDescriptor?): Sound?
+	if RunService:IsClient() and not soundEnabled then return nil end
 	local descriptor = resolveDescriptor(soundName, overrides)
 	if not descriptor then return nil end
 	local maxConcurrent = math.max(1, math.floor(tonumber(descriptor.MaxConcurrent) or 6))
@@ -219,6 +239,8 @@ function SoundManager.Play(soundName: string, parentOrPosition: any?, overrides:
 	sound.RollOffMinDistance = math.max(0, tonumber(descriptor.RollOffMinDistance) or 5)
 	sound.RollOffMaxDistance = math.max(sound.RollOffMinDistance, tonumber(descriptor.RollOffMaxDistance) or 100)
 	sound.EmitterSize = math.max(0, tonumber(descriptor.EmitterSize) or 3)
+	local soundGroup = ensureMasterSoundGroup()
+	if soundGroup then sound.SoundGroup = soundGroup end
 	local parent: Instance = SoundService
 	local anchor: BasePart? = nil
 	if descriptor.Spatial == true then
@@ -269,6 +291,17 @@ function SoundManager.StopAllLoops()
 	local loopKeys = {}
 	for loopKey in pairs(loops) do table.insert(loopKeys, loopKey) end
 	for _, loopKey in ipairs(loopKeys) do SoundManager.StopLoop(loopKey) end
+end
+
+function SoundManager.SetEnabled(enabled: boolean): boolean
+	soundEnabled = enabled
+	local group = ensureMasterSoundGroup()
+	if group then group.Volume = if soundEnabled then 1 else 0 end
+	return soundEnabled
+end
+
+function SoundManager.IsEnabled(): boolean
+	return soundEnabled
 end
 
 return SoundManager
