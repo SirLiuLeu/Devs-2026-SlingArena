@@ -223,8 +223,7 @@ function CollisionValidation.ValidateWallTarget(
 
 	local localHit = targetPart.CFrame:PointToObjectSpace(payload.hitPosition)
 	local halfSize = targetPart.Size * 0.5
-	local validationTolerance = math.max(0, tonumber(PhysicsConfig.Collision.ValidationTolerance) or 0)
-	local hitTolerance = validationTolerance + math.max(0.5, tonumber(PhysicsConfig.Collision.SphereCastRadiusPadding) or 0)
+	local hitTolerance = math.max(0.5, (tonumber(PhysicsConfig.Collision.SphereCastRadiusPadding) or 0) + 0.25)
 	if math.abs(localHit.X) > halfSize.X + hitTolerance
 		or math.abs(localHit.Y) > halfSize.Y + hitTolerance
 		or math.abs(localHit.Z) > halfSize.Z + hitTolerance then
