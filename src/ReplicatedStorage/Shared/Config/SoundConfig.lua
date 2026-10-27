@@ -16,10 +16,11 @@ local SoundConfig: { [string]: { [string]: any } } = {
     SFX_StatusStun = { Folder = "Combat", SoundId = "125047117747958", Volume = 0.7, Pitch = 1, Spatial = true, RollOffMode = "InverseTapered", RollOffMinDistance = 6, RollOffMaxDistance = 85, EmitterSize = 3, MaxPoolSize = 4, MaxConcurrent = 2 },
 
     -- Gameplay
-    SFX_ChargeLoop = { Folder = "Gameplay", SoundId = "95964131812459", Volume = 0.45, Pitch = 1, Looped = true, Spatial = true, RollOffMode = "InverseTapered", RollOffMinDistance = 5, RollOffMaxDistance = 90, EmitterSize = 3, MaxPoolSize = 48, MaxConcurrent = 48 },
-    SFX_Food_Consume = { Folder = "Gameplay", SoundId = "74818610327853", Volume = 0.7, Pitch = 1, Spatial = true, RollOffMode = "InverseTapered", RollOffMinDistance = 5, RollOffMaxDistance = 65, EmitterSize = 3, MaxPoolSize = 6, MaxConcurrent = 4 },
+    SFX_ChargeLoop = { Folder = "Gameplay", SoundId = "95964131812459", Volume = 0.7, Pitch = 1, Looped = true, Spatial = true, RollOffMode = "InverseTapered", RollOffMinDistance = 5, RollOffMaxDistance = 90, EmitterSize = 3, MaxPoolSize = 48, MaxConcurrent = 48 },
+    SFX_Food_Consume = { Folder = "Gameplay", SoundId = "74818610327853", Volume = 1, Pitch = 1, Spatial = true, RollOffMode = "InverseTapered", RollOffMinDistance = 5, RollOffMaxDistance = 65, EmitterSize = 3, MaxPoolSize = 6, MaxConcurrent = 4 },
     SFX_Food_Destroy = { Folder = "Gameplay", SoundId = "81665397063399", Volume = 0.8, Pitch = 1, Spatial = true, RollOffMode = "InverseTapered", RollOffMinDistance = 6, RollOffMaxDistance = 100, EmitterSize = 4, MaxPoolSize = 8, MaxConcurrent = 5 },
     SFX_Food_Hit = { Folder = "Gameplay", SoundId = "103428820612251", Volume = 0.55, Pitch = 1, Spatial = true, RollOffMode = "InverseTapered", RollOffMinDistance = 5, RollOffMaxDistance = 85, EmitterSize = 3, MaxPoolSize = 8, MaxConcurrent = 4 },
+    SFX_Wall_Hit = { Folder = "Gameplay", SoundId = "103428820612251", Volume = 0.55, Pitch = 1, Spatial = true, RollOffMode = "InverseTapered", RollOffMinDistance = 5, RollOffMaxDistance = 85, EmitterSize = 3, MaxPoolSize = 8, MaxConcurrent = 4 },
     SFX_ImpactLauncher = { Folder = "Gameplay", SoundId = "121182352079090", Volume = 0.9, Pitch = 1, Spatial = true, RollOffMode = "InverseTapered", RollOffMinDistance = 8, RollOffMaxDistance = 160, EmitterSize = 5, MaxPoolSize = 8, MaxConcurrent = 5 },
     SFX_LaunchRelease = { Folder = "Gameplay", SoundId = "116279018525523", Volume = 0.75, Pitch = 1, Spatial = true, RollOffMode = "InverseTapered", RollOffMinDistance = 7, RollOffMaxDistance = 125, EmitterSize = 4, MaxPoolSize = 8, MaxConcurrent = 5 },
     SFX_TrapHit = { Folder = "Gameplay", SoundId = "87621625479450", Volume = 0.8, Pitch = 1, Spatial = true, RollOffMode = "InverseTapered", RollOffMinDistance = 7, RollOffMaxDistance = 105, EmitterSize = 4, MaxPoolSize = 6, MaxConcurrent = 4 },
@@ -30,8 +31,9 @@ local SoundConfig: { [string]: { [string]: any } } = {
     SFX_Victory = { Folder = "Match", SoundId = "98727584886142", Volume = 0.9, Pitch = 1, Spatial = false, MaxPoolSize = 2, MaxConcurrent = 1 },
 
     -- UI
-    SFX_Success = { Folder = "UI", SoundId = "124752357882176", Volume = 0.7, Pitch = 1, Spatial = false, MaxPoolSize = 4, MaxConcurrent = 2 },
-    SFX_UI_Click = { Folder = "UI", SoundId = "81234820165126", Volume = 0.45, Pitch = 1, Spatial = false, MaxPoolSize = 6, MaxConcurrent = 3 },
+    SFX_Success = { Folder = "UI", SoundId = "124752357882176", Volume = 0.5, Pitch = 1, Spatial = false, MaxPoolSize = 4, MaxConcurrent = 2 },
+    SFX_Item_HealthPotion = { Folder = "UI", SoundId = "128907542703685", Volume = 0.5, Pitch = 1, Spatial = false, MaxPoolSize = 4, MaxConcurrent = 2 },
+    SFX_UI_Click = { Folder = "UI", SoundId = "81234820165126", Volume = 0.7, Pitch = 1, Spatial = false, MaxPoolSize = 6, MaxConcurrent = 3 },
 }
 
 return SoundConfig
