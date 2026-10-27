@@ -198,4 +198,4 @@ Config modules store shared tuning and content tables (movement/combat constants
 
 - Successful `hp_potion` consumption plays `SFX_Item_HealthPotion`; other consumed items keep `SFX_Success`.
 - Launcher wall-hit audio is triggered from the launch spherecast through `ReportWallHit`; `CollisionValidation.ValidateWallTarget` verifies the active launch and plausible contact, rejecting player/launcher models, food models tagged with `FoodId`, and parts under `Workspace.Maps.<map>.Traps`.
-- The server rate-limits valid wall-hit reports per player/part and plays spatial `SFX_Wall_Hit`. Arena-radius boundary bounce also plays that sound. This cue is cosmetic and does not change collision physics.
+- The server rate-limits valid wall-hit reports and throttles wall-hit SFX per player (using `PhysicsConfig.World.WallCollisionCooldown`) as well as per part, preventing duplicate sounds from the generic wall report and arena-boundary bounce. This cue is cosmetic and does not change collision physics.
