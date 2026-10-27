@@ -296,6 +296,7 @@ DataModel
 │  │     ├─ AbilityTrigger [freeze-required]
 │  │     ├─ AttributeUpgrade
 │  │     ├─ ConsumeHpPotion
+│  │     ├─ ReportWallHit
 │  │     ├─ RequestRespawn
 │  │     ├─ PurchaseRespawn
 │  │     ├─ PurchaseMatchBuff
@@ -800,3 +801,10 @@ Notes:
 - `src/ReplicatedStorage/Shared/Utils/SoundManager.lua` creates Sound instances lazily, pools them by sound key, supports per-play overrides, and releases completed sounds and temporary 3D emitters to bounded pools.
 - `src/ReplicatedStorage/Client/Controllers/SFXController.lua` owns client-local UI and gameplay feedback cues and binds current and dynamically-created GuiButtons for `SFX_UI_Click`.
 - No pre-instanced `ReplicatedStorage.Assets.Sounds` hierarchy is required. The configuration table is the source of truth for the planned 21 SFX keys.
+
+
+## Audio collision SFX update (2026-10-28)
+
+- Successful consumption of `hp_potion` uses `SFX_Item_HealthPotion`; other consumables continue to use `SFX_Success`.
+- Added the static `src/ReplicatedStorage/LauncherArenaRemotes/ReportWallHit.model.json` RemoteEvent. `CollisionClientScanner.client.lua` reports collidable world parts intersected during a launch spherecast; the server validates the launch, contact geometry, speed, and per-player/per-part cooldown before playing `SFX_Wall_Hit` as spatial audio.
+- Generic wall contacts exclude all player characters and launcher pawns, food models carrying `FoodId`, and anything under a map `Traps` folder. Existing arena-boundary bounce also plays `SFX_Wall_Hit`. The new report is cosmetic only and does not authoritatively modify launch velocity.
