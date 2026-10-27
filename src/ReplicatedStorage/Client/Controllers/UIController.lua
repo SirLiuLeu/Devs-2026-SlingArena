@@ -208,7 +208,9 @@ function UIController:_refreshSoundToggleVisual()
 	local enabled = self.SoundEnabled ~= false
 	if self.SoundToggleButton then
 		self.SoundToggleButton.BackgroundTransparency = 1
-		self.SoundToggleButton.TextTransparency = 1
+		if self.SoundToggleButton:IsA("TextButton") then
+			self.SoundToggleButton.TextTransparency = 1
+		end
 	end
 	if self.SoundOnIcon then self.SoundOnIcon.Visible = enabled end
 	if self.SoundOffIcon then self.SoundOffIcon.Visible = not enabled end
