@@ -50,6 +50,12 @@
     "SoundService": {
       "$properties": {
         "RespectFilteringEnabled": true
+      },
+      "SlingArenaSoundGroup": {
+        "$className": "SoundGroup",
+        "$properties": {
+          "Volume": 1
+        }
       }
     }
   }
