@@ -279,6 +279,18 @@ function CollisionService:_resolveClientPlayerHit(player: Player, payload: any)
 
 	local launcherMaxSpeed = attackerState and attackerState.LaunchSpeed or PhysicsConfig.Launch.SpeedMin
 	print(`[PET_ATTACK_TRACE][CollisionService] collision accepted; firing hooks attacker={playerName(player)} victim={playerName(defender)} impactSpeed={impactSpeed} transferredVelocity={defenderOut.Magnitude} launchId={tostring(payload.launchId)}`)
+	local gameplayFeedbackRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
+	if gameplayFeedbackRemote and gameplayFeedbackRemote:IsA("RemoteEvent") then
+		gameplayFeedbackRemote:FireClient(defender, {
+			EventType = "CollisionCameraShake",
+			Payload = {
+				ImpactSpeed = impactSpeed,
+				AngleFactor = collisionResult.AngleFactor,
+				NormalSpeed = collisionResult.NormalSpeed,
+				ImpactNormal = normal,
+			},
+		})
+	end
 	self._context.EventBus:Fire("CollisionDetected", "Launcher", player, defender, {
 		Speed = impactSpeed,
 		ImpactNormal = normal,
