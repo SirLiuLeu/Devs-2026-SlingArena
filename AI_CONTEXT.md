@@ -182,3 +182,11 @@ Config modules store shared tuning and content tables (movement/combat constants
 - `src/ReplicatedStorage/Client/Controllers/SFXController.lua` plays client-local click/success/hurt/death/kill/level-up/round-start/victory cues and binds existing or future GuiButtons for click SFX.
 - Server-side spatial cues are triggered from authoritative gameplay resolution points. Do not play success audio when a request is merely sent; wait for server success feedback.
 - The planned sound set is the 21 keys in SoundConfig. Unlisted statuses (including Slow and Petrify) remain silent. Populate SoundId values before runtime audio QA.
+
+
+## Collision camera shake and sound toggle (2026-10-27)
+
+- A validated player collision sends `GameplayFeedback.EventType = "CollisionCameraShake"` only to the defender. `CameraController.client.lua` applies a short local camera offset after the default camera update; `PhysicsConfig.CameraShake` tunes impact-speed scaling, normal-angle scaling, duration, and amplitude. The attacker does not receive this feedback.
+- `MainHUD.Root.LeftMenu.SoundToggleButton` toggles client-side sound. `SoundOnIcon` is visible when enabled; `SoundOffIcon` is visible when muted. The TextButton background and text are transparent so the icon images provide the visual state.
+- Managed audio routes through `SoundService.SlingArenaSoundGroup`; the toggle changes that group locally, so it does not mute audio for other players. The group is declared in `default.project.json` for consistent server/client identity.
+- Legacy `SettingButton` / `SettingsUI` path resolution and panel-opening logic are retired; no Settings panel is required by the current HUD.
