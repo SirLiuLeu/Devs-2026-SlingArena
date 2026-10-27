@@ -24,6 +24,7 @@ local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local HIT_EPSILON = PhysicsConfig.Collision.Range
 local REPORT_COOLDOWN = PhysicsConfig.Collision.ClientReportCooldown or PhysicsConfig.Collision.Cooldown
 local MIN_REPORT_SPEED = PhysicsConfig.Collision.MinReportSpeed
+local WALL_HIT_REPORT_COOLDOWN = PhysicsConfig.World.WallCollisionCooldown or 0.2
 
 local lastHit: { [string]: number } = {}
 local lastWallHitAt: { [Instance]: number } = {}
@@ -226,6 +227,18 @@ local function getPlayerFromHit(part: Instance): Player?
 	return nil
 end
 
+local function isPlayerOrLauncherCollisionPart(part: Instance): boolean
+	local launcherPawns = workspace:FindFirstChild("LauncherPawns")
+	if launcherPawns and part:IsDescendantOf(launcherPawns) then return true end
+	for _, candidate in ipairs(Players:GetPlayers()) do
+		local pawn = PawnLocator.GetLauncherPawnByPlayer(candidate)
+		if pawn and part:IsDescendantOf(pawn) then return true end
+		local character = candidate.Character
+		if character and part:IsDescendantOf(character) then return true end
+	end
+	return false
+end
+
 local function isTrapCollisionPart(part: Instance): boolean
 	local mapsRoot = workspace:FindFirstChild("Maps")
 	if not mapsRoot then return false end
@@ -405,7 +418,7 @@ local function reportWallHit(
 	if (lastWallHitAt[part] or 0) > now then
 		return true
 	end
-	lastWallHitAt[part] = now + REPORT_COOLDOWN
+	lastWallHitAt[part] = now + WALL_HIT_REPORT_COOLDOWN
 
 	local contactPosition = if hitType == "ClientLaunchSphereOverlap"
 		then approximatePartSurfacePosition(sweepStart, part)
@@ -439,11 +452,12 @@ local function buildCollisionFilterParams(): (RaycastParams, OverlapParams)
 	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 	raycastParams.FilterDescendantsInstances = filterDescendants
 	raycastParams.IgnoreWater = true
+	raycastParams.RespectCanCollide = true
 
 	local overlapParams = OverlapParams.new()
 	overlapParams.FilterType = Enum.RaycastFilterType.Exclude
 	overlapParams.FilterDescendantsInstances = filterDescendants
-	overlapParams.RespectCanCollide = false
+	overlapParams.RespectCanCollide = true
 
 	return raycastParams, overlapParams
 end
@@ -482,6 +496,11 @@ local function processLaunchHit(part: Instance, root: BasePart, hitType: string,
 	local targetPlayer = getPlayerFromHit(part)
 	if targetPlayer then
 		reportPlayerHit(targetPlayer, root, observedSpeed, surfaceNormal, sweepStart, sweepEnd, hitPosition)
+		return true
+	end
+
+	-- Own-character parts and orphaned launcher-pawn parts are not walls either.
+	if isPlayerOrLauncherCollisionPart(part) then
 		return true
 	end
 
