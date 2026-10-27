@@ -232,14 +232,18 @@ function CollisionValidation.ValidateWallTarget(
 	end
 
 	local rootRadius = math.max(root.Size.X, root.Size.Z) * 0.5
-	local allowedDistance = rootRadius
-		+ math.max(0, tonumber(PhysicsConfig.Collision.SphereCastRadiusPadding) or 0)
-		+ validationTolerance
+	local contactTolerance = math.max(0.5, (tonumber(PhysicsConfig.Collision.SphereCastRadiusPadding) or 0) + 0.25)
+	local allowedDistance = rootRadius + contactTolerance
+	local sweepLength = (payload.sweepEnd - payload.sweepStart).Magnitude
+	local maxSweepLength = math.min(32, math.max(8, speed * 0.15 + rootRadius + contactTolerance))
+	if sweepLength > maxSweepLength then
+		return false, "wall_sweep_too_long", nil
+	end
 	if distanceFromPointToSegment(payload.hitPosition, payload.sweepStart, payload.sweepEnd) > allowedDistance then
 		return false, "wall_hit_misses_sweep", nil
 	end
 
-	local maxRootDrift = math.max(12, speed * math.max(0, reportAge) + rootRadius + validationTolerance)
+	local maxRootDrift = math.max(8, speed * math.max(0, reportAge) + rootRadius + contactTolerance)
 	if (root.Position - payload.sweepEnd).Magnitude > maxRootDrift then
 		return false, "wall_sweep_too_far_from_root", nil
 	end
