@@ -10,6 +10,7 @@ type Bucket = { tokens: number, updatedAt: number }
 local DEFAULTS: { [string]: BucketConfig } = {
 	RemoteDefault = { Capacity = 30, RefillPerSecond = 15 },
 	ReportCollision = { Capacity = 8, RefillPerSecond = 6 },
+	ReportWallHit = { Capacity = 8, RefillPerSecond = 6 },
 	ReportFoodHit = { Capacity = 12, RefillPerSecond = 8 },
 	MoveRequest = { Capacity = 20, RefillPerSecond = 20 },
 }
