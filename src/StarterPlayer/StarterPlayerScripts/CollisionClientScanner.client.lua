@@ -13,6 +13,7 @@ local PlayerModeState = require(Shared:WaitForChild("Utils"):WaitForChild("Playe
 local stateUpdateRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("StateUpdate") :: RemoteEvent
 local reportFoodRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
 local reportCollisionRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportCollision") :: RemoteEvent
+local reportWallHitRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportWallHit") :: RemoteEvent
 local gameplayFeedbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("GameplayFeedback") :: RemoteEvent
 local clientDoLaunchRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClientDoLaunch") :: RemoteEvent
 local clockSyncRequestRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClockSyncRequest") :: RemoteEvent
@@ -25,6 +26,7 @@ local REPORT_COOLDOWN = PhysicsConfig.Collision.ClientReportCooldown or PhysicsC
 local MIN_REPORT_SPEED = PhysicsConfig.Collision.MinReportSpeed
 
 local lastHit: { [string]: number } = {}
+local lastWallHitAt: { [Instance]: number } = {}
 local currentMovementState = GameStates.PlayerState.Idle
 local predictedLaunchScanEndsAt = 0
 local predictedLaunchStartedAt = 0
@@ -200,10 +202,40 @@ end
 
 local function getPlayerFromHit(part: Instance): Player?
 	local model = part:FindFirstAncestorOfClass("Model")
-	if not model or getActiveCharacter() == model then
-		return nil
+	if model then
+		local characterPlayer = Players:GetPlayerFromCharacter(model)
+		if characterPlayer and characterPlayer ~= player then
+			return characterPlayer
+		end
 	end
-	return Players:GetPlayerFromCharacter(model)
+
+	-- Launcher pawns live under Workspace.LauncherPawns and are not necessarily
+	-- Player.Character; detect any part nested beneath another player's active pawn.
+	for _, candidate in ipairs(Players:GetPlayers()) do
+		if candidate ~= player then
+			local launcherPawn = PawnLocator.GetLauncherPawnByPlayer(candidate)
+			if launcherPawn and part:IsDescendantOf(launcherPawn) then
+				return candidate
+			end
+			local character = candidate.Character
+			if character and part:IsDescendantOf(character) then
+				return candidate
+			end
+		end
+	end
+	return nil
+end
+
+local function isTrapCollisionPart(part: Instance): boolean
+	local mapsRoot = workspace:FindFirstChild("Maps")
+	if not mapsRoot then return false end
+	for _, mapModel in ipairs(mapsRoot:GetChildren()) do
+		local traps = mapModel:FindFirstChild("Traps")
+		if traps and part:IsDescendantOf(traps) then
+			return true
+		end
+	end
+	return false
 end
 
 
@@ -355,6 +387,47 @@ local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpe
 	})
 end
 
+local function reportWallHit(
+	part: Instance,
+	root: BasePart,
+	hitType: string,
+	observedSpeed: number,
+	surfaceNormal: Vector3?,
+	sweepStart: Vector3,
+	sweepEnd: Vector3,
+	hitPosition: Vector3
+): boolean
+	if not activeLaunchId or not part:IsA("BasePart") or part.CanCollide ~= true then
+		return false
+	end
+
+	local now = os.clock()
+	if (lastWallHitAt[part] or 0) > now then
+		return true
+	end
+	lastWallHitAt[part] = now + REPORT_COOLDOWN
+
+	local contactPosition = if hitType == "ClientLaunchSphereOverlap"
+		then approximatePartSurfacePosition(sweepStart, part)
+		else hitPosition
+	local velocity = root.AssemblyLinearVelocity
+	local sanitizedNormal = sanitizeSurfaceNormal(surfaceNormal, velocity)
+	local reportSpeed = math.max(velocity.Magnitude, observedSpeed)
+	reportWallHitRemote:FireServer({
+		launchId = activeLaunchId,
+		timestamp = getSyncedServerTime(),
+		sweepStart = sweepStart,
+		sweepEnd = sweepEnd,
+		hitPosition = contactPosition,
+		hitPart = part,
+		surfaceNormal = sanitizedNormal,
+		velocity = velocity,
+		observedSpeed = reportSpeed,
+		hitType = hitType,
+	})
+	return true
+end
+
 
 
 
@@ -384,14 +457,26 @@ local function approximateOverlapNormal(castStart: Vector3, part: BasePart, fall
 	return -fallbackDirection
 end
 
+local function approximatePartSurfacePosition(position: Vector3, part: BasePart): Vector3
+	local localPosition = part.CFrame:PointToObjectSpace(position)
+	local halfSize = part.Size * 0.5
+	local closestLocal = Vector3.new(
+		math.clamp(localPosition.X, -halfSize.X, halfSize.X),
+		math.clamp(localPosition.Y, -halfSize.Y, halfSize.Y),
+		math.clamp(localPosition.Z, -halfSize.Z, halfSize.Z)
+	)
+	return part.CFrame:PointToWorldSpace(closestLocal)
+end
+
 local function processLaunchHit(part: Instance, root: BasePart, hitType: string, observedSpeed: number, surfaceNormal: Vector3?, sweepStart: Vector3, sweepEnd: Vector3, hitPosition: Vector3): boolean
 	local food = getFoodModelFromPart(part)
 	if food then
 		local hitbox = food:FindFirstChild("Hitbox")
 		if hitbox and hitbox:IsA("BasePart") then
 			reportFoodHit(food, hitbox, root, hitType, observedSpeed)
-			return true
 		end
+		-- Food is a special collision type, never a generic wall.
+		return true
 	end
 
 	local targetPlayer = getPlayerFromHit(part)
@@ -400,7 +485,12 @@ local function processLaunchHit(part: Instance, root: BasePart, hitType: string,
 		return true
 	end
 
-	return false
+	-- Trap contacts have their own gameplay/audio path and must not reuse wall SFX.
+	if isTrapCollisionPart(part) then
+		return true
+	end
+
+	return reportWallHit(part, root, hitType, observedSpeed, surfaceNormal, sweepStart, sweepEnd, hitPosition)
 end
 
 local function sphereCastLaunching(root: BasePart, dt: number, previousPosition: Vector3?)
