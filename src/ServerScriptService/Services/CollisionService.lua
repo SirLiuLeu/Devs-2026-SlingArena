@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
@@ -27,6 +28,7 @@ function CollisionService.new(context)
 	local self = setmetatable({}, CollisionService)
 	self._context = context
 	self._lastWallCollision = {}
+	self._lastWallHit = {} :: { [Player]: { [BasePart]: number } }
 	return self
 end
 
@@ -36,6 +38,11 @@ function CollisionService:Init()
 	end)
 	self:_bindClockSync()
 	self:_bindClientCollisionReports()
+	self:_bindClientWallHitReports()
+	Players.PlayerRemoving:Connect(function(player)
+		self._lastWallHit[player] = nil
+		self._lastWallCollision[player] = nil
+	end)
 end
 
 function CollisionService:_bindClockSync()
@@ -111,6 +118,7 @@ function CollisionService:_applyDragAndBounce(dt: number)
 			then
 				self._lastWallCollision[player] = now
 				root.AssemblyLinearVelocity = Vector3.new(horizontal.X, velocity.Y, horizontal.Z)
+				SoundManager.Play("SFX_Wall_Hit", root.Position)
 				self._context.EventBus:Fire("CollisionDetected", "Wall", player, nil,
 					{ Speed = horizontal.Magnitude })
 			end
@@ -346,6 +354,60 @@ function CollisionService:_bindClientCollisionReports()
 			return
 		end
 		self:_resolveClientPlayerHit(player, payload)
+	end)
+end
+
+function CollisionService:_resolveClientWallHit(player: Player, payload: any)
+	local launcherService = ServiceResolver.Get(self._context, "LauncherService")
+	if not (launcherService and typeof(launcherService.ValidateLaunchReport) == "function") then
+		logValidation(false, "wall_hit_missing_launcher_service")
+		return
+	end
+	local launchOk, _launchState, launchReason = launcherService:ValidateLaunchReport(player, payload)
+	if not launchOk then
+		logValidation(false, "wall_hit_" .. tostring(launchReason))
+		return
+	end
+
+	local targetPart = payload.hitPart
+	local valid, reason, speed = CollisionValidation.ValidateWallTarget(self._context, player, targetPart, payload)
+	if not valid then
+		logValidation(false, "wall_hit_" .. tostring(reason))
+		return
+	end
+
+	local now = os.clock()
+	local playerHits = self._lastWallHit[player]
+	if not playerHits then
+		playerHits = {}
+		self._lastWallHit[player] = playerHits
+	end
+	local cooldown = math.max(0.05, tonumber(PhysicsConfig.Collision.Cooldown) or 0.25)
+	if now - (playerHits[targetPart] or 0) < cooldown then
+		return
+	end
+	playerHits[targetPart] = now
+
+	SoundManager.Play("SFX_Wall_Hit", payload.hitPosition)
+end
+
+function CollisionService:_bindClientWallHitReports()
+	local remote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.ReportWallHit)
+	if not (remote and remote:IsA("RemoteEvent")) then
+		warn("[CollisionService] ReportWallHit RemoteEvent missing; world wall-hit audio reports are unavailable.")
+		return
+	end
+	remote.OnServerEvent:Connect(function(player, payload)
+		local rateLimiter = ServiceResolver.Get(self._context, "RateLimiter")
+		if rateLimiter and not rateLimiter:Allow(RemoteContracts.Names.ReportWallHit, tostring(player.UserId)) then
+			logValidation(false, "wall_hit_rate_limited")
+			return
+		end
+		if not RemoteContracts.Validate(RemoteContracts.Names.ReportWallHit, payload) then
+			logValidation(false, "wall_hit_contract_validation_failed")
+			return
+		end
+		self:_resolveClientWallHit(player, payload)
 	end)
 end
 
