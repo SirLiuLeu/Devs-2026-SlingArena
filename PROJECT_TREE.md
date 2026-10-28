@@ -13,6 +13,7 @@ DataModel
 │  │  │  ├─ BalanceConfig.lua
 │  │  │  ├─ ConfirmationTextConfig.lua
 │  │  │  ├─ DebugConfig.lua
+│  │  │  ├─ FloatingTextConfig.lua
 │  │  │  ├─ GachaRewardConfig.lua
 │  │  │  ├─ GameConfig.lua
 │  │  │  ├─ ItemConfig.lua
@@ -155,7 +156,7 @@ DataModel
 │  │  │       └── Launcher icons for the five Duck Launcher IDs (Image)
 │  │  │
 │  │  └── UI
-│  │      ├── FloatingDamage (BillboardGui)
+│  │      ├── FloatingText (BillboardGui)
 │  │      │   └── Value (TextLabel)
 │  │      │
 │  │      ├── PlayerRowTemplate_RankFrame (Frame)
