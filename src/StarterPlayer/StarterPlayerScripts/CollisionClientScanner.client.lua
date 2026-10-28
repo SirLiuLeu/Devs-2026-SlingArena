@@ -10,6 +10,7 @@ local GameStates = require(Shared:WaitForChild("Constants"):WaitForChild("GameSt
 local PhysicsConfig = require(Shared:WaitForChild("Config"):WaitForChild("PhysicsConfig"))
 local PawnLocator = require(Shared:WaitForChild("Utils"):WaitForChild("PawnLocator"))
 local PlayerModeState = require(Shared:WaitForChild("Utils"):WaitForChild("PlayerModeState"))
+local CollisionClassifier = require(Shared:WaitForChild("Utils"):WaitForChild("CollisionClassifier"))
 local stateUpdateRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("StateUpdate") :: RemoteEvent
 local reportFoodRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
 local reportCollisionRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportCollision") :: RemoteEvent
@@ -499,17 +500,72 @@ local function processLaunchHit(part: Instance, root: BasePart, hitType: string,
 		return true
 	end
 
-	-- Own-character parts and orphaned launcher-pawn parts are not walls either.
+	-- Own-character parts and orphaned launcher-pawn parts are not world walls.
 	if isPlayerOrLauncherCollisionPart(part) then
 		return true
 	end
 
-	-- Trap contacts have their own gameplay/audio path and must not reuse wall SFX.
+	local collisionType = CollisionClassifier.GetType(part)
+	if collisionType == "Wall" then
+		-- Only explicitly tagged Wall geometry may request the wall-hit SFX.
+		return reportWallHit(part, root, hitType, observedSpeed, surfaceNormal, sweepStart, sweepEnd, hitPosition)
+	elseif collisionType == "Ground" then
+		-- Ground is expected to stay under a moving Launcher; ignore it and keep
+		-- scanning other overlaps instead of treating every collidable part as Wall.
+		return false
+	elseif collisionType == "Food" or collisionType == "Lava" or collisionType == "Trap" then
+		-- These have their own collision/gameplay categories and must never use wall SFX.
+		return true
+	end
+
+	-- Preserve compatibility with legacy map traps that have not been tagged yet.
 	if isTrapCollisionPart(part) then
 		return true
 	end
 
-	return reportWallHit(part, root, hitType, observedSpeed, surfaceNormal, sweepStart, sweepEnd, hitPosition)
+	-- Unknown collidable parts are not Walls by default.
+	return false
+end
+
+local MAX_GROUND_CAST_SKIPS = 8
+
+local function sphereCastSkippingGround(castStart: Vector3, radius: number, castVector: Vector3, raycastParams: RaycastParams): RaycastResult?
+	local excludedInstances = table.clone(raycastParams.FilterDescendantsInstances)
+	local excludedSet: { [Instance]: boolean } = {}
+	for _, instance in ipairs(excludedInstances) do
+		excludedSet[instance] = true
+	end
+
+	for _ = 1, MAX_GROUND_CAST_SKIPS do
+		raycastParams.FilterDescendantsInstances = excludedInstances
+		local result = workspace:Spherecast(castStart, radius, castVector, raycastParams)
+		if not result then
+			return nil
+		end
+
+		local collisionType, taggedInstance = CollisionClassifier.GetType(result.Instance)
+		if collisionType ~= "Ground" then
+			return result
+		end
+
+		-- Exclude the tagged Ground Model/Part and repeat the same sweep so the
+		-- floor cannot hide a tagged Wall farther along the horizontal launch path.
+		local ignoreInstance = taggedInstance or result.Instance
+		if not (ignoreInstance:IsA("Model") or ignoreInstance:IsA("BasePart")) then
+			ignoreInstance = result.Instance
+		end
+		if excludedSet[ignoreInstance] then
+			ignoreInstance = result.Instance
+			if excludedSet[ignoreInstance] then
+				return nil
+			end
+		end
+
+		excludedSet[ignoreInstance] = true
+		table.insert(excludedInstances, ignoreInstance)
+	end
+
+	return nil
 end
 
 local function sphereCastLaunching(root: BasePart, dt: number, previousPosition: Vector3?)
@@ -567,7 +623,7 @@ local function sphereCastLaunching(root: BasePart, dt: number, previousPosition:
     end
 
     -- Quét từ vị trí CUỐI CÙNG của frame trước, hướng tới vị trí HIỆN TẠI
-    local result = workspace:Spherecast(castStart, radius, direction * castDistance, raycastParams)
+    local result = sphereCastSkippingGround(castStart, radius, direction * castDistance, raycastParams)
 
     if result then
         processLaunchHit(result.Instance, root, "ClientLaunchSphereCast", observedSpeed, result.Normal, castStart, currentPos, result.Position)
