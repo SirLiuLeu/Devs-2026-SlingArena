@@ -775,7 +775,7 @@ function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player:
 	local hitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
 	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	if hitbox and hitbox:IsA("BasePart") and playerService and entry.CurrentHP ~= before then
-		playerService:ShowFloatingHpChange(hitbox, entry.CurrentHP - before)
+		playerService:ShowFloatingText(hitbox, "Damage", before - entry.CurrentHP)
 	end
 	self:_publishFoodHp(entry)
 	if entry.CurrentHP <= 0 then
