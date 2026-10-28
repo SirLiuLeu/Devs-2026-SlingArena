@@ -156,7 +156,7 @@ DataModel
 │  │  │       └── Launcher icons for the five Duck Launcher IDs (Image)
 │  │  │
 │  │  └── UI
-│  │      ├── FloatingDamage (BillboardGui)
+│  │      ├── FloatingText (BillboardGui)
 │  │      │   └── Value (TextLabel)
 │  │      │
 │  │      ├── PlayerRowTemplate_RankFrame (Frame)
