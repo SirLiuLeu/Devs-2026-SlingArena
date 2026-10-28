@@ -13,6 +13,7 @@ DataModel
 │  │  │  ├─ BalanceConfig.lua
 │  │  │  ├─ ConfirmationTextConfig.lua
 │  │  │  ├─ DebugConfig.lua
+│  │  │  ├─ FloatingTextConfig.lua
 │  │  │  ├─ GachaRewardConfig.lua
 │  │  │  ├─ GameConfig.lua
 │  │  │  ├─ ItemConfig.lua
