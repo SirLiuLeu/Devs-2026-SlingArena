@@ -7,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local CombatCollision = require(ReplicatedStorage.Shared.Utils.CombatCollision)
+local CollisionClassifier = require(ReplicatedStorage.Shared.Utils.CollisionClassifier)
 local ServiceResolver = require(script.Parent.Parent.Infrastructure.ServiceResolver)
 
 export type Context = { Services: any, ServiceRegistry: any? }
@@ -204,8 +205,13 @@ function CollisionValidation.ValidateWallTarget(
 	if isFoodPart(targetPart) then
 		return false, "food_target", nil
 	end
-	if isTrapPart(targetPart) then
+
+	local collisionType = CollisionClassifier.GetType(targetPart)
+	if collisionType == "Trap" or (collisionType == nil and isTrapPart(targetPart)) then
 		return false, "trap_target", nil
+	end
+	if collisionType ~= "Wall" then
+		return false, `target_not_tagged_wall:{collisionType or "Unknown"}`, nil
 	end
 
 	local velocity = if isFiniteVector3(payload.velocity)
