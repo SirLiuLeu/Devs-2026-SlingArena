@@ -45,6 +45,7 @@ DataModel
 │  │  │
 │  │  ├─ Utils
 │  │  │  ├─ DeepCopy.lua
+│  │  │  ├─ CollisionClassifier.lua
 │  │  │  ├─ GachaSpinLogic.lua
 │  │  │  ├─ PathResolver.lua
 │  │  │  ├─ PetDisplayFormatter.lua
@@ -807,4 +808,4 @@ Notes:
 
 - Successful consumption of `hp_potion` uses `SFX_Item_HealthPotion`; other consumables continue to use `SFX_Success`.
 - Added the static `src/ReplicatedStorage/LauncherArenaRemotes/ReportWallHit.model.json` RemoteEvent. `CollisionClientScanner.client.lua` reports collidable world parts intersected during a launch spherecast; the server validates the launch and contact geometry, applies per-part and per-player sound cooldowns, then plays `SFX_Wall_Hit` as spatial audio.
-- Generic wall contacts exclude all player characters and launcher pawns, food models carrying `FoodId`, and anything under a map `Traps` folder. Existing arena-boundary bounce also plays `SFX_Wall_Hit`. The new report is cosmetic only and does not authoritatively modify launch velocity.
+- `CollisionClassifier.lua` resolves the closest `Collision_Wall`, `Collision_Ground`, `Collision_Food`, `Collision_Lava`, or `Collision_Trap` tag on the hit Instance or its ancestors; a child tag overrides a Model-level tag. Only `Collision_Wall` can trigger scanned `SFX_Wall_Hit`. Ground is skipped during spherecast scanning and is silent; Food, Lava, Trap, and unclassified parts do not trigger wall audio. `CollisionValidation.ValidateWallTarget` enforces the Wall tag on the server. Existing arena-boundary bounce remains a separate `SFX_Wall_Hit` path. The report is cosmetic only and does not authoritatively modify launch velocity.
