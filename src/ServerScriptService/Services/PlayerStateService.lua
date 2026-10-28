@@ -603,10 +603,14 @@ function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
 	end
 	local before = state.CurrentHP
 	state.CurrentHP = math.max(0, state.CurrentHP - math.max(0, amount))
+	local damageTaken = before - state.CurrentHP
 	applyDamageLog(`PlayerStateService:ApplyDamage applied player={playerName(player)} amount={amount} beforeHP={before} afterHP={state.CurrentHP}`)
-	local root = playerService and playerService:GetRoot(player)
-	if root and state.CurrentHP ~= before then
-		playerService:ShowFloatingHpChange(root, state.CurrentHP - before)
+	if damageTaken > 0 then
+		local playerService = ServiceResolver.Get(self._context, "PlayerService")
+		local root = playerService and playerService:GetRoot(player)
+		if root and playerService and typeof(playerService.ShowFloatingText) == "function" then
+			playerService:ShowFloatingText(root, "Damage", damageTaken)
+		end
 	end
 	state.LastDamageTime = os.clock()
 	self:PublishState(player)
@@ -620,9 +624,10 @@ function PlayerStateService:Heal(player: Player, amount: number, showOnHpBar: bo
 	local before = state.CurrentHP
 	state.CurrentHP = math.min(state.MaxHP, state.CurrentHP + math.max(0, amount))
 	local restored = state.CurrentHP - before
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	local root = playerService and playerService:GetRoot(player)
-	if root and restored ~= 0 then
-		playerService:ShowFloatingHpChange(root, restored)
+	if root and playerService and restored > 0 and typeof(playerService.ShowFloatingText) == "function" then
+		playerService:ShowFloatingText(root, "Heal", restored)
 	end
 	if showOnHpBar == true and restored > 0 and playerService and typeof(playerService.ShowHpBarRestore) == "function" then
 		playerService:ShowHpBarRestore(player, restored)
@@ -668,7 +673,8 @@ function PlayerStateService:GrantExp(player: Player, amount: number)
 	if expFlag and expFlag.Data and type(expFlag.Data.ExpBonusPercent) == "number" then
 		expBonus += math.max(0, expFlag.Data.ExpBonusPercent) / 100
 	end
-	state.Exp += math.max(0, amount) * expBonus
+	local gainedExp = math.max(0, amount) * expBonus
+	state.Exp += gainedExp
 	while state.Level < LevelConfig.MaxLevel do
 		local requiredExp = self:GetRequiredExp(state.Level)
 		if state.Exp < requiredExp then break end
@@ -678,6 +684,14 @@ function PlayerStateService:GrantExp(player: Player, amount: number)
 		self._context.EventBus:Fire("LevelUp", player, state.Level)
 	end
 	self:PublishState(player)
+
+	if gainedExp > 0 then
+		local playerService = ServiceResolver.Get(self._context, "PlayerService")
+		local root = playerService and playerService:GetRoot(player)
+		if root and playerService and typeof(playerService.ShowFloatingText) == "function" then
+			playerService:ShowFloatingText(root, "Exp", gainedExp)
+		end
+	end
 end
 
 function PlayerStateService:GrantLevelsForDebug(player: Player, requestedLevels: number): number
