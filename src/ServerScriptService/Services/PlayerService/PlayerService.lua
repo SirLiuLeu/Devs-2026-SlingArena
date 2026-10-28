@@ -8,6 +8,7 @@ local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
+local FloatingTextConfig = require(ReplicatedStorage.Shared.Config.FloatingTextConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
@@ -70,6 +71,8 @@ function PlayerService.new(context)
 	self._pawnsFolder = Workspace:FindFirstChild("LauncherPawns")
 	self._launcherTemplate = nil
 	self._worldUiTemplate = nil
+	self._warnedMissingFloatingTextTemplate = false
+	self._warnedMissingFloatingTextValue = false
 	self._playerToLauncher = {}
 	self._launcherToPlayer = {}
 	self._animationControllers = {}
@@ -129,19 +132,50 @@ function PlayerService:Init()
 	end
 end
 
-function PlayerService:ShowFloatingHpChange(adornee: BasePart?, amount: number)
-	if not (adornee and adornee.Parent) or amount == 0 then
-		return
-	end
-	local assets = ReplicatedStorage:FindFirstChild("Assets")
-	local uiFolder = assets and assets:FindFirstChild("UI")
-	local template = uiFolder and uiFolder:FindFirstChild("FloatingDamage")
-	if not (template and template:IsA("BillboardGui")) then
+function PlayerService:ShowFloatingText(adornee: BasePart?, textType: string, amount: number)
+	if not (adornee and adornee.Parent) or amount <= 0 then
 		return
 	end
 
+	local textConfig = FloatingTextConfig.Types[textType]
+	if not textConfig then
+		warn(string.format("[FLOATING_TEXT] Unknown text type: %s", tostring(textType)))
+		return
+	end
+
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local uiFolder = assets and assets:FindFirstChild("UI")
+	local template = uiFolder and uiFolder:FindFirstChild("FloatingText")
+	if not (template and template:IsA("BillboardGui")) then
+		if not self._warnedMissingFloatingTextTemplate then
+			warn("[FLOATING_TEXT] ReplicatedStorage.Assets.UI.FloatingText missing or not a BillboardGui.")
+			self._warnedMissingFloatingTextTemplate = true
+		end
+		return
+	end
+
+	local ui = template:Clone()
+	local value = ui:FindFirstChild("Value")
+	if not (value and value:IsA("TextLabel")) then
+		ui:Destroy()
+		if not self._warnedMissingFloatingTextValue then
+			warn("[FLOATING_TEXT] FloatingText.Value missing or not a TextLabel.")
+			self._warnedMissingFloatingTextValue = true
+		end
+		return
+	end
+
+	local scale = math.max(0.1, tonumber(textConfig.Scale) or 1)
+	local templateSize = ui.Size
+	ui.Size = UDim2.new(
+		templateSize.X.Scale * scale,
+		templateSize.X.Offset * scale,
+		templateSize.Y.Scale * scale,
+		templateSize.Y.Offset * scale
+	)
+
 	local anchor = Instance.new("Part")
-	anchor.Name = "FloatingDamage"
+	anchor.Name = "FloatingTextAnchor"
 	anchor.Anchored = true
 	anchor.CanCollide = false
 	anchor.CanQuery = false
@@ -151,22 +185,17 @@ function PlayerService:ShowFloatingHpChange(adornee: BasePart?, amount: number)
 	anchor.Position = adornee.Position
 	anchor.Parent = Workspace
 
-	local ui = template:Clone()
-	ui.Name = "FloatingDamage"
+	ui.Name = "FloatingText"
 	ui.Adornee = anchor
 	ui.Enabled = true
 	ui.Parent = anchor
 
-	local value = ui:FindFirstChild("Value")
-	if value and value:IsA("TextLabel") then
-		value.Text = string.format("%s%d", if amount > 0 then "+" else "-", math.floor(math.abs(amount) + 0.5))
-		value.TextColor3 = if amount > 0 then Color3.fromRGB(80, 255, 120) else Color3.fromRGB(255, 80, 80)
-		TweenService:Create(value, TweenInfo.new(0.8), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
-	end
+	value.Text = string.format("%s%d%s", textConfig.Prefix, math.floor(math.abs(amount) + 0.5), textConfig.Suffix)
+	value.TextColor3 = textConfig.Color
+	TweenService:Create(value, TweenInfo.new(0.8), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
 	TweenService:Create(anchor, TweenInfo.new(0.8), { Position = anchor.Position + Vector3.new(0, 3, 0) }):Play()
 	Debris:AddItem(anchor, 0.85)
 end
-
 
 function PlayerService:ShowHpBarRestore(player: Player, amount: number)
 	if amount <= 0 then
