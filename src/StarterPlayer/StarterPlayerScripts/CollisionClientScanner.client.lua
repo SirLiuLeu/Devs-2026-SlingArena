@@ -634,8 +634,6 @@ end
 
 local MAX_GROUND_CAST_SKIPS = 8
 
-local MAX_GROUND_CAST_SKIPS = 8
-
 local function sphereCastSkippingGround(castStart: Vector3, radius: number, castVector: Vector3, raycastParams: RaycastParams): RaycastResult?
   local excludedInstances = table.clone(raycastParams.FilterDescendantsInstances)
   local excludedSet: { [Instance]: boolean } = {}
