@@ -36,7 +36,6 @@ RemoteContracts.Names = {
 	ConsumeItem = "ConsumeItem",
 	ReportFoodHit = "ReportFoodHit",
 	ReportCollision = "ReportCollision",
-	ReportWallHit = "ReportWallHit",
 	ApplySelfBounce = "ApplySelfBounce",
 	ApplyKnockback = "ApplyKnockback",
 	ClientDoLaunch = "ClientDoLaunch",
@@ -131,19 +130,6 @@ RemoteContracts.Validators = {
 		if payload.observedSpeed ~= nil and typeof(payload.observedSpeed) ~= "number" then
 			return false
 		end
-		return true
-	end,
-	[RemoteContracts.Names.ReportWallHit] = function(payload: any): boolean
-		if type(payload) ~= "table" then return false end
-		if typeof(payload.launchId) ~= "string" or #payload.launchId == 0 or #payload.launchId > 128 then return false end
-		if typeof(payload.timestamp) ~= "number" then return false end
-		if typeof(payload.sweepStart) ~= "Vector3" or typeof(payload.sweepEnd) ~= "Vector3" then return false end
-		if typeof(payload.hitPosition) ~= "Vector3" then return false end
-		if typeof(payload.hitPart) ~= "Instance" or not payload.hitPart:IsA("BasePart") then return false end
-		if payload.surfaceNormal ~= nil and typeof(payload.surfaceNormal) ~= "Vector3" then return false end
-		if payload.velocity ~= nil and typeof(payload.velocity) ~= "Vector3" then return false end
-		if payload.observedSpeed ~= nil and typeof(payload.observedSpeed) ~= "number" then return false end
-		if payload.hitType ~= nil and (typeof(payload.hitType) ~= "string" or #payload.hitType > 64) then return false end
 		return true
 	end,
 	[RemoteContracts.Names.ReportCollision] = function(payload: any): boolean
