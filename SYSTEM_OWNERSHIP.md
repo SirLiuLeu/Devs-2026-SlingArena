@@ -67,10 +67,10 @@ Cross-service communication must use `EventBus` for decoupled flow.
 
 ### CollisionService
 - **Owns:** Collision detection pass and collision candidate generation.
-- **Responsibilities:** Detect player-player, trap, gate, wall, and exit-zone interactions; emit standardized collision events. Validate launch-scoped `ReportWallHit` requests and play spatial wall-hit SFX for plausible contacts with generic collidable world geometry.
-- **Called by:** Heartbeat loop and the `ReportCollision` / `ReportWallHit` remotes.
+- **Responsibilities:** Resolve server-side player collisions and apply arena-boundary bounce/drag for uncontrolled launcher movement; emit standardized collision events. Generic tagged-wall SFX is handled locally by `CollisionClientScanner` and is not server-authoritative.
+- **Called by:** Heartbeat loop and the `ReportCollision` remote.
 - **Dependencies:** PlayerService, PlayerStateService, MapService, EventBus, LauncherService, CollisionValidation, RemoteContracts, RateLimiter, SoundManager.
-- **Constraint:** `ReportWallHit` is cosmetic only; it must not apply damage or mutate launcher velocity. Exclude player/launcher parts, food, and trap geometry from the generic wall classification.
+- **Constraint:** Keep server collision/damage resolution separate from client-local cosmetic wall audio. Exclude player/launcher parts, food, traps, and other non-Wall categories from generic wall classification in the scanner.
 
 ### DamagePipelineService
 - **Owns:** Final damage authority and damage rule enforcement.
