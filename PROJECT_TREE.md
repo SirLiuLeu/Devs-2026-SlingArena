@@ -804,7 +804,7 @@ Notes:
 - No pre-instanced `ReplicatedStorage.Assets.Sounds` hierarchy is required. The configuration table is the source of truth for the planned 21 SFX keys.
 
 
-## Audio collision SFX update (2026-10-28)
+## Audio collision SFX update (2026-10-29)
 
 - Successful consumption of `hp_potion` uses `SFX_Item_HealthPotion`; other consumables continue to use `SFX_Success`.
 - `CollisionClientScanner.client.lua` plays `SFX_Wall_Hit` locally when a launch spherecast detects explicitly tagged wall geometry. A contact episode plays once; the scanner rearms after 0.12 seconds without detecting a tagged Wall. No server report or validation is involved in this cosmetic cue. `CollisionClassifier.lua` resolves the closest collision tag on the hit Instance or its ancestors, with a child tag overriding a Model-level tag. Ground is skipped during spherecast scanning so it cannot hide a Wall ahead; Food, Lava, Trap, and unclassified parts remain silent. Existing server arena-boundary bounce is a separate audio path.
