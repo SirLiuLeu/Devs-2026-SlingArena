@@ -533,12 +533,12 @@ local function buildCollisionFilterParams(): (RaycastParams, OverlapParams)
 	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 	raycastParams.FilterDescendantsInstances = filterDescendants
 	raycastParams.IgnoreWater = true
-	raycastParams.RespectCanCollide = true
+	raycastParams.RespectCanCollide = false
 
 	local overlapParams = OverlapParams.new()
 	overlapParams.FilterType = Enum.RaycastFilterType.Exclude
 	overlapParams.FilterDescendantsInstances = filterDescendants
-	overlapParams.RespectCanCollide = true
+	overlapParams.RespectCanCollide = false
 
 	return raycastParams, overlapParams
 end
