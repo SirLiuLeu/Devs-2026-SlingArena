@@ -25,7 +25,7 @@ local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local HIT_EPSILON = PhysicsConfig.Collision.Range
 local REPORT_COOLDOWN = PhysicsConfig.Collision.ClientReportCooldown or PhysicsConfig.Collision.Cooldown
 local MIN_REPORT_SPEED = PhysicsConfig.Collision.MinReportSpeed
-local WALL_CONTACT_RELEASE_SECONDS = 0.12
+local WALL_CONTACT_RELEASE_SECONDS = 0.05
 
 local lastHit: { [string]: number } = {}
 local wallContactActive = false
