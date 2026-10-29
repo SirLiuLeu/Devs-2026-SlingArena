@@ -194,7 +194,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 - Legacy `SettingButton` / `SettingsUI` path resolution and panel-opening logic are retired; no Settings panel is required by the current HUD.
 
 
-## Audio collision SFX update (2026-10-28)
+## Audio collision SFX update (2026-10-29)
 
 - Successful `hp_potion` consumption plays `SFX_Item_HealthPotion`; other consumed items keep `SFX_Success`.
 - Launcher wall-hit audio is played locally by `CollisionClientScanner` as soon as a launch sweep detects `Collision_Wall`. A contact episode plays once, and the scanner rearms after no tagged Wall has been detected for 0.12 seconds. `Collision_Ground` is skipped during sweep casts so it cannot hide a Wall ahead; `Collision_Food`, `Collision_Lava`, `Collision_Trap`, and unclassified geometry do not use wall audio. This cosmetic cue does not use a server report or server validation. Existing server arena-boundary bounce audio remains a separate path.
