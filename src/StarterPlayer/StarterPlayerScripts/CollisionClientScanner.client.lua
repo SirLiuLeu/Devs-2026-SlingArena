@@ -1,7 +1,6 @@
 --!strict
 
 local Players = game:GetService("Players")
-local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -42,25 +41,6 @@ local serverClockOffset = 0
 local clockSyncSamples: { number } = {}
 local sweepDebugStart: Part? = nil
 local sweepDebugEnd: Part? = nil
-local FOOD_SCAN_DEBUG_INTERVAL_SECONDS = 1
-local foodScanDebugLastAt: { [string]: number } = {}
-
-local function debugFoodScan(key: string, message: string, intervalSeconds: number?)
-  local now = os.clock()
-  local interval = intervalSeconds or FOOD_SCAN_DEBUG_INTERVAL_SECONDS
-  local lastAt = foodScanDebugLastAt[key]
-  if lastAt and now - lastAt < interval then
-    return
-  end
-  foodScanDebugLastAt[key] = now
-  print(string.format(
-    "[FoodScanDebug] player=%s state=%s launchId=%s %s",
-    player.Name,
-    tostring(currentMovementState),
-    tostring(activeLaunchId),
-    message
-  ))
-end
 
 local function getSyncedServerTime(): number
 	return os.clock() + serverClockOffset
@@ -305,49 +285,6 @@ local function getNearbyFood(position: Vector3): { Model }
 	return out
 end
 
-local function debugCommonFoodCandidatesAlongSweep(castStart: Vector3, castEnd: Vector3, castRadius: number)
-  local sweep = Vector3.new(castEnd.X - castStart.X, 0, castEnd.Z - castStart.Z)
-  local sweepLengthSquared = sweep:Dot(sweep)
-
-  for _, food in ipairs(getNearbyFood(castStart)) do
-    local hitbox = food:FindFirstChild("Hitbox")
-    if food:GetAttribute("FoodRarity") == "Common" and hitbox and hitbox:IsA("BasePart") then
-      local offset = Vector3.new(hitbox.Position.X - castStart.X, 0, hitbox.Position.Z - castStart.Z)
-      local alpha = if sweepLengthSquared > 0.000001 then math.clamp(offset:Dot(sweep) / sweepLengthSquared, 0, 1) else 0
-      local closestX = castStart.X + sweep.X * alpha
-      local closestZ = castStart.Z + sweep.Z * alpha
-      local distanceXZ = (Vector3.new(hitbox.Position.X, 0, hitbox.Position.Z) - Vector3.new(closestX, 0, closestZ)).Magnitude
-      local foodRadius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5
-      local verticalReach = castRadius + math.max(hitbox.Size.Y * 0.5, Y_TOLERANCE)
-
-      if distanceXZ <= castRadius + foodRadius + HIT_EPSILON
-        and math.abs(castStart.Y - hitbox.Position.Y) <= verticalReach then
-        local collisionType, taggedInstance = CollisionClassifier.GetType(hitbox)
-        local foodId = food:GetAttribute("FoodId")
-        debugFoodScan(
-          "sweep-candidate:" .. tostring(foodId or food.Name),
-          string.format(
-            "SweepCandidate food=%s foodId=%s rarity=%s modelHasCollision_Food=%s classifierType=%s taggedAncestor=%s hitbox=%s CanCollide=%s CanQuery=%s distanceXZ=%.2f combinedRadius=%.2f verticalDistance=%.2f queryRespectCanCollide=true",
-            food:GetFullName(),
-            tostring(foodId),
-            tostring(food:GetAttribute("FoodRarity")),
-            tostring(CollectionService:HasTag(food, "Collision_Food")),
-            tostring(collisionType),
-            taggedInstance and taggedInstance:GetFullName() or "nil",
-            hitbox:GetFullName(),
-            tostring(hitbox.CanCollide),
-            tostring(hitbox.CanQuery),
-            distanceXZ,
-            castRadius + foodRadius + HIT_EPSILON,
-            math.abs(castStart.Y - hitbox.Position.Y)
-          ),
-          1
-        )
-      end
-    end
-  end
-end
-
 local function canReportFood(rarity: any): boolean
 	if rarity == "Common" then
 		return currentMovementState ~= GameStates.PlayerState.Dead
@@ -369,61 +306,32 @@ local function markFoodPredicted(food: Model, rarity: any)
 end
 
 local function reportFoodHit(food: Model, hitbox: BasePart, root: BasePart, hitType: string, observedSpeed: number?)
-  local foodId = food:GetAttribute("FoodId")
-  local rarity = food:GetAttribute("FoodRarity")
-  if typeof(foodId) ~= "string" then
-    debugFoodScan(
-      "report-missing-id:" .. food:GetFullName(),
-      string.format("ReportFoodHitSuppressed reason=missing_FoodId food=%s rarity=%s hitType=%s", food:GetFullName(), tostring(rarity), hitType),
-      0.5
-    )
-    return
-  end
-  if not canReportFood(rarity) then
-    debugFoodScan(
-      "report-not-eligible:" .. foodId,
-      string.format("ReportFoodHitSuppressed reason=state_not_eligible foodId=%s rarity=%s hitType=%s", foodId, tostring(rarity), hitType),
-      0.5
-    )
-    return
-  end
+	local foodId = food:GetAttribute("FoodId")
+	local rarity = food:GetAttribute("FoodRarity")
+	if typeof(foodId) ~= "string" or not canReportFood(rarity) then
+		return
+	end
+	local now = os.clock()
+	local cooldownKey = `Food:{foodId}`
+	local reportSpeed = math.max(root.AssemblyLinearVelocity.Magnitude, observedSpeed or 0)
+	if (lastHit[cooldownKey] or 0) > now or reportSpeed < MIN_REPORT_SPEED then
+		return
+	end
+	lastHit[cooldownKey] = now + REPORT_COOLDOWN
+	markFoodPredicted(food, rarity)
 
-  local now = os.clock()
-  local cooldownKey = `Food:{foodId}`
-  local reportSpeed = math.max(root.AssemblyLinearVelocity.Magnitude, observedSpeed or 0)
-  local cooldownUntil = lastHit[cooldownKey] or 0
-  if cooldownUntil > now then
-    debugFoodScan(
-      "report-cooldown:" .. foodId,
-      string.format("ReportFoodHitSuppressed reason=client_cooldown foodId=%s hitType=%s remaining=%.3f speed=%.2f", foodId, hitType, cooldownUntil - now, reportSpeed),
-      0.25
-    )
-    return
-  end
-  if reportSpeed < MIN_REPORT_SPEED then
-    debugFoodScan(
-      "report-low-speed:" .. foodId,
-      string.format("ReportFoodHitSuppressed reason=below_min_speed foodId=%s hitType=%s speed=%.2f minimum=%.2f", foodId, hitType, reportSpeed, MIN_REPORT_SPEED),
-      0.5
-    )
-    return
-  end
-
-  lastHit[cooldownKey] = now + REPORT_COOLDOWN
-  markFoodPredicted(food, rarity)
-
-  local normal = (root.Position - hitbox.Position).Magnitude > 0.001
-    and (root.Position - hitbox.Position).Unit
-    or Vector3.new(0, 0, -1)
-  print(`[Report Food Hit] launchId={activeLaunchId} foodId={foodId} speed={reportSpeed} normal={normal} hitType={hitType}`)
-  reportFoodRemote:FireServer({
-    foodId = foodId,
-    launchId = activeLaunchId,
-    hitType = hitType,
-    currPos = root.Position,
-    velocity = root.AssemblyLinearVelocity,
-    observedSpeed = reportSpeed,
-  })
+	local normal = (root.Position - hitbox.Position).Magnitude > 0.001
+		and (root.Position - hitbox.Position).Unit
+		or Vector3.new(0, 0, -1)
+	print(`[Report Food Hit] launchId={activeLaunchId} foodId={foodId} speed={reportSpeed} normal={normal} hitType={hitType}`)
+	reportFoodRemote:FireServer({
+		foodId = foodId,
+		launchId = activeLaunchId,
+		hitType = hitType,
+		currPos = root.Position,
+		velocity = root.AssemblyLinearVelocity,
+		observedSpeed = reportSpeed,
+	})
 end
 
 local function detectCommonFoodByDistance(root: BasePart)
@@ -553,239 +461,150 @@ local function approximateOverlapNormal(castStart: Vector3, part: BasePart, fall
 end
 
 local function processLaunchHit(part: Instance, root: BasePart, hitType: string, observedSpeed: number, surfaceNormal: Vector3?, sweepStart: Vector3, sweepEnd: Vector3, hitPosition: Vector3): boolean
-  local food = getFoodModelFromPart(part)
-  if food then
-    local hitbox = food:FindFirstChild("Hitbox")
-    local foodCollisionType, foodTaggedInstance = CollisionClassifier.GetType(part)
-    debugFoodScan(
-      "detected-food:" .. tostring(food:GetAttribute("FoodId") or food.Name),
-      string.format(
-        "LaunchHitDetected hitType=%s part=%s food=%s foodId=%s rarity=%s modelHasCollision_Food=%s classifierType=%s taggedAncestor=%s hitbox=%s hitboxCanCollide=%s hitboxCanQuery=%s observedSpeed=%.2f",
-        hitType,
-        part:GetFullName(),
-        food:GetFullName(),
-        tostring(food:GetAttribute("FoodId")),
-        tostring(food:GetAttribute("FoodRarity")),
-        tostring(CollectionService:HasTag(food, "Collision_Food")),
-        tostring(foodCollisionType),
-        foodTaggedInstance and foodTaggedInstance:GetFullName() or "nil",
-        hitbox and hitbox:GetFullName() or "nil",
-        hitbox and hitbox:IsA("BasePart") and tostring(hitbox.CanCollide) or "n/a",
-        hitbox and hitbox:IsA("BasePart") and tostring(hitbox.CanQuery) or "n/a",
-        observedSpeed
-      ),
-      0.25
-    )
-    if hitbox and hitbox:IsA("BasePart") then
-      reportFoodHit(food, hitbox, root, hitType, observedSpeed)
-    else
-      debugFoodScan("missing-hitbox:" .. food:GetFullName(), "LaunchHitSuppressed reason=FoodModelHasNoBasePartHitbox model=" .. food:GetFullName(), 0.5)
-    end
-    -- Food is a special collision type, never a generic wall.
-    return true
-  end
+	local food = getFoodModelFromPart(part)
+	if food then
+		local hitbox = food:FindFirstChild("Hitbox")
+		if hitbox and hitbox:IsA("BasePart") then
+			reportFoodHit(food, hitbox, root, hitType, observedSpeed)
+		end
+		-- Food is a special collision type, never a generic wall.
+		return true
+	end
 
-  local targetPlayer = getPlayerFromHit(part)
-  if targetPlayer then
-    reportPlayerHit(targetPlayer, root, observedSpeed, surfaceNormal, sweepStart, sweepEnd, hitPosition)
-    return true
-  end
+	local targetPlayer = getPlayerFromHit(part)
+	if targetPlayer then
+		reportPlayerHit(targetPlayer, root, observedSpeed, surfaceNormal, sweepStart, sweepEnd, hitPosition)
+		return true
+	end
 
-  -- Own-character parts and orphaned launcher-pawn parts are not world walls.
-  if isPlayerOrLauncherCollisionPart(part) then
-    return true
-  end
+	-- Own-character parts and orphaned launcher-pawn parts are not world walls.
+	if isPlayerOrLauncherCollisionPart(part) then
+		return true
+	end
 
-  local collisionType, taggedInstance = CollisionClassifier.GetType(part)
-  if collisionType == "Wall" then
-    -- Only explicitly tagged Wall geometry may request the wall-hit SFX.
-    return reportWallHit(part, hitType, sweepStart, hitPosition)
-  elseif collisionType == "Ground" then
-    -- Ground is expected to stay under a moving Launcher; ignore it and keep
-    -- scanning other overlaps instead of treating every collidable part as Wall.
-    return false
-  elseif collisionType == "Food" then
-    debugFoodScan(
-      "tagged-food-without-id:" .. part:GetFullName(),
-      string.format(
-        "TaggedFoodHitWithoutFoodId hitType=%s part=%s taggedAncestor=%s CanCollide=%s CanQuery=%s getFoodModelFromPart=nil",
-        hitType,
-        part:GetFullName(),
-        taggedInstance and taggedInstance:GetFullName() or "nil",
-        part:IsA("BasePart") and tostring(part.CanCollide) or "n/a",
-        part:IsA("BasePart") and tostring(part.CanQuery) or "n/a"
-      ),
-      0.5
-    )
-    return true
-  elseif collisionType == "Lava" or collisionType == "Trap" then
-    -- These have their own collision/gameplay categories and must never use wall SFX.
-    return true
-  end
+	local collisionType = CollisionClassifier.GetType(part)
+	if collisionType == "Wall" then
+		-- Only explicitly tagged Wall geometry may request the wall-hit SFX.
+		return reportWallHit(part, hitType, sweepStart, hitPosition)
+	elseif collisionType == "Ground" then
+		-- Ground is expected to stay under a moving Launcher; ignore it and keep
+		-- scanning other overlaps instead of treating every collidable part as Wall.
+		return false
+	elseif collisionType == "Food" or collisionType == "Lava" or collisionType == "Trap" then
+		-- These have their own collision/gameplay categories and must never use wall SFX.
+		return true
+	end
 
-  -- Preserve compatibility with legacy map traps that have not been tagged yet.
-  if isTrapCollisionPart(part) then
-    return true
-  end
+	-- Preserve compatibility with legacy map traps that have not been tagged yet.
+	if isTrapCollisionPart(part) then
+		return true
+	end
 
-  -- Unknown collidable parts are not Walls by default.
-  return false
+	-- Unknown collidable parts are not Walls by default.
+	return false
 end
 
 local MAX_GROUND_CAST_SKIPS = 8
 
 local function sphereCastSkippingGround(castStart: Vector3, radius: number, castVector: Vector3, raycastParams: RaycastParams): RaycastResult?
-  local excludedInstances = table.clone(raycastParams.FilterDescendantsInstances)
-  local excludedSet: { [Instance]: boolean } = {}
-  for _, instance in ipairs(excludedInstances) do
-    excludedSet[instance] = true
-  end
+	local excludedInstances = table.clone(raycastParams.FilterDescendantsInstances)
+	local excludedSet: { [Instance]: boolean } = {}
+	for _, instance in ipairs(excludedInstances) do
+		excludedSet[instance] = true
+	end
 
-  for _ = 1, MAX_GROUND_CAST_SKIPS do
-    raycastParams.FilterDescendantsInstances = excludedInstances
-    local result = workspace:Spherecast(castStart, radius, castVector, raycastParams)
-    if not result then
-      return nil
-    end
+	for _ = 1, MAX_GROUND_CAST_SKIPS do
+		raycastParams.FilterDescendantsInstances = excludedInstances
+		local result = workspace:Spherecast(castStart, radius, castVector, raycastParams)
+		if not result then
+			return nil
+		end
 
-    local collisionType, taggedInstance = CollisionClassifier.GetType(result.Instance)
-    if collisionType ~= "Ground" then
-      return result
-    end
+		local collisionType, taggedInstance = CollisionClassifier.GetType(result.Instance)
+		if collisionType ~= "Ground" then
+			return result
+		end
 
-    debugFoodScan(
-      "spherecast-ground-skip",
-      string.format(
-        "SpherecastSkippedGround part=%s taggedAncestor=%s class=%s CanCollide=%s CanQuery=%s",
-        result.Instance:GetFullName(),
-        taggedInstance and taggedInstance:GetFullName() or "nil",
-        taggedInstance and taggedInstance.ClassName or "nil",
-        tostring(result.Instance.CanCollide),
-        tostring(result.Instance.CanQuery)
-      ),
-      1
-    )
+		-- Exclude the tagged Ground Model/Part and repeat the same sweep so the
+		-- floor cannot hide a tagged Wall farther along the horizontal launch path.
+		local ignoreInstance = taggedInstance or result.Instance
+		if not (ignoreInstance:IsA("Model") or ignoreInstance:IsA("BasePart")) then
+			ignoreInstance = result.Instance
+		end
+		if excludedSet[ignoreInstance] then
+			ignoreInstance = result.Instance
+			if excludedSet[ignoreInstance] then
+				return nil
+			end
+		end
 
-    -- Keep current filtering behavior, but log which tagged object is excluded.
-    local ignoreInstance = taggedInstance or result.Instance
-    if not (ignoreInstance:IsA("Model") or ignoreInstance:IsA("BasePart")) then
-      ignoreInstance = result.Instance
-    end
-    if excludedSet[ignoreInstance] then
-      ignoreInstance = result.Instance
-      if excludedSet[ignoreInstance] then
-        return nil
-      end
-    end
+		excludedSet[ignoreInstance] = true
+		table.insert(excludedInstances, ignoreInstance)
+	end
 
-    excludedSet[ignoreInstance] = true
-    table.insert(excludedInstances, ignoreInstance)
-  end
-
-  debugFoodScan("spherecast-ground-skip-limit", "SpherecastStopped reason=max_ground_skips count=" .. tostring(MAX_GROUND_CAST_SKIPS), 1)
-  return nil
+	return nil
 end
 
 local function sphereCastLaunching(root: BasePart, dt: number, previousPosition: Vector3?)
-  local currentPos = root.Position
-  local castStart = previousPosition or currentPos
-  local velocity = root.AssemblyLinearVelocity
-  local planarVelocity = Vector3.new(velocity.X, 0, velocity.Z)
-  local speed = planarVelocity.Magnitude
-  local motion = currentPos - castStart
-  local planarMotion = Vector3.new(motion.X, 0, motion.Z)
-  local castVector: Vector3
+    local currentPos = root.Position
+    local castStart = previousPosition or currentPos
+    local velocity = root.AssemblyLinearVelocity
+    local planarVelocity = Vector3.new(velocity.X, 0, velocity.Z)
+    local speed = planarVelocity.Magnitude
 
-  if planarMotion.Magnitude >= 0.001 then
-    castVector = planarMotion
-  else
-    if speed >= MIN_REPORT_SPEED then
-      castVector = planarVelocity.Unit * math.max(speed * dt, 0.1)
+    -- 1. TÍNH QUÃNG ĐƯỜNG THỰC TẾ GIỮA 2 FRAME (CỐT LÕI CỦA CCD)
+    local motion = currentPos - castStart
+    local planarMotion = Vector3.new(motion.X, 0, motion.Z)
+
+    local castVector: Vector3
+
+    -- 2. XÁC ĐỊNH HƯỚNG VÀ ĐỘ DÀI TIA QUÉT
+    if planarMotion.Magnitude >= 0.001 then
+        -- TRƯỜNG HỢP CHUẨN: Nhân vật có di chuyển.
+        -- Quét chính xác quãng đường vừa nối từ frame trước đến frame này.
+        castVector = planarMotion
     else
-      debugFoodScan(
-        "launch-no-motion",
-        string.format("SpherecastNotRun reason=no_planar_motion_and_low_speed speed=%.2f minSpeed=%.2f dt=%.4f", speed, MIN_REPORT_SPEED, dt),
-        1
-      )
-      setSweepDebugVisible(false, nil, nil, nil)
-      return
+        -- FALLBACK: Frame đầu tiên chưa có chuyển động rõ rệt,
+        -- hoặc `previousPosition` bị nil. Lúc này mới dùng đến vận tốc để quét bù.
+        if speed >= MIN_REPORT_SPEED then
+            -- Quét một đoạn ngắn bằng quãng đường dự kiến đi được trong 1 frame (V * dt)
+            castVector = planarVelocity.Unit * math.max(speed * dt, 0.1)
+        else
+            setSweepDebugVisible(false, nil, nil, nil)
+            return
+        end
     end
-  end
 
-  local direction = castVector.Unit
-  local baseDistance = castVector.Magnitude
-  local observedSpeed = math.max(speed, baseDistance / math.max(dt, 1 / 240))
+    local direction = castVector.Unit
+    local baseDistance = castVector.Magnitude
+    local observedSpeed = math.max(speed, baseDistance / math.max(dt, 1 / 240))
 
-  if observedSpeed < MIN_REPORT_SPEED then
-    debugFoodScan(
-      "launch-low-speed",
-      string.format("SpherecastNotRun reason=below_min_speed observedSpeed=%.2f minimum=%.2f planarMotion=%.2f", observedSpeed, MIN_REPORT_SPEED, planarMotion.Magnitude),
-      1
-    )
-    setSweepDebugVisible(false, nil, nil, nil)
-    return
-  end
-
-  local castDistance = baseDistance + PhysicsConfig.Collision.SphereCastDistancePadding
-  local radius = (math.max(root.Size.X, root.Size.Z) * 0.5) + PhysicsConfig.Collision.SphereCastRadiusPadding
-  setSweepDebugVisible(true, castStart, castStart + direction * castDistance, radius)
-
-  local raycastParams, overlapParams = buildCollisionFilterParams()
-  debugCommonFoodCandidatesAlongSweep(castStart, castStart + direction * castDistance, radius)
-
-  -- Static overlap catches the case where castStart is already inside a target collider.
-  local overlapParts = workspace:GetPartBoundsInRadius(castStart, radius, overlapParams)
-  debugFoodScan(
-    "overlap-summary",
-    string.format("LaunchOverlapSummary count=%d radius=%.2f start=(%.1f, %.1f, %.1f) queryRespectCanCollide=true", #overlapParts, radius, castStart.X, castStart.Y, castStart.Z),
-    1
-  )
-  for _, overlapPart in ipairs(overlapParts) do
-    if processLaunchHit(overlapPart, root, "ClientLaunchSphereOverlap", observedSpeed, approximateOverlapNormal(castStart, overlapPart, direction), castStart, currentPos, overlapPart.Position) then
-      return
+    if observedSpeed < MIN_REPORT_SPEED then
+        setSweepDebugVisible(false, nil, nil, nil)
+        return
     end
-  end
 
-  local result = sphereCastSkippingGround(castStart, radius, direction * castDistance, raycastParams)
-  if result then
-    local resultType, taggedInstance = CollisionClassifier.GetType(result.Instance)
-    local food = getFoodModelFromPart(result.Instance)
-    debugFoodScan(
-      "spherecast-result",
-      string.format(
-        "SpherecastResult part=%s collisionType=%s taggedAncestor=%s foodModel=%s foodId=%s CanCollide=%s CanQuery=%s castDistance=%.2f radius=%.2f observedSpeed=%.2f",
-        result.Instance:GetFullName(),
-        tostring(resultType),
-        taggedInstance and taggedInstance:GetFullName() or "nil",
-        food and food:GetFullName() or "nil",
-        food and tostring(food:GetAttribute("FoodId")) or "nil",
-        tostring(result.Instance.CanCollide),
-        tostring(result.Instance.CanQuery),
-        castDistance,
-        radius,
-        observedSpeed
-      ),
-      0.5
-    )
-    processLaunchHit(result.Instance, root, "ClientLaunchSphereCast", observedSpeed, result.Normal, castStart, currentPos, result.Position)
-  else
-    debugFoodScan(
-      "spherecast-miss",
-      string.format(
-        "SpherecastResult nil castStart=(%.1f, %.1f, %.1f) direction=(%.2f, %.2f, %.2f) castDistance=%.2f radius=%.2f observedSpeed=%.2f queryRespectCanCollide=true",
-        castStart.X,
-        castStart.Y,
-        castStart.Z,
-        direction.X,
-        direction.Y,
-        direction.Z,
-        castDistance,
-        radius,
-        observedSpeed
-      ),
-      1
-    )
-  end
+    -- 3. CỘNG PADDING VÀ THỰC HIỆN SPHERECAST
+    local castDistance = baseDistance + PhysicsConfig.Collision.SphereCastDistancePadding
+    local radius = (math.max(root.Size.X, root.Size.Z) * 0.5) + PhysicsConfig.Collision.SphereCastRadiusPadding
+
+    setSweepDebugVisible(true, castStart, castStart + direction * castDistance, radius)
+
+    local raycastParams, overlapParams = buildCollisionFilterParams()
+
+    -- Static overlap catches the case where castStart is already inside a target collider.
+    for _, overlapPart in ipairs(workspace:GetPartBoundsInRadius(castStart, radius, overlapParams)) do
+        if processLaunchHit(overlapPart, root, "ClientLaunchSphereOverlap", observedSpeed, approximateOverlapNormal(castStart, overlapPart, direction), castStart, currentPos, overlapPart.Position) then
+            return
+        end
+    end
+
+    -- Quét từ vị trí CUỐI CÙNG của frame trước, hướng tới vị trí HIỆN TẠI
+    local result = sphereCastSkippingGround(castStart, radius, direction * castDistance, raycastParams)
+
+    if result then
+        processLaunchHit(result.Instance, root, "ClientLaunchSphereCast", observedSpeed, result.Normal, castStart, currentPos, result.Position)
+    end
 end
 
 RunService.RenderStepped:Connect(function(dt)
@@ -816,9 +635,6 @@ RunService.RenderStepped:Connect(function(dt)
 	if isLaunchHitScanActive() then
 		sphereCastLaunching(root, dt, previousPosition)
 	else
-		if isLaunching() then
-			debugFoodScan("launch-scan-inactive", "LaunchScanNotRun reason=LaunchingButMissingLaunchId; verify ClientDoLaunch event ordering")
-		end
 		wallContactActive = false
 		setSweepDebugVisible(false, nil, nil, nil)
 		detectCommonFoodByDistance(root)
@@ -840,11 +656,6 @@ clientDoLaunchRemote.OnClientEvent:Connect(function(direction: any, _initialSpee
 	if typeof(launchId) == "string" then
 		activeLaunchId = launchId
 	end
-	debugFoodScan(
-		"client-do-launch",
-		string.format("ClientDoLaunchReceived launchId=%s direction=(%.2f, %.2f, %.2f)", tostring(launchId), planarDirection.X, planarDirection.Y, planarDirection.Z),
-		0.1
-	)
 	predictedLaunchScanEndsAt = math.huge
 	player:SetAttribute("PredictedLaunchDirection", nil)
 	player:SetAttribute("PredictedLaunchStartedAt", nil)
@@ -863,9 +674,6 @@ stateUpdateRemote.OnClientEvent:Connect(function(state)
 			currentMovementState = movementState
 		end
 		if currentMovementState == GameStates.PlayerState.Launching then
-			if not wasLaunching then
-				debugFoodScan("state-enter-launching", "StateUpdateEnteredLaunching activeLaunchId=" .. tostring(activeLaunchId), 0.1)
-			end
 			serverConfirmedLaunch = true
 			predictedLaunchStartedAt = 0
 			player:SetAttribute("PredictedLaunchDirection", nil)
