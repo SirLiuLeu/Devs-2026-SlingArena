@@ -219,7 +219,6 @@ local ProjectTreeSpec = {
 		ConsumeItem = "LauncherArenaRemotes.ConsumeItem", -- generic server-authoritative item consumption
 		ReportFoodHit = "LauncherArenaRemotes.ReportFoodHit", -- [PROJECT_TREE_SPEC]
 		ReportCollision = "LauncherArenaRemotes.ReportCollision", -- [PROJECT_TREE_SPEC]
-		ReportWallHit = "LauncherArenaRemotes.ReportWallHit", -- [PROJECT_TREE_SPEC]
 		ApplySelfBounce = "LauncherArenaRemotes.ApplySelfBounce", -- [PROJECT_TREE_SPEC]
 		ApplyKnockback = "LauncherArenaRemotes.ApplyKnockback", -- [PROJECT_TREE_SPEC]
 		ClientDoLaunch = "LauncherArenaRemotes.ClientDoLaunch", -- [PROJECT_TREE_SPEC]
