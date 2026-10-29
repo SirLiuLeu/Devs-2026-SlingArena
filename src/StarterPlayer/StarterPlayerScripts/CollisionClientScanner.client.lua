@@ -11,10 +11,10 @@ local PhysicsConfig = require(Shared:WaitForChild("Config"):WaitForChild("Physic
 local PawnLocator = require(Shared:WaitForChild("Utils"):WaitForChild("PawnLocator"))
 local PlayerModeState = require(Shared:WaitForChild("Utils"):WaitForChild("PlayerModeState"))
 local CollisionClassifier = require(Shared:WaitForChild("Utils"):WaitForChild("CollisionClassifier"))
+local SoundManager = require(Shared:WaitForChild("Utils"):WaitForChild("SoundManager"))
 local stateUpdateRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("StateUpdate") :: RemoteEvent
 local reportFoodRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportFoodHit") :: RemoteEvent
 local reportCollisionRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportCollision") :: RemoteEvent
-local reportWallHitRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ReportWallHit") :: RemoteEvent
 local gameplayFeedbackRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("GameplayFeedback") :: RemoteEvent
 local clientDoLaunchRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClientDoLaunch") :: RemoteEvent
 local clockSyncRequestRemote = ReplicatedStorage:WaitForChild("LauncherArenaRemotes"):WaitForChild("ClockSyncRequest") :: RemoteEvent
@@ -25,10 +25,11 @@ local Y_TOLERANCE = PhysicsConfig.Collision.YTolerance
 local HIT_EPSILON = PhysicsConfig.Collision.Range
 local REPORT_COOLDOWN = PhysicsConfig.Collision.ClientReportCooldown or PhysicsConfig.Collision.Cooldown
 local MIN_REPORT_SPEED = PhysicsConfig.Collision.MinReportSpeed
-local WALL_HIT_REPORT_COOLDOWN = PhysicsConfig.World.WallCollisionCooldown or 0.2
+local WALL_CONTACT_RELEASE_SECONDS = 0.12
 
 local lastHit: { [string]: number } = {}
-local lastWallHitAt: { [Instance]: number } = {}
+local wallContactActive = false
+local lastWallContactSeenAt = 0
 local currentMovementState = GameStates.PlayerState.Idle
 local predictedLaunchScanEndsAt = 0
 local predictedLaunchStartedAt = 0
@@ -412,48 +413,24 @@ local function reportPlayerHit(targetPlayer: Player, root: BasePart, observedSpe
 	})
 end
 
-local function reportWallHit(
-	part: Instance,
-	root: BasePart,
-	hitType: string,
-	observedSpeed: number,
-	surfaceNormal: Vector3?,
-	sweepStart: Vector3,
-	sweepEnd: Vector3,
-	hitPosition: Vector3
-): boolean
+local function reportWallHit(part: Instance, hitType: string, sweepStart: Vector3, hitPosition: Vector3): boolean
 	if not activeLaunchId or not part:IsA("BasePart") or part.CanCollide ~= true then
 		return false
 	end
 
-	local now = os.clock()
-	if (lastWallHitAt[part] or 0) > now then
-		return true
-	end
-	lastWallHitAt[part] = now + WALL_HIT_REPORT_COOLDOWN
-
 	local contactPosition = if hitType == "ClientLaunchSphereOverlap"
 		then approximatePartSurfacePosition(sweepStart, part)
 		else hitPosition
-	local velocity = root.AssemblyLinearVelocity
-	local sanitizedNormal = sanitizeSurfaceNormal(surfaceNormal, velocity)
-	local reportSpeed = math.max(velocity.Magnitude, observedSpeed)
-	reportWallHitRemote:FireServer({
-		launchId = activeLaunchId,
-		timestamp = getSyncedServerTime(),
-		sweepStart = sweepStart,
-		sweepEnd = sweepEnd,
-		hitPosition = contactPosition,
-		hitPart = part,
-		surfaceNormal = sanitizedNormal,
-		velocity = velocity,
-		observedSpeed = reportSpeed,
-		hitType = hitType,
-	})
+	local now = os.clock()
+	if not wallContactActive then
+		-- Wall audio is cosmetic: play immediately on the detecting client and never
+		-- wait for a server report or server-side sweep validation.
+		SoundManager.Play("SFX_Wall_Hit", contactPosition)
+		wallContactActive = true
+	end
+	lastWallContactSeenAt = now
 	return true
 end
-
-
 
 
 local function buildCollisionFilterParams(): (RaycastParams, OverlapParams)
@@ -508,7 +485,7 @@ local function processLaunchHit(part: Instance, root: BasePart, hitType: string,
 	local collisionType = CollisionClassifier.GetType(part)
 	if collisionType == "Wall" then
 		-- Only explicitly tagged Wall geometry may request the wall-hit SFX.
-		return reportWallHit(part, root, hitType, observedSpeed, surfaceNormal, sweepStart, sweepEnd, hitPosition)
+		return reportWallHit(part, hitType, sweepStart, hitPosition)
 	elseif collisionType == "Ground" then
 		-- Ground is expected to stay under a moving Launcher; ignore it and keep
 		-- scanning other overlaps instead of treating every collidable part as Wall.
@@ -631,14 +608,21 @@ local function sphereCastLaunching(root: BasePart, dt: number, previousPosition:
 end
 
 RunService.RenderStepped:Connect(function(dt)
+	local now = os.clock()
+	if wallContactActive and now - lastWallContactSeenAt >= WALL_CONTACT_RELEASE_SECONDS then
+		wallContactActive = false
+	end
+
 	local root = getRoot()
 	if not root then
+		wallContactActive = false
 		lastRootPosition = nil
 		setSweepDebugVisible(false, nil, nil, nil)
 		return
 	end
 
 	if isHumanMode() then
+		wallContactActive = false
 		lastRootPosition = nil
 		setSweepDebugVisible(false, nil, nil, nil)
 		detectCommonFoodByDistance(root)
@@ -651,6 +635,7 @@ RunService.RenderStepped:Connect(function(dt)
 	if isLaunchHitScanActive() then
 		sphereCastLaunching(root, dt, previousPosition)
 	else
+		wallContactActive = false
 		setSweepDebugVisible(false, nil, nil, nil)
 		detectCommonFoodByDistance(root)
 	end
