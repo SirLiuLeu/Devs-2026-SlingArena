@@ -22,7 +22,6 @@
 | ChangeTeam | C->S | TeamService | `{ teamId: string }` | Request a team change; server validates team ID, capacity, round state and cooldown. |
 | AttributeUpgrade | C->S | PlayerStateService | `{ attributeName: string }` | Spend attribute point on selected stat. |
 | ConsumeHpPotion | C->S | PlayerStateService | `{}` | Legacy-compatible HP potion consume request. |
-| ReportWallHit | C->S | CollisionService | `{ launchId: string, timestamp: number, sweepStart: Vector3, sweepEnd: Vector3, hitPosition: Vector3, hitPart: BasePart, velocity?: Vector3, observedSpeed?: number, surfaceNormal?: Vector3, hitType?: string }` | Cosmetic report for launch sweeps hitting explicitly tagged `Collision_Wall` geometry. The server independently checks the active launch, contact geometry, and nearest tagged ancestor; `Collision_Ground`, `Collision_Food`, `Collision_Lava`, `Collision_Trap`, and unclassified parts cannot trigger `SFX_Wall_Hit`. |
 | RequestRespawn | C->S | MonetizationService | `{ mode: "Free" }` | Request free respawn flow. |
 | PurchaseRespawn | C->S | MonetizationService | `{}` | Purchase paid respawn with diamonds. |
 | PurchaseMatchBuff | C->S | MonetizationService | `{}` | Purchase in-match buff with diamonds. |
@@ -92,7 +91,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `SafeZoneConfig.lua` | Safe Zone radius, shrink, relocation and replicated attribute names. | `SafeZoneService`, `SafeZoneVisualizer.client.lua` |
 | `TeamConfig.lua` | Team IDs, colors, capacity, change cooldown and Rage timing. | `TeamService`, team selection UI, `RoundService` |
 | `LauncherTextureConfig.lua` | Team/Rage texture IDs for equipped Launcher visuals. | `PlayerService` |
-| `SoundConfig.lua` | SFX keys and playback settings. HP potion consumption uses `SFX_Item_HealthPotion`; validated launcher contact uses spatial `SFX_Wall_Hit` only for `Collision_Wall`-tagged geometry; Ground, Food, Lava, Trap, and unclassified parts are excluded. | `SoundManager`, `SFXController`, `CollisionService` |
+| `SoundConfig.lua` | SFX keys and playback settings. HP potion consumption uses `SFX_Item_HealthPotion`; `CollisionClientScanner` plays spatial `SFX_Wall_Hit` locally once per continuous contact with `Collision_Wall`-tagged geometry, without server validation; Ground, Food, Lava, Trap, and unclassified parts are excluded. | `SoundManager`, `SFXController`, `CollisionClientScanner` |
 | `QuestConfig.lua` | Quest definitions and progress requirements. | `QuestService`, quest UI |
 | `RankConfig.lua` | Rank/leaderboard progression settings. | leaderboard/progression services |
 
@@ -198,5 +197,4 @@ Config modules store shared tuning and content tables (movement/combat constants
 ## Audio collision SFX update (2026-10-28)
 
 - Successful `hp_potion` consumption plays `SFX_Item_HealthPotion`; other consumed items keep `SFX_Success`.
-- Launcher wall-hit audio is triggered from the launch spherecast through `ReportWallHit`. Shared `CollisionClassifier.lua` resolves the closest tagged ancestor, so tags on a Model classify its MeshParts/Parts and a closer child tag can override the Model tag. Only `Collision_Wall` may trigger `SFX_Wall_Hit`; `Collision_Ground` is skipped during sweep casts so it cannot hide a Wall ahead, while `Collision_Food`, `Collision_Lava`, `Collision_Trap`, and unclassified geometry do not use wall audio. `CollisionValidation.ValidateWallTarget` repeats the tag check server-side. Existing arena-boundary bounce audio remains a separate path.
-- The server rate-limits valid wall-hit reports and throttles wall-hit SFX per player (using `PhysicsConfig.World.WallCollisionCooldown`) as well as per part, preventing duplicate sounds from the generic wall report and arena-boundary bounce. This cue is cosmetic and does not change collision physics.
+- Launcher wall-hit audio is played locally by `CollisionClientScanner` as soon as a launch sweep detects `Collision_Wall`. A contact episode plays once, and the scanner rearms after no tagged Wall has been detected for 0.12 seconds. `Collision_Ground` is skipped during sweep casts so it cannot hide a Wall ahead; `Collision_Food`, `Collision_Lava`, `Collision_Trap`, and unclassified geometry do not use wall audio. This cosmetic cue does not use a server report or server validation. Existing server arena-boundary bounce audio remains a separate path.
