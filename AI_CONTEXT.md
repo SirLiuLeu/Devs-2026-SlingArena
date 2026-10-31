@@ -33,6 +33,7 @@
 | Plus1Minute | C->S | RoundService | `{}` | Studio-only round-time test hook; server ignores requests outside Studio. |
 | EndRound | C->S | RoundService | `{}` | Studio-only round-end test hook; server ignores requests outside Studio. |
 | SellLauncher | C->S | LauncherInventoryService | `{ instanceId: string }` | Sells an eligible owned Launcher instance; the server decides eligibility and payout. |
+| CombineLaunchers | C->S | LauncherInventoryService | `{ instanceIds: [string, string, string], requestId: integer }` | Combines three compatible owned Launcher instances; server validates ownership/eligibility and echoes the request ID in GameplayFeedback. |
 
 # Server → Client (Sync / Feedback)
 
@@ -86,6 +87,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `PetsConfig.lua` | Pet definition catalog, ability IDs, rarity, and max-level settings. | `PetService`, `PetProgression`, `InventoryUIController` |
 | `PetsUpgradeConfig.lua` | Level normalization, costs, 10% per-level base-stat growth, and milestone predicates. | `PetService`, `PetProgression`, `PetDisplayFormatter` |
 | `LauncherConfig.lua` | Current five Duck Launcher definitions (`Normalduck`, `Kingduck`, `Witchduck`, `Drakeduck`, `Shielduck`), default ID, combat stats, weight, reflect damage, and lookup helpers. Future catalog size is not fixed. | `PlayerStateService`, `LauncherStatResolver`, launcher inventory/shop and mock data |
+| `RarityConfig.lua` | Launcher rarity/star tiers (Common → Rare → Epic → Legendary → Mythic), star lookup, next-tier lookup, display colors, and per-tier stat multipliers. | `PlayerDataService`, `InventoryDataProvider`, `LauncherStatResolver`, `LauncherInventoryUIController` |
 | `TrapConfig.lua` | Trap tuning constants (EXP penalty, cooldown, count, color). | `TrapService` |
 | `PhysicsConfig.lua` | Centralized movement, launch, collision and physics thresholds. | `LauncherService`, `CollisionService`, `DamagePipelineService` |
 | `SafeZoneConfig.lua` | Safe Zone radius, shrink, relocation and replicated attribute names. | `SafeZoneService`, `SafeZoneVisualizer.client.lua` |
@@ -198,3 +200,12 @@ Config modules store shared tuning and content tables (movement/combat constants
 
 - Successful `hp_potion` consumption plays `SFX_Item_HealthPotion`; other consumed items keep `SFX_Success`.
 - Launcher wall-hit audio is played locally by `CollisionClientScanner` as soon as a launch sweep detects `Collision_Wall`. A contact episode plays once, and the scanner rearms after no tagged Wall has been detected for 0.12 seconds. `Collision_Ground` is skipped during sweep casts so it cannot hide a Wall ahead; `Collision_Food`, `Collision_Lava`, `Collision_Trap`, and unclassified geometry do not use wall audio. This cosmetic cue does not use a server report or server validation. Existing server arena-boundary bounce audio remains a separate path.
+
+
+## Launcher inventory combine implementation (2026-11-01)
+
+- Launcher combine uses `LauncherInventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.CombineButton`, `BodyLauncher.CombineControls`, and `Root.CombineConfirmFrame.Dialog`. The confirmation Dialog contains three input Frame holders and one output Frame holder; the controller clones `LauncherSlotTemplate_LauncherInventoryUI` into each holder at full holder size.
+- The UI requests exactly three distinct instance IDs plus a request correlation ID through `LauncherArenaRemotes.CombineLaunchers`. The server echoes that ID in `GameplayFeedback.LauncherCombineResult`; clients ignore stale results after a timeout or a newer request.
+- The server currently permits only owned, permanent, unexpired, unequipped, non-default instances with the same Launcher definition and rarity/star. The three source instances are removed and one new instance is created in the same data mutation. The result advances one `RarityConfig` tier and inherits the highest source level.
+- Current provisional rarity tiers are Common/Rare/Epic/Legendary/Mythic with 1.0/1.2/1.4/1.6/1.8 stat multipliers. Combine currently has no Diamond/material cost. Confirm tier naming, stat scope, inheritance, and cost with the project owner before treating those balance choices as final.
+- Runtime QA still requires Roblox Studio: confirm authored modal sizes/ZIndex/anchors, all three slot holders, result ViewportFrame visibility, animation layout, repeated combine operations, late/duplicate feedback, and server rejection reasons.
