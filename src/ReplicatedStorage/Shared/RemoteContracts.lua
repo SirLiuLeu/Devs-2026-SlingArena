@@ -212,7 +212,7 @@ RemoteContracts.Validators = {
 		if #payload.instanceIds ~= 3 then
 			return false
 		end
-		if payload.requestId ~= nil and (typeof(payload.requestId) ~= "number" or payload.requestId < 1 or payload.requestId % 1 ~= 0) then
+		if typeof(payload.requestId) ~= "number" or payload.requestId < 1 or payload.requestId % 1 ~= 0 then
 			return false
 		end
 		local seen = {}
