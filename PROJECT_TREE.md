@@ -178,6 +178,9 @@ DataModel
 │  │      │
 │  │      ├── LauncherSlotTemplate_LauncherInventoryUI (Frame)
 │  │      │   └── Root (Frame)
+│  │      │       ├── RarityBorder (Frame)
+│  │      │       ├── CombineCheckButton  (Frame)
+│  │      │       ├── SelectedOverlay (Frame)
 │  │      │       ├── Stars (Frame)
 │  │      │       │   ├── Star1 (ImageLabel)
 │  │      │       │   ├── Star2 (ImageLabel)
@@ -556,18 +559,31 @@ DataModel
 │  ├─ LauncherInventoryUI (ScreenGui)
 │  │  ├─ Overlay
 │  │  └─ Root (Frame)
-│  │     └─ BodyLauncher
-│  │        ├─ Footer
-│  │        │  └─ CapacityLabel (TextLabel)
-│  │        ├─ GridContainer
-│  │        │  └─  Slot1, Slot2, Slot3, Slot4 (LauncherSlotTemplate_LauncherInventoryUI Frames) -- Script Spawn in run time
-│  │        └─ RightPanel
-│  │           ├─ ActionButtons
-│  │           │  ├─ SellButton (TextButton)
-│  │           │  └─ EquiptButton (TextButton)
-│  │           ├─ Stats
-│  │           │  └─ Damage, HP, Range, Regeneration (TextLabels)
-│  │           └─ SelectedName (TextLabel)
+│  │     ├─ BodyLauncher
+│  │     │  ├─ CombineControls
+│  │     │  │  ├─ CancelButton (TextButton)
+│  │     │  │  └─ ConfirmCombineButton (TextButton)
+│  │     │  ├─ Footer
+│  │     │  │  └─ CapacityLabel (TextLabel)
+│  │     │  ├─ GridContainer
+│  │     │  │  └─ Slot1, Slot2, Slot3, Slot4 (LauncherSlotTemplate_LauncherInventoryUI Frames) -- Script Spawn in run time
+│  │     │  └─ RightPanel
+│  │     │     ├─ ActionButtons
+│  │     │     │  ├─ CombineButton (TextButton)
+│  │     │     │  ├─ EquiptButton (TextButton)
+│  │     │     │  └─ SellButton (TextButton)
+│  │     │     ├─ Stats
+│  │     │     │  └─ Damage, HP, Range, Regeneration (TextLabels)
+│  │     │     └─ SelectedName (TextLabel)
+│  │     └─ CombineConfirmFrame
+│  │        └─ Dialog
+│  │           ├─ Actions
+│  │           │  ├─ BackButton (TextButton)
+│  │           │  └─ ConfirmButton (TextButton)
+│  │           ├─ InputLaunchers
+│  │           │  └─ InputSlot1, InputSlot2, InputSlot3 (Frames)
+│  │           └─ ResultPreview
+│  │              └─ OutputSlot (Frame)
 │  │
 │  ├─ MatchUI (ScreenGui)
 │  │  └─ RootFrame
