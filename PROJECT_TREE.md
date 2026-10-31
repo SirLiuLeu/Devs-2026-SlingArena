@@ -20,6 +20,7 @@ DataModel
 │  │  │  ├─ LevelConfig.lua
 │  │  │  ├─ LauncherAnimationIds.lua
 │  │  │  ├─ LauncherConfig.lua
+│  │  │  ├─ RarityConfig.lua
 │  │  │  ├─ LauncherTextureConfig.lua
 │  │  │  ├─ TeamConfig.lua
 │  │  │  ├─ NotificationConfigData.lua
@@ -288,7 +289,8 @@ DataModel
 │  │          └─ Timer (TextLabel)
 │  │
 │  ├─ LauncherArenaRemotes
-│  │  └─ (RemoteEvents from *.model.json + freeze contracts)
+│  │  ├─ CombineLaunchers (RemoteEvent; CombineLaunchers.model.json)
+│  │  └─ (Other RemoteEvents from *.model.json + freeze contracts)
 │  │     ├─ ChangeTeam
 │  │     ├─ MoveRequest
 │  │     ├─ StartCharge
@@ -581,9 +583,9 @@ DataModel
 │  │           │  ├─ BackButton (TextButton)
 │  │           │  └─ ConfirmButton (TextButton)
 │  │           ├─ InputLaunchers
-│  │           │  └─ InputSlot1, InputSlot2, InputSlot3 (Frames)
+│  │           │  └─ InputSlot1, InputSlot2, InputSlot3 (Frames; each contains a runtime clone of LauncherSlotTemplate_LauncherInventoryUI sized to 1,1)
 │  │           └─ ResultPreview
-│  │              └─ OutputSlot (Frame)
+│  │              └─ OutputSlot (Frame; contains the result LauncherSlotTemplate_LauncherInventoryUI clone sized to 1,1)
 │  │
 │  ├─ MatchUI (ScreenGui)
 │  │  └─ RootFrame
@@ -824,3 +826,12 @@ Notes:
 
 - Successful consumption of `hp_potion` uses `SFX_Item_HealthPotion`; other consumables continue to use `SFX_Success`.
 - `CollisionClientScanner.client.lua` plays `SFX_Wall_Hit` locally when a launch spherecast detects explicitly tagged wall geometry. A contact episode plays once; the scanner rearms after 0.12 seconds without detecting a tagged Wall. No server report or validation is involved in this cosmetic cue. `CollisionClassifier.lua` resolves the closest collision tag on the hit Instance or its ancestors, with a child tag overriding a Model-level tag. Ground is skipped during spherecast scanning so it cannot hide a Wall ahead; Food, Lava, Trap, and unclassified parts remain silent. Existing server arena-boundary bounce is a separate audio path.
+
+
+## Launcher inventory combine and rarity (2026-11-01)
+
+- `src/ReplicatedStorage/Shared/Config/RarityConfig.lua` is the canonical mapping between Launcher star and rarity, including rarity colors and stat multipliers.
+- `src/ReplicatedStorage/LauncherArenaRemotes/CombineLaunchers.model.json` declares the combine RemoteEvent. Its client payload contains three distinct owned instance IDs and an integer request ID used to correlate server feedback.
+- `LauncherInventoryUI.Root.BodyLauncher.CombineControls` toggles combine selection mode. The confirmation UI uses `Root.CombineConfirmFrame.Dialog.InputLaunchers.InputSlot1..3` and `ResultPreview.OutputSlot`; each holder must be a Frame authored in Studio. Runtime code clones the existing Launcher slot template into the holders and sizes it to `UDim2.fromScale(1, 1)`; it does not create the authored holder hierarchy.
+- The current implementation combines three matching permanent/unequipped Launcher instances into one instance of the next rarity/star, inheriting the highest source level. Cost and detailed stat scope remain provisional pending balance confirmation.
+- Source changes have not yet been executed in Roblox Studio. Verify modal layout and the full animation before treating the feature as runtime-validated.
