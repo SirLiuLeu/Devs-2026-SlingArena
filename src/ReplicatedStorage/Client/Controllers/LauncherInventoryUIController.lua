@@ -374,6 +374,397 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self:SetVisible(false)
 end
 
+
+function LauncherInventoryUIController:_findEntryByKey(entryKey: string)
+	for _, entry in ipairs((self._latestSnapshot and self._latestSnapshot.ownedLaunchers) or {}) do
+		if self:_entryKey(entry) == entryKey then
+			return entry
+		end
+	end
+	return nil
+end
+
+function LauncherInventoryUIController:_getRarity(entry)
+	return RarityConfig.GetById(entry and entry.rarity) or RarityConfig.GetByStar(entry and entry.star)
+end
+
+function LauncherInventoryUIController:_isCombineCandidate(entry): boolean
+	if not entry or type(entry.instanceId) ~= "string" or entry.instanceId == "" then return false end
+	if entry.instanceId == "default_normal_launcher" or entry.equipped == true then return false end
+	if self:_isTemporary(entry) then return false end
+	local expiresAt = tonumber(entry.expiresAt)
+	if expiresAt and expiresAt <= os.time() then return false end
+	local rarity = self:_getRarity(entry)
+	if not rarity or not RarityConfig.GetNext(rarity.id) then return false end
+	return LauncherConfig.GetById(entry.id) ~= nil
+end
+
+function LauncherInventoryUIController:_combineGroupKey(entry): string
+	local rarity = self:_getRarity(entry)
+	return string.format("%s|%s|%d", tostring(entry.id), tostring(rarity and rarity.id or "Common"), math.max(1, math.floor(tonumber(entry.star) or 1)))
+end
+
+function LauncherInventoryUIController:_getEligibleCombineMap(entries)
+	local groupCounts = {}
+	for _, entry in ipairs(entries or {}) do
+		if self:_isCombineCandidate(entry) then
+			local groupKey = self:_combineGroupKey(entry)
+			groupCounts[groupKey] = (groupCounts[groupKey] or 0) + 1
+		end
+	end
+
+	local eligible = {}
+	for _, entry in ipairs(entries or {}) do
+		if self:_isCombineCandidate(entry) then
+			local groupKey = self:_combineGroupKey(entry)
+			if (groupCounts[groupKey] or 0) >= 3 then
+				eligible[self:_entryKey(entry)] = true
+			end
+		end
+	end
+	return eligible
+end
+
+function LauncherInventoryUIController:_refreshCombineButtons()
+	local selectedCount = #self._selectedCombineEntries
+	local canConfirm = self._combineMode and selectedCount == 3 and not self._pendingCombine
+	if self._confirmCombineButton then
+		self._confirmCombineButton.Active = canConfirm
+		self._confirmCombineButton.AutoButtonColor = canConfirm
+		self._confirmCombineButton.TextTransparency = if canConfirm then 0 else 0.5
+	end
+	if self._combineModalConfirmButton then
+		self._combineModalConfirmButton.Active = not self._pendingCombine
+		self._combineModalConfirmButton.AutoButtonColor = not self._pendingCombine
+	end
+end
+
+function LauncherInventoryUIController:_enterCombineMode()
+	if not self:_inLobby() then
+		self:_showToast("Combine is only available in the Lobby.")
+		return
+	end
+	if self._pendingCombine then return end
+	self._combineMode = true
+	self._selected = nil
+	table.clear(self._selectedCombineEntries)
+	if self._combineConfirmFrame then self._combineConfirmFrame.Visible = false end
+	if self._combineControls then self._combineControls.Visible = true end
+	if self._combineButton then self._combineButton.Visible = false end
+	self:_refreshRightPanel()
+	self:_refreshCombineButtons()
+	if self._latestSnapshot then self:Render(self._latestSnapshot) end
+end
+
+function LauncherInventoryUIController:_exitCombineMode()
+	if self._pendingCombine then return end
+	self._combineMode = false
+	table.clear(self._selectedCombineEntries)
+	self._combineServerResult = nil
+	if self._combineControls then self._combineControls.Visible = false end
+	if self._combineConfirmFrame then self._combineConfirmFrame.Visible = false end
+	if self._combineButton then self._combineButton.Visible = true end
+	self:_refreshRightPanel()
+	if self._latestSnapshot then self:Render(self._latestSnapshot) end
+end
+
+function LauncherInventoryUIController:_toggleCombineSelection(entry)
+	if not self._combineMode or self._pendingCombine then return end
+	if not self:_isCombineCandidate(entry) then
+		self:_showToast("This Launcher cannot be combined.")
+		return
+	end
+
+	local selectedIndex = nil
+	for index, selected in ipairs(self._selectedCombineEntries) do
+		if self:_entryKey(selected) == self:_entryKey(entry) then
+			selectedIndex = index
+			break
+		end
+	end
+
+	if selectedIndex then
+		table.remove(self._selectedCombineEntries, selectedIndex)
+	else
+		if #self._selectedCombineEntries >= 3 then
+			self:_showToast("Select exactly 3 Launchers.")
+			return
+		end
+		local firstSelected = self._selectedCombineEntries[1]
+		if firstSelected and self:_combineGroupKey(firstSelected) ~= self:_combineGroupKey(entry) then
+			self:_showToast("Select 3 Launchers with the same type and rarity.")
+			return
+		end
+		table.insert(self._selectedCombineEntries, entry)
+	end
+
+	self:_refreshSlotVisuals()
+	self:_refreshCombineButtons()
+end
+
+function LauncherInventoryUIController:_findLauncherDisplay(holder: GuiObject): GuiObject?
+	local named = holder:FindFirstChild(LAUNCHER_SLOT_TEMPLATE_NAME)
+	if named and named:IsA("GuiObject") and getSlotRoot(named) then return named end
+	for _, child in ipairs(holder:GetChildren()) do
+		if child:IsA("GuiObject") and getSlotRoot(child) then return child end
+	end
+	return nil
+end
+
+function LauncherInventoryUIController:_populatePreviewHolder(holder: GuiObject?, entry)
+	if not holder or not self._template then return nil end
+	local display = self:_findLauncherDisplay(holder)
+	if not display then
+		display = self._template:Clone()
+		display.Name = LAUNCHER_SLOT_TEMPLATE_NAME
+		display.Parent = holder
+	end
+	display.Visible = true
+	display.Position = UDim2.fromScale(0, 0)
+	display.Size = UDim2.fromScale(1, 1)
+	self:_updateSlot(display, entry)
+	return display
+end
+
+function LauncherInventoryUIController:_makeCombineResultPreview()
+	if #self._selectedCombineEntries ~= 3 then return nil end
+	local first = self._selectedCombineEntries[1]
+	local nextRarity = RarityConfig.GetNext(self:_getRarity(first).id)
+	if not nextRarity then return nil end
+	local highestLevel = 1
+	for _, entry in ipairs(self._selectedCombineEntries) do
+		highestLevel = math.max(highestLevel, math.max(1, math.floor(tonumber(entry.level) or 1)))
+	end
+	local definition = LauncherConfig.GetById(first.id)
+	return {
+		instanceId = "combine_preview",
+		definitionId = first.id,
+		id = first.id,
+		name = (definition and definition.name) or first.name or first.id,
+		star = nextRarity.star,
+		rarity = nextRarity.id,
+		level = highestLevel,
+		equipped = false,
+	}
+end
+
+function LauncherInventoryUIController:_openCombineConfirmation()
+	if not self._combineMode or #self._selectedCombineEntries ~= 3 then
+		self:_showToast("Select exactly 3 identical Launchers first.")
+		return
+	end
+	for _, selected in ipairs(self._selectedCombineEntries) do
+		local latest = self:_findEntryByKey(self:_entryKey(selected))
+		if not latest or not self:_isCombineCandidate(latest) then
+			self:_showToast("The selected Launchers are no longer available.")
+			if self._latestSnapshot then self:Render(self._latestSnapshot) end
+			return
+		end
+	end
+	local resultPreview = self:_makeCombineResultPreview()
+	if not resultPreview then
+		self:_showToast("This Launcher has reached maximum rarity.")
+		return
+	end
+	if not (self._combineConfirmFrame and self._combineOutputSlot) then
+		warn("[LAUNCHER_INVENTORY_UI] Cannot open Combine confirmation: missing modal UI references.")
+		return
+	end
+
+	self._combineResultPreview = resultPreview
+	for index = 1, 3 do
+		local holder = self._combineInputSlots[index]
+		if holder then
+			self:_populatePreviewHolder(holder, self._selectedCombineEntries[index])
+		end
+	end
+	self:_populatePreviewHolder(self._combineOutputSlot, resultPreview)
+	self._combineConfirmFrame.Visible = true
+	self:_refreshCombineButtons()
+end
+
+function LauncherInventoryUIController:_requestCombine()
+	if self._pendingCombine or #self._selectedCombineEntries ~= 3 then return end
+	if not (self._combineRemote and self._combineRemote:IsA("RemoteEvent")) then
+		warn("[LAUNCHER_INVENTORY_UI] CombineLaunchers RemoteEvent is missing.")
+		self:_showToast("Combine is temporarily unavailable.")
+		return
+	end
+
+	local instanceIds = {}
+	for _, selected in ipairs(self._selectedCombineEntries) do
+		local latest = self:_findEntryByKey(self:_entryKey(selected))
+		if not latest or not self:_isCombineCandidate(latest) then
+			self:_showToast("The selected Launchers are no longer eligible.")
+			return
+		end
+		table.insert(instanceIds, latest.instanceId)
+	end
+	if #instanceIds ~= 3 then return end
+	self._pendingCombine = true
+	if self._combineModalConfirmButton then
+		self._combineModalConfirmButton.Text = "Combining..."
+		self._combineModalConfirmButton.Active = false
+		self._combineModalConfirmButton.AutoButtonColor = false
+	end
+	self:_refreshCombineButtons()
+	self._combineRemote:FireServer({ instanceIds = instanceIds })
+	task.delay(8, function()
+		if self._pendingCombine then
+			self._pendingCombine = false
+			warn("[LAUNCHER_INVENTORY_UI] Combine feedback timeout; server result was not received.")
+			self:_showToast("Combine request timed out. Please check your inventory.")
+			if self._combineModalConfirmButton then
+				self._combineModalConfirmButton.Text = "Confirm"
+			end
+			self:_refreshCombineButtons()
+		end
+	end)
+end
+
+local function setGuiTreeZIndex(root: Instance, zIndex: number)
+	if root:IsA("GuiObject") then root.ZIndex = zIndex end
+	for _, descendant in ipairs(root:GetDescendants()) do
+		if descendant:IsA("GuiObject") then
+			descendant.ZIndex = zIndex + 1
+		end
+	end
+end
+
+local function scaleUDim2(value: UDim2, multiplier: number): UDim2
+	return UDim2.new(
+		value.X.Scale * multiplier,
+		value.X.Offset * multiplier,
+		value.Y.Scale * multiplier,
+		value.Y.Offset * multiplier
+	)
+end
+
+function LauncherInventoryUIController:_playCombineAnimation(resultData)
+	if not (self._combineConfirmFrame and self._combineDialog and self._combineOutputSlot) then
+		self:_exitCombineMode()
+		return
+	end
+	local definitionId = tostring(resultData.definitionId or resultData.id or "")
+	local definition = LauncherConfig.GetById(definitionId)
+	local rarity = RarityConfig.GetById(resultData.rarity) or RarityConfig.GetByStar(resultData.star)
+	local resultEntry = {
+		instanceId = tostring(resultData.instanceId or "combined_launcher"),
+		definitionId = definitionId,
+		id = definitionId,
+		name = (definition and definition.name) or definitionId,
+		star = rarity.star,
+		rarity = rarity.id,
+		level = math.max(1, math.floor(tonumber(resultData.level) or 1)),
+		equipped = false,
+	}
+	local outputDisplay = self:_populatePreviewHolder(self._combineOutputSlot, resultEntry)
+	if not outputDisplay then
+		self:_exitCombineMode()
+		return
+	end
+
+	local dialogPosition = self._combineDialog.AbsolutePosition
+	local outputPosition = self._combineOutputSlot.AbsolutePosition
+	local outputSize = self._combineOutputSlot.AbsoluteSize
+	local targetCenter = outputPosition + outputSize / 2
+	local flightTweens = {}
+
+	for index = 1, 3 do
+		local holder = self._combineInputSlots[index]
+		local display = holder and self:_findLauncherDisplay(holder) or nil
+		if holder and display then
+			local holderPosition = holder.AbsolutePosition
+			local holderSize = holder.AbsoluteSize
+			local startCenter = holderPosition + holderSize / 2
+			local flight = display:Clone()
+			flight.Name = "CombineFlight_" .. tostring(index)
+			flight.AnchorPoint = Vector2.new(0.5, 0.5)
+			flight.Position = UDim2.fromOffset(startCenter.X - dialogPosition.X, startCenter.Y - dialogPosition.Y)
+			flight.Size = UDim2.fromOffset(holderSize.X, holderSize.Y)
+			flight.Parent = self._combineDialog
+			setGuiTreeZIndex(flight, 50)
+			display.Visible = false
+
+			local targetLocal = targetCenter - dialogPosition
+			local targetSmallSize = Vector2.new(math.max(24, outputSize.X * 0.28), math.max(24, outputSize.Y * 0.28))
+			local tween = TweenService:Create(
+				flight,
+				TweenInfo.new(0.48, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{
+					Position = UDim2.fromOffset(targetLocal.X, targetLocal.Y),
+					Size = UDim2.fromOffset(targetSmallSize.X, targetSmallSize.Y),
+				}
+			)
+			table.insert(flightTweens, { instance = flight, tween = tween })
+		end
+	end
+
+	for _, flightInfo in ipairs(flightTweens) do
+		flightInfo.tween:Play()
+	end
+	for _, flightInfo in ipairs(flightTweens) do
+		flightInfo.tween.Completed:Wait()
+		flightInfo.instance:Destroy()
+	end
+
+	for index = 1, 3 do
+		local holder = self._combineInputSlots[index]
+		local display = holder and self:_findLauncherDisplay(holder) or nil
+		if display then display.Visible = true end
+	end
+
+	local originalSize = outputDisplay.Size
+	local originalPosition = outputDisplay.Position
+	outputDisplay.AnchorPoint = Vector2.new(0.5, 0.5)
+	outputDisplay.Position = UDim2.fromScale(0.5, 0.5)
+	local growTween = TweenService:Create(
+		outputDisplay,
+		TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Size = scaleUDim2(originalSize, 1.18) }
+	)
+	local shrinkTween = TweenService:Create(
+		outputDisplay,
+		TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
+		{ Size = originalSize, Position = UDim2.fromScale(0.5, 0.5) }
+	)
+	growTween:Play()
+	growTween.Completed:Wait()
+
+	local viewport = getSlotRoot(outputDisplay)
+	viewport = viewport and viewport:FindFirstChild("LauncherPreview", true) or nil
+	local previewModel = viewport and viewport:IsA("ViewportFrame") and viewport:FindFirstChild("PreviewModel") or nil
+	if previewModel and previewModel:IsA("Model") then
+		local initialPivot = previewModel:GetPivot()
+		local spinDuration = 0.9
+		local elapsed = 0
+		local rotationConnection
+		rotationConnection = RunService.RenderStepped:Connect(function(deltaTime)
+			elapsed += deltaTime
+			if previewModel.Parent == nil then
+				if rotationConnection then rotationConnection:Disconnect() end
+				return
+			end
+			local alpha = math.clamp(elapsed / spinDuration, 0, 1)
+			previewModel:PivotTo(initialPivot * CFrame.Angles(0, math.rad(720) * alpha, 0))
+			if alpha >= 1 and rotationConnection then
+				rotationConnection:Disconnect()
+			end
+		end)
+		task.wait(spinDuration)
+	end
+	shrinkTween:Play()
+	shrinkTween.Completed:Wait()
+	outputDisplay.AnchorPoint = self._template and self._template.AnchorPoint or Vector2.zero
+	outputDisplay.Position = originalPosition
+	outputDisplay.Size = originalSize
+
+	if self._combineConfirmFrame then self._combineConfirmFrame.Visible = false end
+	if self._combineModalConfirmButton then self._combineModalConfirmButton.Text = "Confirm" end
+	self._pendingCombine = false
+	self:_exitCombineMode()
+end
+
 function LauncherInventoryUIController:_inLobby(): boolean
 	return Players.LocalPlayer:GetAttribute("LocationState") == nil or Players.LocalPlayer:GetAttribute("LocationState") == "Lobby"
 end
@@ -421,10 +812,17 @@ function LauncherInventoryUIController:_canSell(entry): boolean
 end
 
 function LauncherInventoryUIController:_bindSlot(slot: GuiObject, entry)
+	local entryKey = self:_entryKey(entry)
 	local connection = slot.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			self._selected = entry
-			if self._provider then self._provider:SelectLauncher(self:_entryKey(entry)) end
+			local currentEntry = self:_findEntryByKey(entryKey)
+			if not currentEntry then return end
+			if self._combineMode then
+				self:_toggleCombineSelection(currentEntry)
+				return
+			end
+			self._selected = currentEntry
+			if self._provider then self._provider:SelectLauncher(entryKey) end
 			self:_refreshRightPanel()
 			self:_refreshSlotVisuals()
 		end
@@ -435,7 +833,9 @@ end
 function LauncherInventoryUIController:_updateSlot(slot: GuiObject, entry)
 	local root = getSlotRoot(slot)
 	local definition = LauncherConfig.GetById(entry.id)
-	slot.Name = "GeneratedLauncher_" .. self:_entryKey(entry)
+	if slot.Parent == self._grid then
+		slot.Name = "GeneratedLauncher_" .. self:_entryKey(entry)
+	end
 	if not root then
 		warn("[LAUNCHER_INVENTORY_UI] Launcher slot is missing Root GuiObject")
 	else
@@ -450,12 +850,38 @@ function LauncherInventoryUIController:_updateSlot(slot: GuiObject, entry)
 		if levelText then levelText.Text = string.format("Lv.%d", level) end
 		local equipped = findText(root, "EquippedTag")
 		if equipped then equipped.Visible = entry.equipped == true end
-		local stars = root:FindFirstChild("Stars")
-		if stars then
-			for index = 1, 5 do
-				local star = stars:FindFirstChild("Star" .. index)
-				if star and star:IsA("GuiObject") then star.Visible = index <= math.clamp(level, 1, 5) end
+		local rarity = self:_getRarity(entry)
+		local rarityLabel = findText(root, "RarityLabel") or findText(root, "Rarity")
+		if rarityLabel and rarity then rarityLabel.Text = rarity.displayName end
+		local rarityBorder = root:FindFirstChild("RarityBorder", true)
+		if rarityBorder and rarity then
+			if rarityBorder:IsA("UIStroke") then
+				rarityBorder.Color = rarity.borderColor
+			elseif rarityBorder:IsA("GuiObject") then
+				rarityBorder.BackgroundColor3 = rarity.borderColor
 			end
+		end
+		local rarityStroke = root:FindFirstChildOfClass("UIStroke")
+		if rarityStroke and rarity then rarityStroke.Color = rarity.borderColor end
+		slot:SetAttribute("RarityBorderColor", if rarity then rarity.borderColor else nil)
+
+		local stars = root:FindFirstChild("Stars")
+		local starCount = math.clamp(math.floor(tonumber(entry.star) or 1), 1, RarityConfig.MaxStar)
+		if stars then
+			for index = 1, RarityConfig.MaxStar do
+				local star = stars:FindFirstChild("Star" .. index)
+				if star and star:IsA("GuiObject") then star.Visible = index <= starCount end
+			end
+		end
+
+		local checkButton = root:FindFirstChild("CombineCheckButton", true)
+		if checkButton and checkButton:IsA("GuiObject") then
+			checkButton.Visible = self._combineMode
+			local selected = false
+			for _, selectedEntry in ipairs(self._selectedCombineEntries) do
+				if self:_entryKey(selectedEntry) == self:_entryKey(entry) then selected = true break end
+			end
+			if checkButton:IsA("TextButton") then checkButton.Text = if selected then "✓" else "" end
 		end
 
 		local launcherPreviewViewport = root:FindFirstChild("LauncherPreview")
@@ -483,9 +909,35 @@ end
 function LauncherInventoryUIController:_refreshSlotVisuals()
 	for key, slot in pairs(self._slotMap) do
 		if slot.Parent then
-			slot.BackgroundTransparency = if self._selected and key == self:_entryKey(self._selected) then 0 else 0.2
+			local selected = false
+			if self._combineMode then
+				for _, selectedEntry in ipairs(self._selectedCombineEntries) do
+					if key == self:_entryKey(selectedEntry) then selected = true break end
+				end
+			else
+				selected = self._selected ~= nil and key == self:_entryKey(self._selected)
+			end
+			slot.BackgroundTransparency = if selected then 0 else 0.2
+			local root = getSlotRoot(slot)
+			if root then
+				local selectedOverlay = root:FindFirstChild("SelectedOverlay", true)
+				if selectedOverlay and selectedOverlay:IsA("GuiObject") then
+					selectedOverlay.Visible = self._combineMode and selected
+				end
+				local checkButton = root:FindFirstChild("CombineCheckButton", true)
+				if checkButton and checkButton:IsA("GuiObject") then
+					checkButton.Visible = self._combineMode
+					if checkButton:IsA("TextButton") then checkButton.Text = if selected then "✓" else "" end
+				end
+				local stroke = root:FindFirstChildOfClass("UIStroke")
+				local defaultColor = slot:GetAttribute("RarityBorderColor")
+				if stroke and typeof(defaultColor) == "Color3" then
+					stroke.Color = if selected then Color3.fromRGB(255, 235, 110) else defaultColor
+				end
+			end
 		end
 	end
+	self:_refreshCombineButtons()
 end
 
 function LauncherInventoryUIController:_refreshRightPanel()
@@ -503,7 +955,10 @@ function LauncherInventoryUIController:_refreshRightPanel()
 	local sellPending = self._pendingSellInstanceId ~= nil and self._pendingSellInstanceId == entryKey
 	local canEquip = self:_inLobby() and hasSelection and entry.equipped ~= true and not equipPending
 	local canSell = self:_inLobby() and self:_canSell(entry) and not sellPending
+	if self._combineButton then self._combineButton.Visible = not self._combineMode end
+	if self._combineControls then self._combineControls.Visible = self._combineMode end
 	if self._equip then
+		self._equip.Visible = not self._combineMode
 		self._equip.Text = if entry and entry.equipped then "Equipped" elseif equipPending then "Equipping..." else "Equip"
 		-- Keep the button clickable for selected entries so blocked actions can explain why.
 		self._equip.Active = hasSelection and not equipPending
@@ -511,6 +966,7 @@ function LauncherInventoryUIController:_refreshRightPanel()
 		self._equip.TextTransparency = if canEquip then 0 else 0.5
 	end
 	if self._sell then
+		self._sell.Visible = not self._combineMode
 		self._sell.Text = if sellPending then "Selling..." else "Sell"
 		-- Do not silently disable Sell for an equipped/protected Launcher; the click handler logs the exact reason.
 		self._sell.Active = hasSelection and not sellPending
