@@ -595,7 +595,7 @@ function PlayerDataService:CombineLaunchers(player: Player, instanceIds: { strin
 		self:_ensureLauncherData(data)
 
 		local selected = {}
-		local firstLauncher = nil
+		local firstLauncher: { [string]: any }? = nil
 		local highestLevel = 1
 
 		for index = 1, 3 do
@@ -614,12 +614,12 @@ function PlayerDataService:CombineLaunchers(player: Player, instanceIds: { strin
 				return data
 			end
 			local expiresAt = tonumber(launcher.expiresAt)
-			if launcher.isTemporary == true or expiresAt ~= nil then
-				failure = "TemporaryLauncher"
+			if expiresAt ~= nil and expiresAt <= os.time() then
+				failure = "Expired"
 				return data
 			end
-			if expiresAt and expiresAt <= os.time() then
-				failure = "Expired"
+			if launcher.isTemporary == true or expiresAt ~= nil then
+				failure = "TemporaryLauncher"
 				return data
 			end
 
