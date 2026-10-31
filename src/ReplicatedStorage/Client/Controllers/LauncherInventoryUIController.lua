@@ -2,8 +2,11 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local RarityConfig = require(ReplicatedStorage.Shared.Config.RarityConfig)
 local ConfirmationTextConfig = require(ReplicatedStorage.Shared.Config.ConfirmationTextConfig)
 local LauncherPreviewConfig = require(ReplicatedStorage.Shared.Config.LauncherPreviewConfig)
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
@@ -42,7 +45,16 @@ local function findText(root: Instance, name: string): TextLabel?
 end
 
 function LauncherInventoryUIController.new(playerGui: PlayerGui)
-	return setmetatable({ _playerGui = playerGui, _connections = {}, _slotConnections = {}, _slotMap = {}, _selected = nil }, LauncherInventoryUIController)
+	return setmetatable({
+		_playerGui = playerGui,
+		_connections = {},
+		_slotConnections = {},
+		_slotMap = {},
+		_selected = nil,
+		_combineMode = false,
+		_selectedCombineEntries = {},
+		_pendingCombine = false,
+	}, LauncherInventoryUIController)
 end
 
 function LauncherInventoryUIController:SetDataProvider(provider)
@@ -80,12 +92,40 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._regen = resolveText(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.Stats.Regeneration)
 	self._equip = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.EquipButton)
 	self._sell = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.SellButton)
+	self._combineButton = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.CombineButton)
+	self._combineControls = resolveGui(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.CombineControls)
+	self._cancelCombineButton = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.CancelCombineButton)
+	self._confirmCombineButton = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.ConfirmCombineButton)
+	self._combineConfirmFrame = resolveGui(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.CombineConfirmFrame)
+	self._combineBackButton = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.CombineBackButton)
+	self._combineModalConfirmButton = resolveButton(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.CombineConfirmButton)
+	self._combineDialog = resolveGui(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.CombineDialog)
+	self._combineOutputSlot = resolveGui(self._playerGui, ProjectTreeSpec.UI.LauncherInventory.CombineOutputSlot)
+	self._combineInputSlots = {}
+	for index, slotPath in ipairs(ProjectTreeSpec.UI.LauncherInventory.CombineInputSlots) do
+		self._combineInputSlots[index] = resolveGui(self._playerGui, slotPath)
+	end
 	if not self._equip then
 		warn("[LAUNCHER_INVENTORY_UI] Missing StarterGui.LauncherInventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.EquiptButton; create/rename this GuiButton in Studio.")
 	end
 	if not self._sell then
 		warn("[LAUNCHER_INVENTORY_UI] Missing StarterGui.LauncherInventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.SellButton; create/rename this TextButton in Studio.")
 	end
+	if not self._combineButton then warn("[LAUNCHER_INVENTORY_UI] Missing LauncherInventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.CombineButton.") end
+	if not self._combineControls or not self._cancelCombineButton or not self._confirmCombineButton then
+		warn("[LAUNCHER_INVENTORY_UI] CombineControls must contain CancelButton and ConfirmCombineButton.")
+	end
+	if not self._combineConfirmFrame or not self._combineBackButton or not self._combineModalConfirmButton or not self._combineDialog or not self._combineOutputSlot then
+		warn("[LAUNCHER_INVENTORY_UI] CombineConfirmFrame tree is incomplete; check ProjectTreeSpec.UI.LauncherInventory.")
+	end
+	for index = 1, 3 do
+		if not self._combineInputSlots[index] then
+			warn(string.format("[LAUNCHER_INVENTORY_UI] Missing CombineConfirmFrame.Dialog.InputLaunchers.InputSlot%d.", index))
+		end
+	end
+
+	if self._combineControls then self._combineControls.Visible = false end
+	if self._combineConfirmFrame then self._combineConfirmFrame.Visible = false end
 
 	local assets = ReplicatedStorage:WaitForChild("Assets")
 	self._launcherAssets = assets:FindFirstChild("Launchers")
@@ -103,7 +143,34 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 	self._equipRemote = remotes:FindFirstChild(RemoteContracts.Names.EquipLauncher) :: RemoteEvent?
 	self._sellRemote = remotes:FindFirstChild(RemoteContracts.Names.SellLauncher) :: RemoteEvent?
+	self._combineRemote = remotes:FindFirstChild(RemoteContracts.Names.CombineLaunchers) :: RemoteEvent?
 	self._feedbackRemote = remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
+	if self._combineButton then
+		table.insert(self._connections, self._combineButton.Activated:Connect(function()
+			self:_enterCombineMode()
+		end))
+	end
+	if self._cancelCombineButton then
+		table.insert(self._connections, self._cancelCombineButton.Activated:Connect(function()
+			self:_exitCombineMode()
+		end))
+	end
+	if self._confirmCombineButton then
+		table.insert(self._connections, self._confirmCombineButton.Activated:Connect(function()
+			self:_openCombineConfirmation()
+		end))
+	end
+	if self._combineBackButton then
+		table.insert(self._connections, self._combineBackButton.Activated:Connect(function()
+			if self._combineConfirmFrame then self._combineConfirmFrame.Visible = false end
+		end))
+	end
+	if self._combineModalConfirmButton then
+		table.insert(self._connections, self._combineModalConfirmButton.Activated:Connect(function()
+			self:_requestCombine()
+		end))
+	end
+
 	if self._equip then
 		table.insert(self._connections, self._equip.Activated:Connect(function()
 			local entry = self._selected
@@ -274,6 +341,20 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 					warn(string.format("[LAUNCHER_INVENTORY_UI] Launcher sale rejected: reason=%s", reason))
 					self:_showToast(ConfirmationTextConfig.Get("LauncherSellFailed", { reason = reason }))
 				end
+			elseif message.EventType == "LauncherCombineResult" then
+				self._pendingCombine = false
+				if payload.Success == true and type(payload.ResultLauncher) == "table" then
+					self:_showToast("Combine successful!")
+					self._combineServerResult = payload.ResultLauncher
+					task.spawn(function()
+						self:_playCombineAnimation(payload.ResultLauncher)
+					end)
+				else
+					local reason = tostring(payload.Reason or "Unknown")
+					warn(string.format("[LAUNCHER_INVENTORY_UI] Combine rejected: reason=%s", reason))
+					self:_showToast("Could not combine Launchers: " .. reason)
+					self:_refreshCombineButtons()
+				end
 			end
 			self:_refreshRightPanel()
 		end))
@@ -281,6 +362,9 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 
 	if not (self._feedbackRemote and self._feedbackRemote:IsA("RemoteEvent")) then
 		warn("[LAUNCHER_INVENTORY_UI] stage=startup_missing_feedback_remote path=ReplicatedStorage.LauncherArenaRemotes.GameplayFeedback")
+	end
+	if not (self._combineRemote and self._combineRemote:IsA("RemoteEvent")) then
+		warn("[LAUNCHER_INVENTORY_UI] Missing ReplicatedStorage.LauncherArenaRemotes.CombineLaunchers.")
 	end
 
 	if self._provider then
@@ -295,6 +379,9 @@ function LauncherInventoryUIController:_inLobby(): boolean
 end
 
 function LauncherInventoryUIController:SetVisible(value: boolean)
+	if not value and self._combineMode and not self._pendingCombine then
+		self:_exitCombineMode()
+	end
 	if self._gui then
 		self._gui.Enabled = value
 		if value and self._latestSnapshot then
