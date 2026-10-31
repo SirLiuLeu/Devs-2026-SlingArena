@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local DeepCopy = require(ReplicatedStorage.Shared.Utils.DeepCopy)
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 
 local MockData = {}
 
@@ -24,6 +25,25 @@ local function buildAllPetInventory(prefix: string): { [string]: any }
 	return inventory
 end
 
+local function buildMockLauncherInventory(): { [string]: any }
+	local inventory = {}
+	for _, definitionId in ipairs(LauncherConfig.GetAllIds()) do
+		for copyIndex = 1, 4 do
+			local isDefault = definitionId == LauncherConfig.DefaultLauncherId and copyIndex == 1
+			local instanceId = if isDefault then "default_normal_launcher"
+				else string.format("mock_%s_%d", string.lower(definitionId), copyIndex)
+			inventory[instanceId] = {
+				definitionId = definitionId,
+				star = 1,
+				level = copyIndex,
+				rarity = "Common",
+				acquiredAt = os.time(),
+			}
+		end
+	end
+	return inventory
+end
+
 MockData.MOCK_SCHEMA_DEFAULTS = {
 	Level = 1,
 	Coin = 0,
@@ -31,13 +51,7 @@ MockData.MOCK_SCHEMA_DEFAULTS = {
 	OwnedItems = { hp_potion = 5, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5 },
 	OwnedPets = {},
 	EquippedPets = { [1] = nil, [2] = nil, [3] = nil },
-	OwnedLaunchers = {
-		default_normal_launcher = { definitionId = "Normalduck", star = 1, level = 1 },
-		mock_kingduck_1 = { definitionId = "Kingduck", star = 1, level = 1 },
-		mock_witchduck_1 = { definitionId = "Witchduck", star = 1, level = 1 },
-		mock_drakeduck_1 = { definitionId = "Drakeduck", star = 1, level = 1 },
-		mock_shielduck_1 = { definitionId = "Shielduck", star = 1, level = 1 },
-	},
+	OwnedLaunchers = buildMockLauncherInventory(),
 	EquippedLauncherInstanceId = "default_normal_launcher",
 	ProgressPoints = {
 		TotalPoints = 0,
