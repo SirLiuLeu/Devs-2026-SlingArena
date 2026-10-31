@@ -30,8 +30,11 @@ local function applyDefaults(target: { [any]: any }, defaults: { [any]: any })
 end
 
 local function normalizeInventory(data: { [string]: any })
-	-- Injection point: keep server-owned inventory state canonical here until DataStores are implemented.
-	applyDefaults(data, MOCK_SCHEMA_DEFAULTS)
+	-- Keep existing opt-in player fixtures intact. OwnedLaunchers are a whole inventory
+	-- snapshot, not a nested set of defaults to merge into every seeded profile.
+	local defaults = DeepCopy.Copy(MOCK_SCHEMA_DEFAULTS)
+	defaults.OwnedLaunchers = {}
+	applyDefaults(data, defaults)
 	if type(data.OwnedItems) ~= "table" then data.OwnedItems = {} end
 	if type(data.OwnedPets) ~= "table" then data.OwnedPets = {} end
 	if type(data.EquippedPets) ~= "table" then data.EquippedPets = { [1] = nil, [2] = nil, [3] = nil } end
