@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local RarityConfig = require(ReplicatedStorage.Shared.Config.RarityConfig)
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local MockData = require(ReplicatedStorage.Client.Services.MockData)
@@ -22,7 +23,7 @@ InventoryDataProvider.__index = InventoryDataProvider
 
 export type InventorySnapshot = {
 	ownedItems: { [string]: number },
-	ownedLaunchers: { { instanceId: string, definitionId: string, id: string, star: number, level: number, equipped: boolean, name: string?, icon: string?, stats: any? } },
+	ownedLaunchers: { { instanceId: string, definitionId: string, id: string, star: number, rarity: string, level: number, equipped: boolean, name: string?, icon: string?, stats: any? } },
 	launcherCapacity: number,
 	selectedItemId: string?,
 	selectedLauncherId: string?,
@@ -68,7 +69,10 @@ local function cloneLaunchers(launchers): any
 	local isArray = #launchers > 0
 	if isArray then
 		for _, launcherEntry in ipairs(launchers) do
-			table.insert(result, table.clone(launcherEntry))
+			local clonedEntry = table.clone(launcherEntry)
+			clonedEntry.star = math.clamp(math.floor(tonumber(clonedEntry.star) or 1), 1, RarityConfig.MaxStar)
+			clonedEntry.rarity = RarityConfig.GetByStar(clonedEntry.star).id
+			table.insert(result, clonedEntry)
 		end
 		return result
 	end
@@ -78,7 +82,8 @@ local function cloneLaunchers(launchers): any
 			instanceId = instanceId,
 			definitionId = definitionId,
 			id = definitionId,
-			star = launcherEntry.star or 1,
+			star = math.clamp(math.floor(tonumber(launcherEntry.star) or 1), 1, RarityConfig.MaxStar),
+			rarity = RarityConfig.GetByStar(launcherEntry.star).id,
 			level = launcherEntry.level or 1,
 			equipped = false,
 			name = launcherEntry.name,
