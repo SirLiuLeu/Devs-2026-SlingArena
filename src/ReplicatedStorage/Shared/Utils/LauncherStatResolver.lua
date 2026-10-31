@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local RarityConfig = require(ReplicatedStorage.Shared.Config.RarityConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 
 local LauncherStatResolver = {}
@@ -22,7 +23,6 @@ export type ResolvedLauncherStats = {
 	expBonus: number,
 }
 
-local STAR_MULTIPLIER_PER_RANK = 0.08
 local LEVEL_MULTIPLIER_PER_LEVEL = 0.03
 
 local function readPassiveValue(passiveAbility: any?, key: string): number?
@@ -55,15 +55,17 @@ local function resolveExpBonus(passiveAbility: any?): number
 	return readPassiveAdd(passiveAbility, "expBonus")
 end
 
-function LauncherStatResolver.Resolve(definitionId: string, star: number?, level: number?): ResolvedLauncherStats
+function LauncherStatResolver.Resolve(definitionId: string, star: number?, level: number?, rarityId: string?): ResolvedLauncherStats
 	local launcher = LauncherConfig.GetById(definitionId) or LauncherConfig.GetById(LauncherConfig.DefaultLauncherId)
 	local base = LauncherConfig.BaseStats
 	local launcherStats = launcher and launcher.stats or {}
-	local safeStar = math.max(1, math.floor(star or 1))
+	local safeStar = math.clamp(math.floor(tonumber(star) or 1), 1, RarityConfig.MaxStar)
 	local safeLevel = math.max(1, math.floor(level or 1))
-	local starMultiplier = 1 + ((safeStar - 1) * STAR_MULTIPLIER_PER_RANK)
+	local rarity = RarityConfig.GetById(rarityId) or RarityConfig.GetByStar(safeStar)
+	local rarityMultiplier = rarity.statMultiplier or 1
 	local levelMultiplier = 1 + ((safeLevel - 1) * LEVEL_MULTIPLIER_PER_LEVEL)
-	local growthMultiplier = starMultiplier * levelMultiplier
+	-- Each combine tier is a 20% step; rarity is the canonical stat multiplier.
+	local growthMultiplier = rarityMultiplier * levelMultiplier
 	local passive = launcher and launcher.passiveAbility or nil
 
 	local maxHP = (launcherStats.maxHP or base.maxHP) * growthMultiplier * readPassiveMultiplier(passive, "maxHpMultiplier")
