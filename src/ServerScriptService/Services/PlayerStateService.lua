@@ -437,6 +437,7 @@ function PlayerStateService:_ensureDefaultLauncher(player: Player)
 	state.OwnedLaunchers[defaultInstanceId] = state.OwnedLaunchers[defaultInstanceId] or {
 		definitionId = LauncherConfig.DefaultLauncherId,
 		star = 1,
+		rarity = "Common",
 		level = 1,
 		acquiredAt = os.time(),
 	}
@@ -457,7 +458,8 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	local definitionId = (equippedInstance and equippedInstance.definitionId) or state.LaunchershotType or LauncherConfig.DefaultLauncherId
 	local star = (equippedInstance and equippedInstance.star) or 1
 	local launcherLevel = (equippedInstance and equippedInstance.level) or math.max(state.Level, 1)
-	local resolved = LauncherStatResolver.Resolve(definitionId, star, launcherLevel)
+	local launcherRarity = equippedInstance and equippedInstance.rarity or "Common"
+	local resolved = LauncherStatResolver.Resolve(definitionId, star, launcherLevel, launcherRarity)
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if dataService and typeof(dataService.GetData) == "function" then
 		local data = dataService:GetData(player)
