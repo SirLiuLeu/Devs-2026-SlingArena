@@ -367,6 +367,7 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 				else
 					self._pendingCombine = false
 					self._pendingCombineRequestId = nil
+					if self._combineModalConfirmButton then self._combineModalConfirmButton.Text = "Confirm" end
 					local reason = tostring(payload.Reason or "Unknown")
 					warn(string.format("[LAUNCHER_INVENTORY_UI] Combine rejected: reason=%s", reason))
 					self:_showToast("Could not combine Launchers: " .. reason)
