@@ -161,7 +161,7 @@ function PlayerDataService:_ensureLauncherData(data: { [string]: any })
 		end
 	end
 	if type(data.EquippedLauncherInstanceId) ~= "string" or data.OwnedLaunchers[data.EquippedLauncherInstanceId] == nil then
-		data.OwnedLaunchers.default_normal_launcher = data.OwnedLaunchers.default_normal_launcher or { definitionId = "NormalLauncher", star = 1, level = 1, acquiredAt = os.time() }
+		data.OwnedLaunchers.default_normal_launcher = data.OwnedLaunchers.default_normal_launcher or { definitionId = LauncherConfig.DefaultLauncherId, star = 1, rarity = "Common", level = 1, acquiredAt = os.time() }
 		data.EquippedLauncherInstanceId = "default_normal_launcher"
 	end
 end
