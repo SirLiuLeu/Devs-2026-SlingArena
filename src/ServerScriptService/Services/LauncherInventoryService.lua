@@ -163,18 +163,18 @@ function LauncherInventoryService:Sell(player: Player, instanceId: string)
 end
 
 
-function LauncherInventoryService:Combine(player: Player, instanceIds: { string })
-	print(string.format("[LAUNCHER_INVENTORY] Combine request received: player=%s count=%d", player.Name, #instanceIds))
+function LauncherInventoryService:Combine(player: Player, instanceIds: { string }, requestId: number?)
+	print(string.format("[LAUNCHER_INVENTORY] Combine request received: player=%s count=%d requestId=%s", player.Name, #instanceIds, tostring(requestId)))
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local state = stateService and stateService:GetState(player)
 	if not state or state.LocationState ~= GameStates.SessionState.Lobby then
-		self:_feedback(player, false, "LobbyOnly", "LauncherCombineResult")
+		self:_feedback(player, false, "LobbyOnly", "LauncherCombineResult", nil, { RequestId = requestId })
 		return false, "LobbyOnly"
 	end
 
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not dataService or typeof(dataService.CombineLaunchers) ~= "function" then
-		self:_feedback(player, false, "MissingPlayerDataService", "LauncherCombineResult")
+		self:_feedback(player, false, "MissingPlayerDataService", "LauncherCombineResult", nil, { RequestId = requestId })
 		return false, "MissingPlayerDataService"
 	end
 
@@ -197,6 +197,7 @@ function LauncherInventoryService:Combine(player: Player, instanceIds: { string 
 
 	self:_feedback(player, ok, reason, "LauncherCombineResult", nil, {
 		ResultLauncher = resultLauncher,
+		RequestId = requestId,
 	})
 	return ok, reason
 end
@@ -269,11 +270,11 @@ function LauncherInventoryService:Init()
 				return
 			end
 			local callOk, callError = pcall(function()
-				self:Combine(player, payload.instanceIds)
+				self:Combine(player, payload.instanceIds, payload.requestId)
 			end)
 			if not callOk then
 				warn(string.format("[LAUNCHER_INVENTORY] Combine handler exception: player=%s error=%s", player.Name, tostring(callError)))
-				self:_feedback(player, false, "InternalError", "LauncherCombineResult")
+				self:_feedback(player, false, "InternalError", "LauncherCombineResult", nil, { RequestId = payload.requestId })
 			end
 		end)
 	else
