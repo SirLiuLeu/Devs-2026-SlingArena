@@ -266,7 +266,13 @@ function LauncherInventoryService:Init()
 		self._combineRemote.OnServerEvent:Connect(function(player: Player, payload: any)
 			if not RemoteContracts.Validate(RemoteContracts.Names.CombineLaunchers, payload) then
 				warn(string.format("[LAUNCHER_INVENTORY] Invalid combine payload: player=%s", player.Name))
-				self:_feedback(player, false, "InvalidRequest", "LauncherCombineResult")
+				local requestId = if type(payload) == "table"
+					and typeof(payload.requestId) == "number"
+					and payload.requestId >= 1
+					and payload.requestId % 1 == 0
+					then payload.requestId
+					else nil
+				self:_feedback(player, false, "InvalidRequest", "LauncherCombineResult", nil, { RequestId = requestId })
 				return
 			end
 			local callOk, callError = pcall(function()
