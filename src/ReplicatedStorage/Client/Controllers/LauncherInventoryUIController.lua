@@ -348,7 +348,8 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 					return
 				end
 				if payload.Success == true and type(payload.ResultLauncher) == "table" then
-					-- Keep the controls locked until the result animation has finished.
+					-- The server response invalidates the request timeout; keep the controls locked through animation.
+					self._pendingCombineRequestId = nil
 					self:_showToast("Combine successful!")
 					self._combineServerResult = payload.ResultLauncher
 					task.spawn(function()
