@@ -54,6 +54,8 @@ function LauncherInventoryUIController.new(playerGui: PlayerGui)
 		_combineMode = false,
 		_selectedCombineEntries = {},
 		_pendingCombine = false,
+		_combineRequestCounter = 0,
+		_pendingCombineRequestId = nil,
 	}, LauncherInventoryUIController)
 end
 
@@ -342,14 +344,28 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 					self:_showToast(ConfirmationTextConfig.Get("LauncherSellFailed", { reason = reason }))
 				end
 			elseif message.EventType == "LauncherCombineResult" then
-				self._pendingCombine = false
+				if payload.RequestId ~= self._pendingCombineRequestId then
+					return
+				end
 				if payload.Success == true and type(payload.ResultLauncher) == "table" then
+					-- Keep the controls locked until the result animation has finished.
 					self:_showToast("Combine successful!")
 					self._combineServerResult = payload.ResultLauncher
 					task.spawn(function()
-						self:_playCombineAnimation(payload.ResultLauncher)
+						local animationOk, animationError = pcall(function()
+							self:_playCombineAnimation(payload.ResultLauncher)
+						end)
+						if not animationOk then
+							warn(string.format("[LAUNCHER_INVENTORY_UI] Combine animation failed: %s", tostring(animationError)))
+							self._pendingCombine = false
+							self._pendingCombineRequestId = nil
+							if self._combineModalConfirmButton then self._combineModalConfirmButton.Text = "Confirm" end
+							self:_exitCombineMode()
+						end
 					end)
 				else
+					self._pendingCombine = false
+					self._pendingCombineRequestId = nil
 					local reason = tostring(payload.Reason or "Unknown")
 					warn(string.format("[LAUNCHER_INVENTORY_UI] Combine rejected: reason=%s", reason))
 					self:_showToast("Could not combine Launchers: " .. reason)
@@ -357,6 +373,7 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 				end
 			end
 			self:_refreshRightPanel()
+			self:_refreshCombineButtons()
 		end))
 	end
 
@@ -436,6 +453,10 @@ function LauncherInventoryUIController:_refreshCombineButtons()
 	if self._combineModalConfirmButton then
 		self._combineModalConfirmButton.Active = not self._pendingCombine
 		self._combineModalConfirmButton.AutoButtonColor = not self._pendingCombine
+	end
+	if self._combineBackButton then
+		self._combineBackButton.Active = not self._pendingCombine
+		self._combineBackButton.AutoButtonColor = not self._pendingCombine
 	end
 end
 
@@ -601,6 +622,9 @@ function LauncherInventoryUIController:_requestCombine()
 		table.insert(instanceIds, latest.instanceId)
 	end
 	if #instanceIds ~= 3 then return end
+	self._combineRequestCounter += 1
+	local requestId = self._combineRequestCounter
+	self._pendingCombineRequestId = requestId
 	self._pendingCombine = true
 	if self._combineModalConfirmButton then
 		self._combineModalConfirmButton.Text = "Combining..."
@@ -608,10 +632,11 @@ function LauncherInventoryUIController:_requestCombine()
 		self._combineModalConfirmButton.AutoButtonColor = false
 	end
 	self:_refreshCombineButtons()
-	self._combineRemote:FireServer({ instanceIds = instanceIds })
+	self._combineRemote:FireServer({ instanceIds = instanceIds, requestId = requestId })
 	task.delay(8, function()
-		if self._pendingCombine then
+		if self._pendingCombine and self._pendingCombineRequestId == requestId then
 			self._pendingCombine = false
+			self._pendingCombineRequestId = nil
 			warn("[LAUNCHER_INVENTORY_UI] Combine feedback timeout; server result was not received.")
 			self:_showToast("Combine request timed out. Please check your inventory.")
 			if self._combineModalConfirmButton then
@@ -641,7 +666,15 @@ local function scaleUDim2(value: UDim2, multiplier: number): UDim2
 end
 
 function LauncherInventoryUIController:_playCombineAnimation(resultData)
+	if self._gui and not self._gui.Enabled then
+		self._pendingCombine = false
+		self._pendingCombineRequestId = nil
+		self:_exitCombineMode()
+		return
+	end
 	if not (self._combineConfirmFrame and self._combineDialog and self._combineOutputSlot) then
+		self._pendingCombine = false
+		self._pendingCombineRequestId = nil
 		self:_exitCombineMode()
 		return
 	end
@@ -762,6 +795,7 @@ function LauncherInventoryUIController:_playCombineAnimation(resultData)
 	if self._combineConfirmFrame then self._combineConfirmFrame.Visible = false end
 	if self._combineModalConfirmButton then self._combineModalConfirmButton.Text = "Confirm" end
 	self._pendingCombine = false
+	self._pendingCombineRequestId = nil
 	self:_exitCombineMode()
 end
 
