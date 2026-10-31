@@ -694,6 +694,10 @@ function LauncherInventoryUIController:_playCombineAnimation(resultData)
 	}
 	local outputDisplay = self:_populatePreviewHolder(self._combineOutputSlot, resultEntry)
 	if not outputDisplay then
+		warn("[LAUNCHER_INVENTORY_UI] Combine result preview could not be created; closing combine mode.")
+		self._pendingCombine = false
+		self._pendingCombineRequestId = nil
+		if self._combineModalConfirmButton then self._combineModalConfirmButton.Text = "Confirm" end
 		self:_exitCombineMode()
 		return
 	end
@@ -911,7 +915,9 @@ function LauncherInventoryUIController:_updateSlot(slot: GuiObject, entry)
 
 		local checkButton = root:FindFirstChild("CombineCheckButton", true)
 		if checkButton and checkButton:IsA("GuiObject") then
-			checkButton.Visible = self._combineMode
+			-- The shared slot template is also cloned into confirmation preview holders.
+			-- Only inventory-grid slots should expose selection controls.
+			checkButton.Visible = self._combineMode and slot.Parent == self._grid
 			local selected = false
 			for _, selectedEntry in ipairs(self._selectedCombineEntries) do
 				if self:_entryKey(selectedEntry) == self:_entryKey(entry) then selected = true break end
