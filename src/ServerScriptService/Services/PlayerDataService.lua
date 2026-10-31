@@ -6,6 +6,7 @@ local HttpService = game:GetService("HttpService")
 
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local RarityConfig = require(ReplicatedStorage.Shared.Config.RarityConfig)
 local MockProvider = require(script.Parent.DataProviders.MockProvider)
 local PetsUpgradeConfig = require(ReplicatedStorage.Shared.Config.PetsUpgradeConfig)
 
@@ -89,7 +90,7 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 		},
 		Diamonds = 0,
 		OwnedItems = {},
-		OwnedLaunchers = { default_normal_launcher = { definitionId = "Normalduck", star = 1, level = 1, acquiredAt = os.time() } },
+		OwnedLaunchers = { default_normal_launcher = { definitionId = "Normalduck", star = 1, rarity = "Common", level = 1, acquiredAt = os.time() } },
 		EquippedLauncherInstanceId = "default_normal_launcher",
 		OwnedPets = buildStarterPetInventory(),
 		EquippedPets = { [1] = nil, [2] = nil, [3] = nil },
@@ -147,7 +148,8 @@ function PlayerDataService:_ensureLauncherData(data: { [string]: any })
 			if not LauncherConfig.GetById(launcher.definitionId) then
 				launcher.definitionId = LauncherConfig.DefaultLauncherId
 			end
-			launcher.star = math.max(1, math.floor(tonumber(launcher.star) or 1))
+			launcher.star = math.clamp(math.floor(tonumber(launcher.star) or 1), 1, RarityConfig.MaxStar)
+			launcher.rarity = RarityConfig.GetByStar(launcher.star).id
 			launcher.level = math.max(1, math.floor(tonumber(launcher.level) or 1))
 			launcher.acquiredAt = tonumber(launcher.acquiredAt) or os.time()
 			launcher.expiresAt = tonumber(launcher.expiresAt)
@@ -541,6 +543,7 @@ function PlayerDataService:GrantLauncher(player: Player, definitionId: string, i
 			data.OwnedLaunchers[id] = {
 				definitionId = definitionId,
 				star = 1,
+				rarity = "Common",
 				level = 1,
 				acquiredAt = os.time(),
 				isTemporary = if isTemporary then true else nil,
@@ -565,6 +568,115 @@ function PlayerDataService:EquipLauncher(player: Player, instanceId: string): (b
 		return data
 	end)
 	return equipped, if equipped then nil else "NotOwned"
+end
+
+
+-- Combines exactly three compatible, permanent, unequipped Launcher instances.
+-- Ownership removal and result creation happen inside one authoritative data mutation.
+function PlayerDataService:CombineLaunchers(player: Player, instanceIds: { string }): (boolean, string?, { [string]: any }?)
+	if type(instanceIds) ~= "table" or #instanceIds ~= 3 then
+		return false, "InvalidRequest", nil
+	end
+
+	local seen = {}
+	for index = 1, 3 do
+		local instanceId = instanceIds[index]
+		if typeof(instanceId) ~= "string" or instanceId == "" or #instanceId > 128 or seen[instanceId] then
+			return false, "InvalidRequest", nil
+		end
+		seen[instanceId] = true
+	end
+
+	local failure: string? = nil
+	local result: { [string]: any }? = nil
+	local resultInstanceId = "launcher_" .. HttpService:GenerateGUID(false)
+
+	self:UpdateData(player, function(data)
+		self:_ensureLauncherData(data)
+
+		local selected = {}
+		local firstLauncher = nil
+		local highestLevel = 1
+
+		for index = 1, 3 do
+			local instanceId = instanceIds[index]
+			local launcher = data.OwnedLaunchers[instanceId]
+			if type(launcher) ~= "table" then
+				failure = "NotOwned"
+				return data
+			end
+			if instanceId == "default_normal_launcher" then
+				failure = "ProtectedLauncher"
+				return data
+			end
+			if data.EquippedLauncherInstanceId == instanceId then
+				failure = "Equipped"
+				return data
+			end
+			local expiresAt = tonumber(launcher.expiresAt)
+			if launcher.isTemporary == true or expiresAt ~= nil then
+				failure = "TemporaryLauncher"
+				return data
+			end
+			if expiresAt and expiresAt <= os.time() then
+				failure = "Expired"
+				return data
+			end
+
+			if not firstLauncher then
+				firstLauncher = launcher
+			else
+				if launcher.definitionId ~= firstLauncher.definitionId then
+					failure = "DifferentLauncher"
+					return data
+				end
+				if launcher.star ~= firstLauncher.star or launcher.rarity ~= firstLauncher.rarity then
+					failure = "DifferentRarity"
+					return data
+				end
+			end
+
+			highestLevel = math.max(highestLevel, math.max(1, math.floor(tonumber(launcher.level) or 1)))
+			table.insert(selected, instanceId)
+		end
+
+		if not firstLauncher then
+			failure = "InvalidRequest"
+			return data
+		end
+
+		local nextRarity = RarityConfig.GetNext(firstLauncher.rarity)
+		if not nextRarity then
+			failure = "MaxRarity"
+			return data
+		end
+
+		local definitionId = tostring(firstLauncher.definitionId)
+		if not LauncherConfig.GetById(definitionId) then
+			failure = "InvalidLauncher"
+			return data
+		end
+
+		for _, instanceId in ipairs(selected) do
+			data.OwnedLaunchers[instanceId] = nil
+		end
+
+		result = {
+			instanceId = resultInstanceId,
+			definitionId = definitionId,
+			star = nextRarity.star,
+			rarity = nextRarity.id,
+			level = highestLevel,
+			acquiredAt = os.time(),
+		}
+		data.OwnedLaunchers[resultInstanceId] = result
+		return data
+	end)
+
+	if failure then
+		return false, failure, nil
+	end
+	return result ~= nil, if result then nil else "CombineFailed", result
 end
 
 function PlayerDataService:UnequipLauncher(player: Player): boolean
