@@ -14,6 +14,7 @@ function LauncherInventoryService.new(context)
 	self._equipRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.EquipLauncher) :: RemoteEvent?
 	self._unequipRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.UnequipLauncher) :: RemoteEvent?
 	self._sellRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.SellLauncher) :: RemoteEvent?
+	self._combineRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.CombineLaunchers) :: RemoteEvent?
 	return self
 end
 
@@ -161,12 +162,52 @@ function LauncherInventoryService:Sell(player: Player, instanceId: string)
 	return ok, reason
 end
 
+
+function LauncherInventoryService:Combine(player: Player, instanceIds: { string })
+	print(string.format("[LAUNCHER_INVENTORY] Combine request received: player=%s count=%d", player.Name, #instanceIds))
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local state = stateService and stateService:GetState(player)
+	if not state or state.LocationState ~= GameStates.SessionState.Lobby then
+		self:_feedback(player, false, "LobbyOnly", "LauncherCombineResult")
+		return false, "LobbyOnly"
+	end
+
+	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
+	if not dataService or typeof(dataService.CombineLaunchers) ~= "function" then
+		self:_feedback(player, false, "MissingPlayerDataService", "LauncherCombineResult")
+		return false, "MissingPlayerDataService"
+	end
+
+	local ok, reason, resultLauncher = dataService:CombineLaunchers(player, instanceIds)
+	if ok then
+		stateService:_syncInventoryFromData(player)
+		stateService:PublishState(player)
+		print(string.format(
+			"[LAUNCHER_INVENTORY] Combine completed: player=%s resultInstanceId=%s launcherId=%s rarity=%s star=%s level=%s",
+			player.Name,
+			tostring(resultLauncher and resultLauncher.instanceId),
+			tostring(resultLauncher and resultLauncher.definitionId),
+			tostring(resultLauncher and resultLauncher.rarity),
+			tostring(resultLauncher and resultLauncher.star),
+			tostring(resultLauncher and resultLauncher.level)
+		))
+	else
+		warn(string.format("[LAUNCHER_INVENTORY] Combine rejected: player=%s reason=%s", player.Name, tostring(reason or "Unknown")))
+	end
+
+	self:_feedback(player, ok, reason, "LauncherCombineResult", nil, {
+		ResultLauncher = resultLauncher,
+	})
+	return ok, reason
+end
+
 function LauncherInventoryService:Init()
 	print(string.format(
-		"[LAUNCHER_INVENTORY] stage=init equipRemoteBound=%s unequipRemoteBound=%s sellRemoteBound=%s remotesFolder=%s",
+		"[LAUNCHER_INVENTORY] stage=init equipRemoteBound=%s unequipRemoteBound=%s sellRemoteBound=%s combineRemoteBound=%s remotesFolder=%s",
 		tostring(self._equipRemote ~= nil and self._equipRemote:IsA("RemoteEvent")),
 		tostring(self._unequipRemote ~= nil and self._unequipRemote:IsA("RemoteEvent")),
 		tostring(self._sellRemote ~= nil and self._sellRemote:IsA("RemoteEvent")),
+		tostring(self._combineRemote ~= nil and self._combineRemote:IsA("RemoteEvent")),
 		self._context.Remotes:GetFullName()
 	))
 	if self._equipRemote and self._equipRemote:IsA("RemoteEvent") then
@@ -220,6 +261,25 @@ function LauncherInventoryService:Init()
 	else
 		warn("[LAUNCHER_INVENTORY] Missing ReplicatedStorage.LauncherArenaRemotes.SellLauncher (RemoteEvent); create it through Rojo.")
 	end
+	if self._combineRemote and self._combineRemote:IsA("RemoteEvent") then
+		self._combineRemote.OnServerEvent:Connect(function(player: Player, payload: any)
+			if not RemoteContracts.Validate(RemoteContracts.Names.CombineLaunchers, payload) then
+				warn(string.format("[LAUNCHER_INVENTORY] Invalid combine payload: player=%s", player.Name))
+				self:_feedback(player, false, "InvalidRequest", "LauncherCombineResult")
+				return
+			end
+			local callOk, callError = pcall(function()
+				self:Combine(player, payload.instanceIds)
+			end)
+			if not callOk then
+				warn(string.format("[LAUNCHER_INVENTORY] Combine handler exception: player=%s error=%s", player.Name, tostring(callError)))
+				self:_feedback(player, false, "InternalError", "LauncherCombineResult")
+			end
+		end)
+	else
+		warn("[LAUNCHER_INVENTORY] Missing ReplicatedStorage.LauncherArenaRemotes.CombineLaunchers (RemoteEvent); create it through Rojo.")
+	end
+
 end
 
 return LauncherInventoryService
