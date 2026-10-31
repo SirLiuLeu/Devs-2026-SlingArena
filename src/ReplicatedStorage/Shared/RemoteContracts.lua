@@ -59,6 +59,7 @@ RemoteContracts.Names = {
 	PurchaseItem = "PurchaseItem",
 	PurchaseLauncher = "PurchaseLauncher",
 	SellLauncher = "SellLauncher",
+	CombineLaunchers = "CombineLaunchers",
 	PetProjectileVisual = "PetProjectileVisual",
 }
 
@@ -203,6 +204,23 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.SellLauncher] = function(instanceId: any): boolean
 		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
+	end,
+	[RemoteContracts.Names.CombineLaunchers] = function(payload: any): boolean
+		if type(payload) ~= "table" or type(payload.instanceIds) ~= "table" then
+			return false
+		end
+		if #payload.instanceIds ~= 3 then
+			return false
+		end
+		local seen = {}
+		for index = 1, 3 do
+			local instanceId = payload.instanceIds[index]
+			if typeof(instanceId) ~= "string" or #instanceId == 0 or #instanceId > 128 or seen[instanceId] then
+				return false
+			end
+			seen[instanceId] = true
+		end
+		return true
 	end,
 	[RemoteContracts.Names.RequestPetGrant] = function(definitionId: any): boolean
 		return typeof(definitionId) == "string" and #definitionId > 0 and #definitionId <= 128
