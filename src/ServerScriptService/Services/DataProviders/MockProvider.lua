@@ -33,7 +33,7 @@ local function normalizeInventory(data: { [string]: any })
 	-- Keep existing opt-in player fixtures intact. OwnedLaunchers are a whole inventory
 	-- snapshot, not a nested set of defaults to merge into every seeded profile.
 	local defaults = DeepCopy.Copy(MOCK_SCHEMA_DEFAULTS)
-	defaults.OwnedLaunchers = {}
+	defaults.OwnedLaunchers = nil
 	applyDefaults(data, defaults)
 	if type(data.OwnedItems) ~= "table" then data.OwnedItems = {} end
 	if type(data.OwnedPets) ~= "table" then data.OwnedPets = {} end
