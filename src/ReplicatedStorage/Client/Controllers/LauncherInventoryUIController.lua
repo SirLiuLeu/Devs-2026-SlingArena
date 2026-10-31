@@ -731,8 +731,8 @@ function LauncherInventoryUIController:_playCombineAnimation(resultData)
 	growTween:Play()
 	growTween.Completed:Wait()
 
-	local viewport = getSlotRoot(outputDisplay)
-	viewport = viewport and viewport:FindFirstChild("LauncherPreview", true) or nil
+	local outputRoot = getSlotRoot(outputDisplay)
+	local viewport = outputRoot and outputRoot:FindFirstChild("LauncherPreview", true) or nil
 	local previewModel = viewport and viewport:IsA("ViewportFrame") and viewport:FindFirstChild("PreviewModel") or nil
 	if previewModel and previewModel:IsA("Model") then
 		local initialPivot = previewModel:GetPivot()
@@ -979,16 +979,31 @@ function LauncherInventoryUIController:Render(snapshot)
 	self._latestSnapshot = snapshot
 	if self._gui and self._gui.Enabled == false then return end
 	if not self._grid then return end
+
+	local entries = snapshot.ownedLaunchers or {}
+	local eligibleMap = if self._combineMode then self:_getEligibleCombineMap(entries) else nil
 	local seen = {}
-	for _, entry in ipairs(snapshot.ownedLaunchers or {}) do
+	local latestByKey = {}
+
+	for _, entry in ipairs(entries) do
 		local key = self:_entryKey(entry)
 		if key ~= "" then
 			seen[key] = true
+			latestByKey[key] = entry
 			local slot = self._slotMap[key]
-			if slot and slot.Parent then self:_updateSlot(slot, entry) else self:_spawnSlot(entry) end
+			if slot and slot.Parent then
+				self:_updateSlot(slot, entry)
+			else
+				self:_spawnSlot(entry)
+				slot = self._slotMap[key]
+			end
+			if slot then
+				slot.Visible = not self._combineMode or (eligibleMap ~= nil and eligibleMap[key] == true)
+			end
 			if self._selected and self:_entryKey(self._selected) == key then self._selected = entry end
 		end
 	end
+
 	for key, slot in pairs(self._slotMap) do
 		if not seen[key] then
 			local connection = self._slotConnections[slot]
@@ -998,7 +1013,20 @@ function LauncherInventoryUIController:Render(snapshot)
 			if self._selected and self:_entryKey(self._selected) == key then self._selected = nil end
 		end
 	end
-	if self._capacity then self._capacity.Text = string.format("Capacity: %d/%d", #(snapshot.ownedLaunchers or {}), snapshot.launcherCapacity or 0) end
+
+	if self._combineMode then
+		local retained = {}
+		for _, selected in ipairs(self._selectedCombineEntries) do
+			local key = self:_entryKey(selected)
+			local latest = latestByKey[key]
+			if latest and eligibleMap and eligibleMap[key] then
+				table.insert(retained, latest)
+			end
+		end
+		self._selectedCombineEntries = retained
+	end
+
+	if self._capacity then self._capacity.Text = string.format("Capacity: %d/%d", #entries, snapshot.launcherCapacity or 0) end
 	self:_refreshRightPanel()
 	self:_refreshSlotVisuals()
 end
