@@ -64,20 +64,31 @@ function LauncherStatResolver.Resolve(definitionId: string, star: number?, level
 	local rarity = RarityConfig.GetById(rarityId) or RarityConfig.GetByStar(safeStar)
 	local rarityMultiplier = rarity.statMultiplier or 1
 	local levelMultiplier = 1 + ((safeLevel - 1) * LEVEL_MULTIPLIER_PER_LEVEL)
-	-- Each combine tier is a 20% step; rarity is the canonical stat multiplier.
-	local growthMultiplier = rarityMultiplier * levelMultiplier
+	-- Rarity growth is restricted to the five agreed Launcher stats.
+	-- The pre-existing per-level launchPower growth is preserved independently.
+	local rarityAndLevelMultiplier = rarityMultiplier * levelMultiplier
 	local passive = launcher and launcher.passiveAbility or nil
 
-	local maxHP = (launcherStats.maxHP or base.maxHP) * growthMultiplier * readPassiveMultiplier(passive, "maxHpMultiplier")
-	local baseDamage = (launcherStats.baseDamage or base.baseDamage) * growthMultiplier * readPassiveMultiplier(passive, "damageMultiplier")
-	local regen = (launcherStats.regen or base.regenPerSecond) * growthMultiplier * readPassiveMultiplier(passive, "regenMultiplier")
-	local launchPower = (launcherStats.launchPower or 1) * growthMultiplier
+	local maxHP = (launcherStats.maxHP or base.maxHP) * rarityAndLevelMultiplier * readPassiveMultiplier(passive, "maxHpMultiplier")
+	local baseDamage = (launcherStats.baseDamage or base.baseDamage) * rarityAndLevelMultiplier * readPassiveMultiplier(passive, "damageMultiplier")
+	local regen = (launcherStats.regen or base.regenPerSecond) * rarityAndLevelMultiplier * readPassiveMultiplier(passive, "regenMultiplier")
+	local launchPower = (launcherStats.launchPower or 1) * levelMultiplier
 	local speed = (launcherStats.speed or PhysicsConfig.Movement.MoveSpeed) * readPassiveMultiplier(passive, "moveSpeedMultiplier")
+	local armor = math.clamp(
+		((launcherStats.armor or 0) + readPassiveAdd(passive, "armor")) * rarityMultiplier,
+		0,
+		0.8
+	)
+	local reflectDamage = math.clamp(
+		math.max(launcherStats.reflectDamage or base.reflectDamagePercent, readPassiveAdd(passive, "reflectDamage")) * rarityMultiplier,
+		0,
+		0.5
+	)
 
 	return {
 		maxHP = maxHP,
 		baseDamage = baseDamage,
-		armor = math.clamp((launcherStats.armor or 0) + readPassiveAdd(passive, "armor"), 0, 0.8),
+		armor = armor,
 		regen = regen,
 		speed = speed,
 		launchPower = launchPower,
@@ -85,7 +96,7 @@ function LauncherStatResolver.Resolve(definitionId: string, star: number?, level
 		weight = math.max(1, tonumber(launcherStats.weight) or base.weight or 100),
 		moveSpeed = speed,
 		damageMultiplier = readPassiveMultiplier(passive, "finalDamageMultiplier"),
-		reflectDamage = math.clamp(math.max(launcherStats.reflectDamage or base.reflectDamagePercent, readPassiveAdd(passive, "reflectDamage")), 0, 0.5),
+		reflectDamage = reflectDamage,
 		expBonus = resolveExpBonus(passive),
 	}
 end
