@@ -398,7 +398,7 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 					self._combineServerResult = resultLauncher
 					task.spawn(function()
 						local animationOk, animationError = pcall(function()
-							self:_playCombineAnimation(resultLauncher)
+							self:_playCombineAnimation(resultLauncher, animationToken)
 						end)
 						if not animationOk then
 							warn(string.format("[LAUNCHER_INVENTORY_UI] Combine animation failed: %s", tostring(animationError)))
@@ -809,14 +809,14 @@ local function scaleUDim2(value: UDim2, multiplier: number): UDim2
 	)
 end
 
-function LauncherInventoryUIController:_playCombineAnimation(resultData)
+function LauncherInventoryUIController:_playCombineAnimation(resultData, animationToken: number?)
 	if self._gui and not self._gui.Enabled then
-		self:_completeCombineConfirmation()
+		self:_completeCombineConfirmation(animationToken)
 		return
 	end
 	if not (self._combineConfirmFrame and self._combineDialog and self._combineOutputSlot) then
 		warn("[LAUNCHER_INVENTORY_UI] Combine succeeded but confirmation animation UI is incomplete; returning to Combine Mode.")
-		self:_completeCombineConfirmation()
+		self:_completeCombineConfirmation(animationToken)
 		return
 	end
 	local definitionId = tostring(resultData.definitionId or resultData.id or "")
@@ -835,7 +835,7 @@ function LauncherInventoryUIController:_playCombineAnimation(resultData)
 	local outputDisplay = self:_populatePreviewHolder(self._combineOutputSlot, resultEntry)
 	if not outputDisplay then
 		warn("[LAUNCHER_INVENTORY_UI] Combine result preview could not be created; returning to Combine Mode.")
-		self:_completeCombineConfirmation()
+		self:_completeCombineConfirmation(animationToken)
 		return
 	end
 
@@ -934,7 +934,7 @@ function LauncherInventoryUIController:_playCombineAnimation(resultData)
 	outputDisplay.Position = originalPosition
 	outputDisplay.Size = originalSize
 
-	self:_completeCombineConfirmation()
+	self:_completeCombineConfirmation(animationToken)
 end
 
 function LauncherInventoryUIController:_inLobby(): boolean
