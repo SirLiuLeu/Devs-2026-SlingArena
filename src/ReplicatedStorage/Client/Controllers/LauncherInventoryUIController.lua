@@ -612,6 +612,8 @@ function LauncherInventoryUIController:_completeCombineConfirmation(animationTok
 	if animationToken ~= nil and animationToken ~= self._combineAnimationToken then return end
 	if not self._combineSucceeded then return end
 
+	-- Invalidate duplicate/late callbacks from this animation immediately.
+	self._combineAnimationToken += 1
 	self._pendingCombine = false
 	self._pendingCombineRequestId = nil
 	self._combineAnimationRunning = false
