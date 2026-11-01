@@ -174,7 +174,7 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	end
 	if self._combineBackButton then
 		table.insert(self._connections, self._combineBackButton.Activated:Connect(function()
-			if self._combineConfirmFrame then self._combineConfirmFrame.Visible = false end
+			self:_returnToCombineModeFromConfirmation()
 		end))
 	end
 	if self._combineModalConfirmButton then
@@ -368,10 +368,7 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 						end)
 						if not animationOk then
 							warn(string.format("[LAUNCHER_INVENTORY_UI] Combine animation failed: %s", tostring(animationError)))
-							self._pendingCombine = false
-							self._pendingCombineRequestId = nil
-							if self._combineModalConfirmButton then self._combineModalConfirmButton.Text = "Confirm" end
-							self:_exitCombineMode()
+							self:_finishCombineAndReturnToMode()
 						end
 					end)
 				else
@@ -463,7 +460,7 @@ local function setCombineCheckButtonState(button: ImageButton, selected: boolean
 	local imageId = if selected then COMBINE_CHECKED_IMAGE_ID else COMBINE_UNCHECKED_IMAGE_ID
 	button.Image = imageId
 	button.ImageTransparency = if imageId == "" then 1 else 0
-	-- A simple tint remains visible while the two optional image IDs are blank.
+	-- Keep a subtle tint behind transparent checkbox artwork.
 	button.BackgroundTransparency = 0.15
 	button.BackgroundColor3 = if selected
 		then Color3.fromRGB(70, 165, 115)
@@ -518,6 +515,53 @@ function LauncherInventoryUIController:_exitCombineMode()
 	if self._combineButton then self._combineButton.Visible = true end
 	self:_refreshRightPanel()
 	if self._latestSnapshot then self:Render(self._latestSnapshot) end
+end
+
+function LauncherInventoryUIController:_returnToCombineModeFromConfirmation()
+	if self._pendingCombine then return end
+	if self._combineConfirmFrame then
+		self._combineConfirmFrame.Visible = false
+	end
+
+	-- Back returns to the inventory selection screen without discarding the
+	-- three selected Launchers, so the user can adjust or reconfirm the group.
+	self._combineMode = true
+	if self._combineControls then self._combineControls.Visible = true end
+	if self._combineButton then self._combineButton.Visible = false end
+	if self._latestSnapshot then
+		self:Render(self._latestSnapshot)
+	else
+		self:_refreshRightPanel()
+		self:_refreshSlotVisuals()
+	end
+end
+
+function LauncherInventoryUIController:_finishCombineAndReturnToMode()
+	-- The server has already consumed the three source instances and created
+	-- the upgraded result. Clear the old selection but keep Combine Mode active
+	-- so another eligible group can be combined immediately.
+	self._pendingCombine = false
+	self._pendingCombineRequestId = nil
+	self._combineServerResult = nil
+	self._combineResultPreview = nil
+	table.clear(self._selectedCombineEntries)
+	self._combineMode = true
+
+	if self._combineConfirmFrame then self._combineConfirmFrame.Visible = false end
+	if self._combineModalConfirmButton then
+		self._combineModalConfirmButton.Text = "Confirm"
+	end
+	if self._combineControls then self._combineControls.Visible = true end
+	if self._combineButton then self._combineButton.Visible = false end
+
+	self:_refreshRightPanel()
+	if self._latestSnapshot then
+		-- Rebuild eligibility from the latest server-synchronized inventory:
+		-- consumed sources disappear and the higher-rarity result remains.
+		self:Render(self._latestSnapshot)
+	else
+		self:_refreshSlotVisuals()
+	end
 end
 
 function LauncherInventoryUIController:_toggleCombineSelection(entry)
@@ -698,15 +742,12 @@ end
 
 function LauncherInventoryUIController:_playCombineAnimation(resultData)
 	if self._gui and not self._gui.Enabled then
-		self._pendingCombine = false
-		self._pendingCombineRequestId = nil
-		self:_exitCombineMode()
+		self:_finishCombineAndReturnToMode()
 		return
 	end
 	if not (self._combineConfirmFrame and self._combineDialog and self._combineOutputSlot) then
-		self._pendingCombine = false
-		self._pendingCombineRequestId = nil
-		self:_exitCombineMode()
+		warn("[LAUNCHER_INVENTORY_UI] Combine succeeded but confirmation animation UI is incomplete; returning to Combine Mode.")
+		self:_finishCombineAndReturnToMode()
 		return
 	end
 	local definitionId = tostring(resultData.definitionId or resultData.id or "")
@@ -724,11 +765,8 @@ function LauncherInventoryUIController:_playCombineAnimation(resultData)
 	}
 	local outputDisplay = self:_populatePreviewHolder(self._combineOutputSlot, resultEntry)
 	if not outputDisplay then
-		warn("[LAUNCHER_INVENTORY_UI] Combine result preview could not be created; closing combine mode.")
-		self._pendingCombine = false
-		self._pendingCombineRequestId = nil
-		if self._combineModalConfirmButton then self._combineModalConfirmButton.Text = "Confirm" end
-		self:_exitCombineMode()
+		warn("[LAUNCHER_INVENTORY_UI] Combine result preview could not be created; returning to Combine Mode.")
+		self:_finishCombineAndReturnToMode()
 		return
 	end
 
@@ -827,11 +865,7 @@ function LauncherInventoryUIController:_playCombineAnimation(resultData)
 	outputDisplay.Position = originalPosition
 	outputDisplay.Size = originalSize
 
-	if self._combineConfirmFrame then self._combineConfirmFrame.Visible = false end
-	if self._combineModalConfirmButton then self._combineModalConfirmButton.Text = "Confirm" end
-	self._pendingCombine = false
-	self._pendingCombineRequestId = nil
-	self:_exitCombineMode()
+	self:_finishCombineAndReturnToMode()
 end
 
 function LauncherInventoryUIController:_inLobby(): boolean
