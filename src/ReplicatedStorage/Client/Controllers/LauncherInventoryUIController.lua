@@ -64,6 +64,7 @@ function LauncherInventoryUIController.new(playerGui: PlayerGui)
 		_combineAnimationTweens = {},
 		_combineAnimationFlights = {},
 		_combineAnimationOutputDisplay = nil,
+		_combineAnimationCompletedEvent = nil,
 		_combineRequestCounter = 0,
 		_pendingCombineRequestId = nil,
 	}, LauncherInventoryUIController)
@@ -568,9 +569,14 @@ function LauncherInventoryUIController:_exitCombineMode()
 end
 
 function LauncherInventoryUIController:_cancelCombineAnimation()
-	-- Invalidate the running coroutine before cancelling its tweens. Any waiter
-	-- resumed by Tween.Completed will see the stale token and stop immediately.
+	-- Invalidate the running coroutine and wake its completion waiter before
+	-- cancelling tweens. Continue therefore never waits for the animation.
 	self._combineAnimationToken += 1
+	local completedEvent = self._combineAnimationCompletedEvent
+	self._combineAnimationCompletedEvent = nil
+	if completedEvent then
+		pcall(function() completedEvent:Fire() end)
+	end
 	for _, tween in ipairs(self._combineAnimationTweens) do
 		pcall(function()
 			tween:Cancel()
@@ -907,21 +913,44 @@ function LauncherInventoryUIController:_playCombineAnimation(resultData, animati
 		return
 	end
 
-	-- Play all three flights simultaneously; their arrival at OutputSlot is the
-	-- end of the combine animation. There is no extra grow/spin/shrink sequence.
+	-- Subscribe to every tween before starting any of them. Waiting sequentially
+	-- on Completed can miss tweens that finish while another tween is being waited.
+	local completedEvent = Instance.new("BindableEvent")
+	self._combineAnimationCompletedEvent = completedEvent
+	local completedConnections = {}
+	local completedCount = 0
+	local animationInterrupted = false
+	for _, tween in ipairs(self._combineAnimationTweens) do
+		table.insert(completedConnections, tween.Completed:Connect(function(playbackState)
+			completedCount += 1
+			if playbackState ~= Enum.PlaybackState.Completed then
+				animationInterrupted = true
+			end
+			if completedCount >= flightCount then
+				completedEvent:Fire()
+			end
+		end))
+	end
+
 	for _, tween in ipairs(self._combineAnimationTweens) do
 		tween:Play()
 	end
-	for _, tween in ipairs(self._combineAnimationTweens) do
-		local playbackState = tween.Completed:Wait()
-		if animationToken ~= self._combineAnimationToken then return end
-		if playbackState ~= Enum.PlaybackState.Completed then
-			self:_completeCombineConfirmation(animationToken)
-			return
-		end
+	if completedCount < flightCount then
+		completedEvent.Event:Wait()
 	end
+	for _, connection in ipairs(completedConnections) do
+		connection:Disconnect()
+	end
+	if self._combineAnimationCompletedEvent == completedEvent then
+		self._combineAnimationCompletedEvent = nil
+	end
+	completedEvent:Destroy()
 
 	if animationToken ~= self._combineAnimationToken then return end
+	if animationInterrupted then
+		self:_completeCombineConfirmation(animationToken)
+		return
+	end
 
 	-- The three source previews are consumed only after a successful server
 	-- response and only once their flight visuals have reached OutputSlot.
