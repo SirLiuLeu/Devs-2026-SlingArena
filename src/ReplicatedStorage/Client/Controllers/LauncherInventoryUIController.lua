@@ -177,12 +177,20 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	end
 	if self._combineBackButton then
 		table.insert(self._connections, self._combineBackButton.Activated:Connect(function()
-			self:_returnToCombineModeFromConfirmation()
+			-- Back is only the pre-combine navigation action. After a successful
+			-- combine, the modal Confirm button becomes the Continue action.
+			if not self._combineSucceeded then
+				self:_returnToCombineModeFromConfirmation()
+			end
 		end))
 	end
 	if self._combineModalConfirmButton then
 		table.insert(self._connections, self._combineModalConfirmButton.Activated:Connect(function()
-			self:_requestCombine()
+			if self._combineSucceeded then
+				self:_returnToCombineModeFromConfirmation()
+			else
+				self:_requestCombine()
+			end
 		end))
 	end
 
@@ -490,19 +498,17 @@ function LauncherInventoryUIController:_refreshCombineButtons()
 		self._confirmCombineButton.TextTransparency = if canConfirm then 0 else 0.5
 	end
 	if self._combineModalConfirmButton then
-		local modalConfirmEnabled = not self._pendingCombine and not self._combineSucceeded
-		self._combineModalConfirmButton.Active = modalConfirmEnabled
-		self._combineModalConfirmButton.AutoButtonColor = modalConfirmEnabled
-		self._combineModalConfirmButton.TextTransparency = if modalConfirmEnabled
-			then self._combineModalConfirmDefaultTextTransparency
-			else math.max(self._combineModalConfirmDefaultTextTransparency, 0.5)
-		self._combineModalConfirmButton.BackgroundTransparency = if modalConfirmEnabled
-			then self._combineModalConfirmDefaultBackgroundTransparency
-			else math.max(self._combineModalConfirmDefaultBackgroundTransparency, 0.35)
+		-- Keep this button usable after success: it becomes the Continue action.
+		-- It is disabled only while the server request is still in flight.
+		self._combineModalConfirmButton.Active = not self._pendingCombine
+		self._combineModalConfirmButton.AutoButtonColor = not self._pendingCombine
+		self._combineModalConfirmButton.TextTransparency = self._combineModalConfirmDefaultTextTransparency
+		self._combineModalConfirmButton.BackgroundTransparency = self._combineModalConfirmDefaultBackgroundTransparency
 	end
 	if self._combineBackButton then
-		self._combineBackButton.Active = not self._pendingCombine
-		self._combineBackButton.AutoButtonColor = not self._pendingCombine
+		self._combineBackButton.Visible = not self._combineSucceeded
+		self._combineBackButton.Active = not self._pendingCombine and not self._combineSucceeded
+		self._combineBackButton.AutoButtonColor = not self._pendingCombine and not self._combineSucceeded
 	end
 end
 
@@ -572,13 +578,12 @@ function LauncherInventoryUIController:_returnToCombineModeFromConfirmation()
 end
 
 function LauncherInventoryUIController:_completeCombineConfirmation()
-	-- Leave the result preview open. Confirm remains disabled until Back returns
-	-- the player to Combine Mode and a fresh compatible group is selected.
+	-- Leave the result preview open. The modal Confirm button now acts as Continue.
 	self._pendingCombine = false
 	self._pendingCombineRequestId = nil
 	self._combineSucceeded = true
 	if self._combineModalConfirmButton then
-		self._combineModalConfirmButton.Text = "Confirm"
+		self._combineModalConfirmButton.Text = "Tiếp tục"
 	end
 	self:_refreshCombineButtons()
 end
