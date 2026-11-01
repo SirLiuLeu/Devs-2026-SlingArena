@@ -316,7 +316,11 @@ local ProjectTreeSpec = {
 		--       ItemSlotTemplate_InventoryUI (Frame)
 		--       LauncherSlotTemplate_LauncherInventoryUI (Frame)
 		--         Root (GuiObject)
-		--           PetPreview (ViewportFrame; Studio-authored launcher model preview)
+		--           RarityBorder (Frame/UIStroke)
+		--           CombineCheckButton (ImageButton; checked/unchecked image IDs are configured in LauncherInventoryUIController)
+		--           SelectedOverlay (Frame; dims other eligible Launcher groups in Combine mode)
+		--           Stars (Frame; Star1..Star5 ImageLabels)
+		--           LauncherPreview (ViewportFrame; Studio-authored Launcher model preview)
 		--     Launchers (Folder)
 		--       Player, Normalduck, Kingduck, Witchduck, Drakeduck, Shielduck
 		--     Food (Folder)
