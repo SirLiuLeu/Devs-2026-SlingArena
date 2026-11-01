@@ -460,7 +460,7 @@ local function setCombineCheckButtonState(button: ImageButton, selected: boolean
 	local imageId = if selected then COMBINE_CHECKED_IMAGE_ID else COMBINE_UNCHECKED_IMAGE_ID
 	button.Image = imageId
 	button.ImageTransparency = if imageId == "" then 1 else 0
-	-- A simple tint remains visible while the two optional image IDs are blank.
+	-- Keep a subtle tint behind transparent checkbox artwork.
 	button.BackgroundTransparency = 0.15
 	button.BackgroundColor3 = if selected
 		then Color3.fromRGB(70, 165, 115)
@@ -765,7 +765,7 @@ function LauncherInventoryUIController:_playCombineAnimation(resultData)
 	}
 	local outputDisplay = self:_populatePreviewHolder(self._combineOutputSlot, resultEntry)
 	if not outputDisplay then
-		warn("[LAUNCHER_INVENTORY_UI] Combine result preview could not be created; closing combine mode.")
+		warn("[LAUNCHER_INVENTORY_UI] Combine result preview could not be created; returning to Combine Mode.")
 		self:_finishCombineAndReturnToMode()
 		return
 	end
