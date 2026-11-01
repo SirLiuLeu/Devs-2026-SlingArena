@@ -19,6 +19,10 @@ LauncherInventoryUIController.__index = LauncherInventoryUIController
 
 local LAUNCHER_SLOT_TEMPLATE_NAME = "LauncherSlotTemplate_LauncherInventoryUI"
 
+-- Fill these two asset IDs after the selected/unselected checkbox artwork is finalized.
+local COMBINE_CHECKED_IMAGE_ID = ""
+local COMBINE_UNCHECKED_IMAGE_ID = ""
+
 local function resolveGui(root: Instance, path: string): GuiObject?
 	local value = PathResolver.resolvePath(root, path)
 	return if value and value:IsA("GuiObject") then value else nil
@@ -137,6 +141,12 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	if not self._template then
 		warn("[LAUNCHER_INVENTORY_UI] " .. LAUNCHER_SLOT_TEMPLATE_NAME .. " missing in ReplicatedStorage.Assets.UI")
 		self._template = nil
+	else
+		local templateRoot = getSlotRoot(self._template)
+		local checkButton = templateRoot and templateRoot:FindFirstChild("CombineCheckButton", true) or nil
+		if not (checkButton and checkButton:IsA("ImageButton")) then
+			warn("[LAUNCHER_INVENTORY_UI] LauncherSlotTemplate_LauncherInventoryUI.Root.CombineCheckButton must be an ImageButton.")
+		end
 	end
 	if not self._launcherAssets then
 		warn("[LAUNCHER_INVENTORY_UI] ReplicatedStorage.Assets.Launchers missing")
@@ -442,6 +452,25 @@ function LauncherInventoryUIController:_getEligibleCombineMap(entries)
 		end
 	end
 	return eligible
+end
+
+function LauncherInventoryUIController:_getSelectedCombineGroupKey(): string?
+	local firstSelected = self._selectedCombineEntries[1]
+	return if firstSelected then self:_combineGroupKey(firstSelected) else nil
+end
+
+local function setCombineCheckButtonState(button: ImageButton, selected: boolean, enabled: boolean)
+	local imageId = if selected then COMBINE_CHECKED_IMAGE_ID else COMBINE_UNCHECKED_IMAGE_ID
+	button.Image = imageId
+	button.ImageTransparency = if imageId == "" then 1 else 0
+	-- A simple tint remains visible while the two optional image IDs are blank.
+	button.BackgroundTransparency = 0.15
+	button.BackgroundColor3 = if selected
+		then Color3.fromRGB(70, 165, 115)
+		else Color3.fromRGB(65, 75, 90)
+	button.ImageColor3 = if enabled then Color3.new(1, 1, 1) else Color3.fromRGB(145, 145, 145)
+	button.Active = enabled
+	button.AutoButtonColor = enabled
 end
 
 function LauncherInventoryUIController:_refreshCombineButtons()
@@ -853,21 +882,55 @@ end
 
 function LauncherInventoryUIController:_bindSlot(slot: GuiObject, entry)
 	local entryKey = self:_entryKey(entry)
-	local connection = slot.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			local currentEntry = self:_findEntryByKey(entryKey)
-			if not currentEntry then return end
-			if self._combineMode then
-				self:_toggleCombineSelection(currentEntry)
+	local connections = {}
+	local root = getSlotRoot(slot)
+	local checkButtonInstance = root and root:FindFirstChild("CombineCheckButton", true) or nil
+	local checkButton = if checkButtonInstance and checkButtonInstance:IsA("ImageButton") then checkButtonInstance else nil
+
+	local function activateSlot()
+		local currentEntry = self:_findEntryByKey(entryKey)
+		if not currentEntry then return end
+		if self._combineMode then
+			local selectedGroupKey = self:_getSelectedCombineGroupKey()
+			if selectedGroupKey and self:_combineGroupKey(currentEntry) ~= selectedGroupKey then
 				return
 			end
-			self._selected = currentEntry
-			if self._provider then self._provider:SelectLauncher(entryKey) end
-			self:_refreshRightPanel()
-			self:_refreshSlotVisuals()
+			self:_toggleCombineSelection(currentEntry)
+			return
 		end
-	end)
-	self._slotConnections[slot] = connection
+		self._selected = currentEntry
+		if self._provider then self._provider:SelectLauncher(entryKey) end
+		self:_refreshRightPanel()
+		self:_refreshSlotVisuals()
+	end
+
+	table.insert(connections, slot.InputBegan:Connect(function(input)
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		-- Let the ImageButton's Activated event own clicks inside its own bounds.
+		if checkButton and checkButton.Visible then
+			local position = input.Position
+			local buttonPosition = checkButton.AbsolutePosition
+			local buttonSize = checkButton.AbsoluteSize
+			local insideButton = position.X >= buttonPosition.X
+				and position.X <= buttonPosition.X + buttonSize.X
+				and position.Y >= buttonPosition.Y
+				and position.Y <= buttonPosition.Y + buttonSize.Y
+			if insideButton then return end
+		end
+		activateSlot()
+	end))
+
+	if checkButton then
+		table.insert(connections, checkButton.Activated:Connect(function()
+			if self._combineMode then
+				activateSlot()
+			end
+		end))
+	end
+
+	self._slotConnections[slot] = connections
 end
 
 function LauncherInventoryUIController:_updateSlot(slot: GuiObject, entry)
@@ -915,15 +978,23 @@ function LauncherInventoryUIController:_updateSlot(slot: GuiObject, entry)
 		end
 
 		local checkButton = root:FindFirstChild("CombineCheckButton", true)
-		if checkButton and checkButton:IsA("GuiObject") then
+		if checkButton and checkButton:IsA("ImageButton") then
 			-- The shared slot template is also cloned into confirmation preview holders.
 			-- Only inventory-grid slots should expose selection controls.
-			checkButton.Visible = self._combineMode and slot.Parent == self._grid
+			local isInventorySlot = slot.Parent == self._grid
+			checkButton.Visible = self._combineMode and isInventorySlot
 			local selected = false
 			for _, selectedEntry in ipairs(self._selectedCombineEntries) do
 				if self:_entryKey(selectedEntry) == self:_entryKey(entry) then selected = true break end
 			end
-			if checkButton:IsA("TextButton") then checkButton.Text = if selected then "✓" else "" end
+			local selectedGroupKey = self:_getSelectedCombineGroupKey()
+			local canSelectThisGroup = selectedGroupKey == nil or self:_combineGroupKey(entry) == selectedGroupKey
+			setCombineCheckButtonState(checkButton, selected, self._combineMode and isInventorySlot and canSelectThisGroup)
+		end
+		local selectedOverlay = root:FindFirstChild("SelectedOverlay", true)
+		if selectedOverlay and selectedOverlay:IsA("GuiObject") and slot.Parent ~= self._grid then
+			selectedOverlay.Visible = false
+			selectedOverlay.Active = false
 		end
 
 		local launcherPreviewViewport = root:FindFirstChild("LauncherPreview")
@@ -949,8 +1020,10 @@ function LauncherInventoryUIController:_spawnSlot(entry)
 end
 
 function LauncherInventoryUIController:_refreshSlotVisuals()
+	local selectedGroupKey = self:_getSelectedCombineGroupKey()
 	for key, slot in pairs(self._slotMap) do
 		if slot.Parent then
+			local entry = self:_findEntryByKey(key)
 			local selected = false
 			if self._combineMode then
 				for _, selectedEntry in ipairs(self._selectedCombineEntries) do
@@ -959,17 +1032,23 @@ function LauncherInventoryUIController:_refreshSlotVisuals()
 			else
 				selected = self._selected ~= nil and key == self:_entryKey(self._selected)
 			end
+			local belongsToSelectedGroup = selectedGroupKey == nil
+				or (entry ~= nil and self:_combineGroupKey(entry) == selectedGroupKey)
+			local dimOtherGroup = self._combineMode and selectedGroupKey ~= nil and not belongsToSelectedGroup
+
 			slot.BackgroundTransparency = if selected then 0 else 0.2
 			local root = getSlotRoot(slot)
 			if root then
 				local selectedOverlay = root:FindFirstChild("SelectedOverlay", true)
 				if selectedOverlay and selectedOverlay:IsA("GuiObject") then
-					selectedOverlay.Visible = self._combineMode and selected
+					-- Dim only the other eligible groups once the first Launcher is selected.
+					selectedOverlay.Visible = dimOtherGroup
+					selectedOverlay.Active = false
 				end
 				local checkButton = root:FindFirstChild("CombineCheckButton", true)
-				if checkButton and checkButton:IsA("GuiObject") then
+				if checkButton and checkButton:IsA("ImageButton") then
 					checkButton.Visible = self._combineMode
-					if checkButton:IsA("TextButton") then checkButton.Text = if selected then "✓" else "" end
+					setCombineCheckButtonState(checkButton, selected, self._combineMode and belongsToSelectedGroup)
 				end
 				local stroke = root:FindFirstChildOfClass("UIStroke")
 				local defaultColor = slot:GetAttribute("RarityBorderColor")
@@ -1048,8 +1127,11 @@ function LauncherInventoryUIController:Render(snapshot)
 
 	for key, slot in pairs(self._slotMap) do
 		if not seen[key] then
-			local connection = self._slotConnections[slot]
-			if connection then connection:Disconnect(); self._slotConnections[slot] = nil end
+			local connections = self._slotConnections[slot]
+			if connections then
+				for _, connection in ipairs(connections) do connection:Disconnect() end
+				self._slotConnections[slot] = nil
+			end
 			if slot.Parent then slot:Destroy() end
 			self._slotMap[key] = nil
 			if self._selected and self:_entryKey(self._selected) == key then self._selected = nil end
@@ -1075,7 +1157,9 @@ end
 
 function LauncherInventoryUIController:Destroy()
 	for _, connection in ipairs(self._connections) do connection:Disconnect() end
-	for _, connection in pairs(self._slotConnections) do connection:Disconnect() end
+	for _, connections in pairs(self._slotConnections) do
+		for _, connection in ipairs(connections) do connection:Disconnect() end
+	end
 	if self._providerConnection then self._providerConnection:Disconnect() end
 	for key, slot in pairs(self._slotMap) do
 		if slot then slot:Destroy() end
