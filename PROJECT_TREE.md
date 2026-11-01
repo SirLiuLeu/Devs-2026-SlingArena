@@ -180,7 +180,7 @@ DataModel
 │  │      ├── LauncherSlotTemplate_LauncherInventoryUI (Frame)
 │  │      │   └── Root (Frame)
 │  │      │       ├── RarityBorder (Frame)
-│  │      │       ├── CombineCheckButton  (Frame)
+│  │      │       ├── CombineCheckButton (ImageButton)
 │  │      │       ├── SelectedOverlay (Frame)
 │  │      │       ├── Stars (Frame)
 │  │      │       │   ├── Star1 (ImageLabel)
@@ -833,5 +833,9 @@ Notes:
 - `src/ReplicatedStorage/Shared/Config/RarityConfig.lua` is the canonical mapping between Launcher star and rarity, including rarity colors and stat multipliers.
 - `src/ReplicatedStorage/LauncherArenaRemotes/CombineLaunchers.model.json` declares the combine RemoteEvent. Its client payload contains three distinct owned instance IDs and an integer request ID used to correlate server feedback.
 - `LauncherInventoryUI.Root.BodyLauncher.CombineControls` toggles combine selection mode. The confirmation UI uses `Root.CombineConfirmFrame.Dialog.InputLaunchers.InputSlot1..3` and `ResultPreview.OutputSlot`; each holder must be a Frame authored in Studio. Runtime code clones the existing Launcher slot template into the holders and sizes it to `UDim2.fromScale(1, 1)`; it does not create the authored holder hierarchy.
-- The current implementation combines three matching permanent/unequipped Launcher instances into one instance of the next rarity/star, inheriting the highest source level. Cost and detailed stat scope remain provisional pending balance confirmation.
+- The confirmed rarity ladder is Common → Normal → Rare → Epic → Legendary (stars 1–5) with multipliers 1.0x, 1.2x, 1.4x, 1.6x, and 1.8x. Combining costs no Diamonds or materials.
+- Combine requires exactly three owned Launchers with the same definition and rarity/star. Default, equipped, temporary, and expired instances are excluded. The result advances one rarity/star and inherits the highest source level.
+- Rarity scaling applies to Launcher HP, Damage, Regeneration, Armor, and ReflectDamage. It does not scale Speed, LaunchPower, LaunchSpeed, Weight, or EXP bonus; the pre-existing level-based LaunchPower progression remains independent.
+- During Combine mode only groups with at least three compatible eligible instances are shown. After the first selection, `SelectedOverlay` dims other eligible groups; a selection cannot mix groups.
+- `CombineCheckButton` on `LauncherSlotTemplate_LauncherInventoryUI.Root` must be an `ImageButton`. Checked/unchecked image ID constants are intentionally blank in `LauncherInventoryUIController.lua` until artwork is supplied.
 - Source changes have not yet been executed in Roblox Studio. Verify modal layout and the full animation before treating the feature as runtime-validated.
