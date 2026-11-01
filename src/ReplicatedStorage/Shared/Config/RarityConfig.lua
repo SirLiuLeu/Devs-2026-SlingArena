@@ -1,7 +1,7 @@
 --!strict
 
--- Launcher stars and rarity progress together.
--- Each successful combine advances one tier and increases affected base stats by 20%.
+-- Launcher star and rarity are a single progression ladder.
+-- Each successful combine advances one tier and increases selected Launcher stats by 20%.
 local RarityConfig = {}
 
 RarityConfig.MaxStar = 5
@@ -15,14 +15,24 @@ RarityConfig.Types = {
 		statMultiplier = 1.0,
 		color = Color3.fromRGB(190, 190, 190),
 		borderColor = Color3.fromRGB(145, 145, 145),
+		nextRarity = "Normal",
+	},
+	Normal = {
+		id = "Normal",
+		displayName = "Normal",
+		order = 2,
+		star = 2,
+		statMultiplier = 1.2,
+		color = Color3.fromRGB(100, 205, 135),
+		borderColor = Color3.fromRGB(55, 155, 95),
 		nextRarity = "Rare",
 	},
 	Rare = {
 		id = "Rare",
 		displayName = "Rare",
-		order = 2,
-		star = 2,
-		statMultiplier = 1.2,
+		order = 3,
+		star = 3,
+		statMultiplier = 1.4,
 		color = Color3.fromRGB(75, 155, 255),
 		borderColor = Color3.fromRGB(45, 115, 220),
 		nextRarity = "Epic",
@@ -30,9 +40,9 @@ RarityConfig.Types = {
 	Epic = {
 		id = "Epic",
 		displayName = "Epic",
-		order = 3,
-		star = 3,
-		statMultiplier = 1.4,
+		order = 4,
+		star = 4,
+		statMultiplier = 1.6,
 		color = Color3.fromRGB(180, 95, 255),
 		borderColor = Color3.fromRGB(135, 55, 210),
 		nextRarity = "Legendary",
@@ -40,21 +50,11 @@ RarityConfig.Types = {
 	Legendary = {
 		id = "Legendary",
 		displayName = "Legendary",
-		order = 4,
-		star = 4,
-		statMultiplier = 1.6,
-		color = Color3.fromRGB(255, 190, 65),
-		borderColor = Color3.fromRGB(220, 135, 35),
-		nextRarity = "Mythic",
-	},
-	Mythic = {
-		id = "Mythic",
-		displayName = "Mythic",
 		order = 5,
 		star = 5,
 		statMultiplier = 1.8,
-		color = Color3.fromRGB(255, 90, 115),
-		borderColor = Color3.fromRGB(205, 45, 75),
+		color = Color3.fromRGB(255, 190, 65),
+		borderColor = Color3.fromRGB(220, 135, 35),
 		nextRarity = nil,
 	},
 }
