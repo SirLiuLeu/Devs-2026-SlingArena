@@ -20,7 +20,7 @@ LauncherInventoryUIController.__index = LauncherInventoryUIController
 local LAUNCHER_SLOT_TEMPLATE_NAME = "LauncherSlotTemplate_LauncherInventoryUI"
 
 -- Fill these two asset IDs after the selected/unselected checkbox artwork is finalized.
-local COMBINE_CHECKED_IMAGE_ID = ""
+local COMBINE_CHECKED_IMAGE_ID = "128924789177125"
 local COMBINE_UNCHECKED_IMAGE_ID = ""
 
 local function resolveGui(root: Instance, path: string): GuiObject?
