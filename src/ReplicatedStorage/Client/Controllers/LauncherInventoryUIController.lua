@@ -3,7 +3,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
 
 local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local RarityConfig = require(ReplicatedStorage.Shared.Config.RarityConfig)
@@ -403,8 +402,8 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 							self:_completeCombineConfirmation(animationToken)
 						end
 					end)
-					-- Animation normally finishes in about 1.5 seconds. If a tween or
-					-- RenderStepped wait stalls, finalize the button state after a safety timeout.
+					-- Flight tweens should finish in under a second. The watchdog is only
+					-- a fallback in case the completion signal is interrupted.
 					task.delay(5, function()
 						if self._combineAnimationRunning and self._combineAnimationToken == animationToken then
 							warn("[LAUNCHER_INVENTORY_UI] Combine animation completion timed out; finalizing Continue state.")
@@ -415,7 +414,7 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 					self._pendingCombine = false
 					self._combineSucceeded = false
 					self._combineAnimationRunning = false
-							self._pendingCombineRequestId = nil
+					self._pendingCombineRequestId = nil
 					if self._combineModalConfirmButton then self._combineModalConfirmButton.Text = "Confirm" end
 					local reason = tostring(payload.Reason or "Unknown")
 					warn(string.format("[LAUNCHER_INVENTORY_UI] Combine rejected: reason=%s", reason))
@@ -788,7 +787,6 @@ function LauncherInventoryUIController:_requestCombine()
 	self._pendingCombine = true
 	self._combineSucceeded = false
 	self._combineAnimationRunning = false
-	self._combineContinueRequested = false
 	if self._combineModalConfirmButton then
 		self._combineModalConfirmButton.Text = "Combining..."
 		self._combineModalConfirmButton.Active = false
@@ -801,7 +799,6 @@ function LauncherInventoryUIController:_requestCombine()
 			self._pendingCombine = false
 			self._pendingCombineRequestId = nil
 			self._combineAnimationRunning = false
-			self._combineContinueRequested = false
 			warn("[LAUNCHER_INVENTORY_UI] Combine feedback timeout; server result was not received.")
 			self:_showToast("Combine request timed out. Please check your inventory.")
 			if self._combineModalConfirmButton then
@@ -819,15 +816,6 @@ local function setGuiTreeZIndex(root: Instance, zIndex: number)
 			descendant.ZIndex = zIndex + 1
 		end
 	end
-end
-
-local function scaleUDim2(value: UDim2, multiplier: number): UDim2
-	return UDim2.new(
-		value.X.Scale * multiplier,
-		value.X.Offset * multiplier,
-		value.Y.Scale * multiplier,
-		value.Y.Offset * multiplier
-	)
 end
 
 function LauncherInventoryUIController:_playCombineAnimation(resultData, animationToken: number?)
