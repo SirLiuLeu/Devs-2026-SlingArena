@@ -59,6 +59,9 @@ function LauncherInventoryUIController.new(playerGui: PlayerGui)
 		_selectedCombineEntries = {},
 		_pendingCombine = false,
 		_combineSucceeded = false,
+		_combineAnimationRunning = false,
+		_combineContinueRequested = false,
+		_combineAnimationToken = 0,
 		_combineRequestCounter = 0,
 		_pendingCombineRequestId = nil,
 	}, LauncherInventoryUIController)
@@ -187,7 +190,11 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	if self._combineModalConfirmButton then
 		table.insert(self._connections, self._combineModalConfirmButton.Activated:Connect(function()
 			if self._combineSucceeded then
-				self:_returnToCombineModeFromConfirmation()
+				if self._combineAnimationRunning then
+					self._combineContinueRequested = true
+				else
+					self:_returnToCombineModeFromConfirmation()
+				end
 			else
 				self:_requestCombine()
 			end
@@ -369,9 +376,18 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 					return
 				end
 				if payload.Success == true and type(payload.ResultLauncher) == "table" then
-					-- The server has consumed the sources. Keep the modal locked until the result animation finishes.
+					-- The server is authoritative: switch to the final Continue state immediately.
+					-- The visual animation may continue, but it must not own the button state.
+					self._pendingCombine = false
 					self._pendingCombineRequestId = nil
 					self._combineSucceeded = true
+					self._combineAnimationRunning = true
+					self._combineContinueRequested = false
+					self._combineAnimationToken += 1
+					local animationToken = self._combineAnimationToken
+					if self._combineModalConfirmButton then
+						self._combineModalConfirmButton.Text = "Tiếp tục"
+					end
 					local resultLauncher = payload.ResultLauncher
 					local resultDefinitionId = tostring(resultLauncher.definitionId or resultLauncher.id or "")
 					local resultDefinition = LauncherConfig.GetById(resultDefinitionId)
@@ -382,16 +398,26 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 					self._combineServerResult = resultLauncher
 					task.spawn(function()
 						local animationOk, animationError = pcall(function()
-							self:_playCombineAnimation(payload.ResultLauncher)
+							self:_playCombineAnimation(resultLauncher)
 						end)
 						if not animationOk then
 							warn(string.format("[LAUNCHER_INVENTORY_UI] Combine animation failed: %s", tostring(animationError)))
-							self:_completeCombineConfirmation()
+							self:_completeCombineConfirmation(animationToken)
+						end
+					end)
+					-- Animation normally finishes in about 1.5 seconds. If a tween or
+					-- RenderStepped wait stalls, finalize the button state after a safety timeout.
+					task.delay(5, function()
+						if self._combineAnimationRunning and self._combineAnimationToken == animationToken then
+							warn("[LAUNCHER_INVENTORY_UI] Combine animation completion timed out; finalizing Continue state.")
+							self:_completeCombineConfirmation(animationToken)
 						end
 					end)
 				else
 					self._pendingCombine = false
 					self._combineSucceeded = false
+					self._combineAnimationRunning = false
+					self._combineContinueRequested = false
 					self._pendingCombineRequestId = nil
 					if self._combineModalConfirmButton then self._combineModalConfirmButton.Text = "Confirm" end
 					local reason = tostring(payload.Reason or "Unknown")
@@ -553,6 +579,9 @@ function LauncherInventoryUIController:_returnToCombineModeFromConfirmation()
 		-- the player leaves the completed-result screen via Back.
 		table.clear(self._selectedCombineEntries)
 		self._combineSucceeded = false
+		self._combineAnimationRunning = false
+		self._combineContinueRequested = false
+		self._combineAnimationToken += 1
 		self._combineServerResult = nil
 		self._combineResultPreview = nil
 		if self._combineModalConfirmButton then
@@ -577,15 +606,25 @@ function LauncherInventoryUIController:_returnToCombineModeFromConfirmation()
 	self:_refreshCombineButtons()
 end
 
-function LauncherInventoryUIController:_completeCombineConfirmation()
-	-- Leave the result preview open. The modal Confirm button now acts as Continue.
+function LauncherInventoryUIController:_completeCombineConfirmation(animationToken: number?)
+	-- Idempotent finalizer: it can be reached by the normal animation, error path,
+	-- or watchdog. Only the active combine animation may finalize this result.
+	if animationToken ~= nil and animationToken ~= self._combineAnimationToken then return end
+	if not self._combineSucceeded then return end
+
 	self._pendingCombine = false
 	self._pendingCombineRequestId = nil
+	self._combineAnimationRunning = false
 	self._combineSucceeded = true
 	if self._combineModalConfirmButton then
 		self._combineModalConfirmButton.Text = "Tiếp tục"
 	end
 	self:_refreshCombineButtons()
+
+	if self._combineContinueRequested then
+		self._combineContinueRequested = false
+		self:_returnToCombineModeFromConfirmation()
+	end
 end
 
 function LauncherInventoryUIController:_toggleCombineSelection(entry)
@@ -727,6 +766,8 @@ function LauncherInventoryUIController:_requestCombine()
 	self._pendingCombineRequestId = requestId
 	self._pendingCombine = true
 	self._combineSucceeded = false
+	self._combineAnimationRunning = false
+	self._combineContinueRequested = false
 	if self._combineModalConfirmButton then
 		self._combineModalConfirmButton.Text = "Combining..."
 		self._combineModalConfirmButton.Active = false
@@ -738,6 +779,8 @@ function LauncherInventoryUIController:_requestCombine()
 		if self._pendingCombine and self._pendingCombineRequestId == requestId then
 			self._pendingCombine = false
 			self._pendingCombineRequestId = nil
+			self._combineAnimationRunning = false
+			self._combineContinueRequested = false
 			warn("[LAUNCHER_INVENTORY_UI] Combine feedback timeout; server result was not received.")
 			self:_showToast("Combine request timed out. Please check your inventory.")
 			if self._combineModalConfirmButton then
