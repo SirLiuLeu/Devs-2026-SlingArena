@@ -568,6 +568,7 @@ function LauncherInventoryUIController:_returnToCombineModeFromConfirmation()
 		self:_refreshRightPanel()
 		self:_refreshSlotVisuals()
 	end
+	self:_refreshCombineButtons()
 end
 
 function LauncherInventoryUIController:_completeCombineConfirmation()
