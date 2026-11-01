@@ -60,8 +60,10 @@ function LauncherInventoryUIController.new(playerGui: PlayerGui)
 		_pendingCombine = false,
 		_combineSucceeded = false,
 		_combineAnimationRunning = false,
-		_combineContinueRequested = false,
 		_combineAnimationToken = 0,
+		_combineAnimationTweens = {},
+		_combineAnimationFlights = {},
+		_combineAnimationOutputDisplay = nil,
 		_combineRequestCounter = 0,
 		_pendingCombineRequestId = nil,
 	}, LauncherInventoryUIController)
@@ -190,11 +192,7 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	if self._combineModalConfirmButton then
 		table.insert(self._connections, self._combineModalConfirmButton.Activated:Connect(function()
 			if self._combineSucceeded then
-				if self._combineAnimationRunning then
-					self._combineContinueRequested = true
-				else
-					self:_returnToCombineModeFromConfirmation()
-				end
+				self:_returnToCombineModeFromConfirmation()
 			else
 				self:_requestCombine()
 			end
@@ -382,7 +380,6 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 					self._pendingCombineRequestId = nil
 					self._combineSucceeded = true
 					self._combineAnimationRunning = true
-					self._combineContinueRequested = false
 					self._combineAnimationToken += 1
 					local animationToken = self._combineAnimationToken
 					if self._combineModalConfirmButton then
@@ -417,8 +414,7 @@ function LauncherInventoryUIController:Start(uiReadySignal: BindableEvent?)
 					self._pendingCombine = false
 					self._combineSucceeded = false
 					self._combineAnimationRunning = false
-					self._combineContinueRequested = false
-					self._pendingCombineRequestId = nil
+							self._pendingCombineRequestId = nil
 					if self._combineModalConfirmButton then self._combineModalConfirmButton.Text = "Confirm" end
 					local reason = tostring(payload.Reason or "Unknown")
 					warn(string.format("[LAUNCHER_INVENTORY_UI] Combine rejected: reason=%s", reason))
@@ -571,17 +567,41 @@ function LauncherInventoryUIController:_exitCombineMode()
 	if self._latestSnapshot then self:Render(self._latestSnapshot) end
 end
 
+function LauncherInventoryUIController:_cancelCombineAnimation()
+	-- Invalidate the running coroutine before cancelling its tweens. Any waiter
+	-- resumed by Tween.Completed will see the stale token and stop immediately.
+	self._combineAnimationToken += 1
+	for _, tween in ipairs(self._combineAnimationTweens) do
+		pcall(function()
+			tween:Cancel()
+			tween:Destroy()
+		end)
+	end
+	table.clear(self._combineAnimationTweens)
+
+	for _, flight in ipairs(self._combineAnimationFlights) do
+		if flight and flight.Parent then
+			flight:Destroy()
+		end
+	end
+	table.clear(self._combineAnimationFlights)
+
+	if self._combineAnimationOutputDisplay and self._combineAnimationOutputDisplay.Parent then
+		self._combineAnimationOutputDisplay.Visible = true
+	end
+	self._combineAnimationOutputDisplay = nil
+	self._combineAnimationRunning = false
+end
+
 function LauncherInventoryUIController:_returnToCombineModeFromConfirmation()
 	if self._pendingCombine then return end
 
 	if self._combineSucceeded then
-		-- The server consumed the previous three instances. Clear them only when
-		-- the player leaves the completed-result screen via Back.
+		-- Continue must close the modal immediately. Cancel any remaining flight
+		-- visuals rather than waiting for Tween.Completed or animation callbacks.
+		self:_cancelCombineAnimation()
 		table.clear(self._selectedCombineEntries)
 		self._combineSucceeded = false
-		self._combineAnimationRunning = false
-		self._combineContinueRequested = false
-		self._combineAnimationToken += 1
 		self._combineServerResult = nil
 		self._combineResultPreview = nil
 		if self._combineModalConfirmButton then
@@ -607,26 +627,19 @@ function LauncherInventoryUIController:_returnToCombineModeFromConfirmation()
 end
 
 function LauncherInventoryUIController:_completeCombineConfirmation(animationToken: number?)
-	-- Idempotent finalizer: it can be reached by the normal animation, error path,
-	-- or watchdog. Only the active combine animation may finalize this result.
+	-- The result animation ends when all three inputs reach OutputSlot. This
+	-- finalizer is also the watchdog/error fallback and is safe to call once.
 	if animationToken ~= nil and animationToken ~= self._combineAnimationToken then return end
 	if not self._combineSucceeded then return end
 
-	-- Invalidate duplicate/late callbacks from this animation immediately.
-	self._combineAnimationToken += 1
+	self:_cancelCombineAnimation()
+	self._combineSucceeded = true
 	self._pendingCombine = false
 	self._pendingCombineRequestId = nil
-	self._combineAnimationRunning = false
-	self._combineSucceeded = true
 	if self._combineModalConfirmButton then
 		self._combineModalConfirmButton.Text = "Tiếp tục"
 	end
 	self:_refreshCombineButtons()
-
-	if self._combineContinueRequested then
-		self._combineContinueRequested = false
-		self:_returnToCombineModeFromConfirmation()
-	end
 end
 
 function LauncherInventoryUIController:_toggleCombineSelection(entry)
@@ -812,15 +825,17 @@ local function scaleUDim2(value: UDim2, multiplier: number): UDim2
 end
 
 function LauncherInventoryUIController:_playCombineAnimation(resultData, animationToken: number?)
+	if animationToken ~= self._combineAnimationToken or not self._combineSucceeded then return end
 	if self._gui and not self._gui.Enabled then
 		self:_completeCombineConfirmation(animationToken)
 		return
 	end
 	if not (self._combineConfirmFrame and self._combineDialog and self._combineOutputSlot) then
-		warn("[LAUNCHER_INVENTORY_UI] Combine succeeded but confirmation animation UI is incomplete; returning to Combine Mode.")
+		warn("[LAUNCHER_INVENTORY_UI] Combine succeeded but confirmation animation UI is incomplete.")
 		self:_completeCombineConfirmation(animationToken)
 		return
 	end
+
 	local definitionId = tostring(resultData.definitionId or resultData.id or "")
 	local definition = LauncherConfig.GetById(definitionId)
 	local rarity = RarityConfig.GetById(resultData.rarity) or RarityConfig.GetByStar(resultData.star)
@@ -836,18 +851,25 @@ function LauncherInventoryUIController:_playCombineAnimation(resultData, animati
 	}
 	local outputDisplay = self:_populatePreviewHolder(self._combineOutputSlot, resultEntry)
 	if not outputDisplay then
-		warn("[LAUNCHER_INVENTORY_UI] Combine result preview could not be created; returning to Combine Mode.")
+		warn("[LAUNCHER_INVENTORY_UI] Combine result preview could not be created.")
 		self:_completeCombineConfirmation(animationToken)
 		return
 	end
+
+	-- The output is revealed only after the three confirmed inputs converge.
+	outputDisplay.Visible = false
+	self._combineAnimationOutputDisplay = outputDisplay
+	table.clear(self._combineAnimationTweens)
+	table.clear(self._combineAnimationFlights)
 
 	local dialogPosition = self._combineDialog.AbsolutePosition
 	local outputPosition = self._combineOutputSlot.AbsolutePosition
 	local outputSize = self._combineOutputSlot.AbsoluteSize
 	local targetCenter = outputPosition + outputSize / 2
-	local flightTweens = {}
+	local flightCount = 0
 
 	for index = 1, 3 do
+		if animationToken ~= self._combineAnimationToken then return end
 		local holder = self._combineInputSlots[index]
 		local display = holder and self:_findLauncherDisplay(holder) or nil
 		if holder and display then
@@ -873,69 +895,52 @@ function LauncherInventoryUIController:_playCombineAnimation(resultData, animati
 					Size = UDim2.fromOffset(targetSmallSize.X, targetSmallSize.Y),
 				}
 			)
-			table.insert(flightTweens, { instance = flight, tween = tween })
+			table.insert(self._combineAnimationFlights, flight)
+			table.insert(self._combineAnimationTweens, tween)
+			flightCount += 1
 		end
 	end
 
-	for _, flightInfo in ipairs(flightTweens) do
-		flightInfo.tween:Play()
-	end
-	for _, flightInfo in ipairs(flightTweens) do
-		flightInfo.tween.Completed:Wait()
-		flightInfo.instance:Destroy()
+	if flightCount == 0 then
+		warn("[LAUNCHER_INVENTORY_UI] No input Launcher previews were available for the combine animation.")
+		self:_completeCombineConfirmation(animationToken)
+		return
 	end
 
+	-- Play all three flights simultaneously; their arrival at OutputSlot is the
+	-- end of the combine animation. There is no extra grow/spin/shrink sequence.
+	for _, tween in ipairs(self._combineAnimationTweens) do
+		tween:Play()
+	end
+	for _, tween in ipairs(self._combineAnimationTweens) do
+		local playbackState = tween.Completed:Wait()
+		if animationToken ~= self._combineAnimationToken then return end
+		if playbackState ~= Enum.PlaybackState.Completed then
+			self:_completeCombineConfirmation(animationToken)
+			return
+		end
+	end
+
+	if animationToken ~= self._combineAnimationToken then return end
+
+	-- The three source previews are consumed only after a successful server
+	-- response and only once their flight visuals have reached OutputSlot.
 	for index = 1, 3 do
 		local holder = self._combineInputSlots[index]
 		local display = holder and self:_findLauncherDisplay(holder) or nil
-		if display then display.Visible = true end
+		if display then display:Destroy() end
 	end
-
-	local originalSize = outputDisplay.Size
-	local originalPosition = outputDisplay.Position
-	outputDisplay.AnchorPoint = Vector2.new(0.5, 0.5)
-	outputDisplay.Position = UDim2.fromScale(0.5, 0.5)
-	local growTween = TweenService:Create(
-		outputDisplay,
-		TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ Size = scaleUDim2(originalSize, 1.18) }
-	)
-	local shrinkTween = TweenService:Create(
-		outputDisplay,
-		TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
-		{ Size = originalSize, Position = UDim2.fromScale(0.5, 0.5) }
-	)
-	growTween:Play()
-	growTween.Completed:Wait()
-
-	local outputRoot = getSlotRoot(outputDisplay)
-	local viewport = outputRoot and outputRoot:FindFirstChild("LauncherPreview", true) or nil
-	local previewModel = viewport and viewport:IsA("ViewportFrame") and viewport:FindFirstChild("PreviewModel") or nil
-	if previewModel and previewModel:IsA("Model") then
-		local initialPivot = previewModel:GetPivot()
-		local spinDuration = 0.9
-		local elapsed = 0
-		local rotationConnection
-		rotationConnection = RunService.RenderStepped:Connect(function(deltaTime)
-			elapsed += deltaTime
-			if previewModel.Parent == nil then
-				if rotationConnection then rotationConnection:Disconnect() end
-				return
-			end
-			local alpha = math.clamp(elapsed / spinDuration, 0, 1)
-			previewModel:PivotTo(initialPivot * CFrame.Angles(0, math.rad(720) * alpha, 0))
-			if alpha >= 1 and rotationConnection then
-				rotationConnection:Disconnect()
-			end
-		end)
-		task.wait(spinDuration)
+	for _, flight in ipairs(self._combineAnimationFlights) do
+		if flight and flight.Parent then flight:Destroy() end
 	end
-	shrinkTween:Play()
-	shrinkTween.Completed:Wait()
-	outputDisplay.AnchorPoint = self._template and self._template.AnchorPoint or Vector2.zero
-	outputDisplay.Position = originalPosition
-	outputDisplay.Size = originalSize
+	table.clear(self._combineAnimationFlights)
+	for _, tween in ipairs(self._combineAnimationTweens) do
+		pcall(function() tween:Destroy() end)
+	end
+	table.clear(self._combineAnimationTweens)
 
+	outputDisplay.Visible = true
+	self._combineAnimationOutputDisplay = nil
 	self:_completeCombineConfirmation(animationToken)
 end
 
