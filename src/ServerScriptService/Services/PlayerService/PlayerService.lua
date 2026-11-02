@@ -73,6 +73,7 @@ function PlayerService.new(context)
 	self._worldUiTemplate = nil
 	self._warnedMissingFloatingTextTemplate = false
 	self._warnedMissingFloatingTextValue = false
+	self._warnedMissingWorldUiHpStats = false
 	self._playerToLauncher = {}
 	self._launcherToPlayer = {}
 	self._animationControllers = {}
@@ -248,7 +249,10 @@ function PlayerService:_loadWorldUiTemplate(): BillboardGui?
 	--   Assets (Folder)
 	--     UI (Folder)
 	--       LauncherWorldUI (BillboardGui)
+	--         UIListLayout
 	--         HpBarBackground (Frame)
+	--           UICorner
+	--           HPStats (TextLabel)
 	--           HpBarFill (Frame)
 	--         NameLabel (TextLabel)
 	--         LevelLabel (TextLabel)
@@ -318,11 +322,12 @@ function PlayerService:_updateWorldUi(player: Player, state)
 	end
 	self:_setWorldUiPlayerName(worldUi, player)
 
-	local hpFill = worldUi:FindFirstChild("HpBarBackground")
-	hpFill = hpFill and hpFill:FindFirstChild("HpBarFill")
+	local hpBarBackground = worldUi:FindFirstChild("HpBarBackground")
+	local hpFill = hpBarBackground and hpBarBackground:FindFirstChild("HpBarFill")
 	if hpFill and hpFill:IsA("Frame") then
-		local maxHp = math.max(state.MaxHP or 1, 1)
-		local hpRatio = math.clamp((state.CurrentHP or 0) / maxHp, 0, 1)
+		local maxHp = math.max(tonumber(state.MaxHP) or 1, 1)
+		local currentHp = math.max(0, tonumber(state.CurrentHP) or 0)
+		local hpRatio = math.clamp(currentHp / maxHp, 0, 1)
 		hpFill.Size = UDim2.new(hpRatio, 0, 1, 0)
 		local team = state.TeamId and Teams:FindFirstChild(state.TeamId)
 		if state.TeamId and TeamConfig.TeamColors[state.TeamId] then
@@ -332,6 +337,17 @@ function PlayerService:_updateWorldUi(player: Player, state)
 		else
 			hpFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 		end
+	end
+
+	local hpStats = hpBarBackground and hpBarBackground:FindFirstChild("HPStats")
+	if hpStats and hpStats:IsA("TextLabel") then
+		local currentHp = math.max(0, math.floor((tonumber(state.CurrentHP) or 0) + 0.5))
+		local maxHp = math.max(0, math.floor((tonumber(state.MaxHP) or 0) + 0.5))
+		hpStats.Text = string.format("%d / %d", currentHp, maxHp)
+		hpStats.Visible = true
+	elseif not self._warnedMissingWorldUiHpStats then
+		warn("[WORLD_UI] LauncherWorldUI.HpBarBackground.HPStats missing or not a TextLabel. Add it to the Studio-authored template.")
+		self._warnedMissingWorldUiHpStats = true
 	end
 
 	local levelLabel = worldUi:FindFirstChild("LevelLabel")
