@@ -91,7 +91,12 @@ local function buildDefaultState(player: Player): PlayerState
 		Size = launcher.size,
 		MaxHP = launcher.maxHP,
 		CurrentHP = launcher.maxHP,
+		BaseLauncherMaxHP = launcher.maxHP,
+		PetBonusMaxHP = 0,
+		HPBoostBonus = 0,
 		BaseDamage = launcher.baseDamage,
+		LauncherBaseDamage = launcher.baseDamage,
+		PetBonusDamage = 0,
 		RegenerationRate = launcher.regenPerSecond,
 		ReflectDamage = launcher.reflectDamagePercent,
 		LaunchSpeed = PhysicsConfig.Launch.SpeedMax,
@@ -460,11 +465,16 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	local star = (equippedInstance and equippedInstance.star) or 1
 	local launcherLevel = (equippedInstance and equippedInstance.level) or math.max(state.Level, 1)
 	local launcherRarity = equippedInstance and equippedInstance.rarity or "Common"
-	local resolved = LauncherStatResolver.Resolve(definitionId, star, launcherLevel, launcherRarity, state.RoundLevel)
+	local launcherResolved = LauncherStatResolver.Resolve(definitionId, star, launcherLevel, launcherRarity, state.RoundLevel)
+	local resolved = launcherResolved
+	local petBonusMaxHP = 0
+	local petBonusDamage = 0
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if dataService and typeof(dataService.GetData) == "function" then
 		local data = dataService:GetData(player)
-		resolved = PetStatResolver.Resolve(resolved :: any, data.OwnedPets, data.EquippedPets) :: any
+		resolved = PetStatResolver.Resolve(launcherResolved :: any, data.OwnedPets, data.EquippedPets) :: any
+		petBonusMaxHP = (tonumber(resolved.maxHP) or 0) - (tonumber(launcherResolved.maxHP) or 0)
+		petBonusDamage = (tonumber(resolved.baseDamage) or 0) - (tonumber(launcherResolved.baseDamage) or 0)
 		state.OwnedPets = data.OwnedPets or {}
 		state.EquippedPets = data.EquippedPets or {}
 		state.Diamonds = dataService:GetDiamonds(player)
@@ -475,6 +485,8 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	state.LaunchSpeedBonus = 0
 	state.Size = (BalanceConfig.BaseSize * (1 + (math.max(state.Level - 1, 0) * 0.03))) * state.ScaleMultiplier
 	state.BaseDamage = resolved.baseDamage
+	state.LauncherBaseDamage = tonumber(launcherResolved.baseDamage) or 0
+	state.PetBonusDamage = petBonusDamage
 	state.DamageMultiplier = resolved.damageMultiplier
 	state.RegenerationRate = resolved.regen
 	state.ReflectDamage = resolved.reflectDamage
@@ -488,7 +500,10 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 
 	local hpBoost = self:GetFlag(player, "HPBoosted")
 	local hpBoostPercent = hpBoost and hpBoost.Data and tonumber(hpBoost.Data.MaxHPBonusPercent) or 0
+	state.BaseLauncherMaxHP = tonumber(launcherResolved.maxHP) or 0
+	state.PetBonusMaxHP = petBonusMaxHP
 	state.MaxHP = resolved.maxHP * (1 + math.max(0, hpBoostPercent) / 100)
+	state.HPBoostBonus = state.MaxHP - resolved.maxHP
 	if refillHealth then
 		state.CurrentHP = state.MaxHP
 	else
