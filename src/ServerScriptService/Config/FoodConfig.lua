@@ -12,6 +12,10 @@ FoodConfig.SpawnRadius = 20
 FoodConfig.CommonActivePerSpawn = 10
 FoodConfig.HpActivePerSpawn = 10
 FoodConfig.MinNoOverlapDistance = 3
+-- HP Food uses a wider placement area and dedicated lane clearance so Launchers
+-- can pass between HP targets. Common Food keeps the original spawn radius / gap.
+FoodConfig.HpFoodSpawnRadius = 40
+FoodConfig.HpFoodMinNoOverlapDistance = 20
 -- Extra XZ clearance added after accounting for the food/player hitbox radii.
 FoodConfig.MinPlayerSpawnClearance = 5
 
