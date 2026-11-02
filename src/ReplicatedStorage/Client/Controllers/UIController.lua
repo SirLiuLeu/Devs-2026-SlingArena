@@ -86,6 +86,14 @@ local function warnMissingUiPath(path: string, className: string)
 	warn(string.format("[UI_MISSING] %s (%s) is missing. Create it manually in Studio.", path, className))
 end
 
+local function formatStatsValue(value: any): string
+	local number = tonumber(value) or 0
+	if math.abs(number - math.floor(number + 0.5)) < 0.001 then
+		return tostring(math.floor(number + 0.5))
+	end
+	return string.format("%.2f", number)
+end
+
 local function getRemainingSeconds(flag: any, now: number): number
 	if type(flag) ~= "table" or type(flag.ExpiresAt) ~= "number" then
 		return 0
@@ -224,6 +232,11 @@ function UIController:_resolveUiReferences()
 	self.StartSafeZoneButton = self.StartSafeZoneButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.StartSafeZoneButton, false)
 	self.Plus1MinuteButton = self.Plus1MinuteButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.Plus1MinuteButton, false)
 	self.LevelUp5Button = self.LevelUp5Button or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LevelUp5Button, false)
+	self.ShowStatsButton = self.ShowStatsButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.ShowStatsButton, false)
+	if not self.ShowStatsButton and not self._warnedMissingShowStatsButton then
+		warnMissingUiPath(ProjectTreeSpec.UI.Lobby.ShowStatsButton, "TextButton")
+		self._warnedMissingShowStatsButton = true
+	end
 	self.EndRoundButton = self.EndRoundButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.EndRoundButton, false)
 	self.MatchStatusLabel = self.MatchStatusLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel, false)
 	self.TimerLabel = self.TimerLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel, false)
@@ -311,6 +324,7 @@ function UIController:_clearRemovedUiReferences(removedRoot: Instance)
 	self:_clearReferenceIfRemoved("StartSafeZoneButton", removedRoot, "StartSafeZoneButton")
 	self:_clearReferenceIfRemoved("Plus1MinuteButton", removedRoot, "Plus1MinuteButton")
 	self:_clearReferenceIfRemoved("LevelUp5Button", removedRoot, "LevelUp5Button")
+	self:_clearReferenceIfRemoved("ShowStatsButton", removedRoot, "ShowStatsButton")
 	self:_clearReferenceIfRemoved("EndRoundButton", removedRoot, "EndRoundButton")
 	self:_clearReferenceIfRemoved("DebugResetButton", removedRoot, "DebugResetButton")
 	self:_clearReferenceIfRemoved("DailyButton", removedRoot, "DailyButton")
@@ -344,6 +358,60 @@ function UIController:_clearRemovedUiReferences(removedRoot: Instance)
 	self:_clearReferenceIfRemoved("ExpLevelLabel", removedRoot, nil)
 end
 
+function UIController:_printPlayerStats()
+	local state = self.LastAuthoritativeState
+	if type(state) ~= "table" then
+		warn("[PLAYER_STATS] No authoritative PlayerState snapshot is available yet.")
+		return
+	end
+
+	local player = self.PlayerGui and self.PlayerGui.Parent
+	local playerName = if player then player.Name else "Unknown"
+	local level = math.max(1, math.floor(tonumber(state.Level) or 1))
+	local currentHp = tonumber(state.CurrentHP) or 0
+	local maxHp = tonumber(state.MaxHP) or 0
+	local baseLauncherHp = tonumber(state.BaseLauncherMaxHP) or maxHp
+	local petBonusHp = tonumber(state.PetBonusMaxHP) or 0
+	local hpBuffBonus = tonumber(state.HPBoostBonus) or 0
+	local launcherDamage = tonumber(state.LauncherBaseDamage) or (tonumber(state.BaseDamage) or 0)
+	local petBonusDamage = tonumber(state.PetBonusDamage) or 0
+	local combinedBaseDamage = tonumber(state.BaseDamage) or (launcherDamage + petBonusDamage)
+	local damageMultiplier = tonumber(state.DamageMultiplier) or 1
+	local derivedDamage = combinedBaseDamage * damageMultiplier
+
+	print(string.rep("=", 56))
+	print(string.format("[PLAYER_STATS] %s | Lv.%d | Launcher=%s", playerName, level, tostring(state.LaunchershotType or "Unknown")))
+	print(string.format(
+		"HP: %s / %s | Launcher base=%s | Pets=%s | HP buff=%s",
+		formatStatsValue(currentHp),
+		formatStatsValue(maxHp),
+		formatStatsValue(baseLauncherHp),
+		formatStatsValue(petBonusHp),
+		formatStatsValue(hpBuffBonus)
+	))
+	print(string.format(
+		"Damage: %s | Launcher base=%s | Pets=%s | Multiplier=x%s",
+		formatStatsValue(derivedDamage),
+		formatStatsValue(launcherDamage),
+		formatStatsValue(petBonusDamage),
+		formatStatsValue(damageMultiplier)
+	))
+	print(string.format(
+		"Speed: %s | LaunchSpeed: %s | Armor: %.1f%%",
+		formatStatsValue(state.MoveSpeed),
+		formatStatsValue(state.LaunchSpeed),
+		(math.clamp(tonumber(state.Armor) or 0, 0, 1) * 100)
+	))
+	print(string.format(
+		"Regeneration: %s HP/s | ReflectDamage: %.1f%% | Weight: %s | EXP Bonus: %.1f%%",
+		formatStatsValue(state.RegenerationRate),
+		(math.clamp(tonumber(state.ReflectDamage) or 0, 0, 1) * 100),
+		formatStatsValue(state.Weight),
+		(math.max(0, tonumber(state.ExpBonus) or 0) * 100)
+	))
+	print(string.rep("=", 56))
+end
+
 function UIController:_bindResolvedUiReferences()
 	if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] bindResolved refs join=%s inventory=%s endRound=%s quickHp=%s t=%.3f", tostring(self.JoinButton ~= nil), tostring(self.InventoryButton ~= nil), tostring(self.EndRoundButton ~= nil), tostring(self.QuickHpButton ~= nil), os.clock())) end
 	if self.JoinButton then
@@ -369,6 +437,11 @@ function UIController:_bindResolvedUiReferences()
 	if self.LevelUp5Button then
 		self:_connectOnce("LevelUp5Button", self.LevelUp5Button.MouseButton1Click, function()
 			self.ClientService:RequestDebugLevelUp5()
+		end)
+	end
+	if self.ShowStatsButton then
+		self:_connectOnce("ShowStatsButton", self.ShowStatsButton.MouseButton1Click, function()
+			self:_printPlayerStats()
 		end)
 	end
 	if self.DebugResetButton then
