@@ -276,6 +276,7 @@ DataModel
 │  │      │   ├── UIListLayout
 │  │      │   ├── HpBarBackground (Frame)
 │  │      │   │   ├── UICorner
+│  │      │   │   ├── HPStats (TextLabel)
 │  │      │   │   └── HpBarFill (Frame)
 │  │      │   ├── NameLabel (TextLabel)
 │  │      │   └── LevelLabel (TextLabel)
@@ -367,6 +368,7 @@ DataModel
 │  │     ├─ LeaveButton
 │  │     ├─ Plus1Minute
 │  │     ├─ LevelUp5
+│  │     ├─ ShowStats
 │  │     ├─ EndRoundButton
 │  │     └─ StartSafeZoneButton
 │  │
