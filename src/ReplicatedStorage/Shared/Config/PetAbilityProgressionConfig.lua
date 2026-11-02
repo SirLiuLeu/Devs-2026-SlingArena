@@ -4,6 +4,7 @@
 -- while equipped Titan's visual growth is earned from player level-ups in real time.
 local PetAbilityProgressionConfig = {}
 
+PetAbilityProgressionConfig.MaxLevel = 20
 PetAbilityProgressionConfig.TitanVisualGrowthPerPlayerLevel = 0.04
 PetAbilityProgressionConfig.TitanVisualMultiplierCap = 2
 
@@ -46,7 +47,7 @@ local function copy(source: { [string]: any }): { [string]: any }
 end
 
 function PetAbilityProgressionConfig.GetParams(abilityId: string?, level: number): { [string]: any }
-	local safeLevel = math.clamp(math.floor(tonumber(level) or 1), 1, 20)
+	local safeLevel = math.clamp(math.floor(tonumber(level) or 1), 1, PetAbilityProgressionConfig.MaxLevel)
 	if abilityId == "Titan" then
 		return {
 			weightMultiplier = math.min(1.5, 1 + 0.015 * (safeLevel - 1) + (if safeLevel >= 20 then 0.005 else 0)),
@@ -61,7 +62,7 @@ function PetAbilityProgressionConfig.GetParams(abilityId: string?, level: number
 	if not ability then return {} end
 	local selected = 1
 	for _, milestone in ipairs(PetAbilityProgressionConfig.Milestones) do
-		if level >= milestone then selected = milestone else break end
+		if safeLevel >= milestone then selected = milestone else break end
 	end
 	return copy(ability[selected] or {})
 end

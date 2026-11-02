@@ -12,6 +12,7 @@ export type ScoreSetting = {
 	MaxPerSession: number?,
 	BasePoints: number?,
 	CooldownSeconds: number?,
+	DiamondReward: number?,
 	CycleSeconds: number?,
 	ZoneMultipliers: { number },
 }
@@ -43,9 +44,10 @@ RankConfig.ScoreSettings = {
 		Points = 2,
 		ZoneMultipliers = {},
 	},
-	KillPlayer = {
+		KillPlayer = {
 		BasePoints = 10,
 		CooldownSeconds = 60,
+		DiamondReward = 40,
 		ZoneMultipliers = {},
 	},
 	Survival = {
@@ -54,6 +56,14 @@ RankConfig.ScoreSettings = {
 		ZoneMultipliers = { 1, 1.15, 1.3, 1.5, 1.75, 2 },
 	},
 } :: { [string]: ScoreSetting }
+
+RankConfig.RoundDiamondRewards = {
+	Participation = 300,
+	ScorePerPoint = 1,
+	MaxScoreBonus = 400,
+	RankBonuses = { [1] = 300, [2] = 200, [3] = 100 },
+	DefaultRankBonus = 50,
+}
 
 RankConfig.LateJoinSettings = {
 	DiscountByMinute = {

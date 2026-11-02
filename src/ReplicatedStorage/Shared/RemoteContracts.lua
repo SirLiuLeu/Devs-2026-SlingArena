@@ -184,7 +184,7 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.UpgradePet] = function(instanceId: any, expectedLevel: any): boolean
 		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
-			and typeof(expectedLevel) == "number" and expectedLevel % 1 == 0 and expectedLevel >= 1 and expectedLevel <= 20
+			and typeof(expectedLevel) == "number" and expectedLevel % 1 == 0 and expectedLevel >= 1 and expectedLevel <= 50
 	end,
 	[RemoteContracts.Names.EquipLauncher] = function(instanceId: any): boolean
 		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128

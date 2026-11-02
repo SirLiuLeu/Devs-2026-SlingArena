@@ -86,6 +86,7 @@ local function buildDefaultState(player: Player): PlayerState
 		LocationState = GameStates.SessionState.Lobby,
 		TeamId = nil,
 		Level = LevelConfig.StartingLevel,
+		RoundLevel = 1,
 		Exp = LevelConfig.StartingExp,
 		Size = launcher.size,
 		MaxHP = launcher.maxHP,
@@ -459,7 +460,7 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	local star = (equippedInstance and equippedInstance.star) or 1
 	local launcherLevel = (equippedInstance and equippedInstance.level) or math.max(state.Level, 1)
 	local launcherRarity = equippedInstance and equippedInstance.rarity or "Common"
-	local resolved = LauncherStatResolver.Resolve(definitionId, star, launcherLevel, launcherRarity)
+	local resolved = LauncherStatResolver.Resolve(definitionId, star, launcherLevel, launcherRarity, state.RoundLevel)
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if dataService and typeof(dataService.GetData) == "function" then
 		local data = dataService:GetData(player)
@@ -667,9 +668,21 @@ function PlayerStateService:IsInvulnerable(player: Player): boolean
 	return state ~= nil and (state.InvulnerableUntil > os.clock() or self:HasFlag(player, "Invulnerable"))
 end
 
+function PlayerStateService:_isRoundLevelActive(player: Player): boolean
+	local state = self._states[player]
+	if not state or state.LocationState == GameStates.SessionState.Lobby then
+		return false
+	end
+	local roundService = ServiceResolver.Get(self._context, "RoundService")
+	return roundService ~= nil
+		and typeof(roundService.IsPlayingState) == "function"
+		and roundService:IsPlayingState()
+end
+
 function PlayerStateService:GrantExp(player: Player, amount: number)
 	local state = self._states[player]
 	if not state then return end
+	local roundLevelActive = self:_isRoundLevelActive(player)
 	local expBonus = 1 + math.max(0, state.ExpBonus or 0)
 	local expFlag = self:GetFlag(player, "EXPBoosted")
 	if expFlag and expFlag.Data and type(expFlag.Data.ExpBonusPercent) == "number" then
@@ -683,6 +696,9 @@ function PlayerStateService:GrantExp(player: Player, amount: number)
 		state.Exp -= requiredExp
 		state.Level += 1
 		state.AttributePoints += 1
+		if roundLevelActive then
+			state.RoundLevel = math.max(1, math.floor(tonumber(state.RoundLevel) or 1)) + 1
+		end
 		self._context.EventBus:Fire("LevelUp", player, state.Level)
 	end
 	self:PublishState(player)
@@ -700,10 +716,14 @@ function PlayerStateService:GrantLevelsForDebug(player: Player, requestedLevels:
 	local state = self._states[player]
 	if not state or typeof(requestedLevels) ~= "number" then return 0 end
 	local levelsToGrant = math.clamp(math.floor(requestedLevels), 0, 5)
+	local roundLevelActive = self:_isRoundLevelActive(player)
 	local granted = 0
 	while granted < levelsToGrant and state.Level < LevelConfig.MaxLevel do
 		state.Level += 1
 		state.AttributePoints += 1
+		if roundLevelActive then
+			state.RoundLevel = math.max(1, math.floor(tonumber(state.RoundLevel) or 1)) + 1
+		end
 		granted += 1
 		self._context.EventBus:Fire("LevelUp", player, state.Level)
 	end
@@ -726,9 +746,24 @@ function PlayerStateService:TryApplyExpPenalty(player: Player, penalty: number):
 	return true
 end
 
+function PlayerStateService:ResetRoundLevel(player: Player): boolean
+	local state = self._states[player]
+	if not state then
+		return false
+	end
+	local currentRoundLevel = math.max(1, math.floor(tonumber(state.RoundLevel) or 1))
+	if currentRoundLevel == 1 then
+		return false
+	end
+	state.RoundLevel = 1
+	self:RecalculateDerivedStats(player, false)
+	return true
+end
+
 function PlayerStateService:ResetForNewRound(player: Player)
 	local state = self._states[player]
 	if not state then return end
+	state.RoundLevel = 1
 	state.IsAlive = true
 	state.IsCharging = false
 	state.ActivePlayerMode = GameStates.PlayerMode.Launcher

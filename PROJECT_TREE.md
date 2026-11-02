@@ -791,7 +791,7 @@ Notes:
 
 ## Pet inventory progression notes
 
-`StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Level` is the bound pet-level display. Pet base stats advance on every level; most ability values advance at milestones 1, 5, 10, 15, and 20. Titan's weight and hitbox multipliers scale with Hydra pet level. Visual growth is based on player levels earned after Titan is equipped: +4% per level to a 2x cap; levels earned before equip do not count. `PetAbilityProgressionConfig.Abilities[abilityId].Display` stores `{ Format, Templates = { en, vi } }` for localized display text, while `PetPreviewConfig.Get(petId)` provides the viewport `Rotation` and `Offset`.
+`StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Level` is the bound pet-level display. Pet max level is 50: base HP/Damage gain +5% per level through 20, then +3% per level through 50; ability parameters cap at level 20 and advance at milestones 1, 5, 10, 15, and 20. Upgrade cost is `50 × currentLevel × rarityMultiplier`. Titan weight/hitbox parameters stop at level 20. Titan's separate visual growth is based on player level-ups earned after Titan is equipped: +4% per level to a 2x cap; levels earned before equip do not count. `PetAbilityProgressionConfig.Abilities[abilityId].Display` stores `{ Format, Templates = { en, vi } }` for localized display text, while `PetPreviewConfig.Get(petId)` provides the viewport `Rotation` and `Offset`.
 
 
 ## Team / Pet projectile implementation notes

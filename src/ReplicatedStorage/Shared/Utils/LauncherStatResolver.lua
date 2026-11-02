@@ -24,6 +24,7 @@ export type ResolvedLauncherStats = {
 }
 
 local LEVEL_MULTIPLIER_PER_LEVEL = 0.03
+local ROUND_LEVEL_MULTIPLIER_PER_LEVEL = 0.01
 
 local function readPassiveValue(passiveAbility: any?, key: string): number?
 	if type(passiveAbility) ~= "table" then
@@ -55,7 +56,7 @@ local function resolveExpBonus(passiveAbility: any?): number
 	return readPassiveAdd(passiveAbility, "expBonus")
 end
 
-function LauncherStatResolver.Resolve(definitionId: string, star: number?, level: number?, rarityId: string?): ResolvedLauncherStats
+function LauncherStatResolver.Resolve(definitionId: string, star: number?, level: number?, rarityId: string?, roundLevel: number?): ResolvedLauncherStats
 	local launcher = LauncherConfig.GetById(definitionId) or LauncherConfig.GetById(LauncherConfig.DefaultLauncherId)
 	local base = LauncherConfig.BaseStats
 	local launcherStats = launcher and launcher.stats or {}
@@ -64,13 +65,16 @@ function LauncherStatResolver.Resolve(definitionId: string, star: number?, level
 	local rarity = RarityConfig.GetById(rarityId) or RarityConfig.GetByStar(safeStar)
 	local rarityMultiplier = rarity.statMultiplier or 1
 	local levelMultiplier = 1 + ((safeLevel - 1) * LEVEL_MULTIPLIER_PER_LEVEL)
-	-- Rarity growth is restricted to the five agreed Launcher stats.
+	local safeRoundLevel = math.max(1, math.floor(tonumber(roundLevel) or 1))
+	local roundLevelMultiplier = 1 + ((safeRoundLevel - 1) * ROUND_LEVEL_MULTIPLIER_PER_LEVEL)
+	-- The temporary RoundLevel bonus applies only to Launcher HP and Damage.
+	-- Pet base stats are added later by PetStatResolver and are not multiplied.
 	-- The pre-existing per-level launchPower growth is preserved independently.
 	local rarityAndLevelMultiplier = rarityMultiplier * levelMultiplier
 	local passive = launcher and launcher.passiveAbility or nil
 
-	local maxHP = (launcherStats.maxHP or base.maxHP) * rarityAndLevelMultiplier * readPassiveMultiplier(passive, "maxHpMultiplier")
-	local baseDamage = (launcherStats.baseDamage or base.baseDamage) * rarityAndLevelMultiplier * readPassiveMultiplier(passive, "damageMultiplier")
+	local maxHP = (launcherStats.maxHP or base.maxHP) * rarityAndLevelMultiplier * roundLevelMultiplier * readPassiveMultiplier(passive, "maxHpMultiplier")
+	local baseDamage = (launcherStats.baseDamage or base.baseDamage) * rarityAndLevelMultiplier * roundLevelMultiplier * readPassiveMultiplier(passive, "damageMultiplier")
 	local regen = (launcherStats.regen or base.regenPerSecond) * rarityAndLevelMultiplier * readPassiveMultiplier(passive, "regenMultiplier")
 	local launchPower = (launcherStats.launchPower or 1) * levelMultiplier
 	local speed = (launcherStats.speed or PhysicsConfig.Movement.MoveSpeed) * readPassiveMultiplier(passive, "moveSpeedMultiplier")

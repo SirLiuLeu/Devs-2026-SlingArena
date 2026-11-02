@@ -128,8 +128,8 @@ The current runtime catalog defines five Launchers: `Normalduck`, `Kingduck`, `W
 ## 4.2 Star & Level Scaling (`LauncherStatResolver.lua`)
 
 * **Star multiplier:** `1 + (star - 1) × 0.08` — i.e., **+8% per star**.
-* **Level multiplier:** `1 + (level - 1) × 0.03` — i.e., **+3% per in-match level**.
-* Total growth = `starMultiplier × levelMultiplier`, applied to maxHP, baseDamage, regen, launchPower, and control.
+* **Owned Launcher level multiplier:** `1 + (level - 1) × 0.03`; the resolver applies it to maxHP, baseDamage, regeneration, and launchPower.
+* **Temporary RoundLevel multiplier:** `1 + (RoundLevel - 1) × 0.01`; it applies only to the Launcher's base maxHP and baseDamage before Pet stats are added. RoundLevel starts at 1, increases on player level-ups during EarlyGame/FinalPhase, survives respawn, and resets to 1 when the player leaves the Arena or the round ends. It is separate from the player's regular Level and the owned Launcher's inventory level.
 * ❌ **The "3 identical Launchers → +1★" fusion mechanic has no implementation anywhere in the codebase.** The `star` field exists on owned-launcher data and the multiplier math is real, but nothing sets or increments `star` at runtime except hardcoded seed/mock data. See §13.
 * ⚠️ Mock/seed data (`MockData.lua`) contains a `star = 4` entry, exceeding the design intent of a 3★ cap, and references launcher IDs (`FireLauncher`, `PetrifyLauncher`, `VacuumLauncher`) that **do not exist** in `LauncherConfig.Types`. Treat these as stale fixtures, not canonical content.
 
@@ -149,8 +149,10 @@ The current runtime catalog defines five Launchers: `Normalduck`, `Kingduck`, `W
 
 ## 5.2 Upgrade progression
 
+- Pet max level is 50. Base HP/Damage increase by 5% per level from 1 through 20, then 3% per level from 21 through 50. Ability parameters cap at level 20 (milestones 1, 5, 10, 15, 20).
+- Upgrade cost is `50 × currentLevel × rarityMultiplier`; Common/Rare/Epic/Legendary retain multipliers 1.0/1.25/1.6/2.0.
 - `PetsUpgradeConfig.lua` owns Pet-level normalization and upgrade-cost/stat-growth rules. `PetService` delegates the authoritative upgrade commit to `PlayerDataService`.
-- Upgrade requests include the expected current level so the server can reject stale requests. The client preview is informational; it does not determine the upgrade result or cost.
+- Upgrade requests include the expected current level (1–50) so the server can reject stale requests. The client preview is informational; it does not determine the upgrade result or cost.
 
 ## 5.3 Ability/effect ownership
 
@@ -205,13 +207,13 @@ Flags are modifiers layered on top of a player's core `MovementState`. Real, cod
 | Food | Type | HP | EXP | Heal | Diamond Chance | Diamonds | Touch-only? |
 |---|---|---|---|---|---|---|---|
 | CommonRed/Green/Blue | Common | — | 50 | 20/15/10 | 0% | 0 | ✅ Yes |
-| UncommonIce | Uncommon | 3,000 | 25 | — | 5% | 1 | ❌ Requires attack |
-| RareAmber | Rare | 5,000 | 45 | — | 8% | 1 | ❌ Requires attack |
-| EpicViolet | Epic | 8,000 | 70 | — | 12% | 2 | ❌ Requires attack |
-| LegendaryGold | Legendary | 12,000 | 120 | — | 18% | 3 | ❌ Requires attack |
+| UncommonIce | Uncommon | 3,000 | 25 | — | 20% | 1 | ❌ Requires attack |
+| RareAmber | Rare | 5,000 | 45 | — | 32% | 1 | ❌ Requires attack |
+| EpicViolet | Epic | 8,000 | 70 | — | 48% | 2 | ❌ Requires attack |
+| LegendaryGold | Legendary | 12,000 | 120 | — | 72% | 3 | ❌ Requires attack |
 
 * Common Food disappears on touch; HP Food requires a valid Launch/attack hit and is destroyed only when its HP reaches 0.
-* Diamonds are granted **only** as a chance-based drop from destroying HP Food — there is no other Diamond income path in the current codebase (see §8, §13).
+* HP Food Diamond drop chances are multiplied by four. Kill rewards use the existing per-victim 60-second diminishing-return window (40 Diamonds for the first kill, 20 for the second, 0 for subsequent repeated kills in the window). Round-end rewards are granted only to Arena participants and combine a 300-Diamond participation amount, up to 400 Diamonds from round score, and a placement bonus (1st: 300; 2nd: 200; 3rd: 100; other placements: 50). These are tuning values intended for runtime balance testing.
 
 ## 7.3 Zone Spawn Weights (`ZoneWeights`)
 
@@ -242,7 +244,8 @@ Flags are modifiers layered on top of a player's core `MovementState`. Real, cod
 ## 8.2 Diamonds
 
 * `PlayerDataService` is the sole authoritative Diamonds ledger (via `PlayerStateService:SpendDiamonds`/reads).
-* The **only** Diamond income path found in source is the chance-based drop on HP Food destruction (§7.2). ❌ There is no per-kill Diamond reward in code, despite it being commonly expected design.
+* Diamond income has three active round sources: the fourfold HP Food drop chance (§7.2), per-kill Diamonds with the existing anti-repeat multiplier, and round-end participation + score + placement rewards.
+* Current round reward tuning is 300 participation Diamonds, up to 400 from round score (1 Diamond per round point), placement bonuses of 300/200/100/50, and 40 Diamonds per eligible kill (the second kill of the same victim in 60 seconds receives 20; later repeats receive 0). Runtime tests should verify whether this reaches the intended average of about 1,000 Diamonds per round before increasing these values.
 * `LevelConfig.StartingDiamonds = 1000`.
 
 ## 8.3 Size Growth — ⚠️ Two Conflicting, Unused-vs-Used Formulas
@@ -339,7 +342,7 @@ This section exists so nobody has to guess. Each item below is a **real, verifie
 5. **Legacy Equipment effect notes are not the current ability contract.** Review the Pet definition’s `effectId` and the matching module under `PetAbilityService/PetAbilities` before documenting an effect as shipped.
 6. **Team core behavior is implemented, but reward rules should be verified separately.** `TeamService` assigns balanced teams and validates team changes/capacity/cooldown; friendly-fire checks are integrated with `DamagePipelineService`. Do not assume assist rewards or shared-win rewards exist without a matching runtime path.
 7. **No EXP-loss-on-death penalty runs**, despite the relevant functions (`TryApplyExpPenalty`, `ApplyExpPenalty`) existing in code — they are simply never called from the death path.
-8. **Kill EXP is a flat 120, not 50% of the victim's lost EXP.** There is also **no per-kill Diamond reward** anywhere in source; Diamonds only ever come from a chance-based HP Food drop.
+8. **Kill EXP is a flat 120, not 50% of the victim's lost EXP.** Per-kill Diamonds now use a 60-second per-victim diminishing-return window; HP Food drop chances and round-end score/placement rewards are also configured in §7.2 and §8.2.
 9. **No EXP-rate difference between `Awaits` and `EarlyGame`.** `GrantExp` is round-state agnostic; the previously documented "50% EXP in Awaits, 100% in EarlyGame" scaling does not exist in code.
 10. **Safe Zone outside-damage numbers were wrong.** Real ramp is 0.5%/s → 5%/s (+0.5% every 30s), plus a large fixed 15,000-point base component added to every tick — not a pure 1%→10% percent-of-HP ramp.
 11. **Only two trap types exist** (SpikeTrap, LavaTrap). Totem and Toxic Smoke traps referenced in earlier drafts have no implementation anywhere in the codebase.

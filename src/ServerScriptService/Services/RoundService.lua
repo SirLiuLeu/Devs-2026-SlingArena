@@ -182,6 +182,10 @@ function RoundService:JoinArena(player: Player)
 	ServiceResolver.Get(self._context, "PlayerStateService"):SetCurrentMap(player, arenaMapName)
 	ServiceResolver.Get(self._context, "PlayerStateService"):SetLocationState(player, GameStates.SessionState.InGame)
 	if self._roundActive then
+		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+		if stateService and typeof(stateService.ResetRoundLevel) == "function" then
+			stateService:ResetRoundLevel(player)
+		end
 		self:_activateRageIfDue()
 		local teamService = ServiceResolver.Get(self._context, "TeamService")
 		if self._rageActive then
@@ -202,6 +206,10 @@ function RoundService:LeaveArena(player: Player)
 	ServiceResolver.Get(self._context, "PlayerService"):SpawnForActiveMode(player, 1, "LobbyMap", lobbyMode)
 	ServiceResolver.Get(self._context, "PlayerStateService"):SetCurrentMap(player, "LobbyMap")
 	ServiceResolver.Get(self._context, "PlayerStateService"):SetLocationState(player, GameStates.SessionState.Lobby)
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	if stateService and typeof(stateService.ResetRoundLevel) == "function" then
+		stateService:ResetRoundLevel(player)
+	end
 	local teamService = ServiceResolver.Get(self._context, "TeamService")
 	if teamService and typeof(teamService.ClearPlayerTeam) == "function" then teamService:ClearPlayerTeam(player) end
 	if self:_countArenaPlayers() == 0 and self._state ~= GameStates.MapRoundState.RoundEnd and self._state ~= GameStates.MapRoundState.PostRound then
@@ -369,6 +377,15 @@ function RoundService:_beginRoundEnd()
 	end
 	self._winnerName = if #winnerNames > 0 then table.concat(winnerNames, ", ") else (self:_findLastAlivePlayerName() or "No winner")
 	local summaryRows = if progressPointService and typeof(progressPointService.AwardEndRoundPoints) == "function" then progressPointService:AwardEndRoundPoints(topPlayers) else topPlayers
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	if stateService and typeof(stateService.ResetRoundLevel) == "function" then
+		for _, player in ipairs(Players:GetPlayers()) do
+			local state = stateService:GetState(player)
+			if state and state.LocationState ~= GameStates.SessionState.Lobby then
+				stateService:ResetRoundLevel(player)
+			end
+		end
+	end
 	self:_setState(GameStates.MapRoundState.RoundEnd)
 	self:_freezeArenaPlayers(true)
 	if self._matchSummaryRemote then

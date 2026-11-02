@@ -39,7 +39,7 @@
 
 | RemoteName | Direction | OwnerService | PayloadSchema | Description |
 |---|---|---|---|---|
-| StateUpdate | S->C | PlayerStateService | `{ userId: number, mapName: string, arenaStatus: string, level: number, exp: number, maxHP: number, currentHP: number, movementState: string, cooldownEndTime: number, ... }` | Authoritative per-player state snapshot. |
+| StateUpdate | S->C | PlayerStateService | `{ userId: number, mapName: string, arenaStatus: string, level: number, roundLevel: number, exp: number, maxHP: number, currentHP: number, movementState: string, cooldownEndTime: number, ... }` | Authoritative per-player state snapshot; RoundLevel is temporary and resets to 1 at round end. |
 | MatchStateUpdate | S->C | RoundService | `{ state: string, roundId: number }` | Round phase synchronization. |
 | UIStateUpdate | S->C | RoundService | `{ state: string, arenaStatus: string, alivePlayers: number, playerCount: number, mapName: string, timeLeft: number, countdownTimer: number }` | Aggregated round/UI status payload. |
 | RoundResult | S->C | RoundService | `{ winner: string, roundId: number }` | End-of-round winner announcement. |
@@ -85,7 +85,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `LauncherPreviewConfig.lua` | Per-Launcher viewport camera `Rotation`, `Offset`, and preview `Scale`, accessed through `Get(launcherId)`. | `LauncherInventoryUIController`, `PreviewRenderer` |
 | `PetRarityStatsConfig.lua` | Base HP and damage values by pet rarity. | `PetProgression`, pet UI |
 | `PetsConfig.lua` | Pet definition catalog, ability IDs, rarity, and max-level settings. | `PetService`, `PetProgression`, `InventoryUIController` |
-| `PetsUpgradeConfig.lua` | Level normalization, costs, 10% per-level base-stat growth, and milestone predicates. | `PetService`, `PetProgression`, `PetDisplayFormatter` |
+| `PetsUpgradeConfig.lua` | Pet levels 1–50, linear `50 × currentLevel × rarityMultiplier` upgrade cost, +5% base HP/Damage per level through 20 and +3% per level from 21–50, plus ability milestone predicates. | `PetService`, `PetProgression`, `PetDisplayFormatter` |
 | `LauncherConfig.lua` | Current five Duck Launcher definitions (`Normalduck`, `Kingduck`, `Witchduck`, `Drakeduck`, `Shielduck`), default ID, combat stats, weight, reflect damage, and lookup helpers. Future catalog size is not fixed. | `PlayerStateService`, `LauncherStatResolver`, launcher inventory/shop and mock data |
 | `RarityConfig.lua` | Launcher rarity/star tiers (Common → Normal → Rare → Epic → Legendary), star lookup, next-tier lookup, display colors, and per-tier stat multipliers. | `PlayerDataService`, `InventoryDataProvider`, `LauncherStatResolver`, `LauncherInventoryUIController` |
 | `TrapConfig.lua` | Trap tuning constants (EXP penalty, cooldown, count, color). | `TrapService` |
@@ -101,7 +101,8 @@ Config modules store shared tuning and content tables (movement/combat constants
 
 - The pet details level label is `StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Level`; `ProjectTreeSpec.UI.Inventory.PetsStatLevel` is the code path used to bind it.
 - `PetDisplayFormatter.Format(definition, level, previewNextLevel, languageCode)` is presentation-only and returns `LevelText`, `HPText`, `DamageText`, and `ScriptText`. It selects the localized ability template by locale (with an English fallback) and encodes every RichText arrow as `-&gt;`.
-- Base HP and damage grow at every level. Most ability parameters change at levels 1, 5, 10, 15, and 20; Titan weight/hitbox/visual multipliers are calculated at every level. The first Upgrade click previews base-stat changes; milestone-based ability text changes only when the next level is one of those milestones. The second click submits the upgrade, disables the button until a server result, and all selection/tab/hide/result events clear the preview.
+- Pet level caps at 50. Base HP and Damage gain +5% per upgrade level through level 20, then +3% per level from 21 to 50. Ability parameters remain capped at level 20 and use milestones 1, 5, 10, 15, and 20; Titan weight/hitbox parameters also stop scaling at 20. Upgrade price is `50 × currentLevel × rarityMultiplier`, with the existing rarity multipliers retained.
+- The first Upgrade click previews base-stat changes; milestone-based ability text changes only when the next level is one of those milestones. The second click submits the upgrade, disables the button until a server result, and all selection/tab/hide/result events clear the preview.
 
 > **History note:** Entries below are dated implementation history, not a current-state inventory. Later notes and the current source supersede older Equipment-era descriptions; current gameplay ownership is Pets + Launcher Inventory.
 

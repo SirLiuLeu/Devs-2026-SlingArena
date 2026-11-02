@@ -40,7 +40,7 @@ export type PetDefinition = {
 PetsConfig.EquippedSlotCount = 3
 PetsConfig.SlotTypes = { Universal = "Universal", Core = "Core", Module = "Module", Charm = "Charm" }
 PetsConfig.Rarities = { Common = "Common", Rare = "Rare", Epic = "Epic", Legendary = "Legendary" }
-PetsConfig.MaxLevel = 20
+PetsConfig.MaxLevel = 50
 PetsConfig.Categories = {
 	ActiveAttack = "Active Attack",
 	CrowdControl = "Crowd Control",
