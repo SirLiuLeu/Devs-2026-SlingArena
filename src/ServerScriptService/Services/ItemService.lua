@@ -80,6 +80,15 @@ function ItemService:TryConsume(player: Player, itemId: string): (boolean, strin
 			self:_feedback(player, itemId, "NotInRound")
 			return false, "NotInRound"
 		end
+		-- The round-start reset clears temporary flags. Do not allow a timed EXP
+		-- boost to be consumed in Awaits just before that reset discards it.
+		if effect.kind == "Flag" and effect.flagName == "EXPBoosted" then
+			local roundService = ServiceResolver.Get(self._context, "RoundService")
+			if not roundService or typeof(roundService.IsPlayingState) ~= "function" or not roundService:IsPlayingState() then
+				self:_feedback(player, itemId, "NotInRound")
+				return false, "NotInRound"
+			end
+		end
 	end
 
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
