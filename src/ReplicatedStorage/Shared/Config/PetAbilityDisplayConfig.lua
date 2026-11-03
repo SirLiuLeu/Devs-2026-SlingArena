@@ -75,8 +75,8 @@ PetAbilityDisplayConfig.Descriptions = {
 		en = "Restores {healAmount} HP every {tickInterval}s.",
 	},
 	ShadowCloak = {
-		vi = "Tàng hình sau 3 giây kể từ khi được kích hoạt. Tự hiện hình khi phóng, va chạm hoặc tấn công.",
-		en = "Enters stealth 3 seconds after activation. Reveals on launch, collision, or attack.",
+		vi = "Sau khi trang bị, tàng hình sau 3 giây. Tự hiện hình khi phóng, va chạm hoặc tấn công.",
+		en = "After equipping, enters stealth after 3 seconds. Reveals on launch, collision, or attack.",
 	},
 }
 
