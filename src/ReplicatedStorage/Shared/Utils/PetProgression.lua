@@ -27,6 +27,12 @@ function PetProgression.Resolve(petOrDefinition: any, petOrLevel: any?): { [stri
 	if not definition then return nil end
 	local level = PetProgression.GetLevel(if petOrLevel == nil then petOrDefinition else petOrLevel)
 	local rarityStats = PetRarityStatsConfig.Get(definition.rarity)
+	-- Passive-only Pets also own level-scaled ability parameters. For legacy
+	-- definitions with no abilityId (or the NoOp placeholder), use their PetId.
+	local abilityId = definition.abilityId
+	if type(abilityId) ~= "string" or abilityId == "NoOp" then
+		abilityId = definition.PetId
+	end
 	return {
 		definition = definition,
 		level = level,
@@ -34,7 +40,7 @@ function PetProgression.Resolve(petOrDefinition: any, petOrLevel: any?): { [stri
 			maxHP = PetsUpgradeConfig.GetStatAtLevel(rarityStats.BaseHP, level),
 			baseDamage = PetsUpgradeConfig.GetStatAtLevel(rarityStats.BaseDamage, level),
 		},
-		abilityParams = PetAbilityProgressionConfig.GetParams(definition.abilityId, level),
+		abilityParams = PetAbilityProgressionConfig.GetParams(abilityId, level),
 		activeAbilityId = definition.activeAbilityId,
 	}
 end
