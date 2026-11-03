@@ -87,7 +87,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `PetProjectileRenderConfig.lua` | Client-only projectile visual distance and count cap. | `PetProjectileVisualController.client.lua` |
 | `LauncherPreviewConfig.lua` | Per-Launcher viewport camera `Rotation`, `Offset`, and preview `Scale`, accessed through `Get(launcherId)`. | `LauncherInventoryUIController`, `PreviewRenderer` |
 | `PetRarityStatsConfig.lua` | Base HP and damage values by pet rarity. | `PetProgression`, pet UI |
-| `PetsConfig.lua` | Pet definition catalog, ability IDs, rarity, and max-level settings. | `PetService`, `PetProgression`, `InventoryUIController` |
+| `PetsConfig.lua` | Pet definition catalog, ability IDs, rarity, and max-level settings. | `PetService`, `PetProgression`, `PetInventoryUIController` |
 | `PetsUpgradeConfig.lua` | Pet levels 1–50, linear `50 × currentLevel × rarityMultiplier` upgrade cost, +5% base HP/Damage per level through 20 and +3% per level from 21–50, plus ability milestone predicates. | `PetService`, `PetProgression`, `PetDisplayFormatter` |
 | `LauncherConfig.lua` | Current five Duck Launcher definitions (`Normalduck`, `Kingduck`, `Witchduck`, `Drakeduck`, `Shielduck`), default ID, combat stats, weight, reflect damage, and lookup helpers. Future catalog size is not fixed. | `PlayerStateService`, `LauncherStatResolver`, launcher inventory/shop and mock data |
 | `RarityConfig.lua` | Launcher rarity/star tiers (Common → Normal → Rare → Epic → Legendary), star lookup, next-tier lookup, display colors, and per-tier stat multipliers. | `PlayerDataService`, `InventoryDataProvider`, `LauncherStatResolver`, `LauncherInventoryUIController` |
