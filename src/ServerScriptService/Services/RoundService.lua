@@ -188,6 +188,10 @@ function RoundService:RequestPlus1Minute(_player: Player)
 end
 
 function RoundService:JoinArena(player: Player)
+	if self._state == GameStates.MapRoundState.RoundEnd or self._state == GameStates.MapRoundState.PostRound then
+		if self._popupRemote then self._popupRemote:FireClient(player, "The round is ending. Join the next round instead.") end
+		return
+	end
 	if not self:_canJoinArena(player) then
 		local leaveAt = self._lastLeaveByUserId[player.UserId] or os.time()
 		local remainingSeconds = REJOIN_COOLDOWN_SECONDS - (os.time() - leaveAt)

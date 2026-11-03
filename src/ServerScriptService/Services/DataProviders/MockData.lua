@@ -45,7 +45,6 @@ local function buildMockLauncherInventory(): { [string]: any }
 end
 
 MockData.MOCK_SCHEMA_DEFAULTS = {
-	Level = 1,
 	Coin = 0,
 	Diamonds = 0,
 	OwnedItems = { hp_potion = 5, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5 },
@@ -65,7 +64,6 @@ MockData.PlayerProfiles = {
 		UserId = -800001,
 		Name = "MockPlayerAlpha",
 		DisplayName = "Mock Player Alpha",
-		Level = 12,
 		Coin = 2500,
 		Diamonds = 750,
 		OwnedItems = { hp_potion = 8, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5, gacha_ticket = 5 },
@@ -101,7 +99,6 @@ MockData.PlayerProfiles = {
 		UserId = -800002,
 		Name = "MockPlayerBeta",
 		DisplayName = "Mock Player Beta",
-		Level = 28,
 		Coin = 6400,
 		Diamonds = 1400,
 		OwnedItems = { hp_potion = 15, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5, gacha_ticket = 12 },
