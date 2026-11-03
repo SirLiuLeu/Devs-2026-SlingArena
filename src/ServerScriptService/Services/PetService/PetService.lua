@@ -19,6 +19,7 @@ function PetService.new(context: Context)
 	self._context = context
 	self._equipRemote = context.Remotes and context.Remotes:FindFirstChild(RemoteContracts.Names.EquipPet) :: RemoteEvent?
 	self._unequipRemote = context.Remotes and context.Remotes:FindFirstChild(RemoteContracts.Names.UnequipPet) :: RemoteEvent?
+	self._deleteRemote = context.Remotes and context.Remotes:FindFirstChild(RemoteContracts.Names.DeletePet) :: RemoteEvent?
 	self._upgradeRemote = context.Remotes and context.Remotes:FindFirstChild(RemoteContracts.Names.UpgradePet) :: RemoteEvent?
 	return self
 end
@@ -36,6 +37,13 @@ function PetService:Init()
 		self._unequipRemote.OnServerEvent:Connect(function(player: Player, slot: any)
 			if RemoteContracts.Validate(RemoteContracts.Names.UnequipPet, slot) then
 				self:Unequip(player, slot)
+			end
+		end)
+	end
+	if self._deleteRemote then
+		self._deleteRemote.OnServerEvent:Connect(function(player: Player, instanceId: string)
+			if RemoteContracts.Validate(RemoteContracts.Names.DeletePet, instanceId) then
+				self:Delete(player, instanceId)
 			end
 		end)
 	end
@@ -236,6 +244,75 @@ function PetService:Unequip(player: Player, slot: any): (boolean, string?)
 		})
 	end
 	return success, if success then nil else "NothingEquipped"
+end
+
+
+function PetService:_publishDeleteResult(player: Player, result: { [string]: any })
+	local feedbackRemote = self._context.Remotes and self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
+	if feedbackRemote then
+		feedbackRemote:FireClient(player, { EventType = "PetDeleteResult", Payload = result })
+	end
+end
+
+function PetService:Delete(player: Player, instanceId: string): (boolean, string?)
+	if type(instanceId) ~= "string" or instanceId == "" then
+		self:_publishDeleteResult(player, { Status = "Rejected", Reason = "InvalidInstanceId", InstanceId = instanceId })
+		return false, "InvalidInstanceId"
+	end
+
+	local dataService = self:_dataService()
+	if not dataService then
+		self:_publishDeleteResult(player, { Status = "Rejected", Reason = "MissingPlayerDataService", InstanceId = instanceId })
+		return false, "MissingPlayerDataService"
+	end
+
+	local removedSlots = {}
+	local definitionId = nil
+	local deleted = false
+	dataService:UpdateData(player, function(data)
+		dataService:_ensurePetData(data)
+		local ownedInstance = data.OwnedPets[instanceId]
+		if type(ownedInstance) ~= "table" then
+			return data
+		end
+
+		definitionId = tostring(ownedInstance.definitionId or "")
+		data.OwnedPets[instanceId] = nil
+		for slot, equippedInstanceId in pairs(data.EquippedPets) do
+			if equippedInstanceId == instanceId then
+				table.insert(removedSlots, tonumber(slot) or slot)
+				data.EquippedPets[slot] = nil
+			end
+		end
+		deleted = true
+		return data
+	end)
+
+	if not deleted then
+		self:_publishDeleteResult(player, { Status = "Rejected", Reason = "NotOwned", InstanceId = instanceId })
+		return false, "NotOwned"
+	end
+
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	if stateService and typeof(stateService.SyncPetFromData) == "function" then
+		stateService:SyncPetFromData(player)
+	end
+	if self._context.EventBus then
+		for _, slot in ipairs(removedSlots) do
+			self._context.EventBus:Fire("PetUnequipped", player, slot, instanceId)
+		end
+	end
+	if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
+		stateService:RecalculateDerivedStats(player, false)
+	end
+
+	self:_publishDeleteResult(player, {
+		Status = "Deleted",
+		InstanceId = instanceId,
+		DefinitionId = definitionId,
+		UnequippedSlots = removedSlots,
+	})
+	return true, nil
 end
 
 function PetService:GetPityState(player: Player, instanceId: string): any?
