@@ -399,12 +399,12 @@ function PetInventoryUIController:_refreshPetPanel(data)
 	local equipped = entry and entry.equipped == true
 	if self._toggleEquipButton then
 		self._toggleEquipButton.Text = if equipped then "Unequip" else "Equip"
-		self:_setButtonEnabled(self._toggleEquipButton, entry ~= nil)
+		self:_setButtonEnabled(self._toggleEquipButton, entry ~= nil and not deleting and self._upgradePendingPetId == nil)
 	end
 
-	local deleting = entry ~= nil and self._deletePendingPetId == petId
+	local deleting = self._deletePendingPetId ~= nil
 	if self._deleteButton then
-		self._deleteButton.Text = if deleting then "Deleting..." else "Delete"
+		self._deleteButton.Text = if self._deletePendingPetId == petId then "Deleting..." else "Delete"
 		self:_setButtonEnabled(self._deleteButton, entry ~= nil and not deleting)
 	end
 
@@ -416,7 +416,7 @@ function PetInventoryUIController:_refreshPetPanel(data)
 			elseif upgrading then "Upgrading..."
 			elseif isPreviewing then string.format("Confirm Upgrade (%d Diamonds)", cost)
 			else string.format("Upgrade %d Diamonds", cost)
-		self:_setButtonEnabled(self._upgradeButton, entry ~= nil and level < PetsUpgradeConfig.MaxLevel and not upgrading)
+		self:_setButtonEnabled(self._upgradeButton, entry ~= nil and level < PetsUpgradeConfig.MaxLevel and self._upgradePendingPetId == nil and not deleting)
 	end
 end
 
@@ -434,7 +434,7 @@ function PetInventoryUIController:_handleUpgradePressed()
 	if not (entry and petId and self._upgradePetRemote) then
 		return
 	end
-	if self._upgradePendingPetId then
+	if self._upgradePendingPetId or self._deletePendingPetId then
 		return
 	end
 	local level = PetsUpgradeConfig.NormalizeLevel(tonumber(entry.level) or 1)
@@ -461,7 +461,7 @@ function PetInventoryUIController:_requestDeleteSelectedPet()
 	if not (petId and entry and definition and self._dataProvider) then
 		return
 	end
-	if self._deletePendingPetId then
+	if self._deletePendingPetId or self._upgradePendingPetId then
 		return
 	end
 	if not self._confirmationController then
