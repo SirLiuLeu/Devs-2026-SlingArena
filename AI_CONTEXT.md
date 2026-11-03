@@ -40,7 +40,7 @@
 
 | RemoteName | Direction | OwnerService | PayloadSchema | Description |
 |---|---|---|---|---|
-| StateUpdate | S->C | PlayerStateService | `{ userId: number, mapName: string, arenaStatus: string, level: number, roundLevel: number, exp: number, maxHP: number, currentHP: number, movementState: string, cooldownEndTime: number, ... }` | Authoritative per-player state snapshot; RoundLevel is temporary and resets to 1 at round end. |
+| StateUpdate | S->C | PlayerStateService | `{ userId: number, mapName: string, arenaStatus: string, level: number, exp: number, progressionRoundId: number?, maxHP: number, currentHP: number, movementState: string, cooldownEndTime: number, ... }` | Authoritative per-player state snapshot; Player Level/EXP belong to one RoundId and reset after results or when an empty Arena abandons the round. |
 | MatchStateUpdate | S->C | RoundService | `{ state: string, roundId: number }` | Round phase synchronization. |
 | UIStateUpdate | S->C | RoundService | `{ state: string, arenaStatus: string, alivePlayers: number, playerCount: number, mapName: string, timeLeft: number, countdownTimer: number }` | Aggregated round/UI status payload. |
 | RoundResult | S->C | RoundService | `{ winner: string, roundId: number }` | End-of-round winner announcement. |
@@ -223,6 +223,8 @@ Config modules store shared tuning and content tables (movement/combat constants
 
 ## Recent Runtime UI / Debug / Food Updates (2026-11-03)
 - `LauncherWorldUI` writes `HPStats` as current/max HP on every authoritative `PlayerStateUpdated` update. The bar fill still uses the same authoritative HP ratio and team color.
-- `FoodConfig.HpFoodSpawnRadius` and `HpFoodMinNoOverlapDistance` control HP Food placement independently; Common Food retains the original spawn radius and 3-stud spacing. Mixed HP/Common placement reserves the wider clearance around HP Food.
+- FoodSpawn Parts define the complete rectangular X/Z spawn area. Mid/Edge target count is floor(Size.X * Size.Z / 1000), clamped to 1–20; Center remains 1 per Part. HP–HP Hitbox gap is 7 studs; Common–Common and HP–Common gaps are 3 studs. Food must raycast to an upward-facing floor tagged Collision_Ground within 4 studs of the FoodSpawn top plane.
 - `UnitTestUI.RootFrame.ShowStats` prints the local player's latest authoritative derived stats, including Launcher/Pet HP and Damage contributions, Speed, LaunchSpeed, Armor, Regeneration, ReflectDamage, Weight, and EXP Bonus.
-- Pet base-stat growth is already configured at +5% per level through level 20 and +3% for levels 21–50, with rarity-based upgrade costs retained. Ability growth beyond level 20 remains unchanged pending explicit per-ability level-50 targets; current ability parameters use different scales and directions, so a generic extra 20% cannot be applied safely without those targets.
+- Player Level is the only Player progression Level and is scoped to the server's current RoundId. It starts at 1 on a new Arena join, gains EXP during Awaits/EarlyGame/FinalPhase, survives respawn and same-server leave/rejoin within that RoundId, and resets after results or when an empty Arena abandons the round. Lobby EXP is rejected; EXP consumables are not deducted outside a valid round.
+- OnlineRewardLogicService remains a client-side mock implementation using MockPlayerData; it is not an authoritative server reward path and must not be described as a live Round EXP source.
+- Pet Base HP/Damage grow linearly by +5% of base per level through level 50 (3.45x at level 50). Ability milestones are 1/5/10/15/20/25/30/35/40/45/50: 80% of each configured Level1→Level50 target is reached at level 20, then the remaining 20% is distributed across levels 25–50. Cooldowns and discrete projectile-speed unlocks retain dedicated settings.

@@ -129,7 +129,7 @@ The current runtime catalog defines five Launchers: `Normalduck`, `Kingduck`, `W
 
 * **Star multiplier:** `1 + (star - 1) × 0.08` — i.e., **+8% per star**.
 * **Owned Launcher level multiplier:** `1 + (level - 1) × 0.03`; the resolver applies it to maxHP, baseDamage, regeneration, and launchPower.
-* **Temporary RoundLevel multiplier:** `1 + (RoundLevel - 1) × 0.01`; it applies only to the Launcher's base maxHP and baseDamage before Pet stats are added. RoundLevel starts at 1, increases on player level-ups during EarlyGame/FinalPhase, survives respawn, and resets to 1 when the player leaves the Arena or the round ends. It is separate from the player's regular Level and the owned Launcher's inventory level.
+* **Round-scoped Player Level multiplier:** `1 + (PlayerLevel - 1) × 0.01`; it applies only to Launcher base maxHP and baseDamage before Pet stats are added. There is only one Player Level. It starts at 1 when joining a new RoundId, can gain EXP during Awaits/EarlyGame/FinalPhase, survives respawn and same-server leave/rejoin within that RoundId, and resets to 1 with 0 EXP after round results or when an empty Arena abandons the round. Owned Launcher inventory level remains independent.
 * ❌ **The "3 identical Launchers → +1★" fusion mechanic has no implementation anywhere in the codebase.** The `star` field exists on owned-launcher data and the multiplier math is real, but nothing sets or increments `star` at runtime except hardcoded seed/mock data. See §13.
 * ⚠️ Mock/seed data (`MockData.lua`) contains a `star = 4` entry, exceeding the design intent of a 3★ cap, and references launcher IDs (`FireLauncher`, `PetrifyLauncher`, `VacuumLauncher`) that **do not exist** in `LauncherConfig.Types`. Treat these as stale fixtures, not canonical content.
 
@@ -149,7 +149,7 @@ The current runtime catalog defines five Launchers: `Normalduck`, `Kingduck`, `W
 
 ## 5.2 Upgrade progression
 
-- Pet max level is 50. Base HP/Damage increase by 5% per level from 1 through 20, then 3% per level from 21 through 50. Ability parameters cap at level 20 (milestones 1, 5, 10, 15, 20).
+- Pet max level is 50. Base HP/Damage increase by a linear +5% of base per level across levels 1–50 (3.45x at level 50). Ability milestones are 1/5/10/15/20/25/30/35/40/45/50: the first four upgrades reach 80% of each Level1→Level50 parameter range by level 20, and the remaining 20% is distributed evenly across levels 25–50. Ability parameters use per-Ability Level1/Level50 targets; cooldowns and discrete projectile-speed unlocks retain explicit settings.
 - Upgrade cost is `50 × currentLevel × rarityMultiplier`; Common/Rare/Epic/Legendary retain multipliers 1.0/1.25/1.6/2.0.
 - `PetsUpgradeConfig.lua` owns Pet-level normalization and upgrade-cost/stat-growth rules. `PetService` delegates the authoritative upgrade commit to `PlayerDataService`.
 - Upgrade requests include the expected current level (1–50) so the server can reject stale requests. The client preview is informational; it does not determine the upgrade result or cost.
@@ -200,7 +200,7 @@ Flags are modifiers layered on top of a player's core `MovementState`. Real, cod
 ## 7.1 Global Settings
 
 * `CommonRespawnTime = 10`s, `HpFoodRespawnTime = 30`s
-* `SpawnRadius = 20`, `MinNoOverlapDistance = 3`
+* FoodSpawn Parts define the full rectangular X/Z placement area. Mid/Edge target count is `floor(Size.X × Size.Z / 1000)`, clamped to 1–20; CenterZones remain 1 per Part. Common–Common and HP–Common Hitbox gaps are 3 studs; HP–HP gap is 7 studs. Food must raycast to an upward-facing `Collision_Ground` surface within 4 studs of the FoodSpawn top plane, with the full Hitbox footprint supported.
 
 ## 7.2 Food Types
 
@@ -227,8 +227,8 @@ Flags are modifiers layered on top of a player's core `MovementState`. Real, cod
 
 ## 7.4 Spawn Density (`ZoneSpawnSettings`)
 
-* Center Zones: 1 active item per spawn point.
-* Mid/Edge Zones: 10 active items per spawn point, within `SpawnRadius = 20`.
+* Center Zones: 1 active item per FoodSpawn Part.
+* Mid/Edge Zones: one target item per 1,000 square studs of FoodSpawn X/Z area, clamped to 1–20. A 100×100 Part targets 10 Food.
 
 ---
 
@@ -237,7 +237,8 @@ Flags are modifiers layered on top of a player's core `MovementState`. Real, cod
 ## 8.1 EXP
 
 * `LevelConfig.RequiredExp(level) = BaseExp(100) × level^ExpExponent(1.3)`. ✅ matches original design intent.
-* `LevelConfig.MaxLevel = 200`.
+* `LevelConfig.MaxLevel = 200` for the current round-scoped Player Level.
+* Player Level/EXP are not persistent profile progression. Lobby players cannot gain Round EXP; valid progression is scoped to the current RoundId and resets after results or an abandoned empty Arena. Experience consumables are rejected without being consumed outside a valid round. OnlineRewardLogicService remains a client-side MockData/MockPlayerData flow, not an authoritative server EXP source.
 * Kill EXP: a flat **`BalanceConfig.KillExp = 120`** is granted to the killer (`GrowthService`), **not** "50% of the target's lost EXP" as previously documented. ⚠️ See §13.
 * ❌ **No EXP-loss-on-death penalty is applied anywhere.** `PlayerStateService:TryApplyExpPenalty` and `DamagePipelineService:ApplyExpPenalty` exist as functions, but `HandlePlayerDeath` never calls them. The "lose 30% EXP on death" rule from the previous doc does not run in the current codebase.
 
