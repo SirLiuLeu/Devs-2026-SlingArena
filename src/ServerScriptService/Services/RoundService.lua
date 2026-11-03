@@ -90,6 +90,14 @@ function RoundService:Init()
 		end)
 	end
 
+	Players.PlayerRemoving:Connect(function(_player)
+		-- PlayerStateService also listens to PlayerRemoving. Defer the empty-Arena
+		-- check until the disconnecting player's authoritative state is removed.
+		task.defer(function()
+			self:_abortIfArenaEmpty()
+		end)
+	end)
+
 	RunService.Heartbeat:Connect(function(dt)
 		self:_step(dt)
 	end)
@@ -208,6 +216,47 @@ function RoundService:JoinArena(player: Player)
 	self:_publishUiState()
 end
 
+function RoundService:_abortIfArenaEmpty(): boolean
+	if self:_countArenaPlayers() > 0
+		or self._state == GameStates.MapRoundState.RoundEnd
+		or self._state == GameStates.MapRoundState.PostRound
+		or (self._state == GameStates.MapRoundState.Lobby and not self._roundActive) then
+		return false
+	end
+
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	if stateService then
+		for _, member in ipairs(Players:GetPlayers()) do
+			stateService:ResetRoundProgression(member)
+		end
+	end
+
+	self._roundId += 1
+	self._roundActive = false
+	self._rageActive = false
+	self._roundTimer = 0
+	self._roundEndElapsed = 0
+	self._winnerName = nil
+	self._resultsShown = false
+
+	local teamService = ServiceResolver.Get(self._context, "TeamService")
+	if teamService and typeof(teamService.SetRageActive) == "function" then
+		teamService:SetRageActive(false)
+	end
+	local safeZoneService = ServiceResolver.Get(self._context, "SafeZoneService")
+	if safeZoneService and typeof(safeZoneService.Reset) == "function" then
+		safeZoneService:Reset()
+	end
+	local leaderboardService = ServiceResolver.Get(self._context, "LeaderboardService")
+	if leaderboardService and typeof(leaderboardService.ResetForNewRound) == "function" then
+		leaderboardService:ResetForNewRound()
+	end
+
+	self:_setState(GameStates.MapRoundState.Lobby)
+	self:_publishUiState()
+	return true
+end
+
 function RoundService:LeaveArena(player: Player)
 	self._lastLeaveByUserId[player.UserId] = os.time()
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
@@ -217,17 +266,7 @@ function RoundService:LeaveArena(player: Player)
 	stateService:SetLocationState(player, GameStates.SessionState.Lobby)
 	local teamService = ServiceResolver.Get(self._context, "TeamService")
 	if teamService and typeof(teamService.ClearPlayerTeam) == "function" then teamService:ClearPlayerTeam(player) end
-	if self:_countArenaPlayers() == 0
-		and self._state ~= GameStates.MapRoundState.RoundEnd
-		and self._state ~= GameStates.MapRoundState.PostRound then
-		for _, member in ipairs(Players:GetPlayers()) do stateService:ResetRoundProgression(member) end
-		self._roundId += 1
-		self:_setState(GameStates.MapRoundState.Lobby)
-		self._roundActive = false
-		self._rageActive = false
-		self._roundTimer = 0
-		if teamService and typeof(teamService.SetRageActive) == "function" then teamService:SetRageActive(false) end
-	end
+	self:_abortIfArenaEmpty()
 	self:_publishUiState()
 end
 

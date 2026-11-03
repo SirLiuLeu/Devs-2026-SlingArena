@@ -149,7 +149,7 @@ The current runtime catalog defines five Launchers: `Normalduck`, `Kingduck`, `W
 
 ## 5.2 Upgrade progression
 
-- Pet max level is 50. Base HP/Damage increase by a linear +5% of base per level across levels 1–50 (3.45x at level 50). Ability milestones are 1/5/10/15/20/25/30/35/40/45/50: the first four upgrades reach 80% of each Level1→Level50 parameter range by level 20, and the remaining 20% is distributed evenly across levels 25–50. Ability parameters use per-Ability Level1/Level50 targets; cooldowns and discrete projectile-speed unlocks retain explicit settings.
+- Pet max level is 50. Base HP/Damage increase by a linear +5% of base per level through level 20, then +3% of base per level through level 50 (2.85x at level 50). Existing ability milestones and values through level 20 remain unchanged; level 20 is 80% of each extended Level1→Level50 range, and the remaining 20% is distributed linearly across levels 21–50. Ability parameters use per-Ability Level1/Level50 targets; cooldowns and discrete projectile-speed unlocks retain explicit settings.
 - Upgrade cost is `50 × currentLevel × rarityMultiplier`; Common/Rare/Epic/Legendary retain multipliers 1.0/1.25/1.6/2.0.
 - `PetsUpgradeConfig.lua` owns Pet-level normalization and upgrade-cost/stat-growth rules. `PetService` delegates the authoritative upgrade commit to `PlayerDataService`.
 - Upgrade requests include the expected current level (1–50) so the server can reject stale requests. The client preview is informational; it does not determine the upgrade result or cost.
@@ -200,7 +200,7 @@ Flags are modifiers layered on top of a player's core `MovementState`. Real, cod
 ## 7.1 Global Settings
 
 * `CommonRespawnTime = 10`s, `HpFoodRespawnTime = 30`s
-* FoodSpawn Parts define the full rectangular X/Z placement area. Mid/Edge target count is `floor(Size.X × Size.Z / 1000)`, clamped to 1–20; CenterZones remain 1 per Part. Common–Common and HP–Common Hitbox gaps are 3 studs; HP–HP gap is 7 studs. Food must raycast to an upward-facing `Collision_Ground` surface within 4 studs of the FoodSpawn top plane, with the full Hitbox footprint supported.
+* FoodSpawn Parts define the full rectangular X/Z placement area. Mid/Edge target count is `floor(Size.X × Size.Z / 1000)`, clamped to 1–20; CenterZones remain 1 per Part. Common–Common and HP–Common Hitbox gaps are 3 studs; HP–HP gap is 20 studs. Food must raycast to an upward-facing `Collision_Ground` surface within 4 studs of the FoodSpawn top plane, with the full Hitbox footprint supported.
 
 ## 7.2 Food Types
 
