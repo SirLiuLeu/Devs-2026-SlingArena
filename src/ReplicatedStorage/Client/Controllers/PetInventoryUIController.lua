@@ -371,7 +371,7 @@ function PetInventoryUIController:_setButtonEnabled(button: TextButton?, enabled
 end
 
 function PetInventoryUIController:_refreshPetPanel(data)
-	self._selectedPetId = data.selectedPetId or self._selectedPetId
+	self._selectedPetId = data.selectedPetId
 	local petId = self._selectedPetId
 	local entry = self:_findPetEntry(data.ownedPets, petId)
 	local definition = entry and PetsConfig.GetById(tostring(entry.definitionId or entry.id or "")) or nil
