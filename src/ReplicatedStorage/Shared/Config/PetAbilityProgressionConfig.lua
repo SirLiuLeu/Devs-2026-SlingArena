@@ -61,18 +61,20 @@ function PetAbilityProgressionConfig.GetParams(abilityId: string?, level: number
 	local ability = abilityId and PetAbilityProgressionConfig.Abilities[abilityId]
 	if not ability then return {} end
 
-	local currentMilestone = 1
-	for _, milestone in ipairs({ 1, 5, 10, 15, 20 }) do
-		if safeLevel >= milestone then currentMilestone = milestone else break end
+	local selectedMilestone = 1
+	for _, milestone in ipairs(PetAbilityProgressionConfig.Milestones) do
+		if safeLevel >= milestone then selectedMilestone = milestone else break end
 	end
-	local currentParams = ability[currentMilestone] or ability[1] or {}
-	local result = {}
-	for key, value in pairs(currentParams) do result[key] = value end
 
-	if safeLevel > 20 then
-		local alpha = math.clamp((safeLevel - 20) / 30, 0, 1)
+	local baseMilestone = if selectedMilestone <= 20 then selectedMilestone else 20
+	local baseParams = ability[baseMilestone] or ability[1] or {}
+	local result = {}
+	for key, value in pairs(baseParams) do result[key] = value end
+
+	if selectedMilestone > 20 then
+		local alpha = math.clamp((selectedMilestone - 20) / 30, 0, 1)
 		local level50Params = ability.Level50 or {}
-		for key, level20Value in pairs(currentParams) do
+		for key, level20Value in pairs(baseParams) do
 			local targetValue = level50Params[key]
 			if type(level20Value) == "number" and type(targetValue) == "number" then
 				result[key] = level20Value + ((targetValue - level20Value) * alpha)
