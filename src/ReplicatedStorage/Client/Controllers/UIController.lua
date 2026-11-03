@@ -7,6 +7,7 @@ local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 local InventoryUIController = require(ReplicatedStorage.Client.Controllers.InventoryUIController)
+local PetInventoryUIController = require(ReplicatedStorage.Client.Controllers.PetInventoryUIController)
 local LauncherInventoryUIController = require(ReplicatedStorage.Client.Controllers.LauncherInventoryUIController)
 local ConfirmationUIController = require(ReplicatedStorage.Client.Controllers.ConfirmationUIController)
 local ConfirmationTextConfig = require(ReplicatedStorage.Shared.Config.ConfirmationTextConfig)
@@ -162,6 +163,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.SoundEnabled = SoundManager.IsEnabled()
 	self.ConfirmationUIController = ConfirmationUIController.new(playerGui)
 	self.InventoryUIController = InventoryUIController.new(playerGui)
+	self.PetInventoryUIController = PetInventoryUIController.new(playerGui)
 	self.LauncherInventoryUIController = LauncherInventoryUIController.new(playerGui)
 	self.SpinUIController = SpinUIController.new(playerGui)
 	self.OnlineRewardUIController = OnlineRewardUIController.new(playerGui)
@@ -181,7 +183,8 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.MatchScoreboardDataService = MatchScoreboardDataService.GetDefault()
 	self.MatchSummaryDataService = MatchSummaryDataService.GetDefault()
 	self.InventoryUIController:SetDataProvider(self.InventoryDataProvider)
-	self.InventoryUIController:SetConfirmationController(self.ConfirmationUIController)
+	self.PetInventoryUIController:SetDataProvider(self.InventoryDataProvider)
+	self.PetInventoryUIController:SetConfirmationController(self.ConfirmationUIController)
 	self.LauncherInventoryUIController:SetDataProvider(self.InventoryDataProvider)
 	self.LauncherInventoryUIController:SetConfirmationController(self.ConfirmationUIController)
 	self.LauncherInventoryUIController:SetToastController(self.ToastUIController)
@@ -640,12 +643,13 @@ end
 
 function UIController:_startAvailableFeatureControllers()
 	if self.InventoryUIController then self.InventoryUIController:Start(self.UIReadySignal) end
+	if self.PetInventoryUIController then self.PetInventoryUIController:Start(self.UIReadySignal) end
 	if self.LauncherInventoryUIController then self.LauncherInventoryUIController:Start(self.UIReadySignal) end
 	if self.SpinUIController then self.SpinUIController:Start() end
 	if self.OnlineRewardUIController then self.OnlineRewardUIController:Start() end
 	if self.ShopUIController then self.ShopUIController:Start() end
 	if self.ShopUIController and self.LauncherInventoryUIController then
-		self.WorldProximityUIController = WorldProximityUIController.new(self.ShopUIController, self.LauncherInventoryUIController)
+		self.WorldProximityUIController = WorldProximityUIController.new(self.ShopUIController, self.LauncherInventoryUIController, self.PetInventoryUIController)
 		self.WorldProximityUIController:Start()
 	end
 	if self.DailyLoginUIController then self.DailyLoginUIController:Start() end
@@ -721,11 +725,17 @@ function UIController:Start()
 			if self.InventoryUIController then
 				self.InventoryUIController:RefreshWithData(snapshot)
 			end
+			if self.PetInventoryUIController then
+				self.PetInventoryUIController:RefreshWithData(snapshot)
+			end
 		end))
 		-- Start from an explicit empty snapshot. StateUpdate is authoritative, so preview
 		-- data can never replace real inventory when the server reply arrives late.
 		if self.InventoryUIController then
 			self.InventoryUIController:RefreshWithData(self.InventoryDataProvider:GetSnapshot())
+		end
+		if self.PetInventoryUIController then
+			self.PetInventoryUIController:RefreshWithData(self.InventoryDataProvider:GetSnapshot())
 		end
 	end
 	if self.OnlineRewardLogicService then
@@ -869,6 +879,18 @@ function UIController:Start()
 				end
 				return
 			end
+			if message.EventType == "PetDeleteResult" then
+				local payload = message.Payload or {}
+				local wasDeleted = payload.Status == "Deleted"
+				if self.ToastUIController then
+					self.ToastUIController:Enqueue({
+						Type = if wasDeleted then "PetDeleted" else "PetDeleteRejected",
+						Text = if wasDeleted then "Pet deleted." else ("Could not delete Pet: " .. tostring(payload.Reason or "Rejected")),
+						CreatedAt = os.clock(),
+					})
+				end
+				return
+			end
 			if message.EventType ~= "HpPotionUseResult" then
 				return
 			end
@@ -909,6 +931,7 @@ end
 
 function UIController:Destroy()
 	if self.InventoryUIController then self.InventoryUIController:Destroy() end
+	if self.PetInventoryUIController then self.PetInventoryUIController:Destroy() end
 	if self.LauncherInventoryUIController then self.LauncherInventoryUIController:Destroy() end
 	if self.ConfirmationUIController then self.ConfirmationUIController:Destroy() end
 	if self.WorldProximityUIController then self.WorldProximityUIController:Destroy() end
