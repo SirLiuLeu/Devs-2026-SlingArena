@@ -60,9 +60,5 @@ function PetAbilityProgressionConfig.GetParams(abilityId: string?, level: number
 	return copy(ability[selected] or {})
 end
 
-function PetAbilityProgressionConfig.GetDisplay(abilityId: string?): { [string]: any }?
-	local ability = abilityId and PetAbilityProgressionConfig.Abilities[abilityId]
-	return ability and ability.Display or nil
-end
 
 return PetAbilityProgressionConfig
