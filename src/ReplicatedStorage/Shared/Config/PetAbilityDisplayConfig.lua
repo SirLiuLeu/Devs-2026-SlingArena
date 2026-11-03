@@ -11,8 +11,8 @@ PetAbilityDisplayConfig.Descriptions = {
 		en = "Automatically fires a Plasma projectile at the nearest enemy within 120 studs, dealing {damage} damage. Cooldown: {cooldown}s.",
 	},
 	Hydra = {
-		vi = "Tăng trọng lượng Launcher lên {weight}x và hitbox lên {hitbox}x. Khi được trang bị, Launcher tăng 4% kích thước mỗi lần người chơi lên cấp, tối đa 2x.",
-		en = "Increases Launcher weight to {weight}x and hitbox to {hitbox}x. While equipped, Launcher size grows by 4% per player level-up, up to 2x.",
+		vi = "Tăng trọng lượng Launcher lên {weight} và hitbox lên {hitbox}. Khi được trang bị, Launcher tăng 4% kích thước mỗi lần người chơi lên cấp, tối đa 2x.",
+		en = "Increases Launcher weight to {weight} and hitbox to {hitbox}. While equipped, Launcher size grows by 4% per player level-up, up to 2x.",
 	},
 	ThunderHammer = {
 		vi = "Va chạm với người chơi đối thủ gây choáng. Đồng thời tăng 5% sát thương cơ bản của Launcher.",
@@ -55,8 +55,8 @@ PetAbilityDisplayConfig.Descriptions = {
 		en = "Increases movement speed by {moveSpeed}.",
 	},
 	LaunchBooster = {
-		vi = "Tăng tốc độ phóng của Launcher lên {launchSpeed} lần.",
-		en = "Increases Launcher launch speed to {launchSpeed}x.",
+		vi = "Tăng tốc độ phóng của Launcher lên {launchSpeed}.",
+		en = "Increases Launcher launch speed by {launchSpeed}.",
 	},
 	Dragon = {
 		vi = "Tự động bắn SlowBlaster vào kẻ địch gần nhất, làm chậm trong {slowDuration}s. Hồi chiêu: {cooldown}s.",
@@ -75,8 +75,8 @@ PetAbilityDisplayConfig.Descriptions = {
 		en = "Restores {healAmount} HP every {tickInterval}s.",
 	},
 	ShadowCloak = {
-		vi = "Tàng hình sau khi không hoạt động trong 3 giây. Tự hiện hình khi phóng, va chạm hoặc tấn công.",
-		en = "Enters stealth after 3 seconds of inactivity. Reveals on launch, collision, or attack.",
+		vi = "Tàng hình sau 3 giây kể từ khi được kích hoạt. Tự hiện hình khi phóng, va chạm hoặc tấn công.",
+		en = "Enters stealth 3 seconds after activation. Reveals on launch, collision, or attack.",
 	},
 }
 
