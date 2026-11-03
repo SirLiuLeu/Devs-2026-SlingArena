@@ -15,24 +15,24 @@ PetAbilityDisplayConfig.Descriptions = {
 		en = "Increases Launcher weight to {weight} and hitbox to {hitbox}. While equipped, Launcher size grows by 4% per player level-up, up to 2x.",
 	},
 	ThunderHammer = {
-		vi = "Va chạm với người chơi đối thủ gây choáng. Đồng thời tăng 5% sát thương cơ bản của Launcher.",
-		en = "Collisions with enemy players apply Stun. Also increases the Launcher's base damage by 5%.",
+		vi = "Va chạm với người chơi đối thủ gây choáng trong thời lượng cơ bản {duration}s (còn scale theo lực va chạm). Đồng thời tăng 5% sát thương cơ bản của Launcher.",
+		en = "Collisions with enemy players apply Stun for a base duration of {duration}s (also scaled by impact speed). Also increases base damage by 5%.",
 	},
 	Medusa = {
-		vi = "Va chạm với người chơi đối thủ gây hóa đá. Người chơi đang trang bị Phoenix miễn nhiễm hiệu ứng hóa đá này.",
-		en = "Collisions with enemy players apply Petrify. Players with Phoenix equipped are immune to this Petrify effect.",
+		vi = "Va chạm với người chơi đối thủ gây hóa đá trong thời lượng cơ bản {duration}s (còn scale theo lực va chạm). Người chơi trang bị Phoenix miễn nhiễm hiệu ứng này.",
+		en = "Collisions with enemy players apply Petrify for a base duration of {duration}s (also scaled by impact speed). Players with Phoenix equipped are immune.",
 	},
 	IceCrystal = {
 		vi = "Va chạm kích hoạt Slow, làm giảm 25% tốc độ mục tiêu. Thời lượng cơ bản: {duration}s; thời lượng thực tế được scale theo tốc độ va chạm.",
 		en = "Collisions apply Slow, reducing the target's speed by 25%. Base duration: {duration}s; actual duration scales with collision speed.",
 	},
 	GhostFlame = {
-		vi = "Va chạm áp dụng Burn lên người chơi hoặc thức ăn. Tăng {baseDamage} sát thương cơ bản.",
-		en = "Collisions apply Burn to players or food. Adds {baseDamage} base damage.",
+		vi = "Va chạm áp dụng Burn lên người chơi hoặc thức ăn, gây {damagePerTick} sát thương mỗi giây. Đồng thời tăng {baseDamage} sát thương cơ bản.",
+		en = "Collisions apply Burn to players or food, dealing {damagePerTick} damage per second. Also adds {baseDamage} base damage.",
 	},
 	Poison = {
-		vi = "Va chạm áp dụng Poison lên người chơi hoặc thức ăn. Tăng {baseDamage} sát thương cơ bản.",
-		en = "Collisions apply Poison to players or food. Adds {baseDamage} base damage.",
+		vi = "Va chạm áp dụng Poison lên người chơi hoặc thức ăn, gây {damagePerTick} sát thương mỗi giây. Đồng thời tăng {baseDamage} sát thương cơ bản.",
+		en = "Collisions apply Poison to players or food, dealing {damagePerTick} damage per second. Also adds {baseDamage} base damage.",
 	},
 	HealthCore = {
 		vi = "Tăng {maxHP} HP tối đa.",
@@ -55,8 +55,8 @@ PetAbilityDisplayConfig.Descriptions = {
 		en = "Increases movement speed by {moveSpeed}.",
 	},
 	LaunchBooster = {
-		vi = "Tăng tốc độ phóng của Launcher lên {launchSpeed}.",
-		en = "Increases Launcher launch speed by {launchSpeed}.",
+		vi = "Nhân tốc độ phóng tối đa của Launcher lên {launchSpeed}.",
+		en = "Multiplies the Launcher's maximum launch speed by {launchSpeed}.",
 	},
 	Dragon = {
 		vi = "Tự động bắn SlowBlaster vào kẻ địch gần nhất, làm chậm trong {slowDuration}s. Hồi chiêu: {cooldown}s.",
@@ -67,16 +67,16 @@ PetAbilityDisplayConfig.Descriptions = {
 		en = "Reduces launch cooldown by {launchCooldown}s.",
 	},
 	ThornArmor = {
-		vi = "Có cấu hình tăng chỉ số phản sát thương {reflectDamage}, nhưng hiệu ứng phản sát thương hiện chưa được kết nối vào hệ thống DamagePipeline.",
-		en = "Configured to add {reflectDamage} reflect damage, but the reflection effect is not yet wired into DamagePipeline.",
+		vi = "Phản lại {reflectDamage} sát thương nhận vào cho kẻ tấn công.",
+		en = "Reflects {reflectDamage} of incoming damage back to the attacker.",
 	},
 	RegenBooster = {
 		vi = "Hồi {healAmount} HP mỗi {tickInterval}s.",
 		en = "Restores {healAmount} HP every {tickInterval}s.",
 	},
 	ShadowCloak = {
-		vi = "Sau khi trang bị, tàng hình sau 3 giây. Tự hiện hình khi phóng, va chạm hoặc tấn công.",
-		en = "After equipping, enters stealth after 3 seconds. Reveals on launch, collision, or attack.",
+		vi = "Tàng hình sau {idleSeconds}s đứng yên. Tự hiện hình khi phóng, va chạm hoặc tấn công.",
+		en = "Enters stealth after {idleSeconds}s without movement. Reveals on launch, collision, or attack.",
 	},
 }
 
