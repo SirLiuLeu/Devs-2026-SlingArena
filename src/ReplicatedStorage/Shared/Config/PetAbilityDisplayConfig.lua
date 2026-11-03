@@ -67,8 +67,8 @@ PetAbilityDisplayConfig.Descriptions = {
 		en = "Reduces launch cooldown by {launchCooldown}s.",
 	},
 	ThornArmor = {
-		vi = "Phản lại {reflectDamage} sát thương nhận vào.",
-		en = "Reflects {reflectDamage} of incoming damage.",
+		vi = "Có cấu hình tăng chỉ số phản sát thương {reflectDamage}, nhưng hiệu ứng phản sát thương hiện chưa được kết nối vào hệ thống DamagePipeline.",
+		en = "Configured to add {reflectDamage} reflect damage, but the reflection effect is not yet wired into DamagePipeline.",
 	},
 	RegenBooster = {
 		vi = "Hồi {healAmount} HP mỗi {tickInterval}s.",
