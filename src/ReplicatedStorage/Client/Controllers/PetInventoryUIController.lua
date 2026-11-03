@@ -397,12 +397,12 @@ function PetInventoryUIController:_refreshPetPanel(data)
 	if self._statScript then self._statScript.Text = displayText.ScriptText; self._statScript.RichText = true end
 
 	local equipped = entry and entry.equipped == true
+	local deleting = self._deletePendingPetId ~= nil
 	if self._toggleEquipButton then
 		self._toggleEquipButton.Text = if equipped then "Unequip" else "Equip"
 		self:_setButtonEnabled(self._toggleEquipButton, entry ~= nil and not deleting and self._upgradePendingPetId == nil)
 	end
 
-	local deleting = self._deletePendingPetId ~= nil
 	if self._deleteButton then
 		self._deleteButton.Text = if self._deletePendingPetId == petId then "Deleting..." else "Delete"
 		self:_setButtonEnabled(self._deleteButton, entry ~= nil and not deleting)
