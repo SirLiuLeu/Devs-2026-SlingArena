@@ -807,6 +807,7 @@ Notes:
 - Pet UI ownership: `PetInventoryUIController.lua` manages `StarterGui/PetInventoryUI`; `InventoryUIController.lua` manages only `StarterGui/InventoryUI` item rows. Both consume the shared `InventoryDataProvider` snapshot.
 - World activation: `Workspace.Maps.LobbyMap.Pet.PetInventoryGUI_Part` opens the Pet inventory within the 10-stud proximity range.
 - `LauncherArenaRemotes.DeletePet` is defined by `src/ReplicatedStorage/LauncherArenaRemotes/DeletePet.model.json`; the server removes the Pet from ownership and clears matching equipped slots.
+- `PetAbilityDisplayConfig.lua` supplies localized text for the `PetInventoryUI.Root.BodyPets.RightPanel.Stats.Script` label; dynamic values are resolved from `PetProgression`.
 
 `StarterGui/PetInventoryUI/Root/BodyPets/RightPanel/Stats/Level` is the bound pet-level display. Pet max level is 50: base HP/Damage gain +5% per level through 20, then +3% per level through 50; ability parameters cap at level 20 and advance at milestones 1, 5, 10, 15, and 20. Upgrade cost is `50 × currentLevel × rarityMultiplier`. Titan weight/hitbox parameters stop at level 20. Titan's separate visual growth is based on player level-ups earned after Titan is equipped: +4% per level to a 2x cap; levels earned before equip do not count. `PetAbilityDisplayConfig.Descriptions[petId]` stores localized player-facing ability descriptions; `PetAbilityProgressionConfig` remains the source of numeric ability progression. `PetPreviewConfig.Get(petId)` provides the viewport `Rotation` and `Offset`.
 
