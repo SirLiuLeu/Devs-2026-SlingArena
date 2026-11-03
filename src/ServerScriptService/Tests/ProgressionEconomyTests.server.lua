@@ -144,6 +144,15 @@ runTest("Pet_Definition_StatModifiers_Apply_To_Resolved_Stats", function()
 	assertNear(resolved.damageMultiplier, 1.05, "ThunderHammer damage multiplier applies")
 	assertNear(resolved.launchSpeed, 48, "LaunchBooster launch-speed multiplier applies")
 	assertNear(resolved.launchCooldown, -1, "QuickReload applies a one-second recovery reduction")
+
+	local mixedProgressions = {
+		{ baseStats = {}, abilityParams = {}, definition = { statModifiers = { Add = { moveSpeed = 10 }, Multiply = {} } } },
+		{ baseStats = {}, abilityParams = {}, definition = { statModifiers = { Add = {}, Multiply = { moveSpeed = 1.2 } } } },
+	}
+	local forward = PetStatResolver.Apply({ moveSpeed = 14 }, mixedProgressions)
+	local reverse = PetStatResolver.Apply({ moveSpeed = 14 }, { mixedProgressions[2], mixedProgressions[1] })
+	assertNear(forward.moveSpeed, 28.8, "Additive and multiplicative Pet modifiers combine consistently")
+	assertNear(reverse.moveSpeed, forward.moveSpeed, "Pet stat aggregation is independent of equipped slot iteration order")
 end)
 
 runTest("BrainBoost_EXP_Bonus_Flows_Into_PlayerState", function()

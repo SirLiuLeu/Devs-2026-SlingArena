@@ -58,6 +58,9 @@ end
 
 function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgressions: { any }?): { [string]: number }
 	local result = copyStats(baseStats)
+	local pendingAdd: { [string]: number } = {}
+	local pendingMultiply: { [string]: number } = {}
+
 	for _, progression in ipairs(equippedProgressions or {}) do
 		local petBaseStats = progression.baseStats
 		if type(petBaseStats) == "table" then
@@ -83,7 +86,7 @@ function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgress
 					-- BrainBoost's level-scaled ability parameter supersedes the
 					-- legacy fixed Add.expBonus value in PetsConfig.
 					if resolvedName ~= "expBonus" or abilityExpBonus == nil then
-						result[resolvedName] = (result[resolvedName] or 0) + value
+						pendingAdd[resolvedName] = (pendingAdd[resolvedName] or 0) + value
 					end
 				end
 			end
@@ -93,10 +96,19 @@ function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgress
 			for statName, value in pairs(multipliers) do
 				if type(value) == "number" then
 					local resolvedName = canonical(statName)
-					result[resolvedName] = (result[resolvedName] or 1) * value
+					pendingMultiply[resolvedName] = (pendingMultiply[resolvedName] or 1) * value
 				end
 			end
 		end
+	end
+
+	-- Apply every additive contribution before multiplicative contributions,
+	-- independent of equipped-slot iteration order.
+	for statName, value in pairs(pendingAdd) do
+		result[statName] = (result[statName] or 0) + value
+	end
+	for statName, value in pairs(pendingMultiply) do
+		result[statName] = (result[statName] or 1) * value
 	end
 
 	result.reflectDamage = math.clamp(result.reflectDamage or 0, 0, 0.5)
