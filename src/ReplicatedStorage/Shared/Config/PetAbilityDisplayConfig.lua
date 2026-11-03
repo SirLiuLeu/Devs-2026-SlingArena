@@ -24,7 +24,7 @@ PetAbilityDisplayConfig.Descriptions = {
 	},
 	IceCrystal = {
 		vi = "Va chạm kích hoạt Slow, làm giảm 25% tốc độ mục tiêu. Thời lượng hiệu ứng được scale theo tốc độ va chạm.",
-		en = "Collisions apply Slow, reducing the target\'s speed by 25%. Effect duration scales with collision speed.",
+		en = "Collisions apply Slow, reducing the target's speed by 25%. Effect duration scales with collision speed.",
 	},
 	GhostFlame = {
 		vi = "Va chạm áp dụng Burn lên người chơi hoặc thức ăn. Tăng {baseDamage} sát thương cơ bản.",
