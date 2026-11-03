@@ -387,7 +387,11 @@ end
 function InventoryDataProvider:DeleteSelectedPet(): boolean
 	local petId = self._state.selectedPetId
 	local index = petId and self:_findPetIndex(petId)
-	if not (index and deletePetRemote) then
+	if not index then
+		return false
+	end
+	if not deletePetRemote then
+		warn("[INVENTORY_DATA] LauncherArenaRemotes.DeletePet is missing; selected Pet was not deleted.")
 		return false
 	end
 	local selected = self._state.ownedPets[index]
