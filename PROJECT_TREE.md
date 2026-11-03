@@ -195,7 +195,7 @@ DataModel
 │  │      │       ├── Level (TextLabel)
 │  │      │       └── Name (TextLabel)
 │  │      │
-│  │      ├── PetsSlotTemplate_InventoryUI (Frame)
+│  │      ├── PetSlotTemplate_PetInventoryUI (Frame)
 │  │      │   └── Root (Frame)
 │  │      │       ├── RemainingTimeText (TextLabel)
 │  │      │       ├── PetPreview (ViewportFrame)
@@ -528,30 +528,12 @@ DataModel
 │  ├─ InventoryUI (ScreenGui)
 │  │  ├── Root (Frame)
 │  │  │   ├── Header (Frame)
-│  │  │   │   ├─ CloseButton (TextButton)
-│  │  │   │   └─ Title (TextLabel)
-│  │  │   ├── Tabs (Frame)
-│  │  │   │   ├─ ItemsTab (TextButton)
-│  │  │   │   └─ PetsTab (TextButton)
-│  │  │   ├── BodyPets (Frame)
-│  │  │   │   ├── Footer (Frame)
-│  │  │   │   │   └─ CapacityLabel (TextLabel)
-│  │  │   │   ├── GridContainer (ScrollingFrame)
-│  │  │   │   │   └─ Slot1, Slot2, Slot3, Slot4 (PetSlotTemplate_InventoryUI Frames) -- Script Spawn in run time
-│  │  │   │   └── RightPanel (Frame)
-│  │  │   │       ├─ ActionButtons (Frame)
-│  │  │   │       │   ├─ DeleteButton (TextButton)
-│  │  │   │       │   ├─ ToggleEquipButton (TextButton)
-│  │  │   │       │   └─ UpgradeButton (TextButton)
-│  │  │   │       ├─ Stats (Frame)
-│  │  │   │       │   └─ Level, Damage, HP, Script (TextLabels)
-│  │  │   │       └─ SelectedName (TextLabel)
+│  │  │   │   └─ CloseButton (TextButton)
 │  │  │   └── BodyItems (Frame)
 │  │  │       ├── GridContainer (ScrollingFrame)
 │  │  │       │   └─ Slot1, Slot2, Slot3, Slot4 (ItemSlotTemplate_InventoryUI Frames) -- Script Spawn in run time
 │  │  │       └── RightPanel (Frame)
 │  │  │           ├─ ActionButtons (Frame)
-│  │  │           │   ├─ DeleteButton (TextButton)
 │  │  │           │   └─ UseButton (TextButton)
 │  │  │           ├─ Stats (Frame)
 │  │  │           │   └─ ItemStat1, ItemStat2, ItemStat3 (TextLabels)
@@ -587,6 +569,32 @@ DataModel
 │  │           │  └─ InputSlot1, InputSlot2, InputSlot3 (Frames)
 │  │           └─ ResultPreview
 │  │              └─ OutputSlot (Frame)
+│  │
+│  ├─ PetInventoryUI (ScreenGui)
+│  │  ├─ Overlay
+│  │  └─ Root (Frame)
+│  │     ├─ UICorner
+│  │     └─ BodyPets
+│  │        ├─ UIStroke
+│  │        ├─ Footer
+│  │        │  ├─ UIStroke
+│  │        │  └─ CapacityLabel (TextLabel)
+│  │        ├─ GridContainer
+│  │        │  └─ Slot1, Slot2, Slot3, Slot4 (Frame) -- (PetSlotTemplate_PetInventoryUI Frames) -- Script Spawn in run time
+│  │        └─ RightPanel
+│  │           ├─ ActionButtons
+│  │           │  ├─ DeleteButton (TextButton)
+│  │           │  ├─ ToggleEquipButton (TextButton)
+│  │           │  └─ UpgradeButton (TextButton)
+│  │           ├─ Stats
+│  │           │  ├─ UICorner
+│  │           │  ├─ UIListLayout
+│  │           │  ├─ UIPadding
+│  │           │  ├─ Damage (TextLabel)
+│  │           │  ├─ HP (TextLabel)
+│  │           │  ├─ Level (TextLabel)
+│  │           │  └─ Script (TextLabel)
+│  │           └─ SelectedName (TextLabel)
 │  │
 │  ├─ MatchUI (ScreenGui)
 │  │  └─ RootFrame
@@ -718,6 +726,9 @@ DataModel
 │     │  ├─ Launcher (Folder)
 │     │  │  ├─ LauncherMaster (Model)
 │     │  │  └─ LauncherInventoryGUI_Part (Part)
+│     │  ├─ Pet (Folder)
+│     │  │  ├─ PetMaster (Model)
+│     │  │  └─ PetInventoryGUI_Part (Part)
 │     │  ├─ Shop (Folder)
 │     │  │  ├─ Shop (Model)
 │     │  │  └─ ShopGUI_Part (Part)
