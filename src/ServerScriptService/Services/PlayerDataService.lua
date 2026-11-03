@@ -73,7 +73,6 @@ end
 function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 	return {
 		UserId = player.UserId,
-		Level = 1,
 		Coin = 0,
 		ProgressPoints = {
 			TotalPoints = 0,
@@ -255,7 +254,9 @@ function PlayerDataService:_ensureProgress(data: { [string]: any })
 		progress = {}
 		data.ProgressPoints = progress
 	end
-	data.Level = math.max(1, math.floor(tonumber(data.Level) or 1))
+	-- Player Level/EXP are round-scoped runtime state, not persistent profile progression.
+	data.Level = nil
+	data.Exp = nil
 	data.Coin = math.max(0, math.floor(tonumber(data.Coin) or 0))
 	progress.TotalPoints = tonumber(progress.TotalPoints) or 0
 	progress.RoundPoints = tonumber(progress.RoundPoints) or 0

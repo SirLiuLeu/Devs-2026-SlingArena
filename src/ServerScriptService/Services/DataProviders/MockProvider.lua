@@ -70,7 +70,6 @@ function MockProvider:_seedLeaderboardProfiles()
 			UserId = userId,
 			Name = string.format("MockChampion%03d", index),
 			DisplayName = string.format("Mock Champion %03d", index),
-			Level = rng:NextInteger(1, 75),
 			Coin = rng:NextInteger(0, 5000),
 			ProgressPoints = {
 				TotalPoints = totalPoints,
@@ -128,7 +127,6 @@ function MockProvider:GetTopProgressPointProfiles(limit: number): { any }
 		table.insert(rows, {
 			UserId = userId,
 			Name = tostring(data.DisplayName or data.Name or ("Player " .. tostring(userId))),
-			Level = math.max(1, math.floor(tonumber(data.Level) or 1)),
 			ProgressPoints = progress.TotalPoints,
 			WeeklyPoints = progress.WeeklyPoints,
 			IsMock = data.IsMockLeaderboardSeed == true,
