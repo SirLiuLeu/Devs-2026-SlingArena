@@ -9,6 +9,7 @@ local RankConfig = require(ReplicatedStorage.Shared.Config.RankConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local LauncherStatResolver = require(ReplicatedStorage.Shared.Utils.LauncherStatResolver)
 local PetStatResolver = require(ReplicatedStorage.Shared.Utils.PetStatResolver)
+local PetProgression = require(ReplicatedStorage.Shared.Utils.PetProgression)
 local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
 
 local function assertEqual(actual: any, expected: any, message: string)
@@ -93,6 +94,93 @@ runTest("Pet_Ability_Milestones_Reach_80_And_100_Percent", function()
 	assertNear(PetAbilityProgressionConfig.GetParams("ExpBonus", 20).expBonus, 0.50, "BrainBoost level-20 EXP bonus")
 	assertNear(PetAbilityProgressionConfig.GetParams("ExpBonus", 50).expBonus, 0.55, "BrainBoost level-50 EXP bonus")
 	assertNear(PetAbilityProgressionConfig.GetParams("Regeneration", 50).healAmount, 1250, "Regeneration level-50 heal target")
+end)
+
+runTest("Remaining_Pet_Abilities_Reach_Level_50_Targets", function()
+	assertNear(PetAbilityProgressionConfig.GetParams("Stun", 1).collisionExtraDuration, 1.25, "ThunderHammer level-1 Stun")
+	assertNear(PetAbilityProgressionConfig.GetParams("Stun", 20).collisionExtraDuration, 1.60, "ThunderHammer level-20 Stun")
+	assertNear(PetAbilityProgressionConfig.GetParams("Stun", 50).collisionExtraDuration, 1.80, "ThunderHammer level-50 Stun")
+	assertNear(PetAbilityProgressionConfig.GetParams("Petrify", 1).collisionExtraDuration, 5.0, "Medusa level-1 Petrify")
+	assertNear(PetAbilityProgressionConfig.GetParams("Petrify", 20).collisionExtraDuration, 6.0, "Medusa level-20 Petrify")
+	assertNear(PetAbilityProgressionConfig.GetParams("Petrify", 50).collisionExtraDuration, 6.5, "Medusa level-50 Petrify")
+	assertNear(PetAbilityProgressionConfig.GetParams("Burn", 1).damagePerTick, 250, "GhostFlame level-1 Burn")
+	assertNear(PetAbilityProgressionConfig.GetParams("Burn", 20).damagePerTick, 325, "GhostFlame level-20 Burn")
+	assertNear(PetAbilityProgressionConfig.GetParams("Burn", 50).damagePerTick, 375, "GhostFlame level-50 Burn")
+	assertNear(PetAbilityProgressionConfig.GetParams("Poison", 1).damagePerTick, 150, "Poison level-1 DoT")
+	assertNear(PetAbilityProgressionConfig.GetParams("Poison", 20).damagePerTick, 195, "Poison level-20 DoT")
+	assertNear(PetAbilityProgressionConfig.GetParams("Poison", 50).damagePerTick, 225, "Poison level-50 DoT")
+	assertNear(PetAbilityProgressionConfig.GetParams("HealthCore", 1).maxHPBonus, 5000, "HealthCore level-1 HP")
+	assertNear(PetAbilityProgressionConfig.GetParams("HealthCore", 20).maxHPBonus, 6000, "HealthCore level-20 HP")
+	assertNear(PetAbilityProgressionConfig.GetParams("HealthCore", 50).maxHPBonus, 6500, "HealthCore level-50 HP")
+	assertNear(PetAbilityProgressionConfig.GetParams("PowerCore", 1).baseDamageBonus, 500, "PowerCore level-1 damage")
+	assertNear(PetAbilityProgressionConfig.GetParams("PowerCore", 20).baseDamageBonus, 600, "PowerCore level-20 damage")
+	assertNear(PetAbilityProgressionConfig.GetParams("PowerCore", 50).baseDamageBonus, 650, "PowerCore level-50 damage")
+	assertNear(PetAbilityProgressionConfig.GetParams("TurboModule", 1).moveSpeedBonus, 10, "TurboModule level-1 speed")
+	assertNear(PetAbilityProgressionConfig.GetParams("TurboModule", 20).moveSpeedBonus, 12, "TurboModule level-20 speed")
+	assertNear(PetAbilityProgressionConfig.GetParams("TurboModule", 50).moveSpeedBonus, 13, "TurboModule level-50 speed")
+	assertNear(PetAbilityProgressionConfig.GetParams("LaunchBooster", 1).launchSpeedMultiplier, 1.20, "LaunchBooster level-1 multiplier")
+	assertNear(PetAbilityProgressionConfig.GetParams("LaunchBooster", 20).launchSpeedMultiplier, 1.24, "LaunchBooster level-20 multiplier")
+	assertNear(PetAbilityProgressionConfig.GetParams("LaunchBooster", 50).launchSpeedMultiplier, 1.26, "LaunchBooster level-50 multiplier")
+	assertNear(PetAbilityProgressionConfig.GetParams("QuickReload", 1).launchCooldownReduction, 1.0, "QuickReload level-1 reduction")
+	assertNear(PetAbilityProgressionConfig.GetParams("QuickReload", 20).launchCooldownReduction, 1.2, "QuickReload level-20 reduction")
+	assertNear(PetAbilityProgressionConfig.GetParams("QuickReload", 50).launchCooldownReduction, 1.3, "QuickReload level-50 reduction")
+	assertNear(PetAbilityProgressionConfig.GetParams("ThornArmor", 1).reflectDamageBonus, 0.20, "ThornArmor level-1 reflect")
+	assertNear(PetAbilityProgressionConfig.GetParams("ThornArmor", 20).reflectDamageBonus, 0.24, "ThornArmor level-20 reflect")
+	assertNear(PetAbilityProgressionConfig.GetParams("ThornArmor", 50).reflectDamageBonus, 0.25, "ThornArmor level-50 reflect")
+	assertNear(PetAbilityProgressionConfig.GetParams("IdleStealth", 1).idleSeconds, 3.0, "ShadowCloak level-1 stealth delay")
+	assertNear(PetAbilityProgressionConfig.GetParams("IdleStealth", 20).idleSeconds, 2.5, "ShadowCloak level-20 stealth delay")
+	assertNear(PetAbilityProgressionConfig.GetParams("IdleStealth", 50).idleSeconds, 2.25, "ShadowCloak level-50 stealth delay")
+
+	local healthProgression = PetProgression.Resolve(PetsConfig.GetById("HealthCore"), { definitionId = "HealthCore", level = 50 })
+	local thornProgression = PetProgression.Resolve(PetsConfig.GetById("ThornArmor"), { definitionId = "ThornArmor", level = 50 })
+	assertNear(healthProgression.abilityParams.maxHPBonus, 6500, "Stat-only Pet resolves progression by PetId")
+	assertNear(thornProgression.abilityParams.reflectDamageBonus, 0.25, "NoOp Pet resolves progression by PetId")
+end)
+
+runTest("Level_Scaled_Pet_Stat_Bonuses_Override_Legacy_Static_Modifiers", function()
+	local function buildProgression(petId: string, level: number)
+		return {
+			baseStats = {},
+			abilityParams = PetAbilityProgressionConfig.GetParams(petId, level),
+			definition = PetsConfig.GetById(petId),
+		}
+	end
+
+	local level1 = PetStatResolver.Apply(
+		{ maxHP = 1000, baseDamage = 100, moveSpeed = 15, launchSpeed = 100, reflectDamage = 0.05 },
+		{
+			buildProgression("HealthCore", 1),
+			buildProgression("PowerCore", 1),
+			buildProgression("TurboModule", 1),
+			buildProgression("LaunchBooster", 1),
+			buildProgression("QuickReload", 1),
+			buildProgression("ThornArmor", 1),
+		}
+	)
+	assertNear(level1.maxHP, 6000, "HealthCore level-1 bonus is applied once")
+	assertNear(level1.baseDamage, 600, "PowerCore level-1 bonus is applied once")
+	assertNear(level1.moveSpeed, 25, "TurboModule level-1 bonus is applied once")
+	assertNear(level1.launchSpeed, 120, "LaunchBooster level-1 multiplier is applied once")
+	assertNear(level1.launchCooldown, -1.0, "QuickReload level-1 cooldown reduction is applied")
+	assertNear(level1.reflectDamage, 0.25, "ThornArmor level-1 reflect is applied once")
+
+	local level50 = PetStatResolver.Apply(
+		{ maxHP = 1000, baseDamage = 100, moveSpeed = 15, launchSpeed = 100, reflectDamage = 0.05 },
+		{
+			buildProgression("HealthCore", 50),
+			buildProgression("PowerCore", 50),
+			buildProgression("TurboModule", 50),
+			buildProgression("LaunchBooster", 50),
+			buildProgression("QuickReload", 50),
+			buildProgression("ThornArmor", 50),
+		}
+	)
+	assertNear(level50.maxHP, 7500, "HealthCore level-50 bonus is applied once")
+	assertNear(level50.baseDamage, 750, "PowerCore level-50 bonus is applied once")
+	assertNear(level50.moveSpeed, 28, "TurboModule level-50 bonus is applied once")
+	assertNear(level50.launchSpeed, 126, "LaunchBooster level-50 multiplier is applied once")
+	assertNear(level50.launchCooldown, -1.3, "QuickReload level-50 cooldown reduction is applied")
+	assertNear(level50.reflectDamage, 0.30, "ThornArmor level-50 reflect is applied once")
 end)
 
 runTest("UpgradePet_Remote_Accepts_Levels_Through_50", function()
