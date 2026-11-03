@@ -75,6 +75,7 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 
 	local ui = ProjectTreeSpec.UI.Inventory
 	self._inventoryGui = PathResolver.resolvePath(self._playerGui, ui.ScreenGui) :: ScreenGui?
+	self._bodyItems = resolveGui(self._playerGui, ui.BodyItems)
 	self._grid = resolveGui(self._playerGui, ui.ItemsGridContainer)
 	self._selectedName = resolveTextLabel(self._playerGui, ui.ItemsSelectedName)
 	self._stat1 = resolveTextLabel(self._playerGui, ui.ItemsStat1)
@@ -89,6 +90,13 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._itemTemplate = uiFolder and uiFolder:FindFirstChild(ITEM_SLOT_TEMPLATE_NAME)
 
 	if not self._inventoryGui then warn("[INVENTORY_UI] PlayerGui.InventoryUI ScreenGui is missing.") end
+	if not self._bodyItems then
+		warn("[INVENTORY_UI] InventoryUI.Root.BodyItems is missing.")
+	else
+		-- BodyItems is the only remaining Inventory panel; keep it ready even when
+		-- the authored Studio default is Visible=false.
+		self._bodyItems.Visible = true
+	end
 	if not self._grid then warn("[INVENTORY_UI] InventoryUI.Root.BodyItems.GridContainer is missing.") end
 	if not (self._itemTemplate and self._itemTemplate:IsA("GuiObject")) then
 		warn("[INVENTORY_UI] ReplicatedStorage.Assets.UI.ItemSlotTemplate_InventoryUI is missing.")
@@ -126,6 +134,9 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 end
 
 function InventoryUIController:SetVisible(isVisible: boolean)
+	if self._bodyItems and self._bodyItems.Parent then
+		self._bodyItems.Visible = isVisible
+	end
 	if self._inventoryGui and self._inventoryGui.Parent then
 		self._inventoryGui.Enabled = isVisible
 	end
