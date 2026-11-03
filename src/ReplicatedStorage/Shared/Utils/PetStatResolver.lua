@@ -70,8 +70,40 @@ function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgress
 
 		local abilityParams = progression.abilityParams
 		local abilityExpBonus = type(abilityParams) == "table" and tonumber(abilityParams.expBonus) or nil
+		local abilityAddOverrides = {}
+		local abilityMultiplyOverrides = {}
+
 		if abilityExpBonus then
 			result.expBonus = (result.expBonus or 0) + math.max(0, abilityExpBonus)
+			abilityAddOverrides.expBonus = true
+		end
+
+		if type(abilityParams) == "table" then
+			local additiveAbilityParams = {
+				maxHPBonus = "maxHP",
+				baseDamageBonus = "baseDamage",
+				moveSpeedBonus = "moveSpeed",
+				reflectDamageBonus = "reflectDamage",
+			}
+			for paramName, statName in pairs(additiveAbilityParams) do
+				local amount = tonumber(abilityParams[paramName])
+				if amount ~= nil then
+					pendingAdd[statName] = (pendingAdd[statName] or 0) + amount
+					abilityAddOverrides[statName] = true
+				end
+			end
+
+			local cooldownReduction = tonumber(abilityParams.launchCooldownReduction)
+			if cooldownReduction ~= nil then
+				pendingAdd.launchCooldown = (pendingAdd.launchCooldown or 0) - math.max(0, cooldownReduction)
+				abilityAddOverrides.launchCooldown = true
+			end
+
+			local launchSpeedMultiplier = tonumber(abilityParams.launchSpeedMultiplier)
+			if launchSpeedMultiplier ~= nil then
+				pendingMultiply.launchSpeed = (pendingMultiply.launchSpeed or 1) * math.max(0, launchSpeedMultiplier)
+				abilityMultiplyOverrides.launchSpeed = true
+			end
 		end
 
 		local definition = progression.definition
@@ -83,9 +115,9 @@ function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgress
 			for statName, value in pairs(additions) do
 				if type(value) == "number" then
 					local resolvedName = canonical(statName)
-					-- BrainBoost's level-scaled ability parameter supersedes the
-					-- legacy fixed Add.expBonus value in PetsConfig.
-					if resolvedName ~= "expBonus" or abilityExpBonus == nil then
+					-- Level-scaled ability values supersede their legacy static
+					-- statModifiers entries so a Pet's bonus is never counted twice.
+					if not abilityAddOverrides[resolvedName] then
 						pendingAdd[resolvedName] = (pendingAdd[resolvedName] or 0) + value
 					end
 				end
@@ -96,7 +128,9 @@ function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgress
 			for statName, value in pairs(multipliers) do
 				if type(value) == "number" then
 					local resolvedName = canonical(statName)
-					pendingMultiply[resolvedName] = (pendingMultiply[resolvedName] or 1) * value
+					if not abilityMultiplyOverrides[resolvedName] then
+						pendingMultiply[resolvedName] = (pendingMultiply[resolvedName] or 1) * value
+					end
 				end
 			end
 		end
