@@ -51,6 +51,7 @@ RemoteContracts.Names = {
 	Notification = "Notification",
 	EquipPet = "EquipPet",
 	UnequipPet = "UnequipPet",
+	DeletePet = "DeletePet",
 	UpgradePet = "UpgradePet",
 	RequestPetGrant = "RequestPetGrant",
 	EquipLauncher = "EquipLauncher",
@@ -177,6 +178,9 @@ RemoteContracts.Validators = {
 		return typeof(questId) == "string" and #questId > 0 and #questId <= 80
 	end,
 	[RemoteContracts.Names.EquipPet] = function(instanceId: any): boolean
+		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
+	end,
+	[RemoteContracts.Names.DeletePet] = function(instanceId: any): boolean
 		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
 	end,
 	[RemoteContracts.Names.UnequipPet] = function(slotType: any): boolean
