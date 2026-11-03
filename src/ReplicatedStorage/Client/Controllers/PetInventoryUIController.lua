@@ -134,6 +134,7 @@ function PetInventoryUIController:Start(uiReadySignal: BindableEvent?)
 	if not self._statDamage then warn("[PET_INVENTORY_UI] PetInventoryUI Stats.Damage is missing.") end
 	if not self._statHP then warn("[PET_INVENTORY_UI] PetInventoryUI Stats.HP is missing.") end
 	if not self._statScript then warn("[PET_INVENTORY_UI] PetInventoryUI Stats.Script is missing.") end
+	if not self._upgradePetRemote then warn("[PET_INVENTORY_UI] LauncherArenaRemotes.UpgradePet is missing.") end
 	if not self._deleteButton then warn("[PET_INVENTORY_UI] PetInventoryUI DeleteButton is missing.") end
 	if not self._toggleEquipButton then warn("[PET_INVENTORY_UI] PetInventoryUI ToggleEquipButton is missing.") end
 	if not self._upgradeButton then warn("[PET_INVENTORY_UI] PetInventoryUI UpgradeButton is missing.") end
