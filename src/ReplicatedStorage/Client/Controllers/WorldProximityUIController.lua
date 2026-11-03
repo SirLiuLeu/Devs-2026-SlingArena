@@ -43,15 +43,21 @@ function WorldProximityUIController:Start()
 		local root = pawn and PawnLocator.GetRootPart(pawn)
 		if not root then return end
 
-		self:_update("shop", self._shopPart, root, function(inside)
-			self._shop:SetVisible(inside)
-		end)
-		self:_update("launcher", self._launcherPart, root, function(inside)
-			self._launcher:SetVisible(inside)
-		end)
-		self:_update("petInventory", self._petInventoryPart, root, function(inside)
-			self._petInventory:SetVisible(inside)
-		end)
+		if self._shop then
+			self:_update("shop", self._shopPart, root, function(inside)
+				self._shop:SetVisible(inside)
+			end)
+		end
+		if self._launcher then
+			self:_update("launcher", self._launcherPart, root, function(inside)
+				self._launcher:SetVisible(inside)
+			end)
+		end
+		if self._petInventory then
+			self:_update("petInventory", self._petInventoryPart, root, function(inside)
+				self._petInventory:SetVisible(inside)
+			end)
+		end
 	end)
 end
 
