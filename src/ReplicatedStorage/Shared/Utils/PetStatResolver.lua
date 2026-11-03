@@ -65,6 +65,12 @@ function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgress
 			result.baseDamage = (result.baseDamage or 0) + (tonumber(petBaseStats.baseDamage) or 0)
 		end
 
+		local abilityParams = progression.abilityParams
+		local abilityExpBonus = type(abilityParams) == "table" and tonumber(abilityParams.expBonus) or nil
+		if abilityExpBonus then
+			result.expBonus = (result.expBonus or 0) + math.max(0, abilityExpBonus)
+		end
+
 		local definition = progression.definition
 		local statModifiers = type(definition) == "table" and definition.statModifiers
 		local additions = type(statModifiers) == "table" and statModifiers.Add

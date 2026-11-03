@@ -8,16 +8,21 @@ local FoodConfig = {}
 FoodConfig.CommonRespawnTime = 10
 FoodConfig.HpFoodRespawnTime = 30
 
-FoodConfig.SpawnRadius = 20
-FoodConfig.CommonActivePerSpawn = 10
-FoodConfig.HpActivePerSpawn = 10
+-- FoodSpawn Parts define the complete allowed X/Z rectangle.
+FoodConfig.SpawnAreaPerFood = 1000
+FoodConfig.MinFoodPerSpawn = 1
+FoodConfig.MaxFoodPerSpawn = 20
 FoodConfig.MinNoOverlapDistance = 3
--- HP Food uses a wider placement area and dedicated lane clearance so Launchers
--- can pass between HP targets. Common Food keeps the original spawn radius / gap.
-FoodConfig.HpFoodSpawnRadius = 40
-FoodConfig.HpFoodMinNoOverlapDistance = 20
--- Extra XZ clearance added after accounting for the food/player hitbox radii.
+FoodConfig.HpFoodMinNoOverlapDistance = 7
 FoodConfig.MinPlayerSpawnClearance = 5
+
+-- Food must land on an upward-facing tagged floor close to the FoodSpawn plane.
+FoodConfig.GroundSurfaceTag = "Collision_Ground"
+FoodConfig.GroundRaycastStartHeight = 50
+FoodConfig.GroundRaycastDepth = 300
+FoodConfig.GroundMinNormalY = 0.9
+FoodConfig.GroundMaxVerticalOffset = 4
+FoodConfig.GroundMaxCornerHeightDifference = 1.5
 
 --==================================================
 -- 2) FOOD DEFINITIONS (BY MODEL NAME)
@@ -144,19 +149,20 @@ FoodConfig.TypePools = {
 
 
 FoodConfig.ZoneSpawnSettings = {
-	CenterZones = {
-		ActivePerSpawn = 1,
-		PlacementRadius = 0,
-	},
-	MidZones = {
-		ActivePerSpawn = 10,
-		PlacementRadius = FoodConfig.SpawnRadius,
-	},
-	EdgeZones = {
-		ActivePerSpawn = 10,
-		PlacementRadius = FoodConfig.SpawnRadius,
-	},
+	CenterZones = { ActivePerSpawn = 1 },
+	MidZones = { AreaBased = true },
+	EdgeZones = { AreaBased = true },
 }
+
+function FoodConfig.GetSpawnCountForArea(area: number): number
+	local safeArea = math.max(0, tonumber(area) or 0)
+	local density = math.max(1, FoodConfig.SpawnAreaPerFood)
+	return math.clamp(
+		math.floor(safeArea / density),
+		FoodConfig.MinFoodPerSpawn,
+		FoodConfig.MaxFoodPerSpawn
+	)
+end
 
 --==================================================
 -- 4) SPAWN WEIGHTS BY ZONE

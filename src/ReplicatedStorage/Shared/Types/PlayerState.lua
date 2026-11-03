@@ -23,7 +23,7 @@ export type PlayerState = {
 	LocationState: string,
 	TeamId: string?,
 	Level: number,
-	RoundLevel: number,
+	ProgressionRoundId: number?,
 	Exp: number,
 	Size: number,
 	MaxHP: number,

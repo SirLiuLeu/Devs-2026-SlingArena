@@ -1,6 +1,7 @@
 --!strict
 
 local Players = game:GetService("Players")
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -95,53 +96,76 @@ local function resolveFoodHitbox(foodModel: Model): BasePart?
 	return nil
 end
 
-local function getAnchorSurfacePosition(foodModel: Model, spawnAnchor: BasePart, horizontalPosition: Vector3?): Vector3?
+local function getAnchorSurfacePosition(foodModel: Model, spawnAnchor: BasePart, horizontalPosition: Vector3?, groundRaycastParams: RaycastParams?): Vector3?
 	local hitbox = resolveFoodHitbox(foodModel)
-	if not hitbox then
-		warn(string.format("[FoodService] Food model %s is missing a PrimaryPart/Hitbox", foodModel:GetFullName()))
-		return nil
-	end
-
-	local floorY = spawnAnchor.Position.Y + (spawnAnchor.Size.Y / 2)
-	local targetY = floorY + (hitbox.Size.Y / 2)
+	if not hitbox or not groundRaycastParams then return nil end
 	local xzPosition = horizontalPosition
-
 	if not xzPosition then
-		local localX = (math.random() - 0.5) * spawnAnchor.Size.X
-		local localZ = (math.random() - 0.5) * spawnAnchor.Size.Z
+		local radius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5
+		local halfWidth = math.max(spawnAnchor.Size.X * 0.5 - radius, 0)
+		local halfDepth = math.max(spawnAnchor.Size.Z * 0.5 - radius, 0)
+		local localX = (math.random() * 2 - 1) * halfWidth
+		local localZ = (math.random() * 2 - 1) * halfDepth
 		xzPosition = spawnAnchor.CFrame:PointToWorldSpace(Vector3.new(localX, 0, localZ))
 	end
 
-	return Vector3.new(xzPosition.X, targetY, xzPosition.Z)
-end
+	local localPosition = spawnAnchor.CFrame:PointToObjectSpace(xzPosition)
+	local radius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5
+	local halfWidth = math.max(spawnAnchor.Size.X * 0.5 - radius, 0)
+	local halfDepth = math.max(spawnAnchor.Size.Z * 0.5 - radius, 0)
+	if math.abs(localPosition.X) > halfWidth or math.abs(localPosition.Z) > halfDepth then return nil end
 
-local function pivotFoodToAnchorSurface(foodModel: Model, spawnAnchor: BasePart, horizontalPosition: Vector3?): Vector3?
-	local targetPosition = getAnchorSurfacePosition(foodModel, spawnAnchor, horizontalPosition)
-	if not targetPosition then
+	local spawnPlaneY = spawnAnchor.Position.Y + spawnAnchor.Size.Y * 0.5
+	local startY = math.max(spawnPlaneY, xzPosition.Y) + math.max(1, FoodConfig.GroundRaycastStartHeight or 50)
+	local direction = Vector3.new(0, -math.max(1, FoodConfig.GroundRaycastDepth or 300), 0)
+	local minNormalY = math.clamp(tonumber(FoodConfig.GroundMinNormalY) or 0.9, 0, 1)
+	local maxVerticalOffset = math.max(0, tonumber(FoodConfig.GroundMaxVerticalOffset) or 4)
+	local maxCornerHeightDifference = math.max(0, tonumber(FoodConfig.GroundMaxCornerHeightDifference) or 1.5)
+
+	local center = Workspace:Raycast(Vector3.new(xzPosition.X, startY, xzPosition.Z), direction, groundRaycastParams)
+	if not center or center.Normal.Y < minNormalY
+		or math.abs(center.Position.Y - spawnPlaneY) > maxVerticalOffset then
 		return nil
 	end
 
-	-- Keep the model unparented until it is at its final accepted position so clients
-	-- never observe the temporary random pivot generated during clone preparation.
-	foodModel:PivotTo(CFrame.new(targetPosition))
-	return targetPosition
+	local halfX, halfZ = hitbox.Size.X * 0.5, hitbox.Size.Z * 0.5
+	local corners = {
+		Vector3.new(-halfX, 0, -halfZ), Vector3.new(-halfX, 0, halfZ),
+		Vector3.new(halfX, 0, -halfZ), Vector3.new(halfX, 0, halfZ),
+	}
+	local minY, maxY = center.Position.Y, center.Position.Y
+	for _, offset in ipairs(corners) do
+		local result = Workspace:Raycast(Vector3.new(xzPosition.X + offset.X, startY, xzPosition.Z + offset.Z), direction, groundRaycastParams)
+		if not result or result.Normal.Y < minNormalY
+			or math.abs(result.Position.Y - spawnPlaneY) > maxVerticalOffset then
+			return nil
+		end
+		minY = math.min(minY, result.Position.Y)
+		maxY = math.max(maxY, result.Position.Y)
+	end
+	if maxY - minY > maxCornerHeightDifference then return nil end
+	return Vector3.new(xzPosition.X, center.Position.Y + hitbox.Size.Y * 0.5, xzPosition.Z)
 end
 
-local function spawnFood(foodModel: Model, spawnAnchor: BasePart, horizontalPosition: Vector3): Model?
+local function pivotFoodToAnchorSurface(foodModel: Model, targetHitboxPosition: Vector3): boolean
+	local hitbox = resolveFoodHitbox(foodModel)
+	if not hitbox then return false end
+	local pivotToHitbox = foodModel:GetPivot():ToObjectSpace(hitbox.CFrame)
+	foodModel:PivotTo(CFrame.new(targetHitboxPosition) * pivotToHitbox:Inverse())
+	return true
+end
+
+local function spawnFood(foodModel: Model, spawnAnchor: BasePart, horizontalPosition: Vector3, groundRaycastParams: RaycastParams?): Model?
+	local targetHitboxPosition = getAnchorSurfacePosition(foodModel, spawnAnchor, horizontalPosition, groundRaycastParams)
+	if not targetHitboxPosition then return nil end
 	local clone = foodModel:Clone()
-	if not resolveFoodHitbox(clone) then
-		clone:Destroy()
-		return nil
-	end
-
+	if not resolveFoodHitbox(clone) then clone:Destroy(); return nil end
 	anchorFoodModel(clone)
-	if not pivotFoodToAnchorSurface(clone, spawnAnchor, horizontalPosition) then
-		clone:Destroy()
-		return nil
-	end
-
+	if not pivotFoodToAnchorSurface(clone, targetHitboxPosition) then clone:Destroy(); return nil end
 	return clone
 end
+
+
 
 local function flattenXZ(v: Vector3): Vector3
 	return Vector3.new(v.X, 0, v.Z)
@@ -162,7 +186,7 @@ local function isHpFoodType(foodType: string?): boolean
 end
 
 local function getMinNoOverlapDistance(firstFoodType: string?, secondFoodType: string?): number
-	if isHpFoodType(firstFoodType) or isHpFoodType(secondFoodType) then
+	if isHpFoodType(firstFoodType) and (secondFoodType == nil or isHpFoodType(secondFoodType)) then
 		return math.max(FoodConfig.MinNoOverlapDistance, FoodConfig.HpFoodMinNoOverlapDistance or FoodConfig.MinNoOverlapDistance)
 	end
 	return FoodConfig.MinNoOverlapDistance
@@ -188,6 +212,7 @@ function FoodService.new(context)
 	self._spawnRetryGeneration = {}
 	self._playerConsumeCooldown = {}
 	self._foodHitByLaunchTarget = {}
+	self._groundRaycastParamsByMap = {}
 	return self
 end
 
@@ -341,17 +366,18 @@ function FoodService:_getZoneSpawnSetting(zoneName: string, settingName: string)
 	return 0
 end
 
-function FoodService:_getSpawnCountForZone(zoneName: string): number
-	return self:_getZoneSpawnSetting(zoneName, "ActivePerSpawn")
+function FoodService:_getSpawnCountForZone(zoneName: string, spawnPart: BasePart?): number
+	local settings = FoodConfig.ZoneSpawnSettings[zoneName]
+	if not settings then return 0 end
+	local fixedCount = tonumber(settings.ActivePerSpawn)
+	if fixedCount and fixedCount > 0 then return math.floor(fixedCount) end
+	if settings.AreaBased == true and spawnPart then
+		return FoodConfig.GetSpawnCountForArea(spawnPart.Size.X * spawnPart.Size.Z)
+	end
+	return 0
 end
 
-function FoodService:_getPlacementRadiusForZone(zoneName: string, foodType: string?): number
-	local placementRadius = self:_getZoneSpawnSetting(zoneName, "PlacementRadius")
-	if placementRadius > 0 and isHpFoodType(foodType) then
-		return math.max(placementRadius, FoodConfig.HpFoodSpawnRadius or placementRadius)
-	end
-	return placementRadius
-end
+
 
 function FoodService:_getFoodPlacementRadius(template: Model): number
 	local hitbox = template:FindFirstChild("Hitbox")
@@ -361,84 +387,69 @@ function FoodService:_getFoodPlacementRadius(template: Model): number
 	return 0
 end
 
-function FoodService:_isSpawnPositionValid(candidate: Vector3, foodRadius: number, batchPositions: { Vector3 }, batchRadii: { number }, batchFoodTypes: { string }, foodType: string): boolean
+function FoodService:_isSpawnPositionValid(spawnPart: BasePart, candidate: Vector3, foodRadius: number, batchPositions: { Vector3 }, batchRadii: { number }, batchFoodTypes: { string }, foodType: string): boolean
+	local localCandidate = spawnPart.CFrame:PointToObjectSpace(candidate)
+	local halfWidth = math.max(spawnPart.Size.X * 0.5 - foodRadius, 0)
+	local halfDepth = math.max(spawnPart.Size.Z * 0.5 - foodRadius, 0)
+	if math.abs(localCandidate.X) > halfWidth or math.abs(localCandidate.Z) > halfDepth then return false end
+
 	for index, prior in ipairs(batchPositions) do
 		local spacing = foodRadius + (batchRadii[index] or 0) + getMinNoOverlapDistance(foodType, batchFoodTypes[index])
-		if sqrDistanceXZ(candidate, prior) <= spacing * spacing then
-			return false
-		end
+		if sqrDistanceXZ(candidate, prior) <= spacing * spacing then return false end
 	end
-
 	for _, entry in ipairs(self:_collectNearbyEntries(candidate)) do
-		local instance = entry.Instance
-		local hitbox = instance and instance:FindFirstChild("Hitbox")
+		local hitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
 		if hitbox and hitbox:IsA("BasePart") then
 			local otherRadius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5
 			local spacing = foodRadius + otherRadius + getMinNoOverlapDistance(foodType, entry.FoodType)
-			if sqrDistanceXZ(candidate, hitbox.Position) <= spacing * spacing then
-				return false
-			end
+			if sqrDistanceXZ(candidate, hitbox.Position) <= spacing * spacing then return false end
 		end
 	end
 
-	-- Do not place food directly under active arena participants. Clearance includes
-	-- both hitbox radii plus an authored extra buffer from FoodConfig.
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	if stateService and playerService then
 		for _, player in ipairs(Players:GetPlayers()) do
 			local state = stateService:GetState(player)
-			if not state or state.LocationState == GameStates.SessionState.Lobby or state.IsAlive ~= true then
-				continue
-			end
+			if not state or state.LocationState == GameStates.SessionState.Lobby or state.IsAlive ~= true then continue end
 			local root = playerService:GetRoot(player)
 			if root then
 				local playerRadius = math.max(root.Size.X, root.Size.Z) * 0.5
 				local spacing = foodRadius + playerRadius + math.max(0, FoodConfig.MinPlayerSpawnClearance or 0)
-				if sqrDistanceXZ(candidate, root.Position) <= spacing * spacing then
-					return false
-				end
+				if sqrDistanceXZ(candidate, root.Position) <= spacing * spacing then return false end
 			end
 		end
 	end
-
 	return true
 end
 
-function FoodService:_buildLatticePositions(spawnPart: BasePart, zoneName: string, foodRadius: number, foodType: string): { Vector3 }
-	local placementRadius = self:_getPlacementRadiusForZone(zoneName, foodType)
-	-- Candidates are generated for the item being placed, rather than the largest
-	-- possible model. Collision validation below still enforces spacing against every
-	-- existing food entry, so large food cannot overlap smaller food.
+
+
+function FoodService:_buildLatticePositions(spawnPart: BasePart, _zoneName: string, foodRadius: number, foodType: string): { Vector3 }
 	local cellSize = math.max(getMinNoOverlapDistance(foodType, nil) + foodRadius * 2, 1)
-	local halfWidth = if placementRadius > 0 then placementRadius else spawnPart.Size.X * 0.5
-	local halfDepth = if placementRadius > 0 then placementRadius else spawnPart.Size.Z * 0.5
+	local halfWidth = math.max(spawnPart.Size.X * 0.5 - foodRadius, 0)
+	local halfDepth = math.max(spawnPart.Size.Z * 0.5 - foodRadius, 0)
 	local candidates = {}
 	local columns = math.max(1, math.floor((halfWidth * 2) / cellSize))
 	local rows = math.max(1, math.floor((halfDepth * 2) / cellSize))
 	local jitterLimit = cellSize * 0.2
-
 	for column = 0, columns - 1 do
 		for row = 0, rows - 1 do
-			local x = -halfWidth + (column + 0.5) * (halfWidth * 2 / columns)
-			local z = -halfDepth + (row + 0.5) * (halfDepth * 2 / rows)
-			if placementRadius <= 0 or x * x + z * z <= placementRadius * placementRadius then
-				local jitterX = (math.random() * 2 - 1) * jitterLimit
-				local jitterZ = (math.random() * 2 - 1) * jitterLimit
-				local localPosition = Vector3.new(x + jitterX, 0, z + jitterZ)
-				if placementRadius <= 0 or localPosition.X * localPosition.X + localPosition.Z * localPosition.Z <= placementRadius * placementRadius then
-					table.insert(candidates, spawnPart.CFrame:PointToWorldSpace(localPosition))
-				end
-			end
+			local x = if halfWidth > 0 then -halfWidth + (column + 0.5) * (halfWidth * 2 / columns) else 0
+			local z = if halfDepth > 0 then -halfDepth + (row + 0.5) * (halfDepth * 2 / rows) else 0
+			x = math.clamp(x + (math.random() * 2 - 1) * jitterLimit, -halfWidth, halfWidth)
+			z = math.clamp(z + (math.random() * 2 - 1) * jitterLimit, -halfDepth, halfDepth)
+			table.insert(candidates, spawnPart.CFrame:PointToWorldSpace(Vector3.new(x, 0, z)))
 		end
 	end
-	-- Fisher-Yates provides natural distribution without repeatedly sampling occupied space.
 	for index = #candidates, 2, -1 do
 		local swapIndex = math.random(1, index)
 		candidates[index], candidates[swapIndex] = candidates[swapIndex], candidates[index]
 	end
 	return candidates
 end
+
+
 
 function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string, batchPositions: { Vector3 }?, batchRadii: { number }?, batchFoodTypes: { string }?, requestedPosition: Vector3?, requestedFoodType: string?): boolean
 	local foodType = requestedFoodType or self:_pickWeightedType(zoneName)
@@ -456,14 +467,14 @@ function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Fol
 	local activeBatchFoodTypes = batchFoodTypes or {}
 	local foodRadius = self:_getFoodPlacementRadius(template)
 	local spawnPos = requestedPosition
-	if spawnPos and not self:_isSpawnPositionValid(spawnPos, foodRadius, activeBatchPositions, activeBatchRadii, activeBatchFoodTypes, foodType) then
+	if spawnPos and not self:_isSpawnPositionValid(spawnPart, spawnPos, foodRadius, activeBatchPositions, activeBatchRadii, activeBatchFoodTypes, foodType) then
 		spawnPos = nil
 	end
 	if not spawnPos then
 		return false
 	end
 
-	local clone = spawnFood(template, spawnPart, spawnPos :: Vector3)
+	local clone = spawnFood(template, spawnPart, spawnPos :: Vector3, self._groundRaycastParamsByMap[mapModel])
 	if not clone then
 		return false
 	end
@@ -505,15 +516,10 @@ function FoodService:_spawnSingleFoodOnSpawn(mapModel: Model, foodContainer: Fol
 end
 
 function FoodService:_spawnFoodBatchOnSpawn(mapModel: Model, foodContainer: Folder, spawnPart: BasePart, zoneName: string, requestedCount: number?, retryAttempt: number?)
-	local spawnCount = requestedCount or self:_getSpawnCountForZone(zoneName)
+	local spawnCount = requestedCount or self:_getSpawnCountForZone(zoneName, spawnPart)
 	local currentRetryAttempt = retryAttempt or 0
-	if spawnCount <= 0 then
-		return
-	end
-
-	local batchPositions = {}
-	local batchRadii = {}
-	local batchFoodTypes = {}
+	if spawnCount <= 0 then return end
+	local batchPositions, batchRadii, batchFoodTypes = {}, {}, {}
 	local spawned = 0
 	for _ = 1, spawnCount do
 		local foodType = self:_pickWeightedType(zoneName)
@@ -521,47 +527,30 @@ function FoodService:_spawnFoodBatchOnSpawn(mapModel: Model, foodContainer: Fold
 		local didSpawn = false
 		if foodType and template then
 			local foodRadius = self:_getFoodPlacementRadius(template)
-			for _, latticePosition in ipairs(self:_buildLatticePositions(spawnPart, zoneName, foodRadius, foodType)) do
-				if self:_spawnSingleFoodOnSpawn(mapModel, foodContainer, spawnPart, zoneName, batchPositions, batchRadii, batchFoodTypes, latticePosition, foodType) then
+			for _, position in ipairs(self:_buildLatticePositions(spawnPart, zoneName, foodRadius, foodType)) do
+				if self:_spawnSingleFoodOnSpawn(mapModel, foodContainer, spawnPart, zoneName, batchPositions, batchRadii, batchFoodTypes, position, foodType) then
 					didSpawn = true
 					break
 				end
 			end
-
-			-- A per-item lattice avoids the old largest-model bottleneck. Random
-			-- rejection sampling fills any gaps left by occupied lattice cells.
-			local placementRadius = self:_getPlacementRadiusForZone(zoneName, foodType)
-			local halfWidth = if placementRadius > 0 then placementRadius else spawnPart.Size.X * 0.5
-			local halfDepth = if placementRadius > 0 then placementRadius else spawnPart.Size.Z * 0.5
+			local halfWidth = math.max(spawnPart.Size.X * 0.5 - foodRadius, 0)
+			local halfDepth = math.max(spawnPart.Size.Z * 0.5 - foodRadius, 0)
 			for _ = 1, 192 do
-				if didSpawn then
-					break
-				end
+				if didSpawn then break end
 				local x = (math.random() * 2 - 1) * halfWidth
 				local z = (math.random() * 2 - 1) * halfDepth
-				if placementRadius <= 0 or x * x + z * z <= placementRadius * placementRadius then
-					local position = spawnPart.CFrame:PointToWorldSpace(Vector3.new(x, 0, z))
-					if self:_spawnSingleFoodOnSpawn(mapModel, foodContainer, spawnPart, zoneName, batchPositions, batchRadii, batchFoodTypes, position, foodType) then
-						didSpawn = true
-					end
+				local position = spawnPart.CFrame:PointToWorldSpace(Vector3.new(x, 0, z))
+				if self:_spawnSingleFoodOnSpawn(mapModel, foodContainer, spawnPart, zoneName, batchPositions, batchRadii, batchFoodTypes, position, foodType) then
+					didSpawn = true
 				end
 			end
 		end
-		if didSpawn then
-			spawned += 1
-		end
+		if didSpawn then spawned += 1 end
 	end
-
 	if spawned < spawnCount then
-		warn(string.format(
-			"[FoodService] Spawned %d/%d food for %s; valid non-overlapping positions were exhausted",
-			spawned,
-			spawnCount,
-			spawnPart:GetFullName()
-		))
-
+		warn(string.format("[FoodService] Spawned %d/%d food for %s; valid candidates exhausted or no tagged floor found.", spawned, spawnCount, spawnPart:GetFullName()))
 		local activeCount = self:_getActiveFoodCountForSpawn(spawnPart)
-		local targetCount = self:_getSpawnCountForZone(zoneName)
+		local targetCount = self:_getSpawnCountForZone(zoneName, spawnPart)
 		if activeCount < targetCount and currentRetryAttempt < MAX_SPAWN_RETRIES and not self._spawnRetryPending[spawnPart] then
 			local token = (self._spawnRetryGeneration[spawnPart] or 0) + 1
 			self._spawnRetryGeneration[spawnPart] = token
@@ -570,12 +559,9 @@ function FoodService:_spawnFoodBatchOnSpawn(mapModel: Model, foodContainer: Fold
 				if self._spawnRetryPending[spawnPart] ~= token then return end
 				self._spawnRetryPending[spawnPart] = nil
 				if not (mapModel.Parent and foodContainer.Parent and spawnPart.Parent) then return end
-
-				local latestActiveCount = self:_getActiveFoodCountForSpawn(spawnPart)
-				local latestTargetCount = self:_getSpawnCountForZone(zoneName)
-				if latestActiveCount < latestTargetCount then
-					self:_spawnFoodBatchOnSpawn(mapModel, foodContainer, spawnPart, zoneName, latestTargetCount - latestActiveCount, currentRetryAttempt + 1)
-				end
+				local active = self:_getActiveFoodCountForSpawn(spawnPart)
+				local target = self:_getSpawnCountForZone(zoneName, spawnPart)
+				if active < target then self:_spawnFoodBatchOnSpawn(mapModel, foodContainer, spawnPart, zoneName, target - active, currentRetryAttempt + 1) end
 			end)
 		elseif activeCount < targetCount and currentRetryAttempt >= MAX_SPAWN_RETRIES then
 			warn(string.format("[FoodService] Food spawn retry limit reached for %s; active=%d target=%d.", spawnPart:GetFullName(), activeCount, targetCount))
@@ -583,7 +569,10 @@ function FoodService:_spawnFoodBatchOnSpawn(mapModel: Model, foodContainer: Fold
 	end
 end
 
+
+
 function FoodService:ClearMapFood(mapModel: Model)
+	self._groundRaycastParamsByMap[mapModel] = nil
 	for spawnPart in pairs(self._spawnRetryPending) do
 		if spawnPart:IsDescendantOf(mapModel) then
 			self._spawnRetryPending[spawnPart] = nil
@@ -603,7 +592,29 @@ function FoodService:ClearMapFood(mapModel: Model)
 	end
 end
 
+function FoodService:_buildGroundRaycastParams(mapModel: Model): RaycastParams?
+	local tagName = FoodConfig.GroundSurfaceTag or "Collision_Ground"
+	local included = {}
+	for _, instance in ipairs(CollectionService:GetTagged(tagName)) do
+		if (instance:IsA("BasePart") or instance:IsA("Model")) and instance:IsDescendantOf(mapModel) then
+			table.insert(included, instance)
+		end
+	end
+	if #included == 0 then
+		warn(string.format("[FoodService] Map %s has no floor tagged %s; Food spawning is skipped for this map.", mapModel:GetFullName(), tagName))
+		return nil
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = included
+	params.IgnoreWater = true
+	params.RespectCanCollide = true
+	return params
+end
+
 function FoodService:SpawnFoodForMap(mapModel: Model)
+	self._groundRaycastParamsByMap[mapModel] = self:_buildGroundRaycastParams(mapModel)
+	if not self._groundRaycastParamsByMap[mapModel] then return end
 	local foodContainer = mapModel:FindFirstChild("FoodContainer")
 	local foodSpawns = mapModel:FindFirstChild("FoodSpawns")
 	if not (foodContainer and foodContainer:IsA("Folder")) then
@@ -698,7 +709,7 @@ function FoodService:_consumeFood(entry: any, player: Player)
 				if mapModel then
 					local foodContainer = mapModel:FindFirstChild("FoodContainer")
 					if foodContainer and foodContainer:IsA("Folder") then
-						local capacity = self:_getSpawnCountForZone(entry.ZoneName)
+						local capacity = self:_getSpawnCountForZone(entry.ZoneName, entry.SpawnPart)
 						local activeCount = self:_getActiveFoodCountForSpawn(entry.SpawnPart)
 						if activeCount < capacity then
 							self:_spawnFoodBatchOnSpawn(mapModel, foodContainer, entry.SpawnPart, entry.ZoneName, capacity - activeCount)

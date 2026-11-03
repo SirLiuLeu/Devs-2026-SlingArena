@@ -23,21 +23,15 @@ export type ResolvedLauncherStats = {
 	expBonus: number,
 }
 
-local LEVEL_MULTIPLIER_PER_LEVEL = 0.03
-local ROUND_LEVEL_MULTIPLIER_PER_LEVEL = 0.01
+local LAUNCHER_LEVEL_MULTIPLIER_PER_LEVEL = 0.03
+local PLAYER_LEVEL_MULTIPLIER_PER_LEVEL = 0.01
 
 local function readPassiveValue(passiveAbility: any?, key: string): number?
-	if type(passiveAbility) ~= "table" then
-		return nil
-	end
+	if type(passiveAbility) ~= "table" then return nil end
 	local directValue = passiveAbility[key]
-	if type(directValue) == "number" then
-		return directValue
-	end
+	if type(directValue) == "number" then return directValue end
 	local params = passiveAbility.params
-	if type(params) == "table" and type(params[key]) == "number" then
-		return params[key]
-	end
+	if type(params) == "table" and type(params[key]) == "number" then return params[key] end
 	return nil
 end
 
@@ -56,27 +50,31 @@ local function resolveExpBonus(passiveAbility: any?): number
 	return readPassiveAdd(passiveAbility, "expBonus")
 end
 
-function LauncherStatResolver.Resolve(definitionId: string, star: number?, level: number?, rarityId: string?, roundLevel: number?): ResolvedLauncherStats
+function LauncherStatResolver.Resolve(definitionId: string, star: number?, launcherLevel: number?, rarityId: string?, playerLevel: number?): ResolvedLauncherStats
 	local launcher = LauncherConfig.GetById(definitionId) or LauncherConfig.GetById(LauncherConfig.DefaultLauncherId)
 	local base = LauncherConfig.BaseStats
 	local launcherStats = launcher and launcher.stats or {}
 	local safeStar = math.clamp(math.floor(tonumber(star) or 1), 1, RarityConfig.MaxStar)
-	local safeLevel = math.max(1, math.floor(level or 1))
+	local safeLauncherLevel = math.max(1, math.floor(tonumber(launcherLevel) or 1))
+	local safePlayerLevel = math.max(1, math.floor(tonumber(playerLevel) or 1))
 	local rarity = RarityConfig.GetById(rarityId) or RarityConfig.GetByStar(safeStar)
 	local rarityMultiplier = rarity.statMultiplier or 1
-	local levelMultiplier = 1 + ((safeLevel - 1) * LEVEL_MULTIPLIER_PER_LEVEL)
-	local safeRoundLevel = math.max(1, math.floor(tonumber(roundLevel) or 1))
-	local roundLevelMultiplier = 1 + ((safeRoundLevel - 1) * ROUND_LEVEL_MULTIPLIER_PER_LEVEL)
-	-- The temporary RoundLevel bonus applies only to Launcher HP and Damage.
-	-- Pet base stats are added later by PetStatResolver and are not multiplied.
-	-- The pre-existing per-level launchPower growth is preserved independently.
-	local rarityAndLevelMultiplier = rarityMultiplier * levelMultiplier
+	local launcherLevelMultiplier = 1 + ((safeLauncherLevel - 1) * LAUNCHER_LEVEL_MULTIPLIER_PER_LEVEL)
+	local playerLevelMultiplier = 1 + ((safePlayerLevel - 1) * PLAYER_LEVEL_MULTIPLIER_PER_LEVEL)
+	local rarityAndLauncherLevelMultiplier = rarityMultiplier * launcherLevelMultiplier
 	local passive = launcher and launcher.passiveAbility or nil
 
-	local maxHP = (launcherStats.maxHP or base.maxHP) * rarityAndLevelMultiplier * roundLevelMultiplier * readPassiveMultiplier(passive, "maxHpMultiplier")
-	local baseDamage = (launcherStats.baseDamage or base.baseDamage) * rarityAndLevelMultiplier * roundLevelMultiplier * readPassiveMultiplier(passive, "damageMultiplier")
-	local regen = (launcherStats.regen or base.regenPerSecond) * rarityAndLevelMultiplier * readPassiveMultiplier(passive, "regenMultiplier")
-	local launchPower = (launcherStats.launchPower or 1) * levelMultiplier
+	-- Player Level scales only Launcher base HP and Damage. Pet base stats are
+	-- applied afterward and are not multiplied by Player Level.
+	local maxHP = (launcherStats.maxHP or base.maxHP)
+		* rarityAndLauncherLevelMultiplier * playerLevelMultiplier
+		* readPassiveMultiplier(passive, "maxHpMultiplier")
+	local baseDamage = (launcherStats.baseDamage or base.baseDamage)
+		* rarityAndLauncherLevelMultiplier * playerLevelMultiplier
+		* readPassiveMultiplier(passive, "damageMultiplier")
+	local regen = (launcherStats.regen or base.regenPerSecond)
+		* rarityAndLauncherLevelMultiplier * readPassiveMultiplier(passive, "regenMultiplier")
+	local launchPower = (launcherStats.launchPower or 1) * launcherLevelMultiplier
 	local speed = (launcherStats.speed or PhysicsConfig.Movement.MoveSpeed) * readPassiveMultiplier(passive, "moveSpeedMultiplier")
 	local armor = math.clamp(
 		((launcherStats.armor or 0) + readPassiveAdd(passive, "armor")) * rarityMultiplier,

@@ -4,10 +4,8 @@ local PetsUpgradeConfig = {}
 
 PetsUpgradeConfig.BaseCost = 50
 PetsUpgradeConfig.MaxLevel = 50
-PetsUpgradeConfig.AbilityMaxLevel = 20
 PetsUpgradeConfig.StatGrowthPerLevel = 0.05
-PetsUpgradeConfig.PostAbilityStatGrowthPerLevel = 0.03
-PetsUpgradeConfig.MilestoneLevels = { 1, 5, 10, 15, 20 }
+PetsUpgradeConfig.MilestoneLevels = { 1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50 }
 
 local RARITY_COST_MULTIPLIERS = { Common = 1, Rare = 1.25, Epic = 1.6, Legendary = 2 }
 
@@ -23,23 +21,22 @@ function PetsUpgradeConfig.GetUpgradeCost(level: number, rarity: string): number
 end
 
 function PetsUpgradeConfig.IsMilestone(level: number): boolean
-	for _, milestone in ipairs(PetsUpgradeConfig.MilestoneLevels) do if level == milestone then return true end end
+	for _, milestone in ipairs(PetsUpgradeConfig.MilestoneLevels) do
+		if level == milestone then return true end
+	end
 	return false
 end
 
 function PetsUpgradeConfig.GetNextMilestone(level: number): number?
-	for _, milestone in ipairs(PetsUpgradeConfig.MilestoneLevels) do if milestone > level then return milestone end end
+	for _, milestone in ipairs(PetsUpgradeConfig.MilestoneLevels) do
+		if milestone > level then return milestone end
+	end
 	return nil
 end
 
 function PetsUpgradeConfig.GetStatAtLevel(baseValue: number, level: number): number
 	local safeLevel = PetsUpgradeConfig.NormalizeLevel(level)
-	local levelsThroughAbilityCap = math.min(safeLevel, PetsUpgradeConfig.AbilityMaxLevel) - 1
-	local levelsAfterAbilityCap = math.max(safeLevel - PetsUpgradeConfig.AbilityMaxLevel, 0)
-	local multiplier = 1
-		+ (PetsUpgradeConfig.StatGrowthPerLevel * levelsThroughAbilityCap)
-		+ (PetsUpgradeConfig.PostAbilityStatGrowthPerLevel * levelsAfterAbilityCap)
-	return baseValue * multiplier
+	return baseValue * (1 + PetsUpgradeConfig.StatGrowthPerLevel * (safeLevel - 1))
 end
 
 return PetsUpgradeConfig
