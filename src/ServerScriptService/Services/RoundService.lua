@@ -247,6 +247,10 @@ function RoundService:_abortIfArenaEmpty(): boolean
 	if safeZoneService and typeof(safeZoneService.Reset) == "function" then
 		safeZoneService:Reset()
 	end
+	local mapService = ServiceResolver.Get(self._context, "MapService")
+	if mapService and typeof(mapService.ActivateMap) == "function" then
+		mapService:ActivateMap("LobbyMap")
+	end
 	local leaderboardService = ServiceResolver.Get(self._context, "LeaderboardService")
 	if leaderboardService and typeof(leaderboardService.ResetForNewRound) == "function" then
 		leaderboardService:ResetForNewRound()
