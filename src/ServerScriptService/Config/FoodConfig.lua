@@ -13,7 +13,7 @@ FoodConfig.SpawnAreaPerFood = 1000
 FoodConfig.MinFoodPerSpawn = 1
 FoodConfig.MaxFoodPerSpawn = 20
 FoodConfig.MinNoOverlapDistance = 3
-FoodConfig.HpFoodMinNoOverlapDistance = 7
+FoodConfig.HpFoodMinNoOverlapDistance = 20
 FoodConfig.MinPlayerSpawnClearance = 5
 
 -- Food must land on an upward-facing tagged floor close to the FoodSpawn plane.

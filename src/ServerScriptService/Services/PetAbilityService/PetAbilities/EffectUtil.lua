@@ -62,7 +62,11 @@ function EffectUtil.ApplyCollisionFlag(context, victim: Player, collisionMeta: a
 	if not flagName then trace(context, "ApplyCollisionFlag aborted: collisionFlag missing"); return end
 	local stateService = context.PlayerStateService
 	if not stateService then trace(context, "ApplyCollisionFlag aborted: PlayerStateService missing"); return end
-	local duration = EffectUtil.ResolveImpactScaledFlagDuration(flagName, collisionMeta, effect.collisionExtraDuration)
+	local progressionParams = context.progression and context.progression.abilityParams or nil
+	local configuredDuration = if type(progressionParams) == "table" and type(progressionParams.collisionExtraDuration) == "number"
+		then progressionParams.collisionExtraDuration
+		else effect.collisionExtraDuration
+	local duration = EffectUtil.ResolveImpactScaledFlagDuration(flagName, collisionMeta, configuredDuration)
 	trace(context, string.format("ApplyCollisionFlag target=%s flag=%s duration=%.3f transferredVelocity=%s", victim.Name, flagName, duration, tostring(EffectUtil.GetCollisionTransferredVelocity(collisionMeta))))
 	local applied = stateService:ApplyFlag(victim, flagName, duration, context.player)
 	trace(context, string.format("ApplyCollisionFlag result=%s", tostring(applied)))
