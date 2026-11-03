@@ -169,6 +169,7 @@ local function buildDefaultState(player: Player): PlayerState
 		ActiveFlags = {},
 		Armor = 0,
 		ExpBonus = 0,
+		LaunchCooldownReduction = 0,
 		RankPoints = 0,
 		TotalPoints = 0,
 		WeeklyPoints = 0,
@@ -496,6 +497,9 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	state.MoveSpeed = resolved.moveSpeed
 	state.Armor = resolved.armor
 	state.ExpBonus = resolved.expBonus
+	-- QuickReload stores a negative additive cooldown modifier in PetsConfig.
+	-- Expose it as a positive reduction for LauncherService to consume.
+	state.LaunchCooldownReduction = math.max(0, -(tonumber(resolved.launchCooldown) or 0))
 	state.LaunchershotType = definitionId
 
 	local hpBoost = self:GetFlag(player, "HPBoosted")

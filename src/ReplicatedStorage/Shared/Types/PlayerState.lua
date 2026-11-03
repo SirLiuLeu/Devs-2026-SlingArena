@@ -91,6 +91,7 @@ export type PlayerState = {
 	ActiveFlags: any?,
 	Armor: number?,
 	ExpBonus: number?,
+	LaunchCooldownReduction: number?,
 	RankPoints: number?,
 	TotalPoints: number?,
 	WeeklyPoints: number?,

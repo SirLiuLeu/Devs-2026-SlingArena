@@ -284,10 +284,20 @@ end
 function LauncherService:_finishLaunch(player: Player, reason: string)
 	local now = os.clock()
 	self._activeLaunches[player] = nil
-	local recoveryEnd = now + PhysicsConfig.Launch.RecoveryDuration
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local state = stateService and stateService:GetState(player)
+	local cooldownReduction = math.max(0, tonumber(state and state.LaunchCooldownReduction) or 0)
+	local recoveryDuration = math.clamp(
+		PhysicsConfig.Launch.RecoveryDuration - cooldownReduction,
+		0.1,
+		PhysicsConfig.Launch.RecoveryDuration
+	)
+	local recoveryEnd = now + recoveryDuration
 	self._releaseCooldown[player] = recoveryEnd
-	ServiceResolver.Get(self._context, "PlayerStateService"):SetLastReleaseDuration(player, PhysicsConfig.Launch.RecoveryDuration)
-	ServiceResolver.Get(self._context, "PlayerStateService"):SetCooldownEndTime(player, recoveryEnd)
+	if stateService then
+		stateService:SetLastReleaseDuration(player, recoveryDuration)
+		stateService:SetCooldownEndTime(player, recoveryEnd)
+	end
 	player:SetAttribute("LaunchValidationGraceEndsAt", 0)
 	ServiceResolver.Get(self._context, "PlayerStateService"):TrySetMovementState(player, MOVEMENT_STATE.Idle)
 end

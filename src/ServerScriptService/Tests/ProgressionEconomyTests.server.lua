@@ -136,12 +136,14 @@ runTest("Pet_Definition_StatModifiers_Apply_To_Resolved_Stats", function()
 			{ baseStats = {}, abilityParams = {}, definition = { statModifiers = { Add = { maxHP = 5000 }, Multiply = {} } } },
 			{ baseStats = {}, abilityParams = {}, definition = { statModifiers = { Add = { baseDamage = 500 }, Multiply = { damageMultiplier = 1.05 } } } },
 			{ baseStats = {}, abilityParams = {}, definition = { statModifiers = { Add = {}, Multiply = { launchSpeed = 1.2 } } } },
+			{ baseStats = {}, abilityParams = {}, definition = { statModifiers = { Add = { launchCooldown = -1 }, Multiply = {} } } },
 		}
 	)
 	assertNear(resolved.maxHP, 5100, "HealthCore adds maximum HP")
 	assertNear(resolved.baseDamage, 600, "PowerCore adds base damage")
 	assertNear(resolved.damageMultiplier, 1.05, "ThunderHammer damage multiplier applies")
 	assertNear(resolved.launchSpeed, 48, "LaunchBooster launch-speed multiplier applies")
+	assertNear(resolved.launchCooldown, -1, "QuickReload applies a one-second recovery reduction")
 end)
 
 runTest("BrainBoost_EXP_Bonus_Flows_Into_PlayerState", function()
