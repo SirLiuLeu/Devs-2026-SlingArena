@@ -259,7 +259,7 @@ function InventoryUIController:_reconcileSlots(data)
 end
 
 function InventoryUIController:_refreshPanel(data)
-	self._selectedItemId = data.selectedItemId or self._selectedItemId
+	self._selectedItemId = data.selectedItemId
 	local itemId = self._selectedItemId
 	local itemDef = itemId and ItemConfig.GetById(itemId) or nil
 	local quantity = itemId and math.max(0, math.floor(tonumber(data.ownedItems and data.ownedItems[itemId]) or 0)) or 0
