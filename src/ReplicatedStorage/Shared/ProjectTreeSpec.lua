@@ -104,6 +104,7 @@ local ProjectTreeSpec = {
 
 		Inventory = {
 			ScreenGui = "InventoryUI", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI
+			Overlay = "InventoryUI.Overlay", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Overlay
 			Root = "InventoryUI.Root", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root
 			BodyItems = "InventoryUI.Root.BodyItems", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.BodyItems
 			CloseButton = "InventoryUI.Root.Header.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.InventoryUI.Root.Header.CloseButton
