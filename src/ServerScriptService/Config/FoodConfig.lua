@@ -9,9 +9,9 @@ FoodConfig.CommonRespawnTime = 10
 FoodConfig.HpFoodRespawnTime = 30
 
 -- FoodSpawn Parts define the complete allowed X/Z rectangle.
-FoodConfig.SpawnAreaPerFood = 1000
+FoodConfig.SpawnAreaPerFood = 500
 FoodConfig.MinFoodPerSpawn = 1
-FoodConfig.MaxFoodPerSpawn = 20
+FoodConfig.MaxFoodPerSpawn = 40
 FoodConfig.MinNoOverlapDistance = 3
 FoodConfig.HpFoodMinNoOverlapDistance = 4
 FoodConfig.MinPlayerSpawnClearance = 5
@@ -149,7 +149,7 @@ FoodConfig.TypePools = {
 
 
 FoodConfig.ZoneSpawnSettings = {
-	CenterZones = { ActivePerSpawn = 1 },
+	CenterZones = { ActivePerSpawn = 2 },
 	MidZones = { AreaBased = true },
 	EdgeZones = { AreaBased = true },
 }
