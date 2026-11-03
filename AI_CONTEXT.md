@@ -15,6 +15,7 @@
 | TeleportRequest | C->S | MapService | `{ mapName: string, spawnName: string }` | Legacy debug contract; current `MapService:RequestTeleport` is a stub and does not teleport players. Do not expose as a production feature. |
 | AbilityTrigger | C->S | LauncherAbilityService | `{ abilityId: string, phase: "Start"\|"Commit"\|"Cancel", target?: Vector3, contextId?: string }` | Ability activation intent routed to ability orchestrator. |
 | EquipPet | C->S | PetService | `{ instanceId: string, slot?: number|string }` | Equip an owned Pet instance; the server validates ownership and slot selection. |
+| DeletePet | C->S | PetService | `{ instanceId: string }` | Delete an owned Pet; the server also removes any equipped-slot reference and recalculates derived stats. |
 | UnequipPet | C->S | PetService | `{ slot: number|string }` | Unequip the Pet occupying the requested slot. |
 | UpgradePet | C->S | PetService | `{ instanceId: string, expectedLevel: number }` | Server-authoritative Pet upgrade; the server verifies the expected level and commits the cost/result. |
 | EquipLauncher | C->S | LauncherInventoryService | `{ instanceId: string }` | Equip an owned Launcher instance by instance ID. |
@@ -56,7 +57,8 @@
 | `CameraController.client.lua` | Keeps the local camera in `Custom` mode and sets camera subject to the local pawn root when available. | Input |
 | `LauncherUIController.client.lua` | Runs launcher joystick/charge/cooldown HUD behavior and sends `StartCharge` / `ReleaseCharge` remotes from UI input. | UI |
 | `UIController.lua` | Composes and starts feature UI controllers, wires top-level hub toggles, and routes snapshot updates into UI. | UI |
-| `InventoryUIController.lua` | Renders and updates inventory UI (items/launchers), slot interactions, and equipped launcher preview model. | UI |
+| `InventoryUIController.lua` | Renders the Items-only `StarterGui.InventoryUI`, item selection, quantity/details, and Use action. | UI |
+| `PetInventoryUIController.lua` | Owns `StarterGui.PetInventoryUI`, Pet slots/previews, Equip/Unequip, delete confirmation, upgrade preview, and Pet stat/ability descriptions. | UI |
 | `ShopUIController.lua` | Renders shop tabs/slots and binds buy actions through shop logic service snapshots. | UI |
 | `OnlineRewardUIController.lua` | Renders online reward slots/timers and reward-claim UI states from logic snapshots. | UI |
 | `DailyLoginUIController.lua` | Renders daily login reward slots and claim/locked/completed states from logic snapshots. | UI |
@@ -99,10 +101,12 @@ Config modules store shared tuning and content tables (movement/combat constants
 
 ## Pet Inventory progression UI
 
-- The pet details level label is `StarterGui/InventoryUI/Root/BodyPets/RightPanel/Stats/Level`; `ProjectTreeSpec.UI.Inventory.PetsStatLevel` is the code path used to bind it.
-- `PetDisplayFormatter.Format(definition, level, previewNextLevel, languageCode)` is presentation-only and returns `LevelText`, `HPText`, `DamageText`, and `ScriptText`. It selects the localized ability template by locale (with an English fallback) and encodes every RichText arrow as `-&gt;`.
+- Pet UI is now owned by `PetInventoryUIController` and binds `StarterGui/PetInventoryUI/Root/BodyPets`; `ProjectTreeSpec.UI.PetInventory` is the canonical path group. `InventoryUIController` is Items-only and must not resolve or mutate Pet UI.
+- `PetInventoryUIController` opens from `Workspace/Maps/LobbyMap/Pet/PetInventoryGUI_Part` through `WorldProximityUIController`; the range is 10 studs and leaving the range closes the Pet screen.
+- Pet slots are cloned from `ReplicatedStorage/Assets/UI/PetSlotTemplate_PetInventoryUI`. Pet ownership/equip snapshots still come from the shared `InventoryDataProvider` and server `StateUpdate`; the Pet UI does not keep a second local inventory.
+- `PetDisplayFormatter.Format(definition, level, previewNextLevel, languageCode)` returns `LevelText`, `HPText`, `DamageText`, and `ScriptText`. `PetAbilityDisplayConfig` contains localized descriptions for all Pet definitions, while numeric values are resolved from `PetProgression` and `PetAbilityProgressionConfig`.
 - Pet level caps at 50. Base HP and Damage gain +5% per upgrade level through level 20, then +3% per level from 21 to 50. Ability parameters remain capped at level 20 and use milestones 1, 5, 10, 15, and 20; Titan weight/hitbox parameters also stop scaling at 20. Upgrade price is `50 × currentLevel × rarityMultiplier`, with the existing rarity multipliers retained.
-- The first Upgrade click previews base-stat changes; milestone-based ability text changes only when the next level is one of those milestones. The second click submits the upgrade, disables the button until a server result, and all selection/tab/hide/result events clear the preview.
+- The first Upgrade click previews base-stat changes; the second click sends `UpgradePet(instanceId, expectedLevel)`. The button stays pending until `PetUpgradeResult` or the authoritative level update arrives. Deletion requires confirmation and sends `DeletePet(instanceId)`; the server removes equipped-slot references before synchronizing the player.
 
 > **History note:** Entries below are dated implementation history, not a current-state inventory. Later notes and the current source supersede older Equipment-era descriptions; current gameplay ownership is Pets + Launcher Inventory.
 
