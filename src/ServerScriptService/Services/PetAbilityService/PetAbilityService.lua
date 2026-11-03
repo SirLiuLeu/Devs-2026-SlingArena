@@ -92,6 +92,18 @@ function PetAbilityService:Init()
 				end
 			end
 		end))
+		table.insert(self._connections, bus:On("RoundProgressionReset", function(player: Player)
+			local effects = self._activeEffects[player]
+			if not effects then return end
+			for _, effectState in pairs(effects) do
+				local context = effectState.context
+				if context.definition and context.definition.effectId == "Titan"
+					and typeof(effectState.module.OnRoundReset) == "function" then
+					effectState.module.OnRoundReset(context)
+					break
+				end
+			end
+		end))
 		table.insert(self._connections, bus:On("PetEquipped", function(player, slotType, instanceId, ownedInstance)
 			if DebugConfig.VerboseTrace then print(string.format("[ROUND_END_TRACE][PetAbilityService] EventBus PetEquipped; player=%s slot=%s instanceId=%s", player and player.Name or "nil", tostring(slotType), tostring(instanceId))) end
 			local stateService = ServiceResolver.Get(self._context, "PlayerStateService")

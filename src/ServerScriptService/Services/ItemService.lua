@@ -70,6 +70,16 @@ function ItemService:TryConsume(player: Player, itemId: string): (boolean, strin
 		self:_feedback(player, itemId, "Cooldown", cooldowns[itemId])
 		return false, "Cooldown"
 	end
+
+	local effect = item.effect
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	if effect.kind == "Experience" then
+		if not stateService or typeof(stateService.CanGainRoundExp) ~= "function" or not stateService:CanGainRoundExp(player) then
+			self:_feedback(player, itemId, "NotInRound")
+			return false, "NotInRound"
+		end
+	end
+
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not dataService then return false, "DataUnavailable" end
 	local consumed = false
@@ -83,23 +93,30 @@ function ItemService:TryConsume(player: Player, itemId: string): (boolean, strin
 		end
 		return data
 	end)
-	if not consumed then self:_publishInventory(player); self:_feedback(player, itemId, "NotOwned"); return false, "NotOwned" end
+	if not consumed then
+		self:_publishInventory(player)
+		self:_feedback(player, itemId, "NotOwned")
+		return false, "NotOwned"
+	end
 
-	local effect = item.effect
-	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if effect.kind == "Experience" then
 		local growthService = ServiceResolver.Get(self._context, "GrowthService")
 		if growthService and typeof(growthService.GrantExperience) == "function" then
 			growthService:GrantExperience(player, effect.experienceAmount or 0, "Consumable:" .. itemId)
-		elseif stateService then stateService:GrantExp(player, effect.experienceAmount or 0) end
+		elseif stateService then
+			stateService:GrantExp(player, effect.experienceAmount or 0)
+		end
 	elseif effect.kind == "Flag" and stateService and effect.flagName then
 		stateService:ApplyFlag(player, effect.flagName, effect.flagParams and effect.flagParams.Duration, "Consumable:" .. itemId, effect.flagParams)
 	end
+
 	cooldowns[itemId] = now + math.max(0, item.useCooldown or 0)
 	self:_publishInventory(player)
 	self:_feedback(player, itemId, "Consumed", cooldowns[itemId])
 	return true, nil
 end
+
+
 
 function ItemService:ClearPlayer(player: Player) self._cooldownEnds[player] = nil end
 return ItemService

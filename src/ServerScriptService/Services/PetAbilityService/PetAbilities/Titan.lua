@@ -57,6 +57,14 @@ function Titan.OnLevelUp(context, playerLevel: number)
 	))
 end
 
+function Titan.OnRoundReset(context)
+	context._visualMultiplier = 1
+	context._visualGrowthLevels = 0
+	context.preservedTitanVisualGrowth = nil
+	context.player:SetAttribute(VISUAL_MULTIPLIER_ATTRIBUTE, 1)
+	context.player:SetAttribute(VISUAL_GROWTH_LEVELS_ATTRIBUTE, 0)
+end
+
 function Titan.OnDestroy(context)
 	if context.player:GetAttribute(WEIGHT_MULTIPLIER_ATTRIBUTE) == context._weightMultiplier then context.player:SetAttribute(WEIGHT_MULTIPLIER_ATTRIBUTE, nil) end
 	if context.player:GetAttribute(HITBOX_MULTIPLIER_ATTRIBUTE) == context._hitboxMultiplier then context.player:SetAttribute(HITBOX_MULTIPLIER_ATTRIBUTE, nil) end
