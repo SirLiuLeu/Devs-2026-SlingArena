@@ -74,9 +74,32 @@ function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgress
 		local definition = progression.definition
 		local statModifiers = type(definition) == "table" and definition.statModifiers
 		local additions = type(statModifiers) == "table" and statModifiers.Add
-		local reflectAddition = type(additions) == "table" and tonumber(additions.reflectDamage) or 0
-		result.reflectDamage = math.clamp((result.reflectDamage or 0) + math.max(0, reflectAddition or 0), 0, 0.5)
+		local multipliers = type(statModifiers) == "table" and statModifiers.Multiply
+
+		if type(additions) == "table" then
+			for statName, value in pairs(additions) do
+				if type(value) == "number" then
+					local resolvedName = canonical(statName)
+					-- BrainBoost's level-scaled ability parameter supersedes the
+					-- legacy fixed Add.expBonus value in PetsConfig.
+					if resolvedName ~= "expBonus" or abilityExpBonus == nil then
+						result[resolvedName] = (result[resolvedName] or 0) + value
+					end
+				end
+			end
+		end
+
+		if type(multipliers) == "table" then
+			for statName, value in pairs(multipliers) do
+				if type(value) == "number" then
+					local resolvedName = canonical(statName)
+					result[resolvedName] = (result[resolvedName] or 1) * value
+				end
+			end
+		end
 	end
+
+	result.reflectDamage = math.clamp(result.reflectDamage or 0, 0, 0.5)
 	return result
 end
 
