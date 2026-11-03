@@ -131,7 +131,7 @@ PetsConfig.Definitions = {
         nil, nil, nil, { Add = { launchCooldown = -1 }, Multiply = {} }),
 
     ThornArmor = pet("ThornArmor", "Pufferfish", "Pufferfish", PetsConfig.Rarities.Epic, PetsConfig.Categories.PassiveStatModifier, "NoOp",
-        nil, { type = "ReflectDamage", percent = 0.2, params = { diagnostic = "Thorn Armor damage reflection is not yet wired into DamagePipelineService" } },
+        nil, { type = "ReflectDamage", percent = 0.2, params = {} },
         { Add = { reflectDamage = 0.2 }, Multiply = {} }),
 
     -- Regeneration / Healing
