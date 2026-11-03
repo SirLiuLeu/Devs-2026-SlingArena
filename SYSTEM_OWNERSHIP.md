@@ -107,8 +107,8 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - **Constraint:** MUST NOT directly modify combat or player state bypassing owner services.
 
 ### PetService
-- **Owns:** Server-authoritative Pet ownership, equip/unequip, and upgrade mutations.
-- **Responsibilities:** Validate owned Pet instance IDs, enforce equipped-slot rules, commit upgrades through PlayerDataService, and publish Pet lifecycle/result events.
+- **Owns:** Server-authoritative Pet ownership, equip/unequip, deletion, and upgrade mutations.
+- **Responsibilities:** Validate owned Pet instance IDs, enforce equipped-slot rules, delete owned instances and any matching equipped-slot references, commit upgrades through PlayerDataService, and publish Pet lifecycle/result events.
 - **Called by:** Pet inventory remotes and reward/grant flows.
 - **Dependencies:** PlayerDataService, PetsConfig, PetsUpgradeConfig, EventBus.
 
