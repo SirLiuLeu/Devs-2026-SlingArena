@@ -20,8 +20,8 @@ function PetProgression.GetDefinition(petOrDefinition: any): any?
 	return PetsConfig.GetById(tostring(petOrDefinition.definitionId or ""))
 end
 
--- Base rarity stats scale on every level. Ability parameters are discrete and
--- are read only from the ability milestone configuration.
+-- Rarity-based base HP/Damage use the +5% / +3% two-stage curve. Ability
+-- values preserve levels 1-20 milestones, then interpolate to level-50 targets.
 function PetProgression.Resolve(petOrDefinition: any, petOrLevel: any?): { [string]: any }?
 	local definition = PetProgression.GetDefinition(petOrDefinition)
 	if not definition then return nil end
