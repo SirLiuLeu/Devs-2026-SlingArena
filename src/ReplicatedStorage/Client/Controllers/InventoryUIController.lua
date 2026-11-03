@@ -268,7 +268,7 @@ function InventoryUIController:_refreshPanel(data)
 		self._selectedName.Text = itemDef and itemDef.name or "No item selected"
 	end
 	if self._stat1 then self._stat1.Text = string.format("Quantity: %d", quantity) end
-	if self._stat2 then self._stat2.Text = itemDef and ("Type: " .. tostring(itemDef.type or "-")) or "Type: -" end
+	if self._stat2 then self._stat2.Text = itemDef and ("Type: " .. tostring(itemDef.itemType or "-")) or "Type: -" end
 	if self._stat3 then self._stat3.Text = data.lastUseResult or "Use: ready" end
 	if self._description then
 		self._description.Text = if itemDef then tostring(itemDef.description or itemDef.effect or "") else ""
