@@ -53,6 +53,10 @@ local TEXTS = {
 		vi = "Không thể bán Launcher này. Lý do: {reason}",
 		en = "Could not sell this Launcher. Reason: {reason}",
 	},
+	DeletePet = {
+		vi = "Bạn có chắc chắn muốn xóa Pet {petName} khỏi kho không? Hành động này không thể hoàn tác.",
+		en = "Are you sure you want to delete {petName} from your Pet inventory? This cannot be undone.",
+	},
 	LeaveArena = {
 		vi = "Rời đấu trường lúc này sẽ bị phạt 30 giây. Bạn có chắc chắn không?",
 		en = "Leaving now will apply a 30-second penalty. Are you sure?",
