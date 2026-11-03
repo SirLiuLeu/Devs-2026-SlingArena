@@ -238,7 +238,7 @@ Flags are modifiers layered on top of a player's core `MovementState`. Real, cod
 
 * `LevelConfig.RequiredExp(level) = BaseExp(100) × level^ExpExponent(1.3)`. ✅ matches original design intent.
 * `LevelConfig.MaxLevel = 200` for the current round-scoped Player Level.
-* Player Level/EXP are not persistent profile progression. Lobby players cannot gain Round EXP; valid progression is scoped to the current RoundId and resets after results or an abandoned empty Arena. Experience consumables are rejected without being consumed outside a valid round. OnlineRewardLogicService remains a client-side MockData/MockPlayerData flow, not an authoritative server EXP source.
+* Player Level/EXP are not persistent profile progression. Lobby players cannot gain Round EXP; valid progression is scoped to the current RoundId and resets after results or an abandoned empty Arena. Direct Experience consumables and EXPBoosted flag consumables are rejected without being consumed outside a valid round. OnlineRewardLogicService remains a client-side MockData/MockPlayerData flow, not an authoritative server EXP source.
 * Kill EXP: a flat **`BalanceConfig.KillExp = 120`** is granted to the killer (`GrowthService`), **not** "50% of the target's lost EXP" as previously documented. ⚠️ See §13.
 * ❌ **No EXP-loss-on-death penalty is applied anywhere.** `PlayerStateService:TryApplyExpPenalty` and `DamagePipelineService:ApplyExpPenalty` exist as functions, but `HandlePlayerDeath` never calls them. The "lose 30% EXP on death" rule from the previous doc does not run in the current codebase.
 

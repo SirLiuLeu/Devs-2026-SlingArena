@@ -73,7 +73,9 @@ function ItemService:TryConsume(player: Player, itemId: string): (boolean, strin
 
 	local effect = item.effect
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
-	if effect.kind == "Experience" then
+	local requiresRoundProgression = effect.kind == "Experience"
+		or (effect.kind == "Flag" and effect.flagName == "EXPBoosted")
+	if requiresRoundProgression then
 		if not stateService or typeof(stateService.CanGainRoundExp) ~= "function" or not stateService:CanGainRoundExp(player) then
 			self:_feedback(player, itemId, "NotInRound")
 			return false, "NotInRound"
