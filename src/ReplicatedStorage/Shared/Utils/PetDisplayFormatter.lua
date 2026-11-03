@@ -91,7 +91,10 @@ local function buildScriptText(definition: any, current: any, nextProgression: a
 
 	local currentValues = getDescriptionValues(definition, current)
 	local nextValues = getDescriptionValues(definition, nextProgression)
-	local useNextValues = previewNextLevel and PetsUpgradeConfig.IsMilestone(nextLevel)
+	local useNextValues = previewNextLevel and (
+		PetsUpgradeConfig.IsMilestone(nextLevel)
+		or nextLevel > PetsUpgradeConfig.AbilityMaxLevel
+	)
 
 	local rendered = template:gsub("{([%w_]+)}", function(key)
 		local currentValue = currentValues[key]
