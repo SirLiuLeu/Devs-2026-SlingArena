@@ -648,7 +648,7 @@ function UIController:_startAvailableFeatureControllers()
 	if self.SpinUIController then self.SpinUIController:Start() end
 	if self.OnlineRewardUIController then self.OnlineRewardUIController:Start() end
 	if self.ShopUIController then self.ShopUIController:Start() end
-	if self.ShopUIController and self.LauncherInventoryUIController then
+	if self.ShopUIController or self.LauncherInventoryUIController or self.PetInventoryUIController then
 		self.WorldProximityUIController = WorldProximityUIController.new(self.ShopUIController, self.LauncherInventoryUIController, self.PetInventoryUIController)
 		self.WorldProximityUIController:Start()
 	end
