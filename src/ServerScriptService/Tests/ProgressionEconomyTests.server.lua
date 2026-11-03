@@ -103,7 +103,7 @@ runTest("FoodSpawn_Area_Density_And_Gaps", function()
 	assertEqual(FoodConfig.GetSpawnCountForArea(100 * 100), 10, "100x100 FoodSpawn target count")
 	assertEqual(FoodConfig.GetSpawnCountForArea(50 * 50), 2, "50x50 FoodSpawn target count")
 	assertEqual(FoodConfig.GetSpawnCountForArea(500 * 500), 20, "FoodSpawn count cap")
-	assertEqual(FoodConfig.HpFoodMinNoOverlapDistance, 20, "HP-HP Hitbox gap")
+	assertEqual(FoodConfig.HpFoodMinNoOverlapDistance, 20, "HP-containing pairs preserve the wider Hitbox gap")
 	assertEqual(FoodConfig.MinNoOverlapDistance, 3, "Common and mixed Hitbox gap")
 end)
 

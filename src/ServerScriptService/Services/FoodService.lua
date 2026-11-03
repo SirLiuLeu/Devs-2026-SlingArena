@@ -186,7 +186,8 @@ local function isHpFoodType(foodType: string?): boolean
 end
 
 local function getMinNoOverlapDistance(firstFoodType: string?, secondFoodType: string?): number
-	if isHpFoodType(firstFoodType) and (secondFoodType == nil or isHpFoodType(secondFoodType)) then
+	-- Preserve a wide lane around every HP Food item, including mixed pairs.
+	if isHpFoodType(firstFoodType) or isHpFoodType(secondFoodType) then
 		return math.max(FoodConfig.MinNoOverlapDistance, FoodConfig.HpFoodMinNoOverlapDistance or FoodConfig.MinNoOverlapDistance)
 	end
 	return FoodConfig.MinNoOverlapDistance

@@ -200,7 +200,7 @@ Flags are modifiers layered on top of a player's core `MovementState`. Real, cod
 ## 7.1 Global Settings
 
 * `CommonRespawnTime = 10`s, `HpFoodRespawnTime = 30`s
-* FoodSpawn Parts define the full rectangular X/Z placement area. Mid/Edge target count is `floor(Size.X × Size.Z / 1000)`, clamped to 1–20; CenterZones remain 1 per Part. Common–Common and HP–Common Hitbox gaps are 3 studs; HP–HP gap is 20 studs. Food must raycast to an upward-facing `Collision_Ground` surface within 4 studs of the FoodSpawn top plane, with the full Hitbox footprint supported.
+* FoodSpawn Parts define the full rectangular X/Z placement area. Mid/Edge target count is `floor(Size.X × Size.Z / 1000)`, clamped to 1–20; CenterZones remain 1 per Part. Common–Common Hitbox gap is 3 studs; any pair containing HP Food reserves a 20-stud Hitbox gap. Food must raycast to an upward-facing `Collision_Ground` surface within 4 studs of the FoodSpawn top plane, with the full Hitbox footprint supported.
 
 ## 7.2 Food Types
 
