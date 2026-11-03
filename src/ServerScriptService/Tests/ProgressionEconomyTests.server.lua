@@ -66,6 +66,7 @@ runTest("Pet_Ability_Milestones_Reach_80_And_100_Percent", function()
 	assertNear(plasma4.damage, plasma1.damage, "Ability stays unchanged before milestone")
 	assertNear(plasma5.damage, 800, "Legacy level-5 value retained")
 	assertNear(plasma20.damage, 1100, "Legacy level-20 value retained")
+	assertNear(plasma21.damage, 1103.3333333, "Level 21 begins incremental post-20 growth")
 	assertNear(plasma25.damage, 1116.6666667, "Level 25 adds one sixth of remaining 20%")
 	assertNear(plasma50.damage, 1200, "Level 50 extended target")
 	assertNear(plasma20.cooldown, 10, "Cooldown remains unchanged")
@@ -129,11 +130,12 @@ runTest("Player_Level_Scales_Only_Launcher_Base_HP_And_Damage", function()
 end)
 
 runTest("BrainBoost_EXP_Bonus_Flows_Into_PlayerState", function()
+	local level50AbilityParams = PetAbilityProgressionConfig.GetParams("ExpBonus", 50)
 	local resolved = PetStatResolver.Apply(
 		{ maxHP = 100, baseDamage = 10, expBonus = 0 },
-		{ { baseStats = { maxHP = 100, baseDamage = 10 }, abilityParams = { expBonus = 0.60 } } }
+		{ { baseStats = { maxHP = 100, baseDamage = 10 }, abilityParams = level50AbilityParams } }
 	)
-	assertNear(resolved.expBonus, 0.60, "BrainBoost EXP bonus is applied once")
+	assertNear(resolved.expBonus, 0.55, "BrainBoost level-50 EXP bonus is applied once")
 end)
 
 runTest("Round_And_Kill_Diamond_Reward_Tuning", function()
