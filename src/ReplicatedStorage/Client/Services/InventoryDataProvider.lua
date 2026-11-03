@@ -15,6 +15,7 @@ local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 local consumeItemRemote = remotes:FindFirstChild(RemoteContracts.Names.ConsumeItem) :: RemoteEvent?
 local equipPetRemote = remotes:FindFirstChild(RemoteContracts.Names.EquipPet) :: RemoteEvent?
 local unequipPetRemote = remotes:FindFirstChild(RemoteContracts.Names.UnequipPet) :: RemoteEvent?
+local deletePetRemote = remotes:FindFirstChild(RemoteContracts.Names.DeletePet) :: RemoteEvent?
 local equipLauncherRemote = remotes:FindFirstChild(RemoteContracts.Names.EquipLauncher) :: RemoteEvent?
 local unequipLauncherRemote = remotes:FindFirstChild(RemoteContracts.Names.UnequipLauncher) :: RemoteEvent?
 
@@ -381,6 +382,19 @@ function InventoryDataProvider:EquipSelectedPet(): boolean
 		return true
 	end
 	return false
+end
+
+function InventoryDataProvider:DeleteSelectedPet(): boolean
+	local petId = self._state.selectedPetId
+	local index = petId and self:_findPetIndex(petId)
+	if not (index and deletePetRemote) then
+		return false
+	end
+	local selected = self._state.ownedPets[index]
+	-- Ownership and equipped-slot cleanup are server-authoritative. Wait for StateUpdate
+	-- rather than optimistically removing the Pet from the client snapshot.
+	deletePetRemote:FireServer(selected.instanceId)
+	return true
 end
 
 function InventoryDataProvider:UnequipSelectedPet(): boolean
