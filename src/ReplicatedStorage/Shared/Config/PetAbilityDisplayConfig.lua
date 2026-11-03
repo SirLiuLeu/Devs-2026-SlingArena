@@ -23,8 +23,8 @@ PetAbilityDisplayConfig.Descriptions = {
 		en = "Collisions with enemy players apply Petrify. Players with Phoenix equipped are immune to this Petrify effect.",
 	},
 	IceCrystal = {
-		vi = "Va chạm làm chậm đối thủ 25% trong {duration}s.",
-		en = "Collisions slow the target by 25% for {duration}s.",
+		vi = "Va chạm kích hoạt Slow, làm giảm 25% tốc độ mục tiêu. Thời lượng hiệu ứng được scale theo tốc độ va chạm.",
+		en = "Collisions apply Slow, reducing the target\'s speed by 25%. Effect duration scales with collision speed.",
 	},
 	GhostFlame = {
 		vi = "Va chạm áp dụng Burn lên người chơi hoặc thức ăn. Tăng {baseDamage} sát thương cơ bản.",
