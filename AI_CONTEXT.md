@@ -80,7 +80,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `GameConfig.lua` | Runtime flag durations, stacking/tick behavior and status-effect visual configuration. | `FlagService`, `PlayerStateService` |
 | `ItemConfig.lua` | Item catalog (`Items`) with metadata (`id`, `name`, `effect`, `icon`, `stackable`) and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
 | `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
-| `PetAbilityProgressionConfig.lua` | Ability parameters at levels 1/5/10/15/20 plus `Display = { Format, Templates = { en, vi } }` localization data. | `PetProgression`, `PetDisplayFormatter` |
+| `PetAbilityProgressionConfig.lua` | Numeric ability parameters at milestones 1/5/10/15/20. Player-facing ability text is owned by `PetAbilityDisplayConfig.lua`. | `PetProgression`, `PetDisplayFormatter` |
 | `PetAbilityDisplayConfig.lua` | Localized descriptions for each Pet ability; does not own gameplay tuning. | `PetDisplayFormatter`, `PetInventoryUIController` |
 | `PetPreviewConfig.lua` | Per-pet viewport camera `Rotation` and `Offset`, accessed through `Get(petId)`. | `PetInventoryUIController`, `PreviewRenderer` |
 | `PetRenderConfig.lua` | Client-side nearby Pet render distance, range-check interval, and exit hysteresis. | `ClientPetController` |
