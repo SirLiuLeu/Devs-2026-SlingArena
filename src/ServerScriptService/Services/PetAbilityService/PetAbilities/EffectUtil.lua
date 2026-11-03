@@ -80,12 +80,16 @@ function EffectUtil.ApplyDotFlag(context, victim: Player)
 	local stateService = context.PlayerStateService
 	if not stateService then trace(context, "ApplyDotFlag aborted: PlayerStateService missing"); return end
 	local flagConfig = EffectUtil.GetFlagConfig(flagName)
-	trace(context, string.format("ApplyDotFlag target=%s flag=%s duration=%s tickInterval=%s damagePerTick=%s maxStack=%s", victim.Name, flagName, tostring(flagConfig.Duration), tostring(flagConfig.TickInterval), tostring(flagConfig.DamagePerTick), tostring(flagConfig.MaxStack)))
-	local applied = stateService:ApplyFlag(victim, flagName, flagConfig.Duration, context.player, {
+	local progressionParams = context.progression and context.progression.abilityParams or {}
+	local duration = math.max(0, tonumber(progressionParams.duration) or tonumber(flagConfig.Duration) or 0)
+	local tickInterval = math.max(0.1, tonumber(progressionParams.tickInterval) or tonumber(flagConfig.TickInterval) or 1)
+	local damagePerTick = math.max(0, tonumber(progressionParams.damagePerTick) or tonumber(flagConfig.DamagePerTick) or 0)
+	trace(context, string.format("ApplyDotFlag target=%s flag=%s duration=%s tickInterval=%s damagePerTick=%s maxStack=%s", victim.Name, flagName, tostring(duration), tostring(tickInterval), tostring(damagePerTick), tostring(flagConfig.MaxStack)))
+	local applied = stateService:ApplyFlag(victim, flagName, duration, context.player, {
 		Stackable = flagConfig.Stackable,
 		MaxStack = flagConfig.MaxStack,
-		TickInterval = flagConfig.TickInterval,
-		DamagePerTick = flagConfig.DamagePerTick,
+		TickInterval = tickInterval,
+		DamagePerTick = damagePerTick,
 	})
 	trace(context, string.format("ApplyDotFlag result=%s", tostring(applied)))
 	if flagConfig.SlowAmount then
@@ -120,6 +124,10 @@ function EffectUtil.ApplyFoodDot(context, food: Model)
 	local foodId = food:GetAttribute("FoodId")
 	if typeof(foodId) ~= "string" then return end
 	local flagConfig = EffectUtil.GetFlagConfig(flagName)
+	local progressionParams = context.progression and context.progression.abilityParams or {}
+	local duration = math.max(0, tonumber(progressionParams.duration) or tonumber(flagConfig.Duration) or 0)
+	local tickInterval = math.max(0.1, tonumber(progressionParams.tickInterval) or tonumber(flagConfig.TickInterval) or 1)
+	local damagePerTick = math.max(0, tonumber(progressionParams.damagePerTick) or tonumber(flagConfig.DamagePerTick) or 0)
 	local stateKey = string.format("%s:%s:%d", foodId, flagName, context.player.UserId)
 	local existing = foodDotState[stateKey]
 	local maxStack = math.max(1, flagConfig.MaxStack or 1)
@@ -129,10 +137,10 @@ function EffectUtil.ApplyFoodDot(context, food: Model)
 		food = food,
 		flagName = flagName,
 		stacks = stacks,
-		damagePerTick = flagConfig.DamagePerTick or 0,
-		tickInterval = flagConfig.TickInterval or 1,
+		damagePerTick = damagePerTick,
+		tickInterval = tickInterval,
 		lastTickAt = existing and existing.lastTickAt or now,
-		expiresAt = now + (flagConfig.Duration or 0),
+		expiresAt = now + duration,
 		instigator = context.player,
 	}
 end
