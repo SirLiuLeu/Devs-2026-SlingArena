@@ -27,6 +27,7 @@ type DamageOptions = {
 	InitialImpactSpeed: number?,
 	KnockbackSpeedCap: number?,
 	SourceType: string?,
+	AllowFriendlyFire: boolean?,
 }
 
 type EffectConfig = {
@@ -109,7 +110,7 @@ local function getDamageBoostMultiplier(playerStateService: any, attacker: Playe
 end
 
 local function isHumanDamageAllowed(sourceType: string?): boolean
-	return sourceType == "Environment" or sourceType == "PhysicalLauncherCollision" or sourceType == "Trap" or sourceType == "SafeZone"
+	return sourceType == "Environment" or sourceType == "PhysicalLauncherCollision" or sourceType == "Trap" or sourceType == "SafeZone" or sourceType == "Bomb"
 end
 
 local function isCombatDamageAllowed(context: Context): boolean
@@ -272,8 +273,9 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 		return false
 	end
 	local sourceType = options and options.SourceType or (if attacker then "LauncherCombat" else "Environment")
+	local isBombDamage = sourceType == "Bomb"
 	damageLog(`ApplyHitDamage entered attacker={playerName(attacker)} victim={playerName(victim)} rawDamage={rawDamage} sourceType={sourceType}`)
-	if attacker and (not isCombatDamageAllowed(self._context) or (playerStateService.IsHuman and playerStateService:IsHuman(attacker))) then
+	if attacker and (not isCombatDamageAllowed(self._context) or ((playerStateService.IsHuman and playerStateService:IsHuman(attacker)) and not isBombDamage)) then
 		damageLog("ApplyHitDamage aborted: combat phase disallows damage or attacker is Human")
 		return false
 	end
@@ -286,7 +288,7 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 		return false
 	end
 
-	if attacker and not self:CanDamagePlayer(attacker, victim) then
+	if attacker and not (options and options.AllowFriendlyFire == true) and not self:CanDamagePlayer(attacker, victim) then
 		damageLog("ApplyHitDamage aborted: friendly fire blocked")
 		return false
 	end
@@ -296,7 +298,7 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 	local amount = math.clamp(rawDamage * petDamageMultiplier * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
 	local didDamage = true
 	if amount > 0 then
-		didDamage = playerStateService:ApplyDamage(victim, amount)
+		didDamage = playerStateService:ApplyDamage(victim, amount, isBombDamage)
 	end
 	if not didDamage then
 		damageLog(`ApplyHitDamage aborted: PlayerStateService rejected amount={amount}`)
