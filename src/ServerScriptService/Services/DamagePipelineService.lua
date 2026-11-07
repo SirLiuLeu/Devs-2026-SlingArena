@@ -288,7 +288,8 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 		return false
 	end
 
-	if attacker and not (options and options.AllowFriendlyFire == true) and not self:CanDamagePlayer(attacker, victim) then
+	local allowFriendlyFire = isBombDamage and options ~= nil and options.AllowFriendlyFire == true
+	if attacker and not allowFriendlyFire and not self:CanDamagePlayer(attacker, victim) then
 		damageLog("ApplyHitDamage aborted: friendly fire blocked")
 		return false
 	end
