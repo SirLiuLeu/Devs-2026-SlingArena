@@ -62,11 +62,25 @@ DataModel
 │  │  └─ RemoteContracts.lua
 │  │
 │  ├─ Assets
+│  │  ├── EffectVfx
+│  │  │   ├── Burn (Fire)
+│  │  │   ├── Explosion (Attachment)
+│  │  │   ├── Frost (ParticleEmitter)
+│  │  │   ├── Poison (Smoke)
+│  │  │   └── Stun (ParticleEmitter)
 │  │  ├── Prefabs
 │  │  │   ├── ArrowModel (Model)
 │  │  │   │   ├── EndAttachment (Attachment)
 │  │  │   │   ├── StartAttachment (Attachment)
 │  │  │   │   └── Arrow (MeshPart/Part)
+│  │  │   ├── PlasmaBall (Model)
+│  │  │   ├── Bomb (Model)
+│  │  │   ├── VFX_ExplosionRing (Model)
+│  │  │   │   ├── E1 (Mesh)
+│  │  │   │   ├── E2 (Mesh)
+│  │  │   │   ├── E3 (Mesh)
+│  │  │   │   ├── E4 (Mesh)
+│  │  │   │   └── E5 (Mesh)
 │  │  │   ├── PlasmaBall (Model)
 │  │  │   └── SlowBall (Model)
 │  │  │
