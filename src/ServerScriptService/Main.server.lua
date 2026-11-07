@@ -34,6 +34,7 @@ local SafeZoneService = requireSafe(ServicesFolder:WaitForChild("SafeZoneService
 local MonetizationService = requireSafe(ServicesFolder:WaitForChild("MonetizationService"), "MonetizationService")
 local LeaderboardService = requireSafe(ServicesFolder:WaitForChild("LeaderboardService"), "LeaderboardService")
 local PlayerDataService = requireSafe(ServicesFolder:WaitForChild("PlayerDataService"), "PlayerDataService")
+local BombService = requireSafe(ServicesFolder:WaitForChild("BombService"), "BombService")
 local ItemService = requireSafe(ServicesFolder:WaitForChild("ItemService"), "ItemService")
 local ShopService = requireSafe(ServicesFolder:WaitForChild("ShopService"), "ShopService")
 local PetService = requireSafe(ServicesFolder:WaitForChild("PetService"):WaitForChild("PetService"), "PetService")
@@ -131,6 +132,7 @@ local serviceConstructors = {
 	MonetizationService = MonetizationService,
 	LeaderboardService = LeaderboardService,
 	PlayerDataService = PlayerDataService,
+	BombService = BombService,
 	ItemService = ItemService,
 	ShopService = ShopService,
 	PetService = PetService,
@@ -163,6 +165,7 @@ local initializationOrder = {
 	"RateLimiter",
 	"PlayerDataService",
 	"PlayerStateService",
+	"BombService",
 	"ItemService",
 	"ShopService",
 	"PetService",
