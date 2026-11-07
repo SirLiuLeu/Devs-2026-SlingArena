@@ -616,10 +616,10 @@ function PlayerStateService:SetTeleporting(player: Player, isTeleporting: boolea
 	self:PublishState(player)
 end
 
-function PlayerStateService:ApplyDamage(player: Player, amount: number): boolean
+function PlayerStateService:ApplyDamage(player: Player, amount: number, allowHumanDamage: boolean?): boolean
 	applyDamageLog(`PlayerStateService:ApplyDamage enter player={playerName(player)} amount={amount}`)
 	local state = self._states[player]
-	if not state or not state.IsAlive or self:IsHuman(player) or self:IsInvulnerable(player) then
+	if not state or not state.IsAlive or (self:IsHuman(player) and allowHumanDamage ~= true) or self:IsInvulnerable(player) then
 		applyDamageLog(`PlayerStateService:ApplyDamage return false player={playerName(player)} amount={amount} hasState={state ~= nil} isAlive={state and state.IsAlive or false} isHuman={self:IsHuman(player)} invulnerable={self:IsInvulnerable(player)}`)
 		return false
 	end
