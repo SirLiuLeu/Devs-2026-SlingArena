@@ -54,7 +54,7 @@ ItemConfig.Items = {
 			RingScaleMultiplier = 2.5,
 			RingExpandMultiplier = 2,
 			RingTweenDuration = 0.75,
-			CleanupDelay = 1.25,
+			CleanupDelay = 2.25,
 		},
 	},
 	{
