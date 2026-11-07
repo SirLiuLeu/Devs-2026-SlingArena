@@ -154,6 +154,11 @@ function BombService:TryPlaceBomb(player: Player): (boolean, string?)
 	end
 	bombRoot.Anchored = false
 	bombRoot.CanCollide = true
+	local bombHitbox = bombRoot:FindFirstChild("Hitbox", true)
+	if bombHitbox and bombHitbox:IsA("BasePart") then
+		bombHitbox.Anchored = false
+		bombHitbox.CanCollide = true
+	end
 	bomb:SetAttribute("BombOwnerUserId", player.UserId)
 	bomb:SetAttribute("BombDetonated", false)
 
@@ -196,7 +201,9 @@ function BombService:_activateExplosionVfx(bombRoot: BasePart, emitCount: number
 	for _, effect in ipairs(attachment:GetDescendants()) do
 		if effect:IsA("ParticleEmitter") then
 			effect:Emit(math.max(1, emitCount))
-		elseif effect:IsA("Fire") or effect:IsA("Smoke") or effect:IsA("Sparkles") then
+		elseif effect:IsA("Fire") or effect:IsA("Smoke") or effect:IsA("Sparkles")
+			or effect:IsA("Beam") or effect:IsA("Trail")
+			or effect:IsA("PointLight") or effect:IsA("SpotLight") or effect:IsA("SurfaceLight") then
 			effect.Enabled = true
 			task.delay(0.65, function()
 				if effect.Parent then
@@ -243,19 +250,20 @@ function BombService:_spawnExplosionRing(position: Vector3, config: any)
 				rng:NextNumber(-math.pi, math.pi),
 				rng:NextNumber(-math.pi, math.pi)
 			)
+			local specialMesh = descendant:FindFirstChildWhichIsA("SpecialMesh")
 			local goal = {
 				CFrame = CFrame.new(expandedPosition) * chaoticRotation * descendant.CFrame.Rotation,
-				Size = descendant.Size * sizeMultiplier,
 				Transparency = 1,
 			}
+			if not specialMesh then
+				goal.Size = descendant.Size * sizeMultiplier
+			end
 			TweenService:Create(descendant, tweenInfo, goal):Play()
 
-			for _, mesh in ipairs(descendant:GetChildren()) do
-				if mesh:IsA("SpecialMesh") then
-					TweenService:Create(mesh, tweenInfo, {
-						Scale = mesh.Scale * sizeMultiplier,
-					}):Play()
-				end
+			if specialMesh then
+				TweenService:Create(specialMesh, tweenInfo, {
+					Scale = specialMesh.Scale * sizeMultiplier,
+				}):Play()
 			end
 		end
 	end
