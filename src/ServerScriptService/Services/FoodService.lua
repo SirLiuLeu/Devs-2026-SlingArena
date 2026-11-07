@@ -787,11 +787,11 @@ function FoodService:_resolveFoodCollisionVelocity(root: BasePart, hitbox: BaseP
 end
 
 
-function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player: Player?, shouldPlayHitSound: boolean?): boolean
+function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player: Player?, shouldPlayHitSound: boolean?, allowHumanAttacker: boolean?): boolean
 	local entry = if type(foodOrEntry) == "table" then foodOrEntry else self._foodByInstance[foodOrEntry]
 	local rule = entry and FoodConfig.Foods[entry.FoodType]
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
-	if (stateService and stateService:IsHuman(player)) or not (entry and rule and player) or entry.CurrentHP <= 0 or entry.IsConsumed then
+	if (stateService and stateService:IsHuman(player) and allowHumanAttacker ~= true) or not (entry and rule and player) or entry.CurrentHP <= 0 or entry.IsConsumed then
 		return false
 	end
 	local damage = math.max(0, amount)
@@ -818,6 +818,32 @@ function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player:
 		self:_consumeFood(entry, player)
 	end
 	return true
+end
+
+-- Bomb area damage is resolved by FoodService so LastHitBy, food rewards,
+-- respawn scheduling, and FoodConsumed events remain owned by this service.
+function FoodService:ApplyAreaDamageToFood(center: Vector3, radius: number, amount: number, player: Player): number
+	if typeof(center) ~= "Vector3" or not player or radius < 0 or amount <= 0 then
+		return 0
+	end
+
+	local candidates = {}
+	for _, entry in pairs(self._foodEntries) do
+		if entry and entry.IsActive and not entry.IsConsumed and entry.Instance and entry.Instance.Parent then
+			local position = getFoodWorldPosition(entry.Instance)
+			if position and (position - center).Magnitude <= radius then
+				table.insert(candidates, entry)
+			end
+		end
+	end
+
+	local damagedCount = 0
+	for _, entry in ipairs(candidates) do
+		if self:ApplyDamageToFood(entry, amount, player, false, true) then
+			damagedCount += 1
+		end
+	end
+	return damagedCount
 end
 
 function FoodService:_applyLauncherDamage(entry: any, player: Player, velocity: number)
