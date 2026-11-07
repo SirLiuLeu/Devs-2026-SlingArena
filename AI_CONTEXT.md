@@ -78,7 +78,7 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `FloatingTextConfig.lua` | Shared styles for floating Damage, Heal, and EXP text. | `PlayerService` |
 | `GachaRewardConfig.lua` | Gacha reward entries (id/type/weight/icon/name/teamBonus) and reward accessor. | `GachaSpinLogic`, `SpinUIController`, `GachaSpinLogicTests` |
 | `GameConfig.lua` | Runtime flag durations, stacking/tick behavior and status-effect visual configuration. | `FlagService`, `PlayerStateService` |
-| `ItemConfig.lua` | Item catalog (`Items`) with metadata (`id`, `name`, `effect`, `icon`, `stackable`) and lookup helpers. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `RewardGenerationTests` |
+| `ItemConfig.lua` | Item catalog and shared item metadata. Bomb tuning is stored on the `bomb` definition; `gift_box` is a display-only placeholder until reward rules are finalized. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `ItemService`, `BombService` |
 | `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
 | `PetAbilityProgressionConfig.lua` | Numeric ability parameters at milestones 1/5/10/15/20. Player-facing ability text is owned by `PetAbilityDisplayConfig.lua`. | `PetProgression`, `PetDisplayFormatter` |
 | `PetAbilityDisplayConfig.lua` | Localized descriptions for each Pet ability; does not own gameplay tuning. | `PetDisplayFormatter`, `PetInventoryUIController` |
@@ -247,3 +247,14 @@ Config modules store shared tuning and content tables (movement/combat constants
 - ShadowCloak's `IdleStealth` module now reads the progression-controlled idle delay. PetInventory ability descriptions show the live value and next-level preview for the new parameters.
 - `PetProgression.Resolve` falls back to the Pet definition ID for passive-only Pets without an abilityId and legacy NoOp Pets; they keep their existing NoOp runtime effect module.
 - Added progression-target and stat-resolution regression tests for all eleven Pets. Roblox Studio/runtime tests have not yet been executed in this pass.
+
+
+## Bomb item runtime (2026-11-08)
+- Bomb is registered in `Shared/Config/ItemConfig.lua` as a normal stackable consumable and uses the existing `ConsumeItem` RemoteContract through `ItemService`; no new client remote or Inventory UI is required.
+- Initial Bomb tuning: Damage 1500, BlastRadius 22 studs, FuseTime 3s, spawn 5 studs forward and 6 studs above the player root, maximum 2 active Bombs per player, and 1.5s use cooldown. Values are starting balance, not final.
+- `BombService.lua` owns only world placement, fuse, detonation and visuals. Placement is server-derived from the player's root. Detonation uses the Bomb RootPart's live position, not its original spawn position, because the unanchored Bomb can fall and roll.
+- Explosion VFX assets are Studio-authored at `ReplicatedStorage.Assets.EffectVfx.Explosion` (Attachment) and `ReplicatedStorage.Assets.Prefabs.VFX_ExplosionRing` (Model with E1–E5 mesh descendants). The Attachment is cloned under the Bomb RootPart's Hitbox when present; the ring is expanded/rotated at the actual blast center.
+- Bomb player damage delegates to `DamagePipelineService` with an explicit Bomb source and a Bomb-only friendly-fire opt-in; this includes the owner and teammates. Bomb damage may hit Human-mode victims, but only an eligible Launcher-mode player may place a Bomb. A placed Bomb retains its owner attribution through its fuse if that owner changes mode.
+- Food area damage delegates to `FoodService:ApplyAreaDamageToFood`, which reuses `ApplyDamageToFood` so Food LastHit, EXP/diamond rewards and respawn remain in the existing Food ownership path.
+- `MockData` seeds 3 Bombs and 1 Gift Box in default and named mock inventories. `gift_box` currently has no opening effect and cannot be used; no reward odds, Pet temporary grant or Gift Box acquisition source has been implemented.
+- Current asset paths are Studio-authored and are not validated by source control. Confirm the Bomb Model's RootPart/Hitbox structure, ring mesh classes, and all visual timings in Roblox Studio before release. A dedicated explosion SoundId is not configured yet.
