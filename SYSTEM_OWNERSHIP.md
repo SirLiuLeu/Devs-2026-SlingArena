@@ -76,7 +76,7 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - **Owns:** Final damage authority and damage rule enforcement.
 - **Responsibilities:**
   - Single entry for applying player/environment damage.
-  - Enforce Friendly Fire OFF via TeamService checks.
+  - Enforce Friendly Fire OFF via TeamService checks; only trusted Bomb damage calls may explicitly opt into friendly fire.
   - Handle kill attribution, assist context emission, and downstream EXP context events.
   - Apply knockback/effects and publish combat feedback.
 - **Called by:** CollisionService, TrapService, SafeZoneService, LauncherAbilityService.
@@ -125,6 +125,7 @@ Cross-service communication must use `EventBus` for decoupled flow.
   - Classify food:
     - Mini Food = touch-based.
     - HP Food = combat-based resolution.
+  - Expose area-damage entry points that reuse the normal food damage/LastHit/reward path.
   - Publish reward intents/events only; no direct EXP grants.
 - **Called by:** MapService load/resource activation, collision/touch hooks.
 - **Dependencies:** MapService, PlayerService, EventBus, GrowthService (event route).
@@ -145,6 +146,17 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - **Responsibilities:** Map trap interpretation, trap cooldowning, trap damage event emit to damage pipeline.
 - **Called by:** CollisionService/MapService events.
 - **Dependencies:** MapService, DamagePipelineService, EventBus.
+
+### BombService
+- **Owns:** Server-authoritative lifecycle of placed Bomb world models and their explosion visuals.
+- **Responsibilities:**
+  - Validate the existing consumable use request, place the Bomb from the server-resolved player root, and retain the owner for attribution.
+  - Detonate after the configured fuse and use the Bomb's live RootPart position as the blast center.
+  - Delegate player damage to DamagePipelineService and Food damage to FoodService; it does not own HP, kill, or reward mutation.
+  - Spawn and clean up the Explosion Attachment and expanding VFX_ExplosionRing.
+- **Called by:** ItemService after the existing ConsumeItem inventory transaction.
+- **Dependencies:** ItemConfig, PlayerService, PlayerStateService, RoundService, DamagePipelineService, FoodService, and ReplicatedStorage asset prefabs.
+- **Constraint:** No client-supplied position, damage, or radius is trusted.
 
 ### TeamService
 - **Owns:** Team relationship model (party semantics), not combat resolution.
