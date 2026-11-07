@@ -5,13 +5,27 @@
 local ItemConfig = {}
 
 export type ItemEffect = {
-	kind: "Flag" | "Experience",
+	kind: "Flag" | "Experience" | "Bomb",
 	flagName: string?,
 	flagParams: { [string]: any }?,
 	experienceAmount: number?,
 }
 
-export type ItemDefinition = {
+export export type BombItemConfig = {
+	Damage: number,
+	BlastRadius: number,
+	FuseTime: number,
+	SpawnForwardOffset: number,
+	SpawnHeightOffset: number,
+	MaxActivePerPlayer: number,
+	ExplosionParticleEmitCount: number,
+	RingScaleMultiplier: number,
+	RingExpandMultiplier: number,
+	RingTweenDuration: number,
+	CleanupDelay: number,
+}
+
+type ItemDefinition = {
 	id: string,
 	name: string,
 	description: string,
@@ -21,9 +35,32 @@ export type ItemDefinition = {
 	consumeOnUse: boolean,
 	useCooldown: number?,
 	effect: ItemEffect?,
+	bombConfig: BombItemConfig?,
 }
 
 ItemConfig.Items = {
+	{
+		id = "bomb", name = "Bomb", description = "Place a bomb that explodes after 3 seconds and damages nearby players and food.", icon = "rbxassetid://0",
+		itemType = "Consumable", stackable = true, consumeOnUse = true, useCooldown = 1.5,
+		effect = { kind = "Bomb" },
+		bombConfig = {
+			Damage = 1500,
+			BlastRadius = 22,
+			FuseTime = 3,
+			SpawnForwardOffset = 5,
+			SpawnHeightOffset = 6,
+			MaxActivePerPlayer = 2,
+			ExplosionParticleEmitCount = 28,
+			RingScaleMultiplier = 2.5,
+			RingExpandMultiplier = 2,
+			RingTweenDuration = 0.75,
+			CleanupDelay = 1.25,
+		},
+	},
+	{
+		id = "gift_box", name = "Gift Box", description = "A gift box. Reward contents and opening rules are not configured yet.", icon = "rbxassetid://0",
+		itemType = "Consumable", stackable = true, consumeOnUse = false,
+	},
 	{
 		id = "hp_potion", name = "HP Potion", description = "Restore 500 HP every 0.5 seconds for 3 seconds.", icon = "rbxassetid://138146402871393",
 		itemType = "Consumable", stackable = true, consumeOnUse = true, useCooldown = 3,
