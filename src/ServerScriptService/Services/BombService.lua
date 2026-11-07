@@ -251,7 +251,7 @@ function BombService:_spawnExplosionRing(position: Vector3, config: any)
 				rng:NextNumber(-math.pi, math.pi)
 			)
 			local specialMesh = descendant:FindFirstChildWhichIsA("SpecialMesh")
-			local goal = {
+			local goal: { [string]: any } = {
 				CFrame = CFrame.new(expandedPosition) * chaoticRotation * descendant.CFrame.Rotation,
 				Transparency = 1,
 			}
