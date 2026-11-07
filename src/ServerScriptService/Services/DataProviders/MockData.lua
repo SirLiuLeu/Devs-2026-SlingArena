@@ -47,7 +47,7 @@ end
 MockData.MOCK_SCHEMA_DEFAULTS = {
 	Coin = 0,
 	Diamonds = 0,
-	OwnedItems = { hp_potion = 5, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5 },
+	OwnedItems = { bomb = 3, gift_box = 1, hp_potion = 5, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5 },
 	OwnedPets = {},
 	EquippedPets = { [1] = nil, [2] = nil, [3] = nil },
 	OwnedLaunchers = buildMockLauncherInventory(),
@@ -66,7 +66,7 @@ MockData.PlayerProfiles = {
 		DisplayName = "Mock Player Alpha",
 		Coin = 2500,
 		Diamonds = 750,
-		OwnedItems = { hp_potion = 8, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5, gacha_ticket = 5 },
+		OwnedItems = { bomb = 3, gift_box = 1, hp_potion = 8, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5, gacha_ticket = 5 },
 		OwnedPets = {
 			eq_alpha_PlasmaCannon = { definitionId = "PlasmaCannon", level = 1, rarity = (PetsConfig.GetById("PlasmaCannon") and PetsConfig.GetById("PlasmaCannon").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_Hydra = { definitionId = "Hydra", level = 1, rarity = (PetsConfig.GetById("Hydra") and PetsConfig.GetById("Hydra").rarity) or "Common", acquiredAt = 1786924800 },
@@ -101,7 +101,7 @@ MockData.PlayerProfiles = {
 		DisplayName = "Mock Player Beta",
 		Coin = 6400,
 		Diamonds = 1400,
-		OwnedItems = { hp_potion = 15, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5, gacha_ticket = 12 },
+		OwnedItems = { bomb = 3, gift_box = 1, hp_potion = 15, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5, gacha_ticket = 12 },
 		OwnedPets = {
 			eq_beta_charm_medusa = { definitionId = "Medusa", level = 5, rarity = "Legendary", acquiredAt = 1786924800 },
 			eq_beta_core_thunder = { definitionId = "ThunderHammer", level = 4, rarity = "Epic", acquiredAt = 1786924800 },
