@@ -168,9 +168,10 @@ function BombService:TryPlaceBomb(player: Player): (boolean, string?)
 	else
 		forward = forward.Unit
 	end
+	local spawnHeightAboveRootTop = math.max(1, config.SpawnHeightOffset or 6)
 	local spawnPosition = playerRoot.Position
 		+ forward * math.max(0, config.SpawnForwardOffset or 5)
-		+ Vector3.new(0, math.max(1, config.SpawnHeightOffset or 6), 0)
+		+ Vector3.new(0, playerRoot.Size.Y * 0.5 + spawnHeightAboveRootTop, 0)
 	bomb:PivotTo(CFrame.lookAt(spawnPosition, spawnPosition + forward))
 	bomb.Parent = Workspace
 
@@ -286,7 +287,10 @@ function BombService:_applyBlast(owner: Player, center: Vector3, config: any)
 			local state = stateService:GetState(victim)
 			local victimRoot = playerService:GetRoot(victim)
 			if state and state.IsAlive == true and victimRoot and (victimRoot.Position - center).Magnitude <= radius then
-				damageService:ApplyHitDamage(victim, damage, owner, nil, {
+				-- The owner still takes the blast damage, but is not credited with a
+				-- self-kill. Other victims retain normal Bomb owner attribution.
+				local attacker = if victim == owner then nil else owner
+				damageService:ApplyHitDamage(victim, damage, attacker, nil, {
 					SourceType = "Bomb",
 					AllowFriendlyFire = true,
 				})
