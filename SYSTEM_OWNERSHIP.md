@@ -79,7 +79,7 @@ Cross-service communication must use `EventBus` for decoupled flow.
   - Enforce Friendly Fire OFF via TeamService checks; only trusted Bomb damage calls may explicitly opt into friendly fire.
   - Handle kill attribution, assist context emission, and downstream EXP context events.
   - Apply knockback/effects and publish combat feedback.
-- **Called by:** CollisionService, TrapService, SafeZoneService, LauncherAbilityService.
+- **Called by:** CollisionService, TrapService, SafeZoneService, LauncherAbilityService, BombService.
 - **Dependencies:** PlayerStateService, PlayerService, TeamService, EventBus, shared balance/physics config, and flag APIs.
 
 ### SafeZoneService
@@ -127,7 +127,7 @@ Cross-service communication must use `EventBus` for decoupled flow.
     - HP Food = combat-based resolution.
   - Expose area-damage entry points that reuse the normal food damage/LastHit/reward path.
   - Publish reward intents/events only; no direct EXP grants.
-- **Called by:** MapService load/resource activation, collision/touch hooks.
+- **Called by:** MapService load/resource activation, collision/touch hooks, BombService area blasts.
 - **Dependencies:** MapService, PlayerService, EventBus, GrowthService (event route).
 - **Constraint:** MUST NOT grant EXP directly; all EXP reward flow goes through `GrowthService`.
 
