@@ -93,6 +93,21 @@ function ItemService:TryConsume(player: Player, itemId: string): (boolean, strin
 
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not dataService then return false, "DataUnavailable" end
+
+	local bombService = nil
+	if effect.kind == "Bomb" then
+		bombService = ServiceResolver.Get(self._context, "BombService")
+		if not (bombService and typeof(bombService.CanPlaceBomb) == "function") then
+			self:_feedback(player, itemId, "BombServiceUnavailable")
+			return false, "BombServiceUnavailable"
+		end
+		local canPlace, placeReason = bombService:CanPlaceBomb(player)
+		if not canPlace then
+			self:_feedback(player, itemId, placeReason or "CannotUse")
+			return false, placeReason or "CannotUse"
+		end
+	end
+
 	local consumed = false
 	dataService:UpdateData(player, function(data)
 		local owned = data.OwnedItems
@@ -119,6 +134,19 @@ function ItemService:TryConsume(player: Player, itemId: string): (boolean, strin
 		end
 	elseif effect.kind == "Flag" and stateService and effect.flagName then
 		stateService:ApplyFlag(player, effect.flagName, effect.flagParams and effect.flagParams.Duration, "Consumable:" .. itemId, effect.flagParams)
+	elseif effect.kind == "Bomb" then
+		local placed, placeReason = bombService:TryPlaceBomb(player)
+		if not placed then
+			-- Refund if the world placement fails after the authoritative inventory decrement.
+			dataService:UpdateData(player, function(data)
+				data.OwnedItems = if type(data.OwnedItems) == "table" then data.OwnedItems else {}
+				data.OwnedItems[itemId] = math.max(0, math.floor(tonumber(data.OwnedItems[itemId]) or 0)) + 1
+				return data
+			end)
+			self:_publishInventory(player)
+			self:_feedback(player, itemId, placeReason or "PlacementFailed")
+			return false, placeReason or "PlacementFailed"
+		end
 	end
 
 	cooldowns[itemId] = now + math.max(0, item.useCooldown or 0)
