@@ -276,6 +276,12 @@ function BombService:_spawnExplosionRing(position: Vector3, config: any)
 end
 
 function BombService:_applyBlast(owner: Player, center: Vector3, config: any)
+	local roundService = ServiceResolver.Get(self._context, "RoundService")
+	local roundState = roundService and roundService:GetState()
+	if roundState ~= GameStates.MapRoundState.EarlyGame and roundState ~= GameStates.MapRoundState.FinalPhase then
+		return
+	end
+
 	local radius = math.max(0, tonumber(config.BlastRadius) or 22)
 	local damage = math.max(0, tonumber(config.Damage) or 1500)
 	local playerService = ServiceResolver.Get(self._context, "PlayerService")
