@@ -65,12 +65,10 @@ function SFXController:_handleFeedback(message: any)
 	elseif eventType == "HpPotionUseResult" then
 		if payload.Result == "Consumed" then SoundManager.Play("SFX_Item_HealthPotion") end
 	elseif eventType == "ItemUseResult" then
-		if payload.Result == "Consumed" then
-			if payload.ItemId == "hp_potion" then
-				SoundManager.Play("SFX_Item_HealthPotion")
-			else
-				SoundManager.Play("SFX_Success")
-			end
+		-- Item use is intentionally quiet. HP Potion keeps its dedicated feedback;
+		-- Bomb has its own spatial Beep and Explosion sounds from the server.
+		if payload.Result == "Consumed" and payload.ItemId == "hp_potion" then
+			SoundManager.Play("SFX_Item_HealthPotion")
 		end
 	elseif string.match(eventType, "Result$") and payload.Success == true then
 		SoundManager.Play("SFX_Success")
