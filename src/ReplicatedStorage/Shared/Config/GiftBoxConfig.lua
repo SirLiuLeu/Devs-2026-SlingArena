@@ -39,7 +39,7 @@ end
 assert(totalWeight == 100, "GiftBox reward weights must total exactly 100.")
 
 function GiftBoxConfig.GetRewards(): { GiftBoxReward }
-	local copy = {}
+	local copy: { GiftBoxReward } = {}
 	for _, reward in ipairs(GiftBoxConfig.Rewards) do
 		table.insert(copy, table.clone(reward))
 	end
