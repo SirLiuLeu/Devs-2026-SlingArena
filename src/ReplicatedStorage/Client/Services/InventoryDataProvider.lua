@@ -102,6 +102,35 @@ local function cloneLaunchers(launchers): any
 	return result
 end
 
+local function clonePets(pets): { any }
+	local result = {}
+	local function appendPet(instanceId: string?, petEntry: any)
+		if type(petEntry) ~= "table" then return end
+		local clonedEntry = table.clone(petEntry)
+		clonedEntry.instanceId = clonedEntry.instanceId or instanceId
+		clonedEntry.definitionId = clonedEntry.definitionId or clonedEntry.id
+		clonedEntry.id = clonedEntry.id or clonedEntry.definitionId
+		clonedEntry.level = math.max(1, math.floor(tonumber(clonedEntry.level) or 1))
+		-- Pets are permanent. Never carry legacy trial, expiry, or pity metadata
+		-- through the client inventory snapshot.
+		clonedEntry.isTemporary = nil
+		clonedEntry.expiresAt = nil
+		clonedEntry.pity = nil
+		table.insert(result, clonedEntry)
+	end
+
+	if #pets > 0 then
+		for _, petEntry in ipairs(pets) do appendPet(nil, petEntry) end
+	else
+		for instanceId, petEntry in pairs(pets) do appendPet(tostring(instanceId), petEntry) end
+	end
+	table.sort(result, function(a, b)
+		return tostring(a.instanceId) < tostring(b.instanceId)
+	end)
+	return result
+end
+
+
 function InventoryDataProvider.new()
 	local self = setmetatable({}, InventoryDataProvider)
 	self._changed = Instance.new("BindableEvent")
@@ -168,7 +197,7 @@ function InventoryDataProvider:GetSnapshot(): InventorySnapshot
 		selectedLauncherId = self._state.selectedLauncherId,
 		lastUseResult = self._state.lastUseResult,
 		itemCooldownEnds = table.clone(self._state.itemCooldownEnds),
-		ownedPets = cloneLaunchers(self._state.ownedPets),
+		ownedPets = clonePets(self._state.ownedPets),
 		equippedPets = table.clone(self._state.equippedPets),
 		selectedPetId = self._state.selectedPetId,
 		petCapacity = self._state.petCapacity,
@@ -217,7 +246,7 @@ function InventoryDataProvider:SetFromState(state)
 	local nextPet = self._state.ownedPets
 	local incomingPet = state.OwnedPets
 	if type(incomingPet) == "table" then
-		nextPet = cloneLaunchers(incomingPet)
+		nextPet = clonePets(incomingPet)
 		for _, entry in ipairs(nextPet) do
 			local def = PetsConfig.GetById(entry.definitionId or entry.id or "")
 			entry.id = entry.definitionId or entry.id
@@ -229,7 +258,7 @@ function InventoryDataProvider:SetFromState(state)
 	local nextEquippedPets = self._state.equippedPets
 	if type(state.EquippedPets) == "table" then
 		nextEquippedPets = table.clone(state.EquippedPets)
-		nextPet = cloneLaunchers(nextPet)
+		nextPet = clonePets(nextPet)
 		for _, entry in ipairs(nextPet) do
 			entry.equipped = false
 			entry.equippedSlot = nil
