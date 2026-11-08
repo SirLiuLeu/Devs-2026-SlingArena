@@ -188,16 +188,29 @@ function BombService:TryPlaceBomb(player: Player): (boolean, string?)
 	return true, nil
 end
 
-function BombService:_activateExplosionVfx(bombRoot: BasePart, emitCount: number)
+function BombService:_activateExplosionVfx(blastPosition: Vector3, emitCount: number)
 	if not self._explosionTemplate then
 		return
 	end
 
-	local hitbox = bombRoot:FindFirstChild("Hitbox", true)
-	local target = if hitbox and hitbox:IsA("BasePart") then hitbox else bombRoot
+	-- Keep the visual attachment in world space instead of parenting it to the
+	-- physical Bomb. The Bomb can roll onto any side during its fuse, but the
+	-- explosion effects (especially ground-crack particles) must stay upright.
+	local vfxAnchor = Instance.new("Part")
+	vfxAnchor.Name = "BombExplosionVfxAnchor"
+	vfxAnchor.Size = Vector3.new(0.2, 0.2, 0.2)
+	vfxAnchor.CFrame = CFrame.new(blastPosition)
+	vfxAnchor.Anchored = true
+	vfxAnchor.Transparency = 1
+	vfxAnchor.CastShadow = false
+	vfxAnchor.CanCollide = false
+	vfxAnchor.CanTouch = false
+	vfxAnchor.CanQuery = false
+	vfxAnchor.Parent = Workspace
+
 	local attachment = self._explosionTemplate:Clone()
 	attachment.Name = "BombExplosion"
-	attachment.Parent = target
+	attachment.Parent = vfxAnchor
 
 	for _, effect in ipairs(attachment:GetDescendants()) do
 		if effect:IsA("ParticleEmitter") then
@@ -213,7 +226,7 @@ function BombService:_activateExplosionVfx(bombRoot: BasePart, emitCount: number
 			end)
 		end
 	end
-	Debris:AddItem(attachment, 2)
+	Debris:AddItem(vfxAnchor, 2)
 end
 
 function BombService:_spawnExplosionRing(position: Vector3, config: any)
@@ -342,7 +355,7 @@ function BombService:_detonate(owner: Player, bomb: Model, bombRoot: BasePart, c
 		end
 	end
 
-	self:_activateExplosionVfx(bombRoot, tonumber(config.ExplosionParticleEmitCount) or 28)
+	self:_activateExplosionVfx(blastPosition, tonumber(config.ExplosionParticleEmitCount) or 28)
 	self:_spawnExplosionRing(blastPosition, config)
 	self:_applyBlast(owner, blastPosition, config)
 
