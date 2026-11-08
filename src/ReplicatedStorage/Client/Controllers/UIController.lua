@@ -15,7 +15,6 @@ local WorldProximityUIController = require(ReplicatedStorage.Client.Controllers.
 local InventoryDataProvider = require(ReplicatedStorage.Client.Services.InventoryDataProvider)
 local OnlineRewardUIController = require(ReplicatedStorage.Client.Controllers.OnlineRewardUIController)
 local OnlineRewardLogicService = require(ReplicatedStorage.Client.Services.OnlineRewardLogicService)
-local SpinUIController = require(ReplicatedStorage.Client.Controllers.SpinUIController)
 local ShopUIController = require(ReplicatedStorage.Client.Controllers.ShopUIController)
 local ShopLogicService = require(ReplicatedStorage.Client.Services.ShopLogicService)
 local DailyLoginUIController = require(ReplicatedStorage.Client.Controllers.DailyLoginUIController)
@@ -165,7 +164,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.InventoryUIController = InventoryUIController.new(playerGui)
 	self.PetInventoryUIController = PetInventoryUIController.new(playerGui)
 	self.LauncherInventoryUIController = LauncherInventoryUIController.new(playerGui)
-	self.SpinUIController = SpinUIController.new(playerGui)
 	self.OnlineRewardUIController = OnlineRewardUIController.new(playerGui)
 	self.ShopUIController = ShopUIController.new(playerGui)
 	self.DailyLoginUIController = DailyLoginUIController.new(playerGui)
@@ -276,7 +274,6 @@ function UIController:_resolveUiReferences()
 	self.PanelMap.Shop = self.PanelMap.Shop or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Shop, false) or resolveScreenGui(playerGui, "ShopUI", false)
 	self.PanelMap.Inventory = self.PanelMap.Inventory or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Inventory, false)
 	self.PanelMap.OnlineReward = self.PanelMap.OnlineReward or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.OnlineReward, false)
-	self.PanelMap.Spin = self.PanelMap.Spin or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Spin, false)
 	self.PanelMap.Quest = self.PanelMap.Quest or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Quest, false) or resolveScreenGui(playerGui, "QuestUI", false)
 	self:_refreshSoundToggleVisual()
 end
@@ -645,7 +642,6 @@ function UIController:_startAvailableFeatureControllers()
 	if self.InventoryUIController then self.InventoryUIController:Start(self.UIReadySignal) end
 	if self.PetInventoryUIController then self.PetInventoryUIController:Start(self.UIReadySignal) end
 	if self.LauncherInventoryUIController then self.LauncherInventoryUIController:Start(self.UIReadySignal) end
-	if self.SpinUIController then self.SpinUIController:Start() end
 	if self.OnlineRewardUIController then self.OnlineRewardUIController:Start() end
 	if self.ShopUIController then self.ShopUIController:Start() end
 	if self.ShopUIController or self.LauncherInventoryUIController or self.PetInventoryUIController then
@@ -935,9 +931,6 @@ function UIController:Destroy()
 	if self.LauncherInventoryUIController then self.LauncherInventoryUIController:Destroy() end
 	if self.ConfirmationUIController then self.ConfirmationUIController:Destroy() end
 	if self.WorldProximityUIController then self.WorldProximityUIController:Destroy() end
-	if self.SpinUIController then
-		self.SpinUIController:Destroy()
-	end
 	if self.OnlineRewardUIController then
 		self.OnlineRewardUIController:Destroy()
 	end
