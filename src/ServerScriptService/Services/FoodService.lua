@@ -645,6 +645,18 @@ function FoodService:_rewardFoodKill(entry: any)
 		return
 	end
 	self._context.EventBus:Fire("FoodConsumed", player, rule.Exp)
+
+	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
+	local grantedReward = false
+	if rule.Type == "Legendary" then
+		if dataService and typeof(dataService.GrantReward) == "function" then
+			dataService:GrantReward(player, { Items = { { Id = "gift_box", Quantity = 1 } } }, "LegendaryFoodLastHit")
+			grantedReward = true
+		else
+			warn("[FoodService] PlayerDataService unavailable; Legendary Gift Box reward was not granted.")
+		end
+	end
+
 	-- LuckBoosted affects only this server-side roll; it never changes the diamond amount.
 	local diamondRate = rule.DiamondRate
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
@@ -652,13 +664,19 @@ function FoodService:_rewardFoodKill(entry: any)
 	local luckPercent = luckFlag and luckFlag.Data and tonumber(luckFlag.Data.DiamondDropChanceBonusPercent) or 0
 	diamondRate = math.clamp(diamondRate * (1 + math.max(0, luckPercent) / 100), 0, 1)
 	if diamondRate > 0 and rule.DiamondAmount > 0 and math.random() <= diamondRate then
-		local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 		if dataService and typeof(dataService.GrantReward) == "function" then
 			dataService:GrantReward(player, { Diamonds = rule.DiamondAmount }, "FoodConsumed")
-			local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
-			if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
-				stateService:RecalculateDerivedStats(player, false)
-			end
+			grantedReward = true
+		end
+	end
+
+	if grantedReward then
+		if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
+			stateService:RecalculateDerivedStats(player, false)
+		end
+		local itemService = ServiceResolver.Get(self._context, "ItemService")
+		if itemService and typeof(itemService.PublishInventory) == "function" then
+			itemService:PublishInventory(player)
 		end
 	end
 end
@@ -822,24 +840,28 @@ end
 
 -- Bomb area damage is resolved by FoodService so LastHitBy, food rewards,
 -- respawn scheduling, and FoodConsumed events remain owned by this service.
-function FoodService:ApplyAreaDamageToFood(center: Vector3, radius: number, amount: number, player: Player): number
+function FoodService:ApplyAreaDamageToFood(center: Vector3, radius: number, amount: number, player: Player, maxDamageFalloffPercent: number?): number
 	if typeof(center) ~= "Vector3" or not player or radius < 0 or amount <= 0 then
 		return 0
 	end
 
+	local falloffPercent = math.clamp(tonumber(maxDamageFalloffPercent) or 0, 0, 100) / 100
 	local candidates = {}
 	for _, entry in pairs(self._foodEntries) do
 		if entry and entry.IsActive and not entry.IsConsumed and entry.Instance and entry.Instance.Parent then
 			local position = getFoodWorldPosition(entry.Instance)
-			if position and (position - center).Magnitude <= radius then
-				table.insert(candidates, entry)
+			local distance = if position then (position - center).Magnitude else math.huge
+			if position and distance <= radius then
+				table.insert(candidates, { Entry = entry, Distance = distance })
 			end
 		end
 	end
 
 	local damagedCount = 0
-	for _, entry in ipairs(candidates) do
-		if self:ApplyDamageToFood(entry, amount, player, false, true) then
+	for _, candidate in ipairs(candidates) do
+		local distanceRatio = if radius > 0 then math.clamp(candidate.Distance / radius, 0, 1) else 0
+		local scaledDamage = amount * (1 - falloffPercent * distanceRatio)
+		if self:ApplyDamageToFood(candidate.Entry, scaledDamage, player, false, true) then
 			damagedCount += 1
 		end
 	end
