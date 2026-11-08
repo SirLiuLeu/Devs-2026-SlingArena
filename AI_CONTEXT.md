@@ -62,12 +62,10 @@
 | `ShopUIController.lua` | Renders shop tabs/slots and binds buy actions through shop logic service snapshots. | UI |
 | `OnlineRewardUIController.lua` | Renders online reward slots/timers and reward-claim UI states from logic snapshots. | UI |
 | `DailyLoginUIController.lua` | Renders daily login reward slots and claim/locked/completed states from logic snapshots. | UI |
-| `SpinUIController.lua` | Controls spin UI visibility, spin animation, world trigger binding, and spin button interactions. | UI |
 | `MovementController.server.lua` | Receives `MoveRequest` from clients, applies pawn linear velocity, and updates facing rotation toward movement direction. | Network |
 
 # Config Data (`ReplicatedStorage/Shared/Config`)
 
-Config modules store shared tuning and content tables (movement/combat constants, level progression formulas, item/launcher catalogs, trap/gameplay values, and gacha reward pools). They are required by both client and server code to keep gameplay math and UI/content lookups consistent across systems.
 
 | Config file | Data it contains | Known users |
 |---|---|---|
@@ -76,9 +74,9 @@ Config modules store shared tuning and content tables (movement/combat constants
 | `ConfirmationTextConfig.lua` | Shared confirmation and team-feedback messages, with `vi`/`en` lookup and placeholder substitution. | `TeamSelectionUIController`, `UIController`, `LauncherInventoryUIController` |
 | `DebugConfig.lua` | Debug and diagnostic feature flags. | client and server diagnostics |
 | `FloatingTextConfig.lua` | Shared styles for floating Damage, Heal, and EXP text. | `PlayerService` |
-| `GachaRewardConfig.lua` | Gacha reward entries (id/type/weight/icon/name/teamBonus) and reward accessor. | `GachaSpinLogic`, `SpinUIController`, `GachaSpinLogicTests` |
+| `GiftBoxConfig.lua` | Weighted Gift Box reward pool; all item entries are validated against `ItemConfig` and weights total 100. | `ItemService` |
 | `GameConfig.lua` | Runtime flag durations, stacking/tick behavior and status-effect visual configuration. | `FlagService`, `PlayerStateService` |
-| `ItemConfig.lua` | Item catalog and shared item metadata. Bomb tuning is stored on the `bomb` definition; `gift_box` is a display-only placeholder until reward rules are finalized. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `ItemService`, `BombService` |
+| `ItemConfig.lua` | Item catalog and shared item metadata. Bomb tuning includes blast radius, max damage falloff, knockback, and beep interval; `gift_box` is a consumable. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `ItemService`, `BombService` |
 | `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
 | `PetAbilityProgressionConfig.lua` | Numeric ability parameters at milestones 1/5/10/15/20. Player-facing ability text is owned by `PetAbilityDisplayConfig.lua`. | `PetProgression`, `PetDisplayFormatter` |
 | `PetAbilityDisplayConfig.lua` | Localized descriptions for each Pet ability; does not own gameplay tuning. | `PetDisplayFormatter`, `PetInventoryUIController` |
@@ -202,9 +200,13 @@ Config modules store shared tuning and content tables (movement/combat constants
 - Legacy `SettingButton` / `SettingsUI` path resolution and panel-opening logic are retired; no Settings panel is required by the current HUD.
 
 
+## Audio and item SFX update (2026-11-09)
+
+- Bomb placement plays two spatial `SFX_Beep` cues; detonation plays spatial `SFX_ExplosionBomb`. Successful item use no longer triggers generic `SFX_Success`; HP Potion retains its dedicated sound.
+- Gift Box reward feedback reports the rolled Diamonds or Item in the inventory panel. Legendary Food last-hits grant one Gift Box.
+
 ## Audio collision SFX update (2026-10-29)
 
-- Successful `hp_potion` consumption plays `SFX_Item_HealthPotion`; other consumed items keep `SFX_Success`.
 - Launcher wall-hit audio is played locally by `CollisionClientScanner` as soon as a launch sweep detects `Collision_Wall`. A contact episode plays once, and the scanner rearms after no tagged Wall has been detected for 0.12 seconds. `Collision_Ground` is skipped during sweep casts so it cannot hide a Wall ahead; `Collision_Food`, `Collision_Lava`, `Collision_Trap`, and unclassified geometry do not use wall audio. This cosmetic cue does not use a server report or server validation. Existing server arena-boundary bounce audio remains a separate path.
 
 
