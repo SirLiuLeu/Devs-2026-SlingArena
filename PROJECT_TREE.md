@@ -64,7 +64,8 @@ DataModel
 │  ├─ Assets
 │  │  ├── EffectVfx
 │  │  │   ├── Burn (Fire)
-│  │  │   ├── Explosion (Attachment)
+│  │  │   ├── ExplosionPart (Part)
+│  │  │   │   └── Explosion (Attachment)
 │  │  │   ├── Frost (ParticleEmitter)
 │  │  │   ├── Poison (Smoke)
 │  │  │   └── Stun (ParticleEmitter)
