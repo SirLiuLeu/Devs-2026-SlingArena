@@ -51,22 +51,6 @@ local function getTemplateRoot(slot: Instance): GuiObject?
 	return nil
 end
 
-local function formatRemainingLifetime(entry): string
-	local expiresAt = tonumber(entry.expiresAt or entry.ExpiresAt or entry.remainingLifetimeEndsAt or entry.RemainingLifetimeEndsAt)
-	if expiresAt then
-		local remaining = math.max(0, math.ceil(expiresAt - os.time()))
-		if remaining > 0 then
-			return string.format("%ds", remaining)
-		end
-		return "Expired"
-	end
-	local remainingSeconds = tonumber(entry.remainingLifetimeSeconds or entry.RemainingLifetimeSeconds or entry.remainingTime or entry.RemainingTime)
-	if remainingSeconds and remainingSeconds > 0 then
-		return string.format("%ds", math.ceil(remainingSeconds))
-	end
-	return "Permanent"
-end
-
 local function countEntries(values): number
 	local count = 0
 	for _, value in pairs(values or {}) do
@@ -259,12 +243,10 @@ function PetInventoryUIController:_bindSlotContent(slot: GuiObject, petEntry)
 
 	local nameLabel = findDirectText(root, "Name")
 	local levelLabel = findDirectText(root, "Level")
-	local remainingTimeLabel = findDirectText(root, "RemainingTimeText")
 	local equippedTag = findDirectText(root, "EquippedTag")
 
 	if nameLabel then nameLabel.Text = definition.DisplayName end
 	if levelLabel then levelLabel.Text = string.format("Lv.%d", PetsUpgradeConfig.NormalizeLevel(tonumber(petEntry.level) or 1)) end
-	if remainingTimeLabel then remainingTimeLabel.Text = formatRemainingLifetime(petEntry) end
 	if equippedTag then
 		equippedTag.Visible = petEntry.equipped == true
 		equippedTag.Text = petEntry.equippedSlot and ("Slot " .. tostring(petEntry.equippedSlot)) or "Equipped"
