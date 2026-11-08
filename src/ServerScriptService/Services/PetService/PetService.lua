@@ -128,10 +128,7 @@ function PetService:Grant(player: Player, definitionId: string, fields: { [strin
 			definitionId = definitionId,
 			level = math.clamp(math.floor(tonumber(fields and fields.level) or 1), 1, PetsConfig.MaxLevel),
 			rarity = definition.rarity,
-			isTemporary = (fields and fields.isTemporary) == true,
-			expiresAt = tonumber(fields and fields.expiresAt),
 			acquiredAt = tonumber(fields and fields.acquiredAt) or os.time(),
-			pity = if type(fields and fields.pity) == "table" then fields.pity else {},
 		}
 		return data
 	end)
@@ -313,11 +310,6 @@ function PetService:Delete(player: Player, instanceId: string): (boolean, string
 		UnequippedSlots = removedSlots,
 	})
 	return true, nil
-end
-
-function PetService:GetPityState(player: Player, instanceId: string): any?
-	local owned = self:GetOwnedPets(player)[instanceId]
-	return type(owned) == "table" and owned.pity or nil
 end
 
 function PetService:Upgrade(player: Player, instanceId: string, expectedLevel: number): (boolean, string?, any?)
