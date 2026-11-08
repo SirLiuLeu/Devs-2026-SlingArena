@@ -228,6 +228,12 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 			-- Legacy trial/timed Pet metadata is discarded: owned Pets are permanent.
 			pet.isTemporary = nil
 			pet.expiresAt = nil
+			pet.remainingLifetimeEndsAt = nil
+			pet.RemainingLifetimeEndsAt = nil
+			pet.remainingLifetimeSeconds = nil
+			pet.RemainingLifetimeSeconds = nil
+			pet.remainingTime = nil
+			pet.RemainingTime = nil
 			pet.pity = nil
 			pet.acquiredAt = tonumber(pet.acquiredAt) or os.time()
 		end
