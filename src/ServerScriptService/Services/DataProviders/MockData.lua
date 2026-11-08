@@ -105,9 +105,9 @@ MockData.PlayerProfiles = {
 		OwnedPets = {
 			eq_beta_charm_medusa = { definitionId = "Medusa", level = 5, rarity = "Legendary", acquiredAt = 1786924800 },
 			eq_beta_core_thunder = { definitionId = "ThunderHammer", level = 4, rarity = "Epic", acquiredAt = 1786924800 },
-			eq_beta_temp_brain = { definitionId = "BrainBoost", level = 2, rarity = "Uncommon", acquiredAt = 1786924800 },
+			eq_beta_brain = { definitionId = "BrainBoost", level = 2, rarity = "Uncommon", acquiredAt = 1786924800 },
 		},
-		EquippedPets = { [1] = "eq_beta_core_thunder", [2] = "eq_beta_temp_brain", [3] = "eq_beta_charm_medusa" },
+		EquippedPets = { [1] = "eq_beta_core_thunder", [2] = "eq_beta_brain", [3] = "eq_beta_charm_medusa" },
 		OwnedLaunchers = {
 			ln_beta_normal = { definitionId = "Normalduck", star = 1, level = 1 },
 			ln_beta_petrify = { definitionId = "Shielduck", star = 4, level = 6 },
