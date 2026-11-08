@@ -183,6 +183,10 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 	if type(data.OwnedItems) ~= "table" then
 		data.OwnedItems = {}
 	end
+	-- Remove legacy item IDs so stale inventories do not show unusable entries.
+	data.OwnedItems.gacha_ticket = nil
+	data.OwnedItems.shield_tonic = nil
+	data.OwnedItems.regen_boost = nil
 	if type(data.OwnedPets) ~= "table" then
 		data.OwnedPets = {}
 	end
@@ -221,12 +225,11 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 			pet.level = math.clamp(math.floor(tonumber(pet.level) or 1), 1, PetsConfig.MaxLevel)
 			local definition = PetsConfig.GetById(pet.definitionId)
 			pet.rarity = (definition and definition.rarity) or tostring(pet.rarity or "Common")
-			pet.isTemporary = pet.isTemporary == true
-			pet.expiresAt = tonumber(pet.expiresAt)
+			-- Legacy trial/timed Pet metadata is discarded: owned Pets are permanent.
+			pet.isTemporary = nil
+			pet.expiresAt = nil
+			pet.pity = nil
 			pet.acquiredAt = tonumber(pet.acquiredAt) or os.time()
-			if type(pet.pity) ~= "table" then
-				pet.pity = {}
-			end
 		end
 	end
 	data.PetIdentityMigrationVersion = PET_IDENTITY_MIGRATION_VERSION
