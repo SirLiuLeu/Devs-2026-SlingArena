@@ -115,6 +115,12 @@ local function clonePets(pets): { any }
 		-- through the client inventory snapshot.
 		clonedEntry.isTemporary = nil
 		clonedEntry.expiresAt = nil
+		clonedEntry.remainingLifetimeEndsAt = nil
+		clonedEntry.RemainingLifetimeEndsAt = nil
+		clonedEntry.remainingLifetimeSeconds = nil
+		clonedEntry.RemainingLifetimeSeconds = nil
+		clonedEntry.remainingTime = nil
+		clonedEntry.RemainingTime = nil
 		clonedEntry.pity = nil
 		table.insert(result, clonedEntry)
 	end
