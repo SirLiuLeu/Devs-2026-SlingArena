@@ -320,7 +320,7 @@ function BombService:_applyBlast(owner: Player, center: Vector3, config: any)
 			local victimRoot = playerService:GetRoot(victim)
 			local offset = victimRoot and (victimRoot.Position - center) or nil
 			local distance = offset and offset.Magnitude or math.huge
-			if state and state.IsAlive == true and victimRoot and distance <= radius then
+			if state and state.IsAlive == true and victimRoot and offset and distance <= radius then
 				-- Damage falls linearly with distance, but is capped at a 20% reduction
 				-- at the edge of the blast radius. Walls and teams do not block Bombs.
 				local distanceRatio = if radius > 0 then math.clamp(distance / radius, 0, 1) else 0
