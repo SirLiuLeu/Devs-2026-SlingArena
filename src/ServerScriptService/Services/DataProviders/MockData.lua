@@ -66,7 +66,7 @@ MockData.PlayerProfiles = {
 		DisplayName = "Mock Player Alpha",
 		Coin = 2500,
 		Diamonds = 750,
-		OwnedItems = { bomb = 3, gift_box = 1, hp_potion = 8, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5, gacha_ticket = 5 },
+		OwnedItems = { bomb = 3, gift_box = 1, hp_potion = 8, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5 },
 		OwnedPets = {
 			eq_alpha_PlasmaCannon = { definitionId = "PlasmaCannon", level = 1, rarity = (PetsConfig.GetById("PlasmaCannon") and PetsConfig.GetById("PlasmaCannon").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_Hydra = { definitionId = "Hydra", level = 1, rarity = (PetsConfig.GetById("Hydra") and PetsConfig.GetById("Hydra").rarity) or "Common", acquiredAt = 1786924800 },
@@ -101,11 +101,11 @@ MockData.PlayerProfiles = {
 		DisplayName = "Mock Player Beta",
 		Coin = 6400,
 		Diamonds = 1400,
-		OwnedItems = { bomb = 3, gift_box = 1, hp_potion = 15, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5, gacha_ticket = 12 },
+		OwnedItems = { bomb = 3, gift_box = 1, hp_potion = 15, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5 },
 		OwnedPets = {
 			eq_beta_charm_medusa = { definitionId = "Medusa", level = 5, rarity = "Legendary", acquiredAt = 1786924800 },
 			eq_beta_core_thunder = { definitionId = "ThunderHammer", level = 4, rarity = "Epic", acquiredAt = 1786924800 },
-			eq_beta_temp_brain = { definitionId = "BrainBoost", level = 2, rarity = "Uncommon", isTemporary = true, expiresAt = 1787014800, acquiredAt = 1786924800 },
+			eq_beta_temp_brain = { definitionId = "BrainBoost", level = 2, rarity = "Uncommon", acquiredAt = 1786924800 },
 		},
 		EquippedPets = { [1] = "eq_beta_core_thunder", [2] = "eq_beta_temp_brain", [3] = "eq_beta_charm_medusa" },
 		OwnedLaunchers = {
