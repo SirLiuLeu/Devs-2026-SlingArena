@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
+local GiftBoxConfig = require(ReplicatedStorage.Shared.Config.GiftBoxConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
@@ -52,9 +53,17 @@ function ItemService:_publishInventory(player: Player)
 	end
 end
 
-function ItemService:_feedback(player: Player, itemId: string, result: string, cooldownEndTime: number?)
+function ItemService:_feedback(player: Player, itemId: string, result: string, cooldownEndTime: number?, extraPayload: { [string]: any }?)
 	local remote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
-	if remote then remote:FireClient(player, { EventType = "ItemUseResult", Payload = { ItemId = itemId, Result = result, CooldownEndTime = cooldownEndTime } }) end
+	if remote then
+		local payload = { ItemId = itemId, Result = result, CooldownEndTime = cooldownEndTime }
+		for key, value in pairs(extraPayload or {}) do payload[key] = value end
+		remote:FireClient(player, { EventType = "ItemUseResult", Payload = payload })
+	end
+end
+
+function ItemService:PublishInventory(player: Player)
+	self:_publishInventory(player)
 end
 
 function ItemService:TryConsume(player: Player, itemId: string): (boolean, string?)
@@ -93,6 +102,15 @@ function ItemService:TryConsume(player: Player, itemId: string): (boolean, strin
 
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if not dataService then return false, "DataUnavailable" end
+
+	local giftBoxReward: any = nil
+	if effect.kind == "GiftBox" then
+		giftBoxReward = GiftBoxConfig.Roll(Random.new())
+		if not giftBoxReward then
+			self:_feedback(player, itemId, "RewardUnavailable")
+			return false, "RewardUnavailable"
+		end
+	end
 
 	local bombService = nil
 	if effect.kind == "Bomb" then
@@ -147,11 +165,31 @@ function ItemService:TryConsume(player: Player, itemId: string): (boolean, strin
 			self:_feedback(player, itemId, placeReason or "PlacementFailed")
 			return false, placeReason or "PlacementFailed"
 		end
+	elseif effect.kind == "GiftBox" then
+		if giftBoxReward.kind == "Diamonds" then
+			dataService:GrantReward(player, { Diamonds = giftBoxReward.amount }, "GiftBoxOpened")
+		elseif giftBoxReward.kind == "Item" and ItemConfig.GetById(giftBoxReward.itemId) then
+			dataService:GrantReward(player, { Items = { { Id = giftBoxReward.itemId, Quantity = giftBoxReward.quantity } } }, "GiftBoxOpened")
+		else
+			-- A bad reward config must never consume this Gift Box.
+			dataService:UpdateData(player, function(data)
+				data.OwnedItems = if type(data.OwnedItems) == "table" then data.OwnedItems else {}
+				data.OwnedItems[itemId] = math.max(0, math.floor(tonumber(data.OwnedItems[itemId]) or 0)) + 1
+				return data
+			end)
+			self:_publishInventory(player)
+			self:_feedback(player, itemId, "RewardUnavailable")
+			return false, "RewardUnavailable"
+		end
+		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+		if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
+			stateService:RecalculateDerivedStats(player, false)
+		end
 	end
 
 	cooldowns[itemId] = now + math.max(0, item.useCooldown or 0)
 	self:_publishInventory(player)
-	self:_feedback(player, itemId, "Consumed", cooldowns[itemId])
+	self:_feedback(player, itemId, "Consumed", cooldowns[itemId], if giftBoxReward then { Reward = giftBoxReward } else nil)
 	return true, nil
 end
 
