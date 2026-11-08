@@ -12,6 +12,7 @@ local Debris = game:GetService("Debris")
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 local BombService = {}
 BombService.__index = BombService
@@ -91,7 +92,8 @@ function BombService:CanPlaceBomb(player: Player): (boolean, string?)
 	local roundService = ServiceResolver.Get(self._context, "RoundService")
 	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	local state = stateService and stateService:GetState(player)
-	if not (state and state.IsAlive == true and state.ActivePlayerMode == GameStates.PlayerMode.Launcher) then
+	local validMode = state and (state.ActivePlayerMode == GameStates.PlayerMode.Launcher or state.ActivePlayerMode == GameStates.PlayerMode.Human)
+	if not (state and state.IsAlive == true and validMode) then
 		return false, "InvalidPlayerState"
 	end
 	if state.LocationState == GameStates.SessionState.Lobby then
@@ -176,6 +178,12 @@ function BombService:TryPlaceBomb(player: Player): (boolean, string?)
 		+ Vector3.new(0, playerRoot.Size.Y * 0.5 + spawnHeightAboveRootTop, 0)
 	bomb:PivotTo(CFrame.lookAt(spawnPosition, spawnPosition + forward))
 	bomb.Parent = Workspace
+	SoundManager.Play("SFX_Beep", bombRoot.Position)
+	task.delay(math.max(0.05, tonumber(config.BeepInterval) or 0.75), function()
+		if bomb.Parent and bomb:GetAttribute("BombDetonated") ~= true and bombRoot.Parent then
+			SoundManager.Play("SFX_Beep", bombRoot.Position)
+		end
+	end)
 
 	pcall(function()
 		bombRoot:SetNetworkOwner(nil)
@@ -300,6 +308,8 @@ function BombService:_applyBlast(owner: Player, center: Vector3, config: any)
 
 	local radius = math.max(0, tonumber(config.BlastRadius) or 22)
 	local damage = math.max(0, tonumber(config.Damage) or 1500)
+	local falloffPercent = math.clamp(tonumber(config.MaxDamageFalloffPercent) or 20, 0, 100) / 100
+	local knockbackSpeed = math.max(0, tonumber(config.KnockbackSpeed) or 45)
 	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local damageService = ServiceResolver.Get(self._context, "DamagePipelineService")
@@ -308,13 +318,28 @@ function BombService:_applyBlast(owner: Player, center: Vector3, config: any)
 		for _, victim in ipairs(Players:GetPlayers()) do
 			local state = stateService:GetState(victim)
 			local victimRoot = playerService:GetRoot(victim)
-			if state and state.IsAlive == true and victimRoot and (victimRoot.Position - center).Magnitude <= radius then
+			local offset = victimRoot and (victimRoot.Position - center) or nil
+			local distance = offset and offset.Magnitude or math.huge
+			if state and state.IsAlive == true and victimRoot and distance <= radius then
+				-- Damage falls linearly with distance, but is capped at a 20% reduction
+				-- at the edge of the blast radius. Walls and teams do not block Bombs.
+				local distanceRatio = if radius > 0 then math.clamp(distance / radius, 0, 1) else 0
+				local scaledDamage = damage * (1 - falloffPercent * distanceRatio)
+				local planarOffset = Vector3.new(offset.X, 0, offset.Z)
+				local outwardDirection = if planarOffset.Magnitude > 0.001 then planarOffset.Unit else Vector3.new(victimRoot.CFrame.LookVector.X, 0, victimRoot.CFrame.LookVector.Z)
+				if outwardDirection.Magnitude <= 0.001 then
+					outwardDirection = Vector3.new(0, 0, -1)
+				else
+					outwardDirection = outwardDirection.Unit
+				end
+				local knockback = if knockbackSpeed > 0 then outwardDirection * knockbackSpeed else nil
 				-- The owner still takes the blast damage, but is not credited with a
 				-- self-kill. Other victims retain normal Bomb owner attribution.
 				local attacker = if victim == owner then nil else owner
-				damageService:ApplyHitDamage(victim, damage, attacker, nil, {
+				damageService:ApplyHitDamage(victim, scaledDamage, attacker, knockback, {
 					SourceType = "Bomb",
 					AllowFriendlyFire = true,
+					KnockbackSpeedCap = knockbackSpeed,
 				})
 			end
 		end
@@ -324,7 +349,7 @@ function BombService:_applyBlast(owner: Player, center: Vector3, config: any)
 
 	local foodService = ServiceResolver.Get(self._context, "FoodService")
 	if foodService and typeof(foodService.ApplyAreaDamageToFood) == "function" then
-		foodService:ApplyAreaDamageToFood(center, radius, damage, owner)
+		foodService:ApplyAreaDamageToFood(center, radius, damage, owner, falloffPercent * 100)
 	else
 		warn("[BombService] FoodService area-damage API unavailable; Food blast damage was skipped.")
 	end
@@ -358,6 +383,7 @@ function BombService:_detonate(owner: Player, bomb: Model, bombRoot: BasePart, c
 		end
 	end
 
+	SoundManager.Play("SFX_ExplosionBomb", blastPosition)
 	self:_activateExplosionVfx(blastPosition, tonumber(config.ExplosionParticleEmitCount) or 28)
 	self:_spawnExplosionRing(blastPosition, config)
 	self:_applyBlast(owner, blastPosition, config)
