@@ -11,7 +11,7 @@ export type ItemEffect = {
 	experienceAmount: number?,
 }
 
-export export type BombItemConfig = {
+export type BombItemConfig = {
 	Damage: number,
 	BlastRadius: number,
 	FuseTime: number,
