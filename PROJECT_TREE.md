@@ -212,7 +212,6 @@ DataModel
 │  │      │
 │  │      ├── PetSlotTemplate_PetInventoryUI (Frame)
 │  │      │   └── Root (Frame)
-│  │      │       ├── RemainingTimeText (TextLabel)
 │  │      │       ├── PetPreview (ViewportFrame)
 │  │      │       │   ├── Model (Model Equipment)
 │  │      │       │   └── Camera

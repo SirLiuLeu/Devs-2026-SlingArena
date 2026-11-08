@@ -40,7 +40,8 @@ type ItemDefinition = {
 
 ItemConfig.Items = {
 	{
-		id = "bomb", name = "Bomb", description = "Place a bomb that explodes after 3 seconds and damages nearby players and food.", icon = "rbxassetid://0",
+		id = "bomb", name = "Bomb", description = "Place a bomb that explodes after 3 seconds and damages nearby players and food.",
+		icon = "rbxassetid://70706019014966",
 		itemType = "Consumable", stackable = true, consumeOnUse = true, useCooldown = 1.5,
 		effect = { kind = "Bomb" },
 		bombConfig = {
@@ -58,11 +59,13 @@ ItemConfig.Items = {
 		},
 	},
 	{
-		id = "gift_box", name = "Gift Box", description = "A gift box. Reward contents and opening rules are not configured yet.", icon = "rbxassetid://0",
+		id = "gift_box", name = "Gift Box", description = "A gift box. Reward contents and opening rules are not configured yet.",
+		icon = "rbxassetid://73584476161715",
 		itemType = "Consumable", stackable = true, consumeOnUse = false,
 	},
 	{
-		id = "hp_potion", name = "HP Potion", description = "Restore 500 HP every 0.5 seconds for 3 seconds.", icon = "rbxassetid://138146402871393",
+		id = "hp_potion", name = "HP Potion", description = "Restore 500 HP every 0.5 seconds for 3 seconds.",
+		 icon = "rbxassetid://138146402871393", 
 		itemType = "Consumable", stackable = true, consumeOnUse = true, useCooldown = 3,
 		effect = { kind = "Flag", flagName = "HPRecovering", flagParams = { Duration = 3, TickInterval = 0.5, HealPerTick = 500 } },
 	},
@@ -82,12 +85,14 @@ ItemConfig.Items = {
 		effect = { kind = "Flag", flagName = "HPBoosted", flagParams = { Duration = 300, MaxHPBonusPercent = 30 } },
 	},
 	{
-		id = "exp_card_500", name = "500 EXP Card", description = "Immediately grants 500 EXP.", icon = "rbxassetid://0",
+		id = "exp_card_500", name = "500 EXP Card", description = "Immediately grants 500 EXP.", 
+		icon = "rbxassetid://121017572574132",
 		itemType = "Consumable", stackable = true, consumeOnUse = true, useCooldown = 0.25,
 		effect = { kind = "Experience", experienceAmount = 500 },
 	},
 	{
-		id = "luck_buff_clover", name = "3-Leaf Clover", description = "Increase server-side diamond-drop chance by 30% for 5 minutes. Reuse refreshes duration.", icon = "rbxassetid://0",
+		id = "luck_buff_clover", name = "3-Leaf Clover", description = "Increase server-side diamond-drop chance by 30% for 5 minutes. Reuse refreshes duration.",
+		icon = "rbxassetid://132864992072277",
 		itemType = "Consumable", stackable = true, consumeOnUse = true, useCooldown = 1,
 		effect = { kind = "Flag", flagName = "LuckBoosted", flagParams = { Duration = 300, DiamondDropChanceBonusPercent = 30 } },
 	},

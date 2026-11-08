@@ -24,7 +24,8 @@ local SoundConfig: { [string]: { [string]: any } } = {
     SFX_ImpactLauncher = { Folder = "Gameplay", SoundId = "121182352079090", Volume = 0.9, Pitch = 1, Spatial = true, RollOffMode = "InverseTapered", RollOffMinDistance = 8, RollOffMaxDistance = 160, EmitterSize = 5, MaxPoolSize = 8, MaxConcurrent = 5 },
     SFX_LaunchRelease = { Folder = "Gameplay", SoundId = "116279018525523", Volume = 0.75, Pitch = 1, Spatial = true, RollOffMode = "InverseTapered", RollOffMinDistance = 7, RollOffMaxDistance = 125, EmitterSize = 4, MaxPoolSize = 8, MaxConcurrent = 5 },
     SFX_TrapHit = { Folder = "Gameplay", SoundId = "87621625479450", Volume = 0.8, Pitch = 1, Spatial = true, RollOffMode = "InverseTapered", RollOffMinDistance = 7, RollOffMaxDistance = 105, EmitterSize = 4, MaxPoolSize = 6, MaxConcurrent = 4 },
-
+    SFX_Beep = { Folder = "UI", SoundId = "107857473421824", Volume = 0.5, Pitch = 1, Spatial = true, MaxPoolSize = 2, MaxConcurrent = 5 },
+    SFX_ExplosionBomb = { Folder = "UI", SoundId = "73213651274776", Volume = 0.5, Pitch = 1, Spatial = true, MaxPoolSize = 1, MaxConcurrent = 5 },
     -- Match
     SFX_LevelUp = { Folder = "Match", SoundId = "79082668079454", Volume = 0.8, Pitch = 1, Spatial = false, MaxPoolSize = 3, MaxConcurrent = 1 },
     SFX_RoundStart = { Folder = "Match", SoundId = "95951190634430", Volume = 0.85, Pitch = 1, Spatial = false, MaxPoolSize = 3, MaxConcurrent = 1 },
@@ -34,6 +35,8 @@ local SoundConfig: { [string]: { [string]: any } } = {
     SFX_Success = { Folder = "UI", SoundId = "124752357882176", Volume = 0.5, Pitch = 1, Spatial = false, MaxPoolSize = 4, MaxConcurrent = 2 },
     SFX_Item_HealthPotion = { Folder = "UI", SoundId = "128907542703685", Volume = 0.5, Pitch = 1, Spatial = false, MaxPoolSize = 4, MaxConcurrent = 2 },
     SFX_UI_Click = { Folder = "UI", SoundId = "81234820165126", Volume = 0.7, Pitch = 1, Spatial = false, MaxPoolSize = 6, MaxConcurrent = 3 },
+    SFX_Beep = { Folder = "UI", SoundId = "107857473421824", Volume = 0.5, Pitch = 1, Spatial = false, MaxPoolSize = 4, MaxConcurrent = 2 },
+    SFX_ExplosionBomb = { Folder = "UI", SoundId = "73213651274776", Volume = 0.5, Pitch = 1, Spatial = false, MaxPoolSize = 4, MaxConcurrent = 2 },
 }
 
 return SoundConfig
