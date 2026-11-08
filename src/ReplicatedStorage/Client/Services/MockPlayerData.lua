@@ -35,7 +35,8 @@ local MOCK_PLAYER_DATA = {
 		hp_buff_30 = 5,
 		exp_card_500 = 5,
 		luck_buff_clover = 5,
-		gacha_ticket = 100,
+		bomb = 3,
+		gift_box = 2,
 	},
 	OwnedLaunchers = (function()
 		local launchers = {}
@@ -89,8 +90,6 @@ local MOCK_PLAYER_DATA = {
 local ITEM_ALIASES = {
 	item_hp_potion = "hp_potion",
 	item_buff_exp = "exp_buff_30",
-	item_size_up = "regen_boost",
-	item_speed_boost = "shield_tonic",
 	item_invisible = "damage_buff_20",
 }
 
