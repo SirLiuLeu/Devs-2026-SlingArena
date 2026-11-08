@@ -20,7 +20,7 @@ function BombService.new(context)
 	local self = setmetatable({}, BombService)
 	self._context = context
 	self._bombTemplate = nil :: Model?
-	self._explosionTemplate = nil :: Attachment?
+	self._explosionPartTemplate = nil :: BasePart?
 	self._ringTemplate = nil :: Model?
 	self._activeBombs = {} :: { [Player]: { [Model]: boolean } }
 	return self
@@ -38,11 +38,13 @@ function BombService:Init()
 		warn("[BombService] Missing required Model: ReplicatedStorage.Assets.Prefabs.Bomb")
 	end
 
-	local explosion = effects and effects:FindFirstChild("Explosion")
-	if explosion and explosion:IsA("Attachment") then
-		self._explosionTemplate = explosion
+	local explosionPart = effects and effects:FindFirstChild("ExplosionPart")
+	local explosionAttachment = explosionPart and explosionPart:FindFirstChild("Explosion")
+	if explosionPart and explosionPart:IsA("BasePart")
+		and explosionAttachment and explosionAttachment:IsA("Attachment") then
+		self._explosionPartTemplate = explosionPart
 	else
-		warn("[BombService] Missing optional VFX Attachment: ReplicatedStorage.Assets.EffectVfx.Explosion")
+		warn("[BombService] Missing required VFX Part/Attachment: ReplicatedStorage.Assets.EffectVfx.ExplosionPart.Explosion")
 	end
 
 	local ring = prefabs and prefabs:FindFirstChild("VFX_ExplosionRing")
@@ -189,28 +191,30 @@ function BombService:TryPlaceBomb(player: Player): (boolean, string?)
 end
 
 function BombService:_activateExplosionVfx(blastPosition: Vector3, emitCount: number)
-	if not self._explosionTemplate then
+	if not self._explosionPartTemplate then
 		return
 	end
 
-	-- Keep the visual attachment in world space instead of parenting it to the
-	-- physical Bomb. The Bomb can roll onto any side during its fuse, but the
-	-- explosion effects (especially ground-crack particles) must stay upright.
-	local vfxAnchor = Instance.new("Part")
-	vfxAnchor.Name = "BombExplosionVfxAnchor"
-	vfxAnchor.Size = Vector3.new(0.2, 0.2, 0.2)
-	vfxAnchor.CFrame = CFrame.new(blastPosition)
-	vfxAnchor.Anchored = true
-	vfxAnchor.Transparency = 1
-	vfxAnchor.CastShadow = false
-	vfxAnchor.CanCollide = false
-	vfxAnchor.CanTouch = false
-	vfxAnchor.CanQuery = false
-	vfxAnchor.Parent = Workspace
+	-- Clone the Studio-authored carrier Part so its Attachment keeps the
+	-- configured local offset/orientation while remaining independent of the
+	-- physical Bomb's roll and rotation.
+	local vfxPart = self._explosionPartTemplate:Clone()
+	vfxPart.Name = "BombExplosionVfx"
+	vfxPart.CFrame = CFrame.new(blastPosition)
+	vfxPart.Anchored = true
+	vfxPart.Transparency = 1
+	vfxPart.CastShadow = false
+	vfxPart.CanCollide = false
+	vfxPart.CanTouch = false
+	vfxPart.CanQuery = false
+	vfxPart.Parent = Workspace
 
-	local attachment = self._explosionTemplate:Clone()
-	attachment.Name = "BombExplosion"
-	attachment.Parent = vfxAnchor
+	local attachment = vfxPart:FindFirstChild("Explosion")
+	if not (attachment and attachment:IsA("Attachment")) then
+		warn("[BombService] Cloned ExplosionPart is missing its Explosion Attachment.")
+		vfxPart:Destroy()
+		return
+	end
 
 	for _, effect in ipairs(attachment:GetDescendants()) do
 		if effect:IsA("ParticleEmitter") then
@@ -226,9 +230,8 @@ function BombService:_activateExplosionVfx(blastPosition: Vector3, emitCount: nu
 			end)
 		end
 	end
-	Debris:AddItem(vfxAnchor, 2)
+	Debris:AddItem(vfxPart, 2)
 end
-
 function BombService:_spawnExplosionRing(position: Vector3, config: any)
 	if not self._ringTemplate then
 		return
