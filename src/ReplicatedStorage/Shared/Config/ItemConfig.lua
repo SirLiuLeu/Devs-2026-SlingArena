@@ -5,7 +5,7 @@
 local ItemConfig = {}
 
 export type ItemEffect = {
-	kind: "Flag" | "Experience" | "Bomb",
+	kind: "Flag" | "Experience" | "Bomb" | "GiftBox",
 	flagName: string?,
 	flagParams: { [string]: any }?,
 	experienceAmount: number?,
@@ -23,6 +23,9 @@ export type BombItemConfig = {
 	RingExpandMultiplier: number,
 	RingTweenDuration: number,
 	CleanupDelay: number,
+	MaxDamageFalloffPercent: number,
+	KnockbackSpeed: number,
+	BeepInterval: number,
 }
 
 type ItemDefinition = {
@@ -30,7 +33,7 @@ type ItemDefinition = {
 	name: string,
 	description: string,
 	icon: string,
-	itemType: "Consumable" | "Currency",
+	itemType: "Consumable",
 	stackable: boolean,
 	consumeOnUse: boolean,
 	useCooldown: number?,
@@ -56,12 +59,16 @@ ItemConfig.Items = {
 			RingExpandMultiplier = 2,
 			RingTweenDuration = 0.75,
 			CleanupDelay = 2.25,
+			MaxDamageFalloffPercent = 20,
+			KnockbackSpeed = 45,
+			BeepInterval = 0.75,
 		},
 	},
 	{
-		id = "gift_box", name = "Gift Box", description = "A gift box. Reward contents and opening rules are not configured yet.",
+		id = "gift_box", name = "Gift Box", description = "Open to receive Diamonds or a useful consumable item.",
 		icon = "rbxassetid://73584476161715",
-		itemType = "Consumable", stackable = true, consumeOnUse = false,
+		itemType = "Consumable", stackable = true, consumeOnUse = true, useCooldown = 0.35,
+		effect = { kind = "GiftBox" },
 	},
 	{
 		id = "hp_potion", name = "HP Potion", description = "Restore 500 HP every 0.5 seconds for 3 seconds.",
@@ -96,9 +103,6 @@ ItemConfig.Items = {
 		itemType = "Consumable", stackable = true, consumeOnUse = true, useCooldown = 1,
 		effect = { kind = "Flag", flagName = "LuckBoosted", flagParams = { Duration = 300, DiamondDropChanceBonusPercent = 30 } },
 	},
-	{ id = "gacha_ticket", name = "Gacha Ticket", description = "A ticket for the gacha.", icon = "rbxassetid://82067391881102", itemType = "Currency", stackable = true, consumeOnUse = false },
-	{ id = "shield_tonic", name = "Shield Tonic", description = "Reserved consumable.", icon = "rbxassetid://10000004", itemType = "Consumable", stackable = true, consumeOnUse = false },
-	{ id = "regen_boost", name = "Regeneration Boost", description = "Reserved consumable.", icon = "rbxassetid://10000005", itemType = "Consumable", stackable = true, consumeOnUse = false },
 } :: { ItemDefinition }
 
 local byId = {} :: { [string]: ItemDefinition }
