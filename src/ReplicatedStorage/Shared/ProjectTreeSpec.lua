@@ -54,7 +54,6 @@ local ProjectTreeSpec = {
 				Shop = "ShopUI", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI
 				Inventory = "InventoryUI", -- [ASSUMED] expected inventory panel root ScreenGui name
 				OnlineReward = "OnlineRewardUI", -- [ASSUMED] expected online reward panel root ScreenGui name
-				Spin = "SpinUI", -- [ASSUMED] expected spin panel root ScreenGui name
 				Quest = "QuestUI", -- [ASSUMED] generated Phase 2 quest panel root ScreenGui name
 			},
 			LobbyTeleport = {
@@ -160,15 +159,6 @@ local ProjectTreeSpec = {
 			OverlayButton = "DailyLoginUI.Overlay", -- [PROJECT_TREE_SPEC] StarterGui.DailyLoginUI.Overlay
 			LeftGrid = "DailyLoginUI.MainPanel.Content.LeftGrid", -- [PROJECT_TREE_SPEC] StarterGui.DailyLoginUI.MainPanel.Content.LeftGrid
 			Day7Big = "DailyLoginUI.MainPanel.Content.Day7Big", -- [PROJECT_TREE_SPEC] StarterGui.DailyLoginUI.MainPanel.Content.Day7Big
-		},
-		Spin = {
-			ScreenGui = "SpinUI", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI
-			Root = "SpinUI.Root", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root
-			Wheel = "SpinUI.Root.WheelContainer.GachaWheel", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.WheelContainer.GachaWheel
-			Pointer = "SpinUI.Root.WheelContainer.Pointer", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.WheelContainer.Pointer
-			Spin1 = "SpinUI.Root.Buttons.Spin1", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.Buttons.Spin1
-			Spin2 = "SpinUI.Root.Buttons.Spin2", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.Buttons.Spin2
-			CloseButton = "SpinUI.Root.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.SpinUI.Root.CloseButton
 		},
 		Match = {
 			ScreenGui = "MatchUI", -- [PROJECT_TREE_SPEC] StarterGui.MatchUI
@@ -283,7 +273,6 @@ local ProjectTreeSpec = {
 		--     LobbyMap (Model)
 		--       SpawnPoints (Folder)
 		--         SpawnPoint (Part)
-		--       GachaSpin (Model)
 		--       Gate (Part)
 		--     Arena_01 (Model)
 		--       SpawnPoints (Folder)
@@ -354,7 +343,6 @@ local ProjectTreeSpec = {
 			Maps = {
 				Root = "Maps",
 				LobbyMap = "Maps.LobbyMap",
-				GachaSpin = "Maps.LobbyMap.GachaSpin",
 				Arena01 = "Maps.Arena_01",
 				Arena02 = "Maps.Arena_02",
 				ArenaMapDirect = "ArenaMap",
@@ -404,11 +392,6 @@ local ProjectTreeSpec = {
 				FireLauncher = "Assets.Launchers.FireLauncher",
 				PoisonLauncher = "Assets.Launchers.PoisonLauncher",
 			}
-		},
-	},
-	World = {
-		GachaSpin = {
-			Model = "Maps.LobbyMap.GachaSpin", -- [PROJECT_TREE_SPEC] Workspace.Maps.LobbyMap.GachaSpin
 		},
 	},
 }
