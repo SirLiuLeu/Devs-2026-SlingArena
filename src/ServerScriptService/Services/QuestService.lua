@@ -16,9 +16,9 @@ local SECONDS_PER_DAY = 24 * 60 * 60
 local SECONDS_PER_WEEK = 7 * SECONDS_PER_DAY
 
 local WEEKLY_REWARD_TIERS = {
-	{ MinPoints = 5000, Reward = { Diamonds = 250, Items = { { Id = "gacha_ticket", Quantity = 5 } } } },
-	{ MinPoints = 2500, Reward = { Diamonds = 125, Items = { { Id = "gacha_ticket", Quantity = 3 } } } },
-	{ MinPoints = 1000, Reward = { Diamonds = 50, Items = { { Id = "gacha_ticket", Quantity = 1 } } } },
+	{ MinPoints = 5000, Reward = { Diamonds = 250 } },
+	{ MinPoints = 2500, Reward = { Diamonds = 125 } },
+	{ MinPoints = 1000, Reward = { Diamonds = 50 } },
 	{ MinPoints = 250, Reward = { Diamonds = 10 } },
 }
 
