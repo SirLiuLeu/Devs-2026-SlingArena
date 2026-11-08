@@ -14,7 +14,7 @@ DataModel
 │  │  │  ├─ ConfirmationTextConfig.lua
 │  │  │  ├─ DebugConfig.lua
 │  │  │  ├─ FloatingTextConfig.lua
-│  │  │  ├─ GachaRewardConfig.lua
+│  │  │  ├─ GiftBoxConfig.lua
 │  │  │  ├─ GameConfig.lua
 │  │  │  ├─ ItemConfig.lua
 │  │  │  ├─ LevelConfig.lua
@@ -48,7 +48,6 @@ DataModel
 │  │  ├─ Utils
 │  │  │  ├─ DeepCopy.lua
 │  │  │  ├─ CollisionClassifier.lua
-│  │  │  ├─ GachaSpinLogic.lua
 │  │  │  ├─ PathResolver.lua
 │  │  │  ├─ PetDisplayFormatter.lua
 │  │  │  ├─ PetProgression.lua
@@ -166,7 +165,6 @@ DataModel
 │  │  ├── Icons
 │  │  │   ├── Items
 │  │  │   │   ├── HP_Potion (Image)
-│  │  │   │   ├── Gacha_Ticket (Image)
 │  │  │   │   └── EXP_Buff (Image)
 │  │  │   │
 │  │  │   └── Launchers
@@ -528,18 +526,6 @@ DataModel
 │  │     │     └─ ScrollingFrame
 │  │     └─ Close (TextButton/ImageButton)
 │  │
-│  ├─ SpinUI (ScreenGui)
-│  │  └─ Root
-│  │     ├─ Buttons
-│  │     │  ├─ Spin1 (TextButton)
-│  │     │  └─ Spin2 (TextButton)
-│  │     ├─ TurnsDisplay
-│  │     ├─ WheelContainer
-│  │     │  ├─ Pointer
-│  │     │  └─ GachaWheel (ImageLabel)
-│  │     ├─ CloseButton (TextButton)
-│  │     └─ Title (TextLabel)
-│  │ 
 │  ├─ InventoryUI (ScreenGui)
 │  │  ├── Root (Frame)
 │  │  │   ├── Header (Frame)
@@ -735,7 +721,6 @@ DataModel
 │     ├─ LobbyMap (Model)
 │     │  ├─ SpawnPoints
 │     │  │  └─ LobbySpawn
-│     │  ├─ GachaSpin
 │     │  │  └─ Spinwheel
 │     │  ├─ Gate (optional join trigger)
 │     │  ├─ Launcher (Folder)
@@ -854,9 +839,14 @@ Notes:
 - No pre-instanced `ReplicatedStorage.Assets.Sounds` hierarchy is required. The configuration table is the source of truth for the planned 21 SFX keys.
 
 
+## Audio and item SFX update (2026-11-09)
+
+- Bomb placement plays two spatial `SFX_Beep` cues; detonation plays spatial `SFX_ExplosionBomb`. Bomb is allowed to damage teammates and ignores walls; damage scales down by at most 20% across the blast radius.
+- Gift Box rewards are server-rolled from `GiftBoxConfig.lua` and grant either Diamonds or an item defined in `ItemConfig.lua`. Last-hitting Legendary Food grants one Gift Box.
+- Successful `hp_potion` consumption retains `SFX_Item_HealthPotion`; other items no longer play generic `SFX_Success`.
+
 ## Audio collision SFX update (2026-10-29)
 
-- Successful consumption of `hp_potion` uses `SFX_Item_HealthPotion`; other consumables continue to use `SFX_Success`.
 - `CollisionClientScanner.client.lua` plays `SFX_Wall_Hit` locally when a launch spherecast detects explicitly tagged wall geometry. A contact episode plays once; the scanner rearms after 0.12 seconds without detecting a tagged Wall. No server report or validation is involved in this cosmetic cue. `CollisionClassifier.lua` resolves the closest collision tag on the hit Instance or its ancestors, with a child tag overriding a Model-level tag. Ground is skipped during spherecast scanning so it cannot hide a Wall ahead; Food, Lava, Trap, and unclassified parts remain silent. Existing server arena-boundary bounce is a separate audio path.
 
 
