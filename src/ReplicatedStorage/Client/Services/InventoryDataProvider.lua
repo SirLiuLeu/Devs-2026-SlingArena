@@ -13,6 +13,7 @@ local DebugConfig = require(ReplicatedStorage.Shared.Config.DebugConfig)
 
 local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 local consumeItemRemote = remotes:FindFirstChild(RemoteContracts.Names.ConsumeItem) :: RemoteEvent?
+local gameplayFeedbackRemote = remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
 local equipPetRemote = remotes:FindFirstChild(RemoteContracts.Names.EquipPet) :: RemoteEvent?
 local unequipPetRemote = remotes:FindFirstChild(RemoteContracts.Names.UnequipPet) :: RemoteEvent?
 local deletePetRemote = remotes:FindFirstChild(RemoteContracts.Names.DeletePet) :: RemoteEvent?
@@ -119,10 +120,36 @@ function InventoryDataProvider.new()
 		petCapacity = 40,
 		_launcherGiveCursor = 0,
 	}
+	if gameplayFeedbackRemote then
+		self._feedbackConnection = gameplayFeedbackRemote.OnClientEvent:Connect(function(message)
+			if type(message) ~= "table" or message.EventType ~= "ItemUseResult" or type(message.Payload) ~= "table" then
+				return
+			end
+			local payload = message.Payload
+			if payload.ItemId == "gift_box" and payload.Result == "Consumed" and type(payload.Reward) == "table" then
+				local reward = payload.Reward
+				if reward.kind == "Diamonds" then
+					self._state.lastUseResult = string.format("Gift Box: +%d Diamonds", math.max(0, math.floor(tonumber(reward.amount) or 0)))
+				elseif reward.kind == "Item" then
+					local itemId = tostring(reward.itemId or "")
+					local definition = ItemConfig.GetById(itemId)
+					local quantity = math.max(0, math.floor(tonumber(reward.quantity) or 0))
+					self._state.lastUseResult = string.format("Gift Box: +%dx %s", quantity, definition and definition.name or itemId)
+				end
+			elseif payload.Result ~= "Consumed" then
+				self._state.lastUseResult = tostring(payload.Result or "ItemUseFailed")
+			end
+			self:_emitChanged()
+		end)
+	end
 	return self
 end
 
 function InventoryDataProvider:Destroy()
+	if self._feedbackConnection then
+		self._feedbackConnection:Disconnect()
+		self._feedbackConnection = nil
+	end
 	if self._playerDataConnection then
 		self._playerDataConnection:Disconnect()
 		self._playerDataConnection = nil
