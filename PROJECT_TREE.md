@@ -652,6 +652,18 @@ DataModel
 │  │     │  └─ ExpBar
 │  │     │     ├─ ExpBarBackground (Frame)
 │  │     │     └─ ExpBarFill (Frame)
+│  │     ├─ QuestDaily (Frame)
+│  │     │  ├─ UICorner (UICorner)
+│  │     │  ├─ UIStroke (UIStroke)
+│  │     │  └─ RootBody (Frame)
+│  │     │     ├─ SkipTaskBtn (ImageButton)
+│  │     │     ├─ ClaimRewardBtn (TextButton)
+│  │     │     │  ├─ DiamondIcon (ImageLabel)
+│  │     │     │  │  └─ UIAspectRatioConstraint (UIAspectRatioConstraint)
+│  │     │     │  ├─ ProgressLabel (TextLabel)
+│  │     │     │  └─ TaskDescriptionLabel (TextLabel)
+│  │     │     ├─ ToggleDropdown (ImageButton)
+│  │     │     └─ NotificationIIcon (ImageLabel)
 │  │     ├─ LeftMenu
 │  │     │  ├─ DailyButton (ImageButton)
 │  │     │  ├─ InventoryButton (ImageButton)
