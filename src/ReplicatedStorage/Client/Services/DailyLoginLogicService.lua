@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MockData = require(ReplicatedStorage.Client.Services.MockData)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 local DailyLoginLogicService = {}
 DailyLoginLogicService.__index = DailyLoginLogicService
@@ -87,6 +88,7 @@ function DailyLoginLogicService:ClaimDay(day: number): (boolean, string)
 			end
 			self:_refreshStates()
 			self:_emitChanged()
+			SoundManager.Play("SFX_Success")
 			return true, string.format("Claimed day %d", targetDay)
 		end
 	end
