@@ -865,6 +865,40 @@ end
 	Launch motion remains client-impulse physics; knockback exits are forced only
 	after validated timeout or stop-speed evidence.
 ]]
+function LauncherService:_stepKnockbackState(player: Player, state: any, now: number, resumeState: string)
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	if not stateService then return end
+
+	if typeof(state.KnockbackMaxEndsAt) == "number" and state.KnockbackMaxEndsAt > 0 and now >= state.KnockbackMaxEndsAt then
+		warn(string.format("[LauncherService] Knockback timeout for %s", player.Name))
+		stateService:ForceSetMovementState(player, resumeState)
+		return
+	end
+
+	local knockbackStartTime = if typeof(state.KnockbackStartTime) == "number" and state.KnockbackStartTime > 0 then state.KnockbackStartTime else now
+	if state.KnockbackStartTime ~= knockbackStartTime then
+		state.KnockbackStartTime = knockbackStartTime
+	end
+	if now - knockbackStartTime < PhysicsConfig.Collision.KnockbackGraceSeconds then
+		state.KnockbackStopEvidenceFrames = 0
+		return
+	end
+
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
+	local root = playerService and playerService:GetRoot(player)
+	local velocity = root and root.AssemblyLinearVelocity or Vector3.zero
+	local horizontalSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
+	if horizontalSpeed < PhysicsConfig.Collision.KnockbackStopSpeed then
+		state.KnockbackStopEvidenceFrames = (state.KnockbackStopEvidenceFrames or 0) + 1
+	else
+		state.KnockbackStopEvidenceFrames = 0
+	end
+
+	if (state.KnockbackStopEvidenceFrames or 0) >= PhysicsConfig.Collision.KnockbackStopEvidenceFramesRequired then
+		stateService:ForceSetMovementState(player, resumeState)
+	end
+end
+
 function LauncherService:_stepMovementStates(_dt: number)
 	local now = os.clock()
 	for _, player in self:_getTrackedPlayers() do
@@ -877,6 +911,11 @@ function LauncherService:_stepMovementStates(_dt: number)
 		if state.ActivePlayerMode == GameStates.PlayerMode.Human then
 			self._chargeState[player] = nil
 			SoundManager.StopLoop(chargeLoopKey(player))
+			-- Human mode uses the native character controller, not LauncherMovement.
+			-- Still complete the shared Knockback state lifecycle so it cannot stick.
+			if state.MovementState == MOVEMENT_STATE.Knockback then
+				self:_stepKnockbackState(player, state, now, MOVEMENT_STATE.Human)
+			end
 			continue
 		end
 		if self._chargeState[player] and (state.IsCharging ~= true or state.MovementState ~= MOVEMENT_STATE.Charging) then
@@ -890,31 +929,7 @@ function LauncherService:_stepMovementStates(_dt: number)
 				self:_finishLaunch(player, string.format("hard_timeout (max=%.1fs)", PhysicsConfig.Launch.MaxLaunchDuration))
 			end
 		elseif state.MovementState == MOVEMENT_STATE.Knockback then
-			if typeof(state.KnockbackMaxEndsAt) == "number" and state.KnockbackMaxEndsAt > 0 and now >= state.KnockbackMaxEndsAt then
-				warn(string.format("[LauncherService] Knockback timeout for %s", player.Name))
-				ServiceResolver.Get(self._context, "PlayerStateService"):ForceSetMovementState(player, MOVEMENT_STATE.Idle)
-				continue
-			end
-			local knockbackStartTime = if typeof(state.KnockbackStartTime) == "number" and state.KnockbackStartTime > 0 then state.KnockbackStartTime else now
-			if state.KnockbackStartTime ~= knockbackStartTime then
-				state.KnockbackStartTime = knockbackStartTime
-			end
-			if now - knockbackStartTime < PhysicsConfig.Collision.KnockbackGraceSeconds then
-				state.KnockbackStopEvidenceFrames = 0
-				continue
-			end
-
-			local root = ServiceResolver.Get(self._context, "PlayerService"):GetRoot(player)
-			local velocity = root and root.AssemblyLinearVelocity or Vector3.zero
-			local horizontalSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
-			if horizontalSpeed < PhysicsConfig.Collision.KnockbackStopSpeed then
-				state.KnockbackStopEvidenceFrames = (state.KnockbackStopEvidenceFrames or 0) + 1
-			else
-				state.KnockbackStopEvidenceFrames = 0
-			end
-			if (state.KnockbackStopEvidenceFrames or 0) >= PhysicsConfig.Collision.KnockbackStopEvidenceFramesRequired then
-				ServiceResolver.Get(self._context, "PlayerStateService"):ForceSetMovementState(player, MOVEMENT_STATE.Idle)
-			end
+			self:_stepKnockbackState(player, state, now, MOVEMENT_STATE.Idle)
 		end
 
 		local cooldownUntil = self._releaseCooldown[player] or 0
