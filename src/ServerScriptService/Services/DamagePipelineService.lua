@@ -28,6 +28,7 @@ type DamageOptions = {
 	KnockbackSpeedCap: number?,
 	SourceType: string?,
 	AllowFriendlyFire: boolean?,
+	UseKnockbackState: boolean?,
 }
 
 type EffectConfig = {
@@ -346,6 +347,13 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 			local planarKnockback = Vector3.new(knockbackDirection.X, 0, knockbackDirection.Z)
 			local resolvedDirection, resolvedSpeed = resolveKnockbackDirectionAndSpeed(planarKnockback, options)
 			if resolvedDirection then
+				if amount > 0 and options and options.UseKnockbackState == true then
+					-- Only enter Knockback after this hit has passed validation and
+					-- actually applied damage. This keeps Invulnerable/rejected hits
+					-- from leaving the victim in a state without a matching impulse.
+					playerStateService:ForceSetMovementState(victim, GameStates.PlayerState.Knockback)
+					playerStateService:RecordKnockbackImpact(victim, resolvedDirection, os.clock(), resolvedSpeed)
+				end
 				if self._knockbackRemote then
 					self._knockbackRemote:FireClient(victim, resolvedDirection, resolvedSpeed)
 				end
