@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
 local Workspace = game:GetService("Workspace")
+local ContentProvider = game:GetService("ContentProvider")
 
 local SoundConfig = require(ReplicatedStorage.Shared.Config.SoundConfig)
 
@@ -15,6 +16,8 @@ local MASTER_SOUND_GROUP_NAME = "SlingArenaSoundGroup"
 local soundEnabled = true
 local masterSoundGroup: SoundGroup? = nil
 local pools: { [string]: { Sound } } = {}
+local preloaded: { [string]: boolean } = {}
+local preloading: { [string]: boolean } = {}
 local active: { [Sound]: ActiveSoundInfo } = {}
 local loops: { [string]: Sound } = {}
 local anchorPool: { BasePart } = {}
@@ -216,6 +219,35 @@ local function resolveParent(parentOrPosition: any): (Instance, BasePart?)
 		end
 	end
 	return SoundService, nil
+end
+
+function SoundManager.Preload(soundName: string): boolean
+	if not RunService:IsClient() then return false end
+	if preloaded[soundName] then return true end
+	if preloading[soundName] then return false end
+
+	local descriptor = resolveDescriptor(soundName, nil)
+	if not descriptor then return false end
+	preloading[soundName] = true
+
+	local preloadSound = Instance.new("Sound")
+	preloadSound.Name = "Preload_" .. soundName
+	preloadSound.SoundId = descriptor.SoundId
+	preloadSound.Volume = 0
+	preloadSound.Parent = SoundService
+
+	local ok, err = pcall(function()
+		ContentProvider:PreloadAsync({ preloadSound })
+	end)
+	preloadSound:Destroy()
+	preloading[soundName] = nil
+
+	if ok then
+		preloaded[soundName] = true
+	else
+		warnOnce("preload:" .. soundName, "Unable to preload '" .. soundName .. "': " .. tostring(err))
+	end
+	return ok
 end
 
 function SoundManager.Play(soundName: string, parentOrPosition: any?, overrides: SoundDescriptor?): Sound?
