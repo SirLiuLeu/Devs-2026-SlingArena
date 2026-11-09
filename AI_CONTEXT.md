@@ -202,7 +202,9 @@
 
 ## Audio and item SFX update (2026-11-09)
 
-- Bomb placement plays two spatial `SFX_Beep` cues; detonation plays spatial `SFX_ExplosionBomb`. Successful item use no longer triggers generic `SFX_Success`; HP Potion retains its dedicated sound.
+- Bomb placement plays two spatial `SFX_Beep` cues; detonation plays spatial `SFX_ExplosionBomb`. The client preloads Explosion/Hurt/Reward one-shots through `SoundManager.Preload` to avoid first-play asset loading delay; the explosion SFX remains aligned to the actual fuse/detonation time.
+- `SFX_Hurt` is driven by authoritative `GameplayFeedback.DamageTaken`, not HP snapshot differences, so initial profile/spawn reconciliation cannot emit a false hurt sound. Successful item use no longer triggers generic `SFX_Success`; HP Potion retains its dedicated sound. `RewardReceived` feedback plays `SFX_Success` for server-granted rewards.
+- Bomb blast victims enter the shared `Knockback` movement state before the impulse is replicated. Launcher locomotion is suspended during the state; Human mode returns to `Human` when the physical knockback settles or times out.
 - Gift Box reward feedback reports the rolled Diamonds or Item in the inventory panel. Legendary Food last-hits grant one Gift Box.
 
 ## Audio collision SFX update (2026-10-29)
