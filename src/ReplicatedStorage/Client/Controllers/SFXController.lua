@@ -89,6 +89,13 @@ function SFXController:Start()
 		self:_unbindButton(instance)
 	end))
 
+	-- Preload one-shot sounds that must line up tightly with gameplay events.
+	task.spawn(function()
+		for _, soundName in ipairs({ "SFX_ExplosionBomb", "SFX_Success", "SFX_Hurt" }) do
+			SoundManager.Preload(soundName)
+		end
+	end)
+
 	local remotes = ReplicatedStorage:FindFirstChild("LauncherArenaRemotes")
 	local feedbackRemote = remotes and remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
 	if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
