@@ -367,8 +367,11 @@ function PlayerDataService:GrantReward(player: Player, reward: any, reason: stri
 		self._context.EventBus:Fire("PlayerRewardGranted", player, reward, reason)
 	end
 
+	-- Shop purchases already emit ShopPurchaseResult, which plays the same
+	-- success cue. Avoid sending a second RewardReceived cue for those paths.
+	local hasPurchaseFeedback = reason == "ShopPurchaseDiamonds" or reason == "ShopPurchaseItem"
 	local feedbackRemote = self._context.Remotes and self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
-	if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
+	if not hasPurchaseFeedback and feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
 		feedbackRemote:FireClient(player, {
 			EventType = "RewardReceived",
 			Payload = { Reward = reward, Reason = reason },
