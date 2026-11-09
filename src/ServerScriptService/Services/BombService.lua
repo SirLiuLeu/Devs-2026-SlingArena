@@ -334,12 +334,6 @@ function BombService:_applyBlast(owner: Player, center: Vector3, config: any)
 					outwardDirection = outwardDirection.Unit
 				end
 				local knockback = if knockbackSpeed > 0 then outwardDirection * knockbackSpeed else nil
-				if knockback and stateService.ForceSetMovementState and stateService.RecordKnockbackImpact then
-					-- Put the victim into the same server-owned Knockback lifecycle used
-					-- by Launcher-vs-Launcher collisions before replicating the impulse.
-					stateService:ForceSetMovementState(victim, GameStates.PlayerState.Knockback)
-					stateService:RecordKnockbackImpact(victim, outwardDirection, os.clock(), knockbackSpeed)
-				end
 				-- The owner still takes the blast damage, but is not credited with a
 				-- self-kill. Other victims retain normal Bomb owner attribution.
 				local attacker = if victim == owner then nil else owner
@@ -347,6 +341,7 @@ function BombService:_applyBlast(owner: Player, center: Vector3, config: any)
 					SourceType = "Bomb",
 					AllowFriendlyFire = true,
 					KnockbackSpeedCap = knockbackSpeed,
+					UseKnockbackState = true,
 				})
 			end
 		end
