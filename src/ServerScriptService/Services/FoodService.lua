@@ -647,30 +647,28 @@ function FoodService:_rewardFoodKill(entry: any)
 	self._context.EventBus:Fire("FoodConsumed", player, rule.Exp)
 
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
-	local grantedReward = false
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local reward = { Diamonds = 0, Items = {} }
+	local hasReward = false
+
 	if rule.Type == "Legendary" then
-		if dataService and typeof(dataService.GrantReward) == "function" then
-			dataService:GrantReward(player, { Items = { { Id = "gift_box", Quantity = 1 } } }, "LegendaryFoodLastHit")
-			grantedReward = true
-		else
-			warn("[FoodService] PlayerDataService unavailable; Legendary Gift Box reward was not granted.")
-		end
+		table.insert(reward.Items, { Id = "gift_box", Quantity = 1 })
+		hasReward = true
 	end
 
 	-- LuckBoosted affects only this server-side roll; it never changes the diamond amount.
 	local diamondRate = rule.DiamondRate
-	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local luckFlag = stateService and stateService:GetFlag(player, "LuckBoosted")
 	local luckPercent = luckFlag and luckFlag.Data and tonumber(luckFlag.Data.DiamondDropChanceBonusPercent) or 0
 	diamondRate = math.clamp(diamondRate * (1 + math.max(0, luckPercent) / 100), 0, 1)
 	if diamondRate > 0 and rule.DiamondAmount > 0 and math.random() <= diamondRate then
-		if dataService and typeof(dataService.GrantReward) == "function" then
-			dataService:GrantReward(player, { Diamonds = rule.DiamondAmount }, "FoodConsumed")
-			grantedReward = true
-		end
+		reward.Diamonds = rule.DiamondAmount
+		hasReward = true
 	end
 
-	if grantedReward then
+	if hasReward and dataService and typeof(dataService.GrantReward) == "function" then
+		local reason = if rule.Type == "Legendary" then "LegendaryFoodLastHit" else "FoodConsumed"
+		dataService:GrantReward(player, reward, reason)
 		if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
 			stateService:RecalculateDerivedStats(player, false)
 		end
@@ -678,6 +676,8 @@ function FoodService:_rewardFoodKill(entry: any)
 		if itemService and typeof(itemService.PublishInventory) == "function" then
 			itemService:PublishInventory(player)
 		end
+	elseif hasReward and rule.Type == "Legendary" then
+		warn("[FoodService] PlayerDataService unavailable; Legendary Gift Box reward was not granted.")
 	end
 end
 
