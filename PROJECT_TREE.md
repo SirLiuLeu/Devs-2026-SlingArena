@@ -843,7 +843,7 @@ Notes:
 
 - Bomb placement plays two spatial `SFX_Beep` cues; detonation plays spatial `SFX_ExplosionBomb`. The client preloads Explosion/Hurt/Reward one-shots through `SoundManager.Preload` to avoid first-play asset loading delay. Bomb is allowed to damage teammates and ignores walls; damage scales down by at most 20% across the blast radius.
 - Bomb victims enter the shared `Knockback` movement state before the impulse is replicated; Launcher locomotion is suspended until the state exits. Human mode returns to `Human` when knockback settles or times out.
-- `SFX_Hurt` is driven by authoritative `DamageTaken` feedback rather than HP snapshot differences. Server-granted rewards emit `RewardReceived` feedback and play `SFX_Success`; successful `hp_potion` consumption retains `SFX_Item_HealthPotion`, while other item use remains quiet.
+- `SFX_Hurt` is driven by authoritative `DamageTaken` feedback rather than HP snapshot differences. Server-granted rewards emit `RewardReceived` feedback and play `SFX_Success`, excluding Shop purchases and Quest claims that already have their own success feedback; Daily Login and Online Reward mock claims retain their existing single UI success cue. Successful `hp_potion` consumption retains `SFX_Item_HealthPotion`, while other item use remains quiet.
 - Gift Box rewards are server-rolled from `GiftBoxConfig.lua` and grant either Diamonds or an item defined in `ItemConfig.lua`. Last-hitting Legendary Food grants one Gift Box.
 
 ## Audio collision SFX update (2026-10-29)
