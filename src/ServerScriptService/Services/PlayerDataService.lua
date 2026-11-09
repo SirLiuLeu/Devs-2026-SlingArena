@@ -9,8 +9,9 @@ local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
 local RarityConfig = require(ReplicatedStorage.Shared.Config.RarityConfig)
 local MockProvider = require(script.Parent.DataProviders.MockProvider)
 local PetsUpgradeConfig = require(ReplicatedStorage.Shared.Config.PetsUpgradeConfig)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
-type Context = { EventBus: any?, Services: any?, ServiceRegistry: any? }
+type Context = { EventBus: any?, Services: any?, ServiceRegistry: any?, Remotes: Folder? }
 
 local PlayerDataService = {}
 PlayerDataService.__index = PlayerDataService
@@ -364,6 +365,14 @@ function PlayerDataService:GrantReward(player: Player, reward: any, reason: stri
 	end)
 	if self._context.EventBus then
 		self._context.EventBus:Fire("PlayerRewardGranted", player, reward, reason)
+	end
+
+	local feedbackRemote = self._context.Remotes and self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
+	if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
+		feedbackRemote:FireClient(player, {
+			EventType = "RewardReceived",
+			Payload = { Reward = reward, Reason = reason },
+		})
 	end
 end
 
