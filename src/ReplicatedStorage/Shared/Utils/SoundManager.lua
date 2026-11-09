@@ -236,18 +236,24 @@ function SoundManager.Preload(soundName: string): boolean
 	preloadSound.Volume = 0
 	preloadSound.Parent = SoundService
 
+	local loadedSuccessfully = false
 	local ok, err = pcall(function()
-		ContentProvider:PreloadAsync({ preloadSound })
+		ContentProvider:PreloadAsync({ preloadSound }, function(_assetId, fetchStatus)
+			if fetchStatus == Enum.AssetFetchStatus.Success then
+				loadedSuccessfully = true
+			end
+		end)
 	end)
 	preloadSound:Destroy()
 	preloading[soundName] = nil
 
-	if ok then
+	if ok and loadedSuccessfully then
 		preloaded[soundName] = true
 	else
-		warnOnce("preload:" .. soundName, "Unable to preload '" .. soundName .. "': " .. tostring(err))
+		local failureReason = if ok then "asset fetch did not report Success" else tostring(err)
+		warnOnce("preload:" .. soundName, "Unable to preload '" .. soundName .. "': " .. failureReason)
 	end
-	return ok
+	return ok and loadedSuccessfully
 end
 
 function SoundManager.Play(soundName: string, parentOrPosition: any?, overrides: SoundDescriptor?): Sound?
