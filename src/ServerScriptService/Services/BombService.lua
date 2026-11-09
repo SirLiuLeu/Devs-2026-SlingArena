@@ -192,7 +192,18 @@ function BombService:TryPlaceBomb(player: Player): (boolean, string?)
 	self._activeBombs[player] = self._activeBombs[player] or {}
 	self._activeBombs[player][bomb] = true
 
-	task.delay(math.max(0.1, config.FuseTime or 3), function()
+	local fuseTime = math.max(0.1, tonumber(config.FuseTime) or 3)
+	local explosionSoundLeadTime = math.clamp(
+		tonumber(config.ExplosionSoundLeadTime) or 0.5,
+		0,
+		math.max(0, fuseTime - 0.05)
+	)
+	task.delay(math.max(0.05, fuseTime - explosionSoundLeadTime), function()
+		if bomb.Parent and bomb:GetAttribute("BombDetonated") ~= true and bombRoot.Parent then
+			SoundManager.Play("SFX_ExplosionBomb", bombRoot.Position)
+		end
+	end)
+	task.delay(fuseTime, function()
 		self:_detonate(player, bomb, bombRoot, config)
 	end)
 	return true, nil
@@ -333,6 +344,12 @@ function BombService:_applyBlast(owner: Player, center: Vector3, config: any)
 					outwardDirection = outwardDirection.Unit
 				end
 				local knockback = if knockbackSpeed > 0 then outwardDirection * knockbackSpeed else nil
+				if knockback and stateService.ForceSetMovementState and stateService.RecordKnockbackImpact then
+					-- Put the victim into the same server-owned Knockback lifecycle used
+					-- by Launcher-vs-Launcher collisions before replicating the impulse.
+					stateService:ForceSetMovementState(victim, GameStates.PlayerState.Knockback)
+					stateService:RecordKnockbackImpact(victim, outwardDirection, os.clock(), knockbackSpeed)
+				end
 				-- The owner still takes the blast damage, but is not credited with a
 				-- self-kill. Other victims retain normal Bomb owner attribution.
 				local attacker = if victim == owner then nil else owner
@@ -383,7 +400,6 @@ function BombService:_detonate(owner: Player, bomb: Model, bombRoot: BasePart, c
 		end
 	end
 
-	SoundManager.Play("SFX_ExplosionBomb", blastPosition)
 	self:_activateExplosionVfx(blastPosition, tonumber(config.ExplosionParticleEmitCount) or 28)
 	self:_spawnExplosionRing(blastPosition, config)
 	self:_applyBlast(owner, blastPosition, config)
