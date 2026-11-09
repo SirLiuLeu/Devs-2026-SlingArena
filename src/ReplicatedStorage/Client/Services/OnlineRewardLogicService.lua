@@ -4,7 +4,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MockData = require(ReplicatedStorage.Client.Services.MockData)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
-local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 local OnlineRewardLogicService = {}
 OnlineRewardLogicService.__index = OnlineRewardLogicService
@@ -157,7 +156,6 @@ function OnlineRewardLogicService:ClaimReward(rewardId: string): boolean
 	slot.remaining = 0
 	MockPlayerData.GrantReward(slot.rewardType, slot.amount, slot.itemId, "OnlineRewardClaim")
 	self:_emitChanged()
-	SoundManager.Play("SFX_Success")
 	return true
 end
 
@@ -173,7 +171,6 @@ function OnlineRewardLogicService:ClaimAllReady(): number
 	end
 	if claimed > 0 then
 		self:_emitChanged()
-		SoundManager.Play("SFX_Success")
 	end
 	return claimed
 end
