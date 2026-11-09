@@ -371,7 +371,7 @@ function PlayerDataService:GrantReward(player: Player, reward: any, reason: stri
 	-- success cue. Avoid sending a second RewardReceived cue for those paths.
 	local reasonText = tostring(reason or "")
 	local hasPurchaseFeedback = reason == "ShopPurchaseDiamonds" or reason == "ShopPurchaseItem"
-		or string.sub(reasonText, 1, 12) == "QuestClaim:"
+		or string.sub(reasonText, 1, 11) == "QuestClaim:"
 	local feedbackRemote = self._context.Remotes and self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
 	if not hasPurchaseFeedback and feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
 		feedbackRemote:FireClient(player, {
