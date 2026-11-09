@@ -26,7 +26,6 @@ export type BombItemConfig = {
 	MaxDamageFalloffPercent: number,
 	KnockbackSpeed: number,
 	BeepInterval: number,
-	ExplosionSoundLeadTime: number,
 }
 
 type ItemDefinition = {
@@ -63,7 +62,6 @@ ItemConfig.Items = {
 			MaxDamageFalloffPercent = 20,
 			KnockbackSpeed = 45,
 			BeepInterval = 0.75,
-			ExplosionSoundLeadTime = 0.5,
 		},
 	},
 	{
