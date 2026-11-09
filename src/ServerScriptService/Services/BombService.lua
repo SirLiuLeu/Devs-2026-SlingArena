@@ -193,16 +193,6 @@ function BombService:TryPlaceBomb(player: Player): (boolean, string?)
 	self._activeBombs[player][bomb] = true
 
 	local fuseTime = math.max(0.1, tonumber(config.FuseTime) or 3)
-	local explosionSoundLeadTime = math.clamp(
-		tonumber(config.ExplosionSoundLeadTime) or 0.5,
-		0,
-		math.max(0, fuseTime - 0.05)
-	)
-	task.delay(math.max(0.05, fuseTime - explosionSoundLeadTime), function()
-		if bomb.Parent and bomb:GetAttribute("BombDetonated") ~= true and bombRoot.Parent then
-			SoundManager.Play("SFX_ExplosionBomb", bombRoot.Position)
-		end
-	end)
 	task.delay(fuseTime, function()
 		self:_detonate(player, bomb, bombRoot, config)
 	end)
@@ -400,6 +390,7 @@ function BombService:_detonate(owner: Player, bomb: Model, bombRoot: BasePart, c
 		end
 	end
 
+	SoundManager.Play("SFX_ExplosionBomb", blastPosition)
 	self:_activateExplosionVfx(blastPosition, tonumber(config.ExplosionParticleEmitCount) or 28)
 	self:_spawnExplosionRing(blastPosition, config)
 	self:_applyBlast(owner, blastPosition, config)
