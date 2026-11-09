@@ -16,7 +16,6 @@ function SFXController.new(player: Player, playerGui: PlayerGui)
 	self._buttonConnections = {}
 	self._lastRoundStartId = nil
 	self._lastVictoryRoundId = nil
-	self._lastKnownHP = nil
 	return self
 end
 
@@ -44,6 +43,12 @@ function SFXController:_handleFeedback(message: any)
 		SoundManager.Play("SFX_Death")
 	elseif eventType == "PlayerKill" then
 		SoundManager.Play("SFX_Kill")
+	elseif eventType == "DamageTaken" then
+		-- Damage feedback is authoritative; StateUpdate HP snapshots can include
+		-- initial spawn/profile reconciliation and must not trigger hurt audio.
+		SoundManager.Play("SFX_Hurt")
+	elseif eventType == "RewardReceived" then
+		SoundManager.Play("SFX_Success")
 	elseif eventType == "LevelUp" then
 		SoundManager.Play("SFX_LevelUp")
 	elseif eventType == "RoundStart" then
@@ -85,19 +90,6 @@ function SFXController:Start()
 	end))
 
 	local remotes = ReplicatedStorage:FindFirstChild("LauncherArenaRemotes")
-	local stateUpdateRemote = remotes and remotes:FindFirstChild(RemoteContracts.Names.StateUpdate)
-	if stateUpdateRemote and stateUpdateRemote:IsA("RemoteEvent") then
-		table.insert(self._connections, stateUpdateRemote.OnClientEvent:Connect(function(state)
-			if type(state) ~= "table" then return end
-			local currentHP = tonumber(state.CurrentHP)
-			if not currentHP then return end
-			if self._lastKnownHP ~= nil and currentHP < self._lastKnownHP then
-				SoundManager.Play("SFX_Hurt")
-			end
-			self._lastKnownHP = currentHP
-		end))
-	end
-
 	local feedbackRemote = remotes and remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
 	if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
 		table.insert(self._connections, feedbackRemote.OnClientEvent:Connect(function(message)
