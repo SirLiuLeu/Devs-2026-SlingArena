@@ -63,11 +63,28 @@ local function currentMondayStamp(now: number): number
 	return os.time(date) - (daysSinceMonday * 24 * 60 * 60)
 end
 
+local function currentUtcDayKey(now: number): number
+	local date = os.date("!*t", now)
+	return date.year * 10000 + date.month * 100 + date.day
+end
+
+local function buildDefaultDailyChain(): { [string]: any }
+	return {
+		Step = 1,
+		CompletedSteps = 0,
+		ActiveQuest = nil,
+		NextQuestAt = 0,
+		CompletedForDay = false,
+		AssignedQuestIds = {},
+	}
+end
+
 function PlayerDataService.new(context: Context, provider: any?)
 	local self = setmetatable({}, PlayerDataService)
 	self._context = context
 	self._provider = provider or MockProvider.new()
 	self._petUpgradeLocks = {}
+	self._dailyQuestLocks = {}
 	return self
 end
 
@@ -84,9 +101,11 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 			LastWeeklyRewardAt = 0,
 		},
 		QuestState = {
-			DailyResetAt = 0,
+			DailySchemaVersion = 1,
+			DailyResetKey = 0,
 			Metrics = {},
 			Claimed = {},
+			DailyChain = buildDefaultDailyChain(),
 		},
 		Diamonds = 0,
 		OwnedItems = {},
@@ -292,23 +311,45 @@ function PlayerDataService:_ensureQuestData(data: { [string]: any }, currentDay:
 		questState = {}
 		data.QuestState = questState
 	end
-	questState.DailyResetAt = tonumber(questState.DailyResetAt) or currentDay
-	if questState.DailyResetAt < currentDay then
-		questState.DailyResetAt = currentDay
+
+	local storedDayKey = tonumber(questState.DailyResetKey) or 0
+	local schemaChanged = tonumber(questState.DailySchemaVersion) ~= 1
+	local dayChanged = currentDay > 0 and storedDayKey ~= currentDay
+	if schemaChanged or dayChanged then
+		-- The old multi-list Daily/Main quest schema is intentionally retired.
+		-- Weekly ProgressPoints are separate and are not touched by this migration.
+		questState.Metrics = {}
 		questState.Claimed = {}
-		local metrics = questState.Metrics
-		if type(metrics) == "table" then
-			metrics.OnlineTime = 0
-			metrics.CollectPoints = 0
-			metrics.DealDamage = 0
-			metrics.CollectFoodRarity = 0
-		end
+		questState.DailyChain = buildDefaultDailyChain()
 	end
+
+	questState.DailySchemaVersion = 1
+	if currentDay > 0 then
+		questState.DailyResetKey = currentDay
+	elseif type(questState.DailyResetKey) ~= "number" then
+		questState.DailyResetKey = storedDayKey
+	end
+
 	if type(questState.Metrics) ~= "table" then
 		questState.Metrics = {}
 	end
 	if type(questState.Claimed) ~= "table" then
 		questState.Claimed = {}
+	end
+	if type(questState.DailyChain) ~= "table" then
+		questState.DailyChain = buildDefaultDailyChain()
+	end
+
+	local chain = questState.DailyChain
+	chain.Step = math.clamp(math.floor(tonumber(chain.Step) or 1), 1, 5)
+	chain.CompletedSteps = math.clamp(math.floor(tonumber(chain.CompletedSteps) or 0), 0, 5)
+	chain.NextQuestAt = math.max(0, math.floor(tonumber(chain.NextQuestAt) or 0))
+	chain.CompletedForDay = chain.CompletedForDay == true or chain.CompletedSteps >= 5
+	if type(chain.AssignedQuestIds) ~= "table" then
+		chain.AssignedQuestIds = {}
+	end
+	if type(chain.ActiveQuest) ~= "table" then
+		chain.ActiveQuest = nil
 	end
 end
 
@@ -321,20 +362,20 @@ function PlayerDataService:EnsureQuestData(player: Player, currentDay: number): 
 end
 
 function PlayerDataService:IncrementQuestMetric(player: Player, metricName: string, amount: number): number
-	local add = math.max(0, math.floor(amount))
+	local add = math.max(0, tonumber(amount) or 0)
 	local updated = self:UpdateData(player, function(data)
-		self:_ensureQuestData(data, 0)
+		self:_ensureQuestData(data, currentUtcDayKey(os.time()))
 		local metrics = data.QuestState.Metrics
-		metrics[metricName] = math.max(0, math.floor(tonumber(metrics[metricName]) or 0)) + add
+		metrics[metricName] = math.max(0, tonumber(metrics[metricName]) or 0) + add
 		return data
 	end)
 	return updated.QuestState.Metrics[metricName]
 end
 
 function PlayerDataService:SetQuestMetric(player: Player, metricName: string, value: number): number
-	local normalized = math.max(0, math.floor(value))
+	local normalized = math.max(0, tonumber(value) or 0)
 	local updated = self:UpdateData(player, function(data)
-		self:_ensureQuestData(data, 0)
+		self:_ensureQuestData(data, currentUtcDayKey(os.time()))
 		data.QuestState.Metrics[metricName] = normalized
 		return data
 	end)
@@ -343,10 +384,166 @@ end
 
 function PlayerDataService:MarkQuestClaimed(player: Player, questId: string)
 	self:UpdateData(player, function(data)
-		self:_ensureQuestData(data, 0)
+		self:_ensureQuestData(data, currentUtcDayKey(os.time()))
 		data.QuestState.Claimed[questId] = true
 		return data
 	end)
+end
+
+function PlayerDataService:SetDailyQuestAssignment(player: Player, assignment: { [string]: any }, expectedNextQuestAt: number): boolean
+	if type(assignment) ~= "table" or type(assignment.AssignmentId) ~= "string" or type(assignment.QuestId) ~= "string" then
+		return false
+	end
+
+	local committed = false
+	self:UpdateData(player, function(data)
+		self:_ensureQuestData(data, currentUtcDayKey(os.time()))
+		local chain = data.QuestState.DailyChain
+		if chain.CompletedForDay == true or chain.ActiveQuest ~= nil then
+			return data
+		end
+		if (tonumber(chain.NextQuestAt) or 0) ~= math.max(0, math.floor(expectedNextQuestAt)) then
+			return data
+		end
+		if (tonumber(chain.NextQuestAt) or 0) > os.time() then
+			return data
+		end
+
+		chain.ActiveQuest = assignment
+		chain.NextQuestAt = 0
+		chain.Step = math.clamp(math.floor(tonumber(assignment.Step) or chain.Step), 1, 5)
+		chain.AssignedQuestIds[assignment.QuestId] = true
+		committed = true
+		return data
+	end)
+	return committed
+end
+
+function PlayerDataService:SkipDailyQuest(player: Player, expectedAssignmentId: string, nextQuestAt: number): (boolean, string?)
+	local userId = player.UserId
+	if self._dailyQuestLocks[userId] then
+		return false, "RequestPending"
+	end
+	self._dailyQuestLocks[userId] = true
+
+	local committed = false
+	local failureReason = "StaleQuest"
+	self:UpdateData(player, function(data)
+		self:_ensureQuestData(data, currentUtcDayKey(os.time()))
+		local chain = data.QuestState.DailyChain
+		local active = chain.ActiveQuest
+		if chain.CompletedForDay == true or type(active) ~= "table" or active.AssignmentId ~= expectedAssignmentId then
+			failureReason = "StaleQuest"
+			return data
+		end
+
+		local metrics = data.QuestState.Metrics
+		local current = math.max(0, tonumber(metrics[active.MetricKey]) or 0)
+		local baseline = math.max(0, tonumber(active.Baseline) or 0)
+		local target = math.max(1, tonumber(active.Target) or 1)
+		if current - baseline >= target then
+			failureReason = "AlreadyReady"
+			return data
+		end
+
+		chain.ActiveQuest = nil
+		chain.NextQuestAt = math.max(os.time() + 1, math.floor(nextQuestAt))
+		committed = true
+		failureReason = nil
+		return data
+	end)
+
+	self._dailyQuestLocks[userId] = nil
+	return committed, failureReason
+end
+
+function PlayerDataService:CommitDailyQuestClaim(
+	player: Player,
+	expectedAssignmentId: string,
+	expectedQuestId: string,
+	reward: any,
+	nextAssignment: { [string]: any }?,
+	maxDailySteps: number
+): (boolean, string?)
+	local userId = player.UserId
+	if self._dailyQuestLocks[userId] then
+		return false, "RequestPending"
+	end
+	self._dailyQuestLocks[userId] = true
+
+	local committed = false
+	local failureReason = "StaleQuest"
+	local safeReward = if type(reward) == "table" then reward else {}
+	self:UpdateData(player, function(data)
+		self:_ensureQuestData(data, currentUtcDayKey(os.time()))
+		self:_ensurePetData(data)
+		local chain = data.QuestState.DailyChain
+		local active = chain.ActiveQuest
+		if type(active) ~= "table" or active.AssignmentId ~= expectedAssignmentId or active.QuestId ~= expectedQuestId then
+			failureReason = "StaleQuest"
+			return data
+		end
+		if chain.CompletedForDay == true then
+			failureReason = "AlreadyCompleted"
+			return data
+		end
+
+		local metrics = data.QuestState.Metrics
+		local current = math.max(0, tonumber(metrics[active.MetricKey]) or 0)
+		local baseline = math.max(0, tonumber(active.Baseline) or 0)
+		local target = math.max(1, tonumber(active.Target) or 1)
+		if current - baseline < target then
+			failureReason = "NotReady"
+			return data
+		end
+
+		local completedSteps = math.min(math.max(0, math.floor(tonumber(chain.CompletedSteps) or 0)) + 1, maxDailySteps)
+		chain.CompletedSteps = completedSteps
+		if completedSteps >= maxDailySteps then
+			chain.Step = maxDailySteps
+			chain.ActiveQuest = nil
+			chain.NextQuestAt = 0
+			chain.CompletedForDay = true
+		else
+			if type(nextAssignment) ~= "table" or type(nextAssignment.AssignmentId) ~= "string" then
+				failureReason = "NextQuestUnavailable"
+				return data
+			end
+			chain.Step = math.clamp(math.floor(tonumber(nextAssignment.Step) or (completedSteps + 1)), 1, maxDailySteps)
+			chain.ActiveQuest = nextAssignment
+			chain.NextQuestAt = 0
+			chain.CompletedForDay = false
+			chain.AssignedQuestIds[nextAssignment.QuestId] = true
+		end
+
+		local diamonds = math.max(0, math.floor(tonumber(safeReward.Diamonds or safeReward.diamonds) or 0))
+		data.Diamonds = math.max(0, math.floor(tonumber(data.Diamonds) or 0)) + diamonds
+		for _, itemReward in ipairs(safeReward.Items or safeReward.items or {}) do
+			local itemId = tostring(itemReward.Id or itemReward.ItemId or itemReward.id or "")
+			if itemId ~= "" then
+				local quantity = math.max(1, math.floor(tonumber(itemReward.Quantity or itemReward.Amount or itemReward.quantity) or 1))
+				data.OwnedItems[itemId] = math.max(0, math.floor(tonumber(data.OwnedItems[itemId]) or 0)) + quantity
+			end
+		end
+
+		committed = true
+		failureReason = nil
+		return data
+	end)
+
+	self._dailyQuestLocks[userId] = nil
+	if not committed then
+		return false, failureReason
+	end
+
+	if self._context.EventBus then
+		self._context.EventBus:Fire("PlayerRewardGranted", player, safeReward, "DailyQuestClaim")
+	end
+	local stateService = self._context.Services and self._context.Services.PlayerStateService
+	if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
+		stateService:RecalculateDerivedStats(player, false)
+	end
+	return true, nil
 end
 
 function PlayerDataService:GrantReward(player: Player, reward: any, reason: string?)
