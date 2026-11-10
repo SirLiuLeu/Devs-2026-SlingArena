@@ -400,6 +400,12 @@ function PlayerDataService:SetDailyQuestAssignment(player: Player, assignment: {
 			return data
 		end
 
+		-- Capture the baseline inside the same data mutation that commits the
+		-- assignment, so a metric event cannot slip between selection and issue.
+		if type(data.QuestState.Metrics) ~= "table" then
+			data.QuestState.Metrics = {}
+		end
+		assignment.Baseline = math.max(0, tonumber(data.QuestState.Metrics[assignment.MetricKey]) or 0)
 		chain.ActiveQuest = assignment
 		chain.NextQuestAt = 0
 		chain.Step = math.clamp(math.floor(tonumber(assignment.Step) or chain.Step), 1, 5)
