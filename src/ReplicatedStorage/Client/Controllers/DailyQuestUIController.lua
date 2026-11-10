@@ -57,6 +57,7 @@ function DailyQuestUIController.new(playerGui: PlayerGui)
 	self._lastAssignmentId = nil
 	self._pendingSkip = false
 	self._toggleIconsReady = false
+	self._toggleIconLoadFailed = false
 	self._timeAccumulator = 0
 	return self
 end
@@ -108,7 +109,7 @@ function DailyQuestUIController:_resolveUi(): boolean
 	local hasToggleIconPair = normalizeImageId(TOGGLE_EXPANDED_ICON_ID) ~= nil
 		and normalizeImageId(TOGGLE_COLLAPSED_ICON_ID) ~= nil
 	if self._toggleButton then
-		self._toggleButton.Visible = self._toggleIconsReady or not hasToggleIconPair
+		self._toggleButton.Visible = self._toggleIconsReady or self._toggleIconLoadFailed or not hasToggleIconPair
 	end
 
 	if not self._rootBody or not self._rootBody:IsA("Frame") then
@@ -257,7 +258,11 @@ function DailyQuestUIController:_preloadToggleIcons()
 		preloadGui:Destroy()
 
 		if not ok or loadedAssets < #preloadImages then
-			warn(string.format("[DailyQuestUI] Both toggle icons must preload successfully before switching. loaded=%d/%d error=%s", loadedAssets, #preloadImages, tostring(err)))
+			warn(string.format("[DailyQuestUI] Toggle icon preload failed; retaining the Studio-authored image. loaded=%d/%d error=%s", loadedAssets, #preloadImages, tostring(err)))
+			self._toggleIconLoadFailed = true
+			if self._toggleButton and self._toggleButton.Parent then
+				self._toggleButton.Visible = true
+			end
 			return
 		end
 
