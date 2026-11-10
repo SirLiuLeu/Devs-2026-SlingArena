@@ -643,7 +643,7 @@ DataModel
 │  │     │     ├─ ToggleDropdown (TextButton)
 │  │     │     │  ├─ OpenIcon (ImageLabel)
 │  │     │     │  └─ ClosedIcon (ImageLabel)
-│  │     │     └─ NotificationIIcon (ImageLabel)
+│  │     │     └─ NotificationIcon (ImageLabel)
 │  │     ├─ LeftMenu
 │  │     │  ├─ DailyButton (ImageButton)
 │  │     │  ├─ InventoryButton (ImageButton)
