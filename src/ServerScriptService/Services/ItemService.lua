@@ -190,6 +190,9 @@ function ItemService:TryConsume(player: Player, itemId: string): (boolean, strin
 	cooldowns[itemId] = now + math.max(0, item.useCooldown or 0)
 	self:_publishInventory(player)
 	self:_feedback(player, itemId, "Consumed", cooldowns[itemId], if giftBoxReward then { Reward = giftBoxReward } else nil)
+	if itemId == "hp_potion" and self._context.EventBus then
+		self._context.EventBus:Fire("DailyQuestHpPotionUsed", player)
+	end
 	return true, nil
 end
 
