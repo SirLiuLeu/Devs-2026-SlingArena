@@ -64,6 +64,15 @@ local function getRelativePath(root: Instance, descendant: Instance): string?
 	return table.concat(segments, ".")
 end
 
+local function isDailyQuestFallbackPath(expectedPath: string): boolean
+	local prefix = DAILY_QUEST_ROOT_PATH .. "."
+	if string.sub(expectedPath, 1, #prefix) ~= prefix then
+		return false
+	end
+	local targetName = string.match(expectedPath, "([^.]+)$")
+	return targetName ~= nil and DAILY_QUEST_FALLBACK_NAMES[targetName] == true
+end
+
 local function resolveDailyQuestFallbackPath(playerGui: PlayerGui, expectedPath: string): string?
 	local prefix = DAILY_QUEST_ROOT_PATH .. "."
 	if string.sub(expectedPath, 1, #prefix) ~= prefix then
@@ -146,10 +155,11 @@ task.spawn(function()
 		local resolvedRoot = resolvedRoots[rootName]
 		local resolved = if resolvedRoot then PathResolver.resolvePath(playerGui, path, { shouldWarn = false }) else nil
 		local bindingPath = path
+		local isDynamicDailyQuestPath = isDailyQuestFallbackPath(path)
 		if resolved == nil and resolvedRoot then
 			bindingPath = resolveDailyQuestFallbackPath(playerGui, path) or path
 		end
-		if resolved == nil and bindingPath == path then
+		if resolved == nil and bindingPath == path and not isDynamicDailyQuestPath then
 			warn(string.format("[UIBinder] UI path '%s' was unavailable after bounded resolution; binding will remain retryable.", path))
 		end
 
