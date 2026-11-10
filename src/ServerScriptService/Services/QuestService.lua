@@ -333,15 +333,29 @@ function QuestService:_chooseQuest(stepIndex: number, state: any): any?
 	local assignedIds = state.DailyChain and state.DailyChain.AssignedQuestIds or {}
 	local aliveArenaLauncherCount = self:_getAliveArenaLauncherCount()
 	local available = {}
+	local eligibleFallback = {}
 	for _, quest in ipairs(step.QuestPool) do
-		local hasEnoughTargets = quest.Type ~= "KillPlayers"
-			or aliveArenaLauncherCount >= (math.max(1, math.floor(tonumber(quest.Target) or 1)) + 1)
-		if type(quest) == "table" and type(quest.Id) == "string"
-			and assignedIds[quest.Id] ~= true and hasEnoughTargets then
-			table.insert(available, quest)
+		if type(quest) == "table" and type(quest.Id) == "string" then
+			local target = math.max(1, math.floor(tonumber(quest.Target) or 1))
+			local hasEnoughTargets = quest.Type ~= "KillPlayers" or aliveArenaLauncherCount >= (target + 1)
+			if hasEnoughTargets then
+				table.insert(eligibleFallback, quest)
+				if assignedIds[quest.Id] ~= true then
+					table.insert(available, quest)
+				end
+			end
 		end
 	end
-	local pool = if #available > 0 then available else step.QuestPool
+
+	-- A KillPlayers task is not assignable when the active Arena roster cannot
+	-- provide enough opponents. Reuse a non-kill task if this step's alternatives
+	-- have already been used by repeated skips.
+	local pool = if #available > 0 then available else eligibleFallback
+	if #pool == 0 then
+		warn(string.format("[QuestService] No eligible quest in daily step %d.", stepIndex))
+		return nil
+	end
+
 	local selected = pool[math.random(1, #pool)]
 	return {
 		QuestId = selected.Id,
