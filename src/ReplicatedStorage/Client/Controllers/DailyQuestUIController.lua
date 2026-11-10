@@ -551,14 +551,8 @@ function DailyQuestUIController:_handleClaimResult(result: any)
 		return
 	end
 	if result.Success == true then
+		-- NotificationService already displays the authoritative DiamondReward toast.
 		SoundManager.Play("SFX_Success")
-		if self._toastController then
-			local diamonds = tonumber(result.Reward and result.Reward.Diamonds) or 0
-			self._toastController:Enqueue({
-				Text = string.format("Đã nhận nhiệm vụ và %d kim cương.", diamonds),
-				Toast = true,
-			})
-		end
 	else
 		if self._toastController then
 			self._toastController:Enqueue({
