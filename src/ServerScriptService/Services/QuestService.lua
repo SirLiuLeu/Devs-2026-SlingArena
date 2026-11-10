@@ -27,7 +27,8 @@ local WEEKLY_REWARD_TIERS = {
 }
 
 local function currentDayKey(now: number): number
-	local date = os.date("!*t", now)
+	local resetOffsetHours = tonumber(DAILY_CHAIN.ResetUtcOffsetHours) or 0
+	local date = os.date("!*t", now + (resetOffsetHours * 60 * 60))
 	return date.year * 10000 + date.month * 100 + date.day
 end
 
@@ -215,7 +216,6 @@ function QuestService:_processPlayers()
 			self._nextDailyCheckAt[userId] = now + 60
 			local previousDayKey = questState and questState.DailyResetKey
 			local normalizedState = self:EnsurePlayerQuestState(player)
-			local currentKey = currentDayKey(now)
 			if normalizedState and normalizedState.DailyResetKey ~= previousDayKey then
 				self:_ensureActiveQuest(player)
 				self:SendSnapshot(player)
@@ -228,7 +228,10 @@ function QuestService:_processPlayers()
 			end
 		end
 
-		if chain and (tonumber(chain.NextQuestAt) or 0) > 0 and now >= (tonumber(chain.NextQuestAt) or 0) then
+		local refreshedData = playerDataService:GetData(player)
+		local refreshedChain = refreshedData and refreshedData.QuestState and refreshedData.QuestState.DailyChain
+		if refreshedChain and (tonumber(refreshedChain.NextQuestAt) or 0) > 0
+			and now >= (tonumber(refreshedChain.NextQuestAt) or 0) then
 			if self:_ensureActiveQuest(player) then
 				self:SendSnapshot(player)
 			end
