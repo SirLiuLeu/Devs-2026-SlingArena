@@ -10,7 +10,6 @@ local ProjectTreeSpec = {
 			StartSafeZoneButton = "UnitTestUI.RootFrame.StartSafeZoneButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.StartSafeZoneButton
 			Plus1MinuteButton = "UnitTestUI.RootFrame.Plus1Minute", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.Plus1Minute
 			LevelUp5Button = "UnitTestUI.RootFrame.LevelUp5", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.LevelUp5
-			ShowStatsButton = "UnitTestUI.RootFrame.ShowStats", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.ShowStats
 			DebugResetButton = "UnitTestUI.RootFrame.DebugReset", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.DebugReset
 			EndRoundButton = "UnitTestUI.RootFrame.EndRoundButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.EndRoundButton
 		},
@@ -208,6 +207,11 @@ local ProjectTreeSpec = {
 			CooldownOverlayLeftFill = "LauncherControlUI.JoystickRoot.CooldownOverlay.LeftHalf.Clip.Fill", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.JoystickRoot.CooldownOverlay.LeftHalf.Clip.Fill
 			CooldownOverlayRightFill = "LauncherControlUI.JoystickRoot.CooldownOverlay.RightHalf.Clip.Fill", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.JoystickRoot.CooldownOverlay.RightHalf.Clip.Fill
 			CooldownText = "LauncherControlUI.JoystickRoot.CooldownText", -- [PROJECT_TREE_SPEC] StarterGui.LauncherControlUI.JoystickRoot.CooldownText
+		},
+	},
+	OptionalUI = {
+		Lobby = {
+			ShowStatsButton = "UnitTestUI.RootFrame.ShowStats", -- Optional debug-only stats button; absence is valid.
 		},
 	},
 	SharedModules = {
