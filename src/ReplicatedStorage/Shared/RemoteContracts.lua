@@ -48,6 +48,7 @@ RemoteContracts.Names = {
 	ClockSyncResponse = "ClockSyncResponse",
 	QuestUpdate = "QuestUpdate",
 	QuestClaim = "QuestClaim",
+	QuestSkip = "QuestSkip",
 	Notification = "Notification",
 	EquipPet = "EquipPet",
 	UnequipPet = "UnequipPet",
@@ -174,8 +175,11 @@ RemoteContracts.Validators = {
 	[RemoteContracts.Names.ClockSyncRequest] = function(clientSendTime: any): boolean
 		return typeof(clientSendTime) == "number"
 	end,
-	[RemoteContracts.Names.QuestClaim] = function(questId: any): boolean
-		return typeof(questId) == "string" and #questId > 0 and #questId <= 80
+	[RemoteContracts.Names.QuestClaim] = function(assignmentId: any): boolean
+		return typeof(assignmentId) == "string" and #assignmentId > 0 and #assignmentId <= 80
+	end,
+	[RemoteContracts.Names.QuestSkip] = function(assignmentId: any): boolean
+		return typeof(assignmentId) == "string" and #assignmentId > 0 and #assignmentId <= 80
 	end,
 	[RemoteContracts.Names.EquipPet] = function(instanceId: any): boolean
 		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
