@@ -640,8 +640,10 @@ DataModel
 │  │     │     │  │  └─ UIAspectRatioConstraint (UIAspectRatioConstraint)
 │  │     │     │  ├─ ProgressLabel (TextLabel)
 │  │     │     │  └─ TaskDescriptionLabel (TextLabel)
-│  │     │     ├─ ToggleDropdown (ImageButton)
-│  │     │     └─ NotificationIIcon (ImageLabel)
+│  │     │     ├─ ToggleDropdown (TextButton)
+│  │     │     │  ├─ OpenIcon (ImageLabel)
+│  │     │     │  └─ ClosedIcon (ImageLabel)
+│  │     │     └─ NotificationIcon (ImageLabel)
 │  │     ├─ LeftMenu
 │  │     │  ├─ DailyButton (ImageButton)
 │  │     │  ├─ InventoryButton (ImageButton)
