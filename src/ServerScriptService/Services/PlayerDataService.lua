@@ -419,6 +419,7 @@ function PlayerDataService:SkipDailyQuest(player: Player, expectedAssignmentId: 
 
 	local committed = false
 	local failureReason = "StaleQuest"
+	local updateOk, updateError = pcall(function()
 	self:UpdateData(player, function(data)
 		self:_ensureQuestData(data, currentDailyDayKey(os.time()))
 		local chain = data.QuestState.DailyChain
@@ -444,7 +445,13 @@ function PlayerDataService:SkipDailyQuest(player: Player, expectedAssignmentId: 
 		return data
 	end)
 
+	end)
+
 	self._dailyQuestLocks[userId] = nil
+	if not updateOk then
+		warn(string.format("[PlayerDataService] SkipDailyQuest update failed for userId=%d: %s", userId, tostring(updateError)))
+		return false, "DataUpdateFailed"
+	end
 	return committed, failureReason
 end
 
@@ -465,6 +472,7 @@ function PlayerDataService:CommitDailyQuestClaim(
 	local committed = false
 	local failureReason = "StaleQuest"
 	local safeReward = if type(reward) == "table" then reward else {}
+	local updateOk, updateError = pcall(function()
 	self:UpdateData(player, function(data)
 		self:_ensureQuestData(data, currentDailyDayKey(os.time()))
 		self:_ensurePetData(data)
@@ -526,7 +534,13 @@ function PlayerDataService:CommitDailyQuestClaim(
 		return data
 	end)
 
+	end)
+
 	self._dailyQuestLocks[userId] = nil
+	if not updateOk then
+		warn(string.format("[PlayerDataService] CommitDailyQuestClaim update failed for userId=%d: %s", userId, tostring(updateError)))
+		return false, "DataUpdateFailed"
+	end
 	if not committed then
 		return false, failureReason
 	end
