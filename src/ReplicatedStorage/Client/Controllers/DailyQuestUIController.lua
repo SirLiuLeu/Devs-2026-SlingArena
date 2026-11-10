@@ -489,7 +489,7 @@ function DailyQuestUIController:_renderCurrentState()
 		setVisible(self._progressLabel, false)
 		setVisible(self._descriptionLabel, true)
 		if self._descriptionLabel and self._descriptionLabel:IsA("TextLabel") then
-			self._descriptionLabel.Text = "Bạn đã hoàn thành 5 nhiệm vụ hôm nay!"
+			self._descriptionLabel.Text = string.format("Bạn đã hoàn thành %d nhiệm vụ hôm nay!", math.max(1, math.floor(tonumber(daily.MaxSteps) or 5)))
 		end
 	else
 		local safeQuest = type(quest) == "table" and quest or {}
