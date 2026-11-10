@@ -420,31 +420,31 @@ function PlayerDataService:SkipDailyQuest(player: Player, expectedAssignmentId: 
 	local committed = false
 	local failureReason = "StaleQuest"
 	local updateOk, updateError = pcall(function()
-	self:UpdateData(player, function(data)
-		self:_ensureQuestData(data, currentDailyDayKey(os.time()))
-		local chain = data.QuestState.DailyChain
-		local active = chain.ActiveQuest
-		if chain.CompletedForDay == true or type(active) ~= "table" or active.AssignmentId ~= expectedAssignmentId then
-			failureReason = "StaleQuest"
+		self:UpdateData(player, function(data)
+			self:_ensureQuestData(data, currentDailyDayKey(os.time()))
+			local chain = data.QuestState.DailyChain
+			local active = chain.ActiveQuest
+			if chain.CompletedForDay == true or type(active) ~= "table" or active.AssignmentId ~= expectedAssignmentId then
+				failureReason = "StaleQuest"
+				return data
+			end
+	
+			local metrics = data.QuestState.Metrics
+			local current = math.max(0, tonumber(metrics[active.MetricKey]) or 0)
+			local baseline = math.max(0, tonumber(active.Baseline) or 0)
+			local target = math.max(1, tonumber(active.Target) or 1)
+			if current - baseline >= target then
+				failureReason = "AlreadyReady"
+				return data
+			end
+	
+			chain.ActiveQuest = nil
+			chain.NextQuestAt = math.max(os.time() + 1, math.floor(nextQuestAt))
+			committed = true
+			failureReason = nil
 			return data
-		end
-
-		local metrics = data.QuestState.Metrics
-		local current = math.max(0, tonumber(metrics[active.MetricKey]) or 0)
-		local baseline = math.max(0, tonumber(active.Baseline) or 0)
-		local target = math.max(1, tonumber(active.Target) or 1)
-		if current - baseline >= target then
-			failureReason = "AlreadyReady"
-			return data
-		end
-
-		chain.ActiveQuest = nil
-		chain.NextQuestAt = math.max(os.time() + 1, math.floor(nextQuestAt))
-		committed = true
-		failureReason = nil
-		return data
-	end)
-
+		end)
+	
 	end)
 
 	self._dailyQuestLocks[userId] = nil
@@ -473,67 +473,67 @@ function PlayerDataService:CommitDailyQuestClaim(
 	local failureReason = "StaleQuest"
 	local safeReward = if type(reward) == "table" then reward else {}
 	local updateOk, updateError = pcall(function()
-	self:UpdateData(player, function(data)
-		self:_ensureQuestData(data, currentDailyDayKey(os.time()))
-		self:_ensurePetData(data)
-		local chain = data.QuestState.DailyChain
-		local active = chain.ActiveQuest
-		if type(active) ~= "table" or active.AssignmentId ~= expectedAssignmentId or active.QuestId ~= expectedQuestId then
-			failureReason = "StaleQuest"
-			return data
-		end
-		if chain.CompletedForDay == true then
-			failureReason = "AlreadyCompleted"
-			return data
-		end
-
-		local metrics = data.QuestState.Metrics
-		local current = math.max(0, tonumber(metrics[active.MetricKey]) or 0)
-		local baseline = math.max(0, tonumber(active.Baseline) or 0)
-		local target = math.max(1, tonumber(active.Target) or 1)
-		if current - baseline < target then
-			failureReason = "NotReady"
-			return data
-		end
-
-		local completedSteps = math.min(math.max(0, math.floor(tonumber(chain.CompletedSteps) or 0)) + 1, maxDailySteps)
-		if completedSteps < maxDailySteps and (type(nextAssignment) ~= "table" or type(nextAssignment.AssignmentId) ~= "string") then
-			failureReason = "NextQuestUnavailable"
-			return data
-		end
-		chain.CompletedSteps = completedSteps
-		if completedSteps >= maxDailySteps then
-			chain.Step = maxDailySteps
-			chain.ActiveQuest = nil
-			chain.NextQuestAt = 0
-			chain.CompletedForDay = true
-		else
-			nextAssignment.Baseline = math.max(0, tonumber(metrics[nextAssignment.MetricKey]) or 0)
-			chain.Step = math.clamp(math.floor(tonumber(nextAssignment.Step) or (completedSteps + 1)), 1, maxDailySteps)
-			chain.ActiveQuest = nextAssignment
-			chain.NextQuestAt = 0
-			chain.CompletedForDay = false
-			chain.AssignedQuestIds[nextAssignment.QuestId] = true
-		end
-
-		local diamonds = math.max(0, math.floor(tonumber(safeReward.Diamonds or safeReward.diamonds) or 0))
-		data.Diamonds = math.max(0, math.floor(tonumber(data.Diamonds) or 0)) + diamonds
-		if type(data.OwnedItems) ~= "table" then
-			data.OwnedItems = {}
-		end
-		for _, itemReward in ipairs(safeReward.Items or safeReward.items or {}) do
-			local itemId = tostring(itemReward.Id or itemReward.ItemId or itemReward.id or "")
-			if itemId ~= "" then
-				local quantity = math.max(1, math.floor(tonumber(itemReward.Quantity or itemReward.Amount or itemReward.quantity) or 1))
-				data.OwnedItems[itemId] = math.max(0, math.floor(tonumber(data.OwnedItems[itemId]) or 0)) + quantity
+		self:UpdateData(player, function(data)
+			self:_ensureQuestData(data, currentDailyDayKey(os.time()))
+			self:_ensurePetData(data)
+			local chain = data.QuestState.DailyChain
+			local active = chain.ActiveQuest
+			if type(active) ~= "table" or active.AssignmentId ~= expectedAssignmentId or active.QuestId ~= expectedQuestId then
+				failureReason = "StaleQuest"
+				return data
 			end
-		end
-
-		committed = true
-		failureReason = nil
-		return data
-	end)
-
+			if chain.CompletedForDay == true then
+				failureReason = "AlreadyCompleted"
+				return data
+			end
+	
+			local metrics = data.QuestState.Metrics
+			local current = math.max(0, tonumber(metrics[active.MetricKey]) or 0)
+			local baseline = math.max(0, tonumber(active.Baseline) or 0)
+			local target = math.max(1, tonumber(active.Target) or 1)
+			if current - baseline < target then
+				failureReason = "NotReady"
+				return data
+			end
+	
+			local completedSteps = math.min(math.max(0, math.floor(tonumber(chain.CompletedSteps) or 0)) + 1, maxDailySteps)
+			if completedSteps < maxDailySteps and (type(nextAssignment) ~= "table" or type(nextAssignment.AssignmentId) ~= "string") then
+				failureReason = "NextQuestUnavailable"
+				return data
+			end
+			chain.CompletedSteps = completedSteps
+			if completedSteps >= maxDailySteps then
+				chain.Step = maxDailySteps
+				chain.ActiveQuest = nil
+				chain.NextQuestAt = 0
+				chain.CompletedForDay = true
+			else
+				nextAssignment.Baseline = math.max(0, tonumber(metrics[nextAssignment.MetricKey]) or 0)
+				chain.Step = math.clamp(math.floor(tonumber(nextAssignment.Step) or (completedSteps + 1)), 1, maxDailySteps)
+				chain.ActiveQuest = nextAssignment
+				chain.NextQuestAt = 0
+				chain.CompletedForDay = false
+				chain.AssignedQuestIds[nextAssignment.QuestId] = true
+			end
+	
+			local diamonds = math.max(0, math.floor(tonumber(safeReward.Diamonds or safeReward.diamonds) or 0))
+			data.Diamonds = math.max(0, math.floor(tonumber(data.Diamonds) or 0)) + diamonds
+			if type(data.OwnedItems) ~= "table" then
+				data.OwnedItems = {}
+			end
+			for _, itemReward in ipairs(safeReward.Items or safeReward.items or {}) do
+				local itemId = tostring(itemReward.Id or itemReward.ItemId or itemReward.id or "")
+				if itemId ~= "" then
+					local quantity = math.max(1, math.floor(tonumber(itemReward.Quantity or itemReward.Amount or itemReward.quantity) or 1))
+					data.OwnedItems[itemId] = math.max(0, math.floor(tonumber(data.OwnedItems[itemId]) or 0)) + quantity
+				end
+			end
+	
+			committed = true
+			failureReason = nil
+			return data
+		end)
+	
 	end)
 
 	self._dailyQuestLocks[userId] = nil
