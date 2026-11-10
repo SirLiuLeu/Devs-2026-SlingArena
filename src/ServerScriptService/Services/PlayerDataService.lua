@@ -371,16 +371,6 @@ function PlayerDataService:IncrementQuestMetric(player: Player, metricName: stri
 	return updated.QuestState.Metrics[metricName]
 end
 
-function PlayerDataService:SetQuestMetric(player: Player, metricName: string, value: number): number
-	local normalized = math.max(0, tonumber(value) or 0)
-	local updated = self:UpdateData(player, function(data)
-		self:_ensureQuestData(data, currentDailyDayKey(os.time()))
-		data.QuestState.Metrics[metricName] = normalized
-		return data
-	end)
-	return updated.QuestState.Metrics[metricName]
-end
-
 function PlayerDataService:SetDailyQuestAssignment(player: Player, assignment: { [string]: any }, expectedNextQuestAt: number): boolean
 	if type(assignment) ~= "table" or type(assignment.AssignmentId) ~= "string" or type(assignment.QuestId) ~= "string" then
 		return false
