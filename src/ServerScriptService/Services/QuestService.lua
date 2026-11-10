@@ -345,24 +345,43 @@ function QuestService:_chooseQuest(stepIndex: number, state: any): any?
 		end
 	end
 
-	-- A KillPlayers task is not assignable when the active Arena roster cannot
-	-- provide enough opponents. Reuse a non-kill task if this step's alternatives
-	-- have already been used by repeated skips.
+	-- A kill or Bomb task is not assignable unless the live Arena roster has
+	-- enough opponents. Once the old tasks are exhausted by Skip, reuse the
+	-- eligible pool without changing the 80/20 Food-to-gameplay selection ratio.
 	local pool = if #available > 0 then available else eligibleFallback
 	if #pool == 0 then
 		warn(string.format("[QuestService] No eligible quest in daily step %d.", stepIndex))
 		return nil
 	end
 
-	local totalWeight = 0
+	local foodPool = {}
+	local gameplayPool = {}
 	for _, quest in ipairs(pool) do
+		if quest.Type == "CollectFoodRarity" or quest.Type == "CollectFoodType" then
+			table.insert(foodPool, quest)
+		else
+			table.insert(gameplayPool, quest)
+		end
+	end
+
+	local categoryPool = pool
+	if #foodPool > 0 and #gameplayPool > 0 then
+		categoryPool = if math.random() < 0.8 then foodPool else gameplayPool
+	elseif #foodPool > 0 then
+		categoryPool = foodPool
+	elseif #gameplayPool > 0 then
+		categoryPool = gameplayPool
+	end
+
+	local totalWeight = 0
+	for _, quest in ipairs(categoryPool) do
 		totalWeight += math.max(0, tonumber(quest.Weight) or 1)
 	end
 
 	local selected = nil
 	if totalWeight > 0 then
 		local roll = math.random() * totalWeight
-		for _, quest in ipairs(pool) do
+		for _, quest in ipairs(categoryPool) do
 			roll -= math.max(0, tonumber(quest.Weight) or 1)
 			if roll <= 0 then
 				selected = quest
@@ -370,7 +389,7 @@ function QuestService:_chooseQuest(stepIndex: number, state: any): any?
 			end
 		end
 	end
-	selected = selected or pool[math.random(1, #pool)]
+	selected = selected or categoryPool[math.random(1, #categoryPool)]
 	return {
 		QuestId = selected.Id,
 		AssignmentId = HttpService:GenerateGUID(false),
