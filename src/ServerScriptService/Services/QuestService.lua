@@ -201,7 +201,6 @@ function QuestService:_processPlayers()
 		local userId = player.UserId
 		local data = playerDataService:GetData(player)
 		local questState = data and data.QuestState
-		local chain = questState and questState.DailyChain
 
 		local onlineFlushAt = self._nextOnlineFlushAt[userId] or now + 10
 		if now >= onlineFlushAt then
@@ -284,11 +283,11 @@ function QuestService:_flushOnlineTime(player: Player): boolean
 		return false
 	end
 
-	self._onlineStartedAt[player.UserId] = now
 	local playerDataService = self:_getPlayerDataService()
 	if not playerDataService then
 		return false
 	end
+	self._onlineStartedAt[player.UserId] = now
 	playerDataService:IncrementQuestMetric(player, "OnlineTimeSeconds", elapsed)
 	return true
 end
@@ -310,6 +309,21 @@ function QuestService:_incrementMetric(player: Player, metricName: string, amoun
 	end
 end
 
+function QuestService:_getAliveArenaLauncherCount(): number
+	local playerStateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	if not playerStateService or typeof(playerStateService.IsCombatParticipant) ~= "function" then
+		return 0
+	end
+
+	local count = 0
+	for _, player in ipairs(Players:GetPlayers()) do
+		if playerStateService:IsCombatParticipant(player) then
+			count += 1
+		end
+	end
+	return count
+end
+
 function QuestService:_chooseQuest(stepIndex: number, state: any): any?
 	local step = DAILY_CHAIN.Steps[stepIndex]
 	if type(step) ~= "table" or type(step.QuestPool) ~= "table" or #step.QuestPool == 0 then
@@ -317,9 +331,13 @@ function QuestService:_chooseQuest(stepIndex: number, state: any): any?
 	end
 
 	local assignedIds = state.DailyChain and state.DailyChain.AssignedQuestIds or {}
+	local aliveArenaLauncherCount = self:_getAliveArenaLauncherCount()
 	local available = {}
 	for _, quest in ipairs(step.QuestPool) do
-		if type(quest) == "table" and type(quest.Id) == "string" and assignedIds[quest.Id] ~= true then
+		local hasEnoughTargets = quest.Type ~= "KillPlayers"
+			or aliveArenaLauncherCount >= (math.max(1, math.floor(tonumber(quest.Target) or 1)) + 1)
+		if type(quest) == "table" and type(quest.Id) == "string"
+			and assignedIds[quest.Id] ~= true and hasEnoughTargets then
 			table.insert(available, quest)
 		end
 	end
