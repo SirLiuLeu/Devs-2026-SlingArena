@@ -64,7 +64,7 @@ local function currentMondayStamp(now: number): number
 	return os.time(date) - (daysSinceMonday * 24 * 60 * 60)
 end
 
-local function currentUtcDayKey(now: number): number
+local function currentDailyDayKey(now: number): number
 	local resetOffsetHours = tonumber(QuestConfig.DailyQuestChain.ResetUtcOffsetHours) or 0
 	local date = os.date("!*t", now + (resetOffsetHours * 60 * 60))
 	return date.year * 10000 + date.month * 100 + date.day
@@ -106,8 +106,7 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 			DailySchemaVersion = 1,
 			DailyResetKey = 0,
 			Metrics = {},
-			Claimed = {},
-			DailyChain = buildDefaultDailyChain(),
+						DailyChain = buildDefaultDailyChain(),
 		},
 		Diamonds = 0,
 		OwnedItems = {},
@@ -321,7 +320,7 @@ function PlayerDataService:_ensureQuestData(data: { [string]: any }, currentDay:
 		-- The old multi-list Daily/Main quest schema is intentionally retired.
 		-- Weekly ProgressPoints are separate and are not touched by this migration.
 		questState.Metrics = {}
-		questState.Claimed = {}
+		questState.Claimed = nil
 		questState.DailyChain = buildDefaultDailyChain()
 	end
 
@@ -335,9 +334,7 @@ function PlayerDataService:_ensureQuestData(data: { [string]: any }, currentDay:
 	if type(questState.Metrics) ~= "table" then
 		questState.Metrics = {}
 	end
-	if type(questState.Claimed) ~= "table" then
-		questState.Claimed = {}
-	end
+	questState.Claimed = nil
 	if type(questState.DailyChain) ~= "table" then
 		questState.DailyChain = buildDefaultDailyChain()
 	end
@@ -366,7 +363,7 @@ end
 function PlayerDataService:IncrementQuestMetric(player: Player, metricName: string, amount: number): number
 	local add = math.max(0, tonumber(amount) or 0)
 	local updated = self:UpdateData(player, function(data)
-		self:_ensureQuestData(data, currentUtcDayKey(os.time()))
+		self:_ensureQuestData(data, currentDailyDayKey(os.time()))
 		local metrics = data.QuestState.Metrics
 		metrics[metricName] = math.max(0, tonumber(metrics[metricName]) or 0) + add
 		return data
@@ -377,19 +374,11 @@ end
 function PlayerDataService:SetQuestMetric(player: Player, metricName: string, value: number): number
 	local normalized = math.max(0, tonumber(value) or 0)
 	local updated = self:UpdateData(player, function(data)
-		self:_ensureQuestData(data, currentUtcDayKey(os.time()))
+		self:_ensureQuestData(data, currentDailyDayKey(os.time()))
 		data.QuestState.Metrics[metricName] = normalized
 		return data
 	end)
 	return updated.QuestState.Metrics[metricName]
-end
-
-function PlayerDataService:MarkQuestClaimed(player: Player, questId: string)
-	self:UpdateData(player, function(data)
-		self:_ensureQuestData(data, currentUtcDayKey(os.time()))
-		data.QuestState.Claimed[questId] = true
-		return data
-	end)
 end
 
 function PlayerDataService:SetDailyQuestAssignment(player: Player, assignment: { [string]: any }, expectedNextQuestAt: number): boolean
@@ -399,7 +388,7 @@ function PlayerDataService:SetDailyQuestAssignment(player: Player, assignment: {
 
 	local committed = false
 	self:UpdateData(player, function(data)
-		self:_ensureQuestData(data, currentUtcDayKey(os.time()))
+		self:_ensureQuestData(data, currentDailyDayKey(os.time()))
 		local chain = data.QuestState.DailyChain
 		if chain.CompletedForDay == true or chain.ActiveQuest ~= nil then
 			return data
@@ -431,7 +420,7 @@ function PlayerDataService:SkipDailyQuest(player: Player, expectedAssignmentId: 
 	local committed = false
 	local failureReason = "StaleQuest"
 	self:UpdateData(player, function(data)
-		self:_ensureQuestData(data, currentUtcDayKey(os.time()))
+		self:_ensureQuestData(data, currentDailyDayKey(os.time()))
 		local chain = data.QuestState.DailyChain
 		local active = chain.ActiveQuest
 		if chain.CompletedForDay == true or type(active) ~= "table" or active.AssignmentId ~= expectedAssignmentId then
@@ -477,7 +466,7 @@ function PlayerDataService:CommitDailyQuestClaim(
 	local failureReason = "StaleQuest"
 	local safeReward = if type(reward) == "table" then reward else {}
 	self:UpdateData(player, function(data)
-		self:_ensureQuestData(data, currentUtcDayKey(os.time()))
+		self:_ensureQuestData(data, currentDailyDayKey(os.time()))
 		self:_ensurePetData(data)
 		local chain = data.QuestState.DailyChain
 		local active = chain.ActiveQuest
