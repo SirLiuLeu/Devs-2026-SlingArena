@@ -93,6 +93,7 @@ function DailyQuestUIController:_resolveUi(): boolean
 
 	self:_disconnectUiConnections()
 	self._frame = frame
+	self._frame.Visible = true
 	self._rootBody = PathResolver.resolvePath(self._playerGui, paths.RootBody, { shouldWarn = false })
 	self._skipButton = PathResolver.resolvePath(self._playerGui, paths.SkipTaskBtn, { shouldWarn = false })
 	self._claimButton = PathResolver.resolvePath(self._playerGui, paths.ClaimRewardBtn, { shouldWarn = false })
@@ -156,19 +157,43 @@ function DailyQuestUIController:_prepareRootBodyGeometry()
 		self._expandedSize = self._rootBody.Size
 	end
 
-	-- Support both the originally supplied hierarchy (controls inside RootBody)
-	-- and the safer sibling layout. In either case, keep the panel's right edge fixed.
+	local bodyAbsoluteRight = self._rootBody.AbsolutePosition.X + self._rootBody.AbsoluteSize.X
 	local rootPosition = self._rootBody.Position
 	self._toggleInsideBody = self._toggleButton:IsDescendantOf(self._rootBody)
-	local rightEdgeX
-	if self._toggleInsideBody then
-		rightEdgeX = self._rootBody.AbsolutePosition.X + self._rootBody.AbsoluteSize.X - self._frame.AbsolutePosition.X
-	else
-		rightEdgeX = self._toggleButton.AbsolutePosition.X - self._frame.AbsolutePosition.X
+	local rightEdgeX = bodyAbsoluteRight - self._frame.AbsolutePosition.X
+
+	if self._toggleInsideBody and self._toggleButton.Parent == self._rootBody then
+		local togglePosition = self._toggleButton.Position
+		local toggleRightGap = math.max(0, bodyAbsoluteRight - (self._toggleButton.AbsolutePosition.X + self._toggleButton.AbsoluteSize.X))
+		self._toggleRightGap = toggleRightGap
+		self._toggleWidth = self._toggleButton.AbsoluteSize.X
+		self._toggleButton.AnchorPoint = Vector2.new(1, self._toggleButton.AnchorPoint.Y)
+		self._toggleButton.Position = UDim2.new(1, -toggleRightGap, togglePosition.Y.Scale, togglePosition.Y.Offset)
 	end
+
+	if self._notificationIcon and self._notificationIcon:IsDescendantOf(self._rootBody)
+		and self._notificationIcon.Parent == self._rootBody then
+		local notificationPosition = self._notificationIcon.Position
+		local notificationRightGap = math.max(0, bodyAbsoluteRight - (self._notificationIcon.AbsolutePosition.X + self._notificationIcon.AbsoluteSize.X))
+		self._notificationRightGap = notificationRightGap
+		self._notificationWidth = self._notificationIcon.AbsoluteSize.X
+		self._notificationIcon.AnchorPoint = Vector2.new(1, self._notificationIcon.AnchorPoint.Y)
+		self._notificationIcon.Position = UDim2.new(1, -notificationRightGap, notificationPosition.Y.Scale, notificationPosition.Y.Offset)
+	end
+
+	-- Keep the panel's right edge fixed. The body grows leftwards, while the
+	-- nested toggle and notification remain anchored to that fixed right edge.
 	self._rootBody.AnchorPoint = Vector2.new(1, self._rootBody.AnchorPoint.Y)
 	self._rootBody.Position = UDim2.new(0, rightEdgeX, rootPosition.Y.Scale, rootPosition.Y.Offset)
 	self._rootBody.ClipsDescendants = true
+
+	if self._toggleInsideBody and self._toggleButton.Parent ~= self._rootBody then
+		warn("[DailyQuestUI] ToggleDropdown should be a direct child of RootBody for reliable collapse animation.")
+	end
+	if self._notificationIcon and self._notificationIcon:IsDescendantOf(self._rootBody)
+		and self._notificationIcon.Parent ~= self._rootBody then
+		warn("[DailyQuestUI] NotificationIIcon should be a direct child of RootBody so it remains visible when collapsed.")
+	end
 end
 
 function DailyQuestUIController:_preloadToggleIcons()
@@ -217,6 +242,12 @@ function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean
 		self._expanded = expanded
 		return
 	end
+	if not self._toggleButton or not self._toggleButton.Parent then
+		self._expanded = true
+		self._rootBody.Visible = true
+		self._rootBody.Size = self._expandedSize or self._rootBody.Size
+		return
+	end
 	self._expanded = expanded
 	if self._tween then
 		self._tween:Cancel()
@@ -226,7 +257,10 @@ function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean
 	local fullSize = self._expandedSize or self._rootBody.Size
 	local collapsedWidth = 0
 	if self._toggleInsideBody and self._toggleButton then
-		collapsedWidth = self._toggleButton.AbsoluteSize.X
+		collapsedWidth = math.max(
+			(tonumber(self._toggleRightGap) or 0) + self._toggleButton.AbsoluteSize.X,
+			(tonumber(self._notificationRightGap) or 0) + (tonumber(self._notificationWidth) or 0)
+		)
 	end
 	local targetSize = if expanded
 		then fullSize
