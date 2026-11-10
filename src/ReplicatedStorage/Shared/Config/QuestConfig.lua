@@ -1,58 +1,52 @@
+--!strict
+
 local QuestConfig = {
-
-    DailyQuests = {
-        OnlineTime_15 = { Id = "D_Online_15", Type = "OnlineTime", Target = 15 * 60, Reward = { Diamonds = 5 }, Desc = "Online trong 15 phút" },
-        OnlineTime_30 = { Id = "D_Online_30", Type = "OnlineTime", Target = 30 * 60, Reward = { Diamonds = 10 }, Desc = "Online trong 30 phút" },
-        CollectFoodPoints = { Id = "D_Points_500", Type = "CollectPoints", Target = 500, Reward = { Diamonds = 10 }, Desc = "Thu thập 500 điểm từ Food" },
-        DealDamage = { Id = "D_Damage_50k", Type = "DealDamage", Target = 50000, Reward = { Diamonds = 10 }, Desc = "Gây 50k sát thương" },
-        -- Random hệ thống chọn 1 trong các quest thu thập food sau mỗi ngày:
-        CollectSpecificFood = {
-            Legendary = { Id = "D_Food_Leg", Type = "CollectFoodRarity", Rarity = "Legendary", Target = 2, Reward = { Diamonds = 15 } },
-            Epic = { Id = "D_Food_Epi", Type = "CollectFoodRarity", Rarity = "Epic", Target = 5, Reward = { Diamonds = 15 } },
-            Rare = { Id = "D_Food_Rar", Type = "CollectFoodRarity", Rarity = "Rare", Target = 10, Reward = { Diamonds = 15 } },
-            Uncommon = { Id = "D_Food_Unc", Type = "CollectFoodRarity", Rarity = "Uncommon", Target = 20, Reward = { Diamonds = 15 } },
-            Common = { Id = "D_Food_Com", Type = "CollectFoodRarity", Rarity = "Common", Target = 100, Reward = { Diamonds = 15 } },
-        }
-    },
-
-    MainQuests = {
-        -- Cấu trúc: [Mốc 1, Mốc 2, Mốc 3]
-        CollectPoints = {
-            Type = "CollectPointsTotal",
-            Milestones = {1000, 5000, 25000},
-            Rewards = {1000, 5000, 25000}, -- Kim cương tương ứng
-            Desc = "Thu thập tổng cộng %d điểm từ thức ăn."
-        },
-        KillPlayers = {
-            Type = "KillPlayersTotal",
-            Milestones = {10, 50, 250},
-            Rewards = {1000, 5000, 25000},
-            Desc = "Hạ gục %d người chơi."
-        },
-        PlayTime = {
-            Type = "PlayTimeTotal",
-            Milestones = {3 * 3600, 15 * 3600, 75 * 3600}, -- Lưu theo giây
-            Rewards = {1000, 5000, 25000},
-            Desc = "Chơi game đủ %d giờ."
-        },
-        Top1 = {
-            Type = "Top1Total",
-            Milestones = {5, 25, 75},
-            Rewards = {1000, 5000, 25000},
-            Desc = "Đạt Top 1 trong round %d lần."
-        },
-        Launch = {
-            Type = "LaunchTotal",
-            Milestones = {50, 250, 1250},
-            Rewards = {1000, 5000, 25000},
-            Desc = "Thực hiện Launch %d lần."
-        },
-        CompleteDaily = {
-            Type = "CompleteDailyTotal",
-            Milestones = {7, 35, 175},
-            Rewards = {1000, 5000, 25000},
-            Desc = "Hoàn thành %d nhiệm vụ hằng ngày."
-        }
-    }
+	DailyQuestChain = {
+		MaxDailySteps = 5,
+		SkipCooldownSeconds = 90,
+		Steps = {
+			{
+				Reward = { Diamonds = 5 },
+				QuestPool = {
+					{ Id = "DQ1_Online_5", Type = "OnlineTime", MetricKey = "OnlineTimeSeconds", Target = 300, Desc = "Online trong 5 phút" },
+					{ Id = "DQ1_CommonFood_10", Type = "CollectFoodRarity", MetricKey = "Food_Common", Rarity = "Common", Target = 10, Desc = "Thu thập 10 Common Food" },
+					{ Id = "DQ1_Launch_5", Type = "LaunchCount", MetricKey = "LaunchCount", Target = 5, Desc = "Thực hiện 5 lần Launch" },
+				},
+			},
+			{
+				Reward = { Diamonds = 8 },
+				QuestPool = {
+					{ Id = "DQ2_Online_10", Type = "OnlineTime", MetricKey = "OnlineTimeSeconds", Target = 600, Desc = "Online thêm 10 phút" },
+					{ Id = "DQ2_CommonFood_25", Type = "CollectFoodRarity", MetricKey = "Food_Common", Rarity = "Common", Target = 25, Desc = "Thu thập 25 Common Food" },
+					{ Id = "DQ2_Damage_5K", Type = "DealDamage", MetricKey = "DamageDealtToPlayers", Target = 5000, Desc = "Gây 5.000 sát thương lên người chơi khác" },
+				},
+			},
+			{
+				Reward = { Diamonds = 12 },
+				QuestPool = {
+					{ Id = "DQ3_UncommonFood_5", Type = "CollectFoodRarity", MetricKey = "Food_Uncommon", Rarity = "Uncommon", Target = 5, Desc = "Thu thập 5 Uncommon Food" },
+					{ Id = "DQ3_Damage_15K", Type = "DealDamage", MetricKey = "DamageDealtToPlayers", Target = 15000, Desc = "Gây 15.000 sát thương lên người chơi khác" },
+					{ Id = "DQ3_Kill_1", Type = "KillPlayers", MetricKey = "PlayerKills", Target = 1, Desc = "Hạ gục 1 người chơi" },
+				},
+			},
+			{
+				Reward = { Diamonds = 18 },
+				QuestPool = {
+					{ Id = "DQ4_Damage_30K", Type = "DealDamage", MetricKey = "DamageDealtToPlayers", Target = 30000, Desc = "Gây 30.000 sát thương lên người chơi khác" },
+					{ Id = "DQ4_Round_1", Type = "CompleteRounds", MetricKey = "CompletedRounds", Target = 1, Desc = "Hoàn thành 1 round" },
+					{ Id = "DQ4_EpicFood_1", Type = "CollectFoodRarity", MetricKey = "Food_Epic", Rarity = "Epic", Target = 1, Desc = "Thu thập 1 Epic Food" },
+				},
+			},
+			{
+				Reward = { Diamonds = 25 },
+				QuestPool = {
+					{ Id = "DQ5_Damage_50K", Type = "DealDamage", MetricKey = "DamageDealtToPlayers", Target = 50000, Desc = "Gây 50.000 sát thương lên người chơi khác" },
+					{ Id = "DQ5_Kill_3", Type = "KillPlayers", MetricKey = "PlayerKills", Target = 3, Desc = "Hạ gục 3 người chơi" },
+					{ Id = "DQ5_LegendaryFood_1", Type = "CollectFoodRarity", MetricKey = "Food_Legendary", Rarity = "Legendary", Target = 1, Desc = "Thu thập 1 Legendary Food" },
+				},
+			},
+		},
+	},
 }
+
 return QuestConfig
