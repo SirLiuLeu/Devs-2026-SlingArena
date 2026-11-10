@@ -434,12 +434,14 @@ function RoundService:_beginRoundEnd()
 	end
 	self._winnerName = if #winnerNames > 0 then table.concat(winnerNames, ", ") else (self:_findLastAlivePlayerName() or "No winner")
 	local summaryRows = if progressPointService and typeof(progressPointService.AwardEndRoundPoints) == "function" then progressPointService:AwardEndRoundPoints(topPlayers) else topPlayers
-	if self._context.EventBus then
-		for _, row in ipairs(summaryRows) do
-			local userId = type(row) == "table" and tonumber(row.UserId) or nil
-			local participant = userId and Players:GetPlayerByUserId(userId) or nil
-			if participant then
-				self._context.EventBus:Fire("RoundCompleted", participant, self._roundId, row.Rank)
+	local playerStateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	if self._context.EventBus and playerStateService then
+		-- Use the full authoritative Arena roster, not the top-scoreboard subset.
+		-- Players who died earlier still count as round participants until returned to Lobby.
+		for _, participant in ipairs(Players:GetPlayers()) do
+			local state = playerStateService:GetState(participant)
+			if state and state.LocationState ~= GameStates.SessionState.Lobby then
+				self._context.EventBus:Fire("RoundCompleted", participant, self._roundId, state.IsAlive == true)
 			end
 		end
 	end
