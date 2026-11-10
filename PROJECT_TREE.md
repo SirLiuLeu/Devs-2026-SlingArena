@@ -380,7 +380,7 @@ DataModel
 │  │     ├─ LeaveButton
 │  │     ├─ Plus1Minute
 │  │     ├─ LevelUp5
-│  │     ├─ ShowStats
+│  │     ├─ ShowStats (TextButton, optional debug control)
 │  │     ├─ EndRoundButton
 │  │     └─ StartSafeZoneButton
 │  │
