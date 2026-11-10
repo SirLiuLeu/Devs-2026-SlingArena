@@ -1,7 +1,6 @@
 --!strict
 
 local ContentProvider = game:GetService("ContentProvider")
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -123,10 +122,10 @@ function DailyQuestUIController:_resolveUi(): boolean
 		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.TaskDescriptionLabel is missing or is not a TextLabel.")
 	end
 	if not self._toggleButton or not self._toggleButton:IsA("ImageButton") then
-		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.ToggleDropdown is missing or is not an ImageButton.")
+		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ToggleDropdown is missing or is not an ImageButton.")
 	end
 	if not self._notificationIcon or not self._notificationIcon:IsA("ImageLabel") then
-		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.NotificationIIcon is missing or is not an ImageLabel.")
+		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.NotificationIIcon is missing or is not an ImageLabel.")
 	end
 
 	if self._toggleButton and self._toggleButton.Parent ~= self._frame
@@ -201,25 +200,55 @@ function DailyQuestUIController:_preloadToggleIcons()
 		return
 	end
 	self._iconPreloadStarted = true
+
 	local expandedId = normalizeImageId(TOGGLE_EXPANDED_ICON_ID)
 	local collapsedId = normalizeImageId(TOGGLE_COLLAPSED_ICON_ID)
-	local assets = {}
-	if expandedId then table.insert(assets, expandedId) end
-	if collapsedId then table.insert(assets, collapsedId) end
-
-	if #assets == 0 then
-		warn("[DailyQuestUI] Toggle icon IDs are empty; fill TOGGLE_EXPANDED_ICON_ID and TOGGLE_COLLAPSED_ICON_ID in DailyQuestUIController.lua.")
+	if not expandedId or not collapsedId then
+		warn("[DailyQuestUI] Fill both TOGGLE_EXPANDED_ICON_ID and TOGGLE_COLLAPSED_ICON_ID before testing the toggle.")
 		return
 	end
 
+	-- PreloadAsync consumes Instances. Temporary hidden ImageLabels let Roblox
+	-- fetch both image assets before ToggleDropdown.Image is changed.
 	task.spawn(function()
+		local preloadGui = Instance.new("ScreenGui")
+		preloadGui.Name = "__DailyQuestIconPreload"
+		preloadGui.Enabled = false
+		preloadGui.ResetOnSpawn = false
+		local preloadFrame = Instance.new("Frame")
+		preloadFrame.Name = "Assets"
+		preloadFrame.Size = UDim2.fromOffset(1, 1)
+		preloadFrame.BackgroundTransparency = 1
+		preloadFrame.Parent = preloadGui
+
+		local preloadImages = {}
+		for index, imageId in ipairs({ expandedId, collapsedId }) do
+			local image = Instance.new("ImageLabel")
+			image.Name = "ToggleIcon" .. tostring(index)
+			image.Size = UDim2.fromOffset(1, 1)
+			image.BackgroundTransparency = 1
+			image.Image = imageId
+			image.Visible = false
+			image.Parent = preloadFrame
+			table.insert(preloadImages, image)
+		end
+		preloadGui.Parent = self._playerGui
+
+		local loadedAssets = 0
 		local ok, err = pcall(function()
-			ContentProvider:PreloadAsync(assets)
+			ContentProvider:PreloadAsync(preloadImages, function(_assetId, fetchStatus)
+				if fetchStatus == Enum.AssetFetchStatus.Success then
+					loadedAssets += 1
+				end
+			end)
 		end)
-		if not ok then
-			warn(string.format("[DailyQuestUI] Toggle icon preload failed: %s", tostring(err)))
+		preloadGui:Destroy()
+
+		if not ok or loadedAssets < #preloadImages then
+			warn(string.format("[DailyQuestUI] Both toggle icons must preload successfully before switching. loaded=%d/%d error=%s", loadedAssets, #preloadImages, tostring(err)))
 			return
 		end
+
 		self._toggleIconsReady = true
 		self:_applyToggleIcon()
 	end)
