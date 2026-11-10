@@ -95,10 +95,20 @@ function QuestService:Init()
 	end
 
 	if self._context.EventBus then
-		self._context.EventBus:On("DailyQuestFoodCollected", function(player: Player, _foodType: string, rarity: string)
-			if type(rarity) ~= "string" then
-				return
+		self._context.EventBus:On("DailyQuestFoodCollected", function(player: Player, foodType: string, rarity: string)
+			local allowedFoodTypes = {
+				CommonRed = true,
+				CommonGreen = true,
+				CommonBlue = true,
+				UncommonIce = true,
+				RareAmber = true,
+				EpicViolet = true,
+				LegendaryGold = true,
+			}
+			if type(foodType) == "string" and allowedFoodTypes[foodType] then
+				self:_incrementMetric(player, "FoodType_" .. foodType, 1)
 			end
+
 			local allowedRarities = {
 				Common = true,
 				Uncommon = true,
@@ -106,7 +116,7 @@ function QuestService:Init()
 				Epic = true,
 				Legendary = true,
 			}
-			if allowedRarities[rarity] then
+			if type(rarity) == "string" and allowedRarities[rarity] then
 				self:_incrementMetric(player, "Food_" .. rarity, 1)
 			end
 		end)
