@@ -336,6 +336,9 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 				end
 			end
 			self._context.EventBus:Fire("DamageDealt", attacker, victim, amount)
+			if isBombDamage then
+				self._context.EventBus:Fire("DailyQuestBombPlayerDamaged", attacker, victim, amount)
+			end
 		end
 	end
 
