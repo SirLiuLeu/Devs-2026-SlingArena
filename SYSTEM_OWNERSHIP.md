@@ -32,6 +32,13 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - **Called by:** PetService, QuestService, FoodService, progression/meta reward services, PlayerStateService read-through synchronization.
 - **Dependencies:** Data provider boundary and EventBus.
 
+### QuestService
+- **Owns:** Daily Quest chain orchestration and the authoritative quest lifecycle.
+- **Responsibilities:** Select one task from the current step pool; track event-based metrics; build client snapshots; validate Claim/Skip AssignmentIds; apply the configured 90-second skip cooldown; issue the next task after cooldown/reconnect; preserve the independent Weekly reward flow.
+- **Called by:** PlayerAdded/Removing lifecycle, QuestClaim/QuestSkip remotes, and EventBus gameplay events (DailyQuestFoodCollected, DamageDealt, DoTDamageDealt, PlayerKilled, LauncherLaunched, RoundCompleted).
+- **Dependencies:** QuestConfig, PlayerDataService, RemoteContracts, EventBus.
+- **Constraint:** Quest progress and cooldown are server-authoritative. Reward currency and chain state are committed together through PlayerDataService; QuestService does not mutate Diamond balances directly.
+
 ### PlayerService
 - **Owns:** Launcher pawn lifecycle and player-to-pawn mapping.
 - **Responsibilities:** Spawn/despawn/respawn pawns, root accessors, alive checks, teleport support, avatar enforcement.
