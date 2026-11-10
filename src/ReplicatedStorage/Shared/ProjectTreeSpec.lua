@@ -34,8 +34,8 @@ local ProjectTreeSpec = {
 				DiamondIcon = "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.DiamondIcon", -- [PROJECT_TREE_SPEC]
 				ProgressLabel = "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.ProgressLabel", -- [PROJECT_TREE_SPEC]
 				TaskDescriptionLabel = "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.TaskDescriptionLabel", -- [PROJECT_TREE_SPEC]
-				ToggleDropdown = "MainHUD.Root.QuestDaily.ToggleDropdown", -- [PROJECT_TREE_SPEC] sibling of RootBody
-				NotificationIIcon = "MainHUD.Root.QuestDaily.NotificationIIcon", -- [PROJECT_TREE_SPEC] sibling of RootBody
+				ToggleDropdown = "MainHUD.Root.QuestDaily.RootBody.ToggleDropdown", -- [PROJECT_TREE_SPEC]
+				NotificationIIcon = "MainHUD.Root.QuestDaily.RootBody.NotificationIIcon", -- [PROJECT_TREE_SPEC]
 			},
 			ProgressPoint = "MainHUD.Root.ProgressPoint", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ProgressPoint
 			QuickHP = "MainHUD.Root.QuickHP", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuickHP
