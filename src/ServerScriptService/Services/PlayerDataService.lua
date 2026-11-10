@@ -408,6 +408,28 @@ function PlayerDataService:SetDailyQuestAssignment(player: Player, assignment: {
 	return committed
 end
 
+-- Clears a retired assignment without consuming a daily step or applying Skip cooldown.
+-- Used when the configured quest pool changes and an old saved task can no longer progress.
+function PlayerDataService:ClearDailyQuestAssignment(player: Player, expectedAssignmentId: string): boolean
+	if type(expectedAssignmentId) ~= "string" or expectedAssignmentId == "" then
+		return false
+	end
+
+	local cleared = false
+	self:UpdateData(player, function(data)
+		self:_ensureQuestData(data, currentDailyDayKey(os.time()))
+		local chain = data.QuestState.DailyChain
+		local active = chain.ActiveQuest
+		if type(active) == "table" and active.AssignmentId == expectedAssignmentId then
+			chain.ActiveQuest = nil
+			chain.NextQuestAt = 0
+			cleared = true
+		end
+		return data
+	end)
+	return cleared
+end
+
 function PlayerDataService:SkipDailyQuest(player: Player, expectedAssignmentId: string, nextQuestAt: number): (boolean, string?)
 	local userId = player.UserId
 	if self._dailyQuestLocks[userId] then
