@@ -11,6 +11,9 @@ local QuestConfig = {
 				QuestPool = {
 					{ Id = "DQ1_Online_5", Type = "OnlineTime", MetricKey = "OnlineTimeSeconds", Target = 300, Desc = "Online trong 5 phút" },
 					{ Id = "DQ1_CommonFood_10", Type = "CollectFoodRarity", MetricKey = "Food_Common", Rarity = "Common", Target = 10, Desc = "Thu thập 10 Common Food" },
+					{ Id = "DQ1_CommonRed_10", Type = "CollectFoodType", MetricKey = "FoodType_CommonRed", FoodType = "CommonRed", Target = 10, Desc = "Thu thập 10 CommonRed Food" },
+					{ Id = "DQ1_CommonGreen_10", Type = "CollectFoodType", MetricKey = "FoodType_CommonGreen", FoodType = "CommonGreen", Target = 10, Desc = "Thu thập 10 CommonGreen Food" },
+					{ Id = "DQ1_CommonBlue_10", Type = "CollectFoodType", MetricKey = "FoodType_CommonBlue", FoodType = "CommonBlue", Target = 10, Desc = "Thu thập 10 CommonBlue Food" },
 					{ Id = "DQ1_Launch_5", Type = "LaunchCount", MetricKey = "LaunchCount", Target = 5, Desc = "Thực hiện 5 lần Launch" },
 				},
 			},
