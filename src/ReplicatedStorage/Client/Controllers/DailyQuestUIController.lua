@@ -113,6 +113,8 @@ function DailyQuestUIController:_resolveUi(): boolean
 	end
 	if not self._toggleButton or not self._toggleButton:IsA("TextButton") then
 		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ToggleDropdown is missing or is not a TextButton.")
+	elseif self._toggleButton.Text ~= "" then
+		self._toggleButton.Text = ""
 	end
 	if not self._openIcon or not self._openIcon:IsA("ImageLabel") then
 		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ToggleDropdown.OpenIcon is missing or is not an ImageLabel.")
@@ -206,6 +208,7 @@ function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean
 	end
 	if not self._toggleButton or not self._toggleButton.Parent then
 		self._expanded = true
+		self:_syncToggleIcons()
 		self._rootBody.Visible = true
 		self._rootBody.Size = self._expandedSize or self._rootBody.Size
 		return
@@ -233,7 +236,6 @@ function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean
 		self._rootBody.Visible = true
 	end
 
-	self:_syncToggleIcons()
 	if animate == false then
 		self._rootBody.Size = targetSize
 	else
