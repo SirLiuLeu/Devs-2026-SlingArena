@@ -82,10 +82,6 @@ local function resolveScreenGui(root: Instance, path: string, shouldWarn: boolea
 	return nil
 end
 
-local function warnMissingUiPath(path: string, className: string)
-	warn(string.format("[UI_MISSING] %s (%s) is missing. Create it manually in Studio.", path, className))
-end
-
 local function formatStatsValue(value: any): string
 	local number = tonumber(value) or 0
 	if math.abs(number - math.floor(number + 0.5)) < 0.001 then
