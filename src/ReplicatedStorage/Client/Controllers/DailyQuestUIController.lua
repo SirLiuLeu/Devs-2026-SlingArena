@@ -342,7 +342,7 @@ function DailyQuestUIController:_prepareRootBodyGeometry()
 		and self._notificationIcon:IsDescendantOf(self._rootBody)
 		and self._notificationIcon.Parent == self._rootBody then
 		local notificationPosition = self._notificationIcon.Position
-		local notificationLeftGap = math.max(0, self._notificationIcon.AbsolutePosition.X - bodyAbsoluteLeft)
+		local notificationLeftGap = math.max(0, self._notificationIcon.AbsolutePosition.X - toggleAbsoluteLeft)
 		self._notificationLeftGap = notificationLeftGap
 		self._notificationWidth = self._notificationIcon.AbsoluteSize.X
 		self._notificationIcon.AnchorPoint = Vector2.new(0, self._notificationIcon.AnchorPoint.Y)
@@ -396,10 +396,12 @@ function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean
 	local fullSize = self._expandedSize or self._rootBody.Size
 	local collapsedWidth = 0
 	if self._toggleInsideBody and self._toggleButton then
-		-- The collapsed panel should end at the toggle's right edge.
-		-- NotificationIcon remains a separate child and is clipped if it lies
-		-- outside this compact toggle footprint.
-		collapsedWidth = (tonumber(self._toggleLeftGap) or 0) + self._toggleButton.AbsoluteSize.X
+		-- Keep only the toggle and its adjacent notification badge in the
+		-- collapsed footprint; the panel still retracts to the toggle origin.
+		collapsedWidth = math.max(
+			(tonumber(self._toggleLeftGap) or 0) + self._toggleButton.AbsoluteSize.X,
+			(tonumber(self._notificationLeftGap) or 0) + (tonumber(self._notificationWidth) or 0)
+		)
 	end
 	local targetSize = if expanded
 		then fullSize
