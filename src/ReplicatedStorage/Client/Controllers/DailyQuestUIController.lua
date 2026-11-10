@@ -24,7 +24,7 @@ end
 local CLAIM_READY_COLOR = Color3.fromRGB(52, 168, 83)
 local CLAIM_DISABLED_COLOR = Color3.fromRGB(105, 110, 118)
 
-local function setClaimVisualState(self, canClaim: boolean)
+local function setClaimVisualState(self: any, canClaim: boolean)
 	local button = self._claimButton
 	if button and button:IsA("TextButton") then
 		button.Active = canClaim
