@@ -21,6 +21,28 @@ local function setVisible(instance: Instance?, visible: boolean)
 	end
 end
 
+local CLAIM_READY_COLOR = Color3.fromRGB(52, 168, 83)
+local CLAIM_DISABLED_COLOR = Color3.fromRGB(105, 110, 118)
+
+local function setClaimVisualState(self, canClaim: boolean)
+	local button = self._claimButton
+	if button and button:IsA("TextButton") then
+		button.Active = canClaim
+		button.Selectable = canClaim
+		button.AutoButtonColor = canClaim
+		button.BackgroundColor3 = if canClaim then CLAIM_READY_COLOR else CLAIM_DISABLED_COLOR
+		button.BackgroundTransparency = if canClaim then 0 else 0.28
+		button.TextTransparency = if canClaim then 0 else 0.4
+	end
+
+	if self._diamondIcon and self._diamondIcon:IsA("ImageLabel") then
+		self._diamondIcon.ImageTransparency = if canClaim then 0 else 0.35
+	end
+	if self._diamondCountText and self._diamondCountText:IsA("TextLabel") then
+		self._diamondCountText.TextTransparency = if canClaim then 0 else 0.35
+	end
+end
+
 local DAILY_QUEST_HIERARCHY_NODE_NAMES: { [string]: boolean } = {
 	MainHUD = true,
 	Root = true,
@@ -29,7 +51,7 @@ local DAILY_QUEST_HIERARCHY_NODE_NAMES: { [string]: boolean } = {
 	SkipTaskBtn = true,
 	ClaimRewardBtn = true,
 	DiamondIcon = true,
-	ProgressLabel = true,
+	DiamondCountText = true,
 	TaskDescriptionLabel = true,
 	ToggleDropdown = true,
 	OpenIcon = true,
@@ -169,7 +191,7 @@ function DailyQuestUIController:_resolveUi(): boolean
 	local previousSkipButton = self._skipButton
 	local previousClaimButton = self._claimButton
 	local previousDiamondIcon = self._diamondIcon
-	local previousProgressLabel = self._progressLabel
+	local previousDiamondCountText = self._diamondCountText
 	local previousDescriptionLabel = self._descriptionLabel
 	local previousToggleButton = self._toggleButton
 	local previousOpenIcon = self._openIcon
@@ -195,8 +217,8 @@ function DailyQuestUIController:_resolveUi(): boolean
 	local skipButton = resolveDailyQuestElement(self._playerGui, frame, paths, "SkipTaskBtn", "SkipTaskBtn", "ImageButton", rootBody, frame, nil)
 	local claimButton = resolveDailyQuestElement(self._playerGui, frame, paths, "ClaimRewardBtn", "ClaimRewardBtn", "TextButton", rootBody, frame, nil)
 	local diamondIcon = resolveDailyQuestElement(self._playerGui, frame, paths, "DiamondIcon", "DiamondIcon", "ImageLabel", claimButton, rootBody, frame)
-	local progressLabel = resolveDailyQuestElement(self._playerGui, frame, paths, "ProgressLabel", "ProgressLabel", "TextLabel", claimButton, rootBody, frame)
-	local descriptionLabel = resolveDailyQuestElement(self._playerGui, frame, paths, "TaskDescriptionLabel", "TaskDescriptionLabel", "TextLabel", claimButton, rootBody, frame)
+	local diamondCountText = resolveDailyQuestElement(self._playerGui, frame, paths, "DiamondCountText", "DiamondCountText", "TextLabel", claimButton, rootBody, frame)
+	local descriptionLabel = resolveDailyQuestElement(self._playerGui, frame, paths, "TaskDescriptionLabel", "TaskDescriptionLabel", "TextLabel", rootBody, frame, nil)
 	local toggleButton = resolveDailyQuestElement(self._playerGui, frame, paths, "ToggleDropdown", "ToggleDropdown", "TextButton", rootBody, frame, nil)
 	local openIcon = resolveDailyQuestElement(self._playerGui, frame, paths, "OpenIcon", "OpenIcon", "ImageLabel", toggleButton, rootBody, frame)
 	local closedIcon = resolveDailyQuestElement(self._playerGui, frame, paths, "ClosedIcon", "ClosedIcon", "ImageLabel", toggleButton, rootBody, frame)
@@ -208,7 +230,7 @@ function DailyQuestUIController:_resolveUi(): boolean
 	self._skipButton = skipButton
 	self._claimButton = claimButton
 	self._diamondIcon = diamondIcon
-	self._progressLabel = progressLabel
+	self._diamondCountText = diamondCountText
 	self._descriptionLabel = descriptionLabel
 	self._toggleButton = toggleButton
 	self._openIcon = openIcon
@@ -220,7 +242,7 @@ function DailyQuestUIController:_resolveUi(): boolean
 		or previousSkipButton ~= skipButton
 		or previousClaimButton ~= claimButton
 		or previousDiamondIcon ~= diamondIcon
-		or previousProgressLabel ~= progressLabel
+		or previousDiamondCountText ~= diamondCountText
 		or previousDescriptionLabel ~= descriptionLabel
 		or previousToggleButton ~= toggleButton
 		or previousOpenIcon ~= openIcon
@@ -256,8 +278,8 @@ function DailyQuestUIController:_resolveUi(): boolean
 	validateReference("SkipTaskBtn", skipButton, "ImageButton", "MainHUD.Root.QuestDaily.RootBody.SkipTaskBtn")
 	validateReference("ClaimRewardBtn", claimButton, "TextButton", "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn")
 	validateReference("DiamondIcon", diamondIcon, "ImageLabel", "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.DiamondIcon")
-	validateReference("ProgressLabel", progressLabel, "TextLabel", "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.ProgressLabel")
-	validateReference("TaskDescriptionLabel", descriptionLabel, "TextLabel", "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.TaskDescriptionLabel")
+	validateReference("DiamondCountText", diamondCountText, "TextLabel", "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.DiamondCountText")
+	validateReference("TaskDescriptionLabel", descriptionLabel, "TextLabel", "MainHUD.Root.QuestDaily.RootBody.TaskDescriptionLabel")
 	validateReference("ToggleDropdown", toggleButton, "TextButton", "MainHUD.Root.QuestDaily.RootBody.ToggleDropdown")
 	validateReference("OpenIcon", openIcon, "ImageLabel", "MainHUD.Root.QuestDaily.RootBody.ToggleDropdown.OpenIcon")
 	validateReference("ClosedIcon", closedIcon, "ImageLabel", "MainHUD.Root.QuestDaily.RootBody.ToggleDropdown.ClosedIcon")
@@ -302,35 +324,34 @@ function DailyQuestUIController:_prepareRootBodyGeometry()
 		self._expandedSize = self._rootBody.Size
 	end
 
-	local bodyAbsoluteRight = self._rootBody.AbsolutePosition.X + self._rootBody.AbsoluteSize.X
+	-- Keep the left edge fixed: the panel grows right from ToggleDropdown,
+	-- and collapses toward the exact same toggle position.
+	local bodyAbsoluteLeft = self._rootBody.AbsolutePosition.X
 	local rootPosition = self._rootBody.Position
 	self._toggleInsideBody = self._toggleButton:IsDescendantOf(self._rootBody)
-	local rightEdgeX = bodyAbsoluteRight - self._frame.AbsolutePosition.X
+	local leftEdgeX = bodyAbsoluteLeft - self._frame.AbsolutePosition.X
 
 	if self._toggleInsideBody and self._toggleButton.Parent == self._rootBody then
 		local togglePosition = self._toggleButton.Position
-		local toggleRightGap = math.max(0, bodyAbsoluteRight - (self._toggleButton.AbsolutePosition.X + self._toggleButton.AbsoluteSize.X))
-		self._toggleRightGap = toggleRightGap
-		self._toggleWidth = self._toggleButton.AbsoluteSize.X
-		self._toggleButton.AnchorPoint = Vector2.new(1, self._toggleButton.AnchorPoint.Y)
-		self._toggleButton.Position = UDim2.new(1, -toggleRightGap, togglePosition.Y.Scale, togglePosition.Y.Offset)
+		local toggleLeftGap = math.max(0, self._toggleButton.AbsolutePosition.X - bodyAbsoluteLeft)
+		self._toggleLeftGap = toggleLeftGap
+		self._toggleButton.AnchorPoint = Vector2.new(0, self._toggleButton.AnchorPoint.Y)
+		self._toggleButton.Position = UDim2.new(0, toggleLeftGap, togglePosition.Y.Scale, togglePosition.Y.Offset)
 	end
 
 	if self._notificationIcon and self._notificationIcon:IsA("GuiObject")
 		and self._notificationIcon:IsDescendantOf(self._rootBody)
 		and self._notificationIcon.Parent == self._rootBody then
 		local notificationPosition = self._notificationIcon.Position
-		local notificationRightGap = math.max(0, bodyAbsoluteRight - (self._notificationIcon.AbsolutePosition.X + self._notificationIcon.AbsoluteSize.X))
-		self._notificationRightGap = notificationRightGap
+		local notificationLeftGap = math.max(0, self._notificationIcon.AbsolutePosition.X - bodyAbsoluteLeft)
+		self._notificationLeftGap = notificationLeftGap
 		self._notificationWidth = self._notificationIcon.AbsoluteSize.X
-		self._notificationIcon.AnchorPoint = Vector2.new(1, self._notificationIcon.AnchorPoint.Y)
-		self._notificationIcon.Position = UDim2.new(1, -notificationRightGap, notificationPosition.Y.Scale, notificationPosition.Y.Offset)
+		self._notificationIcon.AnchorPoint = Vector2.new(0, self._notificationIcon.AnchorPoint.Y)
+		self._notificationIcon.Position = UDim2.new(0, notificationLeftGap, notificationPosition.Y.Scale, notificationPosition.Y.Offset)
 	end
 
-	-- Keep the panel's right edge fixed. The body grows leftwards, while the
-	-- nested toggle and notification remain anchored to that fixed right edge.
-	self._rootBody.AnchorPoint = Vector2.new(1, self._rootBody.AnchorPoint.Y)
-	self._rootBody.Position = UDim2.new(0, rightEdgeX, rootPosition.Y.Scale, rootPosition.Y.Offset)
+	self._rootBody.AnchorPoint = Vector2.new(0, self._rootBody.AnchorPoint.Y)
+	self._rootBody.Position = UDim2.new(0, leftEdgeX, rootPosition.Y.Scale, rootPosition.Y.Offset)
 	self._rootBody.ClipsDescendants = true
 
 	if self._toggleInsideBody and self._toggleButton.Parent ~= self._rootBody then
@@ -377,8 +398,8 @@ function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean
 	local collapsedWidth = 0
 	if self._toggleInsideBody and self._toggleButton then
 		collapsedWidth = math.max(
-			(tonumber(self._toggleRightGap) or 0) + self._toggleButton.AbsoluteSize.X,
-			(tonumber(self._notificationRightGap) or 0) + (tonumber(self._notificationWidth) or 0)
+			(tonumber(self._toggleLeftGap) or 0) + self._toggleButton.AbsoluteSize.X,
+			(tonumber(self._notificationLeftGap) or 0) + (tonumber(self._notificationWidth) or 0)
 		)
 	end
 	local targetSize = if expanded
@@ -501,7 +522,7 @@ function DailyQuestUIController:Start()
 			self._skipButton = nil
 			self._claimButton = nil
 			self._diamondIcon = nil
-			self._progressLabel = nil
+			self._diamondCountText = nil
 			self._descriptionLabel = nil
 			self._toggleButton = nil
 			self._openIcon = nil
@@ -554,19 +575,19 @@ function DailyQuestUIController:_renderCurrentState()
 	local quest = daily.ActiveQuest
 	local isCooldown = status == "Cooldown"
 	local isCompleted = status == "CompletedForDay"
-	local isReady = status == "Ready" and type(quest) == "table"
-	local isActive = status == "Active" and type(quest) == "table"
+	local hasQuest = type(quest) == "table"
+	local isReady = status == "Ready" and hasQuest
+	local isActive = status == "Active" and hasQuest
 
 	if isCooldown then
 		setVisible(self._skipButton, false)
 		setVisible(self._claimButton, true)
+		setClaimVisualState(self, false)
 		if self._claimButton and self._claimButton:IsA("TextButton") then
-			self._claimButton.Active = false
-			self._claimButton.AutoButtonColor = false
 			self._claimButton.Text = ""
 		end
 		setVisible(self._diamondIcon, false)
-		setVisible(self._progressLabel, false)
+		setVisible(self._diamondCountText, false)
 		setVisible(self._descriptionLabel, true)
 		if self._descriptionLabel and self._descriptionLabel:IsA("TextLabel") then
 			self._descriptionLabel.Text = formatCooldown((tonumber(daily.NextQuestAt) or 0) - Workspace:GetServerTimeNow())
@@ -574,54 +595,54 @@ function DailyQuestUIController:_renderCurrentState()
 	elseif isCompleted then
 		setVisible(self._skipButton, false)
 		setVisible(self._claimButton, true)
+		setClaimVisualState(self, false)
 		if self._claimButton and self._claimButton:IsA("TextButton") then
-			self._claimButton.Active = false
-			self._claimButton.AutoButtonColor = false
 			self._claimButton.Text = ""
 		end
 		setVisible(self._diamondIcon, false)
-		setVisible(self._progressLabel, false)
+		setVisible(self._diamondCountText, false)
 		setVisible(self._descriptionLabel, true)
 		if self._descriptionLabel and self._descriptionLabel:IsA("TextLabel") then
 			self._descriptionLabel.Text = string.format("Bạn đã hoàn thành %d nhiệm vụ hôm nay!", math.max(1, math.floor(tonumber(daily.MaxSteps) or 5)))
 		end
 	else
-		local safeQuest = type(quest) == "table" and quest or {}
+		local safeQuest = if hasQuest then quest else {}
 		local progress = math.max(0, math.floor(tonumber(safeQuest.Progress) or 0))
 		local target = math.max(1, math.floor(tonumber(safeQuest.Target) or 1))
 		local reward = type(safeQuest.Reward) == "table" and safeQuest.Reward or {}
 		local diamonds = math.max(0, math.floor(tonumber(reward.Diamonds) or 0))
+		local claimPending = self._logicService ~= nil and self._logicService:IsClaimPending()
+		local canClaim = isReady and not claimPending
 
 		setVisible(self._claimButton, true)
-		setVisible(self._diamondIcon, true)
-		setVisible(self._progressLabel, true)
+		setVisible(self._diamondIcon, hasQuest)
+		setVisible(self._diamondCountText, hasQuest)
 		setVisible(self._descriptionLabel, true)
 		setVisible(self._skipButton, isActive)
+		setClaimVisualState(self, canClaim)
 
 		if self._claimButton and self._claimButton:IsA("TextButton") then
-			self._claimButton.Active = isReady and not (self._logicService and self._logicService:IsClaimPending())
-			self._claimButton.AutoButtonColor = isReady and not (self._logicService and self._logicService:IsClaimPending())
 			self._claimButton.Text = ""
+		end
+		if self._diamondCountText and self._diamondCountText:IsA("TextLabel") then
+			self._diamondCountText.Text = if hasQuest then tostring(diamonds) else ""
 		end
 		if self._skipButton and self._skipButton:IsA("ImageButton") then
 			self._skipButton.Active = isActive and not self._pendingSkip
 			self._skipButton.AutoButtonColor = isActive and not self._pendingSkip
 		end
-		if self._progressLabel and self._progressLabel:IsA("TextLabel") then
-			self._progressLabel.Text = string.format("%d / %d  (+%d)", progress, target, diamonds)
-		end
 		if self._descriptionLabel and self._descriptionLabel:IsA("TextLabel") then
-			self._descriptionLabel.Text = if isReady then ("Hoàn thành! " .. tostring(safeQuest.Desc or "Nhiệm vụ")) else tostring(safeQuest.Desc or "Đang tải nhiệm vụ...")
+			local description = tostring(safeQuest.Desc or "Đang tải nhiệm vụ...")
+			local progressSuffix = if hasQuest then string.format(" (%d/%d)", progress, target) else ""
+			self._descriptionLabel.Text = (if isReady then "Hoàn thành! " else "") .. description .. progressSuffix
 		end
 	end
 
 	if not self._expanded then
-		-- All quest content must disappear while collapsed, including labels
-		-- that Studio may place directly under QuestDaily instead of RootBody.
 		setVisible(self._skipButton, false)
 		setVisible(self._claimButton, false)
 		setVisible(self._diamondIcon, false)
-		setVisible(self._progressLabel, false)
+		setVisible(self._diamondCountText, false)
 		setVisible(self._descriptionLabel, false)
 	end
 	self:_refreshCooldownText()
