@@ -103,9 +103,12 @@ function DailyQuestUIController:_resolveUi(): boolean
 	self._toggleButton = PathResolver.resolvePath(self._playerGui, paths.ToggleDropdown, { shouldWarn = false })
 	self._notificationIcon = PathResolver.resolvePath(self._playerGui, paths.NotificationIIcon, { shouldWarn = false })
 
-	-- Do not expose an empty image slot while the two authored icons are loading.
-	if self._toggleButton and not self._toggleIconsReady then
-		self._toggleButton.Visible = false
+	-- Hide the button only when both configured replacement assets are being preloaded.
+	-- With no image IDs, keep the Studio-authored image and preserve toggle functionality.
+	local hasToggleIconPair = normalizeImageId(TOGGLE_EXPANDED_ICON_ID) ~= nil
+		and normalizeImageId(TOGGLE_COLLAPSED_ICON_ID) ~= nil
+	if self._toggleButton then
+		self._toggleButton.Visible = self._toggleIconsReady or not hasToggleIconPair
 	end
 
 	if not self._rootBody or not self._rootBody:IsA("Frame") then
@@ -210,7 +213,10 @@ function DailyQuestUIController:_preloadToggleIcons()
 	local expandedId = normalizeImageId(TOGGLE_EXPANDED_ICON_ID)
 	local collapsedId = normalizeImageId(TOGGLE_COLLAPSED_ICON_ID)
 	if not expandedId or not collapsedId then
-		warn("[DailyQuestUI] Fill both TOGGLE_EXPANDED_ICON_ID and TOGGLE_COLLAPSED_ICON_ID before testing the toggle.")
+		warn("[DailyQuestUI] Toggle icon IDs are not configured; keeping the Studio-authored ToggleDropdown image.")
+		if self._toggleButton and self._toggleButton.Parent then
+			self._toggleButton.Visible = true
+		end
 		return
 	end
 
@@ -327,7 +333,7 @@ function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean
 	if expanded then
 		self._hasUnseenAssignment = false
 	end
-	self:_renderNotification()
+	self:_renderCurrentState()
 end
 
 function DailyQuestUIController:SetExpanded(expanded: boolean)
