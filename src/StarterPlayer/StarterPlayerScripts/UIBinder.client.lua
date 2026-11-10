@@ -38,7 +38,7 @@ end
 
 local DAILY_QUEST_ROOT_PATH = "MainHUD.Root.QuestDaily"
 local DAILY_QUEST_FALLBACK_NAMES: { [string]: boolean } = {
-	ProgressLabel = true,
+	DiamondCountText = true,
 	TaskDescriptionLabel = true,
 	ToggleDropdown = true,
 	OpenIcon = true,
