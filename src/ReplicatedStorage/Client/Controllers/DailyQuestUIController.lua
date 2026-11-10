@@ -1,6 +1,5 @@
 --!strict
 
-local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -11,26 +10,10 @@ local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 local ConfirmationTextConfig = require(ReplicatedStorage.Shared.Config.ConfirmationTextConfig)
 local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
--- Fill these two IDs manually. Both assets are preloaded before either is assigned
--- to ToggleDropdown, so the icon never changes to an unloaded asset.
-local TOGGLE_EXPANDED_ICON_ID = ""
-local TOGGLE_COLLAPSED_ICON_ID = ""
-
 local TWEEN_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local DailyQuestUIController = {}
 DailyQuestUIController.__index = DailyQuestUIController
-
-local function normalizeImageId(value: string): string?
-	local trimmed = string.gsub(tostring(value or ""), "^%s*(.-)%s*$", "%1")
-	if trimmed == "" then
-		return nil
-	end
-	if string.match(trimmed, "^%d+$") then
-		return "rbxassetid://" .. trimmed
-	end
-	return trimmed
-end
 
 local function setVisible(instance: Instance?, visible: boolean)
 	if instance and instance:IsA("GuiObject") then
@@ -56,8 +39,6 @@ function DailyQuestUIController.new(playerGui: PlayerGui)
 	self._hasUnseenAssignment = false
 	self._lastAssignmentId = nil
 	self._pendingSkip = false
-	self._toggleIconsReady = false
-	self._toggleIconLoadFailed = false
 	self._timeAccumulator = 0
 	return self
 end
@@ -107,15 +88,9 @@ function DailyQuestUIController:_resolveUi(): boolean
 	self._progressLabel = PathResolver.resolvePath(self._playerGui, paths.ProgressLabel, { shouldWarn = false })
 	self._descriptionLabel = PathResolver.resolvePath(self._playerGui, paths.TaskDescriptionLabel, { shouldWarn = false })
 	self._toggleButton = PathResolver.resolvePath(self._playerGui, paths.ToggleDropdown, { shouldWarn = false })
-	self._notificationIcon = PathResolver.resolvePath(self._playerGui, paths.NotificationIIcon, { shouldWarn = false })
-
-	-- Hide the button only when both configured replacement assets are being preloaded.
-	-- With no image IDs, keep the Studio-authored image and preserve toggle functionality.
-	local hasToggleIconPair = normalizeImageId(TOGGLE_EXPANDED_ICON_ID) ~= nil
-		and normalizeImageId(TOGGLE_COLLAPSED_ICON_ID) ~= nil
-	if self._toggleButton then
-		self._toggleButton.Visible = self._toggleIconsReady or self._toggleIconLoadFailed or not hasToggleIconPair
-	end
+	self._openIcon = PathResolver.resolvePath(self._playerGui, paths.OpenIcon, { shouldWarn = false })
+	self._closedIcon = PathResolver.resolvePath(self._playerGui, paths.ClosedIcon, { shouldWarn = false })
+	self._notificationIcon = PathResolver.resolvePath(self._playerGui, paths.NotificationIcon, { shouldWarn = false })
 
 	if not self._rootBody or not self._rootBody:IsA("Frame") then
 		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody is missing or is not a Frame.")
@@ -136,11 +111,17 @@ function DailyQuestUIController:_resolveUi(): boolean
 	if not self._descriptionLabel or not self._descriptionLabel:IsA("TextLabel") then
 		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.TaskDescriptionLabel is missing or is not a TextLabel.")
 	end
-	if not self._toggleButton or not self._toggleButton:IsA("ImageButton") then
-		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ToggleDropdown is missing or is not an ImageButton.")
+	if not self._toggleButton or not self._toggleButton:IsA("TextButton") then
+		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ToggleDropdown is missing or is not a TextButton.")
+	end
+	if not self._openIcon or not self._openIcon:IsA("ImageLabel") then
+		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ToggleDropdown.OpenIcon is missing or is not an ImageLabel.")
+	end
+	if not self._closedIcon or not self._closedIcon:IsA("ImageLabel") then
+		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ToggleDropdown.ClosedIcon is missing or is not an ImageLabel.")
 	end
 	if not self._notificationIcon or not self._notificationIcon:IsA("ImageLabel") then
-		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.NotificationIIcon is missing or is not an ImageLabel.")
+		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.NotificationIcon is missing or is not an ImageLabel.")
 	end
 
 	if self._toggleButton and self._toggleButton.Parent ~= self._frame
@@ -149,12 +130,11 @@ function DailyQuestUIController:_resolveUi(): boolean
 	end
 	if self._notificationIcon and self._notificationIcon.Parent ~= self._frame
 		and not self._notificationIcon:IsDescendantOf(self._rootBody) then
-		warn("[DailyQuestUI] NotificationIIcon must be a sibling of QuestDaily or a child of RootBody.")
+		warn("[DailyQuestUI] NotificationIcon must be a sibling of QuestDaily or a child of RootBody.")
 	end
 
 	self:_prepareRootBodyGeometry()
 	self:_bindUiActions()
-	self:_preloadToggleIcons()
 	self._rootBody.Visible = true
 	self:_setExpanded(true, false)
 	if self._snapshot then
@@ -206,88 +186,16 @@ function DailyQuestUIController:_prepareRootBodyGeometry()
 	end
 	if self._notificationIcon and self._notificationIcon:IsDescendantOf(self._rootBody)
 		and self._notificationIcon.Parent ~= self._rootBody then
-		warn("[DailyQuestUI] NotificationIIcon should be a direct child of RootBody so it remains visible when collapsed.")
+		warn("[DailyQuestUI] NotificationIcon should be a direct child of RootBody so it remains visible when collapsed.")
 	end
 end
 
-function DailyQuestUIController:_preloadToggleIcons()
-	if self._iconPreloadStarted then
-		return
+function DailyQuestUIController:_syncToggleIcons()
+	if self._openIcon and self._openIcon:IsA("ImageLabel") then
+		self._openIcon.Visible = self._expanded
 	end
-	self._iconPreloadStarted = true
-
-	local expandedId = normalizeImageId(TOGGLE_EXPANDED_ICON_ID)
-	local collapsedId = normalizeImageId(TOGGLE_COLLAPSED_ICON_ID)
-	if not expandedId or not collapsedId then
-		warn("[DailyQuestUI] Toggle icon IDs are not configured; keeping the Studio-authored ToggleDropdown image.")
-		if self._toggleButton and self._toggleButton.Parent then
-			self._toggleButton.Visible = true
-		end
-		return
-	end
-
-	-- PreloadAsync consumes Instances. Temporary hidden ImageLabels let Roblox
-	-- fetch both image assets before ToggleDropdown.Image is changed.
-	task.spawn(function()
-		local preloadGui = Instance.new("ScreenGui")
-		preloadGui.Name = "__DailyQuestIconPreload"
-		preloadGui.Enabled = false
-		preloadGui.ResetOnSpawn = false
-		local preloadFrame = Instance.new("Frame")
-		preloadFrame.Name = "Assets"
-		preloadFrame.Size = UDim2.fromOffset(1, 1)
-		preloadFrame.BackgroundTransparency = 1
-		preloadFrame.Parent = preloadGui
-
-		local preloadImages = {}
-		for index, imageId in ipairs({ expandedId, collapsedId }) do
-			local image = Instance.new("ImageLabel")
-			image.Name = "ToggleIcon" .. tostring(index)
-			image.Size = UDim2.fromOffset(1, 1)
-			image.BackgroundTransparency = 1
-			image.Image = imageId
-			image.Visible = false
-			image.Parent = preloadFrame
-			table.insert(preloadImages, image)
-		end
-		preloadGui.Parent = self._playerGui
-
-		local loadedAssets = 0
-		local ok, err = pcall(function()
-			ContentProvider:PreloadAsync(preloadImages, function(_assetId, fetchStatus)
-				if fetchStatus == Enum.AssetFetchStatus.Success then
-					loadedAssets += 1
-				end
-			end)
-		end)
-		preloadGui:Destroy()
-
-		if not ok or loadedAssets < #preloadImages then
-			warn(string.format("[DailyQuestUI] Toggle icon preload failed; retaining the Studio-authored image. loaded=%d/%d error=%s", loadedAssets, #preloadImages, tostring(err)))
-			self._toggleIconLoadFailed = true
-			if self._toggleButton and self._toggleButton.Parent then
-				self._toggleButton.Visible = true
-			end
-			return
-		end
-
-		self._toggleIconsReady = true
-		self:_applyToggleIcon()
-		if self._toggleButton and self._toggleButton.Parent then
-			self._toggleButton.Visible = true
-		end
-	end)
-end
-
-function DailyQuestUIController:_applyToggleIcon()
-	if not self._toggleButton or not self._toggleIconsReady then
-		return
-	end
-	local imageId = if self._expanded
-		then normalizeImageId(TOGGLE_EXPANDED_ICON_ID)
-		else normalizeImageId(TOGGLE_COLLAPSED_ICON_ID)
-	if imageId then
-		self._toggleButton.Image = imageId
+	if self._closedIcon and self._closedIcon:IsA("ImageLabel") then
+		self._closedIcon.Visible = not self._expanded
 	end
 end
 
@@ -303,6 +211,7 @@ function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean
 		return
 	end
 	self._expanded = expanded
+	self:_syncToggleIcons()
 	if self._tween then
 		self._tween:Cancel()
 		self._tween = nil
@@ -324,7 +233,7 @@ function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean
 		self._rootBody.Visible = true
 	end
 
-	self:_applyToggleIcon()
+	self:_syncToggleIcons()
 	if animate == false then
 		self._rootBody.Size = targetSize
 	else
