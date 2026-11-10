@@ -21,6 +21,93 @@ local function setVisible(instance: Instance?, visible: boolean)
 	end
 end
 
+local DAILY_QUEST_HIERARCHY_NODE_NAMES: { [string]: boolean } = {
+	MainHUD = true,
+	Root = true,
+	QuestDaily = true,
+	RootBody = true,
+	SkipTaskBtn = true,
+	ClaimRewardBtn = true,
+	DiamondIcon = true,
+	ProgressLabel = true,
+	TaskDescriptionLabel = true,
+	ToggleDropdown = true,
+	OpenIcon = true,
+	ClosedIcon = true,
+	NotificationIcon = true,
+}
+
+local function isExpectedClass(instance: Instance?, expectedClass: string?): boolean
+	return instance ~= nil and (expectedClass == nil or instance:IsA(expectedClass))
+end
+
+local function findUniqueDescendant(root: Instance?, name: string, expectedClass: string?): Instance?
+	if not root then
+		return nil
+	end
+	if root.Name == name and isExpectedClass(root, expectedClass) then
+		return root
+	end
+
+	local directChild = root:FindFirstChild(name)
+	if isExpectedClass(directChild, expectedClass) then
+		return directChild
+	end
+
+	local match: Instance? = nil
+	for _, descendant in ipairs(root:GetDescendants()) do
+		if descendant.Name == name and isExpectedClass(descendant, expectedClass) then
+			if match then
+				-- Do not bind an arbitrary duplicate name from inside QuestDaily.
+				return nil
+			end
+			match = descendant
+		end
+	end
+	return match
+end
+
+local function resolveDailyQuestElement(
+	playerGui: PlayerGui,
+	frame: Frame,
+	paths: any,
+	pathKey: string,
+	name: string,
+	expectedClass: string,
+	firstRoot: Instance?,
+	secondRoot: Instance?,
+	thirdRoot: Instance?
+): Instance?
+	local path = paths[pathKey]
+	local exact = if type(path) == "string"
+		then PathResolver.resolvePath(playerGui, path, { shouldWarn = false })
+		else nil
+	if isExpectedClass(exact, expectedClass) then
+		return exact
+	end
+
+	local candidate = findUniqueDescendant(firstRoot, name, expectedClass)
+		or findUniqueDescendant(secondRoot, name, expectedClass)
+		or findUniqueDescendant(thirdRoot, name, expectedClass)
+		or findUniqueDescendant(frame, name, expectedClass)
+	if candidate then
+		return candidate
+	end
+
+	-- Return a uniquely named but incorrectly typed instance as well, so the
+	-- controller can report the real class mismatch instead of a false "missing".
+	return exact or findUniqueDescendant(frame, name, nil)
+end
+
+local function warnMissingUiReference(self, key: string, message: string)
+	self._warnedUiReferences = self._warnedUiReferences or {}
+	if self._warnedUiReferences[key] then
+		return
+	end
+	self._warnedUiReferences[key] = true
+	warn(message)
+end
+
 local function formatCooldown(seconds: number): string
 	local total = math.max(0, math.ceil(seconds))
 	local minutes = math.floor(total / 60)
@@ -40,6 +127,9 @@ function DailyQuestUIController.new(playerGui: PlayerGui)
 	self._lastAssignmentId = nil
 	self._pendingSkip = false
 	self._timeAccumulator = 0
+	self._warnedUiReferences = {}
+	self._destroyed = false
+	self._resolveQueued = false
 	return self
 end
 
@@ -73,80 +163,139 @@ function DailyQuestUIController:_resolveUi(): boolean
 		return false
 	end
 	self._warnedMissingFrame = false
-	if self._frame == frame and self._rootBody and self._rootBody.Parent then
-		return true
+
+	local previousFrame = self._frame
+	local previousRootBody = self._rootBody
+	local previousSkipButton = self._skipButton
+	local previousClaimButton = self._claimButton
+	local previousDiamondIcon = self._diamondIcon
+	local previousProgressLabel = self._progressLabel
+	local previousDescriptionLabel = self._descriptionLabel
+	local previousToggleButton = self._toggleButton
+	local previousOpenIcon = self._openIcon
+	local previousClosedIcon = self._closedIcon
+	local previousNotificationIcon = self._notificationIcon
+	local frameChanged = previousFrame ~= frame
+
+	local rootBody = resolveDailyQuestElement(
+		self._playerGui,
+		frame,
+		paths,
+		"RootBody",
+		"RootBody",
+		"Frame",
+		frame,
+		nil,
+		nil
+	)
+	if rootBody and not rootBody:IsA("Frame") then
+		rootBody = nil
 	end
 
-	self:_disconnectUiConnections()
-	self._expandedSize = nil
+	local skipButton = resolveDailyQuestElement(self._playerGui, frame, paths, "SkipTaskBtn", "SkipTaskBtn", "ImageButton", rootBody, frame, nil)
+	local claimButton = resolveDailyQuestElement(self._playerGui, frame, paths, "ClaimRewardBtn", "ClaimRewardBtn", "TextButton", rootBody, frame, nil)
+	local diamondIcon = resolveDailyQuestElement(self._playerGui, frame, paths, "DiamondIcon", "DiamondIcon", "ImageLabel", claimButton, rootBody, frame)
+	local progressLabel = resolveDailyQuestElement(self._playerGui, frame, paths, "ProgressLabel", "ProgressLabel", "TextLabel", claimButton, rootBody, frame)
+	local descriptionLabel = resolveDailyQuestElement(self._playerGui, frame, paths, "TaskDescriptionLabel", "TaskDescriptionLabel", "TextLabel", claimButton, rootBody, frame)
+	local toggleButton = resolveDailyQuestElement(self._playerGui, frame, paths, "ToggleDropdown", "ToggleDropdown", "TextButton", rootBody, frame, nil)
+	local openIcon = resolveDailyQuestElement(self._playerGui, frame, paths, "OpenIcon", "OpenIcon", "ImageLabel", toggleButton, rootBody, frame)
+	local closedIcon = resolveDailyQuestElement(self._playerGui, frame, paths, "ClosedIcon", "ClosedIcon", "ImageLabel", toggleButton, rootBody, frame)
+	local notificationIcon = resolveDailyQuestElement(self._playerGui, frame, paths, "NotificationIcon", "NotificationIcon", "ImageLabel", rootBody, frame, nil)
+
 	self._frame = frame
 	self._frame.Visible = true
-	self._rootBody = PathResolver.resolvePath(self._playerGui, paths.RootBody, { shouldWarn = false })
-	self._skipButton = PathResolver.resolvePath(self._playerGui, paths.SkipTaskBtn, { shouldWarn = false })
-	self._claimButton = PathResolver.resolvePath(self._playerGui, paths.ClaimRewardBtn, { shouldWarn = false })
-	self._diamondIcon = PathResolver.resolvePath(self._playerGui, paths.DiamondIcon, { shouldWarn = false })
-	self._progressLabel = PathResolver.resolvePath(self._playerGui, paths.ProgressLabel, { shouldWarn = false })
-	self._descriptionLabel = PathResolver.resolvePath(self._playerGui, paths.TaskDescriptionLabel, { shouldWarn = false })
-	self._toggleButton = PathResolver.resolvePath(self._playerGui, paths.ToggleDropdown, { shouldWarn = false })
-	self._openIcon = PathResolver.resolvePath(self._playerGui, paths.OpenIcon, { shouldWarn = false })
-	self._closedIcon = PathResolver.resolvePath(self._playerGui, paths.ClosedIcon, { shouldWarn = false })
-	self._notificationIcon = PathResolver.resolvePath(self._playerGui, paths.NotificationIcon, { shouldWarn = false })
+	self._rootBody = rootBody
+	self._skipButton = skipButton
+	self._claimButton = claimButton
+	self._diamondIcon = diamondIcon
+	self._progressLabel = progressLabel
+	self._descriptionLabel = descriptionLabel
+	self._toggleButton = toggleButton
+	self._openIcon = openIcon
+	self._closedIcon = closedIcon
+	self._notificationIcon = notificationIcon
 
-	if not self._rootBody or not self._rootBody:IsA("Frame") then
-		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody is missing or is not a Frame.")
+	local referencesChanged = frameChanged
+		or previousRootBody ~= rootBody
+		or previousSkipButton ~= skipButton
+		or previousClaimButton ~= claimButton
+		or previousDiamondIcon ~= diamondIcon
+		or previousProgressLabel ~= progressLabel
+		or previousDescriptionLabel ~= descriptionLabel
+		or previousToggleButton ~= toggleButton
+		or previousOpenIcon ~= openIcon
+		or previousClosedIcon ~= closedIcon
+		or previousNotificationIcon ~= notificationIcon
+
+	if referencesChanged then
+		self:_disconnectUiConnections()
+	end
+	if frameChanged or previousRootBody ~= rootBody then
+		self._expandedSize = nil
+		self._warnedUiReferences = {}
+	end
+
+	if not rootBody then
+		warnMissingUiReference(self, "RootBody", "[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody is missing or is not a Frame.")
 		return false
 	end
-	if not self._skipButton or not self._skipButton:IsA("ImageButton") then
-		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.SkipTaskBtn is missing or is not an ImageButton.")
-	end
-	if not self._claimButton or not self._claimButton:IsA("TextButton") then
-		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn is missing or is not a TextButton.")
-	end
-	if not self._diamondIcon or not self._diamondIcon:IsA("ImageLabel") then
-		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.DiamondIcon is missing or is not an ImageLabel.")
-	end
-	if not self._progressLabel or not self._progressLabel:IsA("TextLabel") then
-		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.ProgressLabel is missing or is not a TextLabel.")
-	end
-	if not self._descriptionLabel or not self._descriptionLabel:IsA("TextLabel") then
-		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.TaskDescriptionLabel is missing or is not a TextLabel.")
-	end
-	if not self._toggleButton or not self._toggleButton:IsA("TextButton") then
-		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ToggleDropdown is missing or is not a TextButton.")
-	elseif self._toggleButton.Text ~= "" then
-		self._toggleButton.Text = ""
-	end
-	if not self._openIcon or not self._openIcon:IsA("ImageLabel") then
-		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ToggleDropdown.OpenIcon is missing or is not an ImageLabel.")
-	end
-	if not self._closedIcon or not self._closedIcon:IsA("ImageLabel") then
-		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.ToggleDropdown.ClosedIcon is missing or is not an ImageLabel.")
-	end
-	if not self._notificationIcon or not self._notificationIcon:IsA("ImageLabel") then
-		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody.NotificationIcon is missing or is not an ImageLabel.")
+	self._warnedUiReferences.RootBody = nil
+
+	local function validateReference(key: string, instance: Instance?, className: string, path: string)
+		if instance and instance:IsA(className) then
+			self._warnedUiReferences[key] = nil
+		else
+			warnMissingUiReference(
+				self,
+				key,
+				string.format("[DailyQuestUI] %s is missing or is not a %s.", path, className)
+			)
+		end
 	end
 
-	if self._toggleButton and self._toggleButton.Parent ~= self._frame
-		and not self._toggleButton:IsDescendantOf(self._rootBody) then
-		warn("[DailyQuestUI] ToggleDropdown must be a sibling of QuestDaily or a child of RootBody.")
-	end
-	if self._notificationIcon and self._notificationIcon.Parent ~= self._frame
-		and not self._notificationIcon:IsDescendantOf(self._rootBody) then
-		warn("[DailyQuestUI] NotificationIcon must be a sibling of QuestDaily or a child of RootBody.")
+	validateReference("SkipTaskBtn", skipButton, "ImageButton", "MainHUD.Root.QuestDaily.RootBody.SkipTaskBtn")
+	validateReference("ClaimRewardBtn", claimButton, "TextButton", "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn")
+	validateReference("DiamondIcon", diamondIcon, "ImageLabel", "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.DiamondIcon")
+	validateReference("ProgressLabel", progressLabel, "TextLabel", "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.ProgressLabel")
+	validateReference("TaskDescriptionLabel", descriptionLabel, "TextLabel", "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.TaskDescriptionLabel")
+	validateReference("ToggleDropdown", toggleButton, "TextButton", "MainHUD.Root.QuestDaily.RootBody.ToggleDropdown")
+	validateReference("OpenIcon", openIcon, "ImageLabel", "MainHUD.Root.QuestDaily.RootBody.ToggleDropdown.OpenIcon")
+	validateReference("ClosedIcon", closedIcon, "ImageLabel", "MainHUD.Root.QuestDaily.RootBody.ToggleDropdown.ClosedIcon")
+	validateReference("NotificationIcon", notificationIcon, "ImageLabel", "MainHUD.Root.QuestDaily.RootBody.NotificationIcon")
+
+	if toggleButton and toggleButton:IsA("TextButton") and toggleButton.Text ~= "" then
+		toggleButton.Text = ""
 	end
 
-	self:_prepareRootBodyGeometry()
-	self:_bindUiActions()
-	self._rootBody.Visible = true
-	self:_setExpanded(true, false)
-	if self._snapshot then
-		self:RenderSnapshot(self._snapshot)
+	if referencesChanged then
+		if frameChanged then
+			self._expanded = true
+		end
+		self:_prepareRootBodyGeometry()
+		self._rootBody.Visible = true
+		self:_bindUiActions()
+		self:_setExpanded(self._expanded, false)
 	end
+
 	return true
 end
 
+function DailyQuestUIController:_scheduleResolveUi()
+	if self._resolveQueued or self._destroyed then
+		return
+	end
+	self._resolveQueued = true
+	task.defer(function()
+		self._resolveQueued = false
+		if self._destroyed then
+			return
+		end
+		self:_resolveUi()
+	end)
+end
+
 function DailyQuestUIController:_prepareRootBodyGeometry()
-	if not self._frame or not self._rootBody or not self._toggleButton then
+	if not self._frame or not self._rootBody or not self._toggleButton or not self._toggleButton:IsA("GuiObject") then
 		return
 	end
 	if not self._expandedSize then
@@ -167,7 +316,8 @@ function DailyQuestUIController:_prepareRootBodyGeometry()
 		self._toggleButton.Position = UDim2.new(1, -toggleRightGap, togglePosition.Y.Scale, togglePosition.Y.Offset)
 	end
 
-	if self._notificationIcon and self._notificationIcon:IsDescendantOf(self._rootBody)
+	if self._notificationIcon and self._notificationIcon:IsA("GuiObject")
+		and self._notificationIcon:IsDescendantOf(self._rootBody)
 		and self._notificationIcon.Parent == self._rootBody then
 		local notificationPosition = self._notificationIcon.Position
 		local notificationRightGap = math.max(0, bodyAbsoluteRight - (self._notificationIcon.AbsolutePosition.X + self._notificationIcon.AbsoluteSize.X))
@@ -265,7 +415,7 @@ function DailyQuestUIController:SetExpanded(expanded: boolean)
 end
 
 function DailyQuestUIController:_bindUiActions()
-	if self._toggleButton then
+	if self._toggleButton and self._toggleButton:IsA("GuiButton") then
 		table.insert(self._uiConnections, self._toggleButton.Activated:Connect(function()
 			local willExpand = not self._expanded
 			if willExpand then
@@ -275,7 +425,7 @@ function DailyQuestUIController:_bindUiActions()
 		end))
 	end
 
-	if self._skipButton then
+	if self._skipButton and self._skipButton:IsA("GuiButton") then
 		table.insert(self._uiConnections, self._skipButton.Activated:Connect(function()
 			local questState = self._snapshot and self._snapshot.DailyQuest
 			local quest = questState and questState.ActiveQuest
@@ -298,7 +448,7 @@ function DailyQuestUIController:_bindUiActions()
 		end))
 	end
 
-	if self._claimButton then
+	if self._claimButton and self._claimButton:IsA("GuiButton") then
 		table.insert(self._uiConnections, self._claimButton.Activated:Connect(function()
 			local questState = self._snapshot and self._snapshot.DailyQuest
 			local quest = questState and questState.ActiveQuest
@@ -313,6 +463,7 @@ function DailyQuestUIController:_bindUiActions()
 end
 
 function DailyQuestUIController:Start()
+	self._destroyed = false
 	if self._logicService then
 		table.insert(self._logicConnections, self._logicService:BindChanged(function(snapshot)
 			self:RenderSnapshot(snapshot)
@@ -327,11 +478,16 @@ function DailyQuestUIController:Start()
 	end
 
 	self:_resolveUi()
+	local function onQuestUiHierarchyChanged(descendant: Instance)
+		if DAILY_QUEST_HIERARCHY_NODE_NAMES[descendant.Name] then
+			self:_scheduleResolveUi()
+		end
+	end
+	table.insert(self._connections, self._playerGui.DescendantAdded:Connect(onQuestUiHierarchyChanged))
+	table.insert(self._connections, self._playerGui.DescendantRemoving:Connect(onQuestUiHierarchyChanged))
 	table.insert(self._connections, self._playerGui.ChildAdded:Connect(function(child)
 		if child.Name == "MainHUD" then
-			task.defer(function()
-				self:_resolveUi()
-			end)
+			self:_scheduleResolveUi()
 		end
 	end))
 	table.insert(self._connections, self._playerGui.ChildRemoved:Connect(function(child)
@@ -339,8 +495,16 @@ function DailyQuestUIController:Start()
 			self:_disconnectUiConnections()
 			self._frame = nil
 			self._rootBody = nil
+			self._skipButton = nil
+			self._claimButton = nil
+			self._diamondIcon = nil
+			self._progressLabel = nil
+			self._descriptionLabel = nil
 			self._toggleButton = nil
+			self._openIcon = nil
+			self._closedIcon = nil
 			self._notificationIcon = nil
+			self._expandedSize = nil
 		end
 	end))
 	self._heartbeatConnection = RunService.Heartbeat:Connect(function(deltaTime)
@@ -505,6 +669,7 @@ function DailyQuestUIController:_handleSkipResult(result: any)
 end
 
 function DailyQuestUIController:Destroy()
+	self._destroyed = true
 	self:_disconnectUiConnections()
 	for _, connection in ipairs(self._connections) do
 		connection:Disconnect()
