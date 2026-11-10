@@ -277,13 +277,6 @@ DataModel
 │  │      │   ├── Description (TextLabel)
 │  │      │   └── Title (TextLabel)
 │  │      │
-│  │      ├── QuestRowTemplate_QuestUI (Frame)
-│  │      │   ├── UICorner
-│  │      │   ├── ProgressBarBox
-│  │      │   ├── ClaimButton
-│  │      │   ├── QuestIcon
-│  │      │   └── QuestDesc
-│  │      │
 │  │      ├── LauncherWorldUI (BillboardGui)
 │  │      │   ├── UIListLayout
 │  │      │   ├── HpBarBackground (Frame)
@@ -329,13 +322,18 @@ DataModel
 │  │     ├─ RoundResult
 │  │     ├─ PopupMessage
 │  │     ├─ SetPlayerMode
+│  │     ├─ QuestUpdate
+│  │     ├─ QuestClaim
+│  │     ├─ QuestSkip
 │  │     └─ ZoneUpdate [freeze-required]
 │  │
 │  └─ Client  -> src/ReplicatedStorage/Client
 │     ├─ Controllers
+│     │  ├─ DailyQuestUIController.lua
 │     │  ├─ TeamSelectionUIController.lua
 │     │  └─ UIController.lua
 │     └─ Services
+│        ├─ DailyQuestLogicService.lua
 │        └─ LobbyClientService.lua 
 │ 
 ## 🟥 ServerScriptService
@@ -345,7 +343,8 @@ DataModel
 │  ├─ Tests
 │  │  └─ CoreLoopTests.server.lua
 │  └─ Services
-│     └─ BombService.lua
+│     ├─ BombService.lua
+│     └─ QuestService.lua
 ## 🟩 StarterPlayer
 ├─ StarterPlayer
 │  └─ StarterPlayerScripts
@@ -400,27 +399,6 @@ DataModel
 │  │     ├─ UIPadding
 │  │     ├─ Icon
 │  │     └─ Message
-│  │
-│  ├─ QuestUI (ScreenGui)
-│  │  └─ Root
-│  │     ├─ Content_ScrollFrame
-│  │     │  ├─ UIListLayout
-│  │     │  └─ QuestTemplate
-│  │     │     ├─ UICorner
-│  │     │     ├─ ProgressBarBox
-│  │     │     │  ├─ UICorner
-│  │     │     │  ├─ Fill
-│  │     │     │  └─ ProgressText
-│  │     │     ├─ ClaimButton
-│  │     │     ├─ QuestIcon
-│  │     │     └─ QuestDesc
-│  │     ├─ TabContainer
-│  │     │  ├─ UIListLayout
-│  │     │  ├─ Tab_Daily
-│  │     │  └─ Tab_Main
-│  │     ├─ CloseButton
-│  │     ├─ Background
-│  │     └─ Header
 │  │
 │  ├─ TeamSelectionGui (ScreenGui)
 │  │  ├─ TeamPopupFrame

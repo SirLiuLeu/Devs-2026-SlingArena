@@ -57,6 +57,10 @@ local TEXTS = {
 		vi = "Bạn có chắc chắn muốn xóa Pet {petName} khỏi kho không? Hành động này không thể hoàn tác.",
 		en = "Are you sure you want to delete {petName} from your Pet inventory? This cannot be undone.",
 	},
+	SkipDailyQuest = {
+		vi = "Bạn có chắc chắn muốn bỏ nhiệm vụ hiện tại không? Bạn sẽ phải chờ 1 phút 30 giây để nhận nhiệm vụ mới.",
+		en = "Are you sure you want to skip this quest? You must wait 1 minute 30 seconds for the next quest.",
+	},
 	LeaveArena = {
 		vi = "Rời đấu trường lúc này sẽ bị phạt 30 giây. Bạn có chắc chắn không?",
 		en = "Leaving now will apply a 30-second penalty. Are you sure?",

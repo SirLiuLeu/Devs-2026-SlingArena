@@ -26,6 +26,17 @@ local ProjectTreeSpec = {
 			ShopButton = "MainHUD.Root.LeftMenu.ShopButton", -- [ASSUMED] StarterGui.MainHUD.Root.LeftMenu.ShopButton
 			TabScore = "MainHUD.Root.LeftMenu.TabScore", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.TabScore
 			QuestButton = "MainHUD.Root.LeftMenu.QuestButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.QuestButton
+			DailyQuest = {
+				Root = "MainHUD.Root.QuestDaily", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuestDaily
+				RootBody = "MainHUD.Root.QuestDaily.RootBody", -- [PROJECT_TREE_SPEC]
+				SkipTaskBtn = "MainHUD.Root.QuestDaily.RootBody.SkipTaskBtn", -- [PROJECT_TREE_SPEC]
+				ClaimRewardBtn = "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn", -- [PROJECT_TREE_SPEC]
+				DiamondIcon = "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.DiamondIcon", -- [PROJECT_TREE_SPEC]
+				ProgressLabel = "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.ProgressLabel", -- [PROJECT_TREE_SPEC]
+				TaskDescriptionLabel = "MainHUD.Root.QuestDaily.RootBody.ClaimRewardBtn.TaskDescriptionLabel", -- [PROJECT_TREE_SPEC]
+				ToggleDropdown = "MainHUD.Root.QuestDaily.RootBody.ToggleDropdown", -- [PROJECT_TREE_SPEC]
+				NotificationIIcon = "MainHUD.Root.QuestDaily.RootBody.NotificationIIcon", -- [PROJECT_TREE_SPEC]
+			},
 			ProgressPoint = "MainHUD.Root.ProgressPoint", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ProgressPoint
 			QuickHP = "MainHUD.Root.QuickHP", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuickHP
 			QuickHPQuantity = "MainHUD.Root.QuickHP.Quantity", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuickHP.Quantity (TextLabel)
@@ -54,7 +65,6 @@ local ProjectTreeSpec = {
 				Shop = "ShopUI", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI
 				Inventory = "InventoryUI", -- [ASSUMED] expected inventory panel root ScreenGui name
 				OnlineReward = "OnlineRewardUI", -- [ASSUMED] expected online reward panel root ScreenGui name
-				Quest = "QuestUI", -- [ASSUMED] generated Phase 2 quest panel root ScreenGui name
 			},
 			LobbyTeleport = {
 				MapName = "LobbyMap", -- [PROJECT_TREE_SPEC] Workspace.Maps.LobbyMap

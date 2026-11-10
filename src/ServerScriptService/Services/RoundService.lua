@@ -296,7 +296,7 @@ function RoundService:_countArenaPlayers(): number
 	local count = 0
 	for _, player in ipairs(Players:GetPlayers()) do
 		local state = stateService:GetState(player)
-		if state and state.LocationState ~= GameStates.SessionState.Lobby then
+		if state and state.LocationState == GameStates.SessionState.InGame then
 			count += 1
 		end
 	end
@@ -434,6 +434,17 @@ function RoundService:_beginRoundEnd()
 	end
 	self._winnerName = if #winnerNames > 0 then table.concat(winnerNames, ", ") else (self:_findLastAlivePlayerName() or "No winner")
 	local summaryRows = if progressPointService and typeof(progressPointService.AwardEndRoundPoints) == "function" then progressPointService:AwardEndRoundPoints(topPlayers) else topPlayers
+	local playerStateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	if self._context.EventBus and playerStateService then
+		-- Use the full authoritative Arena roster, not the top-scoreboard subset.
+		-- Count only players who entered InGame; dead players still remain InGame until PostRound.
+		for _, participant in ipairs(Players:GetPlayers()) do
+			local state = playerStateService:GetState(participant)
+			if state and state.LocationState ~= GameStates.SessionState.Lobby then
+				self._context.EventBus:Fire("RoundCompleted", participant, self._roundId, state.IsAlive == true)
+			end
+		end
+	end
 	self:_setState(GameStates.MapRoundState.RoundEnd)
 	self:_freezeArenaPlayers(true)
 	if self._matchSummaryRemote then

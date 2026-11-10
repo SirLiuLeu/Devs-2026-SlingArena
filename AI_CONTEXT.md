@@ -35,6 +35,8 @@
 | EndRound | C->S | RoundService | `{}` | Studio-only round-end test hook; server ignores requests outside Studio. |
 | SellLauncher | C->S | LauncherInventoryService | `{ instanceId: string }` | Sells an eligible owned Launcher instance; the server decides eligibility and payout. |
 | CombineLaunchers | C->S | LauncherInventoryService | `{ instanceIds: [string, string, string], requestId: integer }` | Combines three compatible owned Launcher instances; server validates ownership/eligibility and echoes the request ID in GameplayFeedback. |
+| QuestClaim | C->S | QuestService | assignmentId: string | Claims the single active Daily Quest; server checks readiness and atomically grants the configured reward once. |
+| QuestSkip | C->S | QuestService | assignmentId: string | Requests skipping the active Daily Quest; server starts the 90-second cooldown and issues a replacement at the same step. |
 
 # Server → Client (Sync / Feedback)
 
@@ -48,6 +50,7 @@
 | PopupMessage | S->C | TrapService | `{ type: string, text: string }` | Contextual popup notification (trap or gameplay warnings). |
 | ZoneUpdate | S->C | SafeZoneService | `{ phase: string, radius: number, center: Vector3, dpsPercent: number, nextShrinkAt?: number }` | Safe-zone visual and damage sync (freeze-required). |
 | PetProjectileVisual | S->C | PlasmaCannon / SlowBlaster | `Spawn` or `End` visual message | Client-local projectile cosmetics; hit/damage/Slow remain server-authoritative. |
+| QuestUpdate | S->C | QuestService | Snapshot containing DailyQuest, Weekly, ServerNow and optional action results | Authoritative Daily Quest chain snapshot and action results. |
 
 # Controllers (Current)
 
@@ -62,6 +65,7 @@
 | `ShopUIController.lua` | Renders shop tabs/slots and binds buy actions through shop logic service snapshots. | UI |
 | `OnlineRewardUIController.lua` | Renders online reward slots/timers and reward-claim UI states from logic snapshots. | UI |
 | `DailyLoginUIController.lua` | Renders daily login reward slots and claim/locked/completed states from logic snapshots. | UI |
+| `DailyQuestUIController.lua` | Binds MainHUD.Root.QuestDaily, renders one active task/cooldown/claim state, confirms Skip, and toggles the left-extending RootBody. | UI |
 | `MovementController.server.lua` | Receives `MoveRequest` from clients, applies pawn linear velocity, and updates facing rotation toward movement direction. | Network |
 
 # Config Data (`ReplicatedStorage/Shared/Config`)
@@ -95,7 +99,7 @@
 | `TeamConfig.lua` | Team IDs, colors, capacity, change cooldown and Rage timing. | `TeamService`, team selection UI, `RoundService` |
 | `LauncherTextureConfig.lua` | Team/Rage texture IDs for equipped Launcher visuals. | `PlayerService` |
 | `SoundConfig.lua` | SFX keys and playback settings. HP potion consumption uses `SFX_Item_HealthPotion`; `CollisionClientScanner` plays spatial `SFX_Wall_Hit` locally once per continuous contact with `Collision_Wall`-tagged geometry, without server validation; Ground, Food, Lava, Trap, and unclassified parts are excluded. | `SoundManager`, `SFXController`, `CollisionClientScanner` |
-| `QuestConfig.lua` | Quest definitions and progress requirements. | `QuestService`, quest UI |
+| `QuestConfig.lua` | Five-step Daily Quest pools, step rewards, 90-second skip cooldown, and UTC+7 daily reset. | `QuestService`, `DailyQuestUIController` |
 | `RankConfig.lua` | Rank/leaderboard progression settings. | leaderboard/progression services |
 
 ## Pet Inventory progression UI
@@ -262,3 +266,13 @@
 - Food area damage delegates to `FoodService:ApplyAreaDamageToFood`, which reuses `ApplyDamageToFood` so Food LastHit, EXP/diamond rewards and respawn remain in the existing Food ownership path.
 - `MockData` seeds 3 Bombs and 1 Gift Box in default and named mock inventories. `gift_box` currently has no opening effect and cannot be used; no reward odds, Pet temporary grant or Gift Box acquisition source has been implemented.
 - Current asset paths are Studio-authored and are not validated by source control. Confirm the Bomb Model's RootPart/Hitbox structure, ring mesh classes, and all visual timings in Roblox Studio before release. A dedicated explosion SoundId is not configured yet.
+
+## Daily Quest Chain (2026-11-10)
+
+- Daily Quest replaces the old Daily/Main quest list. Each player has one active assignment at a time and completes up to five steps per Vietnam calendar day (reset at UTC+7 midnight).
+- QuestService owns quest selection, active step, progress snapshots, server-authoritative Claim/Skip, 90-second Skip cooldown, and cooldown completion after reconnect. A successful Claim grants the reward and assigns the next step in one PlayerDataService update; the fifth Claim ends the chain for that day.
+- PlayerDataService.QuestState.DailyChain persists step/completed count, active assignment (unique AssignmentId and progress baseline), next assignment timestamp, and completed-for-day state. DailySchemaVersion migrates the former Daily/Main list schema without changing Weekly ProgressPoints.
+- Metrics are server-event driven: exact Food model and Food rarity (DailyQuestFoodCollected), actual direct/DoT player damage (DamageDealt / DoTDamageDealt), player kills, approved LauncherLaunched, participant RoundCompleted, and online seconds. Step 1 includes individual CommonRed/CommonGreen/CommonBlue collection variants. Touch foods are counted in _consumeFood; hit-to-destroy foods are counted in _rewardFoodKill, so bomb area damage cannot count the same food model twice. Each assignment stores a metric baseline so progress from an earlier task cannot complete a later task.
+- DailyQuestUIController and DailyQuestLogicService replace QuestUIController and QuestLogicService. The old QuestUI ScreenGui and QuestRow template are no longer used. Toggle and Notification are expected as direct children of MainHUD.Root.QuestDaily.RootBody; the controller preserves both when collapsed and re-renders claim/skip controls on every expand. The two Toggle image IDs are optional: when configured, both are preloaded before swapping; when absent or unavailable, the authored Studio image remains and the button stays usable.
+- QuestUpdate synchronizes snapshots/results; QuestClaim and QuestSkip carry the current AssignmentId. The server validates each request and rate-limits repeated requests. Weekly Points and weekly reward processing remain independent.
+- Validation note: static repository review only; Roblox Studio runtime and multi-client tests are still required. Runtime persistence remains limited by the currently configured MockProvider until a durable provider is selected.

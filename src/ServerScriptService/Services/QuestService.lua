@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
 
 local QuestConfig = require(ReplicatedStorage.Shared.Config.QuestConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
@@ -14,6 +15,9 @@ QuestService.__index = QuestService
 
 local SECONDS_PER_DAY = 24 * 60 * 60
 local SECONDS_PER_WEEK = 7 * SECONDS_PER_DAY
+local DAILY_CHAIN = QuestConfig.DailyQuestChain
+local MAX_DAILY_STEPS = math.max(1, math.floor(tonumber(DAILY_CHAIN.MaxDailySteps) or 5))
+local SKIP_COOLDOWN_SECONDS = math.max(1, math.floor(tonumber(DAILY_CHAIN.SkipCooldownSeconds) or 90))
 
 local WEEKLY_REWARD_TIERS = {
 	{ MinPoints = 5000, Reward = { Diamonds = 250 } },
@@ -22,17 +26,18 @@ local WEEKLY_REWARD_TIERS = {
 	{ MinPoints = 250, Reward = { Diamonds = 10 } },
 }
 
-
-local function currentDayStamp(now: number): number
-	local date = os.date("!*t", now)
-	date.hour = 0; date.min = 0; date.sec = 0
-	return os.time(date)
+local function currentDayKey(now: number): number
+	local resetOffsetHours = tonumber(DAILY_CHAIN.ResetUtcOffsetHours) or 0
+	local date = os.date("!*t", now + (resetOffsetHours * 60 * 60))
+	return date.year * 10000 + date.month * 100 + date.day
 end
 
 local function currentMondayStamp(now: number): number
 	local date = os.date("!*t", now)
 	local daysSinceMonday = (date.wday + 5) % 7
-	date.hour = 0; date.min = 0; date.sec = 0
+	date.hour = 0
+	date.min = 0
+	date.sec = 0
 	return os.time(date) - (daysSinceMonday * SECONDS_PER_DAY)
 end
 
@@ -47,103 +52,221 @@ local function deepCopy(value: any): any
 	return copy
 end
 
-local function flattenDailyQuests(): { any }
-	local quests = {}
-	for key, quest in pairs(QuestConfig.DailyQuests or {}) do
-		if key == "CollectSpecificFood" and type(quest) == "table" then
-			local selected = quest.Common
-			if not selected then
-				local _, firstQuest = next(quest)
-				selected = firstQuest
-			end
-			if type(selected) == "table" then
-				table.insert(quests, selected)
-			end
-		elseif type(quest) == "table" and quest.Id then
-			table.insert(quests, quest)
-		end
-	end
-	table.sort(quests, function(a, b) return tostring(a.Id) < tostring(b.Id) end)
-	return quests
-end
-
-local function flattenMainQuests(): { any }
-	local quests = {}
-	for family, quest in pairs(QuestConfig.MainQuests or {}) do
-		for index, target in ipairs(quest.Milestones or {}) do
-			local diamonds = (quest.Rewards or {})[index] or 0
-			table.insert(quests, {
-				Id = string.format("M_%s_%d", tostring(family), index),
-				Type = quest.Type,
-				Target = target,
-				Reward = { Diamonds = diamonds },
-				Desc = string.format(quest.Desc or tostring(family), target),
-				Family = family,
-				MilestoneIndex = index,
-			})
-		end
-	end
-	table.sort(quests, function(a, b) return tostring(a.Id) < tostring(b.Id) end)
-	return quests
-end
-
-local DAILY_QUESTS = flattenDailyQuests()
-local MAIN_QUESTS = flattenMainQuests()
-
 function QuestService.new(context: Context)
 	local self = setmetatable({}, QuestService)
 	self._context = context
 	self._onlineStartedAt = {} :: { [number]: number }
+	self._nextOnlineFlushAt = {} :: { [number]: number }
+	self._nextDailyCheckAt = {} :: { [number]: number }
+	self._lastRemoteRequestAt = {} :: { [number]: number }
+	self._claimLocks = {} :: { [number]: boolean }
 	return self
 end
 
 function QuestService:Init()
 	self:_ensureRemotes()
-	Players.PlayerAdded:Connect(function(player)
-		self._onlineStartedAt[player.UserId] = os.time()
-		task.defer(function()
-			self:EnsurePlayerQuestState(player)
-			self:ProcessWeeklyRewards(player)
-			self:SendSnapshot(player)
-		end)
-	end)
-	Players.PlayerRemoving:Connect(function(player)
-		self:_flushOnlineTime(player)
-		self._onlineStartedAt[player.UserId] = nil
-	end)
-	for _, player in ipairs(Players:GetPlayers()) do
-		self._onlineStartedAt[player.UserId] = os.time()
-		self:EnsurePlayerQuestState(player)
-		self:ProcessWeeklyRewards(player)
-		self:SendSnapshot(player)
-	end
+
 	if self._claimRemote then
-		self._claimRemote.OnServerEvent:Connect(function(player: Player, questId: any)
-			if type(questId) == "string" then
-				self:ClaimQuest(player, questId)
+		self._claimRemote.OnServerEvent:Connect(function(player: Player, assignmentId: any)
+			if RemoteContracts.Validate(RemoteContracts.Names.QuestClaim, assignmentId) then
+				self:ClaimQuest(player, assignmentId)
+			else
+				self:_sendActionResult(player, "ClaimResult", {
+					Success = false,
+					Reason = "InvalidRequest",
+					AssignmentId = tostring(assignmentId),
+				})
 			end
 		end)
 	end
+
+	if self._skipRemote then
+		self._skipRemote.OnServerEvent:Connect(function(player: Player, assignmentId: any)
+			if RemoteContracts.Validate(RemoteContracts.Names.QuestSkip, assignmentId) then
+				self:SkipQuest(player, assignmentId)
+			else
+				self:_sendActionResult(player, "SkipResult", {
+					Success = false,
+					Reason = "InvalidRequest",
+					AssignmentId = tostring(assignmentId),
+				})
+			end
+		end)
+	end
+
 	if self._context.EventBus then
-		self._context.EventBus:On("ProgressPointsChanged", function(player: Player, totalPoints: number, weeklyPoints: number)
-			self:_setMetric(player, "CollectPointsTotal", totalPoints)
-			self:_setMetric(player, "CollectPoints", weeklyPoints)
-			self:SendSnapshot(player)
+		self._context.EventBus:On("DailyQuestFoodCollected", function(player: Player, foodType: string, rarity: string)
+			local allowedFoodTypes = {
+				CommonRed = true,
+				CommonGreen = true,
+				CommonBlue = true,
+				UncommonIce = true,
+				RareAmber = true,
+				EpicViolet = true,
+				LegendaryGold = true,
+			}
+			if type(foodType) == "string" and allowedFoodTypes[foodType] then
+				self:_incrementMetric(player, "FoodType_" .. foodType, 1)
+			end
+
+			local allowedRarities = {
+				Common = true,
+				Uncommon = true,
+				Rare = true,
+				Epic = true,
+				Legendary = true,
+			}
+			if type(rarity) == "string" and allowedRarities[rarity] then
+				self:_incrementMetric(player, "Food_" .. rarity, 1)
+			end
 		end)
-		self._context.EventBus:On("PlayerKilled", function(killer: Player)
-			self:_incrementMetric(killer, "KillPlayersTotal", 1)
+
+		self._context.EventBus:On("DamageDealt", function(attacker: Player, victim: Player, amount: number)
+			if attacker ~= victim and typeof(amount) == "number" and amount > 0 then
+				self:_incrementMetric(attacker, "DamageDealtToPlayers", amount)
+			end
 		end)
-		self._context.EventBus:On("RequestLaunchAccepted", function(player: Player)
-			self:_incrementMetric(player, "LaunchTotal", 1)
+
+		self._context.EventBus:On("DoTDamageDealt", function(attacker: Player, victim: Player, amount: number)
+			if attacker ~= victim and typeof(amount) == "number" and amount > 0 then
+				self:_incrementMetric(attacker, "DamageDealtToPlayers", amount)
+			end
 		end)
+
+		self._context.EventBus:On("PlayerKilled", function(killer: Player, victim: Player)
+			if killer ~= victim then
+				self:_incrementMetric(killer, "PlayerKills", 1)
+			end
+		end)
+
+		self._context.EventBus:On("LauncherLaunched", function(player: Player)
+			self:_incrementMetric(player, "LaunchCount", 1)
+		end)
+
+		self._context.EventBus:On("RoundCompleted", function(player: Player)
+			self:_incrementMetric(player, "CompletedRounds", 1)
+		end)
+	end
+
+	Players.PlayerAdded:Connect(function(player)
+		self:_onPlayerAdded(player)
+	end)
+
+	Players.PlayerRemoving:Connect(function(player)
+		self:_flushOnlineTime(player)
+		local playerDataService = self:_getPlayerDataService()
+		if playerDataService and typeof(playerDataService.SavePlayer) == "function" then
+			playerDataService:SavePlayer(player)
+		end
+		self:_clearPlayerRuntime(player)
+	end)
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		self:_onPlayerAdded(player)
+	end
+
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			self:_processPlayers()
+		end
+	end)
+end
+
+function QuestService:_onPlayerAdded(player: Player)
+	local userId = player.UserId
+	local now = os.time()
+	self._onlineStartedAt[userId] = now
+	self._nextOnlineFlushAt[userId] = now + 10
+	self._nextDailyCheckAt[userId] = now + 60
+
+	task.defer(function()
+		if player.Parent ~= Players then
+			return
+		end
+		self:EnsurePlayerQuestState(player)
+		self:ProcessWeeklyRewards(player)
+		self:_ensureActiveQuest(player)
+		self:SendSnapshot(player)
+	end)
+end
+
+function QuestService:_clearPlayerRuntime(player: Player)
+	local userId = player.UserId
+	self._onlineStartedAt[userId] = nil
+	self._nextOnlineFlushAt[userId] = nil
+	self._nextDailyCheckAt[userId] = nil
+	self._lastRemoteRequestAt[userId] = nil
+	self._claimLocks[userId] = nil
+end
+
+function QuestService:_processPlayers()
+	local now = os.time()
+	local playerDataService = self:_getPlayerDataService()
+	if not playerDataService then
+		return
+	end
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		local userId = player.UserId
+		local data = playerDataService:GetData(player)
+		local questState = data and data.QuestState
+
+		local onlineFlushAt = self._nextOnlineFlushAt[userId] or now + 10
+		if now >= onlineFlushAt then
+			self._nextOnlineFlushAt[userId] = now + 10
+			if self:_flushOnlineTime(player) then
+				self:SendSnapshot(player)
+			end
+		end
+
+		local dailyCheckAt = self._nextDailyCheckAt[userId] or now + 60
+		if now >= dailyCheckAt then
+			self._nextDailyCheckAt[userId] = now + 60
+			local previousDayKey = questState and questState.DailyResetKey
+			local normalizedState = self:EnsurePlayerQuestState(player)
+			if normalizedState and normalizedState.DailyResetKey ~= previousDayKey then
+				self:_ensureActiveQuest(player)
+				self:SendSnapshot(player)
+			elseif normalizedState and not normalizedState.DailyChain.ActiveQuest
+				and not normalizedState.DailyChain.CompletedForDay
+				and (tonumber(normalizedState.DailyChain.NextQuestAt) or 0) <= now then
+				if self:_ensureActiveQuest(player) then
+					self:SendSnapshot(player)
+				end
+			end
+		end
+
+		local refreshedData = playerDataService:GetData(player)
+		local refreshedChain = refreshedData and refreshedData.QuestState and refreshedData.QuestState.DailyChain
+		if refreshedChain and (tonumber(refreshedChain.NextQuestAt) or 0) > 0
+			and now >= (tonumber(refreshedChain.NextQuestAt) or 0) then
+			if self:_ensureActiveQuest(player) then
+				self:SendSnapshot(player)
+			end
+		end
 	end
 end
 
 function QuestService:_ensureRemotes()
 	local folder = self._context.Remotes or ReplicatedStorage:FindFirstChild("LauncherArenaRemotes")
-	if not folder then return end
+	if not folder then
+		warn("[QuestService] LauncherArenaRemotes is missing.")
+		return
+	end
 	self._updateRemote = folder:FindFirstChild(RemoteContracts.Names.QuestUpdate) :: RemoteEvent?
 	self._claimRemote = folder:FindFirstChild(RemoteContracts.Names.QuestClaim) :: RemoteEvent?
+	self._skipRemote = folder:FindFirstChild(RemoteContracts.Names.QuestSkip) :: RemoteEvent?
+
+	if not self._updateRemote then
+		warn("[QuestService] Missing LauncherArenaRemotes.QuestUpdate (RemoteEvent).")
+	end
+	if not self._claimRemote then
+		warn("[QuestService] Missing LauncherArenaRemotes.QuestClaim (RemoteEvent).")
+	end
+	if not self._skipRemote then
+		warn("[QuestService] Missing LauncherArenaRemotes.QuestSkip (RemoteEvent); create it from the Rojo model file.")
+	end
 end
 
 function QuestService:_getPlayerDataService()
@@ -152,106 +275,346 @@ end
 
 function QuestService:EnsurePlayerQuestState(player: Player)
 	local playerDataService = self:_getPlayerDataService()
-	if not playerDataService then return nil end
-	return playerDataService:EnsureQuestData(player, currentDayStamp(os.time()))
+	if not playerDataService then
+		return nil
+	end
+	return playerDataService:EnsureQuestData(player, currentDayKey(os.time()))
 end
 
-function QuestService:_flushOnlineTime(player: Player)
+function QuestService:_flushOnlineTime(player: Player): boolean
 	local startedAt = self._onlineStartedAt[player.UserId]
-	if not startedAt then return end
-	local elapsed = math.max(0, os.time() - startedAt)
-	self._onlineStartedAt[player.UserId] = os.time()
-	self:_incrementMetric(player, "OnlineTime", elapsed, false)
-	self:_incrementMetric(player, "PlayTimeTotal", elapsed, false)
+	if not startedAt then
+		return false
+	end
+
+	local now = os.time()
+	local elapsed = math.max(0, now - startedAt)
+	if elapsed <= 0 then
+		return false
+	end
+
+	local playerDataService = self:_getPlayerDataService()
+	if not playerDataService then
+		return false
+	end
+	self._onlineStartedAt[player.UserId] = now
+	playerDataService:IncrementQuestMetric(player, "OnlineTimeSeconds", elapsed)
+	return true
 end
 
-function QuestService:_incrementMetric(player: Player, metricName: string, amount: number, shouldSend: boolean?)
-	local playerDataService = self:_getPlayerDataService(); if not playerDataService then return end
+function QuestService:_incrementMetric(player: Player, metricName: string, amount: number)
+	if not player or player.Parent ~= Players then
+		return
+	end
+	local playerDataService = self:_getPlayerDataService()
+	if not playerDataService then
+		return
+	end
+
 	playerDataService:IncrementQuestMetric(player, metricName, amount)
-	if shouldSend ~= false then self:SendSnapshot(player) end
+	local state = playerDataService:GetData(player).QuestState
+	local activeQuest = state and state.DailyChain and state.DailyChain.ActiveQuest
+	if activeQuest and activeQuest.MetricKey == metricName then
+		self:SendSnapshot(player)
+	end
 end
 
-function QuestService:_setMetric(player: Player, metricName: string, value: number)
-	local playerDataService = self:_getPlayerDataService(); if not playerDataService then return end
-	playerDataService:SetQuestMetric(player, metricName, value)
+function QuestService:_getAliveArenaLauncherCount(): number
+	local playerStateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	if not playerStateService or typeof(playerStateService.IsCombatParticipant) ~= "function" then
+		return 0
+	end
+
+	local count = 0
+	for _, player in ipairs(Players:GetPlayers()) do
+		if playerStateService:IsCombatParticipant(player) then
+			count += 1
+		end
+	end
+	return count
 end
 
-function QuestService:_getProgressForQuest(state: any, quest: any): number
-	local metrics = state.Metrics or {}
-	return math.max(0, math.floor(metrics[quest.Type] or 0))
-end
+function QuestService:_chooseQuest(stepIndex: number, state: any): any?
+	local step = DAILY_CHAIN.Steps[stepIndex]
+	if type(step) ~= "table" or type(step.QuestPool) ~= "table" or #step.QuestPool == 0 then
+		return nil
+	end
 
-function QuestService:_buildQuestView(state: any, quest: any)
-	local progress = math.min(self:_getProgressForQuest(state, quest), quest.Target or 0)
-	local claimed = state.Claimed and state.Claimed[quest.Id] == true
+	local assignedIds = state.DailyChain and state.DailyChain.AssignedQuestIds or {}
+	local aliveArenaLauncherCount = self:_getAliveArenaLauncherCount()
+	local available = {}
+	local eligibleFallback = {}
+	for _, quest in ipairs(step.QuestPool) do
+		if type(quest) == "table" and type(quest.Id) == "string" then
+			local target = math.max(1, math.floor(tonumber(quest.Target) or 1))
+			local hasEnoughTargets = quest.Type ~= "KillPlayers" or aliveArenaLauncherCount >= (target + 1)
+			if hasEnoughTargets then
+				table.insert(eligibleFallback, quest)
+				if assignedIds[quest.Id] ~= true then
+					table.insert(available, quest)
+				end
+			end
+		end
+	end
+
+	-- A KillPlayers task is not assignable when the active Arena roster cannot
+	-- provide enough opponents. Reuse a non-kill task if this step's alternatives
+	-- have already been used by repeated skips.
+	local pool = if #available > 0 then available else eligibleFallback
+	if #pool == 0 then
+		warn(string.format("[QuestService] No eligible quest in daily step %d.", stepIndex))
+		return nil
+	end
+
+	local selected = pool[math.random(1, #pool)]
 	return {
-		Id = quest.Id,
-		Type = quest.Type,
-		Desc = quest.Desc or quest.Id,
-		Target = quest.Target or 0,
-		Progress = progress,
-		Reward = deepCopy(quest.Reward or {}),
-		State = if claimed then "Claimed" elseif progress >= (quest.Target or math.huge) then "Ready" else "Locked",
+		QuestId = selected.Id,
+		AssignmentId = HttpService:GenerateGUID(false),
+		Step = stepIndex,
+		Type = selected.Type,
+		MetricKey = selected.MetricKey,
+		Target = math.max(1, math.floor(tonumber(selected.Target) or 1)),
+		Desc = tostring(selected.Desc or selected.Id),
+		Rarity = selected.Rarity,
+		Baseline = math.max(0, tonumber((state.Metrics or {})[selected.MetricKey]) or 0),
+		Reward = deepCopy(step.Reward or {}),
 	}
 end
 
+function QuestService:_ensureActiveQuest(player: Player): boolean
+	local state = self:EnsurePlayerQuestState(player)
+	if not state or type(state.DailyChain) ~= "table" then
+		return false
+	end
+
+	local chain = state.DailyChain
+	if chain.CompletedForDay == true or chain.ActiveQuest ~= nil then
+		return false
+	end
+
+	local now = os.time()
+	local nextQuestAt = tonumber(chain.NextQuestAt) or 0
+	if nextQuestAt > now then
+		return false
+	end
+
+	local stepIndex = math.clamp(math.floor(tonumber(chain.Step) or 1), 1, MAX_DAILY_STEPS)
+	local assignment = self:_chooseQuest(stepIndex, state)
+	if not assignment then
+		warn(string.format("[QuestService] No configured quest pool for daily step %d.", stepIndex))
+		return false
+	end
+
+	local playerDataService = self:_getPlayerDataService()
+	if not playerDataService then
+		return false
+	end
+	local success = playerDataService:SetDailyQuestAssignment(player, assignment, nextQuestAt)
+	return success == true
+end
+
+function QuestService:_getQuestProgress(state: any, quest: any): number
+	local metrics = state.Metrics or {}
+	local current = math.max(0, tonumber(metrics[quest.MetricKey]) or 0)
+	local baseline = math.max(0, tonumber(quest.Baseline) or 0)
+	return math.max(0, math.floor(current - baseline))
+end
+
 function QuestService:BuildSnapshot(player: Player)
-	self:_flushOnlineTime(player)
+	self:_ensureActiveQuest(player)
 	local state = self:EnsurePlayerQuestState(player) or {}
-	local daily, main = {}, {}
-	for i, quest in ipairs(DAILY_QUESTS) do daily[i] = self:_buildQuestView(state, quest) end
-	for i, quest in ipairs(MAIN_QUESTS) do main[i] = self:_buildQuestView(state, quest) end
+	local chain = state.DailyChain or {}
+	local active = chain.ActiveQuest
+	local now = os.time()
+
+	local status = "Preparing"
+	local activeView = nil
+	local nextQuestAt = math.max(0, tonumber(chain.NextQuestAt) or 0)
+
+	if chain.CompletedForDay == true or (tonumber(chain.CompletedSteps) or 0) >= MAX_DAILY_STEPS then
+		status = "CompletedForDay"
+	elseif nextQuestAt > now then
+		status = "Cooldown"
+	elseif type(active) == "table" then
+		local progress = math.min(self:_getQuestProgress(state, active), math.max(1, tonumber(active.Target) or 1))
+		local target = math.max(1, tonumber(active.Target) or 1)
+		local questStatus = if progress >= target then "Ready" else "Active"
+		status = questStatus
+		activeView = {
+			Id = tostring(active.QuestId or ""),
+			AssignmentId = tostring(active.AssignmentId or ""),
+			Step = math.max(1, math.floor(tonumber(active.Step) or 1)),
+			Type = tostring(active.Type or ""),
+			Desc = tostring(active.Desc or active.QuestId or "Daily Quest"),
+			Target = target,
+			Progress = progress,
+			Reward = deepCopy(active.Reward or {}),
+			State = questStatus,
+		}
+	end
+
 	local playerDataService = self:_getPlayerDataService()
 	local weeklyPoints = 0
 	if playerDataService then
 		local _totalPoints
 		_totalPoints, weeklyPoints = playerDataService:GetProgressPoints(player)
 	end
-	return { Daily = daily, Main = main, Weekly = { Points = weeklyPoints, ResetAt = currentMondayStamp(os.time()) + SECONDS_PER_WEEK } }
+
+	return {
+		DailyQuest = {
+			CurrentStep = math.max(1, math.floor(tonumber(chain.Step) or 1)),
+			CompletedSteps = math.max(0, math.floor(tonumber(chain.CompletedSteps) or 0)),
+			MaxSteps = MAX_DAILY_STEPS,
+			Status = status,
+			NextQuestAt = nextQuestAt,
+			ActiveQuest = activeView,
+		},
+		Weekly = {
+			Points = weeklyPoints,
+			ResetAt = currentMondayStamp(now) + SECONDS_PER_WEEK,
+		},
+		ServerNow = now,
+	}
 end
 
-function QuestService:SendSnapshot(player: Player, claimResult: any?)
-	if self._updateRemote then
-		self._updateRemote:FireClient(player, { Type = "Snapshot", Snapshot = self:BuildSnapshot(player), ClaimResult = claimResult })
+function QuestService:SendSnapshot(player: Player, actionKey: string?, actionResult: any?)
+	if not self._updateRemote then
+		return
 	end
+	local payload = {
+		Type = "Snapshot",
+		Snapshot = self:BuildSnapshot(player),
+	}
+	if actionKey and actionResult then
+		payload[actionKey] = actionResult
+	end
+	self._updateRemote:FireClient(player, payload)
 end
 
-function QuestService:_findQuest(questId: string): any?
-	for _, quest in ipairs(DAILY_QUESTS) do if quest.Id == questId then return quest end end
-	for _, quest in ipairs(MAIN_QUESTS) do if quest.Id == questId then return quest end end
-	return nil
+function QuestService:_sendActionResult(player: Player, actionKey: string, result: any)
+	self:SendSnapshot(player, actionKey, result)
 end
 
-function QuestService:ClaimQuest(player: Player, questId: string): boolean
-	local quest = self:_findQuest(questId)
+function QuestService:_allowRemoteRequest(player: Player): boolean
+	local now = os.clock()
+	local last = self._lastRemoteRequestAt[player.UserId] or 0
+	if now - last < 0.2 then
+		return false
+	end
+	self._lastRemoteRequestAt[player.UserId] = now
+	return true
+end
+
+function QuestService:ClaimQuest(player: Player, assignmentId: string): boolean
+	if not self:_allowRemoteRequest(player) or self._claimLocks[player.UserId] then
+		self:_sendActionResult(player, "ClaimResult", {
+			Success = false,
+			Reason = "RequestPending",
+			AssignmentId = assignmentId,
+		})
+		return false
+	end
+	self._claimLocks[player.UserId] = true
+
 	local state = self:EnsurePlayerQuestState(player)
-	local result = { QuestId = questId, Success = false, Reason = "NotReady" }
-	if quest and state and not (state.Claimed and state.Claimed[questId]) and self:_getProgressForQuest(state, quest) >= (quest.Target or math.huge) then
-		local playerDataService = self:_getPlayerDataService()
-		if playerDataService then
-			playerDataService:MarkQuestClaimed(player, questId)
-			playerDataService:GrantReward(player, quest.Reward or {}, "QuestClaim:" .. questId)
-			if questId:sub(1, 2) == "D_" then
-				self:_incrementMetric(player, "CompleteDailyTotal", 1, false)
+	local chain = state and state.DailyChain
+	local active = chain and chain.ActiveQuest
+	local result = {
+		Success = false,
+		Reason = "StaleQuest",
+		AssignmentId = assignmentId,
+	}
+
+	if type(active) == "table" and active.AssignmentId == assignmentId then
+		local progress = self:_getQuestProgress(state, active)
+		if progress < (tonumber(active.Target) or math.huge) then
+			result.Reason = "NotReady"
+		else
+			local nextQuest = nil
+			local completedAfterClaim = (tonumber(chain.CompletedSteps) or 0) + 1
+			if completedAfterClaim < MAX_DAILY_STEPS then
+				nextQuest = self:_chooseQuest(math.min(MAX_DAILY_STEPS, (tonumber(chain.Step) or 1) + 1), state)
 			end
-			result.Success = true; result.Reason = "Claimed"; result.Reward = quest.Reward
+
+			local playerDataService = self:_getPlayerDataService()
+			if playerDataService then
+				local success, reason = playerDataService:CommitDailyQuestClaim(
+					player,
+					assignmentId,
+					tostring(active.QuestId or ""),
+					active.Reward or {},
+					nextQuest,
+					MAX_DAILY_STEPS
+				)
+				result.Success = success == true
+				result.Reason = if success then "Claimed" else tostring(reason or "Rejected")
+				result.Reward = if success then deepCopy(active.Reward or {}) else nil
+			end
 		end
 	end
-	self:SendSnapshot(player, result)
+
+	self._claimLocks[player.UserId] = nil
+	self:_sendActionResult(player, "ClaimResult", result)
+	return result.Success
+end
+
+function QuestService:SkipQuest(player: Player, assignmentId: string): boolean
+	if not self:_allowRemoteRequest(player) then
+		self:_sendActionResult(player, "SkipResult", {
+			Success = false,
+			Reason = "RateLimited",
+			AssignmentId = assignmentId,
+		})
+		return false
+	end
+
+	local state = self:EnsurePlayerQuestState(player)
+	local chain = state and state.DailyChain
+	local active = chain and chain.ActiveQuest
+	local result = {
+		Success = false,
+		Reason = "StaleQuest",
+		AssignmentId = assignmentId,
+	}
+
+	if type(active) == "table" and active.AssignmentId == assignmentId and chain.CompletedForDay ~= true then
+		local progress = self:_getQuestProgress(state, active)
+		if progress >= (tonumber(active.Target) or math.huge) then
+			result.Reason = "AlreadyReady"
+		else
+			local playerDataService = self:_getPlayerDataService()
+			if playerDataService then
+				local nextQuestAt = os.time() + SKIP_COOLDOWN_SECONDS
+				local success, reason = playerDataService:SkipDailyQuest(player, assignmentId, nextQuestAt)
+				result.Success = success == true
+				result.Reason = if success then "CooldownStarted" else tostring(reason or "Rejected")
+				result.NextQuestAt = if success then nextQuestAt else nil
+			end
+		end
+	end
+
+	self:_sendActionResult(player, "SkipResult", result)
 	return result.Success
 end
 
 function QuestService:_weeklyRewardForPoints(points: number): any?
 	for _, tier in ipairs(WEEKLY_REWARD_TIERS) do
-		if points >= tier.MinPoints then return tier.Reward end
+		if points >= tier.MinPoints then
+			return tier.Reward
+		end
 	end
 	return nil
 end
 
 function QuestService:ProcessWeeklyRewards(player: Player)
-	local playerDataService = self:_getPlayerDataService(); if not playerDataService then return end
+	local playerDataService = self:_getPlayerDataService()
+	if not playerDataService then
+		return
+	end
 	local pending = playerDataService:ConsumePendingWeeklyReward(player)
-	if not pending or (pending.Points or 0) <= 0 then return end
+	if not pending or (pending.Points or 0) <= 0 then
+		return
+	end
 	local reward = self:_weeklyRewardForPoints(pending.Points)
 	if reward then
 		playerDataService:GrantReward(player, reward, "WeeklyReward")

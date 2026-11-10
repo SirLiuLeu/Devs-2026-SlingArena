@@ -22,9 +22,9 @@ local DailyLoginLogicService = require(ReplicatedStorage.Client.Services.DailyLo
 local MatchScoreboardUIController = require(ReplicatedStorage.Client.Controllers.MatchScoreboardUIController)
 local MatchSummaryUIController = require(ReplicatedStorage.Client.Controllers.MatchSummaryUIController)
 local ToastUIController = require(ReplicatedStorage.Client.Controllers.ToastUIController)
-local QuestUIController = require(ReplicatedStorage.Client.Controllers.QuestUIController)
+local DailyQuestUIController = require(ReplicatedStorage.Client.Controllers.DailyQuestUIController)
 local RankFrameUIController = require(ReplicatedStorage.Client.Controllers.RankFrameUIController)
-local QuestLogicService = require(ReplicatedStorage.Client.Services.QuestLogicService)
+local DailyQuestLogicService = require(ReplicatedStorage.Client.Services.DailyQuestLogicService)
 local HudDataService = require(ReplicatedStorage.Client.Services.HudDataService)
 local MatchScoreboardDataService = require(ReplicatedStorage.Client.Services.MatchScoreboardDataService)
 local MatchSummaryDataService = require(ReplicatedStorage.Client.Services.MatchSummaryDataService)
@@ -170,13 +170,13 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.MatchScoreboardUIController = MatchScoreboardUIController.new(playerGui)
 	self.MatchSummaryUIController = MatchSummaryUIController.new(playerGui, self.ClientService)
 	self.ToastUIController = ToastUIController.new(playerGui)
-	self.QuestUIController = QuestUIController.new(playerGui)
+	self.DailyQuestUIController = DailyQuestUIController.new(playerGui)
 	self.RankFrameUIController = RankFrameUIController.new(playerGui)
 	self.InventoryDataProvider = InventoryDataProvider.GetDefault()
 	self.OnlineRewardLogicService = OnlineRewardLogicService.GetDefault()
 	self.ShopLogicService = ShopLogicService.GetDefault()
 	self.DailyLoginLogicService = DailyLoginLogicService.GetDefault()
-	self.QuestLogicService = QuestLogicService.GetDefault()
+	self.DailyQuestLogicService = DailyQuestLogicService.GetDefault()
 	self.HudDataService = HudDataService.GetDefault()
 	self.MatchScoreboardDataService = MatchScoreboardDataService.GetDefault()
 	self.MatchSummaryDataService = MatchSummaryDataService.GetDefault()
@@ -189,8 +189,9 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.OnlineRewardUIController:SetLogicService(self.OnlineRewardLogicService)
 	self.ShopUIController:SetLogicService(self.ShopLogicService)
 	self.DailyLoginUIController:SetLogicService(self.DailyLoginLogicService)
-	self.QuestUIController:SetLogicService(self.QuestLogicService)
-	self.QuestUIController:SetToastController(self.ToastUIController)
+	self.DailyQuestUIController:SetLogicService(self.DailyQuestLogicService)
+	self.DailyQuestUIController:SetConfirmationController(self.ConfirmationUIController)
+	self.DailyQuestUIController:SetToastController(self.ToastUIController)
 	self.MatchScoreboardUIController:SetDataService(self.MatchScoreboardDataService)
 	self.MatchSummaryUIController:SetDataService(self.MatchSummaryDataService)
 
@@ -274,7 +275,6 @@ function UIController:_resolveUiReferences()
 	self.PanelMap.Shop = self.PanelMap.Shop or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Shop, false) or resolveScreenGui(playerGui, "ShopUI", false)
 	self.PanelMap.Inventory = self.PanelMap.Inventory or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Inventory, false)
 	self.PanelMap.OnlineReward = self.PanelMap.OnlineReward or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.OnlineReward, false)
-	self.PanelMap.Quest = self.PanelMap.Quest or resolveScreenGui(playerGui, ProjectTreeSpec.UI.MainHub.Panels.Quest, false) or resolveScreenGui(playerGui, "QuestUI", false)
 	self:_refreshSoundToggleVisual()
 end
 
@@ -491,9 +491,8 @@ function UIController:_bindResolvedUiReferences()
 	end
 	if self.QuestButton then
 		self:_connectOnce("QuestButton", self.QuestButton.MouseButton1Click, function()
-			self:ShowMainHubPanel("Quest")
-			if self.QuestUIController then
-				self.QuestUIController:SetVisible(true)
+			if self.DailyQuestUIController then
+				self.DailyQuestUIController:SetExpanded(true)
 			end
 		end)
 	end
@@ -651,7 +650,7 @@ function UIController:_startAvailableFeatureControllers()
 	if self.DailyLoginUIController then self.DailyLoginUIController:Start() end
 	if self.MatchScoreboardUIController then self.MatchScoreboardUIController:Start() end
 	if self.MatchSummaryUIController then self.MatchSummaryUIController:Start() end
-	if self.QuestUIController then self.QuestUIController:Start() end
+	if self.DailyQuestUIController then self.DailyQuestUIController:Start() end
 	if self.RankFrameUIController then self.RankFrameUIController:Start() end
 end
 
@@ -949,8 +948,11 @@ function UIController:Destroy()
 	if self.ToastUIController then
 		self.ToastUIController:Destroy()
 	end
-	if self.QuestUIController then
-		self.QuestUIController:Destroy()
+	if self.DailyQuestUIController then
+		self.DailyQuestUIController:Destroy()
+	end
+	if self.DailyQuestLogicService then
+		self.DailyQuestLogicService:Destroy()
 	end
 	if self.RankFrameUIController then
 		self.RankFrameUIController:Destroy()

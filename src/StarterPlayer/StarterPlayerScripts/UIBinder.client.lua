@@ -25,7 +25,6 @@ local STARTER_GUI_ROOTS = {
 	OnlineRewardUI = true,
 	ShopUI = true,
 	DailyLoginUI = true,
-	QuestUI = true,
 	MatchUI = true,
 	MatchSummaryUI = true,
 	MatchScoreboardUI = true,

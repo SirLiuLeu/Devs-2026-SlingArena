@@ -645,6 +645,11 @@ function FoodService:_rewardFoodKill(entry: any)
 		return
 	end
 	self._context.EventBus:Fire("FoodConsumed", player, rule.Exp)
+	-- Touch foods are counted by _consumeFood. This branch handles only
+	-- hit-to-destroy food so bomb area damage cannot count a Touch food twice.
+	if not rule.Touch then
+		self._context.EventBus:Fire("DailyQuestFoodCollected", player, entry.FoodType, rule.Type)
+	end
 
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
@@ -717,6 +722,7 @@ function FoodService:_consumeFood(entry: any, player: Player)
 		local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 		if rule.Touch then
 			self._context.EventBus:Fire("FoodConsumed", player, rule.Exp)
+			self._context.EventBus:Fire("DailyQuestFoodCollected", player, entry.FoodType, rule.Type)
 		end
 		if stateService and rule.HealHP > 0 then
 			stateService:Heal(player, rule.HealHP)
