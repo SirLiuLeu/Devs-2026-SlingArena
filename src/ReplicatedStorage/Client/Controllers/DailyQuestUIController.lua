@@ -566,6 +566,9 @@ function DailyQuestUIController:_renderCurrentState()
 	local snapshot = self._snapshot
 	local daily = snapshot and snapshot.DailyQuest
 	if not daily or not self._rootBody then
+		setClaimVisualState(self, false)
+		setVisible(self._diamondIcon, false)
+		setVisible(self._diamondCountText, false)
 		self:_renderNotification()
 		return
 	end
