@@ -379,6 +379,7 @@ function QuestService:_getQuestProgress(state: any, quest: any): number
 end
 
 function QuestService:BuildSnapshot(player: Player)
+	self:_ensureActiveQuest(player)
 	local state = self:EnsurePlayerQuestState(player) or {}
 	local chain = state.DailyChain or {}
 	local active = chain.ActiveQuest
