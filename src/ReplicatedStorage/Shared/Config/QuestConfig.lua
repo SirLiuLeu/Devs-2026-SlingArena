@@ -4,6 +4,7 @@ local QuestConfig = {
 	DailyQuestChain = {
 		MaxDailySteps = 5,
 		SkipCooldownSeconds = 90,
+		ResetUtcOffsetHours = 7, -- Vietnam local midnight (UTC+7)
 		Steps = {
 			{
 				Reward = { Diamonds = 5 },
