@@ -354,6 +354,8 @@ end
 function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean?)
 	if not self._rootBody or not self._rootBody.Parent then
 		self._expanded = expanded
+		self:_syncToggleIcons()
+		self:_renderNotification()
 		return
 	end
 	if not self._toggleButton or not self._toggleButton.Parent then
@@ -361,6 +363,7 @@ function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean
 		self:_syncToggleIcons()
 		self._rootBody.Visible = true
 		self._rootBody.Size = self._expandedSize or self._rootBody.Size
+		self:_renderCurrentState()
 		return
 	end
 	self._expanded = expanded
@@ -612,9 +615,14 @@ function DailyQuestUIController:_renderCurrentState()
 		end
 	end
 
-	if not self._expanded and self._toggleInsideBody then
+	if not self._expanded then
+		-- All quest content must disappear while collapsed, including labels
+		-- that Studio may place directly under QuestDaily instead of RootBody.
 		setVisible(self._skipButton, false)
 		setVisible(self._claimButton, false)
+		setVisible(self._diamondIcon, false)
+		setVisible(self._progressLabel, false)
+		setVisible(self._descriptionLabel, false)
 	end
 	self:_refreshCooldownText()
 	self:_renderNotification()
@@ -629,7 +637,7 @@ function DailyQuestUIController:_refreshCooldownText()
 end
 
 function DailyQuestUIController:_renderNotification()
-	if not self._notificationIcon then
+	if not self._notificationIcon or not self._notificationIcon:IsA("ImageLabel") then
 		return
 	end
 	local daily = self._snapshot and self._snapshot.DailyQuest
