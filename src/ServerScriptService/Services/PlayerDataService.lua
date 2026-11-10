@@ -10,6 +10,7 @@ local RarityConfig = require(ReplicatedStorage.Shared.Config.RarityConfig)
 local MockProvider = require(script.Parent.DataProviders.MockProvider)
 local PetsUpgradeConfig = require(ReplicatedStorage.Shared.Config.PetsUpgradeConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local QuestConfig = require(ReplicatedStorage.Shared.Config.QuestConfig)
 
 type Context = { EventBus: any?, Services: any?, ServiceRegistry: any?, Remotes: Folder? }
 
@@ -64,7 +65,8 @@ local function currentMondayStamp(now: number): number
 end
 
 local function currentUtcDayKey(now: number): number
-	local date = os.date("!*t", now)
+	local resetOffsetHours = tonumber(QuestConfig.DailyQuestChain.ResetUtcOffsetHours) or 0
+	local date = os.date("!*t", now + (resetOffsetHours * 60 * 60))
 	return date.year * 10000 + date.month * 100 + date.day
 end
 
@@ -498,6 +500,10 @@ function PlayerDataService:CommitDailyQuestClaim(
 		end
 
 		local completedSteps = math.min(math.max(0, math.floor(tonumber(chain.CompletedSteps) or 0)) + 1, maxDailySteps)
+		if completedSteps < maxDailySteps and (type(nextAssignment) ~= "table" or type(nextAssignment.AssignmentId) ~= "string") then
+			failureReason = "NextQuestUnavailable"
+			return data
+		end
 		chain.CompletedSteps = completedSteps
 		if completedSteps >= maxDailySteps then
 			chain.Step = maxDailySteps
@@ -505,10 +511,7 @@ function PlayerDataService:CommitDailyQuestClaim(
 			chain.NextQuestAt = 0
 			chain.CompletedForDay = true
 		else
-			if type(nextAssignment) ~= "table" or type(nextAssignment.AssignmentId) ~= "string" then
-				failureReason = "NextQuestUnavailable"
-				return data
-			end
+			nextAssignment.Baseline = math.max(0, tonumber(metrics[nextAssignment.MetricKey]) or 0)
 			chain.Step = math.clamp(math.floor(tonumber(nextAssignment.Step) or (completedSteps + 1)), 1, maxDailySteps)
 			chain.ActiveQuest = nextAssignment
 			chain.NextQuestAt = 0
@@ -518,6 +521,9 @@ function PlayerDataService:CommitDailyQuestClaim(
 
 		local diamonds = math.max(0, math.floor(tonumber(safeReward.Diamonds or safeReward.diamonds) or 0))
 		data.Diamonds = math.max(0, math.floor(tonumber(data.Diamonds) or 0)) + diamonds
+		if type(data.OwnedItems) ~= "table" then
+			data.OwnedItems = {}
+		end
 		for _, itemReward in ipairs(safeReward.Items or safeReward.items or {}) do
 			local itemId = tostring(itemReward.Id or itemReward.ItemId or itemReward.id or "")
 			if itemId ~= "" then
