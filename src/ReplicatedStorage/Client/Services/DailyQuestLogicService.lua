@@ -97,6 +97,10 @@ function DailyQuestLogicService:_handleServerUpdate(payload: any)
 	end
 end
 
+function DailyQuestLogicService:IsClaimPending(): boolean
+	return self._pendingClaim ~= nil
+end
+
 function DailyQuestLogicService:ClaimQuest(assignmentId: string): boolean
 	if type(assignmentId) ~= "string" or assignmentId == "" or self._pendingClaim then
 		return false
