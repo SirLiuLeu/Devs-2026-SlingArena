@@ -396,10 +396,10 @@ function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean
 	local fullSize = self._expandedSize or self._rootBody.Size
 	local collapsedWidth = 0
 	if self._toggleInsideBody and self._toggleButton then
-		collapsedWidth = math.max(
-			(tonumber(self._toggleLeftGap) or 0) + self._toggleButton.AbsoluteSize.X,
-			(tonumber(self._notificationLeftGap) or 0) + (tonumber(self._notificationWidth) or 0)
-		)
+		-- The collapsed panel should end at the toggle's right edge.
+		-- NotificationIcon remains a separate child and is clipped if it lies
+		-- outside this compact toggle footprint.
+		collapsedWidth = (tonumber(self._toggleLeftGap) or 0) + self._toggleButton.AbsoluteSize.X
 	end
 	local targetSize = if expanded
 		then fullSize
