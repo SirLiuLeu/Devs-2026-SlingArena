@@ -35,7 +35,7 @@ Cross-service communication must use `EventBus` for decoupled flow.
 ### QuestService
 - **Owns:** Daily Quest chain orchestration and the authoritative quest lifecycle.
 - **Responsibilities:** Select one task from the current step pool; track event-based metrics; build client snapshots; validate Claim/Skip AssignmentIds; apply the configured 90-second skip cooldown; issue the next task after cooldown/reconnect; preserve the independent Weekly reward flow.
-- **Called by:** PlayerAdded/Removing lifecycle, QuestClaim/QuestSkip remotes, and EventBus gameplay events (DailyQuestFoodCollected, DamageDealt, DoTDamageDealt, PlayerKilled, LauncherLaunched, RoundCompleted).
+- **Called by:** PlayerAdded/Removing lifecycle, QuestClaim/QuestSkip remotes, and EventBus gameplay events (DailyQuestFoodCollected, PlayerKilled, RoundCompleted, DailyQuestHpPotionUsed, DailyQuestBombPlayerDamaged).
 - **Dependencies:** QuestConfig, PlayerDataService, RemoteContracts, EventBus.
 - **Constraint:** Quest progress and cooldown are server-authoritative. Reward currency and chain state are committed together through PlayerDataService; QuestService does not mutate Diamond balances directly.
 
