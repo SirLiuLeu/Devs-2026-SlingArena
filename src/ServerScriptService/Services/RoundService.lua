@@ -434,6 +434,15 @@ function RoundService:_beginRoundEnd()
 	end
 	self._winnerName = if #winnerNames > 0 then table.concat(winnerNames, ", ") else (self:_findLastAlivePlayerName() or "No winner")
 	local summaryRows = if progressPointService and typeof(progressPointService.AwardEndRoundPoints) == "function" then progressPointService:AwardEndRoundPoints(topPlayers) else topPlayers
+	if self._context.EventBus then
+		for _, row in ipairs(summaryRows) do
+			local userId = type(row) == "table" and tonumber(row.UserId) or nil
+			local participant = userId and Players:GetPlayerByUserId(userId) or nil
+			if participant then
+				self._context.EventBus:Fire("RoundCompleted", participant, self._roundId, row.Rank)
+			end
+		end
+	end
 	self:_setState(GameStates.MapRoundState.RoundEnd)
 	self:_freezeArenaPlayers(true)
 	if self._matchSummaryRemote then
