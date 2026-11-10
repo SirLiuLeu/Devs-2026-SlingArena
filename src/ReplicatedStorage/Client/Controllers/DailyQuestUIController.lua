@@ -85,8 +85,13 @@ function DailyQuestUIController:_resolveUi(): boolean
 	local paths = ProjectTreeSpec.UI.MainHub.DailyQuest
 	local frame = PathResolver.resolvePath(self._playerGui, paths.Root, { shouldWarn = false })
 	if not frame or not frame:IsA("Frame") then
+		if not self._warnedMissingFrame then
+			warn("[DailyQuestUI] MainHUD.Root.QuestDaily is missing or is not a Frame.")
+			self._warnedMissingFrame = true
+		end
 		return false
 	end
+	self._warnedMissingFrame = false
 	if self._frame == frame and self._rootBody and self._rootBody.Parent then
 		return true
 	end
