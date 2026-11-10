@@ -324,19 +324,18 @@ function DailyQuestUIController:_prepareRootBodyGeometry()
 		self._expandedSize = self._rootBody.Size
 	end
 
-	-- Keep the left edge fixed: the panel grows right from ToggleDropdown,
-	-- and collapses toward the exact same toggle position.
-	local bodyAbsoluteLeft = self._rootBody.AbsolutePosition.X
+	-- Use ToggleDropdown's left edge as the panel's expansion origin.
+	-- The toggle is repositioned to local X=0 while preserving its screen position.
+	local toggleAbsoluteLeft = self._toggleButton.AbsolutePosition.X
 	local rootPosition = self._rootBody.Position
 	self._toggleInsideBody = self._toggleButton:IsDescendantOf(self._rootBody)
-	local leftEdgeX = bodyAbsoluteLeft - self._frame.AbsolutePosition.X
+	local leftEdgeX = toggleAbsoluteLeft - self._frame.AbsolutePosition.X
 
 	if self._toggleInsideBody and self._toggleButton.Parent == self._rootBody then
 		local togglePosition = self._toggleButton.Position
-		local toggleLeftGap = math.max(0, self._toggleButton.AbsolutePosition.X - bodyAbsoluteLeft)
-		self._toggleLeftGap = toggleLeftGap
+		self._toggleLeftGap = 0
 		self._toggleButton.AnchorPoint = Vector2.new(0, self._toggleButton.AnchorPoint.Y)
-		self._toggleButton.Position = UDim2.new(0, toggleLeftGap, togglePosition.Y.Scale, togglePosition.Y.Offset)
+		self._toggleButton.Position = UDim2.new(0, 0, togglePosition.Y.Scale, togglePosition.Y.Offset)
 	end
 
 	if self._notificationIcon and self._notificationIcon:IsA("GuiObject")
