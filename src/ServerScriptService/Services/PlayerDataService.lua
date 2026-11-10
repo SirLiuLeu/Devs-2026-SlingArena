@@ -70,6 +70,8 @@ local function currentDailyDayKey(now: number): number
 	return date.year * 10000 + date.month * 100 + date.day
 end
 
+local MAX_DAILY_QUEST_STEPS = math.max(1, math.floor(tonumber(QuestConfig.DailyQuestChain.MaxDailySteps) or 5))
+
 local function buildDefaultDailyChain(): { [string]: any }
 	return {
 		Step = 1,
@@ -340,10 +342,10 @@ function PlayerDataService:_ensureQuestData(data: { [string]: any }, currentDay:
 	end
 
 	local chain = questState.DailyChain
-	chain.Step = math.clamp(math.floor(tonumber(chain.Step) or 1), 1, 5)
-	chain.CompletedSteps = math.clamp(math.floor(tonumber(chain.CompletedSteps) or 0), 0, 5)
+	chain.Step = math.clamp(math.floor(tonumber(chain.Step) or 1), 1, MAX_DAILY_QUEST_STEPS)
+	chain.CompletedSteps = math.clamp(math.floor(tonumber(chain.CompletedSteps) or 0), 0, MAX_DAILY_QUEST_STEPS)
 	chain.NextQuestAt = math.max(0, math.floor(tonumber(chain.NextQuestAt) or 0))
-	chain.CompletedForDay = chain.CompletedForDay == true or chain.CompletedSteps >= 5
+	chain.CompletedForDay = chain.CompletedForDay == true or chain.CompletedSteps >= MAX_DAILY_QUEST_STEPS
 	if type(chain.AssignedQuestIds) ~= "table" then
 		chain.AssignedQuestIds = {}
 	end
@@ -398,7 +400,7 @@ function PlayerDataService:SetDailyQuestAssignment(player: Player, assignment: {
 		assignment.Baseline = math.max(0, tonumber(data.QuestState.Metrics[assignment.MetricKey]) or 0)
 		chain.ActiveQuest = assignment
 		chain.NextQuestAt = 0
-		chain.Step = math.clamp(math.floor(tonumber(assignment.Step) or chain.Step), 1, 5)
+		chain.Step = math.clamp(math.floor(tonumber(assignment.Step) or chain.Step), 1, MAX_DAILY_QUEST_STEPS)
 		chain.AssignedQuestIds[assignment.QuestId] = true
 		committed = true
 		return data
