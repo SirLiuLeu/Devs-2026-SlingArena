@@ -91,6 +91,7 @@ function DailyQuestUIController:_resolveUi(): boolean
 	end
 
 	self:_disconnectUiConnections()
+	self._expandedSize = nil
 	self._frame = frame
 	self._frame.Visible = true
 	self._rootBody = PathResolver.resolvePath(self._playerGui, paths.RootBody, { shouldWarn = false })
@@ -101,6 +102,11 @@ function DailyQuestUIController:_resolveUi(): boolean
 	self._descriptionLabel = PathResolver.resolvePath(self._playerGui, paths.TaskDescriptionLabel, { shouldWarn = false })
 	self._toggleButton = PathResolver.resolvePath(self._playerGui, paths.ToggleDropdown, { shouldWarn = false })
 	self._notificationIcon = PathResolver.resolvePath(self._playerGui, paths.NotificationIIcon, { shouldWarn = false })
+
+	-- Do not expose an empty image slot while the two authored icons are loading.
+	if self._toggleButton and not self._toggleIconsReady then
+		self._toggleButton.Visible = false
+	end
 
 	if not self._rootBody or not self._rootBody:IsA("Frame") then
 		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.RootBody is missing or is not a Frame.")
@@ -251,6 +257,9 @@ function DailyQuestUIController:_preloadToggleIcons()
 
 		self._toggleIconsReady = true
 		self:_applyToggleIcon()
+		if self._toggleButton and self._toggleButton.Parent then
+			self._toggleButton.Visible = true
+		end
 	end)
 end
 
