@@ -234,11 +234,7 @@ function UIController:_resolveUiReferences()
 	self.StartSafeZoneButton = self.StartSafeZoneButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.StartSafeZoneButton, false)
 	self.Plus1MinuteButton = self.Plus1MinuteButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.Plus1MinuteButton, false)
 	self.LevelUp5Button = self.LevelUp5Button or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LevelUp5Button, false)
-	self.ShowStatsButton = self.ShowStatsButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.ShowStatsButton, false)
-	if not self.ShowStatsButton and not self._warnedMissingShowStatsButton then
-		warnMissingUiPath(ProjectTreeSpec.UI.Lobby.ShowStatsButton, "TextButton")
-		self._warnedMissingShowStatsButton = true
-	end
+	self.ShowStatsButton = self.ShowStatsButton or resolveTextButton(playerGui, ProjectTreeSpec.OptionalUI.Lobby.ShowStatsButton, false)
 	self.EndRoundButton = self.EndRoundButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.EndRoundButton, false)
 	self.MatchStatusLabel = self.MatchStatusLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel, false)
 	self.TimerLabel = self.TimerLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel, false)
