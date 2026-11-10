@@ -36,6 +36,64 @@ local function getRootSegment(path: string): string
 	return string.match(path, "^[^%.]+") or path
 end
 
+local DAILY_QUEST_ROOT_PATH = "MainHUD.Root.QuestDaily"
+local DAILY_QUEST_FALLBACK_NAMES: { [string]: boolean } = {
+	ProgressLabel = true,
+	TaskDescriptionLabel = true,
+	ToggleDropdown = true,
+	OpenIcon = true,
+	ClosedIcon = true,
+	NotificationIcon = true,
+}
+
+local function getRelativePath(root: Instance, descendant: Instance): string?
+	local segments = {}
+	local current: Instance? = descendant
+	while current and current ~= root do
+		table.insert(segments, current.Name)
+		current = current.Parent
+	end
+	if current ~= root then
+		return nil
+	end
+
+	for left = 1, math.floor(#segments / 2) do
+		local right = #segments - left + 1
+		segments[left], segments[right] = segments[right], segments[left]
+	end
+	return table.concat(segments, ".")
+end
+
+local function resolveDailyQuestFallbackPath(playerGui: PlayerGui, expectedPath: string): string?
+	local prefix = DAILY_QUEST_ROOT_PATH .. "."
+	if string.sub(expectedPath, 1, #prefix) ~= prefix then
+		return nil
+	end
+
+	local targetName = string.match(expectedPath, "([^.]+)$")
+	if not targetName or not DAILY_QUEST_FALLBACK_NAMES[targetName] then
+		return nil
+	end
+
+	local questRoot = PathResolver.resolvePath(playerGui, DAILY_QUEST_ROOT_PATH, { shouldWarn = false })
+	if not questRoot then
+		return nil
+	end
+
+	local match: Instance? = nil
+	for _, descendant in ipairs(questRoot:GetDescendants()) do
+		if descendant.Name == targetName then
+			if match then
+				-- A duplicate name is ambiguous; keep the canonical path unresolved.
+				return nil
+			end
+			match = descendant
+		end
+	end
+
+	return if match then getRelativePath(playerGui, match) else nil
+end
+
 local function buildStartupUiPaths(player: Player): { string }
 	local paths = PathResolver.collectPaths(ProjectTreeSpec.UI)
 	local activeMode = player:GetAttribute("ActivePlayerMode")
@@ -87,12 +145,16 @@ task.spawn(function()
 
 		local resolvedRoot = resolvedRoots[rootName]
 		local resolved = if resolvedRoot then PathResolver.resolvePath(playerGui, path, { shouldWarn = false }) else nil
-		if resolved == nil then
+		local bindingPath = path
+		if resolved == nil and resolvedRoot then
+			bindingPath = resolveDailyQuestFallbackPath(playerGui, path) or path
+		end
+		if resolved == nil and bindingPath == path then
 			warn(string.format("[UIBinder] UI path '%s' was unavailable after bounded resolution; binding will remain retryable.", path))
 		end
 
-		uiBindManager:Bind(tostring(pathKey), path, function(_resolved)
-			-- UiBindManager continues to refresh this binding if the UI appears later.
+		uiBindManager:Bind(tostring(pathKey), bindingPath, function(_resolved)
+			-- UiBindManager continues to refresh the exact path discovered at startup.
 		end)
 	end
 
