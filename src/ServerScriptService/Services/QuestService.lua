@@ -366,7 +366,8 @@ function QuestService:_chooseQuest(stepIndex: number, state: any): any?
 
 	local categoryPool = pool
 	if #foodPool > 0 and #gameplayPool > 0 then
-		categoryPool = if math.random() < 0.8 then foodPool else gameplayPool
+		local foodChance = math.clamp(tonumber(DAILY_CHAIN.FoodSelectionPercent) or 80, 0, 100) / 100
+		categoryPool = if math.random() < foodChance then foodPool else gameplayPool
 	elseif #foodPool > 0 then
 		categoryPool = foodPool
 	elseif #gameplayPool > 0 then
