@@ -55,8 +55,6 @@ end
 function QuestService.new(context: Context)
 	local self = setmetatable({}, QuestService)
 	self._context = context
-	self._onlineStartedAt = {} :: { [number]: number }
-	self._nextOnlineFlushAt = {} :: { [number]: number }
 	self._nextDailyCheckAt = {} :: { [number]: number }
 	self._lastRemoteRequestAt = {} :: { [number]: number }
 	self._claimLocks = {} :: { [number]: boolean }
@@ -121,30 +119,24 @@ function QuestService:Init()
 			end
 		end)
 
-		self._context.EventBus:On("DamageDealt", function(attacker: Player, victim: Player, amount: number)
-			if attacker ~= victim and typeof(amount) == "number" and amount > 0 then
-				self:_incrementMetric(attacker, "DamageDealtToPlayers", amount)
-			end
-		end)
-
-		self._context.EventBus:On("DoTDamageDealt", function(attacker: Player, victim: Player, amount: number)
-			if attacker ~= victim and typeof(amount) == "number" and amount > 0 then
-				self:_incrementMetric(attacker, "DamageDealtToPlayers", amount)
-			end
-		end)
-
 		self._context.EventBus:On("PlayerKilled", function(killer: Player, victim: Player)
 			if killer ~= victim then
 				self:_incrementMetric(killer, "PlayerKills", 1)
 			end
 		end)
 
-		self._context.EventBus:On("LauncherLaunched", function(player: Player)
-			self:_incrementMetric(player, "LaunchCount", 1)
-		end)
-
 		self._context.EventBus:On("RoundCompleted", function(player: Player)
 			self:_incrementMetric(player, "CompletedRounds", 1)
+		end)
+
+		self._context.EventBus:On("DailyQuestHpPotionUsed", function(player: Player)
+			self:_incrementMetric(player, "HpPotionUses", 1)
+		end)
+
+		self._context.EventBus:On("DailyQuestBombPlayerDamaged", function(attacker: Player, victim: Player, _amount: number)
+			if attacker ~= victim and victim and victim:IsA("Player") then
+				self:_incrementMetric(attacker, "BombPlayersDamaged", 1)
+			end
 		end)
 	end
 
@@ -153,7 +145,6 @@ function QuestService:Init()
 	end)
 
 	Players.PlayerRemoving:Connect(function(player)
-		self:_flushOnlineTime(player)
 		local playerDataService = self:_getPlayerDataService()
 		if playerDataService and typeof(playerDataService.SavePlayer) == "function" then
 			playerDataService:SavePlayer(player)
@@ -176,8 +167,6 @@ end
 function QuestService:_onPlayerAdded(player: Player)
 	local userId = player.UserId
 	local now = os.time()
-	self._onlineStartedAt[userId] = now
-	self._nextOnlineFlushAt[userId] = now + 10
 	self._nextDailyCheckAt[userId] = now + 60
 
 	task.defer(function()
@@ -193,8 +182,6 @@ end
 
 function QuestService:_clearPlayerRuntime(player: Player)
 	local userId = player.UserId
-	self._onlineStartedAt[userId] = nil
-	self._nextOnlineFlushAt[userId] = nil
 	self._nextDailyCheckAt[userId] = nil
 	self._lastRemoteRequestAt[userId] = nil
 	self._claimLocks[userId] = nil
@@ -211,14 +198,6 @@ function QuestService:_processPlayers()
 		local userId = player.UserId
 		local data = playerDataService:GetData(player)
 		local questState = data and data.QuestState
-
-		local onlineFlushAt = self._nextOnlineFlushAt[userId] or now + 10
-		if now >= onlineFlushAt then
-			self._nextOnlineFlushAt[userId] = now + 10
-			if self:_flushOnlineTime(player) then
-				self:SendSnapshot(player)
-			end
-		end
 
 		local dailyCheckAt = self._nextDailyCheckAt[userId] or now + 60
 		if now >= dailyCheckAt then
@@ -273,33 +252,41 @@ function QuestService:_getPlayerDataService()
 	return ServiceResolver.Get(self._context, "PlayerDataService")
 end
 
+function QuestService:_isConfiguredQuest(assignment: any): boolean
+	if type(assignment) ~= "table" then
+		return false
+	end
+	local stepIndex = math.floor(tonumber(assignment.Step) or 0)
+	local step = DAILY_CHAIN.Steps[stepIndex]
+	if type(step) ~= "table" or type(step.QuestPool) ~= "table" then
+		return false
+	end
+	for _, configuredQuest in ipairs(step.QuestPool) do
+		if type(configuredQuest) == "table" and configuredQuest.Id == assignment.QuestId then
+			return true
+		end
+	end
+	return false
+end
+
 function QuestService:EnsurePlayerQuestState(player: Player)
 	local playerDataService = self:_getPlayerDataService()
 	if not playerDataService then
 		return nil
 	end
-	return playerDataService:EnsureQuestData(player, currentDayKey(os.time()))
-end
 
-function QuestService:_flushOnlineTime(player: Player): boolean
-	local startedAt = self._onlineStartedAt[player.UserId]
-	if not startedAt then
-		return false
+	local state = playerDataService:EnsureQuestData(player, currentDayKey(os.time()))
+	local chain = state and state.DailyChain
+	local active = chain and chain.ActiveQuest
+	if type(active) == "table" and not self:_isConfiguredQuest(active)
+		and typeof(playerDataService.ClearDailyQuestAssignment) == "function" then
+		local assignmentId = tostring(active.AssignmentId or "")
+		if assignmentId ~= "" and playerDataService:ClearDailyQuestAssignment(player, assignmentId) then
+			local refreshedData = playerDataService:GetData(player)
+			state = refreshedData and refreshedData.QuestState or state
+		end
 	end
-
-	local now = os.time()
-	local elapsed = math.max(0, now - startedAt)
-	if elapsed <= 0 then
-		return false
-	end
-
-	local playerDataService = self:_getPlayerDataService()
-	if not playerDataService then
-		return false
-	end
-	self._onlineStartedAt[player.UserId] = now
-	playerDataService:IncrementQuestMetric(player, "OnlineTimeSeconds", elapsed)
-	return true
+	return state
 end
 
 function QuestService:_incrementMetric(player: Player, metricName: string, amount: number)
@@ -347,7 +334,8 @@ function QuestService:_chooseQuest(stepIndex: number, state: any): any?
 	for _, quest in ipairs(step.QuestPool) do
 		if type(quest) == "table" and type(quest.Id) == "string" then
 			local target = math.max(1, math.floor(tonumber(quest.Target) or 1))
-			local hasEnoughTargets = quest.Type ~= "KillPlayers" or aliveArenaLauncherCount >= (target + 1)
+			local requiresOpponents = quest.Type == "KillPlayers" or quest.Type == "BombPlayersDamaged"
+			local hasEnoughTargets = not requiresOpponents or aliveArenaLauncherCount >= (target + 1)
 			if hasEnoughTargets then
 				table.insert(eligibleFallback, quest)
 				if assignedIds[quest.Id] ~= true then
@@ -366,7 +354,23 @@ function QuestService:_chooseQuest(stepIndex: number, state: any): any?
 		return nil
 	end
 
-	local selected = pool[math.random(1, #pool)]
+	local totalWeight = 0
+	for _, quest in ipairs(pool) do
+		totalWeight += math.max(0, tonumber(quest.Weight) or 1)
+	end
+
+	local selected = nil
+	if totalWeight > 0 then
+		local roll = math.random() * totalWeight
+		for _, quest in ipairs(pool) do
+			roll -= math.max(0, tonumber(quest.Weight) or 1)
+			if roll <= 0 then
+				selected = quest
+				break
+			end
+		end
+	end
+	selected = selected or pool[math.random(1, #pool)]
 	return {
 		QuestId = selected.Id,
 		AssignmentId = HttpService:GenerateGUID(false),
