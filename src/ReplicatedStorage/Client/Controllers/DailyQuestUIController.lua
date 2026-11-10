@@ -128,11 +128,13 @@ function DailyQuestUIController:_resolveUi(): boolean
 		warn("[DailyQuestUI] MainHUD.Root.QuestDaily.NotificationIIcon is missing or is not an ImageLabel.")
 	end
 
-	if self._toggleButton and self._toggleButton.Parent ~= self._frame then
-		warn("[DailyQuestUI] ToggleDropdown must be a sibling of RootBody so it remains visible when collapsed.")
+	if self._toggleButton and self._toggleButton.Parent ~= self._frame
+		and not self._toggleButton:IsDescendantOf(self._rootBody) then
+		warn("[DailyQuestUI] ToggleDropdown must be a sibling of QuestDaily or a child of RootBody.")
 	end
-	if self._notificationIcon and self._notificationIcon.Parent ~= self._frame then
-		warn("[DailyQuestUI] NotificationIIcon should be a sibling of RootBody so it remains visible when collapsed.")
+	if self._notificationIcon and self._notificationIcon.Parent ~= self._frame
+		and not self._notificationIcon:IsDescendantOf(self._rootBody) then
+		warn("[DailyQuestUI] NotificationIIcon must be a sibling of QuestDaily or a child of RootBody.")
 	end
 
 	self:_prepareRootBodyGeometry()
@@ -154,10 +156,16 @@ function DailyQuestUIController:_prepareRootBodyGeometry()
 		self._expandedSize = self._rootBody.Size
 	end
 
-	-- Pin RootBody's right edge to the left edge of ToggleDropdown.
-	-- Its width then grows toward the left while ToggleDropdown stays stationary.
+	-- Support both the originally supplied hierarchy (controls inside RootBody)
+	-- and the safer sibling layout. In either case, keep the panel's right edge fixed.
 	local rootPosition = self._rootBody.Position
-	local rightEdgeX = self._toggleButton.AbsolutePosition.X - self._frame.AbsolutePosition.X
+	self._toggleInsideBody = self._toggleButton:IsDescendantOf(self._rootBody)
+	local rightEdgeX
+	if self._toggleInsideBody then
+		rightEdgeX = self._rootBody.AbsolutePosition.X + self._rootBody.AbsoluteSize.X - self._frame.AbsolutePosition.X
+	else
+		rightEdgeX = self._toggleButton.AbsolutePosition.X - self._frame.AbsolutePosition.X
+	end
 	self._rootBody.AnchorPoint = Vector2.new(1, self._rootBody.AnchorPoint.Y)
 	self._rootBody.Position = UDim2.new(0, rightEdgeX, rootPosition.Y.Scale, rootPosition.Y.Offset)
 	self._rootBody.ClipsDescendants = true
@@ -216,11 +224,15 @@ function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean
 	end
 
 	local fullSize = self._expandedSize or self._rootBody.Size
+	local collapsedWidth = 0
+	if self._toggleInsideBody and self._toggleButton then
+		collapsedWidth = self._toggleButton.AbsoluteSize.X
+	end
 	local targetSize = if expanded
 		then fullSize
-		else UDim2.new(0, 0, fullSize.Y.Scale, fullSize.Y.Offset)
+		else UDim2.new(0, collapsedWidth, fullSize.Y.Scale, fullSize.Y.Offset)
 
-	if expanded then
+	if expanded or self._toggleInsideBody then
 		self._rootBody.Visible = true
 	end
 
@@ -230,7 +242,7 @@ function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean
 	else
 		self._tween = TweenService:Create(self._rootBody, TWEEN_INFO, { Size = targetSize })
 		self._tween:Play()
-		if not expanded then
+		if not expanded and not self._toggleInsideBody then
 			local closingTween = self._tween
 			closingTween.Completed:Once(function()
 				if self._tween == closingTween and not self._expanded and self._rootBody then
@@ -381,7 +393,12 @@ function DailyQuestUIController:_renderCurrentState()
 
 	if isCooldown then
 		setVisible(self._skipButton, false)
-		setVisible(self._claimButton, false)
+		setVisible(self._claimButton, true)
+		if self._claimButton and self._claimButton:IsA("TextButton") then
+			self._claimButton.Active = false
+			self._claimButton.AutoButtonColor = false
+			self._claimButton.Text = ""
+		end
 		setVisible(self._diamondIcon, false)
 		setVisible(self._progressLabel, false)
 		setVisible(self._descriptionLabel, true)
@@ -390,7 +407,12 @@ function DailyQuestUIController:_renderCurrentState()
 		end
 	elseif isCompleted then
 		setVisible(self._skipButton, false)
-		setVisible(self._claimButton, false)
+		setVisible(self._claimButton, true)
+		if self._claimButton and self._claimButton:IsA("TextButton") then
+			self._claimButton.Active = false
+			self._claimButton.AutoButtonColor = false
+			self._claimButton.Text = ""
+		end
 		setVisible(self._diamondIcon, false)
 		setVisible(self._progressLabel, false)
 		setVisible(self._descriptionLabel, true)
@@ -411,8 +433,8 @@ function DailyQuestUIController:_renderCurrentState()
 		setVisible(self._skipButton, isActive)
 
 		if self._claimButton and self._claimButton:IsA("TextButton") then
-			self._claimButton.Active = isReady and not self._logicService._pendingClaim
-			self._claimButton.AutoButtonColor = isReady and not self._logicService._pendingClaim
+			self._claimButton.Active = isReady and not (self._logicService and self._logicService:IsClaimPending())
+			self._claimButton.AutoButtonColor = isReady and not (self._logicService and self._logicService:IsClaimPending())
 			self._claimButton.Text = ""
 		end
 		if self._skipButton and self._skipButton:IsA("ImageButton") then
@@ -427,6 +449,10 @@ function DailyQuestUIController:_renderCurrentState()
 		end
 	end
 
+	if not self._expanded and self._toggleInsideBody then
+		setVisible(self._skipButton, false)
+		setVisible(self._claimButton, false)
+	end
 	self:_refreshCooldownText()
 	self:_renderNotification()
 end
