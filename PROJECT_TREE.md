@@ -455,13 +455,8 @@ DataModel
 │  │  └─ Root
 │  │     ├─ Content (ScrollingFrame)
 │  │     │  ├─ Grid (UIGridLayout)
-│  │     │  └─ SlotRewardTemplate_OnlineRewardUI
-│  │     ├─ Footer
-│  │     │  ├─ ClaimAll (TextButton)
-│  │     │  └─ SkipAll (TextButton)
-│  │     └─ Header
-│  │        ├─ CloseButton (TextButton)
-│  │        └─ Title (TextLabel)
+│  │     │  └─ SlotRewardTemplate_OnlineRewardUI -- Script Spawn in run time
+│  │     └─ CloseButton (TextButton)
 │  │
 │  ├─ DailyLoginUI (ScreenGui)
 │  │  ├─ MainPanel (Frame)
