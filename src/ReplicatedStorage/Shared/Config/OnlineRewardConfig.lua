@@ -9,7 +9,7 @@ OnlineRewardConfig.SaveIntervalSeconds = 20
 OnlineRewardConfig.SnapshotIntervalSeconds = 1
 OnlineRewardConfig.Columns = 3
 OnlineRewardConfig.Rows = 5
-OnlineRewardConfig.DiamondsIcon = "rbxassetid://0"
+OnlineRewardConfig.DiamondsIcon = "" -- Client reuses MainHUD.Root.Diamond.DiamondIcon
 
 OnlineRewardConfig.Slots = {
 	{ Id = "reward_01", TimeSeconds = 60, Rarity = "Common" },
