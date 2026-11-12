@@ -60,6 +60,20 @@ local function resolveGuiButton(root: Instance, path: string, shouldWarn: boolea
 	return nil
 end
 
+local function findUniqueGuiButtonByName(root: Instance, name: string): GuiButton?
+	local match: GuiButton? = nil
+	for _, descendant in ipairs(root:GetDescendants()) do
+		if descendant.Name == name and descendant:IsA("GuiButton") then
+			if match then
+				warn(string.format("[UIController] Multiple GuiButtons named '%s' found under '%s'; debug binding skipped.", name, root:GetFullName()))
+				return nil
+			end
+			match = descendant
+		end
+	end
+	return match
+end
+
 local function resolveImageLabel(root: Instance, path: string, shouldWarn: boolean?): ImageLabel?
 	local value = PathResolver.resolvePath(root, path, { shouldWarn = shouldWarn })
 	if value and value:IsA("ImageLabel") then return value end
@@ -233,6 +247,14 @@ function UIController:_resolveUiReferences()
 	self.ShowStatsButton = self.ShowStatsButton or resolveTextButton(playerGui, ProjectTreeSpec.OptionalUI.Lobby.ShowStatsButton, false)
 	self.EndRoundButton = self.EndRoundButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.EndRoundButton, false)
 	self.ResetTimeOnlineRewardButton = self.ResetTimeOnlineRewardButton or resolveGuiButton(playerGui, ProjectTreeSpec.OptionalUI.Lobby.ResetTimeOnlineRewardButton, false)
+	if not self.ResetTimeOnlineRewardButton then
+		-- Keep the Studio test button discoverable if its Studio-authored container
+		-- differs from the documented UnitTestUI.Root path.
+		local unitTestGui = resolveScreenGui(playerGui, ProjectTreeSpec.UI.Lobby.ScreenGui, false)
+		if unitTestGui then
+			self.ResetTimeOnlineRewardButton = findUniqueGuiButtonByName(unitTestGui, "ResetTimeOnlineReward")
+		end
+	end
 	self.MatchStatusLabel = self.MatchStatusLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel, false)
 	self.TimerLabel = self.TimerLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel, false)
 	self.AlivePlayersLabel = self.AlivePlayersLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.AlivePlayersLabel, false)
