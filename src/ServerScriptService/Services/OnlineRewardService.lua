@@ -221,10 +221,6 @@ function OnlineRewardService:_ensurePlayerSession(player: Player)
 
 	if resetForOffline or recoveredCompletedCycle then
 		self:_beginNextCycle(state)
-		self:_savePlayer(player)
-		if recoveredCompletedCycle then
-			self:_sendResetToast(player)
-		end
 	end
 
 	state.LastSessionEndAt = 0
@@ -234,8 +230,11 @@ function OnlineRewardService:_ensurePlayerSession(player: Player)
 		LastSaveAt = os.clock(),
 		LastSnapshotAt = 0,
 	}
-	-- Clear the previous logout marker durably before the player can leave again.
+	-- Persist the active session marker and any offline/completion reset in one write.
 	self:_savePlayer(player)
+	if recoveredCompletedCycle then
+		self:_sendResetToast(player)
+	end
 end
 
 function OnlineRewardService:_advancePlayer(player: Player, nowClock: number)
