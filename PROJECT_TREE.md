@@ -315,6 +315,9 @@ DataModel
 │  │     ├─ DebugSpawnFood
 │  │     ├─ DebugResetLauncher
 │  │     ├─ DebugLevelUp5
+│  │     ├─ OnlineRewardRequest
+│  │     ├─ OnlineRewardUpdate
+│  │     ├─ ResetTimeOnlineReward
 │  │     ├─ StateUpdate
 │  │     ├─ UIStateUpdate
 │  │     ├─ GameplayFeedback
@@ -382,8 +385,9 @@ DataModel
 │  │     ├─ LevelUp5
 │  │     ├─ ShowStats (TextButton, optional debug control)
 │  │     ├─ EndRoundButton
-│  │     ├─ ResetTimeOnlineReward
 │  │     └─ StartSafeZoneButton
+│  │  └─ Root
+│  │     └─ ResetTimeOnlineReward (TextButton; Studio-only Online Reward debug control)
 │  │
 │  ├─ ConfirmationGui (ScreenGui)
 │  │  └─ Root (Frame)
