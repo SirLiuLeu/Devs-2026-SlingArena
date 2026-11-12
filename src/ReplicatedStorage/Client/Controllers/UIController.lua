@@ -232,7 +232,7 @@ function UIController:_resolveUiReferences()
 	self.LevelUp5Button = self.LevelUp5Button or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LevelUp5Button, false)
 	self.ShowStatsButton = self.ShowStatsButton or resolveTextButton(playerGui, ProjectTreeSpec.OptionalUI.Lobby.ShowStatsButton, false)
 	self.EndRoundButton = self.EndRoundButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.EndRoundButton, false)
-	self.ResetTimeOnlineRewardButton = self.ResetTimeOnlineRewardButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.ResetTimeOnlineReward, false)
+	self.ResetTimeOnlineRewardButton = self.ResetTimeOnlineRewardButton or resolveGuiButton(playerGui, ProjectTreeSpec.OptionalUI.Lobby.ResetTimeOnlineRewardButton, false)
 	self.MatchStatusLabel = self.MatchStatusLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel, false)
 	self.TimerLabel = self.TimerLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel, false)
 	self.AlivePlayersLabel = self.AlivePlayersLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.AlivePlayersLabel, false)
@@ -673,24 +673,40 @@ function UIController:_handlePlayerGuiChildRemoved(child: Instance)
 end
 
 function UIController:_connectScopedUiRoot(rootName: string)
-	local root = self.PlayerGui:FindFirstChild(rootName)
-	if not (root and root:IsA("ScreenGui")) then
-		return
-	end
-	if self._connectedScopedUiRoots[root] then
-		return
-	end
-	self._connectedScopedUiRoots[root] = true
-	table.insert(self.Connections, root.DescendantAdded:Connect(function()
+	local function attachRoot(root: Instance)
+		if not root:IsA("ScreenGui") or self._connectedScopedUiRoots[root] then
+			return
+		end
+
+		self._connectedScopedUiRoots[root] = true
+		table.insert(self.Connections, root.DescendantAdded:Connect(function()
+			self:_scheduleResolveUiReferences(false)
+		end))
+		table.insert(self.Connections, root.DescendantRemoving:Connect(function(descendant)
+			self:_clearRemovedUiReferences(descendant)
+			self:_scheduleResolveUiReferences(false)
+		end))
+
+		-- Re-resolve once the ScreenGui has been attached, including descendants
+		-- that may have replicated between the initial lookup and watcher setup.
 		self:_scheduleResolveUiReferences(false)
-	end))
-	table.insert(self.Connections, root.DescendantRemoving:Connect(function(descendant)
-		self:_clearRemovedUiReferences(descendant)
-		self:_scheduleResolveUiReferences(false)
+	end
+
+	local existingRoot = self.PlayerGui:FindFirstChild(rootName)
+	if existingRoot then
+		attachRoot(existingRoot)
+	end
+
+	-- Also cover ScreenGuis that are cloned into PlayerGui after UIController starts.
+	table.insert(self.Connections, self.PlayerGui.ChildAdded:Connect(function(child)
+		if child.Name == rootName then
+			attachRoot(child)
+		end
 	end))
 end
 
 function UIController:_connectScopedUiRoots()
+	self:_connectScopedUiRoot(ProjectTreeSpec.UI.Lobby.ScreenGui)
 	self:_connectScopedUiRoot(ProjectTreeSpec.UI.MainHub.ScreenGui)
 	self:_connectScopedUiRoot(ProjectTreeSpec.UI.Match.ScreenGui)
 	self:_connectScopedUiRoot(ProjectTreeSpec.UI.LauncherTouch.ScreenGui)
