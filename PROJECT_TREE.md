@@ -384,6 +384,7 @@ DataModel
 │  │     ├─ JoinButton
 │  │     ├─ LeaveButton
 │  │     ├─ Plus1Minute
+│  │     ├─Plus24h 
 │  │     ├─ LevelUp5
 │  │     ├─ ShowStats (TextButton, optional debug control)
 │  │     ├─ EndRoundButton
