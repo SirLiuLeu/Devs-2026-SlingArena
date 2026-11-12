@@ -181,19 +181,23 @@ function OnlineRewardUIController:_bindSlotData(slot: GuiObject, data: any)
 		iconLabel.Image = icon
 	end
 
-	local quantityLabel = slot:FindFirstChild("Quantity", true)
-	if quantityLabel and quantityLabel:IsA("TextLabel") then
-		if data.rewardType == "Diamonds" then
-			quantityLabel.Text = string.format("+%d Diamonds", math.max(0, data.amount))
-		else
-			quantityLabel.Text = string.format("%s x%d", tostring(data.rewardType), math.max(0, data.amount))
-		end
+	local rarityText = string.upper(tostring(data.rarity or ""))
+	local rarityLabel = slot:FindFirstChild("RarityLabel", true) or slot:FindFirstChild("Rarity", true)
+	local hasRarityLabel = rarityLabel ~= nil and rarityLabel:IsA("TextLabel")
+	if hasRarityLabel then
+		rarityLabel.Text = rarityText
+		rarityLabel.Visible = data.rarity ~= nil
 	end
 
-	local rarityLabel = slot:FindFirstChild("RarityLabel", true) or slot:FindFirstChild("Rarity", true)
-	if rarityLabel and rarityLabel:IsA("TextLabel") then
-		rarityLabel.Text = string.upper(tostring(data.rarity or ""))
-		rarityLabel.Visible = data.rarity ~= nil
+	local quantityLabel = slot:FindFirstChild("Quantity", true)
+	if quantityLabel and quantityLabel:IsA("TextLabel") then
+		local rewardText
+		if data.rewardType == "Diamonds" then
+			rewardText = string.format("+%d Diamonds", math.max(0, data.amount))
+		else
+			rewardText = string.format("%s x%d", tostring(data.rewardType), math.max(0, data.amount))
+		end
+		quantityLabel.Text = if hasRarityLabel or rarityText == "" then rewardText else string.format("%s • %s", rewardText, rarityText)
 	end
 
 	local claimButton = slot:FindFirstChild("ClaimButton", true)
