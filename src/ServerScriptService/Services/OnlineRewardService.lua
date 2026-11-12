@@ -226,6 +226,8 @@ function OnlineRewardService:_ensurePlayerSession(player: Player)
 		LastSaveAt = os.clock(),
 		LastSnapshotAt = 0,
 	}
+	-- Clear the previous logout marker durably before the player can leave again.
+	self:_savePlayer(player)
 end
 
 function OnlineRewardService:_advancePlayer(player: Player, nowClock: number)
