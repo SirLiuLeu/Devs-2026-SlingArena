@@ -49,6 +49,9 @@ RemoteContracts.Names = {
 	QuestUpdate = "QuestUpdate",
 	QuestClaim = "QuestClaim",
 	QuestSkip = "QuestSkip",
+	OnlineRewardRequest = "OnlineRewardRequest",
+	OnlineRewardUpdate = "OnlineRewardUpdate",
+	ResetTimeOnlineReward = "ResetTimeOnlineReward",
 	Notification = "Notification",
 	EquipPet = "EquipPet",
 	UnequipPet = "UnequipPet",
@@ -106,6 +109,16 @@ RemoteContracts.Validators = {
 		return true
 	end,
 	[RemoteContracts.Names.DebugLevelUp5] = function(): boolean
+		return true
+	end,
+	[RemoteContracts.Names.OnlineRewardRequest] = function(payload: any): boolean
+		if type(payload) ~= "table" then return false end
+		if payload.Action == "Snapshot" then return true end
+		return payload.Action == "Claim"
+			and typeof(payload.RewardId) == "string" and #payload.RewardId > 0 and #payload.RewardId <= 40
+			and typeof(payload.CycleId) == "number" and payload.CycleId >= 1
+	end,
+	[RemoteContracts.Names.ResetTimeOnlineReward] = function(): boolean
 		return true
 	end,
 	[RemoteContracts.Names.EndRound] = function(): boolean
