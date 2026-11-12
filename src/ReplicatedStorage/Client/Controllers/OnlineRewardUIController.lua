@@ -4,7 +4,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
 local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
-local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 local OnlineRewardUIController = {}
 OnlineRewardUIController.__index = OnlineRewardUIController
@@ -47,12 +46,43 @@ function OnlineRewardUIController:SetLogicService(logicService)
 	self._logicService = logicService
 end
 
+function OnlineRewardUIController:_resolveNotificationIcon()
+	if self._notificationIcon and self._notificationIcon.Parent then
+		return self._notificationIcon
+	end
+	local icon = PathResolver.resolvePath(
+		self._playerGui,
+		"MainHUD.Root.LeftMenu.OnlineRewardButton.InfoIcon",
+		{ shouldWarn = false }
+	)
+	if icon and icon:IsA("GuiObject") then
+		self._notificationIcon = icon
+	end
+	return self._notificationIcon
+end
+
+function OnlineRewardUIController:_setNotificationVisible(isVisible: boolean)
+	local icon = self:_resolveNotificationIcon()
+	if icon then
+		icon.Visible = isVisible
+	end
+end
+
+function OnlineRewardUIController:_updateCanvasSize()
+	if not self._content or not self._content:IsA("ScrollingFrame") then
+		return
+	end
+	if self._grid and self._grid:IsA("UIGridLayout") then
+		local height = math.max(0, math.ceil(self._grid.AbsoluteContentSize.Y + 12))
+		self._content.CanvasSize = UDim2.new(0, 0, 0, height)
+	end
+end
+
 function OnlineRewardUIController:Start()
 	self._screenGui = PathResolver.resolvePath(self._playerGui, ProjectTreeSpec.UI.OnlineReward.ScreenGui)
 	self._content = resolveGui(self._playerGui, ProjectTreeSpec.UI.OnlineReward.Content)
-	self._claimAllButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.OnlineReward.ClaimAll)
-	self._skipAllButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.OnlineReward.SkipAll)
 	self._closeButton = resolveTextButton(self._playerGui, ProjectTreeSpec.UI.OnlineReward.CloseButton)
+	self._grid = self._content and self._content:FindFirstChild("Grid")
 
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
 	local uiFolder = assets and assets:FindFirstChild("UI")
@@ -61,34 +91,19 @@ function OnlineRewardUIController:Start()
 	if not self._content then
 		warn("[ONLINE_REWARD_UI] OnlineRewardUI/Root/Content missing")
 	end
-	if not self._template then
+	if not self._template or not self._template:IsA("GuiObject") then
 		warn("[ONLINE_REWARD_UI] ReplicatedStorage/Assets/UI/SlotRewardTemplate_OnlineRewardUI missing")
 	end
 
-	if self._claimAllButton then
-		table.insert(self._connections, self._claimAllButton.MouseButton1Click:Connect(function()
-			if self._logicService then
-				local claimedCount = self._logicService:ClaimAllReady()
-				if claimedCount > 0 then SoundManager.Play("SFX_Success") end
-			end
-		end))
-	else
-		warn("[ONLINE_REWARD_UI] ClaimAll button missing")
-	end
-
-	if self._skipAllButton then
-		table.insert(self._connections, self._skipAllButton.MouseButton1Click:Connect(function()
-			if self._logicService then
-				self._logicService:SkipAll()
-			end
-		end))
-	else
-		warn("[ONLINE_REWARD_UI] SkipAll button missing")
-	end
-
 	if self._closeButton then
-		table.insert(self._connections, self._closeButton.MouseButton1Click:Connect(function()
+		table.insert(self._connections, self._closeButton.Activated:Connect(function()
 			self:SetVisible(false)
+		end))
+	end
+
+	if self._grid and self._grid:IsA("UIGridLayout") then
+		table.insert(self._connections, self._grid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+			self:_updateCanvasSize()
 		end))
 	end
 
@@ -97,12 +112,16 @@ function OnlineRewardUIController:Start()
 			self:RenderSnapshot(snapshot)
 		end))
 		self:RenderSnapshot(self._logicService:GetSnapshot())
+		self._logicService:RequestSnapshot()
 	end
 end
 
 function OnlineRewardUIController:SetVisible(isVisible: boolean)
 	if self._screenGui and self._screenGui:IsA("ScreenGui") then
 		self._screenGui.Enabled = isVisible
+	end
+	if isVisible and self._logicService then
+		self._logicService:RequestSnapshot()
 	end
 end
 
@@ -125,7 +144,7 @@ function OnlineRewardUIController:_clearSlots()
 	table.clear(self._claimConnectionById)
 end
 
-function OnlineRewardUIController:_setSlotState(slot: GuiObject, data)
+function OnlineRewardUIController:_setSlotState(slot: GuiObject, data: any)
 	local timerLabel = slot:FindFirstChild("Timer", true)
 	local claimButton = slot:FindFirstChild("ClaimButton", true)
 	local claimedLabel = slot:FindFirstChild("Claimed", true)
@@ -137,6 +156,7 @@ function OnlineRewardUIController:_setSlotState(slot: GuiObject, data)
 	if claimButton and claimButton:IsA("TextButton") then
 		claimButton.Visible = data.state == "Ready"
 		claimButton.Active = data.state == "Ready"
+		claimButton.AutoButtonColor = data.state == "Ready"
 	end
 	if claimedLabel and claimedLabel:IsA("TextLabel") then
 		claimedLabel.Visible = data.state == "Claimed"
@@ -144,7 +164,7 @@ function OnlineRewardUIController:_setSlotState(slot: GuiObject, data)
 	end
 end
 
-function OnlineRewardUIController:_bindSlotData(slot: GuiObject, data)
+function OnlineRewardUIController:_bindSlotData(slot: GuiObject, data: any)
 	local iconLabel = slot:FindFirstChild("Icon", true)
 	if iconLabel and iconLabel:IsA("ImageLabel") then
 		iconLabel.Image = data.icon
@@ -152,7 +172,17 @@ function OnlineRewardUIController:_bindSlotData(slot: GuiObject, data)
 
 	local quantityLabel = slot:FindFirstChild("Quantity", true)
 	if quantityLabel and quantityLabel:IsA("TextLabel") then
-		quantityLabel.Text = string.format("%s x%d", data.rewardType, math.max(0, data.amount))
+		if data.rewardType == "Diamonds" then
+			quantityLabel.Text = string.format("+%d Diamonds", math.max(0, data.amount))
+		else
+			quantityLabel.Text = string.format("%s x%d", tostring(data.rewardType), math.max(0, data.amount))
+		end
+	end
+
+	local rarityLabel = slot:FindFirstChild("RarityLabel", true) or slot:FindFirstChild("Rarity", true)
+	if rarityLabel and rarityLabel:IsA("TextLabel") then
+		rarityLabel.Text = string.upper(tostring(data.rarity or ""))
+		rarityLabel.Visible = data.rarity ~= nil
 	end
 
 	local claimButton = slot:FindFirstChild("ClaimButton", true)
@@ -163,7 +193,7 @@ function OnlineRewardUIController:_bindSlotData(slot: GuiObject, data)
 	self:_setSlotState(slot, data)
 end
 
-function OnlineRewardUIController:_ensureSlot(data, layoutOrder: number): GuiObject?
+function OnlineRewardUIController:_ensureSlot(data: any, layoutOrder: number): GuiObject?
 	local existing = self._slotById[data.id]
 	if existing and existing.Parent then
 		existing.LayoutOrder = layoutOrder
@@ -183,10 +213,9 @@ function OnlineRewardUIController:_ensureSlot(data, layoutOrder: number): GuiObj
 
 	local claimButton = slot:FindFirstChild("ClaimButton", true)
 	if claimButton and claimButton:IsA("TextButton") and not self._claimConnectionById[data.id] then
-		local connection = claimButton.MouseButton1Click:Connect(function()
+		local connection = claimButton.Activated:Connect(function()
 			if self._logicService then
-				local claimed = self._logicService:ClaimReward(data.id)
-				if claimed then SoundManager.Play("SFX_Success") end
+				self._logicService:ClaimReward(data.id)
 			end
 		end)
 		self._claimConnectionById[data.id] = connection
@@ -195,14 +224,22 @@ function OnlineRewardUIController:_ensureSlot(data, layoutOrder: number): GuiObj
 	return slot
 end
 
-function OnlineRewardUIController:RenderSnapshot(snapshot)
+function OnlineRewardUIController:RenderSnapshot(snapshot: any)
 	if not self._content or not self._template or not self._template:IsA("GuiObject") then
 		return
 	end
 
+	if self._grid and self._grid:IsA("UIGridLayout") then
+		self._grid.FillDirectionMaxCells = math.max(1, math.floor(tonumber(snapshot.columns) or 3))
+	end
+
 	local activeIds = {}
+	local readyCount = math.max(0, math.floor(tonumber(snapshot.ReadyCount) or 0))
 	for index, data in ipairs(snapshot.slots or {}) do
 		activeIds[data.id] = true
+		if data.state == "Ready" and tonumber(snapshot.ReadyCount) == nil then
+			readyCount += 1
+		end
 		local slot = self:_ensureSlot(data, index)
 		if slot then
 			self:_bindSlotData(slot, data)
@@ -222,6 +259,9 @@ function OnlineRewardUIController:RenderSnapshot(snapshot)
 			self._slotById[rewardId] = nil
 		end
 	end
+
+	self:_setNotificationVisible(readyCount > 0)
+	self:_updateCanvasSize()
 end
 
 function OnlineRewardUIController:Destroy()
@@ -230,6 +270,7 @@ function OnlineRewardUIController:Destroy()
 		connection:Disconnect()
 	end
 	table.clear(self._connections)
+	self:_setNotificationVisible(false)
 end
 
 return OnlineRewardUIController
