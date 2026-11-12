@@ -116,7 +116,7 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 		OnlineRewardState = {
 			SchemaVersion = 1,
 			CycleId = 1,
-			RewardSetId = "SetA",
+			RewardSetId = "",
 			ElapsedSeconds = 0,
 			ClaimedSlots = {},
 			LastSessionEndAt = 0,
