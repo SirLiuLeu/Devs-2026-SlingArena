@@ -125,7 +125,6 @@ local ProjectTreeSpec = {
 			ItemsStat1 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat1",
 			ItemsStat2 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat2",
 			ItemsStat3 = "InventoryUI.Root.BodyItems.RightPanel.Stats.ItemStat3",
-			ItemsDescription = "InventoryUI.Root.BodyItems.RightPanel.Description",
 		},
 		PetInventory = {
 			ScreenGui = "PetInventoryUI", -- [PROJECT_TREE_SPEC] StarterGui.PetInventoryUI
