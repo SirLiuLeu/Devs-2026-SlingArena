@@ -52,6 +52,7 @@ local ProjectTreeSpec = {
 				LevelLabel = "MainHUD.Root.ExpProress.LevelOnBarLabel", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ExpProress.LevelOnBarLabel
 			},
 			RankFrameList = "MainHUD.Root.RankFrame.List", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.RankFrame.List
+			DiamondIcon = "MainHUD.Root.Diamond.DiamondIcon", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.Diamond.DiamondIcon
 			DiamondValue = "MainHUD.Root.Diamond.Value", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.Diamond.Value
 			BuffContainer = {
 				Root = "MainHUD.Root.BuffContainer", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.BuffContainer
