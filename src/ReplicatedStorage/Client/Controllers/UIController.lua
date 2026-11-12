@@ -232,6 +232,7 @@ function UIController:_resolveUiReferences()
 	self.LevelUp5Button = self.LevelUp5Button or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.LevelUp5Button, false)
 	self.ShowStatsButton = self.ShowStatsButton or resolveTextButton(playerGui, ProjectTreeSpec.OptionalUI.Lobby.ShowStatsButton, false)
 	self.EndRoundButton = self.EndRoundButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.EndRoundButton, false)
+	self.ResetTimeOnlineRewardButton = self.ResetTimeOnlineRewardButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.ResetTimeOnlineReward, false)
 	self.MatchStatusLabel = self.MatchStatusLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel, false)
 	self.TimerLabel = self.TimerLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel, false)
 	self.AlivePlayersLabel = self.AlivePlayersLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.AlivePlayersLabel, false)
@@ -318,6 +319,7 @@ function UIController:_clearRemovedUiReferences(removedRoot: Instance)
 	self:_clearReferenceIfRemoved("LevelUp5Button", removedRoot, "LevelUp5Button")
 	self:_clearReferenceIfRemoved("ShowStatsButton", removedRoot, "ShowStatsButton")
 	self:_clearReferenceIfRemoved("EndRoundButton", removedRoot, "EndRoundButton")
+	self:_clearReferenceIfRemoved("ResetTimeOnlineRewardButton", removedRoot, "ResetTimeOnlineRewardButton")
 	self:_clearReferenceIfRemoved("DebugResetButton", removedRoot, "DebugResetButton")
 	self:_clearReferenceIfRemoved("DailyButton", removedRoot, "DailyButton")
 	self:_clearReferenceIfRemoved("InventoryButton", removedRoot, "InventoryButton")
@@ -478,6 +480,13 @@ function UIController:_bindResolvedUiReferences()
 			self:ShowMainHubPanel("OnlineReward")
 			if self.OnlineRewardUIController then
 				self.OnlineRewardUIController:SetVisible(true)
+			end
+		end)
+	end
+	if self.ResetTimeOnlineRewardButton then
+		self:_connectOnce("ResetTimeOnlineRewardButton", self.ResetTimeOnlineRewardButton.Activated, function()
+			if self.OnlineRewardLogicService then
+				self.OnlineRewardLogicService:RequestDebugReset()
 			end
 		end)
 	end
@@ -724,9 +733,6 @@ function UIController:Start()
 		if self.PetInventoryUIController then
 			self.PetInventoryUIController:RefreshWithData(self.InventoryDataProvider:GetSnapshot())
 		end
-	end
-	if self.OnlineRewardLogicService then
-		self.OnlineRewardLogicService:LoadMockData()
 	end
 	if self.ShopLogicService then
 		self.ShopLogicService:LoadMockData()
