@@ -389,7 +389,7 @@ DataModel
 │  │     ├─ EndRoundButton
 │  │     └─ StartSafeZoneButton
 │  │  └─ Root
-│  │     └─ ResetTimeOnlineReward (TextButton; Studio-only Online Reward debug control)
+│  │     └─ ResetTimeOnlineReward (TextButton; Studio-only Online Reward debug control; optional/late-replicating)
 │  │
 │  ├─ ConfirmationGui (ScreenGui)
 │  │  └─ Root (Frame)
@@ -518,7 +518,7 @@ DataModel
 │  │  │           │   └─ UseButton (TextButton)
 │  │  │           ├─ Stats (Frame)
 │  │  │           │   └─ ItemStat1, ItemStat2, ItemStat3 (TextLabels)
-│  │  │           ├─ Description (TextLabel)
+│  │  │           ├─ Description (TextLabel, optional; resolved uniquely within RightPanel)
 │  │  │           └─ SelectedName (TextLabel)
 │  │  └── Overlay (Frame)
 │  │
