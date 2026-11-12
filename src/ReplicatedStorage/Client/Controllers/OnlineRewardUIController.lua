@@ -167,7 +167,18 @@ end
 function OnlineRewardUIController:_bindSlotData(slot: GuiObject, data: any)
 	local iconLabel = slot:FindFirstChild("Icon", true)
 	if iconLabel and iconLabel:IsA("ImageLabel") then
-		iconLabel.Image = data.icon
+		local icon = tostring(data.icon or "")
+		if data.rewardType == "Diamonds" and (icon == "" or icon == "rbxassetid://0") then
+			local hudDiamondIcon = PathResolver.resolvePath(
+				self._playerGui,
+				ProjectTreeSpec.UI.MainHub.DiamondIcon,
+				{ shouldWarn = false }
+			)
+			if hudDiamondIcon and hudDiamondIcon:IsA("ImageLabel") then
+				icon = hudDiamondIcon.Image
+			end
+		end
+		iconLabel.Image = icon
 	end
 
 	local quantityLabel = slot:FindFirstChild("Quantity", true)
