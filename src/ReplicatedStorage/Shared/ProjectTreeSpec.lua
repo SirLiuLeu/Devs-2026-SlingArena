@@ -12,6 +12,7 @@ local ProjectTreeSpec = {
 			LevelUp5Button = "UnitTestUI.RootFrame.LevelUp5", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.LevelUp5
 			DebugResetButton = "UnitTestUI.RootFrame.DebugReset", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.DebugReset
 			EndRoundButton = "UnitTestUI.RootFrame.EndRoundButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.EndRoundButton
+			ResetTimeOnlineReward = "UnitTestUI.Root.ResetTimeOnlineReward", -- Studio-only Online Reward countdown test button
 		},
 		MainHub = {
 			ScreenGui = "MainHUD", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD
@@ -148,9 +149,7 @@ local ProjectTreeSpec = {
 			ScreenGui = "OnlineRewardUI", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI
 			Root = "OnlineRewardUI.Root", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI.Root
 			Content = "OnlineRewardUI.Root.Content", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI.Root.Content
-			ClaimAll = "OnlineRewardUI.Root.Footer.ClaimAll", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI.Root.Footer.ClaimAll
-			SkipAll = "OnlineRewardUI.Root.Footer.SkipAll", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI.Root.Footer.SkipAll
-			CloseButton = "OnlineRewardUI.Root.Header.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI.Root.Header.CloseButton
+			CloseButton = "OnlineRewardUI.Root.CloseButton", -- [PROJECT_TREE_SPEC] StarterGui.OnlineRewardUI.Root.CloseButton
 		},
 		Shop = {
 			ScreenGui = "ShopUI", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI
@@ -223,6 +222,9 @@ local ProjectTreeSpec = {
 	},
 	Remotes = {
 		Folder = "LauncherArenaRemotes", -- [PROJECT_TREE_SPEC] ReplicatedStorage.LauncherArenaRemotes
+		OnlineRewardRequest = "LauncherArenaRemotes.OnlineRewardRequest",
+		OnlineRewardUpdate = "LauncherArenaRemotes.OnlineRewardUpdate",
+		ResetTimeOnlineReward = "LauncherArenaRemotes.ResetTimeOnlineReward",
 		ChangeTeam = "LauncherArenaRemotes.ChangeTeam", -- [PROJECT_TREE_SPEC]
 		DebugLevelUp5 = "LauncherArenaRemotes.DebugLevelUp5", -- [PROJECT_TREE_SPEC]
 		MoveRequest = "LauncherArenaRemotes.MoveRequest", -- [PROJECT_TREE_SPEC]
