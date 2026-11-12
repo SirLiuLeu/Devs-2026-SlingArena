@@ -40,6 +40,7 @@ local function makeDefaultState(rewardSetId: string)
 		ElapsedSeconds = 0,
 		ClaimedSlots = {},
 		LastSessionEndAt = 0,
+		LastOnlineAt = os.time(),
 	}
 end
 
@@ -162,6 +163,7 @@ function OnlineRewardService:_getProfileState(player: Player): (any?, any?)
 	state.ElapsedSeconds = math.clamp(tonumber(state.ElapsedSeconds) or 0, 0, OnlineRewardConfig.CycleDurationSeconds)
 	state.ClaimedSlots = if type(state.ClaimedSlots) == "table" then state.ClaimedSlots else {}
 	state.LastSessionEndAt = math.max(0, math.floor(tonumber(state.LastSessionEndAt) or 0))
+	state.LastOnlineAt = math.max(0, math.floor(tonumber(state.LastOnlineAt) or state.LastSessionEndAt or os.time()))
 	if not OnlineRewardConfig.RewardSets[state.RewardSetId] then
 		state.RewardSetId = self:_chooseRewardSet(nil)
 	end
@@ -211,8 +213,9 @@ function OnlineRewardService:_ensurePlayerSession(player: Player)
 	end
 
 	local now = os.time()
-	local offlineSeconds = if state.LastSessionEndAt > 0 then math.max(0, now - state.LastSessionEndAt) else 0
-	local resetForOffline = state.LastSessionEndAt > 0 and offlineSeconds > OnlineRewardConfig.OfflineResetSeconds
+	local lastSeenAt = math.max(tonumber(state.LastSessionEndAt) or 0, tonumber(state.LastOnlineAt) or 0)
+	local offlineSeconds = if lastSeenAt > 0 then math.max(0, now - lastSeenAt) else 0
+	local resetForOffline = lastSeenAt > 0 and offlineSeconds > OnlineRewardConfig.OfflineResetSeconds
 	local recoveredCompletedCycle = self:_allSlotsClaimed(state)
 
 	if resetForOffline or recoveredCompletedCycle then
@@ -221,6 +224,7 @@ function OnlineRewardService:_ensurePlayerSession(player: Player)
 	end
 
 	state.LastSessionEndAt = 0
+	state.LastOnlineAt = now
 	self._runtimeByUserId[userId] = {
 		LastTickAt = os.clock(),
 		LastSaveAt = os.clock(),
@@ -251,6 +255,7 @@ function OnlineRewardService:_advancePlayer(player: Player, nowClock: number)
 
 	if nowClock - runtime.LastSaveAt >= OnlineRewardConfig.SaveIntervalSeconds then
 		runtime.LastSaveAt = nowClock
+		state.LastOnlineAt = os.time()
 		self:_savePlayer(player)
 	end
 end
@@ -531,6 +536,7 @@ function OnlineRewardService:_endPlayerSession(player: Player)
 	local _, state = self:_getProfileState(player)
 	if state then
 		state.LastSessionEndAt = os.time()
+		state.LastOnlineAt = state.LastSessionEndAt
 	end
 	self._runtimeByUserId[userId] = nil
 	self._claimLocks[userId] = nil
