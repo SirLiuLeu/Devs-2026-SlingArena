@@ -37,7 +37,6 @@ function OnlineRewardLogicService.new()
 	local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 	self._requestRemote = remotes:WaitForChild(RemoteContracts.Names.OnlineRewardRequest) :: RemoteEvent
 	self._updateRemote = remotes:WaitForChild(RemoteContracts.Names.OnlineRewardUpdate) :: RemoteEvent
-	self._debugResetRemote = remotes:WaitForChild(RemoteContracts.Names.ResetTimeOnlineReward) :: RemoteEvent
 	self._updateConnection = self._updateRemote.OnClientEvent:Connect(function(payload)
 		self:_handleServerUpdate(payload)
 	end)
@@ -111,10 +110,23 @@ function OnlineRewardLogicService:ClaimReward(rewardId: string): boolean
 	return true
 end
 
-function OnlineRewardLogicService:RequestDebugReset()
-	if RunService:IsStudio() and self._debugResetRemote then
-		self._debugResetRemote:FireServer()
+function OnlineRewardLogicService:RequestDebugReset(): boolean
+	if not RunService:IsStudio() then
+		warn("[OnlineRewardDebug] ResetTimeOnlineReward is only available in Studio.")
+		return false
 	end
+	if not self._requestRemote then
+		warn("[OnlineRewardDebug] OnlineRewardRequest remote is unavailable.")
+		return false
+	end
+
+	-- Reuse the working OnlineRewardRequest channel so the debug action cannot
+	-- silently fail because a dedicated debug RemoteEvent was not connected.
+	self._requestRemote:FireServer({
+		Action = "DebugCompleteCountdown",
+	})
+	print("[OnlineRewardDebug] Sent countdown-completion request.")
+	return true
 end
 
 local defaultInstance = nil
