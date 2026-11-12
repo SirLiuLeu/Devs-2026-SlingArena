@@ -676,6 +676,26 @@ function PlayerDataService:CommitOnlineRewardClaim(player: Player, expectedCycle
 		return false, failureReason
 	end
 
+	-- Refresh the authoritative HUD and inventory after the profile transaction.
+	local services = self._context.Services or {}
+	local stateService = services.PlayerStateService
+	if stateService and typeof(stateService.RecalculateDerivedStats) == "function" then
+		stateService:RecalculateDerivedStats(player, false)
+	end
+	local itemService = services.ItemService
+	if itemService and typeof(itemService.PublishInventory) == "function" then
+		itemService:PublishInventory(player)
+	elseif stateService and typeof(stateService.GetState) == "function" then
+		local state = stateService:GetState(player)
+		local data = self:GetData(player)
+		if state and data then
+			state.Diamonds = tonumber(data.Diamonds) or 0
+			state.OwnedItems = data.OwnedItems or {}
+			state.HpPotions = math.max(0, math.floor(tonumber(state.OwnedItems.hp_potion) or 0))
+			stateService:PublishState(player)
+		end
+	end
+
 	if self._context.EventBus then
 		self._context.EventBus:Fire("PlayerRewardGranted", player, safeReward, "OnlineRewardClaim")
 	end
