@@ -398,8 +398,8 @@ function OnlineRewardService:_claimReward(player: Player, payload: any)
 		return
 	end
 
-	local slotIndex = nil
-	local slotDefinition = nil
+	local slotIndex: number? = nil
+	local slotDefinition: any = nil
 	for index, slot in ipairs(OnlineRewardConfig.Slots) do
 		if slot.Id == payload.RewardId then
 			slotIndex = index
