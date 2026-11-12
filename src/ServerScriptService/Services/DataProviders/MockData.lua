@@ -48,6 +48,7 @@ MockData.MOCK_SCHEMA_DEFAULTS = {
 	Coin = 0,
 	Diamonds = 0,
 	OwnedItems = { bomb = 3, gift_box = 1, hp_potion = 5, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5 },
+	OnlineRewardState = { SchemaVersion = 1, CycleId = 1, RewardSetId = "SetA", ElapsedSeconds = 0, ClaimedSlots = {}, LastSessionEndAt = 0 },
 	OwnedPets = {},
 	EquippedPets = { [1] = nil, [2] = nil, [3] = nil },
 	OwnedLaunchers = buildMockLauncherInventory(),
