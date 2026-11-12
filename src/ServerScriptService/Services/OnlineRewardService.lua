@@ -495,7 +495,12 @@ function OnlineRewardService:_handleAction(player: Player, payload: any)
 		return
 	end
 
-	if payload.Action == "Snapshot" then
+	if payload.Action == "DebugCompleteCountdown" then
+		-- The validator accepts this request shape, but only Studio servers may execute it.
+		if RunService:IsStudio() then
+			self:_debugCompleteCountdown(player)
+		end
+	elseif payload.Action == "Snapshot" then
 		local now = os.clock()
 		local last = self._lastSnapshotRequestAt[player.UserId] or 0
 		if now - last >= 0.5 then
@@ -522,15 +527,48 @@ function OnlineRewardService:_debugCompleteCountdown(player: Player)
 	self:_ensurePlayerSession(player)
 	local _, state = self:_getProfileState(player)
 	if not state then
+		warn(string.format("[OnlineRewardService][StudioDebug] Profile unavailable for user %d.", player.UserId))
 		return
 	end
-	state.ElapsedSeconds = OnlineRewardConfig.CycleDurationSeconds
+
+	-- Update through PlayerDataService so the next authoritative snapshot reads
+	-- the completed timer from the same profile data used by reward claims.
+	local targetElapsed = OnlineRewardConfig.CycleDurationSeconds
+	local dataService = self:_dataService()
+	if dataService and typeof(dataService.UpdateData) == "function" then
+		dataService:UpdateData(player, function(profile)
+			local onlineState = profile.OnlineRewardState
+			if type(onlineState) ~= "table" then
+				onlineState = state
+				profile.OnlineRewardState = onlineState
+			end
+			onlineState.ElapsedSeconds = targetElapsed
+			return profile
+		end)
+	else
+		state.ElapsedSeconds = targetElapsed
+	end
+
+	local _, updatedState = self:_getProfileState(player)
+	if not updatedState then
+		warn(string.format("[OnlineRewardService][StudioDebug] Could not read updated state for user %d.", player.UserId))
+		return
+	end
+
+	updatedState.ElapsedSeconds = targetElapsed
 	self:_savePlayer(player)
 	self:_sendSnapshot(player, {
 		Action = "DebugReset",
 		Success = true,
 		Reason = "CountdownCompleted",
+		ElapsedSeconds = targetElapsed,
 	})
+	print(string.format(
+		"[OnlineRewardService][StudioDebug] Completed all reward countdowns for user %d (elapsed=%d/%d).",
+		player.UserId,
+		targetElapsed,
+		OnlineRewardConfig.CycleDurationSeconds
+	))
 end
 
 function OnlineRewardService:_endPlayerSession(player: Player)
