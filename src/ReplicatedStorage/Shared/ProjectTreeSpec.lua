@@ -212,6 +212,9 @@ local ProjectTreeSpec = {
 		Lobby = {
 			ShowStatsButton = "UnitTestUI.RootFrame.ShowStats", -- Optional debug-only stats button; absence is valid.
 		},
+		MainHub = {
+			OnlineRewardNotificationIcon = "MainHUD.Root.LeftMenu.OnlineRewardButton.InfoIcon", -- Optional notification badge; absence is valid.
+		},
 	},
 	SharedModules = {
 		Utils = {
