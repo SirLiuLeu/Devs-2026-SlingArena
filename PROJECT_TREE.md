@@ -382,6 +382,7 @@ DataModel
 │  │     ├─ LevelUp5
 │  │     ├─ ShowStats (TextButton, optional debug control)
 │  │     ├─ EndRoundButton
+│  │     ├─ ResetTimeOnlineReward
 │  │     └─ StartSafeZoneButton
 │  │
 │  ├─ ConfirmationGui (ScreenGui)
