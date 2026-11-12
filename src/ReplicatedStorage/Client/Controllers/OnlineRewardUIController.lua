@@ -52,7 +52,7 @@ function OnlineRewardUIController:_resolveNotificationIcon()
 	end
 	local icon = PathResolver.resolvePath(
 		self._playerGui,
-		"MainHUD.Root.LeftMenu.OnlineRewardButton.InfoIcon",
+		ProjectTreeSpec.OptionalUI.MainHub.OnlineRewardNotificationIcon,
 		{ shouldWarn = false }
 	)
 	if icon and icon:IsA("GuiObject") then
