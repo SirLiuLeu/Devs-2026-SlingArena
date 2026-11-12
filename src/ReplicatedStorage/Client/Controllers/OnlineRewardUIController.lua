@@ -183,10 +183,11 @@ function OnlineRewardUIController:_bindSlotData(slot: GuiObject, data: any)
 
 	local rarityText = string.upper(tostring(data.rarity or ""))
 	local rarityLabel = slot:FindFirstChild("RarityLabel", true) or slot:FindFirstChild("Rarity", true)
-	local hasRarityLabel = rarityLabel ~= nil and rarityLabel:IsA("TextLabel")
-	if hasRarityLabel then
+	local hasRarityLabel = false
+	if rarityLabel and rarityLabel:IsA("TextLabel") then
 		rarityLabel.Text = rarityText
 		rarityLabel.Visible = data.rarity ~= nil
+		hasRarityLabel = true
 	end
 
 	local quantityLabel = slot:FindFirstChild("Quantity", true)
