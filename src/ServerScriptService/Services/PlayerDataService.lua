@@ -11,6 +11,7 @@ local MockProvider = require(script.Parent.DataProviders.MockProvider)
 local PetsUpgradeConfig = require(ReplicatedStorage.Shared.Config.PetsUpgradeConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local QuestConfig = require(ReplicatedStorage.Shared.Config.QuestConfig)
+local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 
 type Context = { EventBus: any?, Services: any?, ServiceRegistry: any?, Remotes: Folder? }
 
@@ -112,6 +113,14 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 		},
 		Diamonds = 0,
 		OwnedItems = {},
+		OnlineRewardState = {
+			SchemaVersion = 1,
+			CycleId = 1,
+			RewardSetId = "SetA",
+			ElapsedSeconds = 0,
+			ClaimedSlots = {},
+			LastSessionEndAt = 0,
+		},
 		OwnedLaunchers = { default_normal_launcher = { definitionId = "Normalduck", star = 1, rarity = "Common", level = 1, acquiredAt = os.time() } },
 		EquippedLauncherInstanceId = "default_normal_launcher",
 		OwnedPets = buildStarterPetInventory(),
@@ -605,6 +614,79 @@ function PlayerDataService:GrantReward(player: Player, reward: any, reason: stri
 			Payload = { Reward = reward, Reason = reason },
 		})
 	end
+end
+
+function PlayerDataService:CommitOnlineRewardClaim(player: Player, expectedCycleId: number, rewardId: string, reward: any): (boolean, string?)
+	if typeof(expectedCycleId) ~= "number" or expectedCycleId < 1
+		or type(rewardId) ~= "string" or rewardId == "" or type(reward) ~= "table" then
+		return false, "InvalidReward"
+	end
+
+	local safeDiamonds = math.clamp(math.floor(tonumber(reward.Diamonds or reward.diamonds) or 0), 0, 1000000)
+	local normalizedItems = {}
+	for _, entry in ipairs(reward.Items or reward.items or {}) do
+		if type(entry) ~= "table" then
+			return false, "InvalidItem"
+		end
+		local itemId = tostring(entry.Id or entry.ItemId or entry.id or "")
+		local quantity = math.clamp(math.floor(tonumber(entry.Quantity or entry.Amount or entry.quantity) or 0), 1, 999)
+		if itemId == "" or not ItemConfig.GetById(itemId) then
+			return false, "InvalidItem"
+		end
+		table.insert(normalizedItems, { Id = itemId, Quantity = quantity })
+	end
+	if safeDiamonds <= 0 and #normalizedItems == 0 then
+		return false, "EmptyReward"
+	end
+
+	local committed = false
+	local failureReason = "ProfileUnavailable"
+	local safeReward = {
+		Diamonds = safeDiamonds,
+		Items = normalizedItems,
+	}
+	self:UpdateData(player, function(data)
+		local state = data.OnlineRewardState
+		if type(state) ~= "table" or tonumber(state.CycleId) ~= math.floor(expectedCycleId) then
+			failureReason = "StaleCycle"
+			return data
+		end
+		if type(state.ClaimedSlots) ~= "table" then
+			state.ClaimedSlots = {}
+		end
+		if state.ClaimedSlots[rewardId] == true then
+			failureReason = "AlreadyClaimed"
+			return data
+		end
+
+		data.Diamonds = math.max(0, math.floor(tonumber(data.Diamonds) or 0)) + safeDiamonds
+		if type(data.OwnedItems) ~= "table" then
+			data.OwnedItems = {}
+		end
+		for _, item in ipairs(normalizedItems) do
+			data.OwnedItems[item.Id] = math.max(0, math.floor(tonumber(data.OwnedItems[item.Id]) or 0)) + item.Quantity
+		end
+		state.ClaimedSlots[rewardId] = true
+		committed = true
+		failureReason = ""
+		return data
+	end)
+
+	if not committed then
+		return false, failureReason
+	end
+
+	if self._context.EventBus then
+		self._context.EventBus:Fire("PlayerRewardGranted", player, safeReward, "OnlineRewardClaim")
+	end
+	local feedbackRemote = self._context.Remotes and self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
+	if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
+		feedbackRemote:FireClient(player, {
+			EventType = "RewardReceived",
+			Payload = { Reward = safeReward, Reason = "OnlineRewardClaim" },
+		})
+	end
+	return true, nil
 end
 
 function PlayerDataService:GetDiamonds(player: Player): number
