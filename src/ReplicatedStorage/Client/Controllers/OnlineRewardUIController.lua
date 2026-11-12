@@ -94,6 +94,9 @@ function OnlineRewardUIController:Start()
 	if not self._template or not self._template:IsA("GuiObject") then
 		warn("[ONLINE_REWARD_UI] ReplicatedStorage/Assets/UI/SlotRewardTemplate_OnlineRewardUI missing")
 	end
+	if not self:_resolveNotificationIcon() then
+		warn("[ONLINE_REWARD_UI] MainHUD.Root.LeftMenu.OnlineRewardButton.InfoIcon missing; add an ImageLabel there to show ready-reward notifications.")
+	end
 
 	if self._closeButton then
 		table.insert(self._connections, self._closeButton.Activated:Connect(function()
