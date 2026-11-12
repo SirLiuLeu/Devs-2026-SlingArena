@@ -287,3 +287,9 @@
 - OnlineRewardState is part of the PlayerDataService profile schema. `LastOnlineAt` is refreshed with a 20-second heartbeat so the next join can detect an interrupted session; offline gaps strictly greater than 30 minutes reset the cycle. `ResetTimeOnlineReward` completes all countdowns in Studio but does not claim rewards.
 - Client OnlineRewardLogicService receives server snapshots and submits claims only; it no longer owns timers or grants rewards. OnlineRewardUIController renders 15 slots, the simplified `OnlineRewardUI.Root.Content` / `Root.CloseButton` hierarchy, and optional `MainHUD.Root.LeftMenu.OnlineRewardButton.InfoIcon`.
 - Persistence limitation: current `PlayerDataService` still uses the in-memory `MockProvider`; the profile schema is ready for a durable provider but cannot survive a different server process until that provider is replaced. Runtime behavior has not yet been tested in Roblox Studio.
+
+
+## UI binding follow-up (2026-11-12)
+
+- `UnitTestUI.Root.ResetTimeOnlineReward` is an optional Studio-only path for the startup binder. `UIController` watches UnitTestUI like other ScreenGuis and retries references on descendant additions/removals and when the ScreenGui itself is cloned into PlayerGui; the button still sends `ResetTimeOnlineReward` through the OnlineRewardLogicService debug remote.
+- `InventoryUI.Root.BodyItems.RightPanel.Description` is optional. InventoryUIController resolves the canonical path when present, then falls back only to a unique TextLabel named `Description` under the current BodyItems.RightPanel. UIBinder does not treat this optional label as a required startup path.
