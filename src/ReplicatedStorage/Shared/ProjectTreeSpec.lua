@@ -12,7 +12,6 @@ local ProjectTreeSpec = {
 			LevelUp5Button = "UnitTestUI.RootFrame.LevelUp5", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.LevelUp5
 			DebugResetButton = "UnitTestUI.RootFrame.DebugReset", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.DebugReset
 			EndRoundButton = "UnitTestUI.RootFrame.EndRoundButton", -- [PROJECT_TREE_SPEC] StarterGui.UnitTestUI.RootFrame.EndRoundButton
-			ResetTimeOnlineReward = "UnitTestUI.Root.ResetTimeOnlineReward", -- Studio-only Online Reward countdown test button
 		},
 		MainHub = {
 			ScreenGui = "MainHUD", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD
@@ -212,6 +211,10 @@ local ProjectTreeSpec = {
 	OptionalUI = {
 		Lobby = {
 			ShowStatsButton = "UnitTestUI.RootFrame.ShowStats", -- Optional debug-only stats button; absence is valid.
+			ResetTimeOnlineRewardButton = "UnitTestUI.Root.ResetTimeOnlineReward", -- Studio-only; UnitTestUI descendants may replicate after startup.
+		},
+		Inventory = {
+			ItemsDescription = "InventoryUI.Root.BodyItems.RightPanel.Description", -- Optional label; controller also resolves a unique Description descendant.
 		},
 		MainHub = {
 			OnlineRewardNotificationIcon = "MainHUD.Root.LeftMenu.OnlineRewardButton.InfoIcon", -- Optional notification badge; absence is valid.
