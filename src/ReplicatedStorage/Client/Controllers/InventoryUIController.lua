@@ -25,6 +25,20 @@ local function resolveTextLabel(root: Instance, path: string): TextLabel?
 	return if value and value:IsA("TextLabel") then value else nil
 end
 
+local function findUniqueDescendantTextLabel(root: Instance, name: string): TextLabel?
+	local match: TextLabel? = nil
+	for _, descendant in ipairs(root:GetDescendants()) do
+		if descendant.Name == name and descendant:IsA("TextLabel") then
+			if match then
+				-- Avoid binding an arbitrary label when the current Studio hierarchy is ambiguous.
+				return nil
+			end
+			match = descendant
+		end
+	end
+	return match
+end
+
 local function resolveTextButton(root: Instance, path: string): TextButton?
 	local value = PathResolver.resolvePath(root, path, { shouldWarn = false })
 	return if value and value:IsA("TextButton") then value else nil
@@ -81,7 +95,13 @@ function InventoryUIController:Start(uiReadySignal: BindableEvent?)
 	self._stat1 = resolveTextLabel(self._playerGui, ui.ItemsStat1)
 	self._stat2 = resolveTextLabel(self._playerGui, ui.ItemsStat2)
 	self._stat3 = resolveTextLabel(self._playerGui, ui.ItemsStat3)
-	self._description = resolveTextLabel(self._playerGui, ui.ItemsDescription)
+	self._description = resolveTextLabel(self._playerGui, ProjectTreeSpec.OptionalUI.Inventory.ItemsDescription)
+	if not self._description and self._bodyItems then
+		local rightPanel = self._bodyItems:FindFirstChild("RightPanel")
+		if rightPanel then
+			self._description = findUniqueDescendantTextLabel(rightPanel, "Description")
+		end
+	end
 	self._useButton = resolveTextButton(self._playerGui, ui.ItemsUseButton)
 	self._closeButton = resolveTextButton(self._playerGui, ui.CloseButton)
 
