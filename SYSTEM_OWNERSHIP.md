@@ -28,9 +28,15 @@ Cross-service communication must use `EventBus` for decoupled flow.
 
 ### PlayerDataService
 - **Owns:** Current profile data, including Diamonds, OwnedItems, instance-based `OwnedLaunchers`, `EquippedLauncherInstanceId`, `OwnedPets`, `EquippedPets`, quests, and progress points. The runtime currently uses `MockProvider`; durable production persistence is not implemented.
-- **Responsibilities:** Normalize/default profile schema, act as the canonical Diamond ledger, route Diamond spending/grants, and expose Pet and Launcher ownership/equipped state to server services.
+- **Responsibilities:** Normalize/default profile schema (including `OnlineRewardState`), act as the canonical Diamond ledger, route Diamond spending/grants, and expose Pet and Launcher ownership/equipped state to server services.
 - **Called by:** PetService, QuestService, FoodService, progression/meta reward services, PlayerStateService read-through synchronization.
 - **Dependencies:** Data provider boundary and EventBus.
+
+### OnlineRewardService
+- **Owns:** Server-authoritative 30-minute Online Reward cycles, reward-set selection, elapsed online time, slot readiness, claim validation, cycle reset, and Studio-only countdown completion.
+- **Responsibilities:** Store cycle state through PlayerDataService; reset the cycle after offline gaps greater than 30 minutes; commit Diamonds/items and slot claims together; publish snapshots and cycle-complete toast.
+- **Called by:** PlayerAdded/Removing lifecycle, OnlineRewardRequest, and Studio-only ResetTimeOnlineReward.
+- **Dependencies:** OnlineRewardConfig, ItemConfig, PlayerDataService, RemoteContracts, Notification Remote.
 
 ### QuestService
 - **Owns:** Daily Quest chain orchestration and the authoritative quest lifecycle.
@@ -309,3 +315,7 @@ Cross-service communication must use `EventBus` for decoupled flow.
 ## Pet Ability Ownership (updated 2026-10-20)
 
 Pet effects and active abilities are orchestrated by `PetAbilityService`. `LauncherConfig` defines Launcher base stats; Pet definitions in `PetsConfig` identify active abilities, effects, and passive stat modifiers. Pet model presentation is handled client-side by `ClientPetController`; damage, effects, and target validation remain server-authoritative.
+
+
+### Online Reward persistence caveat
+- `OnlineRewardState` belongs to the PlayerDataService profile schema. The current runtime provider remains `MockProvider` (in-memory), so durable cross-server reconnect persistence is not available until a production/durable provider is wired. Do not describe profile-schema support as proof of DataStore persistence.
