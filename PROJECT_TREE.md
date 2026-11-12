@@ -24,6 +24,7 @@ DataModel
 │  │  │  ├─ LauncherTextureConfig.lua
 │  │  │  ├─ TeamConfig.lua
 │  │  │  ├─ NotificationConfigData.lua
+│  │  │  ├─ OnlineRewardConfig.lua
 │  │  │  ├─ PetAbilityProgressionConfig.lua
 │  │  │  ├─ PetPreviewConfig.lua
 │  │  │  ├─ PetRenderConfig.lua
@@ -347,6 +348,7 @@ DataModel
 │  │  └─ CoreLoopTests.server.lua
 │  └─ Services
 │     ├─ BombService.lua
+│     ├─ OnlineRewardService.lua
 │     └─ QuestService.lua
 ## 🟩 StarterPlayer
 ├─ StarterPlayer
