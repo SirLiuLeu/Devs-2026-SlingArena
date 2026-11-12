@@ -647,6 +647,7 @@ DataModel
 │  │     │  ├─ DailyButton (ImageButton)
 │  │     │  ├─ InventoryButton (ImageButton)
 │  │     │  ├─ OnlineRewardButton (ImageButton)
+│  │     │  │  └─ InfoIcon (ImageLabel, optional ready-reward badge)
 │  │     │  ├─ SoundToggleButton (TextButton)
 │  │     │  │  ├─ SoundOnIcon (ImageLabel)
 │  │     │  │  └─ SoundOffIcon (ImageLabel)
