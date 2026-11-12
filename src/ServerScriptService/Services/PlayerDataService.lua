@@ -120,6 +120,7 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 			ElapsedSeconds = 0,
 			ClaimedSlots = {},
 			LastSessionEndAt = 0,
+			LastOnlineAt = 0,
 		},
 		OwnedLaunchers = { default_normal_launcher = { definitionId = "Normalduck", star = 1, rarity = "Common", level = 1, acquiredAt = os.time() } },
 		EquippedLauncherInstanceId = "default_normal_launcher",
