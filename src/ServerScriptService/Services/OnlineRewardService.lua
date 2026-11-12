@@ -50,6 +50,7 @@ function OnlineRewardService.new(context: Context)
 	self._runtimeByUserId = {} :: { [number]: { LastTickAt: number, LastSaveAt: number, LastSnapshotAt: number } }
 	self._claimLocks = {} :: { [number]: boolean }
 	self._lastRequestAt = {} :: { [number]: number }
+	self._lastSnapshotRequestAt = {} :: { [number]: number }
 	self._lastDebugAt = {} :: { [number]: number }
 	self._random = Random.new()
 	self._running = false
@@ -221,6 +222,9 @@ function OnlineRewardService:_ensurePlayerSession(player: Player)
 	if resetForOffline or recoveredCompletedCycle then
 		self:_beginNextCycle(state)
 		self:_savePlayer(player)
+		if recoveredCompletedCycle then
+			self:_sendResetToast(player)
+		end
 	end
 
 	state.LastSessionEndAt = 0
@@ -493,8 +497,13 @@ function OnlineRewardService:_handleAction(player: Player, payload: any)
 	end
 
 	if payload.Action == "Snapshot" then
-		self:_advancePlayer(player, os.clock())
-		self:_sendSnapshot(player)
+		local now = os.clock()
+		local last = self._lastSnapshotRequestAt[player.UserId] or 0
+		if now - last >= 0.5 then
+			self._lastSnapshotRequestAt[player.UserId] = now
+			self:_advancePlayer(player, now)
+			self:_sendSnapshot(player)
+		end
 	elseif payload.Action == "Claim" then
 		self:_claimReward(player, payload)
 	end
@@ -541,6 +550,7 @@ function OnlineRewardService:_endPlayerSession(player: Player)
 	self._runtimeByUserId[userId] = nil
 	self._claimLocks[userId] = nil
 	self._lastRequestAt[userId] = nil
+	self._lastSnapshotRequestAt[userId] = nil
 	self._lastDebugAt[userId] = nil
 	self:_savePlayer(player)
 end
