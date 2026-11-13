@@ -153,14 +153,14 @@ function DailyLoginService:_validateConfig(): boolean
 				return false
 			end
 			if bundle.Kind == "Diamonds" then
-				if not isPositiveInteger(bundle.Amount) then
-					warn(string.format("[DailyLoginService] Bundle %s has an invalid Diamonds amount.", bundle.Id))
+				if not isPositiveInteger(bundle.Amount) or bundle.ItemId ~= nil or bundle.Quantity ~= nil then
+					warn(string.format("[DailyLoginService] Bundle %s must contain Diamonds only with a positive integer Amount.", bundle.Id))
 					return false
 				end
 			elseif bundle.Kind == "Item" then
-				if type(bundle.ItemId) ~= "string" or not ItemConfig.GetById(bundle.ItemId)
+				if bundle.Amount ~= nil or type(bundle.ItemId) ~= "string" or not ItemConfig.GetById(bundle.ItemId)
 					or not isPositiveInteger(bundle.Quantity) or bundle.Quantity > 999 then
-					warn(string.format("[DailyLoginService] Bundle %s references an invalid Item reward.", bundle.Id))
+					warn(string.format("[DailyLoginService] Bundle %s must contain exactly one valid ItemId and Quantity.", bundle.Id))
 					return false
 				end
 			else
@@ -170,9 +170,16 @@ function DailyLoginService:_validateConfig(): boolean
 		end
 	end
 
+	local expectedDayTiers = { "Basic", "Basic", "Medium", "Medium", "Premium", "Premium" }
 	if totalBundles ~= 20 or #DailyLoginConfig.DayTiers ~= 6 then
 		warn("[DailyLoginService] Daily Login requires 20 bundles and exactly six non-Pet days.")
 		return false
+	end
+	for day, expectedTier in ipairs(expectedDayTiers) do
+		if DailyLoginConfig.GetTierForDay(day) ~= expectedTier then
+			warn(string.format("[DailyLoginService] Day %d must use the %s bundle tier.", day, expectedTier))
+			return false
+		end
 	end
 
 	local weightTotal = 0
@@ -236,12 +243,15 @@ function DailyLoginService:_ensurePlayerState(player: Player): (any?, any?)
 
 	local selectedValid = #state.SelectedBundleIds == 6
 	if selectedValid then
+		local selectedSet = {}
 		for day = 1, 6 do
-			local bundle = DailyLoginConfig.GetBundle(tostring(state.SelectedBundleIds[day] or ""))
-			if not bundle or bundle.Tier ~= DailyLoginConfig.GetTierForDay(day) then
+			local bundleId = tostring(state.SelectedBundleIds[day] or "")
+			local bundle = DailyLoginConfig.GetBundle(bundleId)
+			if not bundle or bundle.Tier ~= DailyLoginConfig.GetTierForDay(day) or selectedSet[bundleId] then
 				selectedValid = false
 				break
 			end
+			selectedSet[bundleId] = true
 		end
 	end
 
@@ -546,7 +556,21 @@ function DailyLoginService:_handleRequest(player: Player, payload: any)
 			self:_sendSnapshot(player)
 		end
 	elseif payload.Action == "Claim" then
-		self:_claimReward(player, payload)
+		local ok, claimError = xpcall(function()
+			self:_claimReward(player, payload)
+		end, debug.traceback)
+		if not ok then
+			self._claimLocks[player.UserId] = nil
+			warn(string.format("[DailyLoginService] Claim handler failed for userId=%d: %s", player.UserId, tostring(claimError)))
+			pcall(function()
+				self:_sendSnapshot(player, {
+					Action = "Claim",
+					Day = math.floor(tonumber(payload.Day) or 0),
+					Success = false,
+					Reason = "InternalError",
+				})
+			end)
+		end
 	elseif payload.Action == "DebugAdvance24h" then
 		if not RunService:IsStudio() then
 			self:_sendSnapshot(player, {
