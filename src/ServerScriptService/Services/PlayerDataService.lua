@@ -775,17 +775,29 @@ function PlayerDataService:CommitDailyLoginClaim(
 	-- UI/event/persistence side effects so a failed notification cannot block future claims.
 	self._dailyLoginLocks[player] = nil
 
-	-- The state and grant are changed in one profile mutation. Refresh the
-	-- canonical PlayerState snapshot so Items, Diamonds, and Pets reach the UI.
+	-- The profile transaction has committed. Keep UI/events/persistence as guarded
+	-- side effects so one failing listener cannot turn a successful claim into a
+	-- client-visible failure or leave the claim lock held.
+	local function runSideEffect(label: string, callback: () -> ())
+		local sideEffectOk, sideEffectError = pcall(callback)
+		if not sideEffectOk then
+			warn(string.format("[PlayerDataService] Daily Login side effect '%s' failed for userId=%d: %s", label, player.UserId, tostring(sideEffectError)))
+		end
+	end
+
 	local services = self._context.Services or {}
 	local stateService = services.PlayerStateService
 	local itemService = services.ItemService
 	local profile = self:GetData(player)
 	if stateService and typeof(stateService.SyncPetFromData) == "function" and normalizedReward.Kind == "Pet" then
-		stateService:SyncPetFromData(player)
+		runSideEffect("SyncPetFromData", function()
+			stateService:SyncPetFromData(player)
+		end)
 	end
 	if itemService and typeof(itemService.PublishInventory) == "function" then
-		itemService:PublishInventory(player)
+		runSideEffect("PublishInventory", function()
+			itemService:PublishInventory(player)
+		end)
 	end
 	local runtimeState = stateService and typeof(stateService.GetState) == "function" and stateService:GetState(player) or nil
 	if runtimeState and profile then
@@ -793,22 +805,31 @@ function PlayerDataService:CommitDailyLoginClaim(
 		runtimeState.OwnedItems = profile.OwnedItems or {}
 		runtimeState.HpPotions = math.max(0, math.floor(tonumber(runtimeState.OwnedItems.hp_potion) or 0))
 		if typeof(stateService.PublishState) == "function" then
-			stateService:PublishState(player)
+			runSideEffect("PublishState", function()
+				stateService:PublishState(player)
+			end)
 		end
 	end
 
 	if self._context.EventBus then
-		self._context.EventBus:Fire("PlayerRewardGranted", player, safeReward, "DailyLoginClaim")
+		runSideEffect("PlayerRewardGranted", function()
+			self._context.EventBus:Fire("PlayerRewardGranted", player, safeReward, "DailyLoginClaim")
+		end)
 	end
 	local feedbackRemote = self._context.Remotes and self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
 	if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
-		feedbackRemote:FireClient(player, {
-			EventType = "RewardReceived",
-			Payload = { Reward = safeReward, Reason = "DailyLoginClaim" },
-		})
+		runSideEffect("GameplayFeedback", function()
+			feedbackRemote:FireClient(player, {
+				EventType = "RewardReceived",
+				Payload = { Reward = safeReward, Reason = "DailyLoginClaim" },
+			})
+		end)
 	end
 
-	local saved = self:SavePlayer(player)
+	local saved = false
+	runSideEffect("SavePlayer", function()
+		saved = self:SavePlayer(player)
+	end)
 	if not saved then
 		warn(string.format("[PlayerDataService] Daily Login profile save returned false for userId=%d.", player.UserId))
 	end
