@@ -36,7 +36,7 @@ local ProjectTreeSpec = {
 				ToggleDropdown = "MainHUD.Root.QuestDaily.RootBody.ToggleDropdown", -- [PROJECT_TREE_SPEC] TextButton
 				OpenIcon = "MainHUD.Root.QuestDaily.RootBody.ToggleDropdown.OpenIcon", -- [PROJECT_TREE_SPEC] ImageLabel
 				ClosedIcon = "MainHUD.Root.QuestDaily.RootBody.ToggleDropdown.ClosedIcon", -- [PROJECT_TREE_SPEC] ImageLabel
-				NotificationIcon = "MainHUD.Root.QuestDaily.RootBody.NotificationIcon", -- [PROJECT_TREE_SPEC] ImageLabel
+				NotificationIcon = "MainHUD.Root.QuestDaily.RootBody.ToggleDropdown.NotificationIcon", -- [PROJECT_TREE_SPEC] ImageLabel
 			},
 			ProgressPoint = "MainHUD.Root.ProgressPoint", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.ProgressPoint
 			QuickHP = "MainHUD.Root.QuickHP", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuickHP
