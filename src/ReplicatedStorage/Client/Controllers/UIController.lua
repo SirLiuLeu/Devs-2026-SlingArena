@@ -794,9 +794,8 @@ function UIController:Start()
 	if self.ShopLogicService then
 		self.ShopLogicService:LoadMockData()
 	end
-	if self.DailyLoginLogicService then
-		self.DailyLoginLogicService:LoadMockData()
-	end
+	-- Daily Login is server-authoritative. DailyLoginUIController:Start()
+	-- requests the initial snapshot; do not seed or overwrite it with client mock data.
 
 	local stateConnection = self.ClientService:BindStateUpdate(function(state)
 		if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] StateUpdate received level=%s exp=%s hp=%s ownedPets=%s equippedPets=%s t=%.3f", tostring(state.Level), tostring(state.Exp), tostring(state.HpPotions), tostring(type(state.OwnedPets) == "table" and #state.OwnedPets or "n/a"), tostring(type(state.EquippedPets) == "table" and (function() local count = 0; for _ in pairs(state.EquippedPets) do count += 1 end; return count end)() or "n/a"), os.clock())) end
