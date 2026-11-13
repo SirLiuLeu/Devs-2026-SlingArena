@@ -51,6 +51,8 @@ RemoteContracts.Names = {
 	QuestSkip = "QuestSkip",
 	OnlineRewardRequest = "OnlineRewardRequest",
 	OnlineRewardUpdate = "OnlineRewardUpdate",
+	DailyLoginRequest = "DailyLoginRequest",
+	DailyLoginUpdate = "DailyLoginUpdate",
 	ResetTimeOnlineReward = "ResetTimeOnlineReward",
 	Notification = "Notification",
 	EquipPet = "EquipPet",
@@ -122,6 +124,15 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.ResetTimeOnlineReward] = function(): boolean
 		return true
+	end,
+	[RemoteContracts.Names.DailyLoginRequest] = function(payload: any): boolean
+		if type(payload) ~= "table" then return false end
+		if payload.Action == "Snapshot" or payload.Action == "DebugAdvance24h" then
+			return true
+		end
+		return payload.Action == "Claim"
+			and typeof(payload.Day) == "number" and payload.Day % 1 == 0 and payload.Day >= 1 and payload.Day <= 7
+			and typeof(payload.CycleId) == "number" and payload.CycleId % 1 == 0 and payload.CycleId >= 1
 	end,
 	[RemoteContracts.Names.EndRound] = function(): boolean
 		return true
