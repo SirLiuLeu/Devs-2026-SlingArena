@@ -389,12 +389,12 @@ DataModel
 │  │     ├─ JoinButton
 │  │     ├─ LeaveButton
 │  │     ├─ Plus1Minute
-│  │     ├─ Plus24h (TextButton; Studio-only Daily Login virtual-clock test control)
 │  │     ├─ LevelUp5
 │  │     ├─ ShowStats (TextButton, optional debug control)
 │  │     ├─ EndRoundButton
 │  │     └─ StartSafeZoneButton
 │  │  └─ Root
+│  │     ├─ Plus24h (TextButton; Studio-only Daily Login virtual-clock test control)
 │  │     └─ ResetTimeOnlineReward (TextButton; Studio-only Online Reward debug control; optional/late-replicating)
 │  │
 │  ├─ ConfirmationGui (ScreenGui)
