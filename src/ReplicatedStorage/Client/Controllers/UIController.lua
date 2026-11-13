@@ -521,11 +521,15 @@ function UIController:_bindResolvedUiReferences()
 		end)
 	end
 	if self.Plus24hButton then
-		self:_connectOnce("Plus24hButton", self.Plus24hButton.Activated, function()
-			if self.DailyLoginLogicService then
-				self.DailyLoginLogicService:RequestDebugAdvance24h()
-			end
-		end)
+		local isStudio = game:GetService("RunService"):IsStudio()
+		self.Plus24hButton.Visible = isStudio
+		if isStudio then
+			self:_connectOnce("Plus24hButton", self.Plus24hButton.Activated, function()
+				if self.DailyLoginLogicService then
+					self.DailyLoginLogicService:RequestDebugAdvance24h()
+				end
+			end)
+		end
 	end
 	if self.QuestButton then
 		self:_connectOnce("QuestButton", self.QuestButton.MouseButton1Click, function()
