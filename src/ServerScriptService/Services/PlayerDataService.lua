@@ -771,6 +771,9 @@ function PlayerDataService:CommitDailyLoginClaim(
 	if not committed then
 		return finish(false, failureReason, nil)
 	end
+	-- The profile transaction has committed. Release its lock before non-transactional
+	-- UI/event/persistence side effects so a failed notification cannot block future claims.
+	self._dailyLoginLocks[player] = nil
 
 	-- The state and grant are changed in one profile mutation. Refresh the
 	-- canonical PlayerState snapshot so Items, Diamonds, and Pets reach the UI.
