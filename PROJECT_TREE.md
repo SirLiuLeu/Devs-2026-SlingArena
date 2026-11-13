@@ -339,8 +339,8 @@ DataModel
 │     │  ├─ DailyQuestUIController.lua
 │     │  ├─ TeamSelectionUIController.lua
 │     │  └─ UIController.lua
-│        ├─ DailyLoginLogicService.lua
 │     └─ Services
+│     │  ├─ DailyLoginLogicService.lua
 │        ├─ DailyQuestLogicService.lua
 │        └─ LobbyClientService.lua 
 │ 
@@ -472,22 +472,27 @@ DataModel
 │  │     └─ CloseButton (TextButton)
 │  │
 │  ├─ DailyLoginUI (ScreenGui)
-│  │  ├─ MainPanel (Frame)
-│  │  │  ├─ Content (Frame)
-│  │  │  ├─ Day7Big (Frame; Random Pet reward)
-│  │  │  │  │  ├─ ClaimButton (TextButton)
-│  │  │  │  │  ├─ Icon (ImageLabel)
-│  │  │  │  │  ├─ Claimed (TextLabel)
-│  │  │  │  │  ├─ Quantity (TextLabel)
-│  │  │  │  │  ├─ Timer (TextLabel)
-│  │  │  │  │  └─ Title (TextLabel)
-│  │  │  │  └─ LeftGrid (Frame)
-│  │  │  │     ├─ UIGridLayout
-│  │  │  │     └─ SlotRewardTemplate_DailyLoginUI -- Script Spawn in run time
-│  │  │  └─ Header (Frame)
-│  │  │     ├─ CloseButton (TextButton)
-│  │  │     └─ Title (TextLabel)
-│  │  └─ Overlay (Frame/TextButton)
+│  │  ├─ Overlay (TextButton; full-screen close surface)
+│  │  └─ MainPanel (Frame)
+│  │     ├─ UICorner
+│  │     ├─ UIPadding
+│  │     ├─ Header (Frame)
+│  │     │  ├─ CloseButton (TextButton)
+│  │     │  └─ Title (TextLabel)
+│  │     └─ Content (Frame)
+│  │        ├─ LeftGrid (Frame)
+│  │        │  ├─ UIGridLayout
+│  │        │  └─ Six slots cloned from SlotRewardTemplate_DailyLoginUI at runtime
+│  │        └─ Day7Big (Frame; Random Pet reward)
+│  │           ├─ UICorner
+│  │           ├─ Day7Label (TextLabel)
+│  │           ├─ Icon (ImageLabel)
+│  │           ├─ Title (TextLabel)
+│  │           ├─ Quantity (TextLabel)
+│  │           ├─ ClaimButton (TextButton)
+│  │           ├─ Claimed (TextLabel)
+│  │           └─ Timer (TextLabel)
+│  │
 │  │
 │  ├─ ShopUI (ScreenGui)
 │  │  └─ Main (ImageLabel)
@@ -674,21 +679,6 @@ DataModel
 │  │     │  └─ Quantity (TextLabel)
 │  │     └─ Home (ImageButton)
 │  │   
-│  ├─ DailyLoginUI (ScreenGui) -- [REFINED FROM NEW IMAGE]
-│  │  ├─ MainPanel (Frame)
-│  │  │  ├─ UICorner
-│  │  │  ├─ UIPadding
-│  │  │  └─ Content (Frame)
-│  │  │     ├─ Day7Big (Frame)
-│  │  │     └─ LeftGrid (Frame)
-│  │  │        ├─ UIGridLayout
-│  │  │        └─ Six slots cloned from SlotRewardTemplate_DailyLoginUI at runtime
-│  │  ├─ Header (Frame)
-│  │  │  ├─ CloseButton (TextButton/ImageButton)
-│  │  │  │  └─ UICorner
-│  │  │  └─ Title (TextLabel)
-│  │  └─ Overlay (Frame)
-│  │
 │  └─ LauncherControlUI (ScreenGui)
 │     ├─ ChargeBar
 │     │  └─ Fill
