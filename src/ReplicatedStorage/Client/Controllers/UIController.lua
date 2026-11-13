@@ -247,6 +247,13 @@ function UIController:_resolveUiReferences()
 	self.ShowStatsButton = self.ShowStatsButton or resolveTextButton(playerGui, ProjectTreeSpec.OptionalUI.Lobby.ShowStatsButton, false)
 	self.EndRoundButton = self.EndRoundButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.Lobby.EndRoundButton, false)
 	self.ResetTimeOnlineRewardButton = self.ResetTimeOnlineRewardButton or resolveGuiButton(playerGui, ProjectTreeSpec.OptionalUI.Lobby.ResetTimeOnlineRewardButton, false)
+	self.Plus24hButton = self.Plus24hButton or resolveGuiButton(playerGui, ProjectTreeSpec.OptionalUI.Lobby.Plus24hButton, false)
+	if not self.Plus24hButton then
+		local unitTestGui = resolveScreenGui(playerGui, ProjectTreeSpec.UI.Lobby.ScreenGui, false)
+		if unitTestGui then
+			self.Plus24hButton = findUniqueGuiButtonByName(unitTestGui, "Plus24h")
+		end
+	end
 	if not self.ResetTimeOnlineRewardButton then
 		-- Keep the Studio test button discoverable if its Studio-authored container
 		-- differs from the documented UnitTestUI.Root path.
@@ -342,6 +349,7 @@ function UIController:_clearRemovedUiReferences(removedRoot: Instance)
 	self:_clearReferenceIfRemoved("ShowStatsButton", removedRoot, "ShowStatsButton")
 	self:_clearReferenceIfRemoved("EndRoundButton", removedRoot, "EndRoundButton")
 	self:_clearReferenceIfRemoved("ResetTimeOnlineRewardButton", removedRoot, "ResetTimeOnlineRewardButton")
+	self:_clearReferenceIfRemoved("Plus24hButton", removedRoot, "Plus24h")
 	self:_clearReferenceIfRemoved("DebugResetButton", removedRoot, "DebugResetButton")
 	self:_clearReferenceIfRemoved("DailyButton", removedRoot, "DailyButton")
 	self:_clearReferenceIfRemoved("InventoryButton", removedRoot, "InventoryButton")
@@ -509,6 +517,13 @@ function UIController:_bindResolvedUiReferences()
 		self:_connectOnce("ResetTimeOnlineRewardButton", self.ResetTimeOnlineRewardButton.Activated, function()
 			if self.OnlineRewardLogicService then
 				self.OnlineRewardLogicService:RequestDebugReset()
+			end
+		end)
+	end
+	if self.Plus24hButton then
+		self:_connectOnce("Plus24hButton", self.Plus24hButton.Activated, function()
+			if self.DailyLoginLogicService then
+				self.DailyLoginLogicService:RequestDebugAdvance24h()
 			end
 		end)
 	end
