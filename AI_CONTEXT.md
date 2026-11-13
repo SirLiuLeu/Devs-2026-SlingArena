@@ -37,7 +37,7 @@
 | CombineLaunchers | C->S | LauncherInventoryService | `{ instanceIds: [string, string, string], requestId: integer }` | Combines three compatible owned Launcher instances; server validates ownership/eligibility and echoes the request ID in GameplayFeedback. |
 | QuestClaim | C->S | QuestService | assignmentId: string | Claims the single active Daily Quest; server checks readiness and atomically grants the configured reward once. |
 | QuestSkip | C->S | QuestService | assignmentId: string | Requests skipping the active Daily Quest; server starts the 90-second cooldown and issues a replacement at the same step. |
-| DailyLoginRequest | C->S | DailyLoginService | `{ Action: "Snapshot" | "Claim", Day, CycleId }` or Studio-only `{ Action: "DebugAdvance24h" }` | Requests an authoritative Daily Login snapshot/claim; Server validates day, cycle and UTC+7 day key. Plus24h changes only the Studio virtual clock. |
+| DailyLoginRequest | C->S | DailyLoginService | Snapshot or Claim with Day/CycleId; Studio-only DebugAdvance24h | Requests an authoritative Daily Login snapshot/claim; Server validates day, cycle and UTC+7 day key. Plus24h changes only the Studio virtual clock. |
 
 # Server → Client (Sync / Feedback)
 
