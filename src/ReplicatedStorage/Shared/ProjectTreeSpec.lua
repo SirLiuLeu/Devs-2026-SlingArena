@@ -211,7 +211,7 @@ local ProjectTreeSpec = {
 		Lobby = {
 			ShowStatsButton = "UnitTestUI.RootFrame.ShowStats", -- Optional debug-only stats button; absence is valid.
 			ResetTimeOnlineRewardButton = "UnitTestUI.Root.ResetTimeOnlineReward", -- Studio-only; UnitTestUI descendants may replicate after startup.
-			Plus24hButton = "UnitTestUI.RootFrame.Plus24h", -- Studio-only Daily Login virtual-clock test control; create under UnitTestUI.RootFrame.
+			Plus24hButton = "UnitTestUI.Root.Plus24h", -- Studio-only Daily Login virtual-clock test control; create under UnitTestUI.Root.
 		},
 		Inventory = {
 			ItemsDescription = "InventoryUI.Root.BodyItems.RightPanel.Description", -- Optional label; controller also resolves a unique Description descendant.
