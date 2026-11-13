@@ -111,7 +111,7 @@
 - Days 1–6 use six BundleIds selected from `DailyLoginConfig` and stored in `DailyLoginState`. Each bundle is exactly one reward kind: either Diamonds or one ItemId with a quantity. Day 1–2 use Basic, Day 3–4 Medium, and Day 5–6 Premium pools. The six selections are not rerolled on reconnect.
 - Day 7 rolls one Pet on the server: Rare 65%, Epic 30%, Legendary 5%; a Pet within the chosen rarity is selected uniformly. Duplicate Pets are currently allowed.
 - `PlayerDataService:CommitDailyLoginClaim` verifies CycleId, CurrentDay, and LastClaimDayKey while applying the reward and next-day/cycle state in the same profile mutation. Item/Diamond/Pet snapshots are refreshed after the commit.
-- `UnitTestUI.RootFrame.Plus24h` sends `DebugAdvance24h`; only Studio servers accept it. The server advances a session-local virtual clock by 86,400 seconds and does not modify the machine/server clock. It is intended to test the seven claims and Day 7 → next-cycle Day 1 transition.
+- `UnitTestUI.Root.Plus24h` sends `DebugAdvance24h`; only Studio servers accept it. The server advances a session-local virtual clock by 86,400 seconds and does not modify the machine/server clock. It is intended to test the seven claims and Day 7 → next-cycle Day 1 transition.
 - Persistence caveat: `PlayerDataService` still uses the in-memory `MockProvider`. DailyLoginState and claim handling are wired into the profile schema, but durable cross-server/restart persistence is not available until a durable provider is introduced.
 
 ## Pet Inventory progression UI
