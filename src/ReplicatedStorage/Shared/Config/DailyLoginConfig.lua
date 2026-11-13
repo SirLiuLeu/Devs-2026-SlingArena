@@ -57,6 +57,7 @@ local bundleCountByTier = {}
 for tier, pool in pairs(DailyLoginConfig.BundlePools) do
 	bundleCountByTier[tier] = #pool
 	for _, bundle in ipairs(pool) do
+		bundle.Tier = tier
 		bundleById[bundle.Id] = bundle
 	end
 end
