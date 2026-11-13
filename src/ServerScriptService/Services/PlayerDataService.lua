@@ -90,6 +90,7 @@ function PlayerDataService.new(context: Context, provider: any?)
 	self._provider = provider or MockProvider.new()
 	self._petUpgradeLocks = {}
 	self._dailyQuestLocks = {}
+	self._dailyLoginLocks = {}
 	return self
 end
 
@@ -122,6 +123,13 @@ function PlayerDataService:BuildDefaultData(player: Player): { [string]: any }
 			LastSessionEndAt = 0,
 			LastOnlineAt = 0,
 		},
+		DailyLoginState = {
+			SchemaVersion = 1,
+			CycleId = 1,
+			CurrentDay = 1,
+			LastClaimDayKey = 0,
+			SelectedBundleIds = {},
+		},
 		OwnedLaunchers = { default_normal_launcher = { definitionId = "Normalduck", star = 1, rarity = "Common", level = 1, acquiredAt = os.time() } },
 		EquippedLauncherInstanceId = "default_normal_launcher",
 		OwnedPets = buildStarterPetInventory(),
@@ -146,6 +154,7 @@ function PlayerDataService:LoadPlayer(player: Player): { [string]: any }
 	local data = self._provider:LoadPlayerData(player, self:BuildDefaultData(player))
 	self:_ensureProgress(data)
 	self:_ensurePetData(data)
+	self:_ensureDailyLoginState(data)
 	self:_ensureLauncherData(data)
 	return data
 end
@@ -166,8 +175,30 @@ function PlayerDataService:UpdateData(player: Player, updater: ({ [string]: any 
 	local updated = self._provider:UpdatePlayerData(player, updater) or self:GetData(player)
 	self:_ensureProgress(updated)
 	self:_ensurePetData(updated)
+	self:_ensureDailyLoginState(updated)
 	self:_ensureLauncherData(updated)
 	return updated
+end
+
+function PlayerDataService:_ensureDailyLoginState(data: { [string]: any })
+	local state = data.DailyLoginState
+	if type(state) ~= "table" then
+		state = {
+			SchemaVersion = 1,
+			CycleId = 1,
+			CurrentDay = 1,
+			LastClaimDayKey = 0,
+			SelectedBundleIds = {},
+		}
+		data.DailyLoginState = state
+	end
+	state.SchemaVersion = 1
+	state.CycleId = math.max(1, math.floor(tonumber(state.CycleId) or 1))
+	state.CurrentDay = math.clamp(math.floor(tonumber(state.CurrentDay) or 1), 1, 7)
+	state.LastClaimDayKey = math.max(0, math.floor(tonumber(state.LastClaimDayKey) or 0))
+	if type(state.SelectedBundleIds) ~= "table" then
+		state.SelectedBundleIds = {}
+	end
 end
 
 function PlayerDataService:_ensureLauncherData(data: { [string]: any })
@@ -615,6 +646,169 @@ function PlayerDataService:GrantReward(player: Player, reward: any, reason: stri
 			Payload = { Reward = reward, Reason = reason },
 		})
 	end
+end
+
+function PlayerDataService:CommitDailyLoginClaim(
+	player: Player,
+	expectedCycleId: number,
+	expectedDay: number,
+	todayDayKey: number,
+	reward: any,
+	nextCycleBundleIds: { string }?
+): (boolean, string?, any?)
+	if typeof(expectedCycleId) ~= "number" or expectedCycleId < 1
+		or typeof(expectedDay) ~= "number" or expectedDay % 1 ~= 0 or expectedDay < 1 or expectedDay > 7
+		or typeof(todayDayKey) ~= "number" or todayDayKey % 1 ~= 0 or todayDayKey < 20000101
+		or type(reward) ~= "table" then
+		return false, "InvalidReward", nil
+	end
+	if self._dailyLoginLocks[player] then
+		return false, "ClaimInProgress", nil
+	end
+	self._dailyLoginLocks[player] = true
+
+	local function finish(success: boolean, reason: string?, grant: any?)
+		self._dailyLoginLocks[player] = nil
+		return success, reason, grant
+	end
+
+	local normalizedReward = nil
+	local petRecord = nil
+	local petInstanceId = nil
+	if reward.Kind == "Diamonds" then
+		local amount = math.floor(tonumber(reward.Amount) or 0)
+		if amount < 1 or amount > 1000000 then
+			return finish(false, "InvalidDiamondsReward", nil)
+		end
+		normalizedReward = { Kind = "Diamonds", Amount = amount }
+	elseif reward.Kind == "Item" then
+		local itemId = tostring(reward.ItemId or "")
+		local quantity = math.floor(tonumber(reward.Quantity) or 0)
+		if itemId == "" or not ItemConfig.GetById(itemId) or quantity < 1 or quantity > 999 then
+			return finish(false, "InvalidItemReward", nil)
+		end
+		normalizedReward = { Kind = "Item", ItemId = itemId, Quantity = quantity }
+	elseif reward.Kind == "Pet" then
+		local definitionId = tostring(reward.DefinitionId or "")
+		local definition = PetsConfig.GetById(definitionId)
+		if not definition then
+			return finish(false, "InvalidPetReward", nil)
+		end
+		petInstanceId = HttpService:GenerateGUID(false)
+		petRecord = {
+			definitionId = definitionId,
+			level = 1,
+			rarity = definition.rarity,
+			acquiredAt = os.time(),
+		}
+		normalizedReward = {
+			Kind = "Pet",
+			DefinitionId = definitionId,
+			InstanceId = petInstanceId,
+			Rarity = definition.rarity,
+		}
+	else
+		return finish(false, "UnsupportedRewardKind", nil)
+	end
+
+	if expectedDay == 7 and (type(nextCycleBundleIds) ~= "table" or #nextCycleBundleIds ~= 6) then
+		return finish(false, "InvalidNextCycle", nil)
+	end
+
+	local committed = false
+	local failureReason = "ProfileUnavailable"
+	local safeReward = nil
+	local ok, updateError = pcall(function()
+		self:UpdateData(player, function(data)
+			self:_ensureDailyLoginState(data)
+			local state = data.DailyLoginState
+			if tonumber(state.CycleId) ~= math.floor(expectedCycleId) then
+				failureReason = "StaleCycle"
+				return data
+			end
+			if tonumber(state.CurrentDay) ~= expectedDay then
+				failureReason = "NotCurrentDay"
+				return data
+			end
+			if (tonumber(state.LastClaimDayKey) or 0) >= todayDayKey then
+				failureReason = "AlreadyClaimedToday"
+				return data
+			end
+
+			if normalizedReward.Kind == "Diamonds" then
+				data.Diamonds = math.max(0, math.floor(tonumber(data.Diamonds) or 0)) + normalizedReward.Amount
+			elseif normalizedReward.Kind == "Item" then
+				if type(data.OwnedItems) ~= "table" then
+					data.OwnedItems = {}
+				end
+				data.OwnedItems[normalizedReward.ItemId] =
+					math.max(0, math.floor(tonumber(data.OwnedItems[normalizedReward.ItemId]) or 0)) + normalizedReward.Quantity
+			elseif normalizedReward.Kind == "Pet" then
+				self:_ensurePetData(data)
+				data.OwnedPets[petInstanceId] = petRecord
+			end
+
+			state.LastClaimDayKey = todayDayKey
+			if expectedDay == 7 then
+				state.CycleId += 1
+				state.CurrentDay = 1
+				state.SelectedBundleIds = table.clone(nextCycleBundleIds)
+			else
+				state.CurrentDay = expectedDay + 1
+			end
+
+			safeReward = normalizedReward
+			committed = true
+			failureReason = ""
+			return data
+		end)
+	end)
+	if not ok then
+		warn(string.format("[PlayerDataService] Daily Login commit failed for userId=%d: %s", player.UserId, tostring(updateError)))
+		return finish(false, "DataUpdateFailed", nil)
+	end
+	if not committed then
+		return finish(false, failureReason, nil)
+	end
+
+	-- The state and grant are changed in one profile mutation. Refresh the
+	-- canonical PlayerState snapshot so Items, Diamonds, and Pets reach the UI.
+	local services = self._context.Services or {}
+	local stateService = services.PlayerStateService
+	local itemService = services.ItemService
+	local profile = self:GetData(player)
+	if stateService and typeof(stateService.SyncPetFromData) == "function" and normalizedReward.Kind == "Pet" then
+		stateService:SyncPetFromData(player)
+	end
+	if itemService and typeof(itemService.PublishInventory) == "function" then
+		itemService:PublishInventory(player)
+	end
+	local runtimeState = stateService and typeof(stateService.GetState) == "function" and stateService:GetState(player) or nil
+	if runtimeState and profile then
+		runtimeState.Diamonds = math.max(0, math.floor(tonumber(profile.Diamonds) or 0))
+		runtimeState.OwnedItems = profile.OwnedItems or {}
+		runtimeState.HpPotions = math.max(0, math.floor(tonumber(runtimeState.OwnedItems.hp_potion) or 0))
+		if typeof(stateService.PublishState) == "function" then
+			stateService:PublishState(player)
+		end
+	end
+
+	if self._context.EventBus then
+		self._context.EventBus:Fire("PlayerRewardGranted", player, safeReward, "DailyLoginClaim")
+	end
+	local feedbackRemote = self._context.Remotes and self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
+	if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
+		feedbackRemote:FireClient(player, {
+			EventType = "RewardReceived",
+			Payload = { Reward = safeReward, Reason = "DailyLoginClaim" },
+		})
+	end
+
+	local saved = self:SavePlayer(player)
+	if not saved then
+		warn(string.format("[PlayerDataService] Daily Login profile save returned false for userId=%d.", player.UserId))
+	end
+	return finish(true, nil, safeReward)
 end
 
 function PlayerDataService:CommitOnlineRewardClaim(player: Player, expectedCycleId: number, rewardId: string, reward: any): (boolean, string?)
