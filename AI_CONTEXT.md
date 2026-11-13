@@ -37,6 +37,7 @@
 | CombineLaunchers | C->S | LauncherInventoryService | `{ instanceIds: [string, string, string], requestId: integer }` | Combines three compatible owned Launcher instances; server validates ownership/eligibility and echoes the request ID in GameplayFeedback. |
 | QuestClaim | C->S | QuestService | assignmentId: string | Claims the single active Daily Quest; server checks readiness and atomically grants the configured reward once. |
 | QuestSkip | C->S | QuestService | assignmentId: string | Requests skipping the active Daily Quest; server starts the 90-second cooldown and issues a replacement at the same step. |
+| DailyLoginRequest | C->S | DailyLoginService | `{ Action: "Snapshot" | "Claim", Day, CycleId }` or Studio-only `{ Action: "DebugAdvance24h" }` | Requests an authoritative Daily Login snapshot/claim; Server validates day, cycle and UTC+7 day key. Plus24h changes only the Studio virtual clock. |
 
 # Server → Client (Sync / Feedback)
 
@@ -51,6 +52,7 @@
 | ZoneUpdate | S->C | SafeZoneService | `{ phase: string, radius: number, center: Vector3, dpsPercent: number, nextShrinkAt?: number }` | Safe-zone visual and damage sync (freeze-required). |
 | PetProjectileVisual | S->C | PlasmaCannon / SlowBlaster | `Spawn` or `End` visual message | Client-local projectile cosmetics; hit/damage/Slow remain server-authoritative. |
 | QuestUpdate | S->C | QuestService | Snapshot containing DailyQuest, Weekly, ServerNow and optional action results | Authoritative Daily Quest chain snapshot and action results. |
+| DailyLoginUpdate | S->C | DailyLoginService | `{ Snapshot: { CycleId, CurrentDay, ServerNow, NextResetAt, entries }, Result? }` | Authoritative Daily Login days, selected bundles, UTC+7 reset timestamp, and claim/debug result. |
 
 # Controllers (Current)
 
@@ -64,7 +66,7 @@
 | `PetInventoryUIController.lua` | Owns `StarterGui.PetInventoryUI`, Pet slots/previews, Equip/Unequip, delete confirmation, upgrade preview, and Pet stat/ability descriptions. | UI |
 | `ShopUIController.lua` | Renders shop tabs/slots and binds buy actions through shop logic service snapshots. | UI |
 | `OnlineRewardUIController.lua` | Renders online reward slots/timers and reward-claim UI states from logic snapshots. | UI |
-| `DailyLoginUIController.lua` | Renders daily login reward slots and claim/locked/completed states from logic snapshots. | UI |
+| `DailyLoginUIController.lua` | Renders six server-selected single-reward bundles plus the Day 7 Random Pet reward; claim state and countdown come from DailyLoginUpdate snapshots. | UI |
 | `DailyQuestUIController.lua` | Binds MainHUD.Root.QuestDaily, renders one active task/cooldown/claim state, confirms Skip, and toggles the left-extending RootBody. | UI |
 | `MovementController.server.lua` | Receives `MoveRequest` from clients, applies pawn linear velocity, and updates facing rotation toward movement direction. | Network |
 
@@ -76,6 +78,7 @@
 | `AbilityConfig.lua` | Launcher ability tuning and per-ability lookup helpers. | `LauncherAbilityService` |
 | `BalanceConfig.lua` | Core balance constants for combat, collisions, growth, launch, respawn, food, and economy values. | `LauncherService`, `GrowthService`, `PlayerStateService`, `CollisionService`, `DamagePipelineService`, `FoodService`, `LevelConfig` |
 | `ConfirmationTextConfig.lua` | Shared confirmation and team-feedback messages, with `vi`/`en` lookup and placeholder substitution. | `TeamSelectionUIController`, `UIController`, `LauncherInventoryUIController` |
+| `DailyLoginConfig.lua` | Twenty tiered single-reward bundles (each Diamonds OR one Item type), six bundle selections per cycle, and Day 7 Pet rarity weights (Rare 65%, Epic 30%, Legendary 5%). | `DailyLoginService` |
 | `DebugConfig.lua` | Debug and diagnostic feature flags. | client and server diagnostics |
 | `FloatingTextConfig.lua` | Shared styles for floating Damage, Heal, and EXP text. | `PlayerService` |
 | `GiftBoxConfig.lua` | Weighted Gift Box reward pool; all item entries are validated against `ItemConfig` and weights total 100. | `ItemService` |
@@ -101,6 +104,15 @@
 | `SoundConfig.lua` | SFX keys and playback settings. HP potion consumption uses `SFX_Item_HealthPotion`; `CollisionClientScanner` plays spatial `SFX_Wall_Hit` locally once per continuous contact with `Collision_Wall`-tagged geometry, without server validation; Ground, Food, Lava, Trap, and unclassified parts are excluded. | `SoundManager`, `SFXController`, `CollisionClientScanner` |
 | `QuestConfig.lua` | Five-step Daily Quest pools, step rewards, 90-second skip cooldown, and UTC+7 daily reset. | `QuestService`, `DailyQuestUIController` |
 | `RankConfig.lua` | Rank/leaderboard progression settings. | leaderboard/progression services |
+
+## Daily Login system update (2026-11-13)
+
+- `DailyLoginService` owns the server-authoritative 7-day claim cycle and resets the claim calendar at 00:00 UTC+7 (the same reset offset as Daily Quest). Missing a calendar day does not erase the player's current reward day; the player still needs one successful claim for each of the seven days.
+- Days 1–6 use six BundleIds selected from `DailyLoginConfig` and stored in `DailyLoginState`. Each bundle is exactly one reward kind: either Diamonds or one ItemId with a quantity. Day 1–2 use Basic, Day 3–4 Medium, and Day 5–6 Premium pools. The six selections are not rerolled on reconnect.
+- Day 7 rolls one Pet on the server: Rare 65%, Epic 30%, Legendary 5%; a Pet within the chosen rarity is selected uniformly. Duplicate Pets are currently allowed.
+- `PlayerDataService:CommitDailyLoginClaim` verifies CycleId, CurrentDay, and LastClaimDayKey while applying the reward and next-day/cycle state in the same profile mutation. Item/Diamond/Pet snapshots are refreshed after the commit.
+- `UnitTestUI.RootFrame.Plus24h` sends `DebugAdvance24h`; only Studio servers accept it. The server advances a session-local virtual clock by 86,400 seconds and does not modify the machine/server clock. It is intended to test the seven claims and Day 7 → next-cycle Day 1 transition.
+- Persistence caveat: `PlayerDataService` still uses the in-memory `MockProvider`. DailyLoginState and claim handling are wired into the profile schema, but durable cross-server/restart persistence is not available until a durable provider is introduced.
 
 ## Pet Inventory progression UI
 
