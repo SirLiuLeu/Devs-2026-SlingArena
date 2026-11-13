@@ -143,6 +143,7 @@ function PlayerDataService:Init()
 		self:LoadPlayer(player)
 	end)
 	Players.PlayerRemoving:Connect(function(player)
+		self._dailyLoginLocks[player] = nil
 		self:SavePlayer(player)
 	end)
 	for _, player in ipairs(Players:GetPlayers()) do
@@ -672,9 +673,9 @@ function PlayerDataService:CommitDailyLoginClaim(
 		return success, reason, grant
 	end
 
-	local normalizedReward = nil
-	local petRecord = nil
-	local petInstanceId = nil
+	local normalizedReward: any = nil
+	local petRecord: any = nil
+	local petInstanceId: string? = nil
 	if reward.Kind == "Diamonds" then
 		local amount = math.floor(tonumber(reward.Amount) or 0)
 		if amount < 1 or amount > 1000000 then
@@ -717,7 +718,7 @@ function PlayerDataService:CommitDailyLoginClaim(
 
 	local committed = false
 	local failureReason = "ProfileUnavailable"
-	local safeReward = nil
+	local safeReward: any = nil
 	local ok, updateError = pcall(function()
 		self:UpdateData(player, function(data)
 			self:_ensureDailyLoginState(data)
@@ -745,7 +746,7 @@ function PlayerDataService:CommitDailyLoginClaim(
 					math.max(0, math.floor(tonumber(data.OwnedItems[normalizedReward.ItemId]) or 0)) + normalizedReward.Quantity
 			elseif normalizedReward.Kind == "Pet" then
 				self:_ensurePetData(data)
-				data.OwnedPets[petInstanceId] = petRecord
+				data.OwnedPets[petInstanceId :: string] = petRecord
 			end
 
 			state.LastClaimDayKey = todayDayKey
