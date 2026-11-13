@@ -3,7 +3,8 @@
   "Name": "DailyLoginUI",
   "Properties": {
     "ResetOnSpawn": false,
-    "IgnoreGuiInset": true
+    "IgnoreGuiInset": true,
+    "Enabled": false
   },
   "Children": [
     {
