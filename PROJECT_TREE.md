@@ -12,7 +12,7 @@ DataModel
 │  │  │  ├─ AbilityConfig.lua
 │  │  │  ├─ BalanceConfig.lua
 │  │  │  ├─ ConfirmationTextConfig.lua
-│  │  │  ├─ DebugConfig.lua
+│  │  │  ├─ DailyLoginConfig.lua
 │  │  │  ├─ FloatingTextConfig.lua
 │  │  │  ├─ GiftBoxConfig.lua
 │  │  │  ├─ GameConfig.lua
@@ -318,6 +318,8 @@ DataModel
 │  │     ├─ DebugLevelUp5
 │  │     ├─ OnlineRewardRequest
 │  │     ├─ OnlineRewardUpdate
+│  │     ├─ DailyLoginRequest
+│  │     ├─ DailyLoginUpdate
 │  │     ├─ ResetTimeOnlineReward
 │  │     ├─ StateUpdate
 │  │     ├─ UIStateUpdate
@@ -333,9 +335,11 @@ DataModel
 │  │
 │  └─ Client  -> src/ReplicatedStorage/Client
 │     ├─ Controllers
+│     │  ├─ DailyLoginUIController.lua
 │     │  ├─ DailyQuestUIController.lua
 │     │  ├─ TeamSelectionUIController.lua
 │     │  └─ UIController.lua
+│        ├─ DailyLoginLogicService.lua
 │     └─ Services
 │        ├─ DailyQuestLogicService.lua
 │        └─ LobbyClientService.lua 
@@ -348,6 +352,7 @@ DataModel
 │  │  └─ CoreLoopTests.server.lua
 │  └─ Services
 │     ├─ BombService.lua
+│     ├─ DailyLoginService.lua
 │     ├─ OnlineRewardService.lua
 │     └─ QuestService.lua
 ## 🟩 StarterPlayer
@@ -384,7 +389,7 @@ DataModel
 │  │     ├─ JoinButton
 │  │     ├─ LeaveButton
 │  │     ├─ Plus1Minute
-│  │     ├─Plus24h 
+│  │     ├─ Plus24h (TextButton; Studio-only Daily Login virtual-clock test control)
 │  │     ├─ LevelUp5
 │  │     ├─ ShowStats (TextButton, optional debug control)
 │  │     ├─ EndRoundButton
@@ -469,11 +474,11 @@ DataModel
 │  ├─ DailyLoginUI (ScreenGui)
 │  │  ├─ MainPanel (Frame)
 │  │  │  ├─ Content (Frame)
-│  │  │  │  ├─ Day7Big (Frame)
+│  │  │  ├─ Day7Big (Frame; Random Pet reward)
 │  │  │  │  │  ├─ ClaimButton (TextButton)
 │  │  │  │  │  ├─ Icon (ImageLabel)
 │  │  │  │  │  ├─ Claimed (TextLabel)
-│  │  │  │  │  ├─ Description (TextLabel)
+│  │  │  │  │  ├─ Quantity (TextLabel)
 │  │  │  │  │  ├─ Timer (TextLabel)
 │  │  │  │  │  └─ Title (TextLabel)
 │  │  │  │  └─ LeftGrid (Frame)
@@ -677,12 +682,7 @@ DataModel
 │  │  │     ├─ Day7Big (Frame)
 │  │  │     └─ LeftGrid (Frame)
 │  │  │        ├─ UIGridLayout
-│  │  │        ├─ Day1 (Frame)
-│  │  │        ├─ Day2 (Frame)
-│  │  │        ├─ Day3 (Frame)
-│  │  │        ├─ Day4 (Frame)
-│  │  │        ├─ Day5 (Frame)
-│  │  │        └─ Day6 (Frame)
+│  │  │        └─ Six slots cloned from SlotRewardTemplate_DailyLoginUI at runtime
 │  │  ├─ Header (Frame)
 │  │  │  ├─ CloseButton (TextButton/ImageButton)
 │  │  │  │  └─ UICorner
