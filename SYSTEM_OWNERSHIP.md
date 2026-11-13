@@ -27,9 +27,9 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - **Dependencies:** Shared config/constants, EventBus, `LauncherStatResolver`, `PetStatResolver`, and `PlayerDataService` for profile and Diamond reads.
 
 ### PlayerDataService
-- **Owns:** Current profile data, including Diamonds, OwnedItems, instance-based `OwnedLaunchers`, `EquippedLauncherInstanceId`, `OwnedPets`, `EquippedPets`, quests, and progress points. The runtime currently uses `MockProvider`; durable production persistence is not implemented.
-- **Responsibilities:** Normalize/default profile schema (including `OnlineRewardState`), act as the canonical Diamond ledger, route Diamond spending/grants, and expose Pet and Launcher ownership/equipped state to server services.
-- **Called by:** PetService, QuestService, FoodService, progression/meta reward services, PlayerStateService read-through synchronization.
+- **Owns:** Current profile data, including Diamonds, OwnedItems, instance-based `OwnedLaunchers`, `EquippedLauncherInstanceId`, `OwnedPets`, `EquippedPets`, `DailyLoginState`, quests, and progress points. The runtime currently uses `MockProvider`; durable production persistence is not implemented.
+- **Responsibilities:** Normalize/default profile schema (including `OnlineRewardState` and `DailyLoginState`), act as the canonical Diamond ledger, route Diamond spending/grants, and expose Pet and Launcher ownership/equipped state to server services. `CommitDailyLoginClaim` updates the Daily Login reward and day/cycle state in the same profile mutation.
+- **Called by:** PetService, DailyLoginService, OnlineRewardService, QuestService, FoodService, progression/meta reward services, PlayerStateService read-through synchronization.
 - **Dependencies:** Data provider boundary and EventBus.
 
 ### OnlineRewardService
@@ -37,6 +37,13 @@ Cross-service communication must use `EventBus` for decoupled flow.
 - **Responsibilities:** Store cycle state through PlayerDataService; reset the cycle after offline gaps greater than 30 minutes; commit Diamonds/items and slot claims together; publish snapshots and cycle-complete toast.
 - **Called by:** PlayerAdded/Removing lifecycle, OnlineRewardRequest, and Studio-only ResetTimeOnlineReward.
 - **Dependencies:** OnlineRewardConfig, ItemConfig, PlayerDataService, RemoteContracts, Notification Remote.
+
+### DailyLoginService
+- **Owns:** Server-authoritative seven-day Daily Login claims, daily reset timing, six selected reward bundles, Day 7 Pet selection, and Studio-only virtual-clock testing.
+- **Responsibilities:** Build snapshots from `DailyLoginState`; use the configured UTC+7 midnight boundary; validate CycleId/current day/claim date; choose six distinct single-reward bundles per cycle and retain them across reconnects; roll Pet rarity at 65% Rare / 30% Epic / 5% Legendary on Day 7; advance the cycle only after successful Pet commit; advance the Studio virtual clock without changing real server time.
+- **Called by:** PlayerAdded/Removing lifecycle and DailyLoginRequest.
+- **Dependencies:** DailyLoginConfig, ItemConfig, PetsConfig, PlayerDataService, RemoteContracts, Notification Remote.
+- **Constraint:** Reward choice and claim authority stay on the server. Plus24h is Studio-only. Current profile provider is in-memory MockProvider, so durable cross-server/restart persistence is not available yet.
 
 ### QuestService
 - **Owns:** Daily Quest chain orchestration and the authoritative quest lifecycle.
