@@ -211,6 +211,7 @@ local ProjectTreeSpec = {
 		Lobby = {
 			ShowStatsButton = "UnitTestUI.RootFrame.ShowStats", -- Optional debug-only stats button; absence is valid.
 			ResetTimeOnlineRewardButton = "UnitTestUI.Root.ResetTimeOnlineReward", -- Studio-only; UnitTestUI descendants may replicate after startup.
+			Plus24hButton = "UnitTestUI.RootFrame.Plus24h", -- Studio-only Daily Login virtual-clock test control; create under UnitTestUI.RootFrame.
 		},
 		Inventory = {
 			ItemsDescription = "InventoryUI.Root.BodyItems.RightPanel.Description", -- Optional label; controller also resolves a unique Description descendant.
@@ -230,6 +231,8 @@ local ProjectTreeSpec = {
 		Folder = "LauncherArenaRemotes", -- [PROJECT_TREE_SPEC] ReplicatedStorage.LauncherArenaRemotes
 		OnlineRewardRequest = "LauncherArenaRemotes.OnlineRewardRequest",
 		OnlineRewardUpdate = "LauncherArenaRemotes.OnlineRewardUpdate",
+		DailyLoginRequest = "LauncherArenaRemotes.DailyLoginRequest",
+		DailyLoginUpdate = "LauncherArenaRemotes.DailyLoginUpdate",
 		ResetTimeOnlineReward = "LauncherArenaRemotes.ResetTimeOnlineReward",
 		ChangeTeam = "LauncherArenaRemotes.ChangeTeam", -- [PROJECT_TREE_SPEC]
 		DebugLevelUp5 = "LauncherArenaRemotes.DebugLevelUp5", -- [PROJECT_TREE_SPEC]
