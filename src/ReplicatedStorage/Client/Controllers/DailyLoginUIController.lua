@@ -170,7 +170,13 @@ function DailyLoginUIController:_fillRewardFields(container: GuiObject, reward)
 		if reward.iconKind == "Diamonds" and self._diamondIcon and self._diamondIcon:IsA("ImageLabel") then
 			icon = self._diamondIcon.Image
 		end
-		iconLabel.Image = icon
+
+		-- Keep the Studio-configured fallback image when the server has no
+		-- reward-specific icon (notably Day 7's random Pet reward).
+		-- Only overwrite the Image property when a non-empty asset id is supplied.
+		if icon ~= "" then
+			iconLabel.Image = icon
+		end
 	end
 
 	local timerText = if reward.state == "Waiting" and self._logicService
