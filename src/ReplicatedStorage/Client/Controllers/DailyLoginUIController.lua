@@ -32,7 +32,6 @@ function DailyLoginUIController.new(playerGui: PlayerGui)
 	self._connections = {}
 	self._slotConnections = {}
 	self._running = false
-	self._lastRequestedResetAt = nil
 	return self
 end
 
@@ -78,7 +77,6 @@ function DailyLoginUIController:Start()
 
 	if self._logicService then
 		table.insert(self._connections, self._logicService:BindChanged(function(snapshot)
-			self._lastRequestedResetAt = nil
 			self:RenderSnapshot(snapshot)
 		end))
 		self:RenderSnapshot(self._logicService:GetSnapshot())
@@ -255,8 +253,10 @@ function DailyLoginUIController:_updateCountdownLabels()
 		end
 	end
 
-	if snapshot.SecondsUntilReset <= 0 and nextResetAt and self._lastRequestedResetAt ~= nextResetAt then
-		self._lastRequestedResetAt = nextResetAt
+	local nowClock = os.clock()
+	if snapshot.SecondsUntilReset <= 0 and nextResetAt
+		and (self._lastResetRequestAt == nil or nowClock - self._lastResetRequestAt >= 1) then
+		self._lastResetRequestAt = nowClock
 		self._logicService:RequestSnapshot()
 	end
 end
