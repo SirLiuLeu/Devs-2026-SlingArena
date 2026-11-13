@@ -414,7 +414,7 @@ end
 
 function DailyLoginService:_claimReward(player: Player, payload: any)
 	local userId = player.UserId
-	local result = {
+	local result: { [string]: any } = {
 		Action = "Claim",
 		Day = math.floor(tonumber(payload.Day) or 0),
 		Success = false,
@@ -467,8 +467,8 @@ function DailyLoginService:_claimReward(player: Player, payload: any)
 		return
 	end
 
-	local reward
-	local nextBundleIds = nil
+	local reward: any = nil
+	local nextBundleIds: { string }? = nil
 	if requestedDay == 7 then
 		local definitionId, definition = self:_rollPet()
 		if not definitionId or not definition then
@@ -511,7 +511,7 @@ function DailyLoginService:_claimReward(player: Player, payload: any)
 		return
 	end
 
-	local rewardResult = {
+	local rewardResult: { [string]: any } = {
 		Kind = reward.Kind,
 		Amount = reward.Amount,
 		ItemId = reward.ItemId,
