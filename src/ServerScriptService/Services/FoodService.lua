@@ -375,17 +375,29 @@ function FoodService:_isSpawnPositionValid(spawnPart: BasePart, candidate: Vecto
 	return true
 end
 
-function FoodService:_buildLatticeRegions(spawnPart: BasePart): { any }
+function FoodService:_buildLatticeRegions(spawnPart: BasePart, requestedCount: number): { any }
 	local regionSizeX = math.max(0.5, tonumber(SPAWN_GRID_CONFIG.RegionSizeX) or 4)
 	local regionSizeZ = math.max(0.5, tonumber(SPAWN_GRID_CONFIG.RegionSizeZ) or 4)
 	local columns = math.max(1, math.floor(spawnPart.Size.X / regionSizeX))
 	local rows = math.max(1, math.floor(spawnPart.Size.Z / regionSizeZ))
 	local stepX = spawnPart.Size.X / columns
 	local stepZ = spawnPart.Size.Z / rows
+	local totalRegions = columns * rows
+	local candidateBudget = math.min(
+		totalRegions,
+		math.max(requestedCount * MAX_CANDIDATE_REGION_CHECKS_PER_TARGET, requestedCount + 8)
+	)
 	local regions = {}
+	local selectedIndices = {}
 
-	for column = 0, columns - 1 do
-		for row = 0, rows - 1 do
+	-- Sample only the bounded candidate budget rather than allocating/shuffling every grid cell in a large FoodSpawn.
+	while #regions < candidateBudget do
+		local flatIndex = math.random(1, totalRegions)
+		if not selectedIndices[flatIndex] then
+			selectedIndices[flatIndex] = true
+			local zeroIndex = flatIndex - 1
+			local column = math.floor(zeroIndex / rows)
+			local row = zeroIndex % rows
 			local localX = -spawnPart.Size.X * 0.5 + (column + 0.5) * stepX
 			local localZ = -spawnPart.Size.Z * 0.5 + (row + 0.5) * stepZ
 			table.insert(regions, {
@@ -399,11 +411,6 @@ function FoodService:_buildLatticeRegions(spawnPart: BasePart): { any }
 				Rarity = nil,
 			})
 		end
-	end
-
-	for index = #regions, 2, -1 do
-		local swapIndex = math.random(1, index)
-		regions[index], regions[swapIndex] = regions[swapIndex], regions[index]
 	end
 	return regions
 end
@@ -430,14 +437,9 @@ function FoodService:_buildSpawnSlotsForPart(mapModel: Model, spawnPart: BasePar
 		}, targetCount
 	end
 
-	local candidates = self:_buildLatticeRegions(spawnPart)
-	local candidateBudget = math.min(
-		#candidates,
-		math.max(targetCount * MAX_CANDIDATE_REGION_CHECKS_PER_TARGET, targetCount + 8)
-	)
+	local candidates = self:_buildLatticeRegions(spawnPart, targetCount)
 	local regions = {}
-	for index = 1, candidateBudget do
-		if #regions >= targetCount then break end
+	for index = 1, math.min(#candidates, targetCount) do
 		local region = candidates[index]
 		region.MapModel = mapModel
 		region.ZoneName = zoneName
