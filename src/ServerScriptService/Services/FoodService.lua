@@ -958,7 +958,6 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 		return a.Name < b.Name
 	end)
 
-	local reservedPositions = {}
 	for _, zoneFolder in ipairs(zoneFolders) do
 		local spawnParts = {}
 		for _, child in ipairs(zoneFolder:GetChildren()) do
@@ -970,56 +969,90 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 			return a.Name < b.Name
 		end)
 
-		local zoneSlots = {}
-		local targetSlotCount = 0
+		local zoneRegions = {}
+		local targetRegionCount = 0
 		for _, spawnPart in ipairs(spawnParts) do
-			local slots, targetCount = self:_buildSpawnSlotsForPart(mapModel, spawnPart, zoneFolder.Name, reservedPositions)
-			targetSlotCount += targetCount
+			local regions, targetCount = self:_buildSpawnSlotsForPart(mapModel, spawnPart, zoneFolder.Name)
+			targetRegionCount += targetCount
 			self._spawnSlotsByPart[spawnPart] = {
 				MapModel = mapModel,
 				FoodContainer = foodContainer,
 				SpawnPart = spawnPart,
 				ZoneName = zoneFolder.Name,
-				Slots = slots,
+				Regions = regions,
+				Slots = {},
 			}
-			for index, slot in ipairs(slots) do
-				slot.Index = index
-				table.insert(zoneSlots, slot)
+			for _, region in ipairs(regions) do
+				table.insert(zoneRegions, region)
 			end
 		end
 
-		self:_assignFoodTypesForZone(zoneFolder.Name, zoneSlots)
+		self:_assignFoodTypesForZone(zoneFolder.Name, zoneRegions)
 
-		local rarityCounts = {}
-		for _, slot in ipairs(zoneSlots) do
-			local rule = slot.FoodType and FoodConfig.Foods[slot.FoodType]
-			if rule then
-				rarityCounts[rule.Type] = (rarityCounts[rule.Type] or 0) + 1
+		local regionRarityCounts = {}
+		local foodRarityCounts = {}
+		local expectedFoodSlotCount = 0
+		local actualFoodSlotCount = 0
+		for _, region in ipairs(zoneRegions) do
+			local rarity = region.Rarity
+			if rarity then
+				regionRarityCounts[rarity] = (regionRarityCounts[rarity] or 0) + 1
+				local regionSlots = self:_buildFoodSlotsForRegion(region)
+				local record = self._spawnSlotsByPart[region.SpawnPart]
+				if record then
+					for _, slot in ipairs(regionSlots) do
+						slot.Index = #record.Slots + 1
+						table.insert(record.Slots, slot)
+						actualFoodSlotCount += 1
+						local rule = FoodConfig.Foods[slot.FoodType]
+						if rule then
+							foodRarityCounts[rule.Type] = (foodRarityCounts[rule.Type] or 0) + 1
+						end
+					end
+				end
+
+				if rarity == "Common" and not region.IsCenter then
+					expectedFoodSlotCount += math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.CommonSubdivisionsX) or 2))
+						* math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.CommonSubdivisionsZ) or 2))
+				else
+					expectedFoodSlotCount += 1
+				end
 			end
 		end
-		local raritySummary = {}
+
+		local regionSummary = {}
+		local foodSummary = {}
 		for _, rarity in ipairs({ "Common", "Uncommon", "Rare", "Epic", "Legendary" }) do
-			local count = rarityCounts[rarity] or 0
-			if count > 0 then
-				table.insert(raritySummary, string.format("%s:%d", rarity, count))
+			local regionCount = regionRarityCounts[rarity] or 0
+			local foodCount = foodRarityCounts[rarity] or 0
+			if regionCount > 0 then
+				table.insert(regionSummary, string.format("%s:%d", rarity, regionCount))
+			end
+			if foodCount > 0 then
+				table.insert(foodSummary, string.format("%s:%d", rarity, foodCount))
 			end
 		end
 		print(string.format(
-			"[FoodService] Fixed slots prepared. map=%s zone=%s slots=%d target=%d rarity=%s",
+			"[FoodService] Food regions prepared. map=%s zone=%s regions=%d targetRegions=%d foodSlots=%d expectedFoodSlots=%d regionRarity=%s foodRarity=%s",
 			mapModel.Name,
 			zoneFolder.Name,
-			#zoneSlots,
-			targetSlotCount,
-			table.concat(raritySummary, ",")
+			#zoneRegions,
+			targetRegionCount,
+			actualFoodSlotCount,
+			expectedFoodSlotCount,
+			table.concat(regionSummary, ","),
+			table.concat(foodSummary, ",")
 		))
 
-		if #zoneSlots < targetSlotCount then
+		if #zoneRegions < targetRegionCount or actualFoodSlotCount < expectedFoodSlotCount then
 			warn(string.format(
-				"[FoodService] Fixed Food grid capacity below configured target. map=%s zone=%s validSlots=%d targetSlots=%d",
+				"[FoodService] Food region capacity below configured target. map=%s zone=%s validRegions=%d targetRegions=%d validFoodSlots=%d expectedFoodSlots=%d",
 				mapModel.Name,
 				zoneFolder.Name,
-				#zoneSlots,
-				targetSlotCount
+				#zoneRegions,
+				targetRegionCount,
+				actualFoodSlotCount,
+				expectedFoodSlotCount
 			))
 		end
 	end
