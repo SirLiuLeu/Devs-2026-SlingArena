@@ -21,7 +21,7 @@ local SPAWN_RETRY_DELAY_SECONDS = math.max(tonumber(SPAWN_GRID_CONFIG.BlockedRet
 local SPAWN_SCHEDULER_INTERVAL_SECONDS = math.max(tonumber(SPAWN_GRID_CONFIG.SchedulerInterval) or 0.1, 0.05)
 local MAX_SPAWN_PER_SCHEDULER_TICK = math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.MaxSpawnPerTick) or 12))
 local MAX_POOLED_FOOD_PER_TYPE = math.max(0, math.floor(tonumber(SPAWN_GRID_CONFIG.MaxPooledPerType) or 12))
-local MAX_CANDIDATE_REGION_CHECKS_PER_TARGET = math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.MaxCandidateChecksPerSlotTarget) or 8))
+local MAX_CANDIDATE_REGION_CHECKS_PER_TARGET = math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.MaxCandidateRegionChecksPerTarget) or 8))
 local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
 local DEBUG_FOOD_HIT_REJECTS = false
 
