@@ -9,7 +9,8 @@ FoodConfig.CommonRespawnTime = 10
 FoodConfig.HpFoodRespawnTime = 30
 
 -- FoodSpawn Parts define the complete allowed X/Z rectangle.
--- AreaBased counts remain per part; zone rarity weights are apportioned over all valid slots in that zone.
+-- Mid/Edge AreaBased counts are parent-region counts per FoodSpawn Part.
+-- A Common parent region can expand into up to four Food models; an HP region remains one model.
 FoodConfig.SpawnAreaPerFood = 500
 FoodConfig.MinFoodPerSpawn = 1
 FoodConfig.MaxFoodPerSpawn = 40
@@ -19,9 +20,9 @@ FoodConfig.MinNoOverlapDistance = 0
 FoodConfig.HpFoodMinNoOverlapDistance = 0
 FoodConfig.MinPlayerSpawnClearance = 5
 
--- Fixed spawn-slot scheduler. Ground/spacing validation happens once when a map is prepared;
--- blocked slots are retried without rebuilding the grid or rerolling their Food type.
--- MaxCandidateChecksPerSlotTarget bounds raycasts when parts have few valid ground positions.
+-- Fixed-region scheduler. Random positions and ground support are prepared once per map;
+-- blocked slots retry without rebuilding the grid or rerolling their Food type.
+-- MaxCandidateChecksPerTarget bounds region selection work when the requested count is dense.
 FoodConfig.SpawnGrid = {
 	-- Mid/Edge use 4x4-stud region cells. A Common region is split into 2x2 subcells,
 	-- producing up to four Common foods. HP food reserves the entire region.
