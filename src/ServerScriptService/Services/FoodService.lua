@@ -602,11 +602,11 @@ function FoodService:_createFoodSlotForRegion(region: any, foodType: string, sub
 	}
 end
 
-function FoodService:_buildFoodSlotsForRegion(region: any): { any }
+function FoodService:_buildFoodSlotsForRegion(region: any): ({ any }, number)
 	local slots = {}
 	local rarity = region.Rarity
 	if not rarity then
-		return slots
+		return slots, 0
 	end
 
 	local pool = {}
@@ -618,7 +618,7 @@ function FoodService:_buildFoodSlotsForRegion(region: any): { any }
 		end
 	end
 	if #pool == 0 then
-		return slots
+		return slots, 0
 	end
 
 	local subdivisionsX = if rarity == "Common" and not region.IsCenter
@@ -654,8 +654,9 @@ function FoodService:_buildFoodSlotsForRegion(region: any): { any }
 					local selectedType = fallbackTypes[math.random(1, #fallbackTypes)]
 					local slot = self:_createFoodSlotForRegion(region, selectedType)
 					if slot then table.insert(slots, slot) end
-					return slots
+					return slots, 1
 				end
+				return slots, 1
 			end
 
 			if #candidateTypes > 0 then
@@ -665,7 +666,9 @@ function FoodService:_buildFoodSlotsForRegion(region: any): { any }
 			end
 		end
 	end
-	return slots
+
+	local expectedCount = if rarity == "Common" and not region.IsCenter then subdivisionsX * subdivisionsZ else 1
+	return slots, expectedCount
 end
 
 function FoodService:_acquireFoodModel(foodType: string): Model?
@@ -998,7 +1001,8 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 			local rarity = region.Rarity
 			if rarity then
 				regionRarityCounts[rarity] = (regionRarityCounts[rarity] or 0) + 1
-				local regionSlots = self:_buildFoodSlotsForRegion(region)
+				local regionSlots, regionExpectedCount = self:_buildFoodSlotsForRegion(region)
+				expectedFoodSlotCount += regionExpectedCount
 				local record = self._spawnSlotsByPart[region.SpawnPart]
 				if record then
 					for _, slot in ipairs(regionSlots) do
@@ -1012,12 +1016,6 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 					end
 				end
 
-				if rarity == "Common" and not region.IsCenter then
-					expectedFoodSlotCount += math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.CommonSubdivisionsX) or 2))
-						* math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.CommonSubdivisionsZ) or 2))
-				else
-					expectedFoodSlotCount += 1
-				end
 			end
 		end
 
