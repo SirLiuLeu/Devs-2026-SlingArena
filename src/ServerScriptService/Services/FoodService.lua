@@ -479,6 +479,22 @@ function FoodService:_assignFoodTypesForZone(zoneName: string, regions: { any })
 		return
 	end
 
+	-- Center markers represent independent hand-placed rewards; preserve their configured per-marker odds.
+	if zoneName == "CenterZones" then
+		for _, region in ipairs(regions) do
+			local roll = math.random() * totalWeight
+			local cumulativeWeight = 0
+			for _, data in ipairs(availableRarities) do
+				cumulativeWeight += data.Weight
+				if roll <= cumulativeWeight then
+					region.Rarity = data.Rarity
+					break
+				end
+			end
+		end
+		return
+	end
+
 	local rarityCounts = {}
 	local allocatedCount = 0
 	for _, data in ipairs(availableRarities) do
