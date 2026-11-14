@@ -13,15 +13,23 @@ FoodConfig.HpFoodRespawnTime = 30
 FoodConfig.SpawnAreaPerFood = 500
 FoodConfig.MinFoodPerSpawn = 1
 FoodConfig.MaxFoodPerSpawn = 40
-FoodConfig.MinNoOverlapDistance = 3
-FoodConfig.HpFoodMinNoOverlapDistance = 4
+-- Food-to-Food spacing is enforced by occupied grid cells and actual Hitbox extents.
+-- No additional legacy edge gap is added, allowing dense Common subcells.
+FoodConfig.MinNoOverlapDistance = 0
+FoodConfig.HpFoodMinNoOverlapDistance = 0
 FoodConfig.MinPlayerSpawnClearance = 5
 
 -- Fixed spawn-slot scheduler. Ground/spacing validation happens once when a map is prepared;
 -- blocked slots are retried without rebuilding the grid or rerolling their Food type.
 -- MaxCandidateChecksPerSlotTarget bounds raycasts when parts have few valid ground positions.
 FoodConfig.SpawnGrid = {
-	JitterFraction = 0.12,
+	-- Mid/Edge use 4x4-stud region cells. A Common region is split into 2x2 subcells,
+	-- producing up to four Common foods. HP food reserves the entire region.
+	RegionSizeX = 4,
+	RegionSizeZ = 4,
+	CommonSubdivisionsX = 2,
+	CommonSubdivisionsZ = 2,
+
 	SchedulerInterval = 0.1,
 	MaxSpawnPerTick = 12,
 	BlockedRetryInterval = 2,
@@ -162,7 +170,7 @@ FoodConfig.TypePools = {
 
 
 FoodConfig.ZoneSpawnSettings = {
-	CenterZones = { ActivePerSpawn = 2 },
+	CenterZones = { ActivePerSpawn = 1 },
 	MidZones = { AreaBased = true },
 	EdgeZones = { AreaBased = true },
 }
