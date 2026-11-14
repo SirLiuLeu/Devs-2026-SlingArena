@@ -22,6 +22,7 @@ local SPAWN_SCHEDULER_INTERVAL_SECONDS = math.max(tonumber(SPAWN_GRID_CONFIG.Sch
 local MAX_SPAWN_PER_SCHEDULER_TICK = math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.MaxSpawnPerTick) or 12))
 local SPAWN_GRID_JITTER_FRACTION = math.clamp(tonumber(SPAWN_GRID_CONFIG.JitterFraction) or 0.12, 0, 0.25)
 local MAX_POOLED_FOOD_PER_TYPE = math.max(0, math.floor(tonumber(SPAWN_GRID_CONFIG.MaxPooledPerType) or 12))
+local MAX_CANDIDATE_CHECKS_PER_SLOT_TARGET = math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.MaxCandidateChecksPerSlotTarget) or 8))
 local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
 local DEBUG_FOOD_HIT_REJECTS = false
 
@@ -86,18 +87,16 @@ local function anchorFoodModel(model: Model)
 end
 
 local function resolveFoodHitbox(foodModel: Model): BasePart?
-	local primaryPart = foodModel.PrimaryPart
-	if primaryPart then
-		return primaryPart
-	end
-
 	local hitbox = foodModel:FindFirstChild("Hitbox")
 	if hitbox and hitbox:IsA("BasePart") then
-		foodModel.PrimaryPart = hitbox
+		if foodModel.PrimaryPart ~= hitbox then
+			foodModel.PrimaryPart = hitbox
+		end
 		return hitbox
 	end
 
-	return nil
+	local primaryPart = foodModel.PrimaryPart
+	return if primaryPart and primaryPart:IsA("BasePart") then primaryPart else nil
 end
 
 local function getAnchorSurfacePosition(foodModel: Model, spawnAnchor: BasePart, horizontalPosition: Vector3?, groundRaycastParams: RaycastParams?): Vector3?
@@ -453,14 +452,19 @@ function FoodService:_buildSpawnSlotsForPart(mapModel: Model, spawnPart: BasePar
 	local minimumSpacing = self._maxFoodPlacementRadius * 2 + minimumGap
 	local minimumSpacingSquared = minimumSpacing * minimumSpacing
 
-	for _, candidate in ipairs(self:_buildLatticePositions(spawnPart, self._maxFoodPlacementRadius)) do
-		if #slots >= targetCount then
+	local candidates = self:_buildLatticePositions(spawnPart, self._maxFoodPlacementRadius)
+	local candidateCheckBudget = math.min(
+		#candidates,
+		math.max(targetCount * MAX_CANDIDATE_CHECKS_PER_SLOT_TARGET, targetCount + 8)
+	)
+	for candidateIndex, candidate in ipairs(candidates) do
+		if #slots >= targetCount or candidateIndex > candidateCheckBudget then
 			break
 		end
 
 		local overlapsReservedSlot = false
 		for _, reservedPosition in ipairs(reservedPositions) do
-			if sqrDistanceXZ(candidate, reservedPosition) < minimumSpacingSquared then
+			if sqrDistanceXZ(candidate, reservedPosition) <= minimumSpacingSquared then
 				overlapsReservedSlot = true
 				break
 			end
