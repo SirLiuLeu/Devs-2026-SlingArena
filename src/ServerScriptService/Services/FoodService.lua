@@ -99,7 +99,7 @@ local function resolveFoodHitbox(foodModel: Model): BasePart?
 	return if primaryPart and primaryPart:IsA("BasePart") then primaryPart else nil
 end
 
-local function getAnchorSurfacePosition(foodModel: Model, spawnAnchor: BasePart, horizontalPosition: Vector3?, groundRaycastParams: RaycastParams?, footprintSize: Vector2?): Vector3?
+local function getAnchorSurfacePosition(foodModel: Model, spawnAnchor: BasePart, horizontalPosition: Vector3?, groundRaycastParams: RaycastParams?, footprintSize: Vector2?, ignoreSpawnBounds: boolean?): Vector3?
 	local hitbox = resolveFoodHitbox(foodModel)
 	if not hitbox or not groundRaycastParams then return nil end
 	local footprintX = if footprintSize then footprintSize.X else hitbox.Size.X
@@ -115,10 +115,12 @@ local function getAnchorSurfacePosition(foodModel: Model, spawnAnchor: BasePart,
 	end
 
 	local localPosition = spawnAnchor.CFrame:PointToObjectSpace(xzPosition)
-	local radius = math.max(footprintX, footprintZ) * 0.5
-	local halfWidth = math.max(spawnAnchor.Size.X * 0.5 - radius, 0)
-	local halfDepth = math.max(spawnAnchor.Size.Z * 0.5 - radius, 0)
-	if math.abs(localPosition.X) > halfWidth or math.abs(localPosition.Z) > halfDepth then return nil end
+	local halfWidth = spawnAnchor.Size.X * 0.5 - footprintX * 0.5
+	local halfDepth = spawnAnchor.Size.Z * 0.5 - footprintZ * 0.5
+	if not ignoreSpawnBounds and (halfWidth < 0 or halfDepth < 0
+		or math.abs(localPosition.X) > halfWidth or math.abs(localPosition.Z) > halfDepth) then
+		return nil
+	end
 
 	local spawnPlaneY = spawnAnchor.Position.Y + spawnAnchor.Size.Y * 0.5
 	local startY = math.max(spawnPlaneY, xzPosition.Y) + math.max(1, FoodConfig.GroundRaycastStartHeight or 50)
@@ -182,14 +184,6 @@ local function isHpFoodType(foodType: string?): boolean
 	return rule ~= nil and FoodConfig.IsHpFood(rule.Type)
 end
 
-local function getMinNoOverlapDistance(firstFoodType: string?, secondFoodType: string?): number
-	-- Reserve a 4-stud edge-to-edge gap only between HP Food items.
-	-- Common Food can spawn nearby as long as its hitbox does not overlap.
-	if isHpFoodType(firstFoodType) and (secondFoodType == nil or isHpFoodType(secondFoodType)) then
-		return math.max(FoodConfig.MinNoOverlapDistance, FoodConfig.HpFoodMinNoOverlapDistance or FoodConfig.MinNoOverlapDistance)
-	end
-	return FoodConfig.MinNoOverlapDistance
-end
 
 local function sanitizeUnit(v: Vector3, fallback: Vector3): Vector3
 	if v.Magnitude <= NORMAL_EPSILON then
@@ -366,22 +360,27 @@ function FoodService:_getFoodPlacementRadius(template: Model): number
 	return 0
 end
 
-function FoodService:_isSpawnPositionValid(spawnPart: BasePart, candidate: Vector3, foodRadius: number, batchPositions: { Vector3 }, batchRadii: { number }, batchFoodTypes: { string }, foodType: string): boolean
+function FoodService:_isSpawnPositionValid(spawnPart: BasePart, candidate: Vector3, foodRadius: number, _batchPositions: { Vector3 }, _batchRadii: { number }, _batchFoodTypes: { string }, foodType: string): boolean
 	local localCandidate = spawnPart.CFrame:PointToObjectSpace(candidate)
-	local halfWidth = math.max(spawnPart.Size.X * 0.5 - foodRadius, 0)
-	local halfDepth = math.max(spawnPart.Size.Z * 0.5 - foodRadius, 0)
-	if math.abs(localCandidate.X) > halfWidth or math.abs(localCandidate.Z) > halfDepth then return false end
-
-	for index, prior in ipairs(batchPositions) do
-		local spacing = foodRadius + (batchRadii[index] or 0) + getMinNoOverlapDistance(foodType, batchFoodTypes[index])
-		if sqrDistanceXZ(candidate, prior) <= spacing * spacing then return false end
+	local foodTemplate = self._foodModels[foodType]
+	local hitbox = foodTemplate and resolveFoodHitbox(foodTemplate)
+	if hitbox then
+		local halfWidth = spawnPart.Size.X * 0.5 - hitbox.Size.X * 0.5
+		local halfDepth = spawnPart.Size.Z * 0.5 - hitbox.Size.Z * 0.5
+		if halfWidth < 0 or halfDepth < 0
+			or math.abs(localCandidate.X) > halfWidth or math.abs(localCandidate.Z) > halfDepth then
+			return false
+		end
 	end
+
 	for _, entry in ipairs(self:_collectNearbyEntries(candidate)) do
-		local hitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
-		if hitbox and hitbox:IsA("BasePart") then
-			local otherRadius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5
-			local spacing = foodRadius + otherRadius + getMinNoOverlapDistance(foodType, entry.FoodType)
-			if sqrDistanceXZ(candidate, hitbox.Position) <= spacing * spacing then return false end
+		local otherHitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
+		if otherHitbox and otherHitbox:IsA("BasePart") then
+			local otherRadius = math.max(otherHitbox.Size.X, otherHitbox.Size.Z) * 0.5
+			local minimumCenterDistance = foodRadius + otherRadius
+			if sqrDistanceXZ(candidate, otherHitbox.Position) < minimumCenterDistance * minimumCenterDistance then
+				return false
+			end
 		end
 	end
 
@@ -402,166 +401,119 @@ function FoodService:_isSpawnPositionValid(spawnPart: BasePart, candidate: Vecto
 	return true
 end
 
-
-
-function FoodService:_buildLatticePositions(spawnPart: BasePart, foodRadius: number): { Vector3 }
-	local minimumGap = math.max(
-		tonumber(FoodConfig.MinNoOverlapDistance) or 3,
-		tonumber(FoodConfig.HpFoodMinNoOverlapDistance) or 4
-	)
-	local cellSize = math.max(foodRadius * 2 + minimumGap, 1)
-	local halfWidth = math.max(spawnPart.Size.X * 0.5 - foodRadius, 0)
-	local halfDepth = math.max(spawnPart.Size.Z * 0.5 - foodRadius, 0)
-	local usableWidth = halfWidth * 2
-	local usableDepth = halfDepth * 2
-	local columns = math.max(1, math.floor(usableWidth / cellSize))
-	local rows = math.max(1, math.floor(usableDepth / cellSize))
-	local stepX = if columns > 0 then usableWidth / columns else 0
-	local stepZ = if rows > 0 then usableDepth / rows else 0
-	local jitterX = math.min(stepX * SPAWN_GRID_JITTER_FRACTION, cellSize * 0.15)
-	local jitterZ = math.min(stepZ * SPAWN_GRID_JITTER_FRACTION, cellSize * 0.15)
-	local candidates = {}
+function FoodService:_buildLatticeRegions(spawnPart: BasePart): { any }
+	local regionSizeX = math.max(0.5, tonumber(SPAWN_GRID_CONFIG.RegionSizeX) or 4)
+	local regionSizeZ = math.max(0.5, tonumber(SPAWN_GRID_CONFIG.RegionSizeZ) or 4)
+	local columns = math.max(1, math.floor(spawnPart.Size.X / regionSizeX))
+	local rows = math.max(1, math.floor(spawnPart.Size.Z / regionSizeZ))
+	local stepX = spawnPart.Size.X / columns
+	local stepZ = spawnPart.Size.Z / rows
+	local regions = {}
 
 	for column = 0, columns - 1 do
 		for row = 0, rows - 1 do
-			local x = if usableWidth > 0 then -halfWidth + (column + 0.5) * stepX else 0
-			local z = if usableDepth > 0 then -halfDepth + (row + 0.5) * stepZ else 0
-			x = math.clamp(x + (math.random() * 2 - 1) * jitterX, -halfWidth, halfWidth)
-			z = math.clamp(z + (math.random() * 2 - 1) * jitterZ, -halfDepth, halfDepth)
-			table.insert(candidates, spawnPart.CFrame:PointToWorldSpace(Vector3.new(x, 0, z)))
+			local localX = -spawnPart.Size.X * 0.5 + (column + 0.5) * stepX
+			local localZ = -spawnPart.Size.Z * 0.5 + (row + 0.5) * stepZ
+			table.insert(regions, {
+				SpawnPart = spawnPart,
+				ZoneName = nil,
+				CenterLocalX = localX,
+				CenterLocalZ = localZ,
+				SizeX = stepX,
+				SizeZ = stepZ,
+				IsCenter = false,
+				Rarity = nil,
+			})
 		end
 	end
 
-	for index = #candidates, 2, -1 do
+	for index = #regions, 2, -1 do
 		local swapIndex = math.random(1, index)
-		candidates[index], candidates[swapIndex] = candidates[swapIndex], candidates[index]
+		regions[index], regions[swapIndex] = regions[swapIndex], regions[index]
 	end
-	return candidates
+	return regions
 end
 
-function FoodService:_buildSpawnSlotsForPart(mapModel: Model, spawnPart: BasePart, zoneName: string, reservedPositions: { Vector3 }): ({ any }, number)
+function FoodService:_buildSpawnSlotsForPart(mapModel: Model, spawnPart: BasePart, zoneName: string): ({ any }, number)
 	local targetCount = self:_getSpawnCountForZone(zoneName, spawnPart)
-	local slots = {}
 	if targetCount <= 0 then
-		return slots, targetCount
+		return {}, targetCount
 	end
 
-	local template = self._maxFoodTemplate
-	local templateHitbox = template and resolveFoodHitbox(template)
-	local raycastParams = self._groundRaycastParamsByMap[mapModel]
-	if not (template and templateHitbox and raycastParams) then
-		return slots, targetCount
+	if zoneName == "CenterZones" then
+		return {
+			{
+				MapModel = mapModel,
+				SpawnPart = spawnPart,
+				ZoneName = zoneName,
+				CenterLocalX = 0,
+				CenterLocalZ = 0,
+				SizeX = 0,
+				SizeZ = 0,
+				IsCenter = true,
+				Rarity = nil,
+			}
+		}, targetCount
 	end
 
-	local minimumGap = math.max(
-		tonumber(FoodConfig.MinNoOverlapDistance) or 3,
-		tonumber(FoodConfig.HpFoodMinNoOverlapDistance) or 4
-	)
-	local minimumSpacing = self._maxFoodPlacementRadius * 2 + minimumGap
-	local minimumSpacingSquared = minimumSpacing * minimumSpacing
-
-	local candidates = self:_buildLatticePositions(spawnPart, self._maxFoodPlacementRadius)
-	local candidateCheckBudget = math.min(
+	local candidates = self:_buildLatticeRegions(spawnPart)
+	local candidateBudget = math.min(
 		#candidates,
 		math.max(targetCount * MAX_CANDIDATE_CHECKS_PER_SLOT_TARGET, targetCount + 8)
 	)
-	for candidateIndex, candidate in ipairs(candidates) do
-		if #slots >= targetCount or candidateIndex > candidateCheckBudget then
-			break
-		end
-
-		local overlapsReservedSlot = false
-		for _, reservedPosition in ipairs(reservedPositions) do
-			if sqrDistanceXZ(candidate, reservedPosition) <= minimumSpacingSquared then
-				overlapsReservedSlot = true
-				break
-			end
-		end
-
-		if not overlapsReservedSlot then
-			local validatedHitboxPosition = getAnchorSurfacePosition(
-				template,
-				spawnPart,
-				candidate,
-				raycastParams,
-				Vector2.new(self._maxFoodFootprintX, self._maxFoodFootprintZ)
-			)
-			if validatedHitboxPosition then
-				local groundY = validatedHitboxPosition.Y - templateHitbox.Size.Y * 0.5
-				local groundPosition = Vector3.new(candidate.X, groundY, candidate.Z)
-				local slot = {
-					SpawnPart = spawnPart,
-					ZoneName = zoneName,
-					Position = groundPosition,
-					GroundY = groundY,
-					FoodType = nil,
-					State = "Unassigned",
-					NextAttemptAt = 0,
-					BlockedAttempts = 0,
-					WarnedBlocked = false,
-					Entry = nil,
-				}
-				table.insert(slots, slot)
-				table.insert(reservedPositions, groundPosition)
-			end
-		end
+	local regions = {}
+	for index = 1, candidateBudget do
+		if #regions >= targetCount then break end
+		local region = candidates[index]
+		region.MapModel = mapModel
+		region.ZoneName = zoneName
+		table.insert(regions, region)
 	end
-
-	return slots, targetCount
+	return regions, targetCount
 end
 
-function FoodService:_assignFoodTypesForZone(zoneName: string, slots: { any })
-	if #slots == 0 then
+function FoodService:_assignFoodTypesForZone(zoneName: string, regions: { any })
+	if #regions == 0 then
 		return
 	end
 
 	local weights = FoodConfig.ZoneWeights[zoneName]
 	local rarityOrder = { "Common", "Uncommon", "Rare", "Epic", "Legendary" }
-	local availablePools = {}
+	local availableRarities = {}
 	local totalWeight = 0
-	local weightedRarities = {}
+	local remainders = {}
 
 	for order, rarity in ipairs(rarityOrder) do
 		local weight = tonumber(weights and weights[rarity]) or 0
-		local availableTypes = {}
-		local configuredPool = FoodConfig.TypePools[rarity] or {}
-		for _, foodType in ipairs(configuredPool) do
+		local hasAvailableModel = false
+		for _, foodType in ipairs(FoodConfig.TypePools[rarity] or {}) do
 			if self._foodModels[foodType] and FoodConfig.Foods[foodType] then
-				table.insert(availableTypes, foodType)
+				hasAvailableModel = true
+				break
 			end
 		end
-
-		if weight > 0 and #availableTypes > 0 then
-			availablePools[rarity] = availableTypes
+		if weight > 0 and hasAvailableModel then
 			totalWeight += weight
-			table.insert(weightedRarities, {
-				Rarity = rarity,
-				Weight = weight,
-				Order = order,
-			})
+			table.insert(availableRarities, { Rarity = rarity, Weight = weight, Order = order })
 		end
 	end
 
 	if totalWeight <= 0 then
-		for _, slot in ipairs(slots) do
-			slot.State = "Disabled"
-		end
-		warn(string.format("[FoodService] Zone %s has slots but no configured rarity has an available Food model.", zoneName))
+		warn(string.format("[FoodService] Zone %s has regions but no configured Food model is available.", zoneName))
 		return
 	end
 
 	local rarityCounts = {}
-	local remainders = {}
 	local allocatedCount = 0
-	for _, rarityData in ipairs(weightedRarities) do
-		local exactCount = #slots * rarityData.Weight / totalWeight
-		local baseCount = math.floor(exactCount)
-		rarityCounts[rarityData.Rarity] = baseCount
-		allocatedCount += baseCount
+	for _, data in ipairs(availableRarities) do
+		local exactCount = #regions * data.Weight / totalWeight
+		local wholeCount = math.floor(exactCount)
+		rarityCounts[data.Rarity] = wholeCount
+		allocatedCount += wholeCount
 		table.insert(remainders, {
-			Rarity = rarityData.Rarity,
-			Fraction = exactCount - baseCount,
-			Order = rarityData.Order,
+			Rarity = data.Rarity,
+			Fraction = exactCount - wholeCount,
+			Order = data.Order,
 		})
 	end
 
@@ -572,33 +524,156 @@ function FoodService:_assignFoodTypesForZone(zoneName: string, slots: { any })
 		return a.Fraction > b.Fraction
 	end)
 
-	local remainingCount = #slots - allocatedCount
-	for index = 1, remainingCount do
+	for index = 1, #regions - allocatedCount do
 		local rarity = remainders[index].Rarity
 		rarityCounts[rarity] = (rarityCounts[rarity] or 0) + 1
 	end
 
-	local assignedTypes = {}
+	local assignedRarities = {}
 	for _, rarity in ipairs(rarityOrder) do
-		local count = rarityCounts[rarity] or 0
-		local pool = availablePools[rarity]
-		if pool and #pool > 0 then
-			for _ = 1, count do
-				table.insert(assignedTypes, pool[math.random(1, #pool)])
+		for _ = 1, rarityCounts[rarity] or 0 do
+			table.insert(assignedRarities, rarity)
+		end
+	end
+	for index = #assignedRarities, 2, -1 do
+		local swapIndex = math.random(1, index)
+		assignedRarities[index], assignedRarities[swapIndex] = assignedRarities[swapIndex], assignedRarities[index]
+	end
+
+	for index, region in ipairs(regions) do
+		region.Rarity = assignedRarities[index]
+	end
+end
+
+function FoodService:_createFoodSlotForRegion(region: any, foodType: string, subCellX: number?, subCellZ: number?, subCellsX: number?, subCellsZ: number?): any?
+	local spawnPart = region.SpawnPart
+	local mapModel = region.MapModel
+	local template = self._foodModels[foodType]
+	local hitbox = template and resolveFoodHitbox(template)
+	local raycastParams = mapModel and self._groundRaycastParamsByMap[mapModel]
+	if not (template and hitbox and raycastParams) then
+		return nil
+	end
+
+	local centerLocalX = region.CenterLocalX
+	local centerLocalZ = region.CenterLocalZ
+	local areaSizeX = region.SizeX
+	local areaSizeZ = region.SizeZ
+	if subCellX ~= nil and subCellZ ~= nil and subCellsX and subCellsZ then
+		areaSizeX = region.SizeX / subCellsX
+		areaSizeZ = region.SizeZ / subCellsZ
+		centerLocalX += -region.SizeX * 0.5 + (subCellX + 0.5) * areaSizeX
+		centerLocalZ += -region.SizeZ * 0.5 + (subCellZ + 0.5) * areaSizeZ
+	end
+
+	if not region.IsCenter and (hitbox.Size.X > areaSizeX or hitbox.Size.Z > areaSizeZ) then
+		return nil
+	end
+
+	local maxOffsetX = if region.IsCenter then 0 else math.max(0, (areaSizeX - hitbox.Size.X) * 0.5)
+	local maxOffsetZ = if region.IsCenter then 0 else math.max(0, (areaSizeZ - hitbox.Size.Z) * 0.5)
+	local candidate: Vector3? = nil
+	local surfacePosition: Vector3? = nil
+	for _ = 1, 4 do
+		local localX = centerLocalX + (math.random() * 2 - 1) * maxOffsetX
+		local localZ = centerLocalZ + (math.random() * 2 - 1) * maxOffsetZ
+		candidate = spawnPart.CFrame:PointToWorldSpace(Vector3.new(localX, 0, localZ))
+		surfacePosition = getAnchorSurfacePosition(
+			template,
+			spawnPart,
+			candidate,
+			raycastParams,
+			Vector2.new(hitbox.Size.X, hitbox.Size.Z),
+			region.IsCenter
+		)
+		if surfacePosition then
+			break
+		end
+	end
+	if not surfacePosition then
+		return nil
+	end
+
+	return {
+		MapModel = mapModel,
+		SpawnPart = spawnPart,
+		ZoneName = region.ZoneName,
+		Position = surfacePosition,
+		GroundY = surfacePosition.Y - hitbox.Size.Y * 0.5,
+		FoodType = foodType,
+		State = "Pending",
+		NextAttemptAt = 0,
+		BlockedAttempts = 0,
+		WarnedBlocked = false,
+		Entry = nil,
+		Region = region,
+	}
+end
+
+function FoodService:_buildFoodSlotsForRegion(region: any): { any }
+	local slots = {}
+	local rarity = region.Rarity
+	if not rarity then
+		return slots
+	end
+
+	local pool = {}
+	for _, foodType in ipairs(FoodConfig.TypePools[rarity] or {}) do
+		local template = self._foodModels[foodType]
+		local hitbox = template and resolveFoodHitbox(template)
+		if hitbox then
+			table.insert(pool, foodType)
+		end
+	end
+	if #pool == 0 then
+		return slots
+	end
+
+	local subdivisionsX = if rarity == "Common" and not region.IsCenter
+		then math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.CommonSubdivisionsX) or 2))
+		else 1
+	local subdivisionsZ = if rarity == "Common" and not region.IsCenter
+		then math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.CommonSubdivisionsZ) or 2))
+		else 1
+
+	for subX = 0, subdivisionsX - 1 do
+		for subZ = 0, subdivisionsZ - 1 do
+			local cellSizeX = region.SizeX / subdivisionsX
+			local cellSizeZ = region.SizeZ / subdivisionsZ
+			local candidateTypes = {}
+			for _, foodType in ipairs(pool) do
+				local template = self._foodModels[foodType]
+				local hitbox = template and resolveFoodHitbox(template)
+				if region.IsCenter or (hitbox and hitbox.Size.X <= cellSizeX and hitbox.Size.Z <= cellSizeZ) then
+					table.insert(candidateTypes, foodType)
+				end
+			end
+
+			if #candidateTypes == 0 and rarity == "Common" and not region.IsCenter then
+				local fallbackTypes = {}
+				for _, foodType in ipairs(pool) do
+					local template = self._foodModels[foodType]
+					local hitbox = template and resolveFoodHitbox(template)
+					if hitbox and hitbox.Size.X <= region.SizeX and hitbox.Size.Z <= region.SizeZ then
+						table.insert(fallbackTypes, foodType)
+					end
+				end
+				if #fallbackTypes > 0 then
+					local selectedType = fallbackTypes[math.random(1, #fallbackTypes)]
+					local slot = self:_createFoodSlotForRegion(region, selectedType)
+					if slot then table.insert(slots, slot) end
+					return slots
+				end
+			end
+
+			if #candidateTypes > 0 then
+				local selectedType = candidateTypes[math.random(1, #candidateTypes)]
+				local slot = self:_createFoodSlotForRegion(region, selectedType, subX, subZ, subdivisionsX, subdivisionsZ)
+				if slot then table.insert(slots, slot) end
 			end
 		end
 	end
-
-	for index = #assignedTypes, 2, -1 do
-		local swapIndex = math.random(1, index)
-		assignedTypes[index], assignedTypes[swapIndex] = assignedTypes[swapIndex], assignedTypes[index]
-	end
-
-	for index, slot in ipairs(slots) do
-		slot.FoodType = assignedTypes[index]
-		slot.State = if slot.FoodType then "Pending" else "Disabled"
-		slot.NextAttemptAt = 0
-	end
+	return slots
 end
 
 function FoodService:_acquireFoodModel(foodType: string): Model?
