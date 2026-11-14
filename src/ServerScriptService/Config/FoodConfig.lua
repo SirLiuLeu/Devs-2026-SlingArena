@@ -23,6 +23,7 @@ FoodConfig.SpawnGrid = {
 	SchedulerInterval = 0.1,
 	MaxSpawnPerTick = 12,
 	BlockedRetryInterval = 2,
+	MaxPooledPerType = 12,
 }
 
 -- Food must land on an upward-facing tagged floor close to the FoodSpawn plane.
