@@ -9,6 +9,7 @@ FoodConfig.CommonRespawnTime = 10
 FoodConfig.HpFoodRespawnTime = 30
 
 -- FoodSpawn Parts define the complete allowed X/Z rectangle.
+-- AreaBased counts remain per part; zone rarity weights are apportioned over all valid slots in that zone.
 FoodConfig.SpawnAreaPerFood = 500
 FoodConfig.MinFoodPerSpawn = 1
 FoodConfig.MaxFoodPerSpawn = 40
@@ -18,6 +19,7 @@ FoodConfig.MinPlayerSpawnClearance = 5
 
 -- Fixed spawn-slot scheduler. Ground/spacing validation happens once when a map is prepared;
 -- blocked slots are retried without rebuilding the grid or rerolling their Food type.
+-- MaxCandidateChecksPerSlotTarget bounds raycasts when parts have few valid ground positions.
 FoodConfig.SpawnGrid = {
 	JitterFraction = 0.12,
 	SchedulerInterval = 0.1,
