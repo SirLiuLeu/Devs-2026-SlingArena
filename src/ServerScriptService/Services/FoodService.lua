@@ -115,7 +115,7 @@ local function getAnchorSurfacePosition(foodModel: Model, spawnAnchor: BasePart,
 	end
 
 	local localPosition = spawnAnchor.CFrame:PointToObjectSpace(xzPosition)
-	local radius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5
+	local radius = math.max(footprintX, footprintZ) * 0.5
 	local halfWidth = math.max(spawnAnchor.Size.X * 0.5 - radius, 0)
 	local halfDepth = math.max(spawnAnchor.Size.Z * 0.5 - radius, 0)
 	if math.abs(localPosition.X) > halfWidth or math.abs(localPosition.Z) > halfDepth then return nil end
