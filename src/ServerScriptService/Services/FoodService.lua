@@ -752,6 +752,8 @@ function FoodService:_startSpawnScheduler()
 			local now = os.clock()
 			local processedCount = 0
 			local hasPendingSlots = false
+			local hasReadyPendingSlots = false
+			local earliestPendingAt = nil
 
 			for spawnPart, record in pairs(self._spawnSlotsByPart) do
 				if not (spawnPart.Parent and record.MapModel.Parent and record.FoodContainer.Parent) then
@@ -764,9 +766,14 @@ function FoodService:_startSpawnScheduler()
 					for _, slot in ipairs(record.Slots) do
 						if slot.State == "Pending" then
 							hasPendingSlots = true
-							if processedCount < MAX_SPAWN_PER_SCHEDULER_TICK and slot.NextAttemptAt <= now then
-								processedCount += 1
-								self:_trySpawnSlot(slot)
+							if slot.NextAttemptAt <= now then
+								hasReadyPendingSlots = true
+								if processedCount < MAX_SPAWN_PER_SCHEDULER_TICK then
+									processedCount += 1
+									self:_trySpawnSlot(slot)
+								end
+							else
+								earliestPendingAt = if earliestPendingAt then math.min(earliestPendingAt, slot.NextAttemptAt) else slot.NextAttemptAt
 							end
 						end
 					end
@@ -776,7 +783,13 @@ function FoodService:_startSpawnScheduler()
 				end
 			end
 
-			task.wait(if hasPendingSlots then SPAWN_SCHEDULER_INTERVAL_SECONDS else 1)
+			local waitTime = 1
+			if hasReadyPendingSlots then
+				waitTime = SPAWN_SCHEDULER_INTERVAL_SECONDS
+			elseif hasPendingSlots and earliestPendingAt then
+				waitTime = math.clamp(earliestPendingAt - os.clock(), SPAWN_SCHEDULER_INTERVAL_SECONDS, 1)
+			end
+			task.wait(waitTime)
 		end
 	end)
 end
