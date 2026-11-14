@@ -35,7 +35,7 @@ FoodConfig.SpawnGrid = {
 	MaxSpawnPerTick = 12,
 	BlockedRetryInterval = 2,
 	MaxPooledPerType = 12,
-	MaxCandidateChecksPerSlotTarget = 8,
+	MaxCandidateRegionChecksPerTarget = 8,
 }
 
 -- Food must land on an upward-facing tagged floor close to the FoodSpawn plane.
