@@ -606,6 +606,8 @@ function FoodService:_acquireFoodModel(foodType: string): Model?
 	model:SetAttribute("FoodId", nil)
 	model:SetAttribute("FoodRarity", nil)
 	model:SetAttribute("FoodZone", nil)
+	model:SetAttribute("FoodSpawnPart", nil)
+	model:SetAttribute("FoodSlotIndex", nil)
 	model:SetAttribute("FoodHP", nil)
 	model:SetAttribute("FoodMaxHP", nil)
 	return model
@@ -619,6 +621,8 @@ function FoodService:_returnFoodModelToPool(foodType: string, model: Model)
 	model:SetAttribute("FoodId", nil)
 	model:SetAttribute("FoodRarity", nil)
 	model:SetAttribute("FoodZone", nil)
+	model:SetAttribute("FoodSpawnPart", nil)
+	model:SetAttribute("FoodSlotIndex", nil)
 	model:SetAttribute("FoodHP", nil)
 	model:SetAttribute("FoodMaxHP", nil)
 	model.Parent = nil
@@ -718,6 +722,8 @@ function FoodService:_trySpawnSlot(slot: any): boolean
 	model:SetAttribute("FoodId", entry.Id)
 	model:SetAttribute("FoodRarity", rule.Type)
 	model:SetAttribute("FoodZone", slot.ZoneName)
+	model:SetAttribute("FoodSpawnPart", spawnPart:GetFullName())
+	model:SetAttribute("FoodSlotIndex", slot.Index)
 	model.Parent = record.FoodContainer
 	if entry.MaxHP > 0 then
 		self:_attachFoodUI(entry, hitbox)
@@ -747,13 +753,21 @@ function FoodService:_startSpawnScheduler()
 			local processedCount = 0
 			local hasPendingSlots = false
 
-			for _, record in pairs(self._spawnSlotsByPart) do
-				for _, slot in ipairs(record.Slots) do
-					if slot.State == "Pending" then
-						hasPendingSlots = true
-						if processedCount < MAX_SPAWN_PER_SCHEDULER_TICK and slot.NextAttemptAt <= now then
-							processedCount += 1
-							self:_trySpawnSlot(slot)
+			for spawnPart, record in pairs(self._spawnSlotsByPart) do
+				if not (spawnPart.Parent and record.MapModel.Parent and record.FoodContainer.Parent) then
+					for _, slot in ipairs(record.Slots) do
+						slot.State = "Disabled"
+						slot.Entry = nil
+					end
+					self._spawnSlotsByPart[spawnPart] = nil
+				else
+					for _, slot in ipairs(record.Slots) do
+						if slot.State == "Pending" then
+							hasPendingSlots = true
+							if processedCount < MAX_SPAWN_PER_SCHEDULER_TICK and slot.NextAttemptAt <= now then
+								processedCount += 1
+								self:_trySpawnSlot(slot)
+							end
 						end
 					end
 				end
@@ -873,6 +887,30 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 		end
 
 		self:_assignFoodTypesForZone(zoneFolder.Name, zoneSlots)
+
+		local rarityCounts = {}
+		for _, slot in ipairs(zoneSlots) do
+			local rule = slot.FoodType and FoodConfig.Foods[slot.FoodType]
+			if rule then
+				rarityCounts[rule.Type] = (rarityCounts[rule.Type] or 0) + 1
+			end
+		end
+		local raritySummary = {}
+		for _, rarity in ipairs({ "Common", "Uncommon", "Rare", "Epic", "Legendary" }) do
+			local count = rarityCounts[rarity] or 0
+			if count > 0 then
+				table.insert(raritySummary, string.format("%s:%d", rarity, count))
+			end
+		end
+		print(string.format(
+			"[FoodService] Fixed slots prepared. map=%s zone=%s slots=%d target=%d rarity=%s",
+			mapModel.Name,
+			zoneFolder.Name,
+			#zoneSlots,
+			targetSlotCount,
+			table.concat(raritySummary, ",")
+		))
+
 		if #zoneSlots < targetSlotCount then
 			warn(string.format(
 				"[FoodService] Fixed Food grid capacity below configured target. map=%s zone=%s validSlots=%d targetSlots=%d",
