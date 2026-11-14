@@ -199,8 +199,11 @@ Flags are modifiers layered on top of a player's core `MovementState`. Real, cod
 
 ## 7.1 Global Settings
 
-* `CommonRespawnTime = 10`s, `HpFoodRespawnTime = 30`s
-* FoodSpawn Parts define the full rectangular X/Z placement area. Mid/Edge target count is `floor(Size.X × Size.Z / 1000)`, clamped to 1–20; CenterZones remain 1 per Part. Common–Common Hitbox gap is 3 studs; HP–HP Hitbox edge gap is 4 studs; HP–Common and Common–Common pairs use 3 studs. Food must raycast to an upward-facing `Collision_Ground` surface within 4 studs of the FoodSpawn top plane, with the full Hitbox footprint supported.
+* `CommonRespawnTime = 10`s, `HpFoodRespawnTime = 30`s.
+* FoodSpawn Parts define the allowed rectangular X/Z area. Mid/Edge target count is `floor(Size.X × Size.Z / 500)`, clamped to 1–40; this count is the number of 4×4-stud parent regions, not the final number of Food models. Zone rarity weights are apportioned over those parent regions.
+* Mid/Edge regions assigned Common split into a 2×2 subgrid and create up to four Common models (one per 2×2 subcell), subject to each model's actual Hitbox size. Regions assigned Uncommon/Rare/Epic/Legendary create one HP Food and reserve the entire parent region. Food X/Z position is randomized inside its assigned cell after shrinking the random range by half the actual Hitbox dimensions; a 2×2 Hitbox in a 4×4 region therefore has a 2×2 center-position range.
+* CenterZones do not build a grid: each FoodSpawn Part creates exactly one Food at the marker's X/Z position. Existing Center rarity weights still select Epic/Legendary.
+* Food overlap is prevented using occupied cells and actual Hitbox extents; no additional legacy 3/4-stud edge gap is applied. Player spawn clearance remains 5 studs. Food must raycast to an upward-facing `Collision_Ground` surface within 4 studs of the FoodSpawn top plane, with the full Hitbox footprint supported.
 
 ## 7.2 Food Types
 
@@ -227,8 +230,8 @@ Flags are modifiers layered on top of a player's core `MovementState`. Real, cod
 
 ## 7.4 Spawn Density (`ZoneSpawnSettings`)
 
-* Center Zones: 1 active item per FoodSpawn Part.
-* Mid/Edge Zones: one target item per 1,000 square studs of FoodSpawn X/Z area, clamped to 1–20. A 100×100 Part targets 10 Food.
+* Center Zones: exactly 1 Food per FoodSpawn Part, positioned at the marker; no grid subdivision.
+* Mid/Edge Zones: one target parent region per 500 square studs of FoodSpawn X/Z area, clamped to 1–40. A 100×100 Part targets 20 parent regions. Common regions can create up to four Food models; each HP region creates one Food model and occupies its full parent region.
 
 ---
 
