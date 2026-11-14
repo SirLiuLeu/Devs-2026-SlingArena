@@ -333,11 +333,11 @@ function FoodService:_getFoodPlacementRadius(template: Model): number
 	return 0
 end
 
-function FoodService:_isSpawnPositionValid(spawnPart: BasePart, candidate: Vector3, foodRadius: number, _batchPositions: { Vector3 }, _batchRadii: { number }, _batchFoodTypes: { string }, foodType: string): boolean
+function FoodService:_isSpawnPositionValid(spawnPart: BasePart, candidate: Vector3, foodRadius: number, _batchPositions: { Vector3 }, _batchRadii: { number }, _batchFoodTypes: { string }, foodType: string, ignoreSpawnBounds: boolean?): boolean
 	local localCandidate = spawnPart.CFrame:PointToObjectSpace(candidate)
 	local foodTemplate = self._foodModels[foodType]
 	local hitbox = foodTemplate and resolveFoodHitbox(foodTemplate)
-	if hitbox then
+	if hitbox and not ignoreSpawnBounds then
 		local halfWidth = spawnPart.Size.X * 0.5 - hitbox.Size.X * 0.5
 		local halfDepth = spawnPart.Size.Z * 0.5 - hitbox.Size.Z * 0.5
 		if halfWidth < 0 or halfDepth < 0
@@ -348,10 +348,11 @@ function FoodService:_isSpawnPositionValid(spawnPart: BasePart, candidate: Vecto
 
 	for _, entry in ipairs(self:_collectNearbyEntries(candidate)) do
 		local otherHitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
-		if otherHitbox and otherHitbox:IsA("BasePart") then
-			local otherRadius = math.max(otherHitbox.Size.X, otherHitbox.Size.Z) * 0.5
-			local minimumCenterDistance = foodRadius + otherRadius
-			if sqrDistanceXZ(candidate, otherHitbox.Position) < minimumCenterDistance * minimumCenterDistance then
+		if hitbox and otherHitbox and otherHitbox:IsA("BasePart") then
+			local halfOverlapX = (hitbox.Size.X + otherHitbox.Size.X) * 0.5
+			local halfOverlapZ = (hitbox.Size.Z + otherHitbox.Size.Z) * 0.5
+			local offset = flattenXZ(candidate - otherHitbox.Position)
+			if math.abs(offset.X) < halfOverlapX and math.abs(offset.Z) < halfOverlapZ then
 				return false
 			end
 		end
@@ -729,7 +730,16 @@ function FoodService:_trySpawnSlot(slot: any): boolean
 		slot.GroundY + templateHitbox.Size.Y * 0.5,
 		slot.Position.Z
 	)
-	if not self:_isSpawnPositionValid(spawnPart, candidate, foodRadius, {}, {}, {}, foodType) then
+	if not self:_isSpawnPositionValid(
+		spawnPart,
+		candidate,
+		foodRadius,
+		{},
+		{},
+		{},
+		foodType,
+		slot.Region ~= nil and slot.Region.IsCenter == true
+	) then
 		slot.BlockedAttempts += 1
 		slot.NextAttemptAt = os.clock() + SPAWN_RETRY_DELAY_SECONDS
 		if slot.BlockedAttempts >= 5 and not slot.WarnedBlocked then
