@@ -99,12 +99,14 @@ local function resolveFoodHitbox(foodModel: Model): BasePart?
 	return if primaryPart and primaryPart:IsA("BasePart") then primaryPart else nil
 end
 
-local function getAnchorSurfacePosition(foodModel: Model, spawnAnchor: BasePart, horizontalPosition: Vector3?, groundRaycastParams: RaycastParams?): Vector3?
+local function getAnchorSurfacePosition(foodModel: Model, spawnAnchor: BasePart, horizontalPosition: Vector3?, groundRaycastParams: RaycastParams?, footprintSize: Vector2?): Vector3?
 	local hitbox = resolveFoodHitbox(foodModel)
 	if not hitbox or not groundRaycastParams then return nil end
+	local footprintX = if footprintSize then footprintSize.X else hitbox.Size.X
+	local footprintZ = if footprintSize then footprintSize.Y else hitbox.Size.Z
 	local xzPosition = horizontalPosition
 	if not xzPosition then
-		local radius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5
+		local radius = math.max(footprintX, footprintZ) * 0.5
 		local halfWidth = math.max(spawnAnchor.Size.X * 0.5 - radius, 0)
 		local halfDepth = math.max(spawnAnchor.Size.Z * 0.5 - radius, 0)
 		local localX = (math.random() * 2 - 1) * halfWidth
@@ -131,7 +133,7 @@ local function getAnchorSurfacePosition(foodModel: Model, spawnAnchor: BasePart,
 		return nil
 	end
 
-	local halfX, halfZ = hitbox.Size.X * 0.5, hitbox.Size.Z * 0.5
+	local halfX, halfZ = footprintX * 0.5, footprintZ * 0.5
 	local corners = {
 		Vector3.new(-halfX, 0, -halfZ), Vector3.new(-halfX, 0, halfZ),
 		Vector3.new(halfX, 0, -halfZ), Vector3.new(halfX, 0, halfZ),
@@ -202,6 +204,8 @@ function FoodService.new(context)
 	self._foodModels = {}
 	self._maxFoodTemplate = nil
 	self._maxFoodPlacementRadius = 0
+	self._maxFoodFootprintX = 0
+	self._maxFoodFootprintZ = 0
 	self._spawnSlotsByPart = {}
 	self._spawnSchedulerRunning = false
 	self._foodPool = {}
@@ -292,6 +296,8 @@ function FoodService:_loadFoodModels()
 	self._foodModels = {}
 	self._maxFoodTemplate = nil
 	self._maxFoodPlacementRadius = 0
+	self._maxFoodFootprintX = 0
+	self._maxFoodFootprintZ = 0
 
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
 	local folder = assets and assets:FindFirstChild("FoodModels")
@@ -307,6 +313,8 @@ function FoodService:_loadFoodModels()
 			local visual = model:FindFirstChild("Visual")
 			if hitbox and hitbox:IsA("BasePart") and visual then
 				self._foodModels[foodName] = model
+				self._maxFoodFootprintX = math.max(self._maxFoodFootprintX, hitbox.Size.X)
+				self._maxFoodFootprintZ = math.max(self._maxFoodFootprintZ, hitbox.Size.Z)
 				local radius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5
 				if radius > self._maxFoodPlacementRadius then
 					self._maxFoodPlacementRadius = radius
@@ -471,7 +479,13 @@ function FoodService:_buildSpawnSlotsForPart(mapModel: Model, spawnPart: BasePar
 		end
 
 		if not overlapsReservedSlot then
-			local validatedHitboxPosition = getAnchorSurfacePosition(template, spawnPart, candidate, raycastParams)
+			local validatedHitboxPosition = getAnchorSurfacePosition(
+				template,
+				spawnPart,
+				candidate,
+				raycastParams,
+				Vector2.new(self._maxFoodFootprintX, self._maxFoodFootprintZ)
+			)
 			if validatedHitboxPosition then
 				local groundY = validatedHitboxPosition.Y - templateHitbox.Size.Y * 0.5
 				local groundPosition = Vector3.new(candidate.X, groundY, candidate.Z)
