@@ -20,7 +20,6 @@ local SPAWN_GRID_CONFIG = FoodConfig.SpawnGrid or {}
 local SPAWN_RETRY_DELAY_SECONDS = math.max(tonumber(SPAWN_GRID_CONFIG.BlockedRetryInterval) or 2, 0.25)
 local SPAWN_SCHEDULER_INTERVAL_SECONDS = math.max(tonumber(SPAWN_GRID_CONFIG.SchedulerInterval) or 0.1, 0.05)
 local MAX_SPAWN_PER_SCHEDULER_TICK = math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.MaxSpawnPerTick) or 12))
-local SPAWN_GRID_JITTER_FRACTION = math.clamp(tonumber(SPAWN_GRID_CONFIG.JitterFraction) or 0.12, 0, 0.25)
 local MAX_POOLED_FOOD_PER_TYPE = math.max(0, math.floor(tonumber(SPAWN_GRID_CONFIG.MaxPooledPerType) or 12))
 local MAX_CANDIDATE_CHECKS_PER_SLOT_TARGET = math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.MaxCandidateChecksPerSlotTarget) or 8))
 local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
@@ -176,14 +175,6 @@ local function sqrDistanceXZ(a: Vector3, b: Vector3): number
 	return dx * dx + dz * dz
 end
 
-local function isHpFoodType(foodType: string?): boolean
-	if type(foodType) ~= "string" then
-		return false
-	end
-	local rule = FoodConfig.Foods[foodType]
-	return rule ~= nil and FoodConfig.IsHpFood(rule.Type)
-end
-
 
 local function sanitizeUnit(v: Vector3, fallback: Vector3): Vector3
 	if v.Magnitude <= NORMAL_EPSILON then
@@ -196,10 +187,6 @@ function FoodService.new(context)
 	local self = setmetatable({}, FoodService)
 	self._context = context
 	self._foodModels = {}
-	self._maxFoodTemplate = nil
-	self._maxFoodPlacementRadius = 0
-	self._maxFoodFootprintX = 0
-	self._maxFoodFootprintZ = 0
 	self._spawnSlotsByPart = {}
 	self._spawnSchedulerRunning = false
 	self._foodPool = {}
@@ -288,10 +275,6 @@ end
 
 function FoodService:_loadFoodModels()
 	self._foodModels = {}
-	self._maxFoodTemplate = nil
-	self._maxFoodPlacementRadius = 0
-	self._maxFoodFootprintX = 0
-	self._maxFoodFootprintZ = 0
 
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
 	local folder = assets and assets:FindFirstChild("FoodModels")
@@ -307,13 +290,6 @@ function FoodService:_loadFoodModels()
 			local visual = model:FindFirstChild("Visual")
 			if hitbox and hitbox:IsA("BasePart") and visual then
 				self._foodModels[foodName] = model
-				self._maxFoodFootprintX = math.max(self._maxFoodFootprintX, hitbox.Size.X)
-				self._maxFoodFootprintZ = math.max(self._maxFoodFootprintZ, hitbox.Size.Z)
-				local radius = math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5
-				if radius > self._maxFoodPlacementRadius then
-					self._maxFoodPlacementRadius = radius
-					self._maxFoodTemplate = model
-				end
 			else
 				warn(string.format("[FoodService] Invalid food model shape: %s", model:GetFullName()))
 			end
@@ -321,11 +297,8 @@ function FoodService:_loadFoodModels()
 			warn(string.format("[FoodService] Missing food model: %s", foodName))
 		end
 	end
-
-	if not self._maxFoodTemplate then
-		warn("[FoodService] No valid Food model is available; fixed spawn slots cannot be built.")
-	end
 end
+
 function FoodService:_scanAndSpawnAllArenaMaps()
 	local mapsRoot = Workspace:FindFirstChild("Maps")
 	if not (mapsRoot and mapsRoot:IsA("Folder")) then
