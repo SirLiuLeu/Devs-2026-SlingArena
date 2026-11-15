@@ -8,43 +8,16 @@ local FoodConfig = {}
 FoodConfig.CommonRespawnTime = 10
 FoodConfig.HpFoodRespawnTime = 30
 
--- FoodSpawn Parts define the complete allowed X/Z rectangle.
--- Mid/Edge AreaBased counts are parent-region counts per FoodSpawn Part.
--- A Common parent region can expand into up to four Food models; an HP region remains one model.
-FoodConfig.SpawnAreaPerFood = 500
-FoodConfig.MinFoodPerSpawn = 1
-FoodConfig.MaxFoodPerSpawn = 40
--- Food-to-Food spacing is enforced by occupied grid cells and actual Hitbox extents.
--- No additional legacy edge gap is added, allowing dense Common subcells.
-FoodConfig.MinNoOverlapDistance = 0
-FoodConfig.HpFoodMinNoOverlapDistance = 0
-FoodConfig.MinPlayerSpawnClearance = 5
+-- Every manually placed FoodSpawn BasePart is one spawn point.
+-- A Common point creates four Foods; an HP point creates one Food and owns the whole point.
+-- Food model pivots are placed at the FoodSpawn pivot with a randomized local X/Z offset.
+FoodConfig.CommonFoodsPerSpawn = 4
+FoodConfig.SpawnOffsetRadius = 2
 
--- Fixed-region scheduler. Random positions and ground support are prepared once per map;
--- blocked slots retry without rebuilding the grid or rerolling their Food type.
--- MaxCandidateChecksPerTarget bounds region selection work when the requested count is dense.
-FoodConfig.SpawnGrid = {
-	-- Mid/Edge use 4x4-stud region cells. A Common region is split into 2x2 subcells,
-	-- producing up to four Common foods. HP food reserves the entire region.
-	RegionSizeX = 4,
-	RegionSizeZ = 4,
-	CommonSubdivisionsX = 2,
-	CommonSubdivisionsZ = 2,
-
-	SchedulerInterval = 0.1,
-	MaxSpawnPerTick = 12,
-	BlockedRetryInterval = 2,
-	MaxPooledPerType = 12,
-	MaxCandidateRegionChecksPerTarget = 8,
-}
-
--- Food must land on an upward-facing tagged floor close to the FoodSpawn plane.
-FoodConfig.GroundSurfaceTag = "Collision_Ground"
-FoodConfig.GroundRaycastStartHeight = 50
-FoodConfig.GroundRaycastDepth = 300
-FoodConfig.GroundMinNormalY = 0.9
-FoodConfig.GroundMaxVerticalOffset = 4
-FoodConfig.GroundMaxCornerHeightDifference = 1.5
+-- Keep initial/respawn batches bounded; HP slots are processed before Common slots.
+FoodConfig.SpawnSchedulerInterval = 0.1
+FoodConfig.MaxSpawnPerTick = 16
+FoodConfig.MaxPooledPerType = 12
 
 --==================================================
 -- 2) FOOD DEFINITIONS (BY MODEL NAME)
