@@ -143,22 +143,6 @@ FoodConfig.TypePools = {
 }
 
 
-FoodConfig.ZoneSpawnSettings = {
-	CenterZones = { ActivePerSpawn = 1 },
-	MidZones = { AreaBased = true },
-	EdgeZones = { AreaBased = true },
-}
-
-function FoodConfig.GetSpawnCountForArea(area: number): number
-	local safeArea = math.max(0, tonumber(area) or 0)
-	local density = math.max(1, FoodConfig.SpawnAreaPerFood)
-	return math.clamp(
-		math.floor(safeArea / density),
-		FoodConfig.MinFoodPerSpawn,
-		FoodConfig.MaxFoodPerSpawn
-	)
-end
-
 --==================================================
 -- 4) SPAWN WEIGHTS BY ZONE
 --==================================================
