@@ -19,10 +19,6 @@ local DEBUG_FOOD_HIT_REJECTS = false
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
-local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)local DEBUG_FOOD_HIT_REJECTS = false
-
-local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
-local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
 local function getFoodWorldPosition(food: Instance?): Vector3?
@@ -105,13 +101,6 @@ local function sanitizeUnit(v: Vector3, fallback: Vector3): Vector3
 	return v.Unit
 end
 
-local function sanitizeUnit(v: Vector3, fallback: Vector3): Vector3
-	if v.Magnitude <= NORMAL_EPSILON then
-		return fallback
-	end
-	return v.Unit
-end
-
 function FoodService.new(context)
 	local self = setmetatable({}, FoodService)
 	self._context = context
@@ -127,7 +116,7 @@ function FoodService.new(context)
 	return self
 end
 
-function FoodService:_resolveFoodUiTemplate()function FoodService:_resolveFoodUiTemplate(): BillboardGui?
+function FoodService:_resolveFoodUiTemplate(): BillboardGui?
 	local current = ReplicatedStorage
 	for _, childName in ipairs(FOOD_UI_TEMPLATE_PATH) do
 		current = current and current:FindFirstChild(childName)
@@ -741,7 +730,7 @@ function FoodService:_rewardFoodKill(entry: any)
 	end
 end
 
-function FoodService:_consumeFood(function FoodService:_consumeFood(entry: any, player: Player)
+function FoodService:_consumeFood(entry: any, player: Player)
 	if not entry.IsActive or entry.IsConsumed then
 		return
 	end
@@ -959,7 +948,7 @@ function FoodService:_startCollisionLoop()
 	return
 end
 
-function FoodService:Start()function FoodService:Start()
+function FoodService:Start()
 	self:_startSpawnScheduler()
 	local remote = self._context.Remotes:FindFirstChild("ReportFoodHit")
 	local feedbackRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
