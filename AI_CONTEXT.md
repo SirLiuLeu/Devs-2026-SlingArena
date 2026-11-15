@@ -316,3 +316,9 @@
 - Food damage, HP UI, LastHit, Legendary Gift Box/diamond rewards, touch consumption, Daily Quest events, and per-slot respawn timing remain in FoodService and are unchanged by the placement refactor.
 - Added regression assertions for four Common Foods per marker, 2-stud maximum radial offset, unchanged zone weights, and removal of the legacy grid/area config. Roblox Studio runtime validation remains required.
 
+## Food corner positions and QuestButton removal (2026-11-15)
+
+- Common Food slots are assigned to four fixed local X/Z quadrants. Each axis offset is independently randomized between 1 and 2 studs, so the four models occupy four corners around the marker rather than arbitrary directions around a circle.
+- HP Food retains its horizontal random offset (0–2 studs) and adds 1 stud to its model pivot Y. Common Food remains at the marker's pivot Y.
+- The obsolete MainHUD.Root.LeftMenu.QuestButton path was removed from ProjectTreeSpec and PROJECT_TREE. UIController no longer resolves it, watches its removal, or wires its click to expand Daily Quest. The QuestDaily panel keeps its own ToggleDropdown behavior.
+- Regression assertions now cover Common per-axis offset limits and the HP-only 1-stud vertical offset. Runtime position/overlap behavior still requires validation in Roblox Studio.
