@@ -863,5 +863,8 @@ Notes:
 ## FoodSpawn marker placement
 
 - `Workspace.Maps.<Arena>.FoodSpawns` keeps the existing `CenterZones`, `MidZones`, and `EdgeZones` folders.
-- Each `FoodSpawn_..N` is a manually positioned BasePart pivot marker. Its size is ignored by FoodService; place its pivot at the intended Food model pivot height and leave enough room around it.
-- One marker is allocated either one HP Food or four Common Food slots. Common Food slots occupy four diagonal corners, with a radial offset of 1.5–2 studs; FoodService can increase the minimum based on actual Hitbox size, up to the 2-stud maximum. HP Food receives an extra 1 stud of world-space Y height. Map authors are responsible for placing markers clear of walls, traps, and other obstructions.
+- Each `FoodSpawn_..N` is a manually positioned BasePart pivot marker; marker size is ignored.
+- `FoodConfig.SpawnRadius = 5` defines the circular X/Z boundary around the pivot. The 10-stud bounding square is divided into nine equal 3x3 cells.
+- Each cell spawns one Food selected by an independent roll against the parent zone's `ZoneWeights`; Common and HP-based Food can coexist at one marker.
+- Position is randomized inside the cell and constrained to the 5-stud circular radius. When a Food Hitbox fits inside the 3.33-stud cell, the sampling range is reduced by its half X/Z extents. The same Food type and cell are retained for respawn, but position is rerolled within that cell.
+- HP-based Food receives an additional 1 stud of world-space Y height. Increase or decrease `SpawnRadius` in `FoodConfig.lua` to adjust local Food density. Map authors must keep pivots clear of walls, traps and other obstructions.
