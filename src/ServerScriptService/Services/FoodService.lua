@@ -343,7 +343,7 @@ function FoodService:_buildFoodSlotsForSpawnPoint(point: any): number
 		then math.max(1, math.floor(tonumber(FoodConfig.CommonFoodsPerSpawn) or 4))
 		else 1
 
-	local commonMinRadius = nil
+	local commonMinRadius: number? = nil
 	if rarity == "Common" then
 		local configuredMaxRadius = math.max(
 			0,
