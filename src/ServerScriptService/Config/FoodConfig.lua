@@ -11,7 +11,7 @@ FoodConfig.HpFoodRespawnTime = 30
 -- Every FoodSpawn pivot creates one Food in each cell of a 3x3 grid.
 -- SpawnRadius is the circular X/Z boundary around the pivot; the grid spans its 10-stud diameter.
 -- Each cell samples a random point inside its square bounds and the circular boundary.
-FoodConfig.SpawnRadius = 5
+FoodConfig.SpawnRadius = 20
 FoodConfig.SpawnGridDivisions = 3
 FoodConfig.HpFoodPivotYOffset = 1 -- World-space Y lift for non-Common (HP-based) Food.
 
