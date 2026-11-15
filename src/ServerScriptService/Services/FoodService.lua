@@ -289,9 +289,9 @@ function FoodService:_assignFoodTypesForZone(zoneName: string, spawnPoints: { an
 	end
 end
 
-local function buildSpawnOffset(slotIndex: number, slotCount: number): Vector3
+local function buildSpawnOffset(slotIndex: number, slotCount: number, commonMinRadius: number?): Vector3
 	if slotCount == 4 then
-		local minRadius = math.max(0, tonumber(FoodConfig.CommonSpawnOffsetMin) or 1.5)
+		local minRadius = math.max(0, tonumber(commonMinRadius) or tonumber(FoodConfig.CommonSpawnOffsetMin) or 1.5)
 		local maxRadius = math.max(minRadius, tonumber(FoodConfig.CommonSpawnOffsetMax) or 2)
 		local radius = minRadius + math.random() * (maxRadius - minRadius)
 		local diagonalOffset = radius / math.sqrt(2)
@@ -319,10 +319,15 @@ function FoodService:_buildFoodSlotsForSpawnPoint(point: any): number
 	end
 
 	local availableTypes = {}
+	local maxCommonHitboxExtent = 0
 	for _, foodType in ipairs(FoodConfig.TypePools[rarity] or {}) do
 		local template = self._foodModels[foodType]
-		if template and resolveFoodHitbox(template) and FoodConfig.Foods[foodType] then
+		local hitbox = template and resolveFoodHitbox(template)
+		if template and hitbox and FoodConfig.Foods[foodType] then
 			table.insert(availableTypes, foodType)
+			if rarity == "Common" then
+				maxCommonHitboxExtent = math.max(maxCommonHitboxExtent, hitbox.Size.X, hitbox.Size.Z)
+			end
 		end
 	end
 	if #availableTypes == 0 then
@@ -338,6 +343,25 @@ function FoodService:_buildFoodSlotsForSpawnPoint(point: any): number
 		then math.max(1, math.floor(tonumber(FoodConfig.CommonFoodsPerSpawn) or 4))
 		else 1
 
+	local commonMinRadius = nil
+	if rarity == "Common" then
+		local configuredMaxRadius = math.max(
+			0,
+			tonumber(FoodConfig.CommonSpawnOffsetMax) or tonumber(FoodConfig.SpawnOffsetRadius) or 2
+		)
+		local requiredRadius = maxCommonHitboxExtent / math.sqrt(2) + 0.05
+		local configuredMinRadius = math.max(0, tonumber(FoodConfig.CommonSpawnOffsetMin) or 1.5)
+		if requiredRadius > configuredMaxRadius then
+			warn(string.format(
+				"[FoodService] Common Food Hitbox is too large for the configured 2-stud pivot offset to guarantee separation. spawn=%s requiredRadius=%.2f maxRadius=%.2f",
+				point.SpawnPart:GetFullName(),
+				requiredRadius,
+				configuredMaxRadius
+			))
+		end
+		commonMinRadius = math.min(configuredMaxRadius, math.max(configuredMinRadius, requiredRadius))
+	end
+
 	for index = 1, slotCount do
 		local foodType = availableTypes[math.random(1, #availableTypes)]
 		local slot = {
@@ -346,7 +370,7 @@ function FoodService:_buildFoodSlotsForSpawnPoint(point: any): number
 			SpawnPart = point.SpawnPart,
 			ZoneName = point.ZoneName,
 			FoodType = foodType,
-			LocalOffset = buildSpawnOffset(index, slotCount),
+			LocalOffset = buildSpawnOffset(index, slotCount, commonMinRadius),
 			Index = index,
 			State = "Pending",
 			NextAttemptAt = 0,
