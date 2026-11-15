@@ -12,13 +12,14 @@ FoodConfig.HpFoodRespawnTime = 30
 -- ZoneSpawnOverrides can replace the grid dimensions and radius for individual zones.
 FoodConfig.SpawnRadius = 20
 FoodConfig.SpawnGridDivisions = 3
-FoodConfig.ZoneSpawnOverrides = {
+local zoneSpawnOverrides: { [string]: { Rows: number, Columns: number, SpawnRadius: number } } = {
 	CenterZones = {
 		Rows = 1,
 		Columns = 2,
 		SpawnRadius = 10,
 	},
 }
+FoodConfig.ZoneSpawnOverrides = zoneSpawnOverrides
 FoodConfig.HpFoodPivotYOffset = 1 -- World-space Y lift for non-Common (HP-based) Food.
 
 -- Keep initial/respawn batches bounded; HP slots are processed before Common slots.
