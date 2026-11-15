@@ -108,6 +108,7 @@ function FoodService.new(context)
 	self._spawnSlotsByPart = {}
 	self._spawnSchedulerRunning = false
 	self._foodPool = {}
+	self._warnedOversizedFoodTypes = {}
 	self._foodEntries = {}
 	self._foodById = {}
 	self._foodByInstance = {}
@@ -198,227 +199,142 @@ function FoodService:_scanAndSpawnAllArenaMaps()
 	end
 end
 
-function FoodService:_assignFoodTypesForZone(zoneName: string, spawnPoints: { any })
-	if #spawnPoints == 0 then
-		return
+local function getSpawnGridDivisions(): number
+	return math.max(1, math.floor(tonumber(FoodConfig.SpawnGridDivisions) or 3))
+end
+
+local function getSpawnRadius(): number
+	return math.max(0, tonumber(FoodConfig.SpawnRadius) or 5)
+end
+
+local function buildSpawnOffset(cellIndex: number, gridDivisions: number, spawnRadius: number, hitboxSize: Vector3?): Vector3
+	local cellSize = (spawnRadius * 2) / gridDivisions
+	local column = (cellIndex - 1) % gridDivisions
+	local row = math.floor((cellIndex - 1) / gridDivisions)
+	local cellMinX = -spawnRadius + column * cellSize
+	local cellMinZ = -spawnRadius + row * cellSize
+	local cellMaxX = cellMinX + cellSize
+	local cellMaxZ = cellMinZ + cellSize
+
+	-- Keep a fitting Hitbox inside its assigned cell so neighboring cells do not overlap.
+	local marginX = math.min(math.max(0, (hitboxSize and hitboxSize.X or 0) * 0.5), cellSize * 0.5)
+	local marginZ = math.min(math.max(0, (hitboxSize and hitboxSize.Z or 0) * 0.5), cellSize * 0.5)
+	local minX = cellMinX + marginX
+	local minZ = cellMinZ + marginZ
+	local maxX = cellMaxX - marginX
+	local maxZ = cellMaxZ - marginZ
+	local radiusSquared = spawnRadius * spawnRadius
+
+	-- Each cell is sampled independently. Reject points outside the circular spawn boundary.
+	for _ = 1, 64 do
+		local x = minX + math.random() * (maxX - minX)
+		local z = minZ + math.random() * (maxZ - minZ)
+		if x * x + z * z <= radiusSquared then
+			return Vector3.new(x, 0, z)
+		end
 	end
 
-	local weights = FoodConfig.ZoneWeights[zoneName]
+	-- With the configured 3x3 grid, every cell's center is inside the radius.
+	-- This deterministic fallback avoids leaving a slot unspawned after repeated rejected samples.
+	local centerX = (minX + maxX) * 0.5
+	local centerZ = (minZ + maxZ) * 0.5
+	local centerMagnitude = math.sqrt(centerX * centerX + centerZ * centerZ)
+	if centerMagnitude > spawnRadius and centerMagnitude > 0 then
+		local scale = spawnRadius / centerMagnitude
+		centerX *= scale
+		centerZ *= scale
+	end
+	return Vector3.new(centerX, 0, centerZ)
+end
+
+function FoodService:_buildFoodSlotsForSpawnPoint(point: any): number
+	local zoneWeights = FoodConfig.ZoneWeights[point.ZoneName]
 	local rarityOrder = { "Common", "Uncommon", "Rare", "Epic", "Legendary" }
-	local availableRarities = {}
+	local weightedRarities = {}
 	local totalWeight = 0
-	local remainders = {}
 
 	for order, rarity in ipairs(rarityOrder) do
-		local weight = tonumber(weights and weights[rarity]) or 0
-		local hasAvailableModel = false
-		for _, foodType in ipairs(FoodConfig.TypePools[rarity] or {}) do
-			if self._foodModels[foodType] and FoodConfig.Foods[foodType] then
-				hasAvailableModel = true
-				break
+		local weight = math.max(0, tonumber(zoneWeights and zoneWeights[rarity]) or 0)
+		if weight > 0 then
+			local availableTypes = {}
+			for _, foodType in ipairs(FoodConfig.TypePools[rarity] or {}) do
+				local template = self._foodModels[foodType]
+				local hitbox = template and resolveFoodHitbox(template)
+				local rule = FoodConfig.Foods[foodType]
+				if template and hitbox and rule and rule.Type == rarity then
+					table.insert(availableTypes, foodType)
+				end
 			end
-		end
-		if weight > 0 and hasAvailableModel then
-			totalWeight += weight
-			table.insert(availableRarities, { Rarity = rarity, Weight = weight, Order = order })
+
+			if #availableTypes > 0 then
+				totalWeight += weight
+				table.insert(weightedRarities, {
+					Rarity = rarity,
+					Weight = weight,
+					Order = order,
+					AvailableTypes = availableTypes,
+				})
+			end
 		end
 	end
 
 	if totalWeight <= 0 then
-		warn(string.format("[FoodService] Zone %s has FoodSpawn markers but no configured Food model is available.", zoneName))
-		return
-	end
-
-	-- Center markers are individually rolled; Mid/Edge preserve the configured zone proportions across markers.
-	if zoneName == "CenterZones" then
-		for _, point in ipairs(spawnPoints) do
-			local roll = math.random() * totalWeight
-			local cumulativeWeight = 0
-			for _, data in ipairs(availableRarities) do
-				cumulativeWeight += data.Weight
-				if roll <= cumulativeWeight then
-					point.Rarity = data.Rarity
-					break
-				end
-			end
-		end
-		return
-	end
-
-	local rarityCounts = {}
-	local allocatedCount = 0
-	for _, data in ipairs(availableRarities) do
-		local exactCount = #spawnPoints * data.Weight / totalWeight
-		local wholeCount = math.floor(exactCount)
-		rarityCounts[data.Rarity] = wholeCount
-		allocatedCount += wholeCount
-		table.insert(remainders, {
-			Rarity = data.Rarity,
-			Fraction = exactCount - wholeCount,
-			Order = data.Order,
-		})
-	end
-
-	table.sort(remainders, function(a, b)
-		if a.Fraction == b.Fraction then
-			return a.Order < b.Order
-		end
-		return a.Fraction > b.Fraction
-	end)
-
-	for index = 1, #spawnPoints - allocatedCount do
-		local remainder = remainders[index]
-		if remainder then
-			rarityCounts[remainder.Rarity] = (rarityCounts[remainder.Rarity] or 0) + 1
-		end
-	end
-
-	local assignedRarities = {}
-	for _, rarity in ipairs(rarityOrder) do
-		for _ = 1, rarityCounts[rarity] or 0 do
-			table.insert(assignedRarities, rarity)
-		end
-	end
-	for index = #assignedRarities, 2, -1 do
-		local swapIndex = math.random(1, index)
-		assignedRarities[index], assignedRarities[swapIndex] = assignedRarities[swapIndex], assignedRarities[index]
-	end
-
-	for index, point in ipairs(spawnPoints) do
-		point.Rarity = assignedRarities[index]
-	end
-end
-
-local function buildSpawnOffset(slotIndex: number, slotCount: number, commonMinRadius: number?): Vector3
-	if slotCount == 4 then
-		local minRadius = math.max(0, tonumber(commonMinRadius) or tonumber(FoodConfig.CommonSpawnOffsetMin) or 1.5)
-		local maxRadius = math.max(minRadius, tonumber(FoodConfig.CommonSpawnOffsetMax) or 2)
-		local radius = minRadius + math.random() * (maxRadius - minRadius)
-		local diagonalOffset = radius / math.sqrt(2)
-
-		-- Fixed 45-degree diagonals keep one Common Food in each corner.
-		local xSign = if slotIndex == 1 or slotIndex == 3 then -1 else 1
-		local zSign = if slotIndex <= 2 then -1 else 1
-		return Vector3.new(xSign * diagonalOffset, 0, zSign * diagonalOffset)
-	end
-
-	-- Single HP Food keeps a small randomized horizontal offset around its marker.
-	local maxRadius = math.max(0, tonumber(FoodConfig.SpawnOffsetRadius) or 2)
-	if maxRadius <= 0 then
-		return Vector3.zero
-	end
-	local radius = math.random() * maxRadius
-	local angle = math.random() * math.pi * 2
-	return Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
-end
-
-function FoodService:_buildFoodSlotsForSpawnPoint(point: any): number
-	local rarity = point.Rarity
-	if not rarity then
-		return 0
-	end
-
-	local availableTypes = {}
-	local maxCommonHitboxExtent = 0
-	for _, foodType in ipairs(FoodConfig.TypePools[rarity] or {}) do
-		local template = self._foodModels[foodType]
-		local hitbox = template and resolveFoodHitbox(template)
-		if template and hitbox and FoodConfig.Foods[foodType] then
-			table.insert(availableTypes, foodType)
-			if rarity == "Common" then
-				maxCommonHitboxExtent = math.max(maxCommonHitboxExtent, hitbox.Size.X, hitbox.Size.Z)
-			end
-		end
-	end
-	if #availableTypes == 0 then
 		warn(string.format(
-			"[FoodService] No valid Food models for rarity %s at %s",
-			tostring(rarity),
+			"[FoodService] No weighted Food models are available for zone %s at %s",
+			tostring(point.ZoneName),
 			point.SpawnPart:GetFullName()
 		))
 		return 0
 	end
 
-	local slotCount = if rarity == "Common"
-		then math.max(1, math.floor(tonumber(FoodConfig.CommonFoodsPerSpawn) or 4))
-		else 1
+	local gridDivisions = getSpawnGridDivisions()
+	local spawnRadius = getSpawnRadius()
+	local cellSize = (spawnRadius * 2) / gridDivisions
+	local slotCount = gridDivisions * gridDivisions
+	for cellIndex = 1, slotCount do
+		local roll = math.random() * totalWeight
+		local cumulativeWeight = 0
+		local selectedRarity = weightedRarities[#weightedRarities]
+		for _, rarityData in ipairs(weightedRarities) do
+			cumulativeWeight += rarityData.Weight
+			if roll <= cumulativeWeight then
+				selectedRarity = rarityData
+				break
+			end
+		end
 
-	local commonMinRadius: number? = nil
-	if rarity == "Common" then
-		local configuredMaxRadius = math.max(
-			0,
-			tonumber(FoodConfig.CommonSpawnOffsetMax) or tonumber(FoodConfig.SpawnOffsetRadius) or 2
-		)
-		local requiredRadius = maxCommonHitboxExtent / math.sqrt(2) + 0.05
-		local configuredMinRadius = math.max(0, tonumber(FoodConfig.CommonSpawnOffsetMin) or 1.5)
-		if requiredRadius > configuredMaxRadius then
+		local availableTypes = selectedRarity.AvailableTypes
+		local foodType = availableTypes[math.random(1, #availableTypes)]
+		local template = self._foodModels[foodType]
+		local hitbox = template and resolveFoodHitbox(template)
+		local hitboxSize = if hitbox then hitbox.Size else Vector3.zero
+		if hitbox and (hitboxSize.X > cellSize or hitboxSize.Z > cellSize)
+			and not self._warnedOversizedFoodTypes[foodType] then
+			self._warnedOversizedFoodTypes[foodType] = true
 			warn(string.format(
-				"[FoodService] Common Food Hitbox is too large for the configured 2-stud pivot offset to guarantee separation. spawn=%s requiredRadius=%.2f maxRadius=%.2f",
-				point.SpawnPart:GetFullName(),
-				requiredRadius,
-				configuredMaxRadius
+				"[FoodService] Food Hitbox is larger than its %.2f-stud grid cell; this model may overlap neighboring cells. food=%s hitbox=%s",
+				cellSize,
+				foodType,
+				tostring(hitboxSize)
 			))
 		end
-		commonMinRadius = math.min(configuredMaxRadius, math.max(configuredMinRadius, requiredRadius))
-	end
 
-	for index = 1, slotCount do
-		local foodType = availableTypes[math.random(1, #availableTypes)]
-		local slot = {
+		table.insert(point.Slots, {
 			MapModel = point.MapModel,
 			FoodContainer = point.FoodContainer,
 			SpawnPart = point.SpawnPart,
 			ZoneName = point.ZoneName,
+			Rarity = selectedRarity.Rarity,
 			FoodType = foodType,
-			LocalOffset = buildSpawnOffset(index, slotCount, commonMinRadius),
-			Index = index,
+			HitboxSize = hitboxSize,
+			Index = cellIndex,
 			State = "Pending",
 			NextAttemptAt = 0,
 			Entry = nil,
-		}
-		table.insert(point.Slots, slot)
+		})
 	end
 
 	return slotCount
-end
-
-function FoodService:_clearCommonFoodsAtSpawnPart(spawnPart: BasePart, hpSlot: any)
-	local record = self._spawnSlotsByPart[spawnPart]
-	if record then
-		for _, slot in ipairs(record.Slots) do
-			local rule = FoodConfig.Foods[slot.FoodType]
-			if rule and rule.Type == "Common" and slot ~= hpSlot then
-				slot.State = "Disabled"
-				slot.Entry = nil
-			end
-		end
-	end
-
-	local toRemove = {}
-	for _, entry in pairs(self._foodEntries) do
-		local rule = FoodConfig.Foods[entry.FoodType]
-		if entry.SpawnPart == spawnPart and rule and rule.Type == "Common" then
-			table.insert(toRemove, entry)
-		end
-	end
-
-	for _, entry in ipairs(toRemove) do
-		local instance = entry.Instance
-		entry.IsActive = false
-		entry.IsConsumed = true
-		self._foodEntries[instance] = nil
-		if entry.Id then
-			self._foodById[entry.Id] = nil
-		end
-		self._foodByInstance[instance] = nil
-		if entry.Slot then
-			entry.Slot.Entry = nil
-			entry.Slot.State = "Disabled"
-		end
-		if instance and instance.Parent then
-			self:_returnFoodModelToPool(entry.FoodType, instance)
-		end
-	end
 end
 
 function FoodService:_acquireFoodModel(foodType: string): Model?
@@ -494,11 +410,6 @@ function FoodService:_trySpawnSlot(slot: any): boolean
 		return false
 	end
 
-	-- An HP Food owns the full marker. Remove any Common group still attached to this pivot first.
-	if rule.Type ~= "Common" then
-		self:_clearCommonFoodsAtSpawnPart(spawnPart, slot)
-	end
-
 	local model = self:_acquireFoodModel(foodType)
 	if not model then
 		slot.State = "Disabled"
@@ -508,7 +419,8 @@ function FoodService:_trySpawnSlot(slot: any): boolean
 
 	model.Name = foodType
 	anchorFoodModel(model)
-	local localOffset = slot.LocalOffset or Vector3.zero
+	local localOffset = buildSpawnOffset(slot.Index, getSpawnGridDivisions(), getSpawnRadius(), slot.HitboxSize)
+	slot.LocalOffset = localOffset
 	local hpPivotYOffset = if rule.Type == "Common"
 		then 0
 		else math.max(0, tonumber(FoodConfig.HpFoodPivotYOffset) or 1)
@@ -680,26 +592,26 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 				FoodContainer = foodContainer,
 				SpawnPart = spawnPart,
 				ZoneName = zoneFolder.Name,
-				Rarity = nil,
 				Slots = {},
 			}
 			self._spawnSlotsByPart[spawnPart] = point
 			table.insert(spawnPoints, point)
 		end
 
-		self:_assignFoodTypesForZone(zoneFolder.Name, spawnPoints)
-
 		local rarityCounts = {}
 		local commonFoodSlotCount = 0
 		local hpFoodSlotCount = 0
+		local totalFoodSlotCount = 0
 		for _, point in ipairs(spawnPoints) do
-			if point.Rarity then
-				rarityCounts[point.Rarity] = (rarityCounts[point.Rarity] or 0) + 1
-				local slotCount = self:_buildFoodSlotsForSpawnPoint(point)
-				if point.Rarity == "Common" then
-					commonFoodSlotCount += slotCount
+			self:_buildFoodSlotsForSpawnPoint(point)
+			for _, slot in ipairs(point.Slots) do
+				totalFoodSlotCount += 1
+				rarityCounts[slot.Rarity] = (rarityCounts[slot.Rarity] or 0) + 1
+				local rule = FoodConfig.Foods[slot.FoodType]
+				if rule and rule.Type == "Common" then
+					commonFoodSlotCount += 1
 				else
-					hpFoodSlotCount += slotCount
+					hpFoodSlotCount += 1
 				end
 			end
 		end
@@ -713,10 +625,12 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 		end
 
 		print(string.format(
-			"[FoodService] Pivot spawn points prepared. map=%s zone=%s markers=%d commonFoods=%d hpFoods=%d rarity=%s",
+			"[FoodService] 3x3 pivot spawn cells prepared. map=%s zone=%s markers=%d cellsPerMarker=%d foodSlots=%d commonFoods=%d hpFoods=%d rarity=%s",
 			mapModel.Name,
 			zoneFolder.Name,
 			#spawnPoints,
+			getSpawnGridDivisions() * getSpawnGridDivisions(),
+			totalFoodSlotCount,
 			commonFoodSlotCount,
 			hpFoodSlotCount,
 			table.concat(raritySummary, ",")
