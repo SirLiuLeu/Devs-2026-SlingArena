@@ -864,4 +864,4 @@ Notes:
 
 - `Workspace.Maps.<Arena>.FoodSpawns` keeps the existing `CenterZones`, `MidZones`, and `EdgeZones` folders.
 - Each `FoodSpawn_..N` is a manually positioned BasePart pivot marker. Its size is ignored by FoodService; place its pivot at the intended Food model pivot height and leave enough room around it.
-- One marker is allocated either one HP Food or four Common Food slots. Common Food slots occupy all four local X/Z corners, with each axis offset randomized from 1 to 2 studs. HP Food receives an extra 1 stud of world-space Y height. Map authors are responsible for placing markers clear of walls, traps, and other obstructions.
+- One marker is allocated either one HP Food or four Common Food slots. Common Food slots occupy four diagonal corners, with a radial offset of 1.5–2 studs; FoodService can increase the minimum based on actual Hitbox size, up to the 2-stud maximum. HP Food receives an extra 1 stud of world-space Y height. Map authors are responsible for placing markers clear of walls, traps, and other obstructions.
