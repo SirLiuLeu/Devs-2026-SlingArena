@@ -291,15 +291,15 @@ end
 
 local function buildSpawnOffset(slotIndex: number, slotCount: number): Vector3
 	if slotCount == 4 then
-		local minDistance = math.max(0, tonumber(FoodConfig.CommonSpawnOffsetMin) or 1)
-		local maxDistance = math.max(minDistance, tonumber(FoodConfig.CommonSpawnOffsetMax) or 2)
-		local distanceX = minDistance + math.random() * (maxDistance - minDistance)
-		local distanceZ = minDistance + math.random() * (maxDistance - minDistance)
+		local minRadius = math.max(0, tonumber(FoodConfig.CommonSpawnOffsetMin) or 1.5)
+		local maxRadius = math.max(minRadius, tonumber(FoodConfig.CommonSpawnOffsetMax) or 2)
+		local radius = minRadius + math.random() * (maxRadius - minRadius)
+		local diagonalOffset = radius / math.sqrt(2)
 
-		-- Stable quadrant assignment: one Common Food in each local X/Z corner.
+		-- Fixed 45-degree diagonals keep one Common Food in each corner.
 		local xSign = if slotIndex == 1 or slotIndex == 3 then -1 else 1
 		local zSign = if slotIndex <= 2 then -1 else 1
-		return Vector3.new(xSign * distanceX, 0, zSign * distanceZ)
+		return Vector3.new(xSign * diagonalOffset, 0, zSign * diagonalOffset)
 	end
 
 	-- Single HP Food keeps a small randomized horizontal offset around its marker.
