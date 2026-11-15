@@ -665,7 +665,6 @@ DataModel
 │  │     │  │  ├─ SoundOnIcon (ImageLabel)
 │  │     │  │  └─ SoundOffIcon (ImageLabel)
 │  │     │  ├─ TabScore (ImageButton)
-│  │     │  ├─ Quest (ImageButton)
 │  │     │  └─ ShopButton (ImageButton)
 │  │     ├─ RankFrame
 │  │     │  └─ List
