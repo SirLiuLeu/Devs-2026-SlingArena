@@ -24,7 +24,6 @@ local ProjectTreeSpec = {
 			SoundOffIcon = "MainHUD.Root.LeftMenu.SoundToggleButton.SoundOffIcon", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.SoundToggleButton.SoundOffIcon (ImageLabel)
 			ShopButton = "MainHUD.Root.LeftMenu.ShopButton", -- [ASSUMED] StarterGui.MainHUD.Root.LeftMenu.ShopButton
 			TabScore = "MainHUD.Root.LeftMenu.TabScore", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.TabScore
-			QuestButton = "MainHUD.Root.LeftMenu.QuestButton", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.LeftMenu.QuestButton
 			DailyQuest = {
 				Root = "MainHUD.Root.QuestDaily", -- [PROJECT_TREE_SPEC] StarterGui.MainHUD.Root.QuestDaily
 				RootBody = "MainHUD.Root.QuestDaily.RootBody", -- [PROJECT_TREE_SPEC]
