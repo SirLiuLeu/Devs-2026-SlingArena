@@ -8,14 +8,12 @@ local FoodConfig = {}
 FoodConfig.CommonRespawnTime = 10
 FoodConfig.HpFoodRespawnTime = 30
 
--- Every manually placed FoodSpawn BasePart is one spawn point.
--- A Common point creates four Foods; an HP point creates one Food and owns the whole point.
--- Food model pivots are placed at the FoodSpawn pivot with a randomized local X/Z offset.
-FoodConfig.CommonFoodsPerSpawn = 4
-FoodConfig.CommonSpawnOffsetMin = 1.5 -- Radial distance; keeps adjacent 2x2 Hitboxes separated.
-FoodConfig.CommonSpawnOffsetMax = 2
-FoodConfig.SpawnOffsetRadius = 2 -- Horizontal offset radius for a single HP Food.
-FoodConfig.HpFoodPivotYOffset = 1
+-- Every FoodSpawn pivot creates one Food in each cell of a 3x3 grid.
+-- SpawnRadius is the circular X/Z boundary around the pivot; the grid spans its 10-stud diameter.
+-- Each cell samples a random point inside its square bounds and the circular boundary.
+FoodConfig.SpawnRadius = 5
+FoodConfig.SpawnGridDivisions = 3
+FoodConfig.HpFoodPivotYOffset = 1 -- World-space Y lift for non-Common (HP-based) Food.
 
 -- Keep initial/respawn batches bounded; HP slots are processed before Common slots.
 FoodConfig.SpawnSchedulerInterval = 0.1
