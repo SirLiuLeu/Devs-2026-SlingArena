@@ -318,7 +318,7 @@
 
 ## Food corner positions and QuestButton removal (2026-11-15)
 
-- Common Food slots are assigned to four fixed local X/Z quadrants. Each axis offset is independently randomized between 1 and 2 studs, so the four models occupy four corners around the marker rather than arbitrary directions around a circle.
+- Common Food slots are assigned to four fixed diagonal local X/Z quadrants. Their radial offset is randomized from 1.5 to 2 studs; FoodService raises the minimum using the largest available Common Hitbox extent (while retaining the 2-stud cap) and warns if a larger model cannot be separated within that cap.
 - HP Food retains its horizontal random offset (0–2 studs) and adds 1 stud to its model pivot Y. Common Food remains at the marker's pivot Y.
 - The obsolete MainHUD.Root.LeftMenu.QuestButton path was removed from ProjectTreeSpec and PROJECT_TREE. UIController no longer resolves it, watches its removal, or wires its click to expand Daily Quest. The QuestDaily panel keeps its own ToggleDropdown behavior.
-- Regression assertions now cover Common per-axis offset limits and the HP-only 1-stud vertical offset. Runtime position/overlap behavior still requires validation in Roblox Studio.
+- Regression assertions now cover the 1.5–2-stud Common radial range, at least 2-stud minimum center spacing for 2×2 Hitboxes, and the HP-only 1-stud vertical offset. Runtime position/overlap behavior still requires validation in Roblox Studio.
