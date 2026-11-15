@@ -747,6 +747,13 @@ DataModel
 │        │  ├─ SpawnPoint_03
 │        │  └─ SpawnPoint_04
 │        │
+│        ├─ Walls (Folder)
+│        │  ├─ Wall (Part)
+│        │  ├─ Wall (Part)
+│        │  ├─ Wall (Part)
+│        │  ├─ HighWall (Part)
+│        │  └─ HighWall (Part)
+│        │
 │        ├─ Traps (Folder)
 │        │  ├─ LavaTrap (Model)
 │        │  │  ├─ LavaFloor
@@ -759,8 +766,14 @@ DataModel
 │        │  └─ SpikeTrap (Model)
 │        │
 │        ├─ CenterCross (Model)
+│        │  ├─ Cross_Horizontal (Part)
+│        │  └─ Cross_Vertical (Part)
 │        ├─ ContestZone_Green (Model)
-│        ├─ FarmZone_Main (Model)
+│        │  ├─ Green_Top_Strip (Part)
+│        │  ├─ Green_Right_Center (Part)
+│        │  ├─ Green_Bottom_Strip (Part)
+│        │  └─ Green_Left_Center (Part)
+│        ├─ Ramp (Model)
 │        └─ SimulatorCircle (Model)
 │           ├── GradientCylinder (Mesh)
 │           │    ├─ Decal
