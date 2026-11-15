@@ -12,7 +12,10 @@ FoodConfig.HpFoodRespawnTime = 30
 -- A Common point creates four Foods; an HP point creates one Food and owns the whole point.
 -- Food model pivots are placed at the FoodSpawn pivot with a randomized local X/Z offset.
 FoodConfig.CommonFoodsPerSpawn = 4
-FoodConfig.SpawnOffsetRadius = 2
+FoodConfig.CommonSpawnOffsetMin = 1
+FoodConfig.CommonSpawnOffsetMax = 2
+FoodConfig.SpawnOffsetRadius = 2 -- Horizontal offset radius for a single HP Food.
+FoodConfig.HpFoodPivotYOffset = 1
 
 -- Keep initial/respawn batches bounded; HP slots are processed before Common slots.
 FoodConfig.SpawnSchedulerInterval = 0.1
