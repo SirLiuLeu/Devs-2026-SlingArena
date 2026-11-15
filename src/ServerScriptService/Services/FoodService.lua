@@ -295,10 +295,16 @@ local function buildSpawnOffset(slotIndex: number, slotCount: number): Vector3
 		return Vector3.zero
 	end
 
-	local baseAngle = ((slotIndex - 1) / math.max(1, slotCount)) * math.pi * 2
-	local angleJitter = (math.random() - 0.5) * (math.pi / math.max(1, slotCount))
 	local radius = math.random() * maxRadius
-	return Vector3.new(math.cos(baseAngle + angleJitter) * radius, 0, math.sin(baseAngle + angleJitter) * radius)
+	local angle
+	if slotCount == 1 then
+		angle = math.random() * math.pi * 2
+	else
+		local baseAngle = ((slotIndex - 1) / slotCount) * math.pi * 2
+		local angleJitter = (math.random() - 0.5) * (math.pi / slotCount)
+		angle = baseAngle + angleJitter
+	end
+	return Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
 end
 
 function FoodService:_buildFoodSlotsForSpawnPoint(point: any): number
@@ -766,8 +772,6 @@ function FoodService:_consumeFood(entry: any, player: Player)
 			slot.Entry = nil
 			slot.State = "Pending"
 			slot.NextAttemptAt = os.clock() + math.max(0, tonumber(rule.RespawnTime) or 1)
-			slot.BlockedAttempts = 0
-			slot.WarnedBlocked = false
 		end
 	end
 end
