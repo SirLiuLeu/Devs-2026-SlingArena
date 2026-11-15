@@ -1,12 +1,9 @@
 --!strict
 
-local Players = game:GetService("Players")
-local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
-local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local CombatCollision = require(ReplicatedStorage.Shared.Utils.CombatCollision)
 local CollisionValidation = require(script.Parent.Helpers.CollisionValidation)
@@ -15,15 +12,14 @@ local FOOD_UI_TEMPLATE_PATH = { "Assets", "UI", "FoodWorldUI" }
 local FOOD_HIT_RADIUS_PADDING = PhysicsConfig.Collision.Range
 local NORMAL_EPSILON = 1e-5
 local MIN_SPEED_EPSILON = 1e-3
-local GRID_CELL_SIZE = 48
-local SPAWN_GRID_CONFIG = FoodConfig.SpawnGrid or {}
-local SPAWN_RETRY_DELAY_SECONDS = math.max(tonumber(SPAWN_GRID_CONFIG.BlockedRetryInterval) or 2, 0.25)
-local SPAWN_SCHEDULER_INTERVAL_SECONDS = math.max(tonumber(SPAWN_GRID_CONFIG.SchedulerInterval) or 0.1, 0.05)
-local MAX_SPAWN_PER_SCHEDULER_TICK = math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.MaxSpawnPerTick) or 12))
-local MAX_POOLED_FOOD_PER_TYPE = math.max(0, math.floor(tonumber(SPAWN_GRID_CONFIG.MaxPooledPerType) or 12))
-local MAX_CANDIDATE_REGION_CHECKS_PER_TARGET = math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.MaxCandidateRegionChecksPerTarget) or 8))
-local VALIDATION_EPSILON = PhysicsConfig.Collision.ValidationTolerance
+local SPAWN_SCHEDULER_INTERVAL_SECONDS = math.max(tonumber(FoodConfig.SpawnSchedulerInterval) or 0.1, 0.05)
+local MAX_SPAWN_PER_SCHEDULER_TICK = math.max(1, math.floor(tonumber(FoodConfig.MaxSpawnPerTick) or 16))
+local MAX_POOLED_FOOD_PER_TYPE = math.max(0, math.floor(tonumber(FoodConfig.MaxPooledPerType) or 12))
 local DEBUG_FOOD_HIT_REJECTS = false
+
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
+local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)local DEBUG_FOOD_HIT_REJECTS = false
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
@@ -98,83 +94,16 @@ local function resolveFoodHitbox(foodModel: Model): BasePart?
 	return if primaryPart and primaryPart:IsA("BasePart") then primaryPart else nil
 end
 
-local function getAnchorSurfacePosition(foodModel: Model, spawnAnchor: BasePart, horizontalPosition: Vector3?, groundRaycastParams: RaycastParams?, footprintSize: Vector2?, ignoreSpawnBounds: boolean?): Vector3?
-	local hitbox = resolveFoodHitbox(foodModel)
-	if not hitbox or not groundRaycastParams then return nil end
-	local footprintX = if footprintSize then footprintSize.X else hitbox.Size.X
-	local footprintZ = if footprintSize then footprintSize.Y else hitbox.Size.Z
-	local xzPosition = horizontalPosition
-	if not xzPosition then
-		local radius = math.max(footprintX, footprintZ) * 0.5
-		local halfWidth = math.max(spawnAnchor.Size.X * 0.5 - radius, 0)
-		local halfDepth = math.max(spawnAnchor.Size.Z * 0.5 - radius, 0)
-		local localX = (math.random() * 2 - 1) * halfWidth
-		local localZ = (math.random() * 2 - 1) * halfDepth
-		xzPosition = spawnAnchor.CFrame:PointToWorldSpace(Vector3.new(localX, 0, localZ))
-	end
-
-	local localPosition = spawnAnchor.CFrame:PointToObjectSpace(xzPosition)
-	local halfWidth = spawnAnchor.Size.X * 0.5 - footprintX * 0.5
-	local halfDepth = spawnAnchor.Size.Z * 0.5 - footprintZ * 0.5
-	if not ignoreSpawnBounds and (halfWidth < 0 or halfDepth < 0
-		or math.abs(localPosition.X) > halfWidth or math.abs(localPosition.Z) > halfDepth) then
-		return nil
-	end
-
-	local spawnPlaneY = spawnAnchor.Position.Y + spawnAnchor.Size.Y * 0.5
-	local startY = math.max(spawnPlaneY, xzPosition.Y) + math.max(1, FoodConfig.GroundRaycastStartHeight or 50)
-	local direction = Vector3.new(0, -math.max(1, FoodConfig.GroundRaycastDepth or 300), 0)
-	local minNormalY = math.clamp(tonumber(FoodConfig.GroundMinNormalY) or 0.9, 0, 1)
-	local maxVerticalOffset = math.max(0, tonumber(FoodConfig.GroundMaxVerticalOffset) or 4)
-	local maxCornerHeightDifference = math.max(0, tonumber(FoodConfig.GroundMaxCornerHeightDifference) or 1.5)
-
-	local center = Workspace:Raycast(Vector3.new(xzPosition.X, startY, xzPosition.Z), direction, groundRaycastParams)
-	if not center or center.Normal.Y < minNormalY
-		or math.abs(center.Position.Y - spawnPlaneY) > maxVerticalOffset then
-		return nil
-	end
-
-	local halfX, halfZ = footprintX * 0.5, footprintZ * 0.5
-	local corners = {
-		Vector3.new(-halfX, 0, -halfZ), Vector3.new(-halfX, 0, halfZ),
-		Vector3.new(halfX, 0, -halfZ), Vector3.new(halfX, 0, halfZ),
-	}
-	local minY, maxY = center.Position.Y, center.Position.Y
-	for _, offset in ipairs(corners) do
-		local result = Workspace:Raycast(Vector3.new(xzPosition.X + offset.X, startY, xzPosition.Z + offset.Z), direction, groundRaycastParams)
-		if not result or result.Normal.Y < minNormalY
-			or math.abs(result.Position.Y - spawnPlaneY) > maxVerticalOffset then
-			return nil
-		end
-		minY = math.min(minY, result.Position.Y)
-		maxY = math.max(maxY, result.Position.Y)
-	end
-	if maxY - minY > maxCornerHeightDifference then return nil end
-	return Vector3.new(xzPosition.X, center.Position.Y + hitbox.Size.Y * 0.5, xzPosition.Z)
-end
-
-local function pivotFoodToAnchorSurface(foodModel: Model, targetHitboxPosition: Vector3): boolean
-	local hitbox = resolveFoodHitbox(foodModel)
-	if not hitbox then return false end
-	local pivotToHitbox = foodModel:GetPivot():ToObjectSpace(hitbox.CFrame)
-	foodModel:PivotTo(CFrame.new(targetHitboxPosition) * pivotToHitbox:Inverse())
-	return true
-end
-
-
-
-
-
 local function flattenXZ(v: Vector3): Vector3
 	return Vector3.new(v.X, 0, v.Z)
 end
 
-local function sqrDistanceXZ(a: Vector3, b: Vector3): number
-	local dx = a.X - b.X
-	local dz = a.Z - b.Z
-	return dx * dx + dz * dz
+local function sanitizeUnit(v: Vector3, fallback: Vector3): Vector3
+	if v.Magnitude <= NORMAL_EPSILON then
+		return fallback
+	end
+	return v.Unit
 end
-
 
 local function sanitizeUnit(v: Vector3, fallback: Vector3): Vector3
 	if v.Magnitude <= NORMAL_EPSILON then
@@ -190,47 +119,15 @@ function FoodService.new(context)
 	self._spawnSlotsByPart = {}
 	self._spawnSchedulerRunning = false
 	self._foodPool = {}
-	self._foodSpawnsByZone = {}
 	self._foodEntries = {}
 	self._foodById = {}
-	self._foodGrid = {}
 	self._foodByInstance = {}
 	self._playerConsumeCooldown = {}
 	self._foodHitByLaunchTarget = {}
-	self._groundRaycastParamsByMap = {}
 	return self
 end
 
-local function gridKeyFromPosition(pos: Vector3): string
-	return string.format("%d:%d", math.floor(pos.X / GRID_CELL_SIZE), math.floor(pos.Z / GRID_CELL_SIZE))
-end
-
-function FoodService:_addEntryToGrid(entry: any)
-	local hitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
-	if not (hitbox and hitbox:IsA("BasePart")) then
-		return
-	end
-	local key = gridKeyFromPosition(hitbox.Position)
-	self._foodGrid[key] = self._foodGrid[key] or {}
-	self._foodGrid[key][entry.Id] = entry
-	entry.GridKey = key
-end
-
-function FoodService:_removeEntryFromGrid(entry: any)
-	if not entry.GridKey then
-		return
-	end
-	local bucket = self._foodGrid[entry.GridKey]
-	if bucket then
-		bucket[entry.Id] = nil
-		if next(bucket) == nil then
-			self._foodGrid[entry.GridKey] = nil
-		end
-	end
-	entry.GridKey = nil
-end
-
-function FoodService:_resolveFoodUiTemplate(): BillboardGui?
+function FoodService:_resolveFoodUiTemplate()function FoodService:_resolveFoodUiTemplate(): BillboardGui?
 	local current = ReplicatedStorage
 	for _, childName in ipairs(FOOD_UI_TEMPLATE_PATH) do
 		current = current and current:FindFirstChild(childName)
@@ -312,144 +209,8 @@ function FoodService:_scanAndSpawnAllArenaMaps()
 	end
 end
 
-function FoodService:_getSpawnCountForZone(zoneName: string, spawnPart: BasePart?): number
-	local settings = FoodConfig.ZoneSpawnSettings[zoneName]
-	if not settings then return 0 end
-	local fixedCount = tonumber(settings.ActivePerSpawn)
-	if fixedCount and fixedCount > 0 then return math.floor(fixedCount) end
-	if settings.AreaBased == true and spawnPart then
-		return FoodConfig.GetSpawnCountForArea(spawnPart.Size.X * spawnPart.Size.Z)
-	end
-	return 0
-end
-
-
-
-function FoodService:_getFoodPlacementRadius(template: Model): number
-	local hitbox = template:FindFirstChild("Hitbox")
-	if hitbox and hitbox:IsA("BasePart") then
-		return math.max(hitbox.Size.X, hitbox.Size.Z) * 0.5
-	end
-	return 0
-end
-
-function FoodService:_isSpawnPositionValid(spawnPart: BasePart, candidate: Vector3, foodRadius: number, _batchPositions: { Vector3 }, _batchRadii: { number }, _batchFoodTypes: { string }, foodType: string, ignoreSpawnBounds: boolean?): boolean
-	local localCandidate = spawnPart.CFrame:PointToObjectSpace(candidate)
-	local foodTemplate = self._foodModels[foodType]
-	local hitbox = foodTemplate and resolveFoodHitbox(foodTemplate)
-	if hitbox and not ignoreSpawnBounds then
-		local halfWidth = spawnPart.Size.X * 0.5 - hitbox.Size.X * 0.5
-		local halfDepth = spawnPart.Size.Z * 0.5 - hitbox.Size.Z * 0.5
-		if halfWidth < 0 or halfDepth < 0
-			or math.abs(localCandidate.X) > halfWidth or math.abs(localCandidate.Z) > halfDepth then
-			return false
-		end
-	end
-
-	for _, entry in ipairs(self:_collectNearbyEntries(candidate)) do
-		local otherHitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
-		if hitbox and otherHitbox and otherHitbox:IsA("BasePart") then
-			local halfOverlapX = (hitbox.Size.X + otherHitbox.Size.X) * 0.5
-			local halfOverlapZ = (hitbox.Size.Z + otherHitbox.Size.Z) * 0.5
-			local offset = flattenXZ(candidate - otherHitbox.Position)
-			if math.abs(offset.X) < halfOverlapX and math.abs(offset.Z) < halfOverlapZ then
-				return false
-			end
-		end
-	end
-
-	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
-	local playerService = ServiceResolver.Get(self._context, "PlayerService")
-	if stateService and playerService then
-		for _, player in ipairs(Players:GetPlayers()) do
-			local state = stateService:GetState(player)
-			if not state or state.LocationState == GameStates.SessionState.Lobby or state.IsAlive ~= true then continue end
-			local root = playerService:GetRoot(player)
-			if root then
-				local playerRadius = math.max(root.Size.X, root.Size.Z) * 0.5
-				local spacing = foodRadius + playerRadius + math.max(0, FoodConfig.MinPlayerSpawnClearance or 0)
-				if sqrDistanceXZ(candidate, root.Position) <= spacing * spacing then return false end
-			end
-		end
-	end
-	return true
-end
-
-function FoodService:_buildLatticeRegions(spawnPart: BasePart, requestedCount: number): { any }
-	local regionSizeX = math.max(0.5, tonumber(SPAWN_GRID_CONFIG.RegionSizeX) or 4)
-	local regionSizeZ = math.max(0.5, tonumber(SPAWN_GRID_CONFIG.RegionSizeZ) or 4)
-	local columns = math.max(1, math.floor(spawnPart.Size.X / regionSizeX))
-	local rows = math.max(1, math.floor(spawnPart.Size.Z / regionSizeZ))
-	local stepX = spawnPart.Size.X / columns
-	local stepZ = spawnPart.Size.Z / rows
-	local totalRegions = columns * rows
-	local candidateBudget = math.min(
-		totalRegions,
-		math.max(requestedCount * MAX_CANDIDATE_REGION_CHECKS_PER_TARGET, requestedCount + 8)
-	)
-	local regions = {}
-	local selectedIndices = {}
-
-	-- Sample only the bounded candidate budget rather than allocating/shuffling every grid cell in a large FoodSpawn.
-	while #regions < candidateBudget do
-		local flatIndex = math.random(1, totalRegions)
-		if not selectedIndices[flatIndex] then
-			selectedIndices[flatIndex] = true
-			local zeroIndex = flatIndex - 1
-			local column = math.floor(zeroIndex / rows)
-			local row = zeroIndex % rows
-			local localX = -spawnPart.Size.X * 0.5 + (column + 0.5) * stepX
-			local localZ = -spawnPart.Size.Z * 0.5 + (row + 0.5) * stepZ
-			table.insert(regions, {
-				SpawnPart = spawnPart,
-				ZoneName = nil,
-				CenterLocalX = localX,
-				CenterLocalZ = localZ,
-				SizeX = stepX,
-				SizeZ = stepZ,
-				IsCenter = false,
-				Rarity = nil,
-			})
-		end
-	end
-	return regions
-end
-
-function FoodService:_buildSpawnSlotsForPart(mapModel: Model, spawnPart: BasePart, zoneName: string): ({ any }, number)
-	local targetCount = self:_getSpawnCountForZone(zoneName, spawnPart)
-	if targetCount <= 0 then
-		return {}, targetCount
-	end
-
-	if zoneName == "CenterZones" then
-		return {
-			{
-				MapModel = mapModel,
-				SpawnPart = spawnPart,
-				ZoneName = zoneName,
-				CenterLocalX = 0,
-				CenterLocalZ = 0,
-				SizeX = 0,
-				SizeZ = 0,
-				IsCenter = true,
-				Rarity = nil,
-			}
-		}, targetCount
-	end
-
-	local candidates = self:_buildLatticeRegions(spawnPart, targetCount)
-	local regions = {}
-	for index = 1, math.min(#candidates, targetCount) do
-		local region = candidates[index]
-		region.MapModel = mapModel
-		region.ZoneName = zoneName
-		table.insert(regions, region)
-	end
-	return regions, targetCount
-end
-
-function FoodService:_assignFoodTypesForZone(zoneName: string, regions: { any })
-	if #regions == 0 then
+function FoodService:_assignFoodTypesForZone(zoneName: string, spawnPoints: { any })
+	if #spawnPoints == 0 then
 		return
 	end
 
@@ -475,19 +236,19 @@ function FoodService:_assignFoodTypesForZone(zoneName: string, regions: { any })
 	end
 
 	if totalWeight <= 0 then
-		warn(string.format("[FoodService] Zone %s has regions but no configured Food model is available.", zoneName))
+		warn(string.format("[FoodService] Zone %s has FoodSpawn markers but no configured Food model is available.", zoneName))
 		return
 	end
 
-	-- Center markers represent independent hand-placed rewards; preserve their configured per-marker odds.
+	-- Center markers are individually rolled; Mid/Edge preserve the configured zone proportions across markers.
 	if zoneName == "CenterZones" then
-		for _, region in ipairs(regions) do
+		for _, point in ipairs(spawnPoints) do
 			local roll = math.random() * totalWeight
 			local cumulativeWeight = 0
 			for _, data in ipairs(availableRarities) do
 				cumulativeWeight += data.Weight
 				if roll <= cumulativeWeight then
-					region.Rarity = data.Rarity
+					point.Rarity = data.Rarity
 					break
 				end
 			end
@@ -498,7 +259,7 @@ function FoodService:_assignFoodTypesForZone(zoneName: string, regions: { any })
 	local rarityCounts = {}
 	local allocatedCount = 0
 	for _, data in ipairs(availableRarities) do
-		local exactCount = #regions * data.Weight / totalWeight
+		local exactCount = #spawnPoints * data.Weight / totalWeight
 		local wholeCount = math.floor(exactCount)
 		rarityCounts[data.Rarity] = wholeCount
 		allocatedCount += wholeCount
@@ -516,9 +277,11 @@ function FoodService:_assignFoodTypesForZone(zoneName: string, regions: { any })
 		return a.Fraction > b.Fraction
 	end)
 
-	for index = 1, #regions - allocatedCount do
-		local rarity = remainders[index].Rarity
-		rarityCounts[rarity] = (rarityCounts[rarity] or 0) + 1
+	for index = 1, #spawnPoints - allocatedCount do
+		local remainder = remainders[index]
+		if remainder then
+			rarityCounts[remainder.Rarity] = (rarityCounts[remainder.Rarity] or 0) + 1
+		end
 	end
 
 	local assignedRarities = {}
@@ -532,143 +295,106 @@ function FoodService:_assignFoodTypesForZone(zoneName: string, regions: { any })
 		assignedRarities[index], assignedRarities[swapIndex] = assignedRarities[swapIndex], assignedRarities[index]
 	end
 
-	for index, region in ipairs(regions) do
-		region.Rarity = assignedRarities[index]
+	for index, point in ipairs(spawnPoints) do
+		point.Rarity = assignedRarities[index]
 	end
 end
 
-function FoodService:_createFoodSlotForRegion(region: any, foodType: string, subCellX: number?, subCellZ: number?, subCellsX: number?, subCellsZ: number?): any?
-	local spawnPart = region.SpawnPart
-	local mapModel = region.MapModel
-	local template = self._foodModels[foodType]
-	local hitbox = template and resolveFoodHitbox(template)
-	local raycastParams = mapModel and self._groundRaycastParamsByMap[mapModel]
-	if not (template and hitbox and raycastParams) then
-		return nil
+local function buildSpawnOffset(slotIndex: number, slotCount: number): Vector3
+	local maxRadius = math.max(0, tonumber(FoodConfig.SpawnOffsetRadius) or 2)
+	if maxRadius <= 0 then
+		return Vector3.zero
 	end
 
-	local centerLocalX = region.CenterLocalX
-	local centerLocalZ = region.CenterLocalZ
-	local areaSizeX = region.SizeX
-	local areaSizeZ = region.SizeZ
-	if subCellX ~= nil and subCellZ ~= nil and subCellsX and subCellsZ then
-		areaSizeX = region.SizeX / subCellsX
-		areaSizeZ = region.SizeZ / subCellsZ
-		centerLocalX += -region.SizeX * 0.5 + (subCellX + 0.5) * areaSizeX
-		centerLocalZ += -region.SizeZ * 0.5 + (subCellZ + 0.5) * areaSizeZ
-	end
-
-	if not region.IsCenter and (hitbox.Size.X > areaSizeX or hitbox.Size.Z > areaSizeZ) then
-		return nil
-	end
-
-	local maxOffsetX = if region.IsCenter then 0 else math.max(0, (areaSizeX - hitbox.Size.X) * 0.5)
-	local maxOffsetZ = if region.IsCenter then 0 else math.max(0, (areaSizeZ - hitbox.Size.Z) * 0.5)
-	local candidate: Vector3? = nil
-	local surfacePosition: Vector3? = nil
-	for _ = 1, 4 do
-		local localX = centerLocalX + (math.random() * 2 - 1) * maxOffsetX
-		local localZ = centerLocalZ + (math.random() * 2 - 1) * maxOffsetZ
-		candidate = spawnPart.CFrame:PointToWorldSpace(Vector3.new(localX, 0, localZ))
-		surfacePosition = getAnchorSurfacePosition(
-			template,
-			spawnPart,
-			candidate,
-			raycastParams,
-			Vector2.new(hitbox.Size.X, hitbox.Size.Z),
-			region.IsCenter
-		)
-		if surfacePosition then
-			break
-		end
-	end
-	if not surfacePosition then
-		return nil
-	end
-
-	return {
-		MapModel = mapModel,
-		SpawnPart = spawnPart,
-		ZoneName = region.ZoneName,
-		Position = surfacePosition,
-		GroundY = surfacePosition.Y - hitbox.Size.Y * 0.5,
-		FoodType = foodType,
-		State = "Pending",
-		NextAttemptAt = 0,
-		BlockedAttempts = 0,
-		WarnedBlocked = false,
-		Entry = nil,
-		Region = region,
-	}
+	local baseAngle = ((slotIndex - 1) / math.max(1, slotCount)) * math.pi * 2
+	local angleJitter = (math.random() - 0.5) * (math.pi / math.max(1, slotCount))
+	local radius = math.random() * maxRadius
+	return Vector3.new(math.cos(baseAngle + angleJitter) * radius, 0, math.sin(baseAngle + angleJitter) * radius)
 end
 
-function FoodService:_buildFoodSlotsForRegion(region: any): ({ any }, number)
-	local slots = {}
-	local rarity = region.Rarity
+function FoodService:_buildFoodSlotsForSpawnPoint(point: any): number
+	local rarity = point.Rarity
 	if not rarity then
-		return slots, 0
+		return 0
 	end
 
-	local pool = {}
+	local availableTypes = {}
 	for _, foodType in ipairs(FoodConfig.TypePools[rarity] or {}) do
 		local template = self._foodModels[foodType]
-		local hitbox = template and resolveFoodHitbox(template)
-		if hitbox then
-			table.insert(pool, foodType)
+		if template and resolveFoodHitbox(template) and FoodConfig.Foods[foodType] then
+			table.insert(availableTypes, foodType)
 		end
 	end
-	if #pool == 0 then
-		return slots, 0
+	if #availableTypes == 0 then
+		warn(string.format(
+			"[FoodService] No valid Food models for rarity %s at %s",
+			tostring(rarity),
+			point.SpawnPart:GetFullName()
+		))
+		return 0
 	end
 
-	local subdivisionsX = if rarity == "Common" and not region.IsCenter
-		then math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.CommonSubdivisionsX) or 2))
-		else 1
-	local subdivisionsZ = if rarity == "Common" and not region.IsCenter
-		then math.max(1, math.floor(tonumber(SPAWN_GRID_CONFIG.CommonSubdivisionsZ) or 2))
+	local slotCount = if rarity == "Common"
+		then math.max(1, math.floor(tonumber(FoodConfig.CommonFoodsPerSpawn) or 4))
 		else 1
 
-	for subX = 0, subdivisionsX - 1 do
-		for subZ = 0, subdivisionsZ - 1 do
-			local cellSizeX = region.SizeX / subdivisionsX
-			local cellSizeZ = region.SizeZ / subdivisionsZ
-			local candidateTypes = {}
-			for _, foodType in ipairs(pool) do
-				local template = self._foodModels[foodType]
-				local hitbox = template and resolveFoodHitbox(template)
-				if region.IsCenter or (hitbox and hitbox.Size.X <= cellSizeX and hitbox.Size.Z <= cellSizeZ) then
-					table.insert(candidateTypes, foodType)
-				end
-			end
+	for index = 1, slotCount do
+		local foodType = availableTypes[math.random(1, #availableTypes)]
+		local slot = {
+			MapModel = point.MapModel,
+			FoodContainer = point.FoodContainer,
+			SpawnPart = point.SpawnPart,
+			ZoneName = point.ZoneName,
+			FoodType = foodType,
+			LocalOffset = buildSpawnOffset(index, slotCount),
+			Index = index,
+			State = "Pending",
+			NextAttemptAt = 0,
+			Entry = nil,
+		}
+		table.insert(point.Slots, slot)
+	end
 
-			if #candidateTypes == 0 and rarity == "Common" and not region.IsCenter then
-				local fallbackTypes = {}
-				for _, foodType in ipairs(pool) do
-					local template = self._foodModels[foodType]
-					local hitbox = template and resolveFoodHitbox(template)
-					if hitbox and hitbox.Size.X <= region.SizeX and hitbox.Size.Z <= region.SizeZ then
-						table.insert(fallbackTypes, foodType)
-					end
-				end
-				if #fallbackTypes > 0 then
-					local selectedType = fallbackTypes[math.random(1, #fallbackTypes)]
-					local slot = self:_createFoodSlotForRegion(region, selectedType)
-					if slot then table.insert(slots, slot) end
-					return slots, 1
-				end
-				return slots, 1
-			end
+	return slotCount
+end
 
-			if #candidateTypes > 0 then
-				local selectedType = candidateTypes[math.random(1, #candidateTypes)]
-				local slot = self:_createFoodSlotForRegion(region, selectedType, subX, subZ, subdivisionsX, subdivisionsZ)
-				if slot then table.insert(slots, slot) end
+function FoodService:_clearCommonFoodsAtSpawnPart(spawnPart: BasePart, hpSlot: any)
+	local record = self._spawnSlotsByPart[spawnPart]
+	if record then
+		for _, slot in ipairs(record.Slots) do
+			local rule = FoodConfig.Foods[slot.FoodType]
+			if rule and rule.Type == "Common" and slot ~= hpSlot then
+				slot.State = "Disabled"
+				slot.Entry = nil
 			end
 		end
 	end
 
-	local expectedCount = if rarity == "Common" and not region.IsCenter then subdivisionsX * subdivisionsZ else 1
-	return slots, expectedCount
+	local toRemove = {}
+	for _, entry in pairs(self._foodEntries) do
+		local rule = FoodConfig.Foods[entry.FoodType]
+		if entry.SpawnPart == spawnPart and rule and rule.Type == "Common" then
+			table.insert(toRemove, entry)
+		end
+	end
+
+	for _, entry in ipairs(toRemove) do
+		local instance = entry.Instance
+		entry.IsActive = false
+		entry.IsConsumed = true
+		self._foodEntries[instance] = nil
+		if entry.Id then
+			self._foodById[entry.Id] = nil
+		end
+		self._foodByInstance[instance] = nil
+		if entry.Slot then
+			entry.Slot.Entry = nil
+			entry.Slot.State = "Disabled"
+		end
+		if instance and instance.Parent then
+			self:_returnFoodModelToPool(entry.FoodType, instance)
+		end
+	end
 end
 
 function FoodService:_acquireFoodModel(foodType: string): Model?
@@ -738,42 +464,15 @@ function FoodService:_trySpawnSlot(slot: any): boolean
 	local foodType = slot.FoodType
 	local rule = foodType and FoodConfig.Foods[foodType]
 	local template = foodType and self._foodModels[foodType]
-	local templateHitbox = template and resolveFoodHitbox(template)
-	if not (foodType and rule and template and templateHitbox) then
+	if not (foodType and rule and template and resolveFoodHitbox(template)) then
 		slot.State = "Disabled"
 		warn(string.format("[FoodService] Disabled spawn slot because Food model/config is unavailable: %s", tostring(foodType)))
 		return false
 	end
 
-	local foodRadius = self:_getFoodPlacementRadius(template)
-	local candidate = Vector3.new(
-		slot.Position.X,
-		slot.GroundY + templateHitbox.Size.Y * 0.5,
-		slot.Position.Z
-	)
-	if not self:_isSpawnPositionValid(
-		spawnPart,
-		candidate,
-		foodRadius,
-		{},
-		{},
-		{},
-		foodType,
-		slot.Region ~= nil and slot.Region.IsCenter == true
-	) then
-		slot.BlockedAttempts += 1
-		slot.NextAttemptAt = os.clock() + SPAWN_RETRY_DELAY_SECONDS
-		if slot.BlockedAttempts >= 5 and not slot.WarnedBlocked then
-			slot.WarnedBlocked = true
-			warn(string.format(
-				"[FoodService] Spawn slot remains temporarily blocked; it will retry without rebuilding the grid. zone=%s spawn=%s slot=%d food=%s",
-				slot.ZoneName,
-				spawnPart:GetFullName(),
-				slot.Index or 0,
-				foodType
-			))
-		end
-		return false
+	-- An HP Food owns the full marker. Remove any Common group still attached to this pivot first.
+	if rule.Type ~= "Common" then
+		self:_clearCommonFoodsAtSpawnPart(spawnPart, slot)
 	end
 
 	local model = self:_acquireFoodModel(foodType)
@@ -782,14 +481,11 @@ function FoodService:_trySpawnSlot(slot: any): boolean
 		warn(string.format("[FoodService] Could not acquire Food model for spawn slot: %s", foodType))
 		return false
 	end
+
 	model.Name = foodType
 	anchorFoodModel(model)
-	if not pivotFoodToAnchorSurface(model, candidate) then
-		self:_returnFoodModelToPool(foodType, model)
-		slot.BlockedAttempts += 1
-		slot.NextAttemptAt = os.clock() + SPAWN_RETRY_DELAY_SECONDS
-		return false
-	end
+	local targetPivot = spawnPart:GetPivot() * CFrame.new(slot.LocalOffset or Vector3.zero)
+	model:PivotTo(targetPivot)
 
 	local hitbox = resolveFoodHitbox(model)
 	if not hitbox then
@@ -825,12 +521,9 @@ function FoodService:_trySpawnSlot(slot: any): boolean
 	self._foodEntries[model] = entry
 	self._foodById[entry.Id] = entry
 	self._foodByInstance[model] = entry
-	self:_addEntryToGrid(entry)
 
 	slot.Entry = entry
 	slot.State = "Occupied"
-	slot.BlockedAttempts = 0
-	slot.WarnedBlocked = false
 	return true
 end
 
@@ -843,10 +536,8 @@ function FoodService:_startSpawnScheduler()
 	task.spawn(function()
 		while self._spawnSchedulerRunning do
 			local now = os.clock()
-			local processedCount = 0
-			local hasPendingSlots = false
-			local hasReadyPendingSlots = false
-			local earliestPendingAt = nil
+			local pendingHpSlots = {}
+			local pendingCommonSlots = {}
 
 			for spawnPart, record in pairs(self._spawnSlotsByPart) do
 				if not (spawnPart.Parent and record.MapModel.Parent and record.FoodContainer.Parent) then
@@ -857,39 +548,39 @@ function FoodService:_startSpawnScheduler()
 					self._spawnSlotsByPart[spawnPart] = nil
 				else
 					for _, slot in ipairs(record.Slots) do
-						if slot.State == "Pending" then
-							hasPendingSlots = true
-							if slot.NextAttemptAt <= now then
-								hasReadyPendingSlots = true
-								if processedCount < MAX_SPAWN_PER_SCHEDULER_TICK then
-									processedCount += 1
-									self:_trySpawnSlot(slot)
-								end
+						if slot.State == "Pending" and slot.NextAttemptAt <= now then
+							local rule = FoodConfig.Foods[slot.FoodType]
+							if rule and rule.Type == "Common" then
+								table.insert(pendingCommonSlots, slot)
 							else
-								earliestPendingAt = if earliestPendingAt then math.min(earliestPendingAt, slot.NextAttemptAt) else slot.NextAttemptAt
+								table.insert(pendingHpSlots, slot)
 							end
 						end
 					end
+				end
+			end
+
+			-- HP Food respawns are always attempted before Common Food respawns.
+			local processedCount = 0
+			for _, queue in ipairs({ pendingHpSlots, pendingCommonSlots }) do
+				for _, slot in ipairs(queue) do
+					if processedCount >= MAX_SPAWN_PER_SCHEDULER_TICK then
+						break
+					end
+					processedCount += 1
+					self:_trySpawnSlot(slot)
 				end
 				if processedCount >= MAX_SPAWN_PER_SCHEDULER_TICK then
 					break
 				end
 			end
 
-			local waitTime = 1
-			if hasReadyPendingSlots then
-				waitTime = SPAWN_SCHEDULER_INTERVAL_SECONDS
-			elseif hasPendingSlots and earliestPendingAt then
-				waitTime = math.clamp(earliestPendingAt - os.clock(), SPAWN_SCHEDULER_INTERVAL_SECONDS, 1)
-			end
-			task.wait(waitTime)
+			task.wait(SPAWN_SCHEDULER_INTERVAL_SECONDS)
 		end
 	end)
 end
 
 function FoodService:ClearMapFood(mapModel: Model)
-	self._groundRaycastParamsByMap[mapModel] = nil
-
 	for spawnPart, record in pairs(self._spawnSlotsByPart) do
 		if spawnPart and spawnPart:IsDescendantOf(mapModel) then
 			for _, slot in ipairs(record.Slots) do
@@ -903,7 +594,7 @@ function FoodService:ClearMapFood(mapModel: Model)
 	for instance, entry in pairs(self._foodEntries) do
 		if instance and instance.Parent and instance:IsDescendantOf(mapModel) then
 			entry.IsActive = false
-			self:_removeEntryFromGrid(entry)
+			entry.IsConsumed = true
 			self._foodEntries[instance] = nil
 			if entry.Id then
 				self._foodById[entry.Id] = nil
@@ -917,30 +608,8 @@ function FoodService:ClearMapFood(mapModel: Model)
 		end
 	end
 end
-function FoodService:_buildGroundRaycastParams(mapModel: Model): RaycastParams?
-	local tagName = FoodConfig.GroundSurfaceTag or "Collision_Ground"
-	local included = {}
-	for _, instance in ipairs(CollectionService:GetTagged(tagName)) do
-		if (instance:IsA("BasePart") or instance:IsA("Model")) and instance:IsDescendantOf(mapModel) then
-			table.insert(included, instance)
-		end
-	end
-	if #included == 0 then
-		warn(string.format("[FoodService] Map %s has no floor tagged %s; Food spawning is skipped for this map.", mapModel:GetFullName(), tagName))
-		return nil
-	end
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Include
-	params.FilterDescendantsInstances = included
-	params.IgnoreWater = true
-	params.RespectCanCollide = true
-	return params
-end
 
 function FoodService:SpawnFoodForMap(mapModel: Model)
-	self._groundRaycastParamsByMap[mapModel] = self:_buildGroundRaycastParams(mapModel)
-	if not self._groundRaycastParamsByMap[mapModel] then return end
-
 	local foodContainer = mapModel:FindFirstChild("FoodContainer")
 	local foodSpawns = mapModel:FindFirstChild("FoodSpawns")
 	if not (foodContainer and foodContainer:IsA("Folder")) then
@@ -973,89 +642,57 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 			return a.Name < b.Name
 		end)
 
-		local zoneRegions = {}
-		local targetRegionCount = 0
+		local spawnPoints = {}
 		for _, spawnPart in ipairs(spawnParts) do
-			local regions, targetCount = self:_buildSpawnSlotsForPart(mapModel, spawnPart, zoneFolder.Name)
-			targetRegionCount += targetCount
-			self._spawnSlotsByPart[spawnPart] = {
+			local point = {
 				MapModel = mapModel,
 				FoodContainer = foodContainer,
 				SpawnPart = spawnPart,
 				ZoneName = zoneFolder.Name,
-				Regions = regions,
+				Rarity = nil,
 				Slots = {},
 			}
-			for _, region in ipairs(regions) do
-				table.insert(zoneRegions, region)
-			end
+			self._spawnSlotsByPart[spawnPart] = point
+			table.insert(spawnPoints, point)
 		end
 
-		self:_assignFoodTypesForZone(zoneFolder.Name, zoneRegions)
+		self:_assignFoodTypesForZone(zoneFolder.Name, spawnPoints)
 
-		local regionRarityCounts = {}
-		local foodRarityCounts = {}
-		local expectedFoodSlotCount = 0
-		local actualFoodSlotCount = 0
-		for _, region in ipairs(zoneRegions) do
-			local rarity = region.Rarity
-			if rarity then
-				regionRarityCounts[rarity] = (regionRarityCounts[rarity] or 0) + 1
-				local regionSlots, regionExpectedCount = self:_buildFoodSlotsForRegion(region)
-				expectedFoodSlotCount += regionExpectedCount
-				local record = self._spawnSlotsByPart[region.SpawnPart]
-				if record then
-					for _, slot in ipairs(regionSlots) do
-						slot.Index = #record.Slots + 1
-						table.insert(record.Slots, slot)
-						actualFoodSlotCount += 1
-						local rule = FoodConfig.Foods[slot.FoodType]
-						if rule then
-							foodRarityCounts[rule.Type] = (foodRarityCounts[rule.Type] or 0) + 1
-						end
-					end
+		local rarityCounts = {}
+		local commonFoodSlotCount = 0
+		local hpFoodSlotCount = 0
+		for _, point in ipairs(spawnPoints) do
+			if point.Rarity then
+				rarityCounts[point.Rarity] = (rarityCounts[point.Rarity] or 0) + 1
+				local slotCount = self:_buildFoodSlotsForSpawnPoint(point)
+				if point.Rarity == "Common" then
+					commonFoodSlotCount += slotCount
+				else
+					hpFoodSlotCount += slotCount
 				end
-
 			end
 		end
 
-		local regionSummary = {}
-		local foodSummary = {}
+		local raritySummary = {}
 		for _, rarity in ipairs({ "Common", "Uncommon", "Rare", "Epic", "Legendary" }) do
-			local regionCount = regionRarityCounts[rarity] or 0
-			local foodCount = foodRarityCounts[rarity] or 0
-			if regionCount > 0 then
-				table.insert(regionSummary, string.format("%s:%d", rarity, regionCount))
-			end
-			if foodCount > 0 then
-				table.insert(foodSummary, string.format("%s:%d", rarity, foodCount))
+			local count = rarityCounts[rarity] or 0
+			if count > 0 then
+				table.insert(raritySummary, string.format("%s:%d", rarity, count))
 			end
 		end
+
 		print(string.format(
-			"[FoodService] Food regions prepared. map=%s zone=%s regions=%d targetRegions=%d foodSlots=%d expectedFoodSlots=%d regionRarity=%s foodRarity=%s",
+			"[FoodService] Pivot spawn points prepared. map=%s zone=%s markers=%d commonFoods=%d hpFoods=%d rarity=%s",
 			mapModel.Name,
 			zoneFolder.Name,
-			#zoneRegions,
-			targetRegionCount,
-			actualFoodSlotCount,
-			expectedFoodSlotCount,
-			table.concat(regionSummary, ","),
-			table.concat(foodSummary, ",")
+			#spawnPoints,
+			commonFoodSlotCount,
+			hpFoodSlotCount,
+			table.concat(raritySummary, ",")
 		))
-
-		if #zoneRegions < targetRegionCount or actualFoodSlotCount < expectedFoodSlotCount then
-			warn(string.format(
-				"[FoodService] Food region capacity below configured target. map=%s zone=%s validRegions=%d targetRegions=%d validFoodSlots=%d expectedFoodSlots=%d",
-				mapModel.Name,
-				zoneFolder.Name,
-				#zoneRegions,
-				targetRegionCount,
-				actualFoodSlotCount,
-				expectedFoodSlotCount
-			))
-		end
 	end
 end
+
 function FoodService:_rewardFoodKill(entry: any)
 	local player = entry.LastHitBy
 	local rule = FoodConfig.Foods[entry.FoodType]
@@ -1104,17 +741,7 @@ function FoodService:_rewardFoodKill(entry: any)
 	end
 end
 
-function FoodService:_getActiveFoodCountForSpawn(spawnPart: BasePart): number
-	local count = 0
-	for _, entry in pairs(self._foodEntries) do
-		if entry.IsActive and not entry.IsConsumed and entry.SpawnPart == spawnPart then
-			count += 1
-		end
-	end
-	return count
-end
-
-function FoodService:_consumeFood(entry: any, player: Player)
+function FoodService:_consumeFood(function FoodService:_consumeFood(entry: any, player: Player)
 	if not entry.IsActive or entry.IsConsumed then
 		return
 	end
@@ -1123,7 +750,6 @@ function FoodService:_consumeFood(entry: any, player: Player)
 	entry.IsActive = false
 	local instance = entry.Instance
 	self._foodEntries[instance] = nil
-	self:_removeEntryFromGrid(entry)
 	if entry.Id then
 		self._foodById[entry.Id] = nil
 	end
@@ -1150,7 +776,7 @@ function FoodService:_consumeFood(entry: any, player: Player)
 		if slot then
 			slot.Entry = nil
 			slot.State = "Pending"
-			slot.NextAttemptAt = os.clock() + math.max(0, tonumber(rule.RespawnTime) or SPAWN_RETRY_DELAY_SECONDS)
+			slot.NextAttemptAt = os.clock() + math.max(0, tonumber(rule.RespawnTime) or 1)
 			slot.BlockedAttempts = 0
 			slot.WarnedBlocked = false
 		end
@@ -1333,24 +959,7 @@ function FoodService:_startCollisionLoop()
 	return
 end
 
-function FoodService:_collectNearbyEntries(position: Vector3): { any }
-	local cx = math.floor(position.X / GRID_CELL_SIZE)
-	local cz = math.floor(position.Z / GRID_CELL_SIZE)
-	local out = {}
-	for gx = cx - 1, cx + 1 do
-		for gz = cz - 1, cz + 1 do
-			local bucket = self._foodGrid[string.format("%d:%d", gx, gz)]
-			if bucket then
-				for _, entry in pairs(bucket) do
-					table.insert(out, entry)
-				end
-			end
-		end
-	end
-	return out
-end
-
-function FoodService:Start()
+function FoodService:Start()function FoodService:Start()
 	self:_startSpawnScheduler()
 	local remote = self._context.Remotes:FindFirstChild("ReportFoodHit")
 	local feedbackRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
