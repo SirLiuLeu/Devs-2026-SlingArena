@@ -769,9 +769,10 @@ function FoodService:_consumeFood(entry: any, player: Player)
 		end
 		local slot = entry.Slot
 		if slot then
+			local fallbackRespawnTime = if rule.Type == "Common" then FoodConfig.CommonRespawnTime else FoodConfig.HpFoodRespawnTime
 			slot.Entry = nil
 			slot.State = "Pending"
-			slot.NextAttemptAt = os.clock() + math.max(0, tonumber(rule.RespawnTime) or 1)
+			slot.NextAttemptAt = os.clock() + math.max(0, tonumber(rule.RespawnTime) or fallbackRespawnTime or 1)
 		end
 	end
 end
