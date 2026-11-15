@@ -305,3 +305,14 @@
 
 - `UnitTestUI.Root.ResetTimeOnlineReward` is an optional Studio-only path for the startup binder. `UIController` watches UnitTestUI like other ScreenGuis, retries references on descendant additions/removals and when the ScreenGui is cloned into PlayerGui, and falls back to a unique `GuiButton` named `ResetTimeOnlineReward` under UnitTestUI if the documented path differs. The click sends `DebugCompleteCountdown` through the already-used `OnlineRewardRequest` RemoteEvent; the server accepts it only in Studio, updates `OnlineRewardState.ElapsedSeconds` through `PlayerDataService:UpdateData`, then sends a snapshot that makes all 15 slots Ready without claiming them.
 - `InventoryUI.Root.BodyItems.RightPanel.Description` is optional. InventoryUIController resolves the canonical path when present, then falls back only to a unique TextLabel named `Description` under the current BodyItems.RightPanel. UIBinder does not treat this optional label as a required startup path.
+
+## Food spawn pivot refactor (2026-11-15)
+
+- Current Food spawn behavior supersedes the earlier area/grid/ground-raycast history above.
+- Each manually placed `FoodSpawn` BasePart under `Workspace.Maps.<Arena>.FoodSpawns.<CenterZones|MidZones|EdgeZones>` is one logical spawn point. The service uses `FoodSpawn:GetPivot()`; marker size, area density, grid/lattice/subcells, footprint checks, ground raycasts, player clearance, and obstacle avoidance are no longer part of placement.
+- A marker is assigned one rarity when the map is loaded. Common rarity creates four Common Food slots at randomized positions within a 0–2 stud local X/Z radius; Uncommon/Rare/Epic/Legendary create one HP Food slot. ZoneWeights still determine rarity distribution; the rarity assigned to each marker is retained when its Food respawns.
+- Food model pivots are moved directly to the marker pivot plus the local offset. The marker pivot supplies the Y coordinate, so manually place markers at the intended Food model pivot height and keep them clear of walls/traps.
+- The scheduler processes ready HP Food respawns before Common respawns. If an HP slot needs a marker that still has a Common group/pending Common slots, FoodService removes/disables that Common occupancy before spawning the HP Food.
+- Food damage, HP UI, LastHit, Legendary Gift Box/diamond rewards, touch consumption, Daily Quest events, and per-slot respawn timing remain in FoodService and are unchanged by the placement refactor.
+- Added regression assertions for four Common Foods per marker, 2-stud maximum radial offset, unchanged zone weights, and removal of the legacy grid/area config. Roblox Studio runtime validation remains required.
+
