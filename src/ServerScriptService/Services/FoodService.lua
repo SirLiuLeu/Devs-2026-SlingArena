@@ -488,8 +488,10 @@ function FoodService:_trySpawnSlot(slot: any): boolean
 	local hpPivotYOffset = if rule.Type == "Common"
 		then 0
 		else math.max(0, tonumber(FoodConfig.HpFoodPivotYOffset) or 1)
-	local targetPivot = spawnPart:GetPivot()
-		* CFrame.new(localOffset + Vector3.new(0, hpPivotYOffset, 0))
+	local targetPivot = spawnPart:GetPivot() * CFrame.new(localOffset)
+	if hpPivotYOffset > 0 then
+		targetPivot += Vector3.new(0, hpPivotYOffset, 0)
+	end
 	model:PivotTo(targetPivot)
 
 	local hitbox = resolveFoodHitbox(model)
