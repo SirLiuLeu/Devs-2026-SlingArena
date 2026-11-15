@@ -207,18 +207,34 @@ local function getSpawnRadius(): number
 	return math.max(0, tonumber(FoodConfig.SpawnRadius) or 5)
 end
 
-local function buildSpawnOffset(cellIndex: number, gridDivisions: number, spawnRadius: number, hitboxSize: Vector3?): Vector3
-	local cellSize = (spawnRadius * 2) / gridDivisions
-	local column = (cellIndex - 1) % gridDivisions
-	local row = math.floor((cellIndex - 1) / gridDivisions)
-	local cellMinX = -spawnRadius + column * cellSize
-	local cellMinZ = -spawnRadius + row * cellSize
-	local cellMaxX = cellMinX + cellSize
-	local cellMaxZ = cellMinZ + cellSize
+local function getSpawnLayout(zoneName: string): (number, number, number)
+	local defaults = getSpawnGridDivisions()
+	local override = FoodConfig.ZoneSpawnOverrides[zoneName]
+	local rows = math.max(1, math.floor(tonumber(override and override.Rows) or defaults))
+	local columns = math.max(1, math.floor(tonumber(override and override.Columns) or defaults))
+	local radius = math.max(0, tonumber(override and override.SpawnRadius) or getSpawnRadius())
+	return rows, columns, radius
+end
+
+local function buildSpawnOffset(
+	cellIndex: number,
+	gridColumns: number,
+	gridRows: number,
+	spawnRadius: number,
+	hitboxSize: Vector3?
+): Vector3
+	local cellWidth = (spawnRadius * 2) / gridColumns
+	local cellDepth = (spawnRadius * 2) / gridRows
+	local column = (cellIndex - 1) % gridColumns
+	local row = math.floor((cellIndex - 1) / gridColumns)
+	local cellMinX = -spawnRadius + column * cellWidth
+	local cellMinZ = -spawnRadius + row * cellDepth
+	local cellMaxX = cellMinX + cellWidth
+	local cellMaxZ = cellMinZ + cellDepth
 
 	-- Keep a fitting Hitbox inside its assigned cell so neighboring cells do not overlap.
-	local marginX = math.min(math.max(0, (hitboxSize and hitboxSize.X or 0) * 0.5), cellSize * 0.5)
-	local marginZ = math.min(math.max(0, (hitboxSize and hitboxSize.Z or 0) * 0.5), cellSize * 0.5)
+	local marginX = math.min(math.max(0, (hitboxSize and hitboxSize.X or 0) * 0.5), cellWidth * 0.5)
+	local marginZ = math.min(math.max(0, (hitboxSize and hitboxSize.Z or 0) * 0.5), cellDepth * 0.5)
 	local minX = cellMinX + marginX
 	local minZ = cellMinZ + marginZ
 	local maxX = cellMaxX - marginX
@@ -234,8 +250,8 @@ local function buildSpawnOffset(cellIndex: number, gridDivisions: number, spawnR
 		end
 	end
 
-	-- With the configured 3x3 grid, every cell's center is inside the radius.
-	-- This deterministic fallback avoids leaving a slot unspawned after repeated rejected samples.
+	-- Clamp the deterministic cell-center fallback to the circular spawn boundary.
+	-- This avoids leaving a slot unspawned after repeated rejected samples.
 	local centerX = (minX + maxX) * 0.5
 	local centerZ = (minZ + maxZ) * 0.5
 	local centerMagnitude = math.sqrt(centerX * centerX + centerZ * centerZ)
@@ -287,10 +303,10 @@ function FoodService:_buildFoodSlotsForSpawnPoint(point: any): number
 		return 0
 	end
 
-	local gridDivisions = getSpawnGridDivisions()
-	local spawnRadius = getSpawnRadius()
-	local cellSize = (spawnRadius * 2) / gridDivisions
-	local slotCount = gridDivisions * gridDivisions
+	local gridRows, gridColumns, spawnRadius = getSpawnLayout(point.ZoneName)
+	local cellWidth = (spawnRadius * 2) / gridColumns
+	local cellDepth = (spawnRadius * 2) / gridRows
+	local slotCount = gridRows * gridColumns
 	for cellIndex = 1, slotCount do
 		local roll = math.random() * totalWeight
 		local cumulativeWeight = 0
@@ -308,12 +324,13 @@ function FoodService:_buildFoodSlotsForSpawnPoint(point: any): number
 		local template = self._foodModels[foodType]
 		local hitbox = template and resolveFoodHitbox(template)
 		local hitboxSize = if hitbox then hitbox.Size else Vector3.zero
-		if hitbox and (hitboxSize.X > cellSize or hitboxSize.Z > cellSize)
+		if hitbox and (hitboxSize.X > cellWidth or hitboxSize.Z > cellDepth)
 			and not self._warnedOversizedFoodTypes[foodType] then
 			self._warnedOversizedFoodTypes[foodType] = true
 			warn(string.format(
-				"[FoodService] Food Hitbox is larger than its %.2f-stud grid cell; this model may overlap neighboring cells. food=%s hitbox=%s",
-				cellSize,
+				"[FoodService] Food Hitbox is larger than its %.2f x %.2f-stud grid cell; this model may overlap neighboring cells. food=%s hitbox=%s",
+				cellWidth,
+				cellDepth,
 				foodType,
 				tostring(hitboxSize)
 			))
@@ -327,6 +344,9 @@ function FoodService:_buildFoodSlotsForSpawnPoint(point: any): number
 			Rarity = selectedRarity.Rarity,
 			FoodType = foodType,
 			HitboxSize = hitboxSize,
+			GridRows = gridRows,
+			GridColumns = gridColumns,
+			SpawnRadius = spawnRadius,
 			Index = cellIndex,
 			State = "Pending",
 			NextAttemptAt = 0,
@@ -419,7 +439,13 @@ function FoodService:_trySpawnSlot(slot: any): boolean
 
 	model.Name = foodType
 	anchorFoodModel(model)
-	local localOffset = buildSpawnOffset(slot.Index, getSpawnGridDivisions(), getSpawnRadius(), slot.HitboxSize)
+	local localOffset = buildSpawnOffset(
+		slot.Index,
+		slot.GridColumns,
+		slot.GridRows,
+		slot.SpawnRadius,
+		slot.HitboxSize
+	)
 	slot.LocalOffset = localOffset
 	local hpPivotYOffset = if rule.Type == "Common"
 		then 0
@@ -624,12 +650,16 @@ function FoodService:SpawnFoodForMap(mapModel: Model)
 			end
 		end
 
+		local gridRows, gridColumns, spawnRadius = getSpawnLayout(zoneFolder.Name)
 		print(string.format(
-			"[FoodService] 3x3 pivot spawn cells prepared. map=%s zone=%s markers=%d cellsPerMarker=%d foodSlots=%d commonFoods=%d hpFoods=%d rarity=%s",
+			"[FoodService] Food spawn layout prepared. map=%s zone=%s markers=%d layout=%dx%d cellsPerMarker=%d radius=%.1f foodSlots=%d commonFoods=%d hpFoods=%d rarity=%s",
 			mapModel.Name,
 			zoneFolder.Name,
 			#spawnPoints,
-			getSpawnGridDivisions() * getSpawnGridDivisions(),
+			gridRows,
+			gridColumns,
+			gridRows * gridColumns,
+			spawnRadius,
 			totalFoodSlotCount,
 			commonFoodSlotCount,
 			hpFoodSlotCount,
