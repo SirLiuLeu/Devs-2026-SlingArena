@@ -290,20 +290,25 @@ function FoodService:_assignFoodTypesForZone(zoneName: string, spawnPoints: { an
 end
 
 local function buildSpawnOffset(slotIndex: number, slotCount: number): Vector3
+	if slotCount == 4 then
+		local minDistance = math.max(0, tonumber(FoodConfig.CommonSpawnOffsetMin) or 1)
+		local maxDistance = math.max(minDistance, tonumber(FoodConfig.CommonSpawnOffsetMax) or 2)
+		local distanceX = minDistance + math.random() * (maxDistance - minDistance)
+		local distanceZ = minDistance + math.random() * (maxDistance - minDistance)
+
+		-- Stable quadrant assignment: one Common Food in each local X/Z corner.
+		local xSign = if slotIndex == 1 or slotIndex == 3 then -1 else 1
+		local zSign = if slotIndex <= 2 then -1 else 1
+		return Vector3.new(xSign * distanceX, 0, zSign * distanceZ)
+	end
+
+	-- Single HP Food keeps a small randomized horizontal offset around its marker.
 	local maxRadius = math.max(0, tonumber(FoodConfig.SpawnOffsetRadius) or 2)
 	if maxRadius <= 0 then
 		return Vector3.zero
 	end
-
 	local radius = math.random() * maxRadius
-	local angle
-	if slotCount == 1 then
-		angle = math.random() * math.pi * 2
-	else
-		local baseAngle = ((slotIndex - 1) / slotCount) * math.pi * 2
-		local angleJitter = (math.random() - 0.5) * (math.pi / slotCount)
-		angle = baseAngle + angleJitter
-	end
+	local angle = math.random() * math.pi * 2
 	return Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
 end
 
@@ -479,7 +484,12 @@ function FoodService:_trySpawnSlot(slot: any): boolean
 
 	model.Name = foodType
 	anchorFoodModel(model)
-	local targetPivot = spawnPart:GetPivot() * CFrame.new(slot.LocalOffset or Vector3.zero)
+	local localOffset = slot.LocalOffset or Vector3.zero
+	local hpPivotYOffset = if rule.Type == "Common"
+		then 0
+		else math.max(0, tonumber(FoodConfig.HpFoodPivotYOffset) or 1)
+	local targetPivot = spawnPart:GetPivot()
+		* CFrame.new(localOffset + Vector3.new(0, hpPivotYOffset, 0))
 	model:PivotTo(targetPivot)
 
 	local hitbox = resolveFoodHitbox(model)
