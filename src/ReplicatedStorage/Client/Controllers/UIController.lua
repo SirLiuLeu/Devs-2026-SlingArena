@@ -275,7 +275,6 @@ function UIController:_resolveUiReferences()
 	self.SoundOffIcon = self.SoundOffIcon or resolveImageLabel(playerGui, ProjectTreeSpec.UI.MainHub.SoundOffIcon, false)
 	self.ShopButton = self.ShopButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.ShopButton, false)
 	self.TabScoreButton = self.TabScoreButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.TabScore, false)
-	self.QuestButton = self.QuestButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuestButton, false)
 	self.ProgressPoint = self.ProgressPoint or PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.ProgressPoint, { shouldWarn = false })
 	self.QuickHpButton = self.QuickHpButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.QuickHP, false)
 	self.QuickHpQuantityLabel = self.QuickHpQuantityLabel or PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MainHub.QuickHPQuantity, { shouldWarn = false })
@@ -359,7 +358,6 @@ function UIController:_clearRemovedUiReferences(removedRoot: Instance)
 	self:_clearReferenceIfRemoved("SoundOffIcon", removedRoot, nil)
 	self:_clearReferenceIfRemoved("ShopButton", removedRoot, "ShopButton")
 	self:_clearReferenceIfRemoved("TabScoreButton", removedRoot, "TabScoreButton")
-	self:_clearReferenceIfRemoved("QuestButton", removedRoot, "QuestButton")
 	self:_clearReferenceIfRemoved("HomeButton", removedRoot, "HomeButton")
 	self:_clearReferenceIfRemoved("QuickHpButton", removedRoot, "QuickHpButton")
 	self:_clearReferenceIfRemoved("MatchStatusLabel", removedRoot, nil)
@@ -530,13 +528,6 @@ function UIController:_bindResolvedUiReferences()
 				end
 			end)
 		end
-	end
-	if self.QuestButton then
-		self:_connectOnce("QuestButton", self.QuestButton.MouseButton1Click, function()
-			if self.DailyQuestUIController then
-				self.DailyQuestUIController:SetExpanded(true)
-			end
-		end)
 	end
 	if self.SoundToggleButton then
 		self:_connectOnce("SoundToggleButton", self.SoundToggleButton.Activated, function()
