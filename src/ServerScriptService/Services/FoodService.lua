@@ -204,7 +204,7 @@ local function getSpawnGridDivisions(): number
 end
 
 local function getSpawnRadius(): number
-	return math.max(0, tonumber(FoodConfig.SpawnRadius) or 5)
+	return math.max(0, tonumber(FoodConfig.SpawnRadius) or 20)
 end
 
 local function getSpawnLayout(zoneName: string): (number, number, number)
