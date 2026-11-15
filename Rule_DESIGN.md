@@ -201,7 +201,7 @@ Flags are modifiers layered on top of a player's core `MovementState`. Real, cod
 
 * Each manually placed `FoodSpawn` BasePart is one logical spawn point. The service uses its pivot; `Size.X`, `Size.Z`, area density, grids, subcells, and footprint-based placement are ignored.
 * One spawn point has one active mode: either one HP Food (Uncommon/Rare/Epic/Legendary), or a group of four Common Foods.
-* Each Food model pivot is placed at `FoodSpawn:GetPivot()` with a randomized local X/Z offset whose radial distance is 0–2 studs. The marker pivot also defines the Food's Y coordinate.
+* The four Common Food pivots occupy the four local X/Z quadrants around the marker. Each axis offset is independently randomized from 1 to 2 studs, giving neighboring Common Foods at least 2 studs of center separation along each shared row/column. HP Food keeps its 0–2-stud horizontal offset and receives an additional 1 stud of world-space Y height; Common Food keeps the marker's Y coordinate.
 * The map designer manually places markers away from walls, traps, and other obstructions. FoodService does not raycast for ground support or calculate obstacle avoidance/overlap clearance.
 * The parent zone folder still selects the configured `ZoneWeights`. Mid/Edge rarity proportions are distributed across that zone's marker count; Center markers are individually rolled from the Center weights.
 * The spawn scheduler processes ready HP Food slots before Common Food slots. When an HP slot claims a marker, any Common Foods and pending Common slots attached to that same marker are removed/disabled so the HP Food owns the full point.
