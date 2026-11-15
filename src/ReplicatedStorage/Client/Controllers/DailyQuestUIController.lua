@@ -432,13 +432,6 @@ function DailyQuestUIController:_setExpanded(expanded: boolean, animate: boolean
 	self:_renderCurrentState()
 end
 
-function DailyQuestUIController:SetExpanded(expanded: boolean)
-	if expanded then
-		self._hasUnseenAssignment = false
-	end
-	self:_setExpanded(expanded, true)
-end
-
 function DailyQuestUIController:_bindUiActions()
 	if self._toggleButton and self._toggleButton:IsA("GuiButton") then
 		table.insert(self._uiConnections, self._toggleButton.Activated:Connect(function()
