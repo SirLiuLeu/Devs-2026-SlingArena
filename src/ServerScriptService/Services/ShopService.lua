@@ -5,6 +5,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local PurchasePetConfig = require(ReplicatedStorage.Shared.Config.PurchasePetConfig)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 local ShopService = {}
@@ -18,21 +21,6 @@ local DIAMOND_PACKS = {
 	pack_400usd = { dinamondAmount = 50000 },
 }
 
-local ITEMS = {
-	item_hp_potion = { priceX1 = 1, priceX10 = 9 },
-	item_buff_exp = { priceX1 = 4, priceX10 = 36 },
-	item_size_up = { priceX1 = 5, priceX10 = 45 },
-	item_speed_boost = { priceX1 = 2, priceX10 = 18 },
-	item_invisible = { priceX1 = 3, priceX10 = 27 },
-}
-
-local LAUNCHERS = {
-	Normalduck = { price = 100 },
-	Kingduck = { price = 900 },
-	Witchduck = { price = 1200 },
-	Drakeduck = { price = 1800 },
-	Shielduck = { price = 1500 },
-}
 
 function ShopService.new(context)
 	local self = setmetatable({}, ShopService)
@@ -40,6 +28,7 @@ function ShopService.new(context)
 	self._purchaseDinamondPackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.PurchaseDinamondPack) :: RemoteEvent?
 	self._purchaseItemRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.PurchaseItem) :: RemoteEvent?
 	self._purchaseLauncherRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.PurchaseLauncher) :: RemoteEvent?
+	self._purchasePetRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.PurchasePet) :: RemoteEvent?
 	self._feedbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent?
 	return self
 end
@@ -61,6 +50,25 @@ function ShopService:_sendPurchaseFeedback(player: Player, success: boolean, pur
 	end
 end
 
+function ShopService:PurchasePet(player: Player, definitionId: string): boolean
+	local price = PurchasePetConfig.GetPrice(definitionId)
+	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
+	if price == nil or not dataService then
+		self:_sendPurchaseFeedback(player, false, "Pet", definitionId, "Unavailable")
+		return false
+	end
+
+	local success, reason, instanceId = dataService:PurchasePet(player, definitionId, price)
+	if not success then
+		self:_sendPurchaseFeedback(player, false, "Pet", definitionId, reason or "PurchaseRejected")
+		return false
+	end
+
+	self:_publishState(player)
+	self:_sendPurchaseFeedback(player, true, "Pet", definitionId)
+	return instanceId ~= nil
+end
+
 function ShopService:PurchaseDinamondPack(player: Player, packId: string)
 	local pack = DIAMOND_PACKS[packId]
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
@@ -76,33 +84,38 @@ function ShopService:PurchaseDinamondPack(player: Player, packId: string)
 end
 
 function ShopService:PurchaseItem(player: Player, itemId: string, quantity: number)
-	local item = ITEMS[itemId]
+	local item = ItemConfig.GetById(itemId)
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
+	local selectedQuantity = if quantity == 10 then 10 else 1
 	if not item or not dataService then
 		self:_sendPurchaseFeedback(player, false, "Item", itemId, "Unavailable")
 		return false
 	end
 
-	local price = if quantity == 10 then item.priceX10 else item.priceX1
+	local price = if selectedQuantity == 10 then item.shopPriceX10 else item.shopPriceX1
+	if type(price) ~= "number" then
+		self:_sendPurchaseFeedback(player, false, "Item", itemId, "InvalidPrice")
+		return false
+	end
 	if not dataService:SpendDiamonds(player, price, "ShopPurchaseItem") then
 		self:_sendPurchaseFeedback(player, false, "Item", itemId, "InsufficientDiamonds")
 		return false
 	end
 
-	dataService:GrantReward(player, { Items = { { Id = itemId, Quantity = quantity } } }, "ShopPurchaseItem")
+	dataService:GrantReward(player, { Items = { { Id = item.id, Quantity = selectedQuantity } } }, "ShopPurchaseItem")
 	self:_publishState(player)
 	self:_sendPurchaseFeedback(player, true, "Item", itemId)
 	return true
 end
 
 function ShopService:PurchaseLauncher(player: Player, launcherId: string)
-	local launcher = LAUNCHERS[launcherId]
+	local launcher = LauncherConfig.GetById(launcherId)
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
-	if not launcher or not dataService then
+	if not launcher or type(launcher.shopPrice) ~= "number" or not dataService then
 		self:_sendPurchaseFeedback(player, false, "Launcher", launcherId, "Unavailable")
 		return false
 	end
-	if not dataService:SpendDiamonds(player, launcher.price, "ShopPurchaseLauncher") then
+	if not dataService:SpendDiamonds(player, launcher.shopPrice, "ShopPurchaseLauncher") then
 		self:_sendPurchaseFeedback(player, false, "Launcher", launcherId, "InsufficientDiamonds")
 		return false
 	end
@@ -110,7 +123,7 @@ function ShopService:PurchaseLauncher(player: Player, launcherId: string)
 	local granted = dataService:GrantLauncher(player, launcherId)
 	if not granted then
 		-- Launcher IDs are validated by PlayerDataService before any inventory mutation.
-		dataService:GrantReward(player, { Diamonds = launcher.price }, "ShopPurchaseLauncherRefund")
+		dataService:GrantReward(player, { Diamonds = launcher.shopPrice }, "ShopPurchaseLauncherRefund")
 		self:_publishState(player)
 		self:_sendPurchaseFeedback(player, false, "Launcher", launcherId, "GrantFailed")
 		return false
@@ -145,6 +158,13 @@ function ShopService:Init()
 		self._purchaseLauncherRemote.OnServerEvent:Connect(function(player: Player, launcherId: any)
 			if RemoteContracts.Validate(RemoteContracts.Names.PurchaseLauncher, launcherId) then
 				self:PurchaseLauncher(player, launcherId)
+			end
+		end)
+	end
+	if self._purchasePetRemote then
+		self._purchasePetRemote.OnServerEvent:Connect(function(player: Player, definitionId: any)
+			if RemoteContracts.Validate(RemoteContracts.Names.PurchasePet, definitionId) then
+				self:PurchasePet(player, definitionId)
 			end
 		end)
 	end
