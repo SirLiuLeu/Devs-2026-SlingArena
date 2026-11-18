@@ -65,6 +65,7 @@ RemoteContracts.Names = {
 	PurchaseDinamondPack = "PurchaseDinamondPack",
 	PurchaseItem = "PurchaseItem",
 	PurchaseLauncher = "PurchaseLauncher",
+	PurchasePet = "PurchasePet",
 	SellLauncher = "SellLauncher",
 	CombineLaunchers = "CombineLaunchers",
 	PetProjectileVisual = "PetProjectileVisual",
@@ -235,6 +236,9 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.PurchaseLauncher] = function(launcherId: any): boolean
 		return typeof(launcherId) == "string" and #launcherId > 0 and #launcherId <= 80
+	end,
+	[RemoteContracts.Names.PurchasePet] = function(petDefinitionId: any): boolean
+		return typeof(petDefinitionId) == "string" and #petDefinitionId > 0 and #petDefinitionId <= 128
 	end,
 	[RemoteContracts.Names.SellLauncher] = function(instanceId: any): boolean
 		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
