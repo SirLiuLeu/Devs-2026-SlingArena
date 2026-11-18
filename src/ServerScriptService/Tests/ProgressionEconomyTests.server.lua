@@ -287,7 +287,7 @@ runTest("Shop_Catalog_Has_All_Configured_Items_And_Launchers", function()
 	assertEqual(#ItemConfig.GetAllIds(), 8, "All ItemConfig definitions are included in Shop")
 	for _, itemId in ipairs(ItemConfig.GetAllIds()) do
 		local item = ItemConfig.GetById(itemId)
-		assertEqual(type(item), "table", "Item exists: " .. itemId)
+		if not item then error("Missing ItemConfig definition: " .. itemId) end
 		assertEqual(type(item.script), "string", "Item script exists: " .. itemId)
 		assertEqual(type(item.shopPriceX1), "number", "Item x1 price exists: " .. itemId)
 		assertEqual(type(item.shopPriceX10), "number", "Item x10 price exists: " .. itemId)
@@ -296,6 +296,7 @@ runTest("Shop_Catalog_Has_All_Configured_Items_And_Launchers", function()
 	assertEqual(#LauncherConfig.GetAllIds(), 5, "All LauncherConfig definitions are included in Shop")
 	for _, launcherId in ipairs(LauncherConfig.GetAllIds()) do
 		local launcher = LauncherConfig.GetById(launcherId)
+		if not launcher then error("Missing LauncherConfig definition: " .. launcherId) end
 		assertEqual(type(launcher.script), "string", "Launcher script exists: " .. launcherId)
 		assertEqual(type(launcher.shopPrice), "number", "Launcher shop price exists: " .. launcherId)
 	end
@@ -306,6 +307,7 @@ runTest("Shop_Pet_Catalog_Has_Price_And_Script_For_Every_Pet", function()
 	assertEqual(#PurchasePetConfig.GetAllIds(), 18, "Every Pet has a purchase price")
 	for _, petId in ipairs(PetsConfig.GetAllIds()) do
 		local pet = PetsConfig.GetById(petId)
+		if not pet then error("Missing Pet definition: " .. petId) end
 		assertEqual(type(pet.script), "string", "Pet script exists: " .. petId)
 		assertEqual(type(PurchasePetConfig.GetPrice(petId)), "number", "Pet purchase price exists: " .. petId)
 	end
