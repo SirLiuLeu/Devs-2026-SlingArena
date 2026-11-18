@@ -30,6 +30,7 @@ DataModel
 │  │  │  ├─ PetRenderConfig.lua
 │  │  │  ├─ PetRarityStatsConfig.lua
 │  │  │  ├─ PetsConfig.lua
+│  │  │  ├─ PurchasePetConfig.lua
 │  │  │  ├─ PetsUpgradeConfig.lua
 │  │  │  ├─ PhysicsConfig.lua
 │  │  │  ├─ QuestConfig.lua
@@ -254,21 +255,36 @@ DataModel
 │  │      │   ├── Rank
 │  │      │   └── Reward
 │  │      │
-│  │      ├── SlotItemsTemplate_ShopUI (Frame)
+│  │      ├── SlotItemTemplate_shopUI (Frame)
 │  │      │   ├── UICorner
+│  │      │   ├── Info (Frame)
+│  │      │   │   └── Script (TextLabel/UIStroke)
 │  │      │   ├── InfoButton (ImageButton)
 │  │      │   ├── BuyButton (TextButton/ImageButton)
 │  │      │   ├── Icon (ImageLabel)
-│  │      │   ├── Quantity (TextLabel)
+│  │      │   ├── Price (TextLabel)
 │  │      │   └── Title (TextLabel)
 │  │      │
 │  │      ├── SlotLauncherTemplate_shopUI (Frame)
 │  │      │   ├── UICorner
+│  │      │   ├── Info (Frame)
+│  │      │   │   └── Script (TextLabel/UIStroke)
 │  │      │   ├── InfoButton (ImageButton)
 │  │      │   ├── BuyButton (TextButton/ImageButton)
-│  │      │   ├── LauncherPreview (ViewportFrame)
-│  │      │   │   ├── Model (Model Equipment)
-│  │      │   │   └── Camera
+│  │      │   ├── Preview (ViewportFrame)
+│  │      │   │   └── Model (Model)
+│  │      │   ├── Price (TextLabel)
+│  │      │   └── Title (TextLabel)
+│  │      │
+│  │      ├── SlotPetTemplate_shopUI (Frame)
+│  │      │   ├── UICorner
+│  │      │   ├── Info (Frame)
+│  │      │   │   └── Script (TextLabel/UIStroke)
+│  │      │   ├── InfoButton (ImageButton)
+│  │      │   ├── BuyButton (TextButton/ImageButton)
+│  │      │   ├── Preview (ViewportFrame)
+│  │      │   │   └── Model (Model)
+│  │      │   ├── Price (TextLabel)
 │  │      │   └── Title (TextLabel)
 │  │      │
 │  │      ├── SlotDiamondPackTemplate_ShopUI (Frame)
@@ -331,6 +347,7 @@ DataModel
 │  │     ├─ QuestUpdate
 │  │     ├─ QuestClaim
 │  │     ├─ QuestSkip
+│  │     ├─ PurchasePet
 │  │     └─ ZoneUpdate [freeze-required]
 │  │
 │  └─ Client  -> src/ReplicatedStorage/Client
@@ -499,22 +516,24 @@ DataModel
 │  │     ├─ Buttons (Frame)
 │  │     │  ├─ Launcher (ImageButton)
 │  │     │  ├─ Dinamonds (ImageButton)
+│  │     │  ├─ Pet (ImageButton)
 │  │     │  └─ Items (ImageButton)
 │  │     ├─ Dinamonds (Frame)
-│  │     │  └─ Content (Frame)
-│  │     │     └─ ScrollingFrame
+│  │     │  ├─ UIGridLayout
+│  │     │  └─ Slot1, Slot2, Slot3, Slot4 (SlotDiamondPackTemplate_ShopUI Frames) -- Script Spawn in run time
 │  │     ├─ Items (Frame)
-│  │     │  ├─ UIListLayout
-│  │     │  └─ Content (Frame)
-│  │     │     ├─ UICorner
-│  │     │     ├─ UIListLayout
-│  │     │     └─ ScrollingFrame
+│  │     │  ├─ UIGridLayout
+│  │     │  └─ Slot1, Slot2, Slot3, Slot4 (SlotItemTemplate_shopUI Frames) -- Script Spawn in run time
 │  │     ├─ Launcher (Frame)
 │  │     │  ├─ UIListLayout
-│  │     │  └─ Content (Frame)
-│  │     │     ├─ UICorner
-│  │     │     ├─ UIListLayout
-│  │     │     └─ ScrollingFrame
+│  │     │  └─ ScrollingFrame (ScrollingFrame)
+│  │     │     ├─ UIGridLayout
+│  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotLauncherTemplate_shopUI Frames) -- Script Spawn in run time
+│  │     ├─ Pet (Frame)
+│  │     │  ├─ UIListLayout
+│  │     │  └─ ScrollingFrame (ScrollingFrame)
+│  │     │     ├─ UIGridLayout
+│  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotPetTemplate_shopUI Frames) -- Script Spawn in run time
 │  │     └─ Close (TextButton/ImageButton)
 │  │
 │  ├─ InventoryUI (ScreenGui)
