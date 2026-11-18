@@ -3,6 +3,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
+local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
+local PurchasePetConfig = require(ReplicatedStorage.Shared.Config.PurchasePetConfig)
 
 local MockData = {}
 
@@ -17,29 +21,12 @@ local function deepClone(value)
 	return result
 end
 
-local MOCK_SHOP_STATE = {
-	balance = 300,
-	items = {
-		{ id = "item_hp_potion", name = "HP Potion", description = "Heal burst potion", priceX1 = 1, priceX10 = 9, icon = "rbxassetid://0" },
-		{ id = "item_buff_exp", name = "Buff EXP", description = "Temporary EXP boost", priceX1 = 4, priceX10 = 36, icon = "rbxassetid://0" },
-		{ id = "item_size_up", name = "Size Increase (30s)", description = "Grow bigger for 30s", priceX1 = 5, priceX10 = 45, icon = "rbxassetid://0" },
-		{ id = "item_speed_boost", name = "Speed Boost (30%)", description = "Boost speed by 30%", priceX1 = 2, priceX10 = 18, icon = "rbxassetid://0" },
-		{ id = "item_invisible", name = "Invisibility (30s)", description = "Invisible for 30s", priceX1 = 3, priceX10 = 27, icon = "rbxassetid://0" },
-	},
-	launchers = {
-		{ id = "Normalduck", name = "Normal Duck", price = 100, icon = "rbxassetid://0" },
-		{ id = "Kingduck", name = "King Duck", price = 900, icon = "rbxassetid://0" },
-		{ id = "Witchduck", name = "Witch Duck", price = 1200, icon = "rbxassetid://0" },
-		{ id = "Drakeduck", name = "Drake Duck", price = 1800, icon = "rbxassetid://0" },
-		{ id = "Shielduck", name = "Shield Duck", price = 1500, icon = "rbxassetid://0" },
-	},
-	dinamondPacks = {
-		{ id = "pack_1usd", usd = 1, dinamondAmount = 125, note = "Base rate", icon = "rbxassetid://0" },
-		{ id = "pack_10usd", usd = 10, dinamondAmount = 1300, note = "Bonus +50", icon = "rbxassetid://0" },
-		{ id = "pack_50usd", usd = 50, dinamondAmount = 7000, note = "Bonus +750", icon = "rbxassetid://0" },
-		{ id = "pack_100usd", usd = 100, dinamondAmount = 15000, note = "Bonus +2500", icon = "rbxassetid://0" },
-		{ id = "pack_400usd", usd = 400, dinamondAmount = 50000, note = "Best value", icon = "rbxassetid://0" },
-	},
+local MOCK_DIAMOND_PACKS = {
+	{ id = "pack_1usd", usd = 1, dinamondAmount = 125, note = "Base rate", icon = "rbxassetid://0" },
+	{ id = "pack_10usd", usd = 10, dinamondAmount = 1300, note = "Bonus +50", icon = "rbxassetid://0" },
+	{ id = "pack_50usd", usd = 50, dinamondAmount = 7000, note = "Bonus +750", icon = "rbxassetid://0" },
+	{ id = "pack_100usd", usd = 100, dinamondAmount = 15000, note = "Bonus +2500", icon = "rbxassetid://0" },
+	{ id = "pack_400usd", usd = 400, dinamondAmount = 50000, note = "Best value", icon = "rbxassetid://0" },
 }
 
 local MOCK_DAILY_LOGIN_STATE = {
@@ -48,7 +35,7 @@ local MOCK_DAILY_LOGIN_STATE = {
 		{ day = 1, rewardType = "Dinamond", rewardText = "50 Dinamond", icon = "rbxassetid://0", claimed = false, state = "Claimable" },
 		{ day = 2, rewardType = "Item", rewardText = "HP Potion x1", icon = "rbxassetid://0", claimed = false, state = "Locked" },
 		{ day = 3, rewardType = "Dinamond", rewardText = "100 Dinamond", icon = "rbxassetid://0", claimed = false, state = "Locked" },
-		{ day = 4, rewardType = "Item", rewardText = "Buff EXP x1", icon = "rbxassetid://0", claimed = false, state = "Locked" },
+		{ day = 4, rewardType = "Item", rewardText = "EXP Buff x1", icon = "rbxassetid://0", claimed = false, state = "Locked" },
 		{ day = 5, rewardType = "Dinamond", rewardText = "150 Dinamond", icon = "rbxassetid://0", claimed = false, state = "Locked" },
 		{ day = 6, rewardType = "Launcher", rewardText = "Normal Launcher", icon = "rbxassetid://0", claimed = false, state = "Locked" },
 		{ day = 7, rewardType = "Dinamond", rewardText = "1000 Dinamond (Big Reward)", icon = "rbxassetid://0", claimed = false, state = "Locked" },
@@ -56,7 +43,6 @@ local MOCK_DAILY_LOGIN_STATE = {
 }
 
 function MockData.GetInventoryState()
-	local playerData = MockPlayerData.GetPlayerData()
 	return MockPlayerData.GetInventoryState()
 end
 
@@ -64,8 +50,65 @@ function MockData.GetPlayerData()
 	return MockPlayerData.GetPlayerData()
 end
 
+-- Build the Shop catalog from shared gameplay configs. This prevents client-side
+-- mock data from drifting away from IDs, descriptions, and prices validated by the server.
 function MockData.GetShopState()
-	return deepClone(MOCK_SHOP_STATE)
+	local items = {}
+	for _, itemId in ipairs(ItemConfig.GetAllIds()) do
+		local definition = ItemConfig.GetById(itemId)
+		if definition then
+			table.insert(items, {
+				id = definition.id,
+				name = definition.name,
+				description = definition.description,
+				script = definition.script or definition.description,
+				priceX1 = definition.shopPriceX1,
+				priceX10 = definition.shopPriceX10,
+				icon = definition.icon,
+			})
+		end
+	end
+
+	local launchers = {}
+	for _, launcherId in ipairs(LauncherConfig.GetAllIds()) do
+		local definition = LauncherConfig.GetById(launcherId)
+		if definition and type(definition.shopPrice) == "number" then
+			table.insert(launchers, {
+				id = definition.id,
+				name = definition.name,
+				description = definition.description,
+				script = definition.script or definition.description,
+				price = definition.shopPrice,
+				icon = definition.iconId,
+			})
+		end
+	end
+
+	local pets = {}
+	for _, petId in ipairs(PetsConfig.GetAllIds()) do
+		local definition = PetsConfig.GetById(petId)
+		local price = PurchasePetConfig.GetPrice(petId)
+		if definition and price ~= nil then
+			table.insert(pets, {
+				id = petId,
+				name = definition.DisplayName,
+				modelName = definition.Name,
+				rarity = definition.rarity,
+				category = definition.category,
+				script = definition.script,
+				price = price,
+				icon = definition.iconId,
+			})
+		end
+	end
+
+	return {
+		balance = math.max(0, math.floor(MockPlayerData.GetPlayerData().Diamonds or 0)),
+		items = items,
+		launchers = launchers,
+		pets = pets,
+		dinamondPacks = deepClone(MOCK_DIAMOND_PACKS),
+	}
 end
 
 function MockData.GetDailyLoginState()
