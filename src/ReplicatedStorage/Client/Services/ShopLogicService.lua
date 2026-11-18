@@ -60,9 +60,13 @@ end
 
 function ShopLogicService:SetBalanceFromState(balance: number)
 	if typeof(balance) ~= "number" then return end
+	local nextBalance = math.max(0, math.floor(balance))
+	local changed = not self._authoritativeBalance or self._balance ~= nextBalance
 	self._authoritativeBalance = true
-	self._balance = math.max(0, math.floor(balance))
-	self:_emitChanged()
+	self._balance = nextBalance
+	if changed then
+		self:_emitChanged()
+	end
 end
 
 function ShopLogicService:GetSnapshot()
@@ -88,7 +92,7 @@ function ShopLogicService:GetSnapshot()
 	end
 
 	return {
-		currencyName = "Dinamond",
+		currencyName = "Diamonds",
 		balance = self._balance,
 		itemEntries = items,
 		launcherEntries = launchers,
@@ -106,8 +110,13 @@ function ShopLogicService:LoadMockData()
 	self._pets = data.pets or {}
 	self._dinamondPacks = data.dinamondPacks or {}
 	if not self._playerDataConnection then
-		self._playerDataConnection = MockPlayerData.BindChanged(function()
-			self:_emitChanged()
+		self._playerDataConnection = MockPlayerData.BindChanged(function(data)
+			if self._authoritativeBalance then return end
+			local nextBalance = math.max(0, math.floor((data and data.Diamonds) or 0))
+			if self._balance ~= nextBalance then
+				self._balance = nextBalance
+				self:_emitChanged()
+			end
 		end)
 	end
 	self:_emitChanged()
@@ -174,7 +183,7 @@ function ShopLogicService:PurchaseDinamondPack(packId: string): (boolean, string
 
 	-- Diamond grants are server-authoritative; StateUpdate publishes the new balance.
 	self._purchaseDinamondPackRemote:FireServer(pack.id)
-	return true, string.format("Purchase requested: +%d Dinamond", pack.dinamondAmount)
+	return true, string.format("Purchase requested: +%d Diamonds", pack.dinamondAmount)
 end
 
 local defaultInstance = nil
