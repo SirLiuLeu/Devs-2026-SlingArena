@@ -1132,6 +1132,41 @@ function PlayerDataService:GrantTemporaryLauncher(player: Player, definitionId: 
 	return self:GrantLauncher(player, definitionId, instanceId, { isTemporary = true, durationSeconds = duration })
 end
 
+-- Purchases one Pet and deducts Diamonds in the same provider mutation.
+-- The caller must resolve the price from a server-owned catalog.
+function PlayerDataService:PurchasePet(player: Player, definitionId: string, price: number): (boolean, string?, string?)
+	local definition = PetsConfig.GetById(definitionId)
+	if not definition then return false, "InvalidPet", nil end
+
+	local cost = math.max(0, math.floor(tonumber(price) or 0))
+	local instanceId = "shop_pet_" .. HttpService:GenerateGUID(false)
+	local failure: string? = nil
+
+	self:UpdateData(player, function(data)
+		self:_ensurePetData(data)
+		if data.Diamonds < cost then
+			failure = "InsufficientDiamonds"
+			return data
+		end
+
+		data.Diamonds -= cost
+		data.OwnedPets[instanceId] = {
+			definitionId = definitionId,
+			level = 1,
+			rarity = definition.rarity,
+			acquiredAt = os.time(),
+		}
+		return data
+	end)
+
+	if failure then return false, failure, nil end
+	if self._context.EventBus then
+		self._context.EventBus:Fire("DiamondsSpent", player, cost, "ShopPurchasePet")
+		self._context.EventBus:Fire("PetPurchased", player, definitionId, instanceId)
+	end
+	return true, nil, instanceId
+end
+
 function PlayerDataService:EquipLauncher(player: Player, instanceId: string): (boolean, string?)
 	local equipped = false
 	self:UpdateData(player, function(data)

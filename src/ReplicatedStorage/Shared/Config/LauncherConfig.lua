@@ -18,6 +18,8 @@ export type LauncherDefinition = {
 	id: string,
 	name: string,
 	description: string?,
+	script: string,
+	shopPrice: number,
 	iconId: string,
 	sellPrice: number,
 	stats: LauncherStats,
@@ -42,6 +44,8 @@ LauncherConfig.Types = {
 		id = "Normalduck",
 		name = "Normal Duck",
 		description = "A balanced all-rounder.",
+		script = "Launcher cơ bản với HP, sát thương, tốc độ và lực phóng cân bằng. Phù hợp làm lựa chọn khởi đầu.",
+		shopPrice = 100,
 		iconId = DEFAULT_ICON,
 		sellPrice = 1,
 		stats = {
@@ -60,6 +64,8 @@ LauncherConfig.Types = {
 		id = "Kingduck",
 		name = "King Duck",
 		description = "A heavy defensive launcher with high durability.",
+		script = "Launcher thiên phòng thủ, có HP và giáp cao. Đổi lại tốc độ di chuyển và khả năng cơ động thấp hơn.",
+		shopPrice = 900,
 		iconId = DEFAULT_ICON,
 		sellPrice = 2,
 		stats = {
@@ -78,6 +84,8 @@ LauncherConfig.Types = {
 		id = "Witchduck",
 		name = "Witch Duck",
 		description = "A light, highly mobile launcher.",
+		script = "Launcher nhẹ, cơ động và có tốc độ di chuyển cao, nhưng khả năng chịu đòn thấp hơn.",
+		shopPrice = 1200,
 		iconId = DEFAULT_ICON,
 		sellPrice = 2,
 		stats = {
@@ -96,6 +104,8 @@ LauncherConfig.Types = {
 		id = "Drakeduck",
 		name = "Drake Duck",
 		description = "A high-impact launcher focused on damage.",
+		script = "Launcher tập trung vào sát thương và lực va chạm mạnh, phù hợp lối chơi tấn công chủ động.",
+		shopPrice = 1800,
 		iconId = DEFAULT_ICON,
 		sellPrice = 3,
 		stats = {
@@ -114,6 +124,8 @@ LauncherConfig.Types = {
 		id = "Shielduck",
 		name = "Shield Duck",
 		description = "A resilient launcher with strong defensive stats.",
+		script = "Launcher bền bỉ với HP và giáp tốt, phù hợp lối chơi trụ giao tranh và chịu đòn.",
+		shopPrice = 1500,
 		iconId = DEFAULT_ICON,
 		sellPrice = 3,
 		stats = {

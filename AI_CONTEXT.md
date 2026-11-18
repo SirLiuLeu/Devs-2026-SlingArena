@@ -64,7 +64,7 @@
 | `UIController.lua` | Composes and starts feature UI controllers, wires top-level hub toggles, and routes snapshot updates into UI. | UI |
 | `InventoryUIController.lua` | Renders the Items-only `StarterGui.InventoryUI`, item selection, quantity/details, and Use action. | UI |
 | `PetInventoryUIController.lua` | Owns `StarterGui.PetInventoryUI`, Pet slots/previews, Equip/Unequip, delete confirmation, upgrade preview, and Pet stat/ability descriptions. | UI |
-| `ShopUIController.lua` | Renders shop tabs/slots and binds buy actions through shop logic service snapshots. | UI |
+| `ShopUIController.lua` | Renders Items, Launchers, Pets, and Diamond Packs; binds per-slot Info panels, Launcher/Pet ViewportFrame previews, and shop purchase actions from catalog snapshots. | UI |
 | `OnlineRewardUIController.lua` | Renders online reward slots/timers and reward-claim UI states from logic snapshots. | UI |
 | `DailyLoginUIController.lua` | Renders six server-selected single-reward bundles plus the Day 7 Random Pet reward; claim state and countdown come from DailyLoginUpdate snapshots. | UI |
 | `DailyQuestUIController.lua` | Binds MainHUD.Root.QuestDaily, renders one active task/cooldown/claim state, confirms Skip, and toggles the left-extending RootBody. | UI |
@@ -83,11 +83,12 @@
 | `FloatingTextConfig.lua` | Shared styles for floating Damage, Heal, and EXP text. | `PlayerService` |
 | `GiftBoxConfig.lua` | Weighted Gift Box reward pool; all item entries are validated against `ItemConfig` and weights total 100. | `ItemService` |
 | `GameConfig.lua` | Runtime flag durations, stacking/tick behavior and status-effect visual configuration. | `FlagService`, `PlayerStateService` |
-| `ItemConfig.lua` | Item catalog and shared item metadata. Bomb tuning includes blast radius, max damage falloff, knockback, and beep interval; `gift_box` is a consumable. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `ItemService`, `BombService` |
+| `ItemConfig.lua` | Item catalog and shared item metadata, Shop script text, and Diamond prices for x1/x10 purchases. Bomb tuning includes blast radius, max damage falloff, knockback, and beep interval; `gift_box` is a consumable. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `ItemService`, `BombService` |
 | `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
 | `PetAbilityProgressionConfig.lua` | Numeric ability parameters at milestones 1/5/10/15/20. Player-facing ability text is owned by `PetAbilityDisplayConfig.lua`. | `PetProgression`, `PetDisplayFormatter` |
 | `PetAbilityDisplayConfig.lua` | Localized descriptions for each Pet ability; does not own gameplay tuning. | `PetDisplayFormatter`, `PetInventoryUIController` |
 | `PetPreviewConfig.lua` | Per-pet viewport camera `Rotation` and `Offset`, accessed through `Get(petId)`. | `PetInventoryUIController`, `PreviewRenderer` |
+| `PurchasePetConfig.lua` | Server-owned development Diamond prices for all Pet definitions available in Shop. | `ShopService`, `MockData` |
 | `PetRenderConfig.lua` | Client-side nearby Pet render distance, range-check interval, and exit hysteresis. | `ClientPetController` |
 | `PetProjectileRenderConfig.lua` | Client-only projectile visual distance and count cap. | `PetProjectileVisualController.client.lua` |
 | `LauncherPreviewConfig.lua` | Per-Launcher viewport camera `Rotation`, `Offset`, and preview `Scale`, accessed through `Get(launcherId)`. | `LauncherInventoryUIController`, `PreviewRenderer` |

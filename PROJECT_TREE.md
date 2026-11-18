@@ -30,6 +30,7 @@ DataModel
 │  │  │  ├─ PetRenderConfig.lua
 │  │  │  ├─ PetRarityStatsConfig.lua
 │  │  │  ├─ PetsConfig.lua
+│  │  │  ├─ PurchasePetConfig.lua
 │  │  │  ├─ PetsUpgradeConfig.lua
 │  │  │  ├─ PhysicsConfig.lua
 │  │  │  ├─ QuestConfig.lua
@@ -254,24 +255,46 @@ DataModel
 │  │      │   ├── Rank
 │  │      │   └── Reward
 │  │      │
-│  │      ├── SlotItemsTemplate_ShopUI (Frame)
+│  │      ├── SlotItemTemplate_shopUI (Frame)
 │  │      │   ├── UICorner
+│  │      │   ├── Info (Frame)
+│  │      │   │   └── Script (TextLabel/UIStroke)
 │  │      │   ├── InfoButton (ImageButton)
 │  │      │   ├── BuyButton (TextButton/ImageButton)
 │  │      │   ├── Icon (ImageLabel)
-│  │      │   ├── Quantity (TextLabel)
+│  │      │   ├── Price (TextLabel, optional; price otherwise appears on BuyButton)
 │  │      │   └── Title (TextLabel)
 │  │      │
 │  │      ├── SlotLaucherTemplate_shopUI (Frame)
 │  │      │   ├── UIAspectRatioConstraint
 │  │      │   ├── UICorner
 │  │      │   ├── Info (Frame)
+<<<<<<< HEAD
 │  │      │   │   └── Script (TextLabel)
 │  │      │   │       └── UIStroke
 │  │      │   ├── InfoButton (ImageButton)
 │  │      │   ├── BuyButton (TextButton)
 │  │      │   ├── Preview (ViewportFrame)
 │  │      │   │   └── Model (Model)
+=======
+│  │      │   │   └── Script (TextLabel/UIStroke)
+│  │      │   ├── InfoButton (ImageButton)
+│  │      │   ├── BuyButton (TextButton/ImageButton)
+│  │      │   ├── Preview (ViewportFrame)
+│  │      │   │   └── Model (Model)
+│  │      │   ├── Price (TextLabel, optional; price otherwise appears on BuyButton)
+│  │      │   └── Title (TextLabel)
+│  │      │
+│  │      ├── SlotPetTemplate_shopUI (Frame)
+│  │      │   ├── UICorner
+│  │      │   ├── Info (Frame)
+│  │      │   │   └── Script (TextLabel/UIStroke)
+│  │      │   ├── InfoButton (ImageButton)
+│  │      │   ├── BuyButton (TextButton/ImageButton)
+│  │      │   ├── Preview (ViewportFrame)
+│  │      │   │   └── Model (Model)
+│  │      │   ├── Price (TextLabel, optional; price otherwise appears on BuyButton)
+>>>>>>> f79e89b3353d3a21dd604d506a174e9f42e0294f
 │  │      │   └── Title (TextLabel)
 │  │      │
 │  │      ├── SlotPetTemplate_shopUI (Frame)
@@ -347,6 +370,7 @@ DataModel
 │  │     ├─ QuestUpdate
 │  │     ├─ QuestClaim
 │  │     ├─ QuestSkip
+│  │     ├─ PurchasePet
 │  │     └─ ZoneUpdate [freeze-required]
 │  │
 │  └─ Client  -> src/ReplicatedStorage/Client
@@ -518,21 +542,21 @@ DataModel
 │  │     │  ├─ Pet (ImageButton)
 │  │     │  └─ Items (ImageButton)
 │  │     ├─ Dinamonds (Frame)
-│  │     │     ├─ UIGridLayout
-│  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotDiamondPackTemplate_ShopUI Frames) -- -- Script Spawn in run time
+│  │     │  ├─ UIGridLayout
+│  │     │  └─ Slot1, Slot2, Slot3, Slot4 (SlotDiamondPackTemplate_ShopUI Frames) -- Script Spawn in run time
 │  │     ├─ Items (Frame)
-│  │     │     ├─ UIGridLayout
-│  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotItemTemplate_shopUI Frames) -- -- Script Spawn in run time
+│  │     │  ├─ UIGridLayout
+│  │     │  └─ Slot1, Slot2, Slot3, Slot4 (SlotItemTemplate_shopUI Frames) -- Script Spawn in run time
 │  │     ├─ Launcher (Frame)
 │  │     │  ├─ UIListLayout
-│  │     │  └─ ScrollingFrame (Frame)
+│  │     │  └─ ScrollingFrame (ScrollingFrame)
 │  │     │     ├─ UIGridLayout
-│  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotLaucherTemplate_shopUI Frames) -- -- Script Spawn in run time
+│  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotLauncherTemplate_shopUI Frames) -- Script Spawn in run time
 │  │     ├─ Pet (Frame)
 │  │     │  ├─ UIListLayout
-│  │     │  └─ ScrollingFrame (Frame)
+│  │     │  └─ ScrollingFrame (ScrollingFrame)
 │  │     │     ├─ UIGridLayout
-│  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotPetTemplate_shopUI Frames) -- -- Script Spawn in run time
+│  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotPetTemplate_shopUI Frames) -- Script Spawn in run time
 │  │     └─ Close (TextButton/ImageButton)
 │  │
 │  ├─ InventoryUI (ScreenGui)

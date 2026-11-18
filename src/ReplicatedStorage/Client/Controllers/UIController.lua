@@ -198,6 +198,7 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.LauncherInventoryUIController:SetToastController(self.ToastUIController)
 	self.OnlineRewardUIController:SetLogicService(self.OnlineRewardLogicService)
 	self.ShopUIController:SetLogicService(self.ShopLogicService)
+	self.ShopUIController:SetToastController(self.ToastUIController)
 	self.DailyLoginUIController:SetLogicService(self.DailyLoginLogicService)
 	self.DailyQuestUIController:SetLogicService(self.DailyQuestLogicService)
 	self.DailyQuestUIController:SetConfirmationController(self.ConfirmationUIController)
@@ -792,6 +793,9 @@ function UIController:Start()
 		if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] StateUpdate received level=%s exp=%s hp=%s ownedPets=%s equippedPets=%s t=%.3f", tostring(state.Level), tostring(state.Exp), tostring(state.HpPotions), tostring(type(state.OwnedPets) == "table" and #state.OwnedPets or "n/a"), tostring(type(state.EquippedPets) == "table" and (function() local count = 0; for _ in pairs(state.EquippedPets) do count += 1 end; return count end)() or "n/a"), os.clock())) end
 		local previousState = self.LastAuthoritativeState
 		self.LastAuthoritativeState = state
+		if self.ShopLogicService and typeof(state.Diamonds) == "number" then
+			self.ShopLogicService:SetBalanceFromState(state.Diamonds)
+		end
 		if not previousState or previousState.Level ~= state.Level or previousState.Exp ~= state.Exp then
 			MockPlayerData.SetProgress(state.Level or 1, state.Exp or 0, "AuthoritativeProgress", false)
 		end

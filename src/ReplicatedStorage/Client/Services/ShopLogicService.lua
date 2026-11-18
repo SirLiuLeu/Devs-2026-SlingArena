@@ -23,11 +23,14 @@ function ShopLogicService.new()
 	self._balance = 0
 	self._items = {}
 	self._launchers = {}
+	self._pets = {}
 	self._dinamondPacks = {}
+	self._authoritativeBalance = false
 	local remotes = ReplicatedStorage:WaitForChild("LauncherArenaRemotes")
 	self._purchaseDinamondPackRemote = remotes:FindFirstChild(RemoteContracts.Names.PurchaseDinamondPack) :: RemoteEvent?
 	self._purchaseItemRemote = remotes:FindFirstChild(RemoteContracts.Names.PurchaseItem) :: RemoteEvent?
 	self._purchaseLauncherRemote = remotes:FindFirstChild(RemoteContracts.Names.PurchaseLauncher) :: RemoteEvent?
+	self._purchasePetRemote = remotes:FindFirstChild(RemoteContracts.Names.PurchasePet) :: RemoteEvent?
 	return self
 end
 
@@ -50,7 +53,20 @@ function ShopLogicService:_emitChanged()
 end
 
 function ShopLogicService:_syncBalance()
-	self._balance = math.max(0, math.floor(MockPlayerData.GetPlayerData().Diamonds or 0))
+	if not self._authoritativeBalance then
+		self._balance = math.max(0, math.floor(MockPlayerData.GetPlayerData().Diamonds or 0))
+	end
+end
+
+function ShopLogicService:SetBalanceFromState(balance: number)
+	if typeof(balance) ~= "number" then return end
+	local nextBalance = math.max(0, math.floor(balance))
+	local changed = not self._authoritativeBalance or self._balance ~= nextBalance
+	self._authoritativeBalance = true
+	self._balance = nextBalance
+	if changed then
+		self:_emitChanged()
+	end
 end
 
 function ShopLogicService:GetSnapshot()
@@ -65,29 +81,42 @@ function ShopLogicService:GetSnapshot()
 		launchers[i] = cloneEntry(entry)
 	end
 
+	local pets = {}
+	for i, entry in ipairs(self._pets) do
+		pets[i] = cloneEntry(entry)
+	end
+
 	local packs = {}
 	for i, entry in ipairs(self._dinamondPacks) do
 		packs[i] = cloneEntry(entry)
 	end
 
 	return {
-		currencyName = "Dinamond",
+		currencyName = "Diamonds",
 		balance = self._balance,
 		itemEntries = items,
 		launcherEntries = launchers,
+		petEntries = pets,
 		dinamondEntries = packs,
 	}
 end
 
 function ShopLogicService:LoadMockData()
 	local data = MockData.GetShopState()
+	self._authoritativeBalance = false
 	self._balance = math.max(0, math.floor(MockPlayerData.GetPlayerData().Diamonds or data.balance or 0))
 	self._items = data.items or {}
 	self._launchers = data.launchers or {}
+	self._pets = data.pets or {}
 	self._dinamondPacks = data.dinamondPacks or {}
 	if not self._playerDataConnection then
-		self._playerDataConnection = MockPlayerData.BindChanged(function()
-			self:_emitChanged()
+		self._playerDataConnection = MockPlayerData.BindChanged(function(data)
+			if self._authoritativeBalance then return end
+			local nextBalance = math.max(0, math.floor((data and data.Diamonds) or 0))
+			if self._balance ~= nextBalance then
+				self._balance = nextBalance
+				self:_emitChanged()
+			end
 		end)
 	end
 	self:_emitChanged()
@@ -130,6 +159,19 @@ function ShopLogicService:PurchaseLauncher(launcherId: string): (boolean, string
 	return true, string.format("Purchase requested: %s", tostring(launcher.name))
 end
 
+function ShopLogicService:PurchasePet(petId: string): (boolean, string)
+	local pet = self:_findById(self._pets, petId)
+	if not pet then
+		return false, "PET_NOT_FOUND"
+	end
+	if not self._purchasePetRemote then
+		return false, "PURCHASE_REMOTE_UNAVAILABLE"
+	end
+
+	self._purchasePetRemote:FireServer(pet.id)
+	return true, string.format("Purchase requested: %s", tostring(pet.name))
+end
+
 function ShopLogicService:PurchaseDinamondPack(packId: string): (boolean, string)
 	local pack = self:_findById(self._dinamondPacks, packId)
 	if not pack then
@@ -141,7 +183,7 @@ function ShopLogicService:PurchaseDinamondPack(packId: string): (boolean, string
 
 	-- Diamond grants are server-authoritative; StateUpdate publishes the new balance.
 	self._purchaseDinamondPackRemote:FireServer(pack.id)
-	return true, string.format("Purchase requested: +%d Dinamond", pack.dinamondAmount)
+	return true, string.format("Purchase requested: +%d Diamonds", pack.dinamondAmount)
 end
 
 local defaultInstance = nil

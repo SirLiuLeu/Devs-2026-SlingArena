@@ -35,6 +35,7 @@ export type PetDefinition = {
 	statModifiers: StatModifiers?,
 	metadata: { [string]: any }?,
 	iconId: string?,
+	script: string,
 }
 
 PetsConfig.EquippedSlotCount = 3
@@ -49,6 +50,27 @@ PetsConfig.Categories = {
 	RegenerationHealing = "Regeneration / Healing",
 	ConditionalEffect = "Conditional Effect",
 	UtilityAreaEffect = "Utility / Area Effect",
+}
+
+local PET_SCRIPTS = {
+	PlasmaCannon = "Tự động bắn đạn Plasma vào đối thủ gần nhất trong phạm vi, gây sát thương theo cấp Pet.",
+	Hydra = "Tăng trọng lượng và kích thước hitbox của Launcher; đồng thời hỗ trợ tăng kích thước theo cấp người chơi.",
+	ThunderHammer = "Va chạm với đối thủ có thể gây choáng và tăng sát thương cơ bản.",
+	Medusa = "Va chạm với đối thủ có thể gây hóa đá trong một khoảng thời gian.",
+	IceCrystal = "Va chạm áp dụng hiệu ứng làm chậm mục tiêu.",
+	GhostFlame = "Va chạm áp dụng hiệu ứng Burn lên người chơi hoặc thức ăn và tăng sát thương cơ bản.",
+	Poison = "Va chạm áp dụng hiệu ứng Poison lên người chơi hoặc thức ăn.",
+	HealthCore = "Tăng HP tối đa cho Launcher.",
+	PowerCore = "Tăng sát thương cơ bản cho Launcher.",
+	Shield = "Giảm sát thương nhận vào.",
+	BrainBoost = "Tăng lượng EXP nhận được.",
+	TurboModule = "Tăng tốc độ di chuyển.",
+	LaunchBooster = "Tăng tốc độ phóng tối đa của Launcher.",
+	Dragon = "Tự động bắn SlowBlaster vào đối thủ gần nhất để làm chậm mục tiêu.",
+	QuickReload = "Giảm thời gian hồi chiêu phóng.",
+	ThornArmor = "Phản lại một phần sát thương nhận vào kẻ tấn công.",
+	RegenBooster = "Hồi HP định kỳ khi được trang bị.",
+	ShadowCloak = "Tàng hình sau khi đứng yên đủ lâu; tự hiện hình khi hành động.",
 }
 
 local function pet(petId: string, name: string, displayName: string, rarity: string, category: string, abilityId: string?, combatEffect: CombatEffect?, passiveAbility: PassiveAbility?, statModifiers: StatModifiers?, activeAbilityId: string?): PetDefinition
@@ -67,6 +89,7 @@ local function pet(petId: string, name: string, displayName: string, rarity: str
 		statModifiers = statModifiers or { Add = {}, Multiply = {} },
 		metadata = { inventoryCapacityCost = 1 },
 		iconId = "rbxassetid://0",
+		script = PET_SCRIPTS[petId] or "Chưa có mô tả Pet.",
 	}
 end
 
