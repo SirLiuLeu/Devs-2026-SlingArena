@@ -2,7 +2,8 @@
 
 -- Development shop prices for purchasing Pet definitions with Diamonds.
 -- Adjust these values during economy balancing; the server always reads this config.
-local PetsConfig = require(game:GetService("ReplicatedStorage").Shared.Config.PetsConfig)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 
 local PurchasePetConfig = {}
 
