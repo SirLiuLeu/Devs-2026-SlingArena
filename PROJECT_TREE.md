@@ -262,7 +262,7 @@ DataModel
 │  │      │   ├── InfoButton (ImageButton)
 │  │      │   ├── BuyButton (TextButton/ImageButton)
 │  │      │   ├── Icon (ImageLabel)
-│  │      │   ├── Price (TextLabel)
+│  │      │   ├── Price (TextLabel, optional; price otherwise appears on BuyButton)
 │  │      │   └── Title (TextLabel)
 │  │      │
 │  │      ├── SlotLauncherTemplate_shopUI (Frame)
@@ -273,7 +273,7 @@ DataModel
 │  │      │   ├── BuyButton (TextButton/ImageButton)
 │  │      │   ├── Preview (ViewportFrame)
 │  │      │   │   └── Model (Model)
-│  │      │   ├── Price (TextLabel)
+│  │      │   ├── Price (TextLabel, optional; price otherwise appears on BuyButton)
 │  │      │   └── Title (TextLabel)
 │  │      │
 │  │      ├── SlotPetTemplate_shopUI (Frame)
@@ -284,7 +284,7 @@ DataModel
 │  │      │   ├── BuyButton (TextButton/ImageButton)
 │  │      │   ├── Preview (ViewportFrame)
 │  │      │   │   └── Model (Model)
-│  │      │   ├── Price (TextLabel)
+│  │      │   ├── Price (TextLabel, optional; price otherwise appears on BuyButton)
 │  │      │   └── Title (TextLabel)
 │  │      │
 │  │      ├── SlotDiamondPackTemplate_ShopUI (Frame)
