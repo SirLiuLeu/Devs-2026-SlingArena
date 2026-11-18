@@ -262,15 +262,31 @@ DataModel
 │  │      │   ├── Quantity (TextLabel)
 │  │      │   └── Title (TextLabel)
 │  │      │
-│  │      ├── SlotLauncherTemplate_shopUI (Frame)
+│  │      ├── SlotLaucherTemplate_shopUI (Frame)
+│  │      │   ├── UIAspectRatioConstraint
 │  │      │   ├── UICorner
+│  │      │   ├── Info (Frame)
+│  │      │   │   └── Script (TextLabel)
+│  │      │   │       └── UIStroke
 │  │      │   ├── InfoButton (ImageButton)
-│  │      │   ├── BuyButton (TextButton/ImageButton)
-│  │      │   ├── LauncherPreview (ViewportFrame)
-│  │      │   │   ├── Model (Model Equipment)
-│  │      │   │   └── Camera
+│  │      │   ├── BuyButton (TextButton)
+│  │      │   ├── Preview (ViewportFrame)
+│  │      │   │   └── Model (Model)
 │  │      │   └── Title (TextLabel)
 │  │      │
+│  │      ├── SlotPetTemplate_shopUI (Frame)
+│  │      │   ├── UIAspectRatioConstraint
+│  │      │   ├── UICorner
+│  │      │   ├── Info (Frame)
+│  │      │   │   └── Script (TextLabel)
+│  │      │   │       └── UIStroke
+│  │      │   ├── InfoButton (ImageButton)
+│  │      │   ├── BuyButton (TextButton)
+│  │      │   ├── BuyButton (TextButton)
+│  │      │   ├── Preview (ViewportFrame)
+│  │      │   │   └── Model (Model)
+│  │      │   └── Title (TextLabel)
+│  │      │ 
 │  │      ├── SlotDiamondPackTemplate_ShopUI (Frame)
 │  │      │   ├── UICorner
 │  │      │   ├── BuyButton (TextButton/ImageButton)
@@ -499,22 +515,24 @@ DataModel
 │  │     ├─ Buttons (Frame)
 │  │     │  ├─ Launcher (ImageButton)
 │  │     │  ├─ Dinamonds (ImageButton)
+│  │     │  ├─ Pet (ImageButton)
 │  │     │  └─ Items (ImageButton)
 │  │     ├─ Dinamonds (Frame)
-│  │     │  └─ Content (Frame)
-│  │     │     └─ ScrollingFrame
+│  │     │     ├─ UIGridLayout
+│  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotDiamondPackTemplate_ShopUI Frames) -- -- Script Spawn in run time
 │  │     ├─ Items (Frame)
-│  │     │  ├─ UIListLayout
-│  │     │  └─ Content (Frame)
-│  │     │     ├─ UICorner
-│  │     │     ├─ UIListLayout
-│  │     │     └─ ScrollingFrame
+│  │     │     ├─ UIGridLayout
+│  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotItemTemplate_shopUI Frames) -- -- Script Spawn in run time
 │  │     ├─ Launcher (Frame)
 │  │     │  ├─ UIListLayout
-│  │     │  └─ Content (Frame)
-│  │     │     ├─ UICorner
-│  │     │     ├─ UIListLayout
-│  │     │     └─ ScrollingFrame
+│  │     │  └─ ScrollingFrame (Frame)
+│  │     │     ├─ UIGridLayout
+│  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotLaucherTemplate_shopUI Frames) -- -- Script Spawn in run time
+│  │     ├─ Pet (Frame)
+│  │     │  ├─ UIListLayout
+│  │     │  └─ ScrollingFrame (Frame)
+│  │     │     ├─ UIGridLayout
+│  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotPetTemplate_shopUI Frames) -- -- Script Spawn in run time
 │  │     └─ Close (TextButton/ImageButton)
 │  │
 │  ├─ InventoryUI (ScreenGui)
