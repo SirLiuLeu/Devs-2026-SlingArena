@@ -3,6 +3,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
+local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
+local LauncherConfig = require(ReplicatedStorage.Shared.Config.LauncherConfig)
+local PurchasePetConfig = require(ReplicatedStorage.Shared.Config.PurchasePetConfig)
 local PetsUpgradeConfig = require(ReplicatedStorage.Shared.Config.PetsUpgradeConfig)
 local PetAbilityProgressionConfig = require(ReplicatedStorage.Shared.Config.PetAbilityProgressionConfig)
 local RankConfig = require(ReplicatedStorage.Shared.Config.RankConfig)
@@ -278,3 +281,37 @@ runTest("Round_And_Kill_Diamond_Reward_Tuning", function()
 end)
 
 print("[ProgressionEconomyTests] all checks passed")
+
+
+runTest("Shop_Catalog_Has_All_Configured_Items_And_Launchers", function()
+	assertEqual(#ItemConfig.GetAllIds(), 8, "All ItemConfig definitions are included in Shop")
+	for _, itemId in ipairs(ItemConfig.GetAllIds()) do
+		local item = ItemConfig.GetById(itemId)
+		assertEqual(type(item), "table", "Item exists: " .. itemId)
+		assertEqual(type(item.script), "string", "Item script exists: " .. itemId)
+		assertEqual(type(item.shopPriceX1), "number", "Item x1 price exists: " .. itemId)
+		assertEqual(type(item.shopPriceX10), "number", "Item x10 price exists: " .. itemId)
+	end
+
+	assertEqual(#LauncherConfig.GetAllIds(), 5, "All LauncherConfig definitions are included in Shop")
+	for _, launcherId in ipairs(LauncherConfig.GetAllIds()) do
+		local launcher = LauncherConfig.GetById(launcherId)
+		assertEqual(type(launcher.script), "string", "Launcher script exists: " .. launcherId)
+		assertEqual(type(launcher.shopPrice), "number", "Launcher shop price exists: " .. launcherId)
+	end
+end)
+
+runTest("Shop_Pet_Catalog_Has_Price_And_Script_For_Every_Pet", function()
+	assertEqual(#PetsConfig.GetAllIds(), 18, "All Pet definitions are available")
+	assertEqual(#PurchasePetConfig.GetAllIds(), 18, "Every Pet has a purchase price")
+	for _, petId in ipairs(PetsConfig.GetAllIds()) do
+		local pet = PetsConfig.GetById(petId)
+		assertEqual(type(pet.script), "string", "Pet script exists: " .. petId)
+		assertEqual(type(PurchasePetConfig.GetPrice(petId)), "number", "Pet purchase price exists: " .. petId)
+	end
+end)
+
+runTest("PurchasePet_Remote_Validates_Pet_Definition_ID_Shape", function()
+	assertEqual(RemoteContracts.Validate(RemoteContracts.Names.PurchasePet, "PlasmaCannon"), true, "Non-empty Pet definition ID accepted")
+	assertEqual(RemoteContracts.Validate(RemoteContracts.Names.PurchasePet, ""), false, "Empty Pet definition ID rejected")
+end)
