@@ -10,6 +10,7 @@ local LauncherPreviewConfig = require(ReplicatedStorage.Shared.Config.LauncherPr
 local PetPreviewConfig = require(ReplicatedStorage.Shared.Config.PetPreviewConfig)
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local PetDisplayFormatter = require(ReplicatedStorage.Shared.Utils.PetDisplayFormatter)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local ShopUIController = {}
 ShopUIController.__index = ShopUIController
@@ -55,6 +56,31 @@ local function setTextLabel(root: Instance, name: string, value: string, richTex
 	end
 end
 
+local function buildCatalogSignature(snapshot): string
+	local parts = {}
+	for _, key in ipairs({ "itemEntries", "launcherEntries", "petEntries", "dinamondEntries" }) do
+		for _, entry in ipairs(snapshot[key] or {}) do
+			table.insert(parts, table.concat({
+				key,
+				tostring(entry.id),
+				tostring(entry.name),
+				tostring(entry.modelName),
+				tostring(entry.price),
+				tostring(entry.priceX1),
+				tostring(entry.priceX10),
+				tostring(entry.script),
+				tostring(entry.description),
+				tostring(entry.icon),
+				tostring(entry.rarity),
+				tostring(entry.usd),
+				tostring(entry.dinamondAmount),
+				tostring(entry.note),
+			}, ":"))
+		end
+	end
+	return table.concat(parts, "|")
+end
+
 local function resolveTemplate(uiFolder: Instance?, preferredName: string, legacyNames: { string }?): GuiObject?
 	if not uiFolder then return nil end
 	local candidates = { preferredName }
@@ -85,9 +111,50 @@ function ShopUIController:SetLogicService(logicService)
 	self._logicService = logicService
 end
 
+function ShopUIController:SetToastController(toastController)
+	self._toastController = toastController
+end
+
+function ShopUIController:_bindPurchaseFeedback()
+	if self._feedbackConnection then return end
+	local remotes = ReplicatedStorage:FindFirstChild("LauncherArenaRemotes")
+	local feedbackRemote = remotes and remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
+	if not (feedbackRemote and feedbackRemote:IsA("RemoteEvent")) then
+		warn("[SHOP_UI] GameplayFeedback RemoteEvent is missing; purchase Toast messages are unavailable.")
+		return
+	end
+	self._feedbackConnection = feedbackRemote.OnClientEvent:Connect(function(message)
+		if type(message) ~= "table" or message.EventType ~= "ShopPurchaseResult" then return end
+		local payload = if type(message.Payload) == "table" then message.Payload else {}
+		local productId = tostring(payload.ItemId or "")
+		local productName = productId
+		local productType = tostring(payload.PurchaseType or "")
+		local entries = if productType == "Item" then (self._snapshot and self._snapshot.itemEntries)
+			elseif productType == "Launcher" then (self._snapshot and self._snapshot.launcherEntries)
+			elseif productType == "Pet" then (self._snapshot and self._snapshot.petEntries)
+			else {}
+		for _, entry in ipairs(entries or {}) do
+			if tostring(entry.id) == productId then
+				productName = tostring(entry.name or productId)
+				break
+			end
+		end
+		if self._toastController then
+			if payload.Success == true then
+				self._toastController:Enqueue("Mua thành công: " .. productName)
+			elseif payload.Reason == "InsufficientDiamonds" then
+				self._toastController:Enqueue("Không đủ Diamonds để mua " .. productName)
+			else
+				self._toastController:Enqueue("Không thể mua " .. productName .. " (" .. tostring(payload.Reason or "PurchaseRejected") .. ")")
+			end
+		end
+	end)
+end
+
 function ShopUIController:Start()
 	self:_bindCharacterLifecycle()
 	self:_resolveGuiAndBind()
+	self:_bindPurchaseFeedback()
 
 	if self._logicService and not self._logicConnection then
 		self._logicConnection = self._logicService:BindChanged(function(snapshot)
@@ -286,6 +353,17 @@ function ShopUIController:_cloneSlot(template: GuiObject?, container: Instance?,
 	return slot
 end
 
+function ShopUIController:_renderBalance(balance: number?)
+	if not self._main or typeof(balance) ~= "number" then return end
+	for _, labelName in ipairs({ "Balance", "DiamondBalance", "DiamondsBalance", "DinamondBalance" }) do
+		local label = findFirstChildOfClass(self._main, labelName, "TextLabel")
+		if label then
+			(label :: TextLabel).Text = formatDiamonds(balance)
+			return
+		end
+	end
+end
+
 function ShopUIController:_applyCommonText(slot: GuiObject, title: string, priceText: string?)
 	setTextLabel(slot, "Title", title)
 	if priceText then
@@ -442,6 +520,13 @@ end
 function ShopUIController:RenderSnapshot(snapshot)
 	if type(snapshot) ~= "table" then return end
 	self._snapshot = snapshot
+	local signature = buildCatalogSignature(snapshot)
+	if self._catalogSignature == signature then
+		self:_renderBalance(snapshot.balance)
+		return
+	end
+	self._catalogSignature = signature
+	self:_renderBalance(snapshot.balance)
 	self:_disconnectSlotConnections()
 	self:_clearGeneratedSlots(self._itemsContainer)
 	self:_clearGeneratedSlots(self._launchersContainer)
@@ -456,6 +541,10 @@ end
 
 function ShopUIController:Destroy()
 	self:_disconnectUiConnections()
+	if self._feedbackConnection then
+		self._feedbackConnection:Disconnect()
+		self._feedbackConnection = nil
+	end
 	if self._characterConnection then
 		self._characterConnection:Disconnect()
 		self._characterConnection = nil
