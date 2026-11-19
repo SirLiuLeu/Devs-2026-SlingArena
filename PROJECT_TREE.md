@@ -796,15 +796,10 @@ DataModel
 │        │  └─ HighWall (Part)
 │        │
 │        ├─ Traps (Folder)
-│        │  ├─ LavaTrap (Model)
-│        │  │  ├─ LavaFloor
-│        │  │  ├─ LavaCenter
-│        │  │  └─ Lava
-│        │  ├─ SpikeTrap (Model)
-│        │  │  ├─ Core
-│        │  │  └─ Spike
-│        │  ├─ SpikeTrap (Model)
-│        │  └─ SpikeTrap (Model)
+│        │  └─ LavaTrap (Model)
+│        │     ├─ Lava_Visual
+│        │     │  └─ LavaTexture (Texture)
+│        │     └─ Lava_Hitbox
 │        │
 │        ├─ CenterCross (Model)
 │        │  ├─ Cross_Horizontal (Part)
