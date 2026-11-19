@@ -400,6 +400,7 @@ DataModel
 │  └─ StarterPlayerScripts
 │     ├─ CameraController.client.lua                 (Camera)
 │     ├─ CollisionClientScanner.client.lua
+│     ├─ LavaTextureAnimator.client.lua              (slow local LavaTexture drift)
 │     ├─ FoodWorldUI.client.lua
 │     ├─ InputController.client.lua                  (Active input / charge script)
 │     ├─ KnockbackReplicationClient.client.lua
