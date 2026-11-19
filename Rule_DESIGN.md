@@ -182,7 +182,7 @@ Flags are modifiers layered on top of a player's core `MovementState`. Real, cod
 | `Burn` | 4s | 250 dmg/tick every 1s, 1.5s post-knockback tail |
 | `Poison` | 5s | 150 dmg/tick every 1s, plus a 25% slow for 3s scheduled after knockback resolves |
 | `PoisonTrap` | 5s, stacks to 5 | Source-scoped (per source) |
-| `LavaTrap` | 0.75s, source-scoped | 0.1 dmg/tick every 0.5s + 25% contact slow for 0.75s |
+| `LavaTrap` | Contact-scoped, source-scoped | Starts at 100 damage and rises by 100 every 0.3s, capped at 2,000 per tick; 25% contact slow is refreshed while inside |
 | `HPRecovering` | 3s | 500 heal/tick every 0.5s (used by HP Potion, see §7.2) |
 | `EXPBoosted` | 300s | +100% EXP |
 | `DamageBoosted` | 30s | +100% damage |
@@ -277,15 +277,15 @@ Real ramp (`SafeZoneService.lua` constants), not the "1%/s → 10%/s" figure fro
 * Damage per tick = `(CurrentHP × percent/100) + (15,000 × percent/100)` — i.e., there is a large **fixed base component** (`DAMAGE_FIXED_BASE = 15000`) added on top of the HP-percentage component. This makes zone damage considerably more punishing than a pure percent-of-HP tick.
 * Ticks once per second (`DAMAGE_TICK_INTERVAL = 1`).
 
-## 9.3 Traps (`TrapConfig.lua`) — ⚠️ Roster Corrected
+## 9.3 Traps (`TrapConfig.lua`)
 
-Only **two** trap types actually exist in the codebase — **Totem** and **Toxic Smoke** traps referenced in earlier drafts do not exist anywhere in source:
+Only **LavaTrap** is supported by the current runtime. `TrapService` detects contact exclusively through `Workspace.Maps.ArenaMap.Traps.LavaTrap.Lava_Hitbox`; the visual part is not a damage surface.
 
 | Trap | Behavior | Details |
 |---|---|---|
-| SpikeTrap | Hit-cooldown damage | 1,500 damage per hit, 1.5s cooldown, "Spike hit! -1500 HP" popup |
-| LavaTrap | Contact DoT | Applies the `LavaTrap` flag (0.1 dmg/tick every 0.5s, plus 25% slow for 0.75s) |
+| LavaTrap | Contact-ramp damage | First tick deals 100 damage; each 0.3s contact interval adds 100 damage, capped at 2,000 per tick. Leaving the hitbox resets the ramp. Detection padding is 1 stud; the existing 25% contact slow is refreshed while inside. |
 
+`LavaTextureAnimator.client.lua` moves the `LavaTexture` offsets locally and slowly, without server-side texture replication.
 ---
 
 # 10. TEAM SYSTEM — four-team selection and Rage textures
@@ -345,7 +345,7 @@ This section exists so nobody has to guess. Each item below is a **real, verifie
 8. **Kill EXP is a flat 120, not 50% of the victim's lost EXP.** Per-kill Diamonds now use a 60-second per-victim diminishing-return window; HP Food drop chances and round-end score/placement rewards are also configured in §7.2 and §8.2.
 9. **No EXP-rate difference between `Awaits` and `EarlyGame`.** `GrantExp` is round-state agnostic; the previously documented "50% EXP in Awaits, 100% in EarlyGame" scaling does not exist in code.
 10. **Safe Zone outside-damage numbers were wrong.** Real ramp is 0.5%/s → 5%/s (+0.5% every 30s), plus a large fixed 15,000-point base component added to every tick — not a pure 1%→10% percent-of-HP ramp.
-11. **Only two trap types exist** (SpikeTrap, LavaTrap). Totem and Toxic Smoke traps referenced in earlier drafts have no implementation anywhere in the codebase.
+11. **Only LavaTrap is supported by the runtime.** No other trap types are implemented.
 12. **`FoodConfig.lua` has one source-controlled runtime path:** `src/ServerScriptService/Config/FoodConfig.lua`. Older documentation referenced a Shared/Config placeholder that does not exist in the current source tree.
 13. **Two conflicting HP Potion definitions exist** (`BalanceConfig.HpPotionHealAmount/Cooldown` vs. `ItemConfig`'s `hp_potion` entry). The `ItemConfig` definition is what actually runs; the `BalanceConfig` fields are dead fallback values.
 14. **Size-growth formula in earlier drafts (`sqrt(Level) × 0.08`) matches neither implementation found in code.** One implementation (`ComputeSize`, +8%/level linear) is dead code, never called. The live formula, applied to runtime state, is +3%/level multiplicative — matching the Launcher stat growth rate, not a square-root curve.
