@@ -265,18 +265,10 @@ DataModel
 │  │      │   ├── Price (TextLabel, optional; price otherwise appears on BuyButton)
 │  │      │   └── Title (TextLabel)
 │  │      │
-│  │      ├── SlotLaucherTemplate_shopUI (Frame)
+│  │      ├── SlotLauncherTemplate_shopUI (Frame)
 │  │      │   ├── UIAspectRatioConstraint
 │  │      │   ├── UICorner
 │  │      │   ├── Info (Frame)
-<<<<<<< HEAD
-│  │      │   │   └── Script (TextLabel)
-│  │      │   │       └── UIStroke
-│  │      │   ├── InfoButton (ImageButton)
-│  │      │   ├── BuyButton (TextButton)
-│  │      │   ├── Preview (ViewportFrame)
-│  │      │   │   └── Model (Model)
-=======
 │  │      │   │   └── Script (TextLabel/UIStroke)
 │  │      │   ├── InfoButton (ImageButton)
 │  │      │   ├── BuyButton (TextButton/ImageButton)
@@ -294,7 +286,6 @@ DataModel
 │  │      │   ├── Preview (ViewportFrame)
 │  │      │   │   └── Model (Model)
 │  │      │   ├── Price (TextLabel, optional; price otherwise appears on BuyButton)
->>>>>>> f79e89b3353d3a21dd604d506a174e9f42e0294f
 │  │      │   └── Title (TextLabel)
 │  │      │
 │  │      ├── SlotPetTemplate_shopUI (Frame)
@@ -543,18 +534,18 @@ DataModel
 │  │     │  ├─ Pet (ImageButton)
 │  │     │  └─ Items (ImageButton)
 │  │     ├─ Dinamonds (Frame)
-│  │     │  ├─ UIGridLayout
-│  │     │  └─ Slot1, Slot2, Slot3, Slot4 (SlotDiamondPackTemplate_ShopUI Frames) -- Script Spawn in run time
+│  │     │  └─ ScrollingFrame (ScrollingFrame)
+│  │     │     ├─ UIGridLayout
+│  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotDiamondPackTemplate_ShopUI Frames) -- Script Spawn in run time
 │  │     ├─ Items (Frame)
-│  │     │  ├─ UIGridLayout
-│  │     │  └─ Slot1, Slot2, Slot3, Slot4 (SlotItemTemplate_shopUI Frames) -- Script Spawn in run time
+│  │     │  └─ ScrollingFrame (ScrollingFrame)
+│  │     │     ├─ UIGridLayout
+│  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotItemTemplate_shopUI Frames) -- Script Spawn in run time
 │  │     ├─ Launcher (Frame)
-│  │     │  ├─ UIListLayout
 │  │     │  └─ ScrollingFrame (ScrollingFrame)
 │  │     │     ├─ UIGridLayout
 │  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotLauncherTemplate_shopUI Frames) -- Script Spawn in run time
 │  │     ├─ Pet (Frame)
-│  │     │  ├─ UIListLayout
 │  │     │  └─ ScrollingFrame (ScrollingFrame)
 │  │     │     ├─ UIGridLayout
 │  │     │     └─ Slot1, Slot2, Slot3, Slot4 (SlotPetTemplate_shopUI Frames) -- Script Spawn in run time

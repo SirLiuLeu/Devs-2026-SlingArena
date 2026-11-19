@@ -254,7 +254,7 @@ function ShopUIController:_resolveGuiAndBind()
 	self._petAssets = assets and assets:FindFirstChild("Pets")
 	local uiFolder = assets and assets:FindFirstChild("UI")
 	self._itemTemplate = resolveTemplate(uiFolder, "SlotItemTemplate_shopUI", { "SlotItemsTemplate_ShopUI" })
-	self._launcherTemplate = resolveTemplate(uiFolder, "SlotLauncherTemplate_shopUI", { "SlotLaucherTemplate_shopUI" })
+	self._launcherTemplate = resolveTemplate(uiFolder, "SlotLauncherTemplate_shopUI", { "SlotLauncherTemplate_shopUI" })
 	self._petTemplate = resolveTemplate(uiFolder, "SlotPetTemplate_shopUI")
 	self._dinamondTemplate = resolveTemplate(uiFolder, "SlotDiamondPackTemplate_ShopUI")
 
