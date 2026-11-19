@@ -34,6 +34,14 @@ local function resolveButton(root: Instance, path: string): GuiButton?
 	return nil
 end
 
+local function resolveScrollingFrame(root: Instance, path: string): ScrollingFrame?
+	local value = PathResolver.resolvePath(root, path, { shouldWarn = false })
+	if value and value:IsA("ScrollingFrame") then
+		return value
+	end
+	return nil
+end
+
 local function formatDiamonds(amount: number): string
 	return string.format("%d Diamonds", math.max(0, math.floor(tonumber(amount) or 0)))
 end
@@ -218,36 +226,13 @@ function ShopUIController:_resolveGuiAndBind()
 	self._dinamondsTabButton = resolveButton(self._playerGui, ProjectTreeSpec.UI.Shop.DinamondsTabButton)
 	self._petsTabButton = resolveButton(self._playerGui, ProjectTreeSpec.UI.Shop.PetsTabButton)
 
-	local main = self._main
-	local itemsFrame = main and main:FindFirstChild("Items")
-	local launcherFrame = main and main:FindFirstChild("Launcher")
-	local petFrame = main and main:FindFirstChild("Pet")
-	local diamondsFrame = main and main:FindFirstChild("Dinamonds")
-
-	-- The updated Studio tree places Items and Dinamonds grids directly under
-	-- their Frames, while Launcher and Pet use a nested ScrollingFrame.
-	self._itemsContainer = if itemsFrame and itemsFrame:IsA("GuiObject") then itemsFrame else nil
-	self._launchersContainer = if launcherFrame then launcherFrame:FindFirstChild("ScrollingFrame") else nil
-	self._petsContainer = if petFrame then petFrame:FindFirstChild("ScrollingFrame") else nil
-	self._dinamondsContainer = if diamondsFrame and diamondsFrame:IsA("GuiObject") then diamondsFrame else nil
-
-	-- Backward-compatible fallback for the previous Content.ScrollingFrame tree.
-	if itemsFrame and not (self._itemsContainer and self._itemsContainer:FindFirstChildOfClass("UIGridLayout")) then
-		local content = itemsFrame:FindFirstChild("Content")
-		self._itemsContainer = content and content:FindFirstChild("ScrollingFrame") or self._itemsContainer
-	end
-	if diamondsFrame and not (self._dinamondsContainer and self._dinamondsContainer:FindFirstChildOfClass("UIGridLayout")) then
-		local content = diamondsFrame:FindFirstChild("Content")
-		self._dinamondsContainer = content and content:FindFirstChild("ScrollingFrame") or self._dinamondsContainer
-	end
-	if launcherFrame and not (self._launchersContainer and self._launchersContainer:IsA("GuiObject")) then
-		local content = launcherFrame:FindFirstChild("Content")
-		self._launchersContainer = content and content:FindFirstChild("ScrollingFrame") or nil
-	end
-	if petFrame and not (self._petsContainer and self._petsContainer:IsA("GuiObject")) then
-		local content = petFrame:FindFirstChild("Content")
-		self._petsContainer = content and content:FindFirstChild("ScrollingFrame") or nil
-	end
+	-- All Shop product slots must be parented to their tab's direct ScrollingFrame.
+	-- Do not fall back to the tab Frame itself: doing so bypasses the scrolling
+	-- viewport and its UIGridLayout.
+	self._itemsContainer = resolveScrollingFrame(self._playerGui, ProjectTreeSpec.UI.Shop.ItemsContainer)
+	self._launchersContainer = resolveScrollingFrame(self._playerGui, ProjectTreeSpec.UI.Shop.LaunchersScroll)
+	self._petsContainer = resolveScrollingFrame(self._playerGui, ProjectTreeSpec.UI.Shop.PetsScroll)
+	self._dinamondsContainer = resolveScrollingFrame(self._playerGui, ProjectTreeSpec.UI.Shop.DinamondsContainer)
 
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
 	self._launcherAssets = assets and assets:FindFirstChild("Launchers")
@@ -264,6 +249,10 @@ function ShopUIController:_resolveGuiAndBind()
 	if not self._launcherTemplate then warn("[SHOP_UI] Assets.UI.SlotLauncherTemplate_shopUI is missing.") end
 	if not self._petTemplate then warn("[SHOP_UI] Assets.UI.SlotPetTemplate_shopUI is missing.") end
 	if not self._dinamondTemplate then warn("[SHOP_UI] Assets.UI.SlotDiamondPackTemplate_ShopUI is missing.") end
+	if not self._itemsContainer then warn("[SHOP_UI] ShopUI.Main.Items.ScrollingFrame is missing or is not a ScrollingFrame.") end
+	if not self._launchersContainer then warn("[SHOP_UI] ShopUI.Main.Launcher.ScrollingFrame is missing or is not a ScrollingFrame.") end
+	if not self._petsContainer then warn("[SHOP_UI] ShopUI.Main.Pet.ScrollingFrame is missing or is not a ScrollingFrame.") end
+	if not self._dinamondsContainer then warn("[SHOP_UI] ShopUI.Main.Dinamonds.ScrollingFrame is missing or is not a ScrollingFrame.") end
 	if not self._launcherAssets then warn("[SHOP_UI] ReplicatedStorage.Assets.Launchers is missing.") end
 	if not self._petAssets then warn("[SHOP_UI] ReplicatedStorage.Assets.Pets is missing.") end
 
