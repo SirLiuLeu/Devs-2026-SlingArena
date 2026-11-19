@@ -178,25 +178,25 @@ function SafeZoneService:_resolveCenter(arenaMap: Model): Vector3?
 	return getCenterPosition(self._core)
 end
 
-function SafeZoneService:_getLavaCenter(arenaMap: Model): BasePart?
+function SafeZoneService:_getLavaHitbox(arenaMap: Model): BasePart?
 	local traps = arenaMap:FindFirstChild("Traps")
 	local lavaTrap = traps and traps:FindFirstChild("LavaTrap")
-	local lavaCenter = lavaTrap and lavaTrap:FindFirstChild("LavaCenter")
-	if lavaCenter and lavaCenter:IsA("BasePart") then
-		return lavaCenter
+	local lavaHitbox = lavaTrap and lavaTrap:FindFirstChild("Lava_Hitbox")
+	if lavaHitbox and lavaHitbox:IsA("BasePart") then
+		return lavaHitbox
 	end
 	return nil
 end
 
-function SafeZoneService:_getRandomPointInLavaCenterBounds(arenaMap: Model, y: number): Vector3?
-	local lavaCenter = self:_getLavaCenter(arenaMap)
-	if not lavaCenter then
+function SafeZoneService:_getRandomPointInLavaHitboxBounds(arenaMap: Model, y: number): Vector3?
+	local lavaHitbox = self:_getLavaHitbox(arenaMap)
+	if not lavaHitbox then
 		return nil
 	end
-	local halfX = lavaCenter.Size.X * 0.5
-	local halfZ = lavaCenter.Size.Z * 0.5
+	local halfX = lavaHitbox.Size.X * 0.5
+	local halfZ = lavaHitbox.Size.Z * 0.5
 	local localPoint = Vector3.new((math.random() * 2 - 1) * halfX, 0, (math.random() * 2 - 1) * halfZ)
-	local worldPoint = lavaCenter.CFrame:PointToWorldSpace(localPoint)
+	local worldPoint = lavaHitbox.CFrame:PointToWorldSpace(localPoint)
 	return Vector3.new(worldPoint.X, y, worldPoint.Z)
 end
 
@@ -212,7 +212,7 @@ function SafeZoneService:_beginRelocation(arenaMap: Model)
 		return
 	end
 	local startCenter = self._center
-	local targetCenter = self:_getRandomPointInLavaCenterBounds(arenaMap, startCenter.Y)
+	local targetCenter = self:_getRandomPointInLavaHitboxBounds(arenaMap, startCenter.Y)
 	if not targetCenter then
 		return
 	end
