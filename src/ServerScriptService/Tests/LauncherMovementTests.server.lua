@@ -18,6 +18,14 @@ local function assertNear(actual: number, expected: number, message: string, tol
 	end
 end
 
+local function getLinearVelocity(root: BasePart): LinearVelocity
+	local instance = root:FindFirstChild("LinearVelocity")
+	if not (instance and instance:IsA("LinearVelocity")) then
+		error("Expected Launcher LinearVelocity instance")
+	end
+	return instance
+end
+
 local function runTest(name: string, testFn: () -> ())
 	local ok, err = pcall(testFn)
 	if ok then
@@ -64,9 +72,8 @@ end
 runTest("LinearVelocity_Uses_Finite_PerAxis_Plane_Force", function()
 	local folder, root = createTestScene(false)
 	local movement = LauncherMovement.new(root)
-	local linearVelocity = root:FindFirstChildOfClass("LinearVelocity")
+	local linearVelocity = getLinearVelocity(root)
 
-	assertEqual(linearVelocity ~= nil, true, "Launcher LinearVelocity exists")
 	assertEqual(linearVelocity.VelocityConstraintMode, Enum.VelocityConstraintMode.Plane, "Plane constraint mode")
 	assertEqual(linearVelocity.PrimaryTangentAxis, Vector3.xAxis, "Primary tangent uses world X")
 	assertEqual(linearVelocity.SecondaryTangentAxis, Vector3.zAxis, "Secondary tangent uses world Z")
@@ -87,7 +94,7 @@ runTest("Movement_Preserves_Both_Planar_Axes_Without_Obstacles", function()
 	local movement = LauncherMovement.new(root)
 
 	movement:Move(Vector3.new(1, 0, 1), 0.1)
-	local linearVelocity = root:FindFirstChildOfClass("LinearVelocity")
+	local linearVelocity = getLinearVelocity(root)
 	assertNear(linearVelocity.PlaneVelocity.X, PhysicsConfig.Movement.MoveSpeed / math.sqrt(2), "Unblocked X velocity")
 	assertNear(linearVelocity.PlaneVelocity.Y, PhysicsConfig.Movement.MoveSpeed / math.sqrt(2), "Unblocked Z velocity")
 	assertEqual(linearVelocity.Enabled, true, "Unblocked movement remains enabled")
