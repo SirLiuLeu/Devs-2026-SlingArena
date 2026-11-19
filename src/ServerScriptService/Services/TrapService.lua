@@ -99,7 +99,6 @@ function TrapService.new(context)
 	self._lastTriggeredAt = {} :: { [string]: number }
 	self._trapConnections = {}
 	self._activeContacts = {} :: { [string]: boolean }
-	self._contactPresent = {} :: { [string]: boolean }
 	self._contactMissedAt = {} :: { [string]: number }
 	self._contactDamageStacks = {} :: { [string]: number }
 	self._contactCounts = {} :: { [string]: number }
@@ -144,7 +143,6 @@ function TrapService:_disconnectTrapResources()
 	end
 	table.clear(self._trapConnections)
 	table.clear(self._activeContacts)
-	table.clear(self._contactPresent)
 	table.clear(self._contactMissedAt)
 	table.clear(self._contactDamageStacks)
 	table.clear(self._contactCounts)
@@ -257,7 +255,6 @@ TrapService._behaviorHandlers = {
 			end
 
 			self._activeContacts[contactKey] = true
-			self._contactPresent[contactKey] = true
 			self._contactDamageStacks[contactKey] = 0
 			SoundManager.Play("SFX_TrapHit", trapPart.Position)
 			self:_emitPopup(player, trapConfig)
@@ -269,20 +266,16 @@ TrapService._behaviorHandlers = {
 
 			task.spawn(function()
 				while self._activeContacts[contactKey] do
-					-- A brief missed contact scan pauses damage ticks without losing ramp progress.
-					if self._contactPresent[contactKey] then
-						local damageStack = math.min((self._contactDamageStacks[contactKey] or 0) + 1, maxStacks)
-						self._contactDamageStacks[contactKey] = damageStack
-						local damageAmount = math.min(damageStack * damagePerStack, maxDamage)
-						self:_applyLavaContactTick(player, trapPart, trapType, trapConfig, sourceRoot, damageAmount)
-					end
+					local damageStack = math.min((self._contactDamageStacks[contactKey] or 0) + 1, maxStacks)
+					self._contactDamageStacks[contactKey] = damageStack
+					local damageAmount = math.min(damageStack * damagePerStack, maxDamage)
+					self:_applyLavaContactTick(player, trapPart, trapType, trapConfig, sourceRoot, damageAmount)
 					task.wait(damageInterval)
 				end
 			end)
 		end,
 		End = function(self, player: Player, _trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Model, contactKey: string)
 			self._activeContacts[contactKey] = nil
-			self._contactPresent[contactKey] = nil
 			self._contactMissedAt[contactKey] = nil
 			self._contactDamageStacks[contactKey] = nil
 			self:_stopLavaContact(player, trapType, trapConfig, sourceRoot)
@@ -323,7 +316,6 @@ function TrapService:_scanTrapContacts(dt: number)
 			if isRootInTrapRange(root, trapPart, trapConfig) then
 				local contactKey = self:_getContactKey(player, trapType, sourceRoot)
 				observedContacts[contactKey] = true
-				self._contactPresent[contactKey] = true
 				self._contactMissedAt[contactKey] = nil
 				if not self._contactCounts[contactKey] then
 					self._contactTrapParts[contactKey] = trapPart
@@ -336,8 +328,6 @@ function TrapService:_scanTrapContacts(dt: number)
 	local now = os.clock()
 	for contactKey in pairs(self._contactCounts) do
 		if not observedContacts[contactKey] then
-			self._contactPresent[contactKey] = false
-
 			local trapPart = self._contactTrapParts[contactKey]
 			local canResolveTrap = false
 			if trapPart then
@@ -351,8 +341,9 @@ function TrapService:_scanTrapContacts(dt: number)
 						local graceDuration = math.max(0, tonumber(trapConfig.ContactExitGraceDuration) or 0.45)
 						if now - missedAt >= graceDuration then
 							self:_updateContactCountFromKey(contactKey, trapPart, trapType, trapConfig, sourceRoot, -1)
+							self._activeContacts[contactKey] = nil
+							self._contactDamageStacks[contactKey] = nil
 							self._contactTrapParts[contactKey] = nil
-							self._contactPresent[contactKey] = nil
 							self._contactMissedAt[contactKey] = nil
 						end
 					end
@@ -364,7 +355,6 @@ function TrapService:_scanTrapContacts(dt: number)
 				self._activeContacts[contactKey] = nil
 				self._contactCounts[contactKey] = nil
 				self._contactTrapParts[contactKey] = nil
-				self._contactPresent[contactKey] = nil
 				self._contactMissedAt[contactKey] = nil
 				self._contactDamageStacks[contactKey] = nil
 			end
