@@ -313,7 +313,10 @@ local ProjectTreeSpec = {
 		--         BlueSpawn (SpawnLocation | Part)
 		--       FoodContainer (Folder)
 		--       Traps (Folder)
-		--         LavaTrap (Model) / SpikeTrap (Model) instances
+		--         LavaTrap (Model)
+		--           Lava_Visual (Part)
+		--             LavaTexture (Texture)
+		--           Lava_Hitbox (Part)
 		--       FoodSpawns (Folder)
 		--         EdgeZones (Folder)
 		--           FoodSpawn_01..N (Part)
@@ -334,7 +337,6 @@ local ProjectTreeSpec = {
 		--     MeatFood (Model)
 		--     BerryFood (Model)
 		--   TrapTemplates (Folder)
-		--     SpikeTrap (Model)
 		--     LavaTrap (Model)
 		--
 		-- ReplicatedStorage
@@ -358,7 +360,7 @@ local ProjectTreeSpec = {
 		--       BasicFood (Model) [fallback]
 		--		 Food1, Food2, Food3, ...Food7 (Model)
 		--     Trap (Folder)
-		--       LavaTrap (Model) / SpikeTrap (Model)
+		--       LavaTrap (Model)
 		--
 		-- Teams
 		--   White (Team)
@@ -407,7 +409,6 @@ local ProjectTreeSpec = {
 				BombHitbox = "Assets.Prefabs.Bomb.RootPart.Hitbox", -- [PROJECT_TREE_SPEC] Bomb collision Hitbox
 				ExplosionVfx = "Assets.EffectVfx.ExplosionPart", -- [PROJECT_TREE_SPEC] Studio-authored Part containing the Explosion Attachment; cloned upright at blast position
 				ExplosionRingVfx = "Assets.Prefabs.VFX_ExplosionRing", -- [PROJECT_TREE_SPEC] expanding ring Model containing E1-E5 meshes
-				SpikeTrap = "Assets.Trap.SpikeTrap",
 				LavaTrap = "Assets.Trap.LavaTrap",
 				StunEffect = "Assets.Launchers.Player.Hitbox.EffectHead.Stun",
 				BurnEffect = "Assets.Launchers.Player.Hitbox.EffectOrigin.Burn",
