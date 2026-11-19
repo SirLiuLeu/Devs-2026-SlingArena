@@ -14,7 +14,7 @@ PhysicalProperties = {
 	Movement = {
 		MoveSpeed = 15,
 		-- Finite force cap per world-space movement axis (X/Z) for Plane LinearVelocity.
-		MaxPlanarAxisForce = 1000,
+		MaxPlanarAxisForce = 10000,
 		InputDeadzone = 0.001,
 		AimDeadzone = 0.01,
 		MoveRequestCooldown = 0.03,
