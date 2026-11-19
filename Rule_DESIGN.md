@@ -283,7 +283,7 @@ Only **LavaTrap** is supported by the current runtime. `TrapService` detects con
 
 | Trap | Behavior | Details |
 |---|---|---|
-| LavaTrap | Contact-ramp damage | First tick deals 100 damage; each 0.3s contact interval adds 100 damage, capped at 2,000 per tick and held at that cap for every later tick. A brief missed contact scan pauses damage without resetting the ramp; contact must remain absent for 0.45s before the ramp resets. Detection padding is 1 stud; the existing 25% contact slow is refreshed while inside. |
+| LavaTrap | Contact-ramp damage | First tick deals 100 damage; each 0.3s contact interval adds 100 damage, capped at 2,000 per tick and held at that cap for every later tick. A brief missed contact scan does not interrupt the damage ramp; contact must remain absent for 0.45s before the ramp stops and resets. Detection padding is 1 stud; the existing 25% contact slow is refreshed while inside. |
 
 `LavaTextureAnimator.client.lua` moves the `LavaTexture` offsets locally and slowly, without server-side texture replication.
 ---
