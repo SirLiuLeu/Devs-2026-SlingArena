@@ -37,6 +37,10 @@ local function getTrapFolderFromArena(arenaMap: Instance?): Folder?
 end
 
 local function getTrapInfo(trapPart: BasePart): (string?, any?, Model?)
+	if trapPart.Name ~= "Lava_Hitbox" then
+		return nil, nil, nil
+	end
+
 	local arenaMap = getArenaMapModel()
 	local trapFolder = getTrapFolderFromArena(arenaMap)
 	if not trapFolder then
@@ -89,15 +93,6 @@ local function getTrapSourceId(sourceRoot: Model, trapType: string): string
 	return `Trap:{trapType}:{sourceRoot:GetFullName()}`
 end
 
-local function resolveLavaDamageAmount(playerState: any, trapConfig: any): number
-	local maxHp = tonumber(playerState.MaxHP) or 0
-	local percent = math.max(0, tonumber(trapConfig.DamagePerTick) or 0)
-	if maxHp > 0 then
-		return maxHp * percent
-	end
-	return 0
-end
-
 function TrapService.new(context)
 	local self = setmetatable({}, TrapService)
 	self._context = context
@@ -125,16 +120,18 @@ function TrapService:GetActiveTrapParts(): { BasePart }
 	if not trapFolder then
 		return parts
 	end
+
 	for _, trap in ipairs(trapFolder:GetChildren()) do
-		if trap:IsA("BasePart") and getTrapInfo(trap) then
-			table.insert(parts, trap)
+		if not trap:IsA("Model") or trap.Name ~= "LavaTrap" then
+			continue
 		end
-		for _, trapPart in ipairs(trap:GetDescendants()) do
-			if trapPart:IsA("BasePart") and getTrapInfo(trapPart) then
-				table.insert(parts, trapPart)
-			end
+
+		local hitbox = trap:FindFirstChild("Lava_Hitbox")
+		if hitbox and hitbox:IsA("BasePart") then
+			table.insert(parts, hitbox)
 		end
 	end
+
 	return parts
 end
 
@@ -193,97 +190,88 @@ function TrapService:_emitPopup(player: Player, trapConfig: any)
 	end
 end
 
-function TrapService:_applyHitCooldownTrap(player: Player, trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Model)
-	local now = os.clock()
-	local cooldown = math.max(0, tonumber(trapConfig.Cooldown) or 0)
-	local cooldownKey = self:_getContactKey(player, trapType, sourceRoot)
-	local last = self._lastTriggeredAt[cooldownKey] or 0
-	if now - last < cooldown then
-		return
-	end
-
-	local damageApplied = false
-	local damagePipeline = ServiceResolver.Get(self._context, "DamagePipelineService")
-	if trapConfig.Damage and damagePipeline then
-		damageApplied = damagePipeline:ApplyHitDamage(player, trapConfig.Damage, nil, nil) == true
-	end
-	if not damageApplied then
-		return
-	end
-	self._lastTriggeredAt[cooldownKey] = now
-	SoundManager.Play("SFX_TrapHit", trapPart.Position)
-
-	self:_emitPopup(player, trapConfig)
-end
-
-function TrapService:_applyContactDotTrapTick(player: Player, trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Model)
+function TrapService:_applyLavaContactTick(
+	player: Player,
+	trapPart: BasePart,
+	trapType: string,
+	trapConfig: any,
+	sourceRoot: Model,
+	damageAmount: number
+)
 	local flagName = trapConfig.Flag
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	local damagePipeline = ServiceResolver.Get(self._context, "DamagePipelineService")
 	if not (flagName and stateService and damagePipeline) then
 		return
 	end
+
 	local state = stateService:GetState(player)
 	if not state or not state.IsAlive then
 		return
 	end
 
 	local sourceId = getTrapSourceId(sourceRoot, trapType)
-	local tickInterval = math.max(0.05, tonumber(trapConfig.TickInterval) or 0.5)
+	local tickInterval = math.max(0.05, tonumber(trapConfig.DamageInterval) or 0.3)
 	local duration = math.max(tickInterval + 0.25, tonumber(trapConfig.ContactSlowDuration) or 0)
 	stateService:ApplyFlag(player, flagName, duration, sourceRoot, {
 		SourceId = sourceId,
 		Stackable = false,
-		MaxStack = math.max(1, tonumber(trapConfig.MaxStack) or 1),
+		MaxStack = 1,
 	})
+
 	local slowAmount = math.max(0, tonumber(trapConfig.ContactSlowAmount) or 0)
 	if slowAmount > 0 then
 		stateService:ApplyFlag(player, "Slow", duration, sourceRoot, {
-			SourceId = `{sourceId}:Slow`,
+			SourceId = `${sourceId}:Slow`,
 			SlowAmount = slowAmount,
 		})
 	end
-	local amount = resolveLavaDamageAmount(state, trapConfig)
-	if amount > 0 and damagePipeline:ApplyDoTDamage(player, amount, trapPart, flagName) then
-		self:_emitPopup(player, trapConfig)
-	end
+
+	damagePipeline:ApplyDoTDamage(player, damageAmount, trapPart, flagName)
 end
 
-function TrapService:_stopContactDotTrap(player: Player, trapType: string, trapConfig: any, sourceRoot: Model)
+function TrapService:_stopLavaContact(player: Player, trapType: string, trapConfig: any, sourceRoot: Model)
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not stateService then
 		return
 	end
+
 	local sourceId = getTrapSourceId(sourceRoot, trapType)
 	if trapConfig.Flag then
 		stateService:RemoveFlag(player, trapConfig.Flag, sourceRoot, { SourceId = sourceId })
 	end
-	stateService:RemoveFlag(player, "Slow", sourceRoot, { SourceId = `{sourceId}:Slow` })
+	stateService:RemoveFlag(player, "Slow", sourceRoot, { SourceId = `${sourceId}:Slow` })
 end
 
 TrapService._behaviorHandlers = {
-	HitCooldown = {
-		Begin = function(self, player: Player, trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Model)
-			self:_applyHitCooldownTrap(player, trapPart, trapType, trapConfig, sourceRoot)
-		end,
-	},
-	ContactDot = {
+	ContactRamp = {
 		Begin = function(self, player: Player, trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Model, contactKey: string)
 			if self._activeContacts[contactKey] then
 				return
 			end
+
 			self._activeContacts[contactKey] = true
 			SoundManager.Play("SFX_TrapHit", trapPart.Position)
+			self:_emitPopup(player, trapConfig)
+
+			local damageInterval = math.max(0.05, tonumber(trapConfig.DamageInterval) or 0.3)
+			local damagePerStack = math.max(1, tonumber(trapConfig.DamagePerStack) or 100)
+			local maxDamage = math.max(damagePerStack, tonumber(trapConfig.MaxDamagePerTick) or 2000)
+			local maxStacks = math.max(1, math.ceil(maxDamage / damagePerStack))
+
 			task.spawn(function()
+				local damageStack = 0
 				while self._activeContacts[contactKey] do
-					self:_applyContactDotTrapTick(player, trapPart, trapType, trapConfig, sourceRoot)
-					task.wait(math.max(0.05, tonumber(trapConfig.TickInterval) or 0.5))
+					damageStack = math.min(damageStack + 1, maxStacks)
+					local damageAmount = math.min(damageStack * damagePerStack, maxDamage)
+					self:_applyLavaContactTick(player, trapPart, trapType, trapConfig, sourceRoot, damageAmount)
+					task.wait(damageInterval)
 				end
 			end)
 		end,
 		End = function(self, player: Player, _trapPart: BasePart, trapType: string, trapConfig: any, sourceRoot: Model, contactKey: string)
 			self._activeContacts[contactKey] = nil
-			self:_stopContactDotTrap(player, trapType, trapConfig, sourceRoot)
+			self:_stopLavaContact(player, trapType, trapConfig, sourceRoot)
 		end,
 	},
 }
