@@ -157,13 +157,13 @@ local ProjectTreeSpec = {
 			LaunchersTabButton = "ShopUI.Main.Buttons.Launcher", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Buttons.Launcher
 			PetsTabButton = "ShopUI.Main.Buttons.Pet", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Buttons.Pet
 			DinamondsTabButton = "ShopUI.Main.Buttons.Dinamonds", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Buttons.Dinamonds
-			ItemsContainer = "ShopUI.Main.Items", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Items
+			ItemsContainer = "ShopUI.Main.Items.ScrollingFrame", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Items.ScrollingFrame
 			LaunchersScroll = "ShopUI.Main.Launcher.ScrollingFrame", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Launcher.ScrollingFrame
 			PetsScroll = "ShopUI.Main.Pet.ScrollingFrame", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Pet.ScrollingFrame
-			DinamondsContainer = "ShopUI.Main.Dinamonds", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Dinamonds
+			DinamondsContainer = "ShopUI.Main.Dinamonds.ScrollingFrame", -- [PROJECT_TREE_SPEC] StarterGui.ShopUI.Main.Dinamonds.ScrollingFrame
 			-- Legacy aliases retained for controllers not yet migrated.
-			ItemsScroll = "ShopUI.Main.Items", -- [PROJECT_TREE_SPEC]
-			DinamondsScroll = "ShopUI.Main.Dinamonds", -- [PROJECT_TREE_SPEC]
+			ItemsScroll = "ShopUI.Main.Items.ScrollingFrame", -- [PROJECT_TREE_SPEC]
+			DinamondsScroll = "ShopUI.Main.Dinamonds.ScrollingFrame", -- [PROJECT_TREE_SPEC]
 		},
 		DailyLogin = {
 			ScreenGui = "DailyLoginUI", -- [PROJECT_TREE_SPEC] StarterGui.DailyLoginUI
