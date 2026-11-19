@@ -13,7 +13,8 @@ PhysicalProperties = {
 
 	Movement = {
 		MoveSpeed = 15,
-		MaxForce = 1000,
+		-- Finite force cap per world-space movement axis (X/Z) for Plane LinearVelocity.
+		MaxPlanarAxisForce = 1000,
 		InputDeadzone = 0.001,
 		AimDeadzone = 0.01,
 		MoveRequestCooldown = 0.03,
@@ -21,6 +22,12 @@ PhysicalProperties = {
 		MobileDeadzone = 0.15,
 		SlowPerStack = 0.25,
 		PreservedMomentumScale = 0.25,
+
+		-- Wall-slide prediction uses the Launcher root's actual shape. Padding only
+		-- extends the one-frame sweep slightly so contact is resolved before penetration.
+		WallSlideProbePadding = 0.25,
+		WallSlideNormalThreshold = 0.75,
+		WallSlideMaxIterations = 2,
 	},
 
 	World = {
@@ -146,10 +153,6 @@ PhysicalProperties = {
 		LaunchTimeBias = 0.45,
 		CollisionIntensityMultiplier = 1.15,
 		ChainDecayPerHit = 0.18,
-	},
-
-	Stability = {
-		UseInfiniteForce = true,
 	},
 }
 
