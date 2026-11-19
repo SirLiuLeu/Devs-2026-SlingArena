@@ -339,25 +339,27 @@ function TrapService:_scanTrapContacts(dt: number)
 			self._contactPresent[contactKey] = false
 
 			local trapPart = self._contactTrapParts[contactKey]
-			local trapType, trapConfig, sourceRoot = if trapPart then getTrapInfo(trapPart) else nil, nil, nil
+			local canResolveTrap = false
 			if trapPart then
-				trapType, trapConfig, sourceRoot = getTrapInfo(trapPart)
-			end
-
-			if trapPart and trapType and trapConfig and sourceRoot then
-				local missedAt = self._contactMissedAt[contactKey]
-				if not missedAt then
-					self._contactMissedAt[contactKey] = now
-				else
-					local graceDuration = math.max(0, tonumber(trapConfig.ContactExitGraceDuration) or 0.45)
-					if now - missedAt >= graceDuration then
-						self:_updateContactCountFromKey(contactKey, trapPart, trapType, trapConfig, sourceRoot, -1)
-						self._contactTrapParts[contactKey] = nil
-						self._contactPresent[contactKey] = nil
-						self._contactMissedAt[contactKey] = nil
+				local trapType, trapConfig, sourceRoot = getTrapInfo(trapPart)
+				if trapType and trapConfig and sourceRoot then
+					canResolveTrap = true
+					local missedAt = self._contactMissedAt[contactKey]
+					if not missedAt then
+						self._contactMissedAt[contactKey] = now
+					else
+						local graceDuration = math.max(0, tonumber(trapConfig.ContactExitGraceDuration) or 0.45)
+						if now - missedAt >= graceDuration then
+							self:_updateContactCountFromKey(contactKey, trapPart, trapType, trapConfig, sourceRoot, -1)
+							self._contactTrapParts[contactKey] = nil
+							self._contactPresent[contactKey] = nil
+							self._contactMissedAt[contactKey] = nil
+						end
 					end
 				end
-			else
+			end
+
+			if not canResolveTrap then
 				-- The trap was removed or became invalid; do not leave a live ramp task behind.
 				self._activeContacts[contactKey] = nil
 				self._contactCounts[contactKey] = nil
