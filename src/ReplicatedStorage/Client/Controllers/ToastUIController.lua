@@ -42,10 +42,10 @@ type ToastRecord = {
 }
 
 local function formatTemplate(templateText: string, args: { [string]: any }): string
-	return string.gsub(templateText, "{([%w_]+)}", function(key)
+	return (string.gsub(templateText, "{([%w_]+)}", function(key)
 		local value = args[key]
 		return if value == nil then "" else tostring(value)
-	end)
+	end))
 end
 
 function ToastUIController.new(playerGui: PlayerGui)
