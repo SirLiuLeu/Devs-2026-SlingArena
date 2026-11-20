@@ -264,7 +264,7 @@ function ToastUIController:Enqueue(message: any)
 			existing.Item = item
 			existing.Count = 1
 			if existing.Frame then
-				existing.ExpiresAt = now + DEFAULT_DISPLAY_SECONDS
+				existing.ExpiresAt = now + (item.Config.DisplaySeconds or DEFAULT_DISPLAY_SECONDS)
 			end
 			self:_updateVisual(existing)
 			self:_sortQueue()
@@ -283,7 +283,7 @@ function ToastUIController:Enqueue(message: any)
 	if lastRecord and not lastRecord.Removed and lastRecord.DedupKey == dedupKey then
 		lastRecord.Count += 1
 		if lastRecord.Frame then
-			lastRecord.ExpiresAt = now + DEFAULT_DISPLAY_SECONDS
+			lastRecord.ExpiresAt = now + (item.Config.DisplaySeconds or DEFAULT_DISPLAY_SECONDS)
 		end
 		self:_updateVisual(lastRecord)
 		return
@@ -302,7 +302,7 @@ function ToastUIController:_createFadeTweens(record: ToastRecord, fadeOut: boole
 		return {}
 	end
 	local duration = if fadeOut
-		then DEFAULT_FADE_OUT_SECONDS
+		then (record.Item.Config.FadeOutSeconds or DEFAULT_FADE_OUT_SECONDS)
 		else FADE_IN_SECONDS
 	local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Quad, if fadeOut then Enum.EasingDirection.In else Enum.EasingDirection.Out)
 	local transparency = if fadeOut then 1 else 0
@@ -379,7 +379,7 @@ function ToastUIController:_showRecord(record: ToastRecord)
 	end
 
 	frame.Parent = self._container
-	record.ExpiresAt = os.clock() + DEFAULT_DISPLAY_SECONDS
+	record.ExpiresAt = os.clock() + (record.Item.Config.DisplaySeconds or DEFAULT_DISPLAY_SECONDS)
 
 	local fadeInTweens = self:_createFadeTweens(record, false)
 	for _, tween in ipairs(fadeInTweens) do
