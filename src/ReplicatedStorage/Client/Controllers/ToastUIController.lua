@@ -216,6 +216,15 @@ function ToastUIController:_insertRecord(record: ToastRecord)
 	end
 end
 
+function ToastUIController:_resetLastDuplicateCount()
+	local lastRecord = self._lastToastRecord
+	if lastRecord and not lastRecord.Removed and lastRecord.Count > 1 then
+		lastRecord.Count = 1
+		self:_updateVisual(lastRecord)
+	end
+	self._lastToastRecord = nil
+end
+
 function ToastUIController:_newRecord(item: ToastItem): ToastRecord
 	return {
 		Item = item,
@@ -247,6 +256,7 @@ function ToastUIController:Enqueue(message: any)
 
 	local now = os.clock()
 	if item.ReplaceKey then
+		self:_resetLastDuplicateCount()
 		local existing = self._recordsByReplaceKey[item.ReplaceKey]
 		if existing and not existing.Removed then
 			existing.Item = item
@@ -277,6 +287,7 @@ function ToastUIController:Enqueue(message: any)
 		return
 	end
 
+	self:_resetLastDuplicateCount()
 	local record = self:_newRecord(item)
 	self._lastToastRecord = record
 	self:_insertRecord(record)
