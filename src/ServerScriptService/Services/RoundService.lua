@@ -578,6 +578,15 @@ function RoundService:_beginRoundEnd()
 	end
 
 	local winner = if #survivors == 1 then survivors[1] else nil
+	if winner then
+		local feedbackRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
+		if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
+			feedbackRemote:FireClient(winner, {
+				EventType = "RoundVictory",
+				Payload = { RoundId = self._roundId },
+			})
+		end
+	end
 	local progressPointService = ServiceResolver.Get(self._context, "ProgressPointService")
 
 	self:_setState(GameStates.MapRoundState.RoundEnd)
