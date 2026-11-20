@@ -75,6 +75,8 @@ function ToastUIController:_resolveUi(): boolean
 
 	if self._screenGui then
 		self._screenGui.Enabled = true
+		self._screenGui.ResetOnSpawn = false
+		self._screenGui.DisplayOrder = math.max(self._screenGui.DisplayOrder, 100)
 	end
 	if self._template then
 		self._template.Visible = false
