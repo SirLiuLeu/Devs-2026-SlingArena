@@ -226,7 +226,7 @@ function RoundService:_beginAwaitsCountdown()
 	for _, player in ipairs(Players:GetPlayers()) do
 		local state = stateService:GetState(player)
 		if state and state.LocationState ~= GameStates.SessionState.Lobby then
-			local mode = state.ActivePlayerMode or GameStates.PlayerMode.Human
+			local mode = stateService:ResolveArenaSpawnMode(player)
 			playerService:SpawnForActiveMode(player, nil, "LobbyMap", mode)
 			stateService:SetCurrentMap(player, "LobbyMap")
 			stateService:SetLocationState(player, GameStates.SessionState.InGame)
