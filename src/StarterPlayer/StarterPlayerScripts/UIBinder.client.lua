@@ -26,8 +26,8 @@ local STARTER_GUI_ROOTS = {
 	ShopUI = true,
 	DailyLoginUI = true,
 	MatchUI = true,
-	MatchSummaryUI = true,
 	MatchScoreboardUI = true,
+	NotificationGui = true,
 	LauncherControlUI = true,
 	TeamSelectionGui = true,
 }
