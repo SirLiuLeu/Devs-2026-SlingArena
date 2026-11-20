@@ -9,7 +9,7 @@ NotificationConfigData.Priority = {
 	Critical = 100,
 }
 
-export type NotificationType = "DiamondReward" | "PlayerKill" | "RoundState" | "ArenaJoinCooldown" | "FoodConsumed" | "Generic"
+export type NotificationType = "DiamondReward" | "PlayerKill" | "RoundState" | "ArenaJoinCooldown" | "FoodConsumed" | "RoundEndReward" | "StartRoundCountdown" | "Generic"
 
 export type NotificationStyle = {
 	BackgroundColor: Color3,
@@ -24,6 +24,8 @@ export type NotificationConfig = {
 	FallbackText: string,
 	Priority: number,
 	DisplaySeconds: number?,
+	FadeOutSeconds: number?,
+	ReplaceKey: string?,
 	Style: NotificationStyle,
 }
 
@@ -91,6 +93,35 @@ NotificationConfigData.Types = {
 			AccentColor = Color3.fromRGB(90, 230, 130),
 			TextColor = Color3.fromRGB(240, 255, 245),
 			Icon = "rbxassetid://0",
+		},
+	},
+	RoundEndReward = {
+		Type = "RoundEndReward",
+		I18nKey = "notification.round.reward",
+		FallbackText = "Round đã kết thúc, bạn nhận được reward rank {rank}",
+		Priority = NotificationConfigData.Priority.High,
+		DisplaySeconds = 3,
+		FadeOutSeconds = 2,
+		Style = {
+			BackgroundColor = Color3.fromRGB(32, 48, 28),
+			AccentColor = Color3.fromRGB(145, 220, 105),
+			TextColor = Color3.fromRGB(245, 255, 240),
+			Icon = "rbxassetid://73584476161715",
+		},
+	},
+	StartRoundCountdown = {
+		Type = "StartRoundCountdown",
+		I18nKey = "notification.round.countdown",
+		FallbackText = "Start Round còn {seconds}s",
+		Priority = NotificationConfigData.Priority.High,
+		DisplaySeconds = 3,
+		FadeOutSeconds = 2,
+		ReplaceKey = "RoundCountdown",
+		Style = {
+			BackgroundColor = Color3.fromRGB(30, 38, 58),
+			AccentColor = Color3.fromRGB(115, 175, 255),
+			TextColor = Color3.fromRGB(245, 250, 255),
+			Icon = "",
 		},
 	},
 	Generic = {
