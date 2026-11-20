@@ -186,7 +186,7 @@ function RoundService:RequestPlus1Minute(_player: Player)
 		and self._state == GameStates.MapRoundState.EarlyGame
 		and self._roundTimer >= RoundRewardConfig.SoloFinalPhaseSeconds then
 		self:_setState(GameStates.MapRoundState.FinalPhase)
-	elseif self._state == GameStates.MapRoundState.EarlyGame and safeZoneService and safeZoneService:IsAtMinimumRadius() then
+	elseif self._roundParticipantCount ~= 1 and self._state == GameStates.MapRoundState.EarlyGame and safeZoneService and safeZoneService:IsAtMinimumRadius() then
 		self:_setState(GameStates.MapRoundState.FinalPhase)
 	else
 		self:_publishUiState()
@@ -679,7 +679,8 @@ function RoundService:_step(dt: number)
 			and self._state == GameStates.MapRoundState.EarlyGame
 			and self._roundTimer >= RoundRewardConfig.SoloFinalPhaseSeconds then
 			self:_setState(GameStates.MapRoundState.FinalPhase)
-		elseif self._state == GameStates.MapRoundState.EarlyGame
+		elseif self._roundParticipantCount ~= 1
+			and self._state == GameStates.MapRoundState.EarlyGame
 			and safeZoneService
 			and safeZoneService:IsAtMinimumRadius() then
 			self:_setState(GameStates.MapRoundState.FinalPhase)
