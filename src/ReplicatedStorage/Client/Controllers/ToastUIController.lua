@@ -393,26 +393,68 @@ function ToastUIController:_showRecord(record: ToastRecord)
 	end
 
 	while not self._destroyed and not record.Removed do
-		local remaining = (record.ExpiresAt or os.clock()) - os.clock()
-		if remaining <= 0 then
-			break
+		while not self._destroyed and not record.Removed do
+			local remaining = (record.ExpiresAt or os.clock()) - os.clock()
+			if remaining <= 0 then
+				break
+			end
+			task.wait(math.min(POLL_INTERVAL_SECONDS, remaining))
 		end
-		task.wait(math.min(POLL_INTERVAL_SECONDS, remaining))
-	end
 
-	if self._destroyed or record.Removed then
-		return
-	end
+		if self._destroyed or record.Removed then
+			return
+		end
 
-	local fadeOutTweens = self:_createFadeTweens(record, true)
-	for _, tween in ipairs(fadeOutTweens) do
-		tween:Play()
-	end
-	if fadeOutTweens[1] then
-		fadeOutTweens[1].Completed:Wait()
-	end
-	if not self._destroyed and not record.Removed then
-		self:_finishRecord(record)
+		local fadeOutStartedAt = os.clock()
+		local fadeOutDuration = record.Item.Config.FadeOutSeconds or DEFAULT_FADE_OUT_SECONDS
+		local fadeOutTweens = self:_createFadeTweens(record, true)
+		for _, tween in ipairs(fadeOutTweens) do
+			tween:Play()
+		end
+
+		local displayExtended = false
+		while not self._destroyed and not record.Removed do
+			-- A duplicate/replace-key update during fade-out extends the current toast.
+			if (record.ExpiresAt or 0) > fadeOutStartedAt then
+				for _, tween in ipairs(fadeOutTweens) do
+					pcall(function()
+						tween:Cancel()
+						tween:Destroy()
+					end)
+				end
+
+				if frame.Parent then
+					frame.BackgroundTransparency = 0.12
+				end
+				if record.MessageLabel then
+					record.MessageLabel.TextTransparency = 0
+				end
+				local currentIcon = frame:FindFirstChild("Icon", true)
+				if currentIcon and currentIcon:IsA("ImageLabel") and currentIcon.Visible then
+					currentIcon.ImageTransparency = 0
+				end
+				local currentStroke = frame:FindFirstChildWhichIsA("UIStroke", true)
+				if currentStroke then
+					currentStroke.Transparency = 0
+				end
+				displayExtended = true
+				break
+			end
+
+			local fadeRemaining = fadeOutDuration - (os.clock() - fadeOutStartedAt)
+			if fadeRemaining <= 0 then
+				break
+			end
+			task.wait(math.min(POLL_INTERVAL_SECONDS, fadeRemaining))
+		end
+
+		if self._destroyed or record.Removed then
+			return
+		end
+		if not displayExtended then
+			self:_finishRecord(record)
+			return
+		end
 	end
 end
 
