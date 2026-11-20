@@ -10,24 +10,24 @@ local LobbyClientService = {}
 LobbyClientService.__index = LobbyClientService
 
 type Handler = (any) -> ()
-type CachedRemoteName = "StateUpdate" | "UIStateUpdate" | "RoundResult" | "MatchScoreboardUpdate" | "MatchSummaryUpdate" | "GlobalTop100Update"
+type CachedRemoteName = "StateUpdate" | "UIStateUpdate" | "MatchScoreboardUpdate" | "GlobalTop100Update"
 
 export type LobbyClientService = {
 	RemotesRoot: Instance?,
 	JoinArenaRemote: RemoteEvent?, LeaveArenaRemote: RemoteEvent?, StartSafeZoneRemote: RemoteEvent?, Plus1MinuteRemote: RemoteEvent?, EndRoundRemote: RemoteEvent?,
-	MatchSummaryUpdateRemote: RemoteEvent?, StateUpdateRemote: RemoteEvent?, UIStateUpdateRemote: RemoteEvent?, RoundResultRemote: RemoteEvent?, MatchScoreboardUpdateRemote: RemoteEvent?, GlobalTop100UpdateRemote: RemoteEvent?,
+	StateUpdateRemote: RemoteEvent?, UIStateUpdateRemote: RemoteEvent?, MatchScoreboardUpdateRemote: RemoteEvent?, GlobalTop100UpdateRemote: RemoteEvent?,
 	TeleportRemote: RemoteEvent?, DebugSpawnFoodRemote: RemoteEvent?, DebugResetLauncherRemote: RemoteEvent?, DebugLevelUp5Remote: RemoteEvent?, AttributeUpgradeRemote: RemoteEvent?, ConsumeHpPotionRemote: RemoteEvent?,
 	RequestJoinArena: (self: LobbyClientService) -> (), RequestLeaveArena: (self: LobbyClientService) -> (), RequestTeleport: (self: LobbyClientService, mapName: string, spawnName: string) -> (),
 	RequestStartSafeZone: (self: LobbyClientService) -> (), RequestPlus1Minute: (self: LobbyClientService) -> (), RequestEndRound: (self: LobbyClientService) -> (),
 	RequestDebugSpawnFood: (self: LobbyClientService, mapName: string) -> (), RequestDebugResetLauncher: (self: LobbyClientService) -> (), RequestDebugLevelUp5: (self: LobbyClientService) -> (), RequestAttributeUpgrade: (self: LobbyClientService, attributeName: string) -> (), RequestConsumeHpPotion: (self: LobbyClientService) -> (),
 	GetLastSnapshot: (self: LobbyClientService, remoteName: CachedRemoteName?) -> any,
-	BindStateUpdate: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?, BindUIStateUpdate: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?, BindRoundResult: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?,
-	BindMatchScoreboardUpdate: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?, BindMatchSummaryUpdate: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?, BindGlobalTop100Update: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?,
+	BindStateUpdate: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?, BindUIStateUpdate: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?,
+	BindMatchScoreboardUpdate: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?, BindGlobalTop100Update: (self: LobbyClientService, handler: Handler) -> RBXScriptConnection?,
 }
 
 local REMOTE_FIELDS = {
 	StateUpdate = "StateUpdateRemote", UIStateUpdate = "UIStateUpdateRemote", RoundResult = "RoundResultRemote",
-	MatchScoreboardUpdate = "MatchScoreboardUpdateRemote", MatchSummaryUpdate = "MatchSummaryUpdateRemote", GlobalTop100Update = "GlobalTop100UpdateRemote",
+	MatchScoreboardUpdate = "MatchScoreboardUpdateRemote", GlobalTop100Update = "GlobalTop100UpdateRemote",
 }
 
 local function resolveRemote(path: string): RemoteEvent?
@@ -55,10 +55,8 @@ function LobbyClientService.new(): LobbyClientService
 	self.DebugLevelUp5Remote = resolveRemote(ProjectTreeSpec.Remotes.DebugLevelUp5)
 	self.StateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.StateUpdate)
 	self.UIStateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.UIStateUpdate)
-	self.RoundResultRemote = resolveRemote(ProjectTreeSpec.Remotes.RoundResult)
 	self.MatchScoreboardUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.MatchScoreboardUpdate)
 	self.GlobalTop100UpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.GlobalTop100Update)
-	self.MatchSummaryUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.MatchSummaryUpdate)
 	self.AttributeUpgradeRemote = resolveRemote(ProjectTreeSpec.Remotes.AttributeUpgrade)
 	self.ConsumeHpPotionRemote = resolveRemote(ProjectTreeSpec.Remotes.ConsumeHpPotion)
 	if self.RemotesRoot then
@@ -118,9 +116,7 @@ function LobbyClientService:RequestAttributeUpgrade(attributeName: string) if Re
 function LobbyClientService:RequestConsumeHpPotion() if RemoteContracts.Validate(RemoteContracts.Names.ConsumeHpPotion) and self.ConsumeHpPotionRemote then self.ConsumeHpPotionRemote:FireServer() end end
 function LobbyClientService:BindStateUpdate(handler: Handler): RBXScriptConnection? return self:_bindCached("StateUpdate", handler) end
 function LobbyClientService:BindUIStateUpdate(handler: Handler): RBXScriptConnection? return self:_bindCached("UIStateUpdate", handler) end
-function LobbyClientService:BindRoundResult(handler: Handler): RBXScriptConnection? return self:_bindCached("RoundResult", handler) end
 function LobbyClientService:BindMatchScoreboardUpdate(handler: Handler): RBXScriptConnection? return self:_bindCached("MatchScoreboardUpdate", handler) end
 function LobbyClientService:BindGlobalTop100Update(handler: Handler): RBXScriptConnection? return self:_bindCached("GlobalTop100Update", handler) end
-function LobbyClientService:BindMatchSummaryUpdate(handler: Handler): RBXScriptConnection? return self:_bindCached("MatchSummaryUpdate", handler) end
 
 return LobbyClientService
