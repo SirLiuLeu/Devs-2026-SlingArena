@@ -37,7 +37,7 @@ function MatchScoreboardUIController.new(playerGui: PlayerGui)
 	self.PlayerGui = playerGui
 	self.ScreenGui = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchScoreboard.ScreenGui) :: ScreenGui?
 	self.PlayerList = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchScoreboard.PlayerList) :: ScrollingFrame?
-	self.RowTemplate = PathResolver.resolvePath(ReplicatedStorage, ProjectTreeSpec.Assets.ReplicatedStorage.Assets.PlayerRowTemplate_MatchScoreboardUI) :: Frame?
+	self.RowTemplate = PathResolver.resolvePath(ReplicatedStorage, ProjectTreeSpec.GameplayInstances.ReplicatedStorage.Assets.PlayerRowTemplate_MatchScoreboardUI) :: Frame?
 	self.CloseButton = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchScoreboard.CloseButton) :: GuiButton?
 	self.RowsByKey = {} :: { [string]: Frame }
 	self.LastRows = {} :: { any }
@@ -57,7 +57,7 @@ end
 function MatchScoreboardUIController:_resolveUi()
 	self.ScreenGui = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchScoreboard.ScreenGui, { shouldWarn = false }) :: ScreenGui?
 	self.PlayerList = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchScoreboard.PlayerList, { shouldWarn = false }) :: ScrollingFrame?
-	self.RowTemplate = PathResolver.resolvePath(ReplicatedStorage, ProjectTreeSpec.Assets.ReplicatedStorage.Assets.PlayerRowTemplate_MatchScoreboardUI, { shouldWarn = false }) :: Frame?
+	self.RowTemplate = PathResolver.resolvePath(ReplicatedStorage, ProjectTreeSpec.GameplayInstances.ReplicatedStorage.Assets.PlayerRowTemplate_MatchScoreboardUI, { shouldWarn = false }) :: Frame?
 	self.CloseButton = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchScoreboard.CloseButton, { shouldWarn = false }) :: GuiButton?
 	if self.RowTemplate then self.RowTemplate.Visible = false end
 end
