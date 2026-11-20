@@ -46,7 +46,6 @@
 | StateUpdate | S->C | PlayerStateService | `{ userId: number, mapName: string, arenaStatus: string, level: number, exp: number, progressionRoundId: number?, maxHP: number, currentHP: number, movementState: string, cooldownEndTime: number, ... }` | Authoritative per-player state snapshot; Player Level/EXP belong to one RoundId and reset after results or when an empty Arena abandons the round. |
 | MatchStateUpdate | S->C | RoundService | `{ state: string, roundId: number }` | Round phase synchronization. |
 | UIStateUpdate | S->C | RoundService | `{ state: string, arenaStatus: string, alivePlayers: number, playerCount: number, mapName: string, timeLeft: number, countdownTimer: number }` | Aggregated round/UI status payload. |
-| RoundResult | S->C | RoundService | `{ winner: string, roundId: number }` | End-of-round winner announcement. |
 | GameplayFeedback | S->C | DamagePipelineService | `{ eventType: string, payload: { [string]: any } }` | Combat/damage feedback (damage dealt, impact, level-up, etc.). |
 | PopupMessage | S->C | TrapService | `{ type: string, text: string }` | Contextual popup notification (trap or gameplay warnings). |
 | ZoneUpdate | S->C | SafeZoneService | `{ phase: string, radius: number, center: Vector3, dpsPercent: number, nextShrinkAt?: number }` | Safe-zone visual and damage sync (freeze-required). |
@@ -104,6 +103,7 @@
 | `LauncherTextureConfig.lua` | Team/Rage texture IDs for equipped Launcher visuals. | `PlayerService` |
 | `SoundConfig.lua` | SFX keys and playback settings. HP potion consumption uses `SFX_Item_HealthPotion`; `CollisionClientScanner` plays spatial `SFX_Wall_Hit` locally once per continuous contact with `Collision_Wall`-tagged geometry, without server validation; Ground, Food, Lava, Trap, and unclassified parts are excluded. | `SoundManager`, `SFXController`, `CollisionClientScanner` |
 | `QuestConfig.lua` | Five-step Daily Quest pools, step rewards, 90-second skip cooldown, and UTC+7 daily reset. | `QuestService`, `DailyQuestUIController` |
+| `RoundRewardConfig.lua` | Awaits countdown duration, solo FinalPhase threshold, and server-side GiftBox placement formula. | `RoundService`, `ProgressPointService` |
 | `RankConfig.lua` | Rank/leaderboard progression settings. | leaderboard/progression services |
 
 ## Daily Login system update (2026-11-13)
