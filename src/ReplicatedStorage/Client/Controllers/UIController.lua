@@ -20,14 +20,12 @@ local ShopLogicService = require(ReplicatedStorage.Client.Services.ShopLogicServ
 local DailyLoginUIController = require(ReplicatedStorage.Client.Controllers.DailyLoginUIController)
 local DailyLoginLogicService = require(ReplicatedStorage.Client.Services.DailyLoginLogicService)
 local MatchScoreboardUIController = require(ReplicatedStorage.Client.Controllers.MatchScoreboardUIController)
-local MatchSummaryUIController = require(ReplicatedStorage.Client.Controllers.MatchSummaryUIController)
 local ToastUIController = require(ReplicatedStorage.Client.Controllers.ToastUIController)
 local DailyQuestUIController = require(ReplicatedStorage.Client.Controllers.DailyQuestUIController)
 local RankFrameUIController = require(ReplicatedStorage.Client.Controllers.RankFrameUIController)
 local DailyQuestLogicService = require(ReplicatedStorage.Client.Services.DailyQuestLogicService)
 local HudDataService = require(ReplicatedStorage.Client.Services.HudDataService)
 local MatchScoreboardDataService = require(ReplicatedStorage.Client.Services.MatchScoreboardDataService)
-local MatchSummaryDataService = require(ReplicatedStorage.Client.Services.MatchSummaryDataService)
 local MockPlayerData = require(ReplicatedStorage.Client.Services.MockPlayerData)
 local LevelConfig = require(ReplicatedStorage.Shared.Config.LevelConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
@@ -178,7 +176,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.ShopUIController = ShopUIController.new(playerGui)
 	self.DailyLoginUIController = DailyLoginUIController.new(playerGui)
 	self.MatchScoreboardUIController = MatchScoreboardUIController.new(playerGui)
-	self.MatchSummaryUIController = MatchSummaryUIController.new(playerGui, self.ClientService)
 	self.ToastUIController = ToastUIController.new(playerGui)
 	self.DailyQuestUIController = DailyQuestUIController.new(playerGui)
 	self.RankFrameUIController = RankFrameUIController.new(playerGui)
@@ -189,7 +186,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.DailyQuestLogicService = DailyQuestLogicService.GetDefault()
 	self.HudDataService = HudDataService.GetDefault()
 	self.MatchScoreboardDataService = MatchScoreboardDataService.GetDefault()
-	self.MatchSummaryDataService = MatchSummaryDataService.GetDefault()
 	self.InventoryUIController:SetDataProvider(self.InventoryDataProvider)
 	self.PetInventoryUIController:SetDataProvider(self.InventoryDataProvider)
 	self.PetInventoryUIController:SetConfirmationController(self.ConfirmationUIController)
@@ -204,7 +200,6 @@ function UIController.new(playerGui: PlayerGui, dependencies: Dependencies)
 	self.DailyQuestUIController:SetConfirmationController(self.ConfirmationUIController)
 	self.DailyQuestUIController:SetToastController(self.ToastUIController)
 	self.MatchScoreboardUIController:SetDataService(self.MatchScoreboardDataService)
-	self.MatchSummaryUIController:SetDataService(self.MatchSummaryDataService)
 
 	self.PanelMap = {}
 
@@ -266,7 +261,6 @@ function UIController:_resolveUiReferences()
 	self.MatchStatusLabel = self.MatchStatusLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.StatusLabel, false)
 	self.TimerLabel = self.TimerLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.TimerLabel, false)
 	self.AlivePlayersLabel = self.AlivePlayersLabel or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.AlivePlayersLabel, false)
-	self.WinnerPopup = self.WinnerPopup or resolveTextLabel(playerGui, ProjectTreeSpec.UI.Match.WinnerPopup, false)
 	self.DebugResetButton = self.DebugResetButton or resolveTextButton(playerGui, ProjectTreeSpec.UI.Lobby.DebugResetButton, false)
 	self.DailyButton = self.DailyButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.DailyButton, false)
 	self.InventoryButton = self.InventoryButton or resolveGuiButton(playerGui, ProjectTreeSpec.UI.MainHub.InventoryButton, false)
@@ -364,7 +358,6 @@ function UIController:_clearRemovedUiReferences(removedRoot: Instance)
 	self:_clearReferenceIfRemoved("MatchStatusLabel", removedRoot, nil)
 	self:_clearReferenceIfRemoved("TimerLabel", removedRoot, nil)
 	self:_clearReferenceIfRemoved("AlivePlayersLabel", removedRoot, nil)
-	self:_clearReferenceIfRemoved("WinnerPopup", removedRoot, nil)
 	self:_clearReferenceIfRemoved("ProgressPoint", removedRoot, nil)
 	self:_clearReferenceIfRemoved("QuickHpQuantityLabel", removedRoot, nil)
 	self:_clearReferenceIfRemoved("QuickHpTimeLabel", removedRoot, nil)
@@ -548,11 +541,6 @@ function UIController:_bindResolvedUiReferences()
 			self.MatchScoreboardUIController:SetVisible(false)
 		end)
 	end
-	if self.MatchScoreboardUIController and self.MatchScoreboardUIController.Overlay and self.MatchScoreboardUIController.Overlay:IsA("GuiButton") then
-		self:_connectOnce("MatchScoreboardOverlay", self.MatchScoreboardUIController.Overlay.MouseButton1Click, function()
-			self.MatchScoreboardUIController:SetVisible(false)
-		end)
-	end
 	if self.HomeButton then
 		self.HomeButton.Active = true
 		self:_connectOnce("HomeButton", self.HomeButton.MouseButton1Click, function()
@@ -683,7 +671,6 @@ function UIController:_startAvailableFeatureControllers()
 	end
 	if self.DailyLoginUIController then self.DailyLoginUIController:Start() end
 	if self.MatchScoreboardUIController then self.MatchScoreboardUIController:Start() end
-	if self.MatchSummaryUIController then self.MatchSummaryUIController:Start() end
 	if self.DailyQuestUIController then self.DailyQuestUIController:Start() end
 	if self.RankFrameUIController then self.RankFrameUIController:Start() end
 end
@@ -873,12 +860,6 @@ function UIController:Start()
 			AlivePlayers = alivePlayers,
 		}
 
-		if self.WinnerPopup and state == GameStates.MapRoundState.RoundEnd then
-			self.WinnerPopup.Visible = true
-			self.WinnerPopup.Text = "Match result screen: pending"
-		elseif state == GameStates.MapRoundState.Lobby and self.MatchSummaryDataService then
-			self.MatchSummaryDataService:Reset()
-		end
 	end)
 	if uiStateConnection then
 		table.insert(self.Connections, uiStateConnection)
@@ -956,21 +937,6 @@ function UIController:Start()
 		end))
 	end
 
-	local summaryConnection = self.ClientService:BindMatchSummaryUpdate(function(payload)
-		if self.MatchSummaryDataService then self.MatchSummaryDataService:SetFromState(payload) end
-	end)
-	if summaryConnection then table.insert(self.Connections, summaryConnection) end
-
-	local resultConnection = self.ClientService:BindRoundResult(function(payload)
-		if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] RoundResult winner=%s roundId=%s t=%.3f", tostring(payload.Winner), tostring(payload.RoundId), os.clock())) end
-		if self.WinnerPopup then
-			self.WinnerPopup.Visible = true
-			self.WinnerPopup.Text = "Match result screen: Winner: " .. tostring(payload.Winner)
-		end
-	end)
-	if resultConnection then
-		table.insert(self.Connections, resultConnection)
-	end
 end
 
 function UIController:Destroy()
@@ -990,9 +956,6 @@ function UIController:Destroy()
 	end
 	if self.MatchScoreboardUIController then
 		self.MatchScoreboardUIController:Destroy()
-	end
-	if self.MatchSummaryUIController then
-		self.MatchSummaryUIController:Destroy()
 	end
 	if self.ToastUIController then
 		self.ToastUIController:Destroy()
