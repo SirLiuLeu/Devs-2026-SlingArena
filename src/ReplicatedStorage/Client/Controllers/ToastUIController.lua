@@ -4,12 +4,18 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local NotificationConfigData = require(ReplicatedStorage.Shared.Config.NotificationConfigData)
+local ProjectTreeSpec = require(ReplicatedStorage.Shared.ProjectTreeSpec)
+local PathResolver = require(ReplicatedStorage.Shared.Utils.PathResolver)
 
 local ToastUIController = {}
 ToastUIController.__index = ToastUIController
 
-local MAX_QUEUE_SIZE = 5
-local FADE_SECONDS = 0.25
+local MAX_VISIBLE_TOASTS = 5
+local MAX_QUEUE_SIZE = 25
+local FADE_IN_SECONDS = 0.15
+local DEFAULT_DISPLAY_SECONDS = 3
+local DEFAULT_FADE_OUT_SECONDS = 2
+local POLL_INTERVAL_SECONDS = 0.1
 
 export type ToastItem = {
 	Type: string,
@@ -19,32 +25,21 @@ export type ToastItem = {
 	Text: string,
 	Config: NotificationConfigData.NotificationConfig,
 	Sequence: number,
+	ReplaceKey: string?,
 }
 
-function ToastUIController.new(playerGui: PlayerGui)
-	local self = setmetatable({}, ToastUIController)
-	self._playerGui = playerGui
-	self._queue = {} :: { ToastItem }
-	self._active = false
-	self._destroyed = false
-	self._tweens = {} :: { Tween }
-	self._sequence = 0
-
-	-- Tạo ScreenGui chứa Toast
-	local screenGui = playerGui:FindFirstChild("ToastNotificationGui") :: ScreenGui?
-	if not screenGui then
-		local newGui = Instance.new("ScreenGui")
-		newGui.Name = "ToastNotificationGui"
-		newGui.ResetOnSpawn = false
-		newGui.DisplayOrder = 100
-		newGui.Parent = playerGui
-		screenGui = newGui
-	else
-	end
-	self._screenGui = screenGui
-
-	return self
-end
+type ToastRecord = {
+	Item: ToastItem,
+	Sequence: number,
+	Count: number,
+	DedupKey: string?,
+	ReplaceKey: string?,
+	Frame: Frame?,
+	MessageLabel: TextLabel?,
+	Removed: boolean,
+	ExpiresAt: number?,
+	Tweens: { Tween },
+}
 
 local function formatTemplate(templateText: string, args: { [string]: any }): string
 	return (string.gsub(templateText, "{([%w_]+)}", function(key)
@@ -53,13 +48,57 @@ local function formatTemplate(templateText: string, args: { [string]: any }): st
 	end))
 end
 
+function ToastUIController.new(playerGui: PlayerGui)
+	local self = setmetatable({}, ToastUIController)
+	self._playerGui = playerGui
+	self._queue = {} :: { ToastRecord }
+	self._active = {} :: { ToastRecord }
+	self._recordsByReplaceKey = {} :: { [string]: ToastRecord }
+	self._lastToastRecord = nil :: ToastRecord?
+	self._destroyed = false
+	self._sequence = 0
+	self._screenGui = nil :: ScreenGui?
+	self._container = nil :: GuiObject?
+	self._template = nil :: Frame?
+	self:_resolveUi()
+	return self
+end
+
+function ToastUIController:_resolveUi(): boolean
+	local screenPath = ProjectTreeSpec.UI.Notification.ScreenGui
+	local containerPath = ProjectTreeSpec.UI.Notification.Container
+	local templatePath = ProjectTreeSpec.GameplayInstances.ReplicatedStorage.Assets.ToastTemplate
+
+	self._screenGui = PathResolver.resolvePath(self._playerGui, screenPath, { shouldWarn = false }) :: ScreenGui?
+	self._container = PathResolver.resolvePath(self._playerGui, containerPath, { shouldWarn = false }) :: GuiObject?
+	self._template = PathResolver.resolvePath(ReplicatedStorage, templatePath, { shouldWarn = false }) :: Frame?
+
+	if self._screenGui then
+		self._screenGui.Enabled = true
+		self._screenGui.ResetOnSpawn = false
+		self._screenGui.DisplayOrder = math.max(self._screenGui.DisplayOrder, 100)
+	end
+	if self._template then
+		self._template.Visible = false
+	end
+
+	local listLayout = self._container and self._container:FindFirstChildWhichIsA("UIListLayout")
+	if listLayout then
+		listLayout.FillDirection = Enum.FillDirection.Vertical
+		listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		listLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+	end
+
+	return self._screenGui ~= nil and self._container ~= nil and self._template ~= nil
+end
+
 function ToastUIController:_normalize(message: any): ToastItem?
-	print("[ToastUIController] 🔍 Normalizing incoming message:", message)
 	local notificationType = "Generic"
 	local args = {} :: { [string]: any }
 	local text = ""
 	local priorityOverride = nil :: number?
 	local i18nKeyOverride = nil :: string?
+	local replaceKeyOverride = nil :: string?
 
 	if type(message) == "table" then
 		notificationType = tostring(message.Type or message.NotificationType or message.EventType or notificationType)
@@ -71,6 +110,7 @@ function ToastUIController:_normalize(message: any): ToastItem?
 		text = tostring(message.Text or message.Message or "")
 		priorityOverride = if type(message.Priority) == "number" then message.Priority else nil
 		i18nKeyOverride = if type(message.I18nKey) == "string" then message.I18nKey else nil
+		replaceKeyOverride = if type(message.ReplaceKey) == "string" then message.ReplaceKey else nil
 	else
 		text = tostring(message or "")
 		args.message = text
@@ -80,14 +120,12 @@ function ToastUIController:_normalize(message: any): ToastItem?
 	if text == "" then
 		text = formatTemplate(config.FallbackText, args)
 	end
-	
 	if text == "" then
-		warn("[ToastUIController] ⚠️ Failed to normalize message: Resolved text is empty! Message dropped.")
+		warn("[ToastUIController] Empty notification text was dropped.")
 		return nil
 	end
 
 	self._sequence += 1
-
 	return {
 		Type = config.Type,
 		I18nKey = i18nKeyOverride or config.I18nKey,
@@ -96,201 +134,362 @@ function ToastUIController:_normalize(message: any): ToastItem?
 		Text = text,
 		Config = config,
 		Sequence = self._sequence,
+		ReplaceKey = replaceKeyOverride or config.ReplaceKey,
 	}
+end
+
+function ToastUIController:_displayText(record: ToastRecord): string
+	if record.Count > 1 then
+		return record.Item.Text .. " x" .. tostring(record.Count)
+	end
+	return record.Item.Text
+end
+
+function ToastUIController:_updateVisual(record: ToastRecord)
+	local frame = record.Frame
+	if not frame or not frame.Parent then
+		return
+	end
+
+	local style = record.Item.Config.Style
+	frame.BackgroundColor3 = style.BackgroundColor
+	local message = record.MessageLabel
+	if message then
+		message.Text = self:_displayText(record)
+		message.TextColor3 = style.TextColor
+	end
+
+	local icon = frame:FindFirstChild("Icon", true)
+	if icon and icon:IsA("ImageLabel") then
+		icon.Image = style.Icon or ""
+		icon.ImageColor3 = style.AccentColor
+		icon.Visible = style.Icon ~= nil and style.Icon ~= ""
+	end
+
+	local stroke = frame:FindFirstChildWhichIsA("UIStroke", true)
+	if stroke then
+		stroke.Color = style.AccentColor
+	end
+end
+
+function ToastUIController:_discardRecord(record: ToastRecord)
+	if record.Removed then
+		return
+	end
+	record.Removed = true
+	if record.Frame then
+		record.Frame:Destroy()
+		record.Frame = nil
+	end
+	if record.ReplaceKey and self._recordsByReplaceKey[record.ReplaceKey] == record then
+		self._recordsByReplaceKey[record.ReplaceKey] = nil
+	end
+	if self._lastToastRecord == record then
+		self._lastToastRecord = nil
+	end
+	for _, tween in ipairs(record.Tweens) do
+		pcall(function()
+			tween:Cancel()
+			tween:Destroy()
+		end)
+	end
+	table.clear(record.Tweens)
 end
 
 function ToastUIController:_sortQueue()
 	table.sort(self._queue, function(a, b)
-		if a.Priority == b.Priority then
+		if a.Item.Priority == b.Item.Priority then
 			return a.Sequence < b.Sequence
 		end
-		return a.Priority > b.Priority
+		return a.Item.Priority > b.Item.Priority
 	end)
 end
 
-function ToastUIController:_tryInsert(item: ToastItem)
-	if #self._queue < MAX_QUEUE_SIZE then
-		table.insert(self._queue, item)
-		self:_sortQueue()
-		return
-	end
+function ToastUIController:_insertRecord(record: ToastRecord)
+	table.insert(self._queue, record)
+	self:_sortQueue()
 
-	-- Tìm item có priority thấp nhất trong queue
-	local lowestIndex = 1
-	for index, queued in ipairs(self._queue) do
-		local lowest = self._queue[lowestIndex]
-		if queued.Priority < lowest.Priority or (queued.Priority == lowest.Priority and queued.Sequence > lowest.Sequence) then
-			lowestIndex = index
+	if #self._queue > MAX_QUEUE_SIZE then
+		local dropped = table.remove(self._queue, #self._queue)
+		if dropped then
+			self:_discardRecord(dropped)
+			warn("[ToastUIController] Toast queue was full; the lowest-priority pending toast was dropped.")
 		end
 	end
+end
 
-	if item.Priority <= self._queue[lowestIndex].Priority then
-		warn(string.format("[ToastUIController] 🚫 Queue full! Dropped item '%s' due to low priority (%d <= %d)", item.Text, item.Priority, self._queue[lowestIndex].Priority))
-		return
+function ToastUIController:_resetLastDuplicateCount()
+	local lastRecord = self._lastToastRecord
+	if lastRecord and not lastRecord.Removed and lastRecord.Count > 1 then
+		lastRecord.Count = 1
+		self:_updateVisual(lastRecord)
 	end
+	self._lastToastRecord = nil
+end
 
-	local evicted = table.remove(self._queue, lowestIndex)
-	warn(string.format("[ToastUIController] ♻️ Evicted lower priority item '%s' (Priority %d) to make room for '%s' (Priority %d)", evicted.Text, evicted.Priority, item.Text, item.Priority))
-	table.insert(self._queue, item)
-	self:_sortQueue()
+function ToastUIController:_newRecord(item: ToastItem): ToastRecord
+	return {
+		Item = item,
+		Sequence = item.Sequence,
+		Count = 1,
+		DedupKey = item.Type .. "|" .. item.Text,
+		ReplaceKey = item.ReplaceKey,
+		Frame = nil,
+		MessageLabel = nil,
+		Removed = false,
+		ExpiresAt = nil,
+		Tweens = {},
+	}
 end
 
 function ToastUIController:Enqueue(message: any)
 	if self._destroyed then
-		warn("[ToastUIController] ⚠️ Cannot enqueue: Controller is destroyed.")
 		return
 	end
-	
+	if not self:_resolveUi() then
+		warn("[ToastUIController] NotificationGui, ToastContainer, or ToastTemplate is missing; notification was dropped.")
+		return
+	end
+
 	local item = self:_normalize(message)
 	if not item then
 		return
 	end
-	
-	self:_tryInsert(item)
+
+	local now = os.clock()
+	if item.ReplaceKey then
+		self:_resetLastDuplicateCount()
+		local existing = self._recordsByReplaceKey[item.ReplaceKey]
+		if existing and not existing.Removed then
+			existing.Item = item
+			existing.Count = 1
+			if existing.Frame then
+				existing.ExpiresAt = now + (item.Config.DisplaySeconds or DEFAULT_DISPLAY_SECONDS)
+			end
+			self:_updateVisual(existing)
+			self:_sortQueue()
+			return
+		end
+
+		local record = self:_newRecord(item)
+		self._recordsByReplaceKey[item.ReplaceKey] = record
+		self:_insertRecord(record)
+		self:_pump()
+		return
+	end
+
+	local lastRecord = self._lastToastRecord
+	local dedupKey = item.Type .. "|" .. item.Text
+	if lastRecord and not lastRecord.Removed and lastRecord.DedupKey == dedupKey then
+		lastRecord.Count += 1
+		if lastRecord.Frame then
+			lastRecord.ExpiresAt = now + (item.Config.DisplaySeconds or DEFAULT_DISPLAY_SECONDS)
+		end
+		self:_updateVisual(lastRecord)
+		return
+	end
+
+	self:_resetLastDuplicateCount()
+	local record = self:_newRecord(item)
+	self._lastToastRecord = record
+	self:_insertRecord(record)
 	self:_pump()
 end
 
-function ToastUIController:_makeToast(item: ToastItem): Frame
-	local style = item.Config.Style
-	local frame = Instance.new("Frame")
-	frame.Name = "ToastNotification"
-	frame.AnchorPoint = Vector2.new(0.5, 0)
-	frame.Position = UDim2.fromScale(0.5, 0.08)
-	frame.Size = UDim2.fromOffset(460, 56)
-	frame.BackgroundColor3 = style.BackgroundColor
-	frame.BackgroundTransparency = 1
-	frame.Parent = self._screenGui
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
-	corner.Parent = frame
-
-	local accent = Instance.new("Frame")
-	accent.Name = "Accent"
-	accent.Size = UDim2.new(0, 6, 1, 0)
-	accent.BackgroundColor3 = style.AccentColor
-	accent.BackgroundTransparency = 1
-	accent.BorderSizePixel = 0
-	accent.Parent = frame
-
-	local icon = Instance.new("ImageLabel")
-	icon.Name = "Icon"
-	icon.BackgroundTransparency = 1
-	icon.Image = style.Icon or ""
-	icon.ImageColor3 = style.AccentColor
-	icon.ImageTransparency = 1
-	icon.Position = UDim2.fromOffset(18, 12)
-	icon.Size = UDim2.fromOffset(32, 32)
-	icon.Parent = frame
-
-	local label = Instance.new("TextLabel")
-	label.Name = "Message"
-	label.BackgroundTransparency = 1
-	label.Position = UDim2.fromOffset(60, 0)
-	label.Size = UDim2.new(1, -76, 1, 0)
-	label.Font = Enum.Font.GothamBold
-	label.Text = item.Text
-	label.TextColor3 = style.TextColor
-	label.TextTransparency = 1
-	label.TextScaled = true
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.Parent = frame
-	return frame
-end
-
-function ToastUIController:_trackTween(tween: Tween): Tween
-	table.insert(self._tweens, tween)
-	return tween
-end
-
-function ToastUIController:_cleanupToast(toast: Instance?, tweens: { Tween })
-	for _, tween in ipairs(tweens) do
-		pcall(function()
-			tween:Cancel()
-			tween:Destroy()
-		end)
+function ToastUIController:_createFadeTweens(record: ToastRecord, fadeOut: boolean): { Tween }
+	local frame = record.Frame
+	if not frame then
+		return {}
 	end
-	if toast then
-		toast:Destroy()
+	local duration = if fadeOut
+		then (record.Item.Config.FadeOutSeconds or DEFAULT_FADE_OUT_SECONDS)
+		else FADE_IN_SECONDS
+	local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Quad, if fadeOut then Enum.EasingDirection.In else Enum.EasingDirection.Out)
+	local transparency = if fadeOut then 1 else 0
+	local tweens = {
+		TweenService:Create(frame, tweenInfo, { BackgroundTransparency = if fadeOut then 1 else 0.12 }),
+	}
+
+	if record.MessageLabel then
+		table.insert(tweens, TweenService:Create(record.MessageLabel, tweenInfo, { TextTransparency = transparency }))
+	end
+	local icon = frame:FindFirstChild("Icon", true)
+	if icon and icon:IsA("ImageLabel") and icon.Visible then
+		table.insert(tweens, TweenService:Create(icon, tweenInfo, { ImageTransparency = transparency }))
+	end
+	local stroke = frame:FindFirstChildWhichIsA("UIStroke", true)
+	if stroke then
+		table.insert(tweens, TweenService:Create(stroke, tweenInfo, { Transparency = transparency }))
+	end
+
+	for _, tween in ipairs(tweens) do
+		table.insert(record.Tweens, tween)
+	end
+	return tweens
+end
+
+function ToastUIController:_finishRecord(record: ToastRecord)
+	for index, activeRecord in ipairs(self._active) do
+		if activeRecord == record then
+			table.remove(self._active, index)
+			break
+		end
+	end
+	self:_discardRecord(record)
+	self:_pump()
+end
+
+function ToastUIController:_showRecord(record: ToastRecord)
+	if self._destroyed or record.Removed then
+		return
+	end
+	if not self:_resolveUi() or not self._template or not self._container then
+		self:_finishRecord(record)
+		return
+	end
+
+	local frame = self._template:Clone()
+	frame.Name = "Slot_" .. tostring(record.Sequence)
+	frame.Visible = true
+	frame.LayoutOrder = -record.Sequence
+	frame.BackgroundColor3 = record.Item.Config.Style.BackgroundColor
+	frame.BackgroundTransparency = 1
+	record.Frame = frame
+
+	local message = frame:FindFirstChild("Message", true)
+	if message and message:IsA("TextLabel") then
+		record.MessageLabel = message
+		message.Text = self:_displayText(record)
+		message.TextColor3 = record.Item.Config.Style.TextColor
+		message.TextTransparency = 1
+	end
+
+	local icon = frame:FindFirstChild("Icon", true)
+	if icon and icon:IsA("ImageLabel") then
+		icon.Image = record.Item.Config.Style.Icon or ""
+		icon.ImageColor3 = record.Item.Config.Style.AccentColor
+		icon.ImageTransparency = 1
+		icon.Visible = record.Item.Config.Style.Icon ~= nil and record.Item.Config.Style.Icon ~= ""
+	end
+
+	local stroke = frame:FindFirstChildWhichIsA("UIStroke", true)
+	if stroke then
+		stroke.Color = record.Item.Config.Style.AccentColor
+		stroke.Transparency = 1
+	end
+
+	frame.Parent = self._container
+	record.ExpiresAt = os.clock() + (record.Item.Config.DisplaySeconds or DEFAULT_DISPLAY_SECONDS)
+
+	local fadeInTweens = self:_createFadeTweens(record, false)
+	for _, tween in ipairs(fadeInTweens) do
+		tween:Play()
+	end
+	if fadeInTweens[1] then
+		fadeInTweens[1].Completed:Wait()
+	end
+	if self._destroyed or record.Removed then
+		return
+	end
+
+	while not self._destroyed and not record.Removed do
+		while not self._destroyed and not record.Removed do
+			local remaining = (record.ExpiresAt or os.clock()) - os.clock()
+			if remaining <= 0 then
+				break
+			end
+			task.wait(math.min(POLL_INTERVAL_SECONDS, remaining))
+		end
+
+		if self._destroyed or record.Removed then
+			return
+		end
+
+		local fadeOutStartedAt = os.clock()
+		local fadeOutDuration = record.Item.Config.FadeOutSeconds or DEFAULT_FADE_OUT_SECONDS
+		local fadeOutTweens = self:_createFadeTweens(record, true)
+		for _, tween in ipairs(fadeOutTweens) do
+			tween:Play()
+		end
+
+		local displayExtended = false
+		while not self._destroyed and not record.Removed do
+			-- A duplicate/replace-key update during fade-out extends the current toast.
+			if (record.ExpiresAt or 0) > fadeOutStartedAt then
+				for _, tween in ipairs(fadeOutTweens) do
+					pcall(function()
+						tween:Cancel()
+						tween:Destroy()
+					end)
+				end
+
+				if frame.Parent then
+					frame.BackgroundTransparency = 0.12
+				end
+				if record.MessageLabel then
+					record.MessageLabel.TextTransparency = 0
+				end
+				local currentIcon = frame:FindFirstChild("Icon", true)
+				if currentIcon and currentIcon:IsA("ImageLabel") and currentIcon.Visible then
+					currentIcon.ImageTransparency = 0
+				end
+				local currentStroke = frame:FindFirstChildWhichIsA("UIStroke", true)
+				if currentStroke then
+					currentStroke.Transparency = 0
+				end
+				displayExtended = true
+				break
+			end
+
+			local fadeRemaining = fadeOutDuration - (os.clock() - fadeOutStartedAt)
+			if fadeRemaining <= 0 then
+				break
+			end
+			task.wait(math.min(POLL_INTERVAL_SECONDS, fadeRemaining))
+		end
+
+		if self._destroyed or record.Removed then
+			return
+		end
+		if not displayExtended then
+			self:_finishRecord(record)
+			return
+		end
 	end
 end
 
 function ToastUIController:_pump()
-	if self._active then
-		return
-	end
 	if self._destroyed then
 		return
 	end
-
 	self:_sortQueue()
-	local item = table.remove(self._queue, 1)
-	if not item then
-		return
-	end
-
-	self._active = true
-
-	task.spawn(function()
-		local toast = self:_makeToast(item)
-		local message = toast:FindFirstChild("Message") :: TextLabel?
-		local accent = toast:FindFirstChild("Accent") :: Frame?
-		local icon = toast:FindFirstChild("Icon") :: ImageLabel?
-		
-		-- Fade In
-		local fadeInTweens = {
-			self:_trackTween(TweenService:Create(toast, TweenInfo.new(FADE_SECONDS), { BackgroundTransparency = 0.12 })),
-		}
-		if message then table.insert(fadeInTweens, self:_trackTween(TweenService:Create(message, TweenInfo.new(FADE_SECONDS), { TextTransparency = 0 }))) end
-		if accent then table.insert(fadeInTweens, self:_trackTween(TweenService:Create(accent, TweenInfo.new(FADE_SECONDS), { BackgroundTransparency = 0 }))) end
-		if icon and icon.Image ~= "" then table.insert(fadeInTweens, self:_trackTween(TweenService:Create(icon, TweenInfo.new(FADE_SECONDS), { ImageTransparency = 0 }))) end
-
-		for _, tween in ipairs(fadeInTweens) do tween:Play() end
-		fadeInTweens[1].Completed:Wait()
-
-		-- Giữ hiển thị
-		task.wait(item.Config.DisplaySeconds or 2.5)
-
-		local allTweens = table.clone(fadeInTweens)
-
-		-- Fade Out
-		if not self._destroyed then
-			local fadeOutTweens = {
-				self:_trackTween(TweenService:Create(toast, TweenInfo.new(FADE_SECONDS), { BackgroundTransparency = 1 }))
-			}
-			if message then table.insert(fadeOutTweens, self:_trackTween(TweenService:Create(message, TweenInfo.new(FADE_SECONDS), { TextTransparency = 1 }))) end
-			if accent then table.insert(fadeOutTweens, self:_trackTween(TweenService:Create(accent, TweenInfo.new(FADE_SECONDS), { BackgroundTransparency = 1 }))) end
-			if icon then table.insert(fadeOutTweens, self:_trackTween(TweenService:Create(icon, TweenInfo.new(FADE_SECONDS), { ImageTransparency = 1 }))) end
-
-			for _, tween in ipairs(fadeOutTweens) do 
-				table.insert(allTweens, tween)
-				tween:Play() 
-			end
-			fadeOutTweens[1].Completed:Wait()
+	while #self._active < MAX_VISIBLE_TOASTS and #self._queue > 0 do
+		local record = table.remove(self._queue, 1)
+		if record and not record.Removed then
+			table.insert(self._active, record)
+			task.spawn(function()
+				self:_showRecord(record)
+			end)
 		end
-
-		self:_cleanupToast(toast, allTweens)
-		self._active = false
-		
-		-- Tiếp tục hiển thị các toast tiếp theo trong queue nếu có
-		self:_pump()
-	end)
+	end
 end
 
 function ToastUIController:Destroy()
+	if self._destroyed then
+		return
+	end
 	self._destroyed = true
+	for _, record in ipairs(self._queue) do
+		self:_discardRecord(record)
+	end
+	for _, record in ipairs(self._active) do
+		self:_discardRecord(record)
+	end
 	table.clear(self._queue)
-	for _, tween in ipairs(self._tweens) do
-		pcall(function()
-			tween:Cancel()
-			tween:Destroy()
-		end)
-	end
-	table.clear(self._tweens)
-
-	if self._screenGui then
-		self._screenGui:Destroy()
-	end
+	table.clear(self._active)
+	table.clear(self._recordsByReplaceKey)
+	self._lastToastRecord = nil
+	-- NotificationGui is Studio-authored and is intentionally not destroyed here.
 end
 
 return ToastUIController

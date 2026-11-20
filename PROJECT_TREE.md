@@ -35,6 +35,7 @@ DataModel
 │  │  │  ├─ PhysicsConfig.lua
 │  │  │  ├─ QuestConfig.lua
 │  │  │  ├─ RankConfig.lua
+│  │  │  ├─ RoundRewardConfig.lua
 │  │  │  ├─ SafeZoneConfig.lua
 │  │  │  ├─ SoundConfig.lua
 │  │  │  └─ TrapConfig.lua
@@ -248,16 +249,6 @@ DataModel
 │  │      │   ├── PointValue (TextLabel)
 │  │      │   └── StateValue (TextLabel)
 │  │      │
-│  │      ├── PlayerRowTemplate_MatchSummaryUI (Frame)
-│  │      │   ├── UIListLayout
-│  │      │   ├── Deaths
-│  │      │   ├── Kills
-│  │      │   ├── Level
-│  │      │   ├── PlayerName
-│  │      │   ├── Points
-│  │      │   ├── Rank
-│  │      │   └── Reward
-│  │      │
 │  │      ├── SlotItemTemplate_shopUI (Frame)
 │  │      │   ├── UICorner
 │  │      │   ├── Info (Frame)
@@ -358,7 +349,6 @@ DataModel
 │  │     ├─ UIStateUpdate
 │  │     ├─ GameplayFeedback
 │  │     ├─ MatchStateUpdate
-│  │     ├─ RoundResult
 │  │     ├─ PopupMessage
 │  │     ├─ SetPlayerMode
 │  │     ├─ QuestUpdate
@@ -463,28 +453,6 @@ DataModel
 │  │  │  ├─ PlayerList (ScrollingFrame)
 │  │  │  │  └─ Slot_1, Slot_2, Slot_3,... Slot_N (PlayerRowTemplate_MatchScoreboardUI Frames) -- Script Spawn in run time  (Frame)
 │  │  │  └─ CloseButton (TextButton)
-│  │
-│  ├─ MatchSummaryUI (ScreenGui)
-│  │  ├─ MainPanel (Frame)
-│  │  │  ├─ Header (Frame)
-│  │  │  │  └─ CloseButton (TextButton)
-│  │  │  └─ Table (Frame)
-│  │  │     ├─ UICorner
-│  │  │     ├─ UIListLayout
-│  │  │     ├─ HeaderRow (Frame)
-│  │  │     │  ├─ UIListLayout
-│  │  │     │  ├─ Dead (TextLabel)
-│  │  │     │  ├─ Kill (TextLabel)
-│  │  │     │  ├─ Level (TextLabel)
-│  │  │     │  ├─ Name (TextLabel)
-│  │  │     │  ├─ Point (TextLabel)
-│  │  │     │  ├─ Rank (TextLabel)
-│  │  │     │  └─ Reward (TextLabel)
-│  │  │     └─ PlayerList (ScrollingFrame)
-│  │  │        ├─ UIListLayout
-│  │  │        └─ PlayerrRowTemplate_MatchSummaryUI (Frame)
-│  │  │       
-│  │  └─ Overlay (Frame)
 │  │
 │  ├─ OnlineRewardUI (ScreenGui)
 │  │  └─ Root

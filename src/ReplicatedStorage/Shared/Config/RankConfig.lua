@@ -57,13 +57,6 @@ RankConfig.ScoreSettings = {
 	},
 } :: { [string]: ScoreSetting }
 
-RankConfig.RoundDiamondRewards = {
-	Participation = 300,
-	ScorePerPoint = 1,
-	MaxScoreBonus = 400,
-	RankBonuses = { [1] = 300, [2] = 200, [3] = 100 },
-	DefaultRankBonus = 50,
-}
 
 RankConfig.LateJoinSettings = {
 	DiscountByMinute = {

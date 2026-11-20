@@ -26,8 +26,8 @@ local STARTER_GUI_ROOTS = {
 	ShopUI = true,
 	DailyLoginUI = true,
 	MatchUI = true,
-	MatchSummaryUI = true,
 	MatchScoreboardUI = true,
+	NotificationGui = true,
 	LauncherControlUI = true,
 	TeamSelectionGui = true,
 }
@@ -134,6 +134,16 @@ task.spawn(function()
 	end
 
 	local playerGui = playerGuiInstance
+	local function removeLegacyMatchSummary(child: Instance)
+		if child.Name == "MatchSummaryUI" then
+			child:Destroy()
+		end
+	end
+	for _, child in ipairs(playerGui:GetChildren()) do
+		removeLegacyMatchSummary(child)
+	end
+	local legacySummaryCleanupConnection = playerGui.ChildAdded:Connect(removeLegacyMatchSummary)
+
 	PathResolver.reportMissing(game, PathResolver.collectPaths(ProjectTreeSpec.Services.Client))
 	PathResolver.reportMissing(ReplicatedStorage, PathResolver.collectPaths(ProjectTreeSpec.Remotes))
 
@@ -191,6 +201,7 @@ task.spawn(function()
 			leaderboardWorldController:Destroy()
 			clientPetController:Destroy()
 			teamSelectionController:Destroy()
+			legacySummaryCleanupConnection:Disconnect()
 		end
 	end)
 end)

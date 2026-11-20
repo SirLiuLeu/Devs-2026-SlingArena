@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeamConfig = require(ReplicatedStorage.Shared.Config.TeamConfig)
+local RoundRewardConfig = require(ReplicatedStorage.Shared.Config.RoundRewardConfig)
 local RunService = game:GetService("RunService")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
@@ -12,7 +13,7 @@ local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 local RoundService = {}
 RoundService.__index = RoundService
 
-local MIN_PLAYERS_TO_START = 3
+local AWAIT_COUNTDOWN_SECONDS = RoundRewardConfig.AwaitCountdownSeconds
 local REJOIN_COOLDOWN_SECONDS = 30
 local ROUND_END_FREEZE_SECONDS = 5
 local ROUND_END_RESULTS_SECONDS = 15
@@ -28,8 +29,11 @@ function RoundService.new(context)
 	self._rageActive = false
 	self._roundTimer = 0
 	self._roundEndElapsed = 0
-	self._winnerName = nil :: string?
-	self._resultsShown = false
+	self._awaitsElapsed = 0
+	self._lastCountdownSentSeconds = nil :: number?
+	self._roundParticipantCount = 0
+	self._roundRewardsGranted = false
+	self._roundArenaMapName = nil :: string?
 	self._lastPublishedUiState = nil
 	self._uiStateElapsed = 0
 	self._lastUiAlivePlayers = nil
@@ -41,13 +45,11 @@ function RoundService.new(context)
 	self._matchStateRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.MatchStateUpdate) :: RemoteEvent
 	self._uiStateRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.UIStateUpdate) :: RemoteEvent
 	self._popupRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.PopupMessage) :: RemoteEvent?
-	self._roundResultRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.RoundResult) :: RemoteEvent?
 	self._joinRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.JoinArena) :: RemoteEvent
 	self._leaveRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.LeaveArena) :: RemoteEvent
 	self._startSafeZoneRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.StartSafeZone) :: RemoteEvent?
 	self._plus1MinuteRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.Plus1Minute) :: RemoteEvent?
 	self._endRoundRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.EndRound) :: RemoteEvent?
-	self._matchSummaryRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.MatchSummaryUpdate) :: RemoteEvent?
 	return self
 end
 
@@ -114,7 +116,7 @@ function RoundService:IsRageActive(): boolean
 end
 
 function RoundService:_activateRageIfDue()
-	if self._rageActive or not self._roundActive or self._roundTimer < RAGE_START_SECONDS then return end
+	if self._rageActive or not self._roundActive or self._roundParticipantCount <= 1 or self._roundTimer < RAGE_START_SECONDS then return end
 	self._rageActive = true
 	local teamService = ServiceResolver.Get(self._context, "TeamService")
 	if teamService and typeof(teamService.SetRageActive) == "function" then teamService:SetRageActive(true) end
@@ -180,10 +182,63 @@ function RoundService:RequestPlus1Minute(_player: Player)
 	if safeZoneService and typeof(safeZoneService.SetElapsed) == "function" then
 		safeZoneService:SetElapsed(self._roundTimer)
 	end
-	if self._state == GameStates.MapRoundState.EarlyGame and safeZoneService and safeZoneService:IsAtMinimumRadius() then
+	if self._roundParticipantCount == 1
+		and self._state == GameStates.MapRoundState.EarlyGame
+		and self._roundTimer >= RoundRewardConfig.SoloFinalPhaseSeconds then
+		self:_setState(GameStates.MapRoundState.FinalPhase)
+	elseif self._roundParticipantCount ~= 1 and self._state == GameStates.MapRoundState.EarlyGame and safeZoneService and safeZoneService:IsAtMinimumRadius() then
 		self:_setState(GameStates.MapRoundState.FinalPhase)
 	else
 		self:_publishUiState()
+	end
+end
+
+function RoundService:_notifyCountdown(player: Player, secondsRemaining: number)
+	if self._context.EventBus then
+		self._context.EventBus:Fire(
+			"RoundCountdown",
+			player,
+			math.max(0, math.floor(secondsRemaining)),
+			self._roundId
+		)
+	end
+end
+
+function RoundService:_beginAwaitsCountdown()
+	if self._state ~= GameStates.MapRoundState.Lobby then
+		return
+	end
+	self._awaitsElapsed = 0
+	self._lastCountdownSentSeconds = AWAIT_COUNTDOWN_SECONDS
+
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
+	local mapService = ServiceResolver.Get(self._context, "MapService")
+	if not stateService or not playerService or not mapService then
+		warn("[RoundService] Cannot begin Awaits: required services are unavailable.")
+		return
+	end
+
+	-- Every queued player waits physically in LobbyMap for the full countdown.
+	if mapService:GetActiveMap() ~= "LobbyMap" then
+		mapService:ActivateMap("LobbyMap")
+	end
+	for _, player in ipairs(Players:GetPlayers()) do
+		local state = stateService:GetState(player)
+		if state and state.LocationState ~= GameStates.SessionState.Lobby then
+			local mode = stateService:ResolveArenaSpawnMode(player)
+			playerService:SpawnForActiveMode(player, nil, "LobbyMap", mode)
+			stateService:SetCurrentMap(player, "LobbyMap")
+			stateService:SetLocationState(player, GameStates.SessionState.InGame)
+		end
+	end
+
+	self:_setState(GameStates.MapRoundState.Awaits)
+	for _, player in ipairs(Players:GetPlayers()) do
+		local state = stateService:GetState(player)
+		if state and state.LocationState ~= GameStates.SessionState.Lobby then
+			self:_notifyCountdown(player, AWAIT_COUNTDOWN_SECONDS)
+		end
 	end
 end
 
@@ -196,27 +251,65 @@ function RoundService:JoinArena(player: Player)
 		local leaveAt = self._lastLeaveByUserId[player.UserId] or os.time()
 		local remainingSeconds = REJOIN_COOLDOWN_SECONDS - (os.time() - leaveAt)
 		if self._context.EventBus then self._context.EventBus:Fire("ArenaJoinCooldown", player, remainingSeconds) end
-		if self._popupRemote then self._popupRemote:FireClient(player, string.format("You can rejoin in %d seconds.", math.max(1, math.ceil(remainingSeconds)))) end
+		if self._popupRemote then
+			self._popupRemote:FireClient(player, string.format("You can rejoin in %d seconds.", math.max(1, math.ceil(remainingSeconds))))
+		end
 		return
 	end
+
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
+	local mapService = ServiceResolver.Get(self._context, "MapService")
+	if not stateService or not playerService or not mapService then
+		warn("[RoundService] Cannot join Arena: required services are unavailable.")
+		return
+	end
+
+	local existingState = stateService:GetState(player)
+	if existingState and existingState.LocationState ~= GameStates.SessionState.Lobby then
+		if self._state == GameStates.MapRoundState.Awaits then
+			self:_notifyCountdown(player, math.max(1, math.ceil(AWAIT_COUNTDOWN_SECONDS - self._awaitsElapsed)))
+		end
+		return
+	end
+
 	stateService:BeginRoundProgression(player, self._roundId)
-	local arenaMapName = ServiceResolver.Get(self._context, "MapService"):GetDefaultArenaMapName()
-	ServiceResolver.Get(self._context, "MapService"):ActivateMap(arenaMapName)
 	local spawnMode = stateService:ResolveArenaSpawnMode(player)
-	ServiceResolver.Get(self._context, "PlayerService"):SpawnForActiveMode(player, nil, arenaMapName, spawnMode)
-	stateService:SetCurrentMap(player, arenaMapName)
-	stateService:SetLocationState(player, GameStates.SessionState.InGame)
+
 	if self._roundActive then
-		self:_activateRageIfDue()
+		local arenaMapName = self._roundArenaMapName or mapService:GetActiveMap() or mapService:GetDefaultArenaMapName()
+		if mapService:GetActiveMap() ~= arenaMapName then
+			mapService:ActivateMap(arenaMapName)
+		end
+		playerService:SpawnForActiveMode(player, nil, arenaMapName, spawnMode)
+		stateService:SetCurrentMap(player, arenaMapName)
+		stateService:SetLocationState(player, GameStates.SessionState.InGame)
+		self._roundParticipantCount += 1
+
 		local teamService = ServiceResolver.Get(self._context, "TeamService")
 		if self._rageActive then
 			stateService:SetTeamId(player, nil)
 		elseif teamService and typeof(teamService.AssignBalancedTeam) == "function" then
 			teamService:AssignBalancedTeam(player)
 		end
+	else
+		-- Participants wait physically in LobbyMap until the 30-second countdown ends.
+		if mapService:GetActiveMap() ~= "LobbyMap" then
+			mapService:ActivateMap("LobbyMap")
+		end
+		if self._state == GameStates.MapRoundState.Lobby then
+			stateService:SetCurrentMap(player, "LobbyMap")
+			stateService:SetLocationState(player, GameStates.SessionState.InGame)
+			-- _beginAwaitsCountdown teleports every queued participant in one pass.
+			self:_beginAwaitsCountdown()
+		elseif self._state == GameStates.MapRoundState.Awaits then
+			playerService:SpawnForActiveMode(player, nil, "LobbyMap", spawnMode)
+			stateService:SetCurrentMap(player, "LobbyMap")
+			stateService:SetLocationState(player, GameStates.SessionState.InGame)
+			self:_notifyCountdown(player, math.max(1, math.ceil(AWAIT_COUNTDOWN_SECONDS - self._awaitsElapsed)))
+		end
 	end
-	if self._state == GameStates.MapRoundState.Lobby then self:_setState(GameStates.MapRoundState.Awaits) end
+
 	self:_publishUiState()
 end
 
@@ -240,8 +333,11 @@ function RoundService:_abortIfArenaEmpty(): boolean
 	self._rageActive = false
 	self._roundTimer = 0
 	self._roundEndElapsed = 0
-	self._winnerName = nil
-	self._resultsShown = false
+	self._awaitsElapsed = 0
+	self._lastCountdownSentSeconds = nil
+	self._roundParticipantCount = 0
+	self._roundRewardsGranted = false
+	self._roundArenaMapName = nil
 
 	local teamService = ServiceResolver.Get(self._context, "TeamService")
 	if teamService and typeof(teamService.SetRageActive) == "function" then
@@ -361,23 +457,59 @@ function RoundService:_startEarlyGame()
 	if self._state ~= GameStates.MapRoundState.Awaits then
 		return
 	end
+
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
+	local mapService = ServiceResolver.Get(self._context, "MapService")
+	if not stateService or not playerService or not mapService then
+		warn("[RoundService] Cannot start round: required services are unavailable.")
+		return
+	end
+
+	local roundPlayers = {}
+	for _, player in ipairs(Players:GetPlayers()) do
+		local state = stateService:GetState(player)
+		if state and state.LocationState ~= GameStates.SessionState.Lobby then
+			stateService:BeginRoundProgression(player, self._roundId)
+			stateService:ResetForNewRound(player)
+			table.insert(roundPlayers, player)
+		end
+	end
+
+	if #roundPlayers == 0 then
+		self:_abortIfArenaEmpty()
+		return
+	end
+
+	local arenaMapName = mapService:GetDefaultArenaMapName()
+	mapService:ActivateMap(arenaMapName)
+	self._roundArenaMapName = arenaMapName
+
+	local teamService = ServiceResolver.Get(self._context, "TeamService")
+	if teamService and typeof(teamService.AssignBalancedTeams) == "function" then
+		teamService:AssignBalancedTeams(roundPlayers)
+	end
+
 	self._roundActive = true
 	self._rageActive = false
 	self._roundTimer = 0
+	self._roundParticipantCount = #roundPlayers
+	self._roundRewardsGranted = false
+	self._awaitsElapsed = 0
+	self._lastCountdownSentSeconds = nil
+
 	local safeZoneService = ServiceResolver.Get(self._context, "SafeZoneService")
 	if safeZoneService and typeof(safeZoneService.Reset) == "function" then
 		safeZoneService:Reset()
 	end
-	local roundPlayers = {}
-	for _, player in ipairs(Players:GetPlayers()) do
-		local state = ServiceResolver.Get(self._context, "PlayerStateService"):GetState(player)
-		if state and state.LocationState ~= GameStates.SessionState.Lobby then
-			ServiceResolver.Get(self._context, "PlayerStateService"):ResetForNewRound(player)
-			table.insert(roundPlayers, player)
-		end
+
+	for _, player in ipairs(roundPlayers) do
+		local spawnMode = stateService:ResolveArenaSpawnMode(player)
+		playerService:SpawnForActiveMode(player, nil, arenaMapName, spawnMode)
+		stateService:SetCurrentMap(player, arenaMapName)
+		stateService:SetLocationState(player, GameStates.SessionState.InGame)
 	end
-	local teamService = ServiceResolver.Get(self._context, "TeamService")
-	if teamService and typeof(teamService.AssignBalancedTeams) == "function" then teamService:AssignBalancedTeams(roundPlayers) end
+
 	self:_setState(GameStates.MapRoundState.EarlyGame)
 	local feedbackRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
 	if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
@@ -413,47 +545,57 @@ function RoundService:_freezeArenaPlayers(frozen: boolean)
 end
 
 function RoundService:_beginRoundEnd()
-	print(string.format("[DIAG][RoundService] beginRoundEnd entry state=%s roundId=%d active=%s t=%.3f", tostring(self._state), self._roundId, tostring(self._roundActive), os.clock()))
-	if self._state == GameStates.MapRoundState.RoundEnd or self._state == GameStates.MapRoundState.PostRound then
+	if self._state == GameStates.MapRoundState.RoundEnd
+		or self._state == GameStates.MapRoundState.PostRound
+		or not self._roundActive
+		or self._roundRewardsGranted then
 		return
 	end
-	self._resultsShown = false
+
 	self._roundActive = false
+	self._roundRewardsGranted = true
 	self._rageActive = false
 	local teamService = ServiceResolver.Get(self._context, "TeamService")
-	if teamService and typeof(teamService.SetRageActive) == "function" then teamService:SetRageActive(false) end
-	self._roundEndElapsed = 0
-	local leaderboardService = ServiceResolver.Get(self._context, "LeaderboardService")
-	local progressPointService = ServiceResolver.Get(self._context, "ProgressPointService")
-	local topPlayers = if leaderboardService and typeof(leaderboardService.GetTopPlayers) == "function" then leaderboardService:GetTopPlayers() else {}
-	local winnerNames = {}
-	for _, row in ipairs(topPlayers) do
-		if type(row) == "table" and row.Rank == 1 then
-			table.insert(winnerNames, tostring(row.Name or "Player"))
-		end
+	if teamService and typeof(teamService.SetRageActive) == "function" then
+		teamService:SetRageActive(false)
 	end
-	self._winnerName = if #winnerNames > 0 then table.concat(winnerNames, ", ") else (self:_findLastAlivePlayerName() or "No winner")
-	local summaryRows = if progressPointService and typeof(progressPointService.AwardEndRoundPoints) == "function" then progressPointService:AwardEndRoundPoints(topPlayers) else topPlayers
+	self._roundEndElapsed = 0
+
 	local playerStateService = ServiceResolver.Get(self._context, "PlayerStateService")
-	if self._context.EventBus and playerStateService then
-		-- Use the full authoritative Arena roster, not the top-scoreboard subset.
-		-- Count only players who entered InGame; dead players still remain InGame until PostRound.
-		for _, participant in ipairs(Players:GetPlayers()) do
-			local state = playerStateService:GetState(participant)
-			if state and state.LocationState ~= GameStates.SessionState.Lobby then
+	local participants = {}
+	local survivors = {}
+	for _, participant in ipairs(Players:GetPlayers()) do
+		local state = playerStateService and playerStateService:GetState(participant) or nil
+		if state and state.LocationState ~= GameStates.SessionState.Lobby then
+			table.insert(participants, participant)
+			if state.IsAlive == true and state.ActivePlayerMode == GameStates.PlayerMode.Launcher then
+				table.insert(survivors, participant)
+			end
+			if self._context.EventBus then
 				self._context.EventBus:Fire("RoundCompleted", participant, self._roundId, state.IsAlive == true)
 			end
 		end
 	end
+
+	local winner = if #survivors == 1 then survivors[1] else nil
+	if winner then
+		local feedbackRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
+		if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
+			feedbackRemote:FireClient(winner, {
+				EventType = "RoundVictory",
+				Payload = { RoundId = self._roundId },
+			})
+		end
+	end
+	local progressPointService = ServiceResolver.Get(self._context, "ProgressPointService")
+
 	self:_setState(GameStates.MapRoundState.RoundEnd)
 	self:_freezeArenaPlayers(true)
-	if self._matchSummaryRemote then
-		self._matchSummaryRemote:FireAllClients({
-			Rows = summaryRows,
-			RoundId = self._roundId,
-			Winner = self._winnerName or "No winner",
-			DurationSeconds = ROUND_END_RESULTS_SECONDS,
-		})
+
+	if progressPointService and typeof(progressPointService.AwardRoundGiftBoxes) == "function" then
+		progressPointService:AwardRoundGiftBoxes(participants, winner)
+	else
+		warn("[RoundService] ProgressPointService.AwardRoundGiftBoxes is unavailable; placement rewards were not granted.")
 	end
 end
 
@@ -494,8 +636,11 @@ function RoundService:_startPostRound()
 	self._roundId += 1
 	self._roundTimer = 0
 	self._roundEndElapsed = 0
-	self._winnerName = nil
-	self._resultsShown = false
+	self._awaitsElapsed = 0
+	self._lastCountdownSentSeconds = nil
+	self._roundParticipantCount = 0
+	self._roundRewardsGranted = false
+	self._roundArenaMapName = nil
 	self._roundActive = false
 	self:_setState(GameStates.MapRoundState.Lobby)
 end
@@ -503,24 +648,63 @@ end
 function RoundService:_step(dt: number)
 	local safeZoneService = ServiceResolver.Get(self._context, "SafeZoneService")
 	local arenaCount = self:_countArenaPlayers()
+
 	if self._state == GameStates.MapRoundState.Lobby and arenaCount > 0 then
-		self:_setState(GameStates.MapRoundState.Awaits)
-	end
-	if self._state == GameStates.MapRoundState.Awaits and arenaCount >= MIN_PLAYERS_TO_START then
-		self:_startEarlyGame()
+		self:_beginAwaitsCountdown()
 	end
 
-	if self._state == GameStates.MapRoundState.EarlyGame or self._state == GameStates.MapRoundState.FinalPhase then
+	if self._state == GameStates.MapRoundState.Awaits then
+		if arenaCount <= 0 then
+			self:_abortIfArenaEmpty()
+			return
+		end
+
+		self._awaitsElapsed += dt
+		local remaining = math.max(0, math.ceil(AWAIT_COUNTDOWN_SECONDS - self._awaitsElapsed))
+		if remaining > 0 and remaining ~= self._lastCountdownSentSeconds then
+			self._lastCountdownSentSeconds = remaining
+			local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+			for _, player in ipairs(Players:GetPlayers()) do
+				local state = stateService and stateService:GetState(player)
+				if state and state.LocationState ~= GameStates.SessionState.Lobby then
+					self:_notifyCountdown(player, remaining)
+				end
+			end
+		end
+
+		self._uiStateElapsed += dt
+		if self._uiStateElapsed >= UI_STATE_TIMER_INTERVAL_SECONDS then
+			self._uiStateElapsed = 0
+			self:_publishUiState()
+		end
+		if self._awaitsElapsed >= AWAIT_COUNTDOWN_SECONDS then
+			self:_startEarlyGame()
+		end
+	elseif self._state == GameStates.MapRoundState.EarlyGame or self._state == GameStates.MapRoundState.FinalPhase then
 		self._roundTimer += dt
 		self:_activateRageIfDue()
 		self._uiStateElapsed += dt
-		if self._state == GameStates.MapRoundState.EarlyGame and safeZoneService and safeZoneService:IsAtMinimumRadius() then
+
+		if self._roundParticipantCount == 1
+			and self._state == GameStates.MapRoundState.EarlyGame
+			and self._roundTimer >= RoundRewardConfig.SoloFinalPhaseSeconds then
+			self:_setState(GameStates.MapRoundState.FinalPhase)
+		elseif self._roundParticipantCount ~= 1
+			and self._state == GameStates.MapRoundState.EarlyGame
+			and safeZoneService
+			and safeZoneService:IsAtMinimumRadius() then
 			self:_setState(GameStates.MapRoundState.FinalPhase)
 		end
+
 		local aliveArenaPlayers = self:_countAliveArenaPlayers()
-		if arenaCount >= MIN_PLAYERS_TO_START and aliveArenaPlayers <= 1 then
+		local shouldEndForNoSurvivors = aliveArenaPlayers == 0
+		local shouldEndForLastSurvivor = aliveArenaPlayers == 1
+			and (self._roundParticipantCount ~= 1 or self._state == GameStates.MapRoundState.FinalPhase)
+		if shouldEndForNoSurvivors or shouldEndForLastSurvivor then
 			self:_beginRoundEnd()
-		elseif self._lastUiAlivePlayers ~= aliveArenaPlayers or self._lastUiPlayerCount ~= arenaCount or self._uiStateElapsed >= UI_STATE_TIMER_INTERVAL_SECONDS then
+		elseif self._lastUiAlivePlayers ~= aliveArenaPlayers
+			or self._lastUiPlayerCount ~= arenaCount
+			or self._uiStateElapsed >= UI_STATE_TIMER_INTERVAL_SECONDS then
 			self._uiStateElapsed = 0
 			self:_publishUiState()
 		end
@@ -528,19 +712,11 @@ function RoundService:_step(dt: number)
 		self._roundEndElapsed += dt
 		if self._roundEndElapsed >= ROUND_END_FREEZE_SECONDS and self._roundEndElapsed < ROUND_END_RESULTS_SECONDS then
 			self:_freezeArenaPlayers(false)
-			if not self._resultsShown and self._roundResultRemote then
-				self._resultsShown = true
-				self._roundResultRemote:FireAllClients({
-					Winner = self._winnerName or "No winner",
-					RoundId = self._roundId,
-				})
-			end
 		end
 		if self._roundEndElapsed >= ROUND_END_RESULTS_SECONDS then
 			self:_startPostRound()
 		end
 	end
-
 end
 
 function RoundService:_publishUiState()
@@ -568,16 +744,19 @@ function RoundService:_publishUiState()
 end
 
 function RoundService:_buildUiStatePayload()
-	local alivePlayers = self:_countAliveArenaPlayers()
+	local alivePlayers = if self:IsPlayingState() then self:_countAliveArenaPlayers() else 0
 	local playerCount = self:_countArenaPlayers()
+	local countdownRemaining = if self._state == GameStates.MapRoundState.Awaits
+		then math.max(0, AWAIT_COUNTDOWN_SECONDS - self._awaitsElapsed)
+		else self._roundTimer
 	return {
 		State = self._state,
 		LocationState = self._state,
 		AlivePlayers = alivePlayers,
 		PlayerCount = playerCount,
 		CurrentMap = ServiceResolver.Get(self._context, "MapService"):GetActiveMap() or "Unknown",
-		TimeLeft = self._roundTimer,
-		CountdownTimer = self._roundTimer,
+		TimeLeft = countdownRemaining,
+		CountdownTimer = countdownRemaining,
 		RoundElapsed = self._roundTimer,
 		RoundActive = self._roundActive,
 		RageActive = self._rageActive,

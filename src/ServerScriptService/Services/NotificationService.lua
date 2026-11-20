@@ -43,6 +43,12 @@ function NotificationService:Start()
 	table.insert(self._connections, eventBus:On("RoundStateChanged", function(payload: any)
 		self:_handleRoundStateChanged(payload)
 	end))
+	table.insert(self._connections, eventBus:On("RoundPlacementRewardGranted", function(player: Player, rank: number, giftBoxes: number)
+		self:_handleRoundPlacementReward(player, rank, giftBoxes)
+	end))
+	table.insert(self._connections, eventBus:On("RoundCountdown", function(player: Player, secondsRemaining: number)
+		self:_handleRoundCountdown(player, secondsRemaining)
+	end))
 	table.insert(self._connections, eventBus:On("ArenaJoinCooldown", function(player: Player, remainingSeconds: number)
 		self:_send(player, "ArenaJoinCooldown", { seconds = math.max(1, math.ceil(remainingSeconds)) })
 	end))
@@ -95,9 +101,19 @@ function NotificationService:_handlePlayerKilled(killer: Player, victim: Player)
 	})
 end
 
+function NotificationService:_handleRoundPlacementReward(player: Player, rank: number, _giftBoxes: number)
+	local safeRank = math.max(1, math.floor(tonumber(rank) or 1))
+	self:_send(player, "RoundEndReward", { rank = safeRank })
+end
+
+function NotificationService:_handleRoundCountdown(player: Player, secondsRemaining: number)
+	local seconds = math.max(0, math.floor(tonumber(secondsRemaining) or 0))
+	self:_send(player, "StartRoundCountdown", { seconds = seconds })
+end
+
 function NotificationService:_handleRoundStateChanged(payload: any)
 	local state = if type(payload) == "table" then tostring(payload.State or "") else tostring(payload or "")
-	if state == "" then
+	if state == "" or state == "RoundEnd" or state == "Awaits" or state == "Lobby" or state == "PostRound" then
 		return
 	end
 	self:_sendAll("RoundState", {
