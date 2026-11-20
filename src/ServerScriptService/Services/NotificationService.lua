@@ -113,7 +113,7 @@ end
 
 function NotificationService:_handleRoundStateChanged(payload: any)
 	local state = if type(payload) == "table" then tostring(payload.State or "") else tostring(payload or "")
-	if state == "" or state == "RoundEnd" or state == "Awaits" then
+	if state == "" or state == "RoundEnd" or state == "Awaits" or state == "Lobby" or state == "PostRound" then
 		return
 	end
 	self:_sendAll("RoundState", {
