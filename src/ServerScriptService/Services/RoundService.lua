@@ -297,14 +297,15 @@ function RoundService:JoinArena(player: Player)
 		if mapService:GetActiveMap() ~= "LobbyMap" then
 			mapService:ActivateMap("LobbyMap")
 		end
-		stateService:SetCurrentMap(player, "LobbyMap")
-		stateService:SetLocationState(player, GameStates.SessionState.InGame)
-
 		if self._state == GameStates.MapRoundState.Lobby then
+			stateService:SetCurrentMap(player, "LobbyMap")
+			stateService:SetLocationState(player, GameStates.SessionState.InGame)
 			-- _beginAwaitsCountdown teleports every queued participant in one pass.
 			self:_beginAwaitsCountdown()
 		elseif self._state == GameStates.MapRoundState.Awaits then
 			playerService:SpawnForActiveMode(player, nil, "LobbyMap", spawnMode)
+			stateService:SetCurrentMap(player, "LobbyMap")
+			stateService:SetLocationState(player, GameStates.SessionState.InGame)
 			self:_notifyCountdown(player, math.max(1, math.ceil(AWAIT_COUNTDOWN_SECONDS - self._awaitsElapsed)))
 		end
 	end
