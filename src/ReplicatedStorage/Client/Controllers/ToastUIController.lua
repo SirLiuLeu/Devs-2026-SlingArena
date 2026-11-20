@@ -67,7 +67,7 @@ end
 function ToastUIController:_resolveUi(): boolean
 	local screenPath = ProjectTreeSpec.UI.Notification.ScreenGui
 	local containerPath = ProjectTreeSpec.UI.Notification.Container
-	local templatePath = ProjectTreeSpec.Assets.ReplicatedStorage.Assets.ToastTemplate
+	local templatePath = ProjectTreeSpec.GameplayInstances.ReplicatedStorage.Assets.ToastTemplate
 
 	self._screenGui = PathResolver.resolvePath(self._playerGui, screenPath, { shouldWarn = false }) :: ScreenGui?
 	self._container = PathResolver.resolvePath(self._playerGui, containerPath, { shouldWarn = false }) :: GuiObject?
