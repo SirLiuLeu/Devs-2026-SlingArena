@@ -37,9 +37,8 @@ function MatchScoreboardUIController.new(playerGui: PlayerGui)
 	self.PlayerGui = playerGui
 	self.ScreenGui = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchScoreboard.ScreenGui) :: ScreenGui?
 	self.PlayerList = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchScoreboard.PlayerList) :: ScrollingFrame?
-	self.RowTemplate = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchScoreboard.RowTemplate) :: Frame?
+	self.RowTemplate = PathResolver.resolvePath(ReplicatedStorage, ProjectTreeSpec.Assets.ReplicatedStorage.Assets.PlayerRowTemplate_MatchScoreboardUI) :: Frame?
 	self.CloseButton = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchScoreboard.CloseButton) :: GuiButton?
-	self.Overlay = PathResolver.resolvePath(playerGui, ProjectTreeSpec.UI.MatchScoreboard.Overlay) :: GuiObject?
 	self.RowsByKey = {} :: { [string]: Frame }
 	self.LastRows = {} :: { any }
 	self.Connections = {} :: { RBXScriptConnection }
@@ -58,9 +57,8 @@ end
 function MatchScoreboardUIController:_resolveUi()
 	self.ScreenGui = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchScoreboard.ScreenGui, { shouldWarn = false }) :: ScreenGui?
 	self.PlayerList = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchScoreboard.PlayerList, { shouldWarn = false }) :: ScrollingFrame?
-	self.RowTemplate = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchScoreboard.RowTemplate, { shouldWarn = false }) :: Frame?
+	self.RowTemplate = PathResolver.resolvePath(ReplicatedStorage, ProjectTreeSpec.Assets.ReplicatedStorage.Assets.PlayerRowTemplate_MatchScoreboardUI, { shouldWarn = false }) :: Frame?
 	self.CloseButton = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchScoreboard.CloseButton, { shouldWarn = false }) :: GuiButton?
-	self.Overlay = PathResolver.resolvePath(self.PlayerGui, ProjectTreeSpec.UI.MatchScoreboard.Overlay, { shouldWarn = false }) :: GuiObject?
 	if self.RowTemplate then self.RowTemplate.Visible = false end
 end
 
@@ -100,7 +98,7 @@ function MatchScoreboardUIController:_getOrCreateRow(key: string): Frame?
 		return nil
 	end
 	local row = self.RowTemplate:Clone()
-	row.Name = "PlayerRow_" .. key
+	row.Name = "Slot_" .. key
 	row.Visible = true
 	row.Parent = self.PlayerList
 	self.RowsByKey[key] = row
@@ -108,7 +106,9 @@ function MatchScoreboardUIController:_getOrCreateRow(key: string): Frame?
 end
 
 function MatchScoreboardUIController:_applyRow(row: Frame, rowData: any, index: number)
+	row.Name = "Slot_" .. tostring(index)
 	row.LayoutOrder = index
+	self:_setLabel(row, "Index", tostring(index))
 	self:_setLabel(row, "NameValue", asText(rowData.Name or rowData.name or "Player", "Player"))
 	self:_setLabel(row, "LevelValue", tostring(math.floor(asNumber(rowData.Level or rowData.level, 0))))
 	self:_setLabel(row, "PointValue", tostring(math.floor(asNumber(rowData.Points or rowData.points or rowData.Point or rowData.point, 0))))
