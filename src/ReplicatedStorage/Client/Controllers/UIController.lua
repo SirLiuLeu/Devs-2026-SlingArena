@@ -839,7 +839,9 @@ function UIController:Start()
 			self.MatchStatusLabel.Text = string.format("Match: %s", tostring(state))
 		end
 
-		local elapsed = payload.RoundElapsed or payload.CountdownTimer or payload.TimeLeft or 0
+		local elapsed = if state == GameStates.MapRoundState.Awaits
+			then (payload.CountdownTimer or payload.TimeLeft or 0)
+			else (payload.RoundElapsed or payload.TimeLeft or 0)
 		local total = math.max(0, math.floor(elapsed))
 		if self.TimerLabel and lastPayload.TimerTotal ~= total then
 			local minutes = math.floor(total / 60)
