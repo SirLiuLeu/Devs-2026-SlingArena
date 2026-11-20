@@ -116,7 +116,7 @@ function RoundService:IsRageActive(): boolean
 end
 
 function RoundService:_activateRageIfDue()
-	if self._rageActive or not self._roundActive or self._roundTimer < RAGE_START_SECONDS then return end
+	if self._rageActive or not self._roundActive or self._roundParticipantCount <= 1 or self._roundTimer < RAGE_START_SECONDS then return end
 	self._rageActive = true
 	local teamService = ServiceResolver.Get(self._context, "TeamService")
 	if teamService and typeof(teamService.SetRageActive) == "function" then teamService:SetRageActive(true) end
