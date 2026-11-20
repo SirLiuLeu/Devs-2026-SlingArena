@@ -26,7 +26,7 @@ export type LobbyClientService = {
 }
 
 local REMOTE_FIELDS = {
-	StateUpdate = "StateUpdateRemote", UIStateUpdate = "UIStateUpdateRemote", RoundResult = "RoundResultRemote",
+	StateUpdate = "StateUpdateRemote", UIStateUpdate = "UIStateUpdateRemote",
 	MatchScoreboardUpdate = "MatchScoreboardUpdateRemote", GlobalTop100Update = "GlobalTop100UpdateRemote",
 }
 
