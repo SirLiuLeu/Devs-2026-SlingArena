@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local RankConfig = require(ReplicatedStorage.Shared.Config.RankConfig)
+local RoundRewardConfig = require(ReplicatedStorage.Shared.Config.RoundRewardConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
@@ -103,90 +104,81 @@ function ProgressPointService:OnPlayerKilled(killer: Player, victim: Player)
 	self:_grantDiamonds(killer, diamondReward, "PlayerKill")
 end
 
-local END_ROUND_REWARDS = {
-	[1] = { ProgressPoints = 100, Coins = 50 },
-	[2] = { ProgressPoints = 75, Coins = 35 },
-	[3] = { ProgressPoints = 50, Coins = 25 },
-}
-local DEFAULT_END_ROUND_REWARD = { ProgressPoints = 25, Coins = 10 }
-
-local function getRewardForRank(rank: number): { ProgressPoints: number, Coins: number }
-	return END_ROUND_REWARDS[rank] or DEFAULT_END_ROUND_REWARD
-end
-
-function ProgressPointService:AwardEndRoundPoints(topPlayers: { any }): { any }
+function ProgressPointService:AwardRoundGiftBoxes(participants: { Player }, winner: Player?): { any }
 	local playerDataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
-	if not playerDataService then
-		warn("[ProgressPointService] PlayerDataService unavailable; end-round rewards skipped.")
-		return {}
-	end
-	if not stateService then
-		warn("[ProgressPointService] PlayerStateService unavailable; participant rewards skipped.")
+	local itemService = ServiceResolver.Get(self._context, "ItemService")
+	if not playerDataService or not stateService then
+		warn("[ProgressPointService] Required data/state service unavailable; round GiftBox rewards skipped.")
 		return {}
 	end
 
-	-- GetTopPlayers includes every server player. Only players still in the Arena
-	-- participate in this round's placement and Diamond payout.
-	local participantRows = {}
-	for _, row in ipairs(topPlayers) do
-		if type(row) == "table" and typeof(row.UserId) == "number" then
-			local player = Players:GetPlayerByUserId(row.UserId)
-			local state = player and stateService:GetState(player) or nil
-			if player and state and state.LocationState ~= GameStates.SessionState.Lobby then
-				table.insert(participantRows, { Row = row, Player = player })
+	local ranked = {}
+	local includedPlayers = {}
+	for _, player in ipairs(participants) do
+		local state = stateService:GetState(player)
+		if player.Parent == Players
+			and state
+			and state.LocationState ~= GameStates.SessionState.Lobby
+			and not includedPlayers[player.UserId] then
+			includedPlayers[player.UserId] = true
+			local points = 0
+			if typeof(playerDataService.GetRoundProgressPoints) == "function" then
+				points = math.max(0, math.floor(tonumber(playerDataService:GetRoundProgressPoints(player)) or 0))
+			end
+			table.insert(ranked, {
+				Player = player,
+				UserId = player.UserId,
+				Name = player.DisplayName ~= "" and player.DisplayName or player.Name,
+				Level = math.max(0, math.floor(tonumber(state.Level) or 0)),
+				Points = points,
+			})
+		end
+	end
+
+	local winnerUserId = if winner and includedPlayers[winner.UserId] then winner.UserId else nil
+	table.sort(ranked, function(a, b)
+		if winnerUserId ~= nil then
+			if a.UserId == winnerUserId then return true end
+			if b.UserId == winnerUserId then return false end
+		end
+		if a.Points ~= b.Points then return a.Points > b.Points end
+		if a.Level ~= b.Level then return a.Level > b.Level end
+		return a.UserId < b.UserId
+	end)
+
+	local participantCount = #ranked
+	local results = {}
+	for rank, row in ipairs(ranked) do
+		local giftBoxAmount = RoundRewardConfig.GetGiftBoxAmount(participantCount, rank)
+		if giftBoxAmount > 0 then
+			playerDataService:GrantReward(row.Player, {
+				Items = {
+					{ Id = "gift_box", Quantity = giftBoxAmount },
+				},
+			}, "RoundPlacementReward")
+
+			if itemService and typeof(itemService.PublishInventory) == "function" then
+				itemService:PublishInventory(row.Player)
+			else
+				stateService:PublishState(row.Player)
+			end
+
+			if self._context.EventBus then
+				self._context.EventBus:Fire("RoundPlacementRewardGranted", row.Player, rank, giftBoxAmount)
 			end
 		end
+
+		table.insert(results, {
+			UserId = row.UserId,
+			Name = row.Name,
+			Rank = rank,
+			Points = row.Points,
+			Level = row.Level,
+			GiftBoxReward = giftBoxAmount,
+		})
 	end
-
-	local rows = {}
-	local previousPoints: number? = nil
-	local participantRank = 0
-	local diamondSettings = RankConfig.RoundDiamondRewards or {}
-	local rankBonuses = diamondSettings.RankBonuses or {}
-	for index, participant in ipairs(participantRows) do
-		local row = participant.Row
-		local player = participant.Player
-		local roundPoints = math.max(0, math.floor(tonumber(row.Points or row.RoundPoints) or 0))
-		if previousPoints == nil or roundPoints ~= previousPoints then
-			participantRank = index
-			previousPoints = roundPoints
-		end
-
-		local reward = getRewardForRank(participantRank)
-		local progressReward = math.max(0, math.floor(reward.ProgressPoints or 0))
-		local coinReward = math.max(0, math.floor(reward.Coins or 0))
-		local totalProgressAward = roundPoints + progressReward
-		local participationDiamondReward = math.max(0, math.floor(diamondSettings.Participation or 0))
-		local scoreDiamondReward = math.min(
-			math.max(0, math.floor(roundPoints * math.max(0, tonumber(diamondSettings.ScorePerPoint) or 0))),
-			math.max(0, math.floor(tonumber(diamondSettings.MaxScoreBonus) or 0))
-		)
-		local rankDiamondReward = math.max(0, math.floor(
-			tonumber(rankBonuses[participantRank]) or tonumber(diamondSettings.DefaultRankBonus) or 0
-		))
-		local totalDiamondReward = participationDiamondReward + scoreDiamondReward + rankDiamondReward
-
-		playerDataService:AddProgressPoints(player, totalProgressAward)
-		if coinReward > 0 and typeof(playerDataService.AddCoins) == "function" then
-			playerDataService:AddCoins(player, coinReward)
-		end
-		self:_grantDiamonds(player, totalDiamondReward, "RoundReward")
-
-		local summaryRow = table.clone(row)
-		summaryRow.Rank = participantRank
-		summaryRow.Reward = totalProgressAward
-		summaryRow.RoundPointReward = roundPoints
-		summaryRow.RankBonusReward = progressReward
-		summaryRow.ProgressPointReward = totalProgressAward
-		summaryRow.CoinReward = coinReward
-		summaryRow.ParticipationDiamondReward = participationDiamondReward
-		summaryRow.ScoreDiamondReward = scoreDiamondReward
-		summaryRow.RankDiamondReward = rankDiamondReward
-		summaryRow.DiamondReward = totalDiamondReward
-		table.insert(rows, summaryRow)
-	end
-	return rows
+	return results
 end
 
 function ProgressPointService:GetProgressPoints(player: Player): (number, number)
