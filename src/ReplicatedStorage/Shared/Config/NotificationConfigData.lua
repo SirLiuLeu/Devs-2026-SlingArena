@@ -23,8 +23,8 @@ export type NotificationConfig = {
 	I18nKey: string,
 	FallbackText: string,
 	Priority: number,
-	DisplaySeconds: number?,
-	FadeOutSeconds: number?,
+	DisplaySeconds: number,
+	FadeOutSeconds: number,
 	ReplaceKey: string?,
 	Style: NotificationStyle,
 }
@@ -36,6 +36,7 @@ NotificationConfigData.Types = {
 		FallbackText = "+{amount} Diamonds received!",
 		Priority = NotificationConfigData.Priority.High,
 		DisplaySeconds = 3,
+		FadeOutSeconds = 2,
 		Style = {
 			BackgroundColor = Color3.fromRGB(20, 32, 48),
 			AccentColor = Color3.fromRGB(80, 210, 255),
@@ -49,6 +50,7 @@ NotificationConfigData.Types = {
 		FallbackText = "You eliminated {victimName}!",
 		Priority = NotificationConfigData.Priority.Critical,
 		DisplaySeconds = 3,
+		FadeOutSeconds = 2,
 		Style = {
 			BackgroundColor = Color3.fromRGB(54, 20, 24),
 			AccentColor = Color3.fromRGB(255, 86, 86),
@@ -62,6 +64,7 @@ NotificationConfigData.Types = {
 		FallbackText = "Round state: {state}",
 		Priority = NotificationConfigData.Priority.Normal,
 		DisplaySeconds = 3,
+		FadeOutSeconds = 2,
 		Style = {
 			BackgroundColor = Color3.fromRGB(30, 28, 52),
 			AccentColor = Color3.fromRGB(160, 125, 255),
@@ -75,6 +78,7 @@ NotificationConfigData.Types = {
 		FallbackText = "Arena join available in {seconds}s.",
 		Priority = NotificationConfigData.Priority.High,
 		DisplaySeconds = 3,
+		FadeOutSeconds = 2,
 		Style = {
 			BackgroundColor = Color3.fromRGB(52, 36, 16),
 			AccentColor = Color3.fromRGB(255, 190, 90),
@@ -88,6 +92,7 @@ NotificationConfigData.Types = {
 		FallbackText = "+{exp} EXP",
 		Priority = NotificationConfigData.Priority.Low,
 		DisplaySeconds = 3,
+		FadeOutSeconds = 2,
 		Style = {
 			BackgroundColor = Color3.fromRGB(18, 44, 30),
 			AccentColor = Color3.fromRGB(90, 230, 130),
@@ -130,6 +135,7 @@ NotificationConfigData.Types = {
 		FallbackText = "{message}",
 		Priority = NotificationConfigData.Priority.Normal,
 		DisplaySeconds = 3,
+		FadeOutSeconds = 2,
 		Style = {
 			BackgroundColor = Color3.fromRGB(25, 25, 25),
 			AccentColor = Color3.fromRGB(255, 255, 255),
