@@ -138,6 +138,9 @@ function ProgressPointService:AwardRoundGiftBoxes(participants: { Player }, winn
 
 	local winnerUserId = if winner and includedPlayers[winner.UserId] then winner.UserId else nil
 	table.sort(ranked, function(a, b)
+		if a.UserId == b.UserId then
+			return false
+		end
 		if winnerUserId ~= nil then
 			if a.UserId == winnerUserId then return true end
 			if b.UserId == winnerUserId then return false end
