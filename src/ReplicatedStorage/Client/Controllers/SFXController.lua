@@ -10,7 +10,6 @@ SFXController.__index = SFXController
 
 function SFXController.new(player: Player, playerGui: PlayerGui)
 	local self = setmetatable({}, SFXController)
-	self._player = player
 	self._playerGui = playerGui
 	self._connections = {}
 	self._buttonConnections = {}
@@ -57,6 +56,12 @@ function SFXController:_handleFeedback(message: any)
 			self._lastRoundStartId = roundId
 			SoundManager.Play("SFX_RoundStart")
 		end
+	elseif eventType == "RoundVictory" then
+		local roundId = payload.RoundId
+		if roundId ~= nil and roundId ~= self._lastVictoryRoundId then
+			self._lastVictoryRoundId = roundId
+			SoundManager.Play("SFX_Victory")
+		end
 	elseif eventType == "TeamChangeResult"
 		or eventType == "LauncherEquipResult"
 		or eventType == "LauncherSellResult"
@@ -101,16 +106,6 @@ function SFXController:Start()
 	if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
 		table.insert(self._connections, feedbackRemote.OnClientEvent:Connect(function(message)
 			self:_handleFeedback(message)
-		end))
-	end
-	local roundResultRemote = remotes and remotes:FindFirstChild(RemoteContracts.Names.RoundResult)
-	if roundResultRemote and roundResultRemote:IsA("RemoteEvent") then
-		table.insert(self._connections, roundResultRemote.OnClientEvent:Connect(function(result)
-			if type(result) ~= "table" or result.Winner ~= self._player.Name then return end
-			local roundId = result.RoundId
-			if roundId ~= nil and roundId == self._lastVictoryRoundId then return end
-			self._lastVictoryRoundId = roundId
-			SoundManager.Play("SFX_Victory")
 		end))
 	end
 end
