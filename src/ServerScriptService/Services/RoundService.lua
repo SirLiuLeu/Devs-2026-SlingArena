@@ -182,7 +182,11 @@ function RoundService:RequestPlus1Minute(_player: Player)
 	if safeZoneService and typeof(safeZoneService.SetElapsed) == "function" then
 		safeZoneService:SetElapsed(self._roundTimer)
 	end
-	if self._state == GameStates.MapRoundState.EarlyGame and safeZoneService and safeZoneService:IsAtMinimumRadius() then
+	if self._roundParticipantCount == 1
+		and self._state == GameStates.MapRoundState.EarlyGame
+		and self._roundTimer >= RoundRewardConfig.SoloFinalPhaseSeconds then
+		self:_setState(GameStates.MapRoundState.FinalPhase)
+	elseif self._state == GameStates.MapRoundState.EarlyGame and safeZoneService and safeZoneService:IsAtMinimumRadius() then
 		self:_setState(GameStates.MapRoundState.FinalPhase)
 	else
 		self:_publishUiState()
@@ -206,10 +210,32 @@ function RoundService:_beginAwaitsCountdown()
 	end
 	self._awaitsElapsed = 0
 	self._lastCountdownSentSeconds = AWAIT_COUNTDOWN_SECONDS
-	self:_setState(GameStates.MapRoundState.Awaits)
+
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local playerService = ServiceResolver.Get(self._context, "PlayerService")
+	local mapService = ServiceResolver.Get(self._context, "MapService")
+	if not stateService or not playerService or not mapService then
+		warn("[RoundService] Cannot begin Awaits: required services are unavailable.")
+		return
+	end
+
+	-- Every queued player waits physically in LobbyMap for the full countdown.
+	if mapService:GetActiveMap() ~= "LobbyMap" then
+		mapService:ActivateMap("LobbyMap")
+	end
 	for _, player in ipairs(Players:GetPlayers()) do
-		local state = stateService and stateService:GetState(player)
+		local state = stateService:GetState(player)
+		if state and state.LocationState ~= GameStates.SessionState.Lobby then
+			local mode = state.ActivePlayerMode or GameStates.PlayerMode.Human
+			playerService:SpawnForActiveMode(player, nil, "LobbyMap", mode)
+			stateService:SetCurrentMap(player, "LobbyMap")
+			stateService:SetLocationState(player, GameStates.SessionState.InGame)
+		end
+	end
+
+	self:_setState(GameStates.MapRoundState.Awaits)
+	for _, player in ipairs(Players:GetPlayers()) do
+		local state = stateService:GetState(player)
 		if state and state.LocationState ~= GameStates.SessionState.Lobby then
 			self:_notifyCountdown(player, AWAIT_COUNTDOWN_SECONDS)
 		end
