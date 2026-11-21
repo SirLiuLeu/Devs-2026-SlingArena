@@ -8,18 +8,16 @@ local LauncherAnimationIds = require(ReplicatedStorage.Shared.Config.LauncherAni
 local LauncherAnimationController = {}
 LauncherAnimationController.__index = LauncherAnimationController
 
-local TRACK_NAMES = { "Idle", "Movement", "Charge", "Launch", "Knockback" }
+local TRACK_NAMES = { "Idle", "Move", "Launch", "Knockback" }
 local LOOPED = {
 	Idle = true,
-	Movement = true,
-	Charge = true,
+	Move = true,
 	Launch = false,
 	Knockback = false,
 }
 local PRIORITY = {
 	Idle = Enum.AnimationPriority.Idle,
-	Movement = Enum.AnimationPriority.Movement,
-	Charge = Enum.AnimationPriority.Action,
+	Move = Enum.AnimationPriority.Movement,
 	Launch = Enum.AnimationPriority.Action2,
 	Knockback = Enum.AnimationPriority.Action3,
 }
@@ -54,6 +52,17 @@ local function getOrCreateAnimator(rig: Model): Animator
 	return animator
 end
 
+local function resolveAnimationSet(pawn: Model, rig: Model): { [string]: string }
+	local launcherId = rig:GetAttribute("LauncherId")
+	if type(launcherId) ~= "string" or launcherId == "" then
+		launcherId = pawn:GetAttribute("LauncherId")
+	end
+	if type(launcherId) ~= "string" then
+		return {}
+	end
+	return LauncherAnimationIds[launcherId] or {}
+end
+
 function LauncherAnimationController.new(pawn: Model, rig: Model)
 	local self = setmetatable({}, LauncherAnimationController)
 	self._pawn = pawn
@@ -63,8 +72,9 @@ function LauncherAnimationController.new(pawn: Model, rig: Model)
 	self._currentState = nil
 	self._destroyed = false
 
-	for _, name in TRACK_NAMES do
-		local animationId = normalizeAnimationId(LauncherAnimationIds[name])
+	local animationSet = resolveAnimationSet(pawn, rig)
+	for _, name in ipairs(TRACK_NAMES) do
+		local animationId = normalizeAnimationId(animationSet[name])
 		if animationId then
 			local animation = Instance.new("Animation")
 			animation.Name = "Launcher" .. name .. "Animation"
@@ -114,9 +124,11 @@ function LauncherAnimationController:_resolveState(state: any): string?
 	elseif movementState == GameStates.PlayerState.Launching then
 		return "Launch"
 	elseif state.IsCharging == true or movementState == GameStates.PlayerState.Charging then
-		return "Charge"
+		-- There is no per-Launcher charge slot in the requested four-track set.
+		-- Keep the rig animated with its idle pose while charging.
+		return "Idle"
 	elseif movementState == GameStates.PlayerState.Moving then
-		return "Movement"
+		return "Move"
 	elseif movementState == GameStates.PlayerState.Idle then
 		return "Idle"
 	end
