@@ -4,14 +4,7 @@
 -- Values may be either "rbxassetid://123" or "123".
 -- Keep an empty string until the matching rig animation has been uploaded.
 
-type LauncherAnimationSet = {
-	Idle: string,
-	Move: string,
-	Launch: string,
-	Knockback: string,
-}
-
-local LauncherAnimationIds: { [string]: LauncherAnimationSet } = {
+local LauncherAnimationIds: { [string]: { [string]: string } } = {
 	Normalduck = {
 		Idle = "",
 		Move = "",
