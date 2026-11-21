@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
+local PetAnimationConfig = require(ReplicatedStorage.Shared.Config.PetAnimationConfig)
 local PetRenderConfig = require(ReplicatedStorage.Shared.Config.PetRenderConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
@@ -26,6 +27,7 @@ local BOB_SPEED = 2.5
 local SWAY_DISTANCE = 0.3
 local SWAY_SPEED = 1.75
 local SNAP_DISTANCE = 60
+local RUN_SPEED_THRESHOLD = 1.5
 
 type RenderedPet = {
 	instanceId: string,
@@ -33,6 +35,11 @@ type RenderedPet = {
 	model: Model,
 	transparencies: { [Instance]: number },
 	visible: boolean,
+	tracks: { [string]: AnimationTrack },
+	locomotionState: string?,
+	activeAction: string?,
+	isMoving: boolean,
+	actionStoppedConnection: RBXScriptConnection?,
 }
 
 local function getOrCreateRenderFolder(): Folder
@@ -88,6 +95,139 @@ local function prepareModel(model: Model): { [Instance]: number }?
 	return transparencies
 end
 
+
+local function normalizeAnimationId(value: any): string?
+	if type(value) ~= "string" then return nil end
+	local trimmed = string.gsub(value, "^%s*(.-)%s*$", "%1")
+	if trimmed == "" then return nil end
+	if string.match(trimmed, "^%d+$") then return "rbxassetid://" .. trimmed end
+	return trimmed
+end
+
+local PET_TRACK_PRIORITY = {
+	Idle = Enum.AnimationPriority.Idle,
+	Run = Enum.AnimationPriority.Movement,
+	Attack = Enum.AnimationPriority.Action,
+	Dance = Enum.AnimationPriority.Action2,
+}
+
+local function loadPetAnimationTracks(model: Model, definitionId: string): { [string]: AnimationTrack }
+	local animationSet = PetAnimationConfig.GetById(definitionId)
+	local animatorParent: Instance? = model:FindFirstChildOfClass("Humanoid")
+	if not animatorParent then
+		animatorParent = model:FindFirstChildOfClass("AnimationController")
+	end
+	local hasConfiguredAnimation = false
+	for _, name in ipairs({ "Idle", "Run", "Attack", "Dance" }) do
+		if normalizeAnimationId(animationSet[name]) then
+			hasConfiguredAnimation = true
+			break
+		end
+	end
+	if not hasConfiguredAnimation then return {} end
+
+	if not animatorParent then
+		local controller = Instance.new("AnimationController")
+		controller.Name = "PetAnimationController"
+		controller.Parent = model
+		animatorParent = controller
+	end
+	local animator = animatorParent:FindFirstChildOfClass("Animator")
+	if not animator then
+		animator = Instance.new("Animator")
+		animator.Parent = animatorParent
+	end
+
+	local tracks: { [string]: AnimationTrack } = {}
+	for _, name in ipairs({ "Idle", "Run", "Attack", "Dance" }) do
+		local animationId = normalizeAnimationId(animationSet[name])
+		if animationId then
+			local animation = Instance.new("Animation")
+			animation.Name = "Pet" .. name .. "Animation"
+			animation.AnimationId = animationId
+			local ok, trackOrError = pcall(function()
+				return animator:LoadAnimation(animation)
+			end)
+			animation:Destroy()
+			if ok and trackOrError then
+				local track = trackOrError :: AnimationTrack
+				track.Name = "Pet" .. name
+				track.Looped = name == "Idle" or name == "Run"
+				track.Priority = PET_TRACK_PRIORITY[name]
+				tracks[name] = track
+			else
+				warn(string.format("[CLIENT_PET_ANIMATION] Failed to load %s for %s: %s", name, definitionId, tostring(trackOrError)))
+			end
+		end
+	end
+	return tracks
+end
+
+local function playPetLocomotion(rendered: RenderedPet)
+	if rendered.activeAction then return end
+	local stateName = if rendered.isMoving then "Run" else "Idle"
+	local targetTrack = rendered.tracks[stateName]
+	if rendered.locomotionState == stateName then
+		if targetTrack and not targetTrack.IsPlaying then targetTrack:Play(0.12) end
+		return
+	end
+	for _, name in ipairs({ "Idle", "Run" }) do
+		local track = rendered.tracks[name]
+		if name ~= stateName and track and track.IsPlaying then track:Stop(0.12) end
+	end
+	rendered.locomotionState = stateName
+	if targetTrack and not targetTrack.IsPlaying then targetTrack:Play(0.12) end
+end
+
+local function stopPetAction(rendered: RenderedPet)
+	if rendered.actionStoppedConnection then
+		rendered.actionStoppedConnection:Disconnect()
+		rendered.actionStoppedConnection = nil
+	end
+	local activeAction = rendered.activeAction
+	if activeAction then
+		local track = rendered.tracks[activeAction]
+		if track and track.IsPlaying then track:Stop(0.08) end
+	end
+	rendered.activeAction = nil
+end
+
+local function playPetAction(rendered: RenderedPet, actionName: string)
+	local targetTrack = rendered.tracks[actionName]
+	if not targetTrack then return end
+	if actionName == "Attack" and rendered.activeAction == "Dance" then return end
+
+	stopPetAction(rendered)
+	for _, name in ipairs({ "Idle", "Run" }) do
+		local track = rendered.tracks[name]
+		if track and track.IsPlaying then track:Stop(0.12) end
+	end
+	rendered.locomotionState = nil
+	rendered.activeAction = actionName
+	if targetTrack.IsPlaying then targetTrack:Stop(0) end
+	targetTrack.TimePosition = 0
+	targetTrack:Play(0.1)
+	rendered.actionStoppedConnection = targetTrack.Stopped:Connect(function()
+		if rendered.activeAction ~= actionName then return end
+		rendered.activeAction = nil
+		rendered.locomotionState = nil
+		if rendered.actionStoppedConnection then
+			rendered.actionStoppedConnection:Disconnect()
+			rendered.actionStoppedConnection = nil
+		end
+		playPetLocomotion(rendered)
+	end)
+end
+
+local function destroyPetTracks(rendered: RenderedPet)
+	stopPetAction(rendered)
+	for _, track in pairs(rendered.tracks) do
+		track:Stop(0)
+		track:Destroy()
+	end
+	table.clear(rendered.tracks)
+end
+
 local function setModelVisible(rendered: RenderedPet, visible: boolean)
 	if rendered.visible == visible then return end
 	rendered.visible = visible
@@ -109,6 +249,7 @@ function ClientPetController.new(player: Player)
 	self._renderFolder = getOrCreateRenderFolder()
 	self._renderedPets = {} :: { [Player]: { [number]: RenderedPet } }
 	self._ownerNear = {} :: { [Player]: boolean }
+	self._ownerLastPositions = {} :: { [Player]: Vector3 }
 	self._ownerConnections = {} :: { [Player]: { RBXScriptConnection } }
 	self._connections = {} :: { RBXScriptConnection }
 	self._localOwnedPets = nil
@@ -172,6 +313,7 @@ function ClientPetController:_destroyPet(owner: Player, slot: number)
 	local ownerPets = self._renderedPets[owner]
 	local rendered = ownerPets and ownerPets[slot]
 	if rendered then
+		destroyPetTracks(rendered)
 		rendered.model:Destroy()
 		ownerPets[slot] = nil
 	end
@@ -213,13 +355,20 @@ function ClientPetController:_createPet(owner: Player, slot: number, instanceId:
 		return nil
 	end
 	model.Parent = self._renderFolder
-	return {
+	local rendered: RenderedPet = {
 		instanceId = instanceId,
 		definitionId = definitionId,
 		model = model,
 		transparencies = transparencies,
 		visible = true,
+		tracks = loadPetAnimationTracks(model, definitionId),
+		locomotionState = nil,
+		activeAction = nil,
+		isMoving = false,
+		actionStoppedConnection = nil,
 	}
+	playPetLocomotion(rendered)
+	return rendered
 end
 
 function ClientPetController:_reconcileOwner(owner: Player)
@@ -301,6 +450,30 @@ function ClientPetController:_unwatchPlayer(player: Player)
 	end
 	self:_destroyOwnerModels(player)
 	self._ownerNear[player] = nil
+	self._ownerLastPositions[player] = nil
+end
+
+function ClientPetController:_playPetAttack(ownerUserId: any, petId: any)
+	local numericOwnerUserId = tonumber(ownerUserId)
+	if not numericOwnerUserId or type(petId) ~= "string" or petId == "" then return end
+	for owner, ownerPets in pairs(self._renderedPets) do
+		if owner.UserId == numericOwnerUserId then
+			for _, rendered in pairs(ownerPets) do
+				if rendered.definitionId == petId then
+					playPetAction(rendered, "Attack")
+				end
+			end
+			return
+		end
+	end
+end
+
+function ClientPetController:_playVictoryDance()
+	local ownerPets = self._renderedPets[self._player]
+	if not ownerPets then return end
+	for _, rendered in pairs(ownerPets) do
+		playPetAction(rendered, "Dance")
+	end
 end
 
 function ClientPetController:_render(deltaTime: number)
@@ -309,6 +482,27 @@ function ClientPetController:_render(deltaTime: number)
 		self._rangeCheckElapsed = 0
 		for _, player in ipairs(Players:GetPlayers()) do
 			self:_reconcileOwner(player)
+		end
+	end
+
+	local ownerIsMoving: { [Player]: boolean } = {}
+	for owner in pairs(self._renderedPets) do
+		local ownerRoot = self:_getRoot(owner)
+		if ownerRoot then
+			local position = ownerRoot.Position
+			local previousPosition = self._ownerLastPositions[owner]
+			if previousPosition then
+				local delta = position - previousPosition
+				local planarDelta = Vector3.new(delta.X, 0, delta.Z)
+				local speed = planarDelta.Magnitude / math.max(deltaTime, 1 / 240)
+				ownerIsMoving[owner] = planarDelta.Magnitude < SNAP_DISTANCE and speed >= RUN_SPEED_THRESHOLD
+			else
+				ownerIsMoving[owner] = false
+			end
+			self._ownerLastPositions[owner] = position
+		else
+			ownerIsMoving[owner] = false
+			self._ownerLastPositions[owner] = nil
 		end
 	end
 
@@ -328,6 +522,8 @@ function ClientPetController:_render(deltaTime: number)
 				continue
 			end
 			setModelVisible(rendered, true)
+			rendered.isMoving = ownerIsMoving[owner] == true
+			playPetLocomotion(rendered)
 			local lateralOffset = (slot - ((PetsConfig.EquippedSlotCount + 1) / 2)) * SLOT_SPACING
 			local bobOffset = math.sin(now * BOB_SPEED + slot) * BOB_HEIGHT
 			local swayOffset = math.cos(now * SWAY_SPEED + slot * 0.7) * SWAY_DISTANCE
@@ -362,6 +558,25 @@ function ClientPetController:Start()
 			self:ApplyState(state)
 		end))
 	end
+
+	local gameplayFeedback = remotes:WaitForChild(RemoteContracts.Names.GameplayFeedback)
+	if gameplayFeedback:IsA("RemoteEvent") then
+		table.insert(self._connections, gameplayFeedback.OnClientEvent:Connect(function(message)
+			if type(message) == "table" and message.EventType == "RoundVictory" then
+				self:_playVictoryDance()
+			end
+		end))
+	end
+
+	local petProjectileVisual = remotes:WaitForChild(RemoteContracts.Names.PetProjectileVisual)
+	if petProjectileVisual:IsA("RemoteEvent") then
+		table.insert(self._connections, petProjectileVisual.OnClientEvent:Connect(function(action, payload)
+			if action == "Spawn" and type(payload) == "table" then
+				self:_playPetAttack(payload.ownerUserId, payload.petId)
+			end
+		end))
+	end
+
 	table.insert(self._connections, Players.PlayerAdded:Connect(function(player)
 		self:_watchPlayer(player)
 	end))
@@ -384,6 +599,7 @@ function ClientPetController:Destroy()
 	for player in pairs(self._renderedPets) do table.insert(renderedOwners, player) end
 	for _, player in ipairs(renderedOwners) do self:_destroyOwnerModels(player) end
 	table.clear(self._ownerNear)
+	table.clear(self._ownerLastPositions)
 	self._started = false
 end
 
