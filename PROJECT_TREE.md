@@ -27,6 +27,7 @@ DataModel
 │  │  │  ├─ OnlineRewardConfig.lua
 │  │  │  ├─ PetAbilityProgressionConfig.lua
 │  │  │  ├─ PetPreviewConfig.lua
+│  │  │  ├─ PetAnimationConfig.lua
 │  │  │  ├─ PetRenderConfig.lua
 │  │  │  ├─ PetRarityStatsConfig.lua
 │  │  │  ├─ PetsConfig.lua
