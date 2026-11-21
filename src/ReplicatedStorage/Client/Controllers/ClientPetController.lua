@@ -104,7 +104,7 @@ local function prepareModel(model: Model): { [Instance]: number }?
 	local pendingParts = { rootPart }
 	local pendingIndex = 1
 	while pendingIndex <= #pendingParts do
-		local currentPart = pendingParts[pendingIndex]
+		local currentPart = pendingParts[pendingIndex] :: BasePart
 		pendingIndex += 1
 		for _, connectedPart in ipairs(motorNeighbors[currentPart] or {}) do
 			if not articulatedParts[connectedPart] then
