@@ -9,13 +9,13 @@ local LauncherAnimationController = {}
 LauncherAnimationController.__index = LauncherAnimationController
 
 local TRACK_NAMES = { "Idle", "Move", "Launch", "Knockback" }
-local LOOPED = {
+local LOOPED: { [string]: boolean } = {
 	Idle = true,
 	Move = true,
 	Launch = false,
 	Knockback = false,
 }
-local PRIORITY = {
+local PRIORITY: { [string]: Enum.AnimationPriority } = {
 	Idle = Enum.AnimationPriority.Idle,
 	Move = Enum.AnimationPriority.Movement,
 	Launch = Enum.AnimationPriority.Action2,
