@@ -1,11 +1,37 @@
 --!strict
 
--- Fill these asset ids in Studio when Launcher rig animations are ready.
+-- Fill each Launcher rig's animation asset IDs in Studio.
 -- Values may be either "rbxassetid://123" or "123".
+-- Keep an empty string until the matching rig animation has been uploaded.
 return {
-	Idle = "88982772339957",
-	Movement = "83053501795943",
-	Charge = "129511302705768",
-	Launch = "96924127047624",
-	Knockback = "114991915735480",
+	Normalduck = {
+		Idle = "",
+		Move = "",
+		Launch = "",
+		Knockback = "",
+	},
+	Kingduck = {
+		Idle = "",
+		Move = "",
+		Launch = "",
+		Knockback = "",
+	},
+	Witchduck = {
+		Idle = "",
+		Move = "",
+		Launch = "",
+		Knockback = "",
+	},
+	Drakeduck = {
+		Idle = "",
+		Move = "",
+		Launch = "",
+		Knockback = "",
+	},
+	Shielduck = {
+		Idle = "",
+		Move = "",
+		Launch = "",
+		Knockback = "",
+	},
 }
