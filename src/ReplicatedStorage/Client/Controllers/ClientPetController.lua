@@ -78,16 +78,26 @@ local function prepareModel(model: Model): { [Instance]: number }?
 	end
 	model.PrimaryPart = rootPart
 	local motorNeighbors: { [BasePart]: { BasePart } } = {}
+	local function addMotorConnection(part0: BasePart?, part1: BasePart?)
+		if not part0 or not part1 then return end
+		motorNeighbors[part0] = motorNeighbors[part0] or {}
+		motorNeighbors[part1] = motorNeighbors[part1] or {}
+		table.insert(motorNeighbors[part0], part1)
+		table.insert(motorNeighbors[part1], part0)
+	end
 	for _, descendant in ipairs(model:GetDescendants()) do
-		if descendant:IsA("Motor6D") then
-			local part0 = descendant.Part0
-			local part1 = descendant.Part1
-			if part0 and part1 then
-				motorNeighbors[part0] = motorNeighbors[part0] or {}
-				motorNeighbors[part1] = motorNeighbors[part1] or {}
-				table.insert(motorNeighbors[part0], part1)
-				table.insert(motorNeighbors[part1], part0)
-			end
+		if descendant:IsA("JointInstance") or descendant:IsA("WeldConstraint") then
+			local joint = descendant :: any
+			addMotorConnection(joint.Part0, joint.Part1)
+		elseif descendant:IsA("RigidConstraint") then
+			local attachment0 = descendant.Attachment0
+			local attachment1 = descendant.Attachment1
+			local part0 = attachment0 and attachment0.Parent
+			local part1 = attachment1 and attachment1.Parent
+			addMotorConnection(
+				if part0 and part0:IsA("BasePart") then part0 else nil,
+				if part1 and part1:IsA("BasePart") then part1 else nil
+			)
 		end
 	end
 	local articulatedParts: { [BasePart]: boolean } = { [rootPart] = true }
