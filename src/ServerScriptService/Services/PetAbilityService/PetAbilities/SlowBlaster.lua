@@ -123,6 +123,8 @@ local function spawnVisual(context, data: any)
 	if remote and remote:IsA("RemoteEvent") then
 		remote:FireAllClients("Spawn", {
 			id = data.id,
+			ownerUserId = context.player.UserId,
+			petId = context.definition and context.definition.PetId or "Dragon",
 			projectileType = "SlowBlaster",
 			origin = data.position,
 			velocity = data.velocity,
