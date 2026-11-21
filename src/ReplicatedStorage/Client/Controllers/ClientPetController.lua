@@ -77,11 +77,43 @@ local function prepareModel(model: Model): { [Instance]: number }?
 		return nil
 	end
 	model.PrimaryPart = rootPart
+	local motorNeighbors: { [BasePart]: { BasePart } } = {}
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("Motor6D") then
+			local part0 = descendant.Part0
+			local part1 = descendant.Part1
+			if part0 and part1 then
+				motorNeighbors[part0] = motorNeighbors[part0] or {}
+				motorNeighbors[part1] = motorNeighbors[part1] or {}
+				table.insert(motorNeighbors[part0], part1)
+				table.insert(motorNeighbors[part1], part0)
+			end
+		end
+	end
+	local articulatedParts: { [BasePart]: boolean } = { [rootPart] = true }
+	local pendingParts = { rootPart }
+	local pendingIndex = 1
+	while pendingIndex <= #pendingParts do
+		local currentPart = pendingParts[pendingIndex]
+		pendingIndex += 1
+		for _, connectedPart in ipairs(motorNeighbors[currentPart] or {}) do
+			if not articulatedParts[connectedPart] then
+				articulatedParts[connectedPart] = true
+				table.insert(pendingParts, connectedPart)
+			end
+		end
+	end
+
 	local transparencies = {}
 	for _, descendant in ipairs(model:GetDescendants()) do
 		if descendant:IsA("BasePart") then
 			if descendant ~= rootPart then transparencies[descendant] = descendant.Transparency end
-			descendant.Anchored = true
+			-- Anchor the root, but let Motor6D-connected body parts move with animation.
+			-- Static decorative parts remain anchored so they cannot fall away.
+			descendant.Anchored = not articulatedParts[descendant] or descendant == rootPart
+			if descendant ~= rootPart and not descendant.Anchored then
+				descendant.Massless = true
+			end
 			descendant.CanCollide = false
 			descendant.CanQuery = false
 			descendant.CanTouch = false
@@ -104,12 +136,12 @@ local function normalizeAnimationId(value: any): string?
 	return trimmed
 end
 
-local PET_TRACK_PRIORITY = {
-	Idle = Enum.AnimationPriority.Idle,
-	Run = Enum.AnimationPriority.Movement,
-	Attack = Enum.AnimationPriority.Action,
-	Dance = Enum.AnimationPriority.Action2,
-}
+local function getPetTrackPriority(name: string): Enum.AnimationPriority
+	if name == "Idle" then return Enum.AnimationPriority.Idle end
+	if name == "Run" then return Enum.AnimationPriority.Movement end
+	if name == "Attack" then return Enum.AnimationPriority.Action end
+	return Enum.AnimationPriority.Action2
+end
 
 local function loadPetAnimationTracks(model: Model, definitionId: string): { [string]: AnimationTrack }
 	local animationSet = PetAnimationConfig.GetById(definitionId)
@@ -117,9 +149,15 @@ local function loadPetAnimationTracks(model: Model, definitionId: string): { [st
 	if not animatorParent then
 		animatorParent = model:FindFirstChildOfClass("AnimationController")
 	end
+	local configuredIds: { [string]: string? } = {
+		Idle = animationSet.Idle,
+		Run = animationSet.Run,
+		Attack = animationSet.Attack,
+		Dance = animationSet.Dance,
+	}
 	local hasConfiguredAnimation = false
 	for _, name in ipairs({ "Idle", "Run", "Attack", "Dance" }) do
-		if normalizeAnimationId(animationSet[name]) then
+		if normalizeAnimationId(configuredIds[name]) then
 			hasConfiguredAnimation = true
 			break
 		end
@@ -140,7 +178,7 @@ local function loadPetAnimationTracks(model: Model, definitionId: string): { [st
 
 	local tracks: { [string]: AnimationTrack } = {}
 	for _, name in ipairs({ "Idle", "Run", "Attack", "Dance" }) do
-		local animationId = normalizeAnimationId(animationSet[name])
+		local animationId = normalizeAnimationId(configuredIds[name])
 		if animationId then
 			local animation = Instance.new("Animation")
 			animation.Name = "Pet" .. name .. "Animation"
@@ -153,7 +191,7 @@ local function loadPetAnimationTracks(model: Model, definitionId: string): { [st
 				local track = trackOrError :: AnimationTrack
 				track.Name = "Pet" .. name
 				track.Looped = name == "Idle" or name == "Run"
-				track.Priority = PET_TRACK_PRIORITY[name]
+				track.Priority = getPetTrackPriority(name)
 				tracks[name] = track
 			else
 				warn(string.format("[CLIENT_PET_ANIMATION] Failed to load %s for %s: %s", name, definitionId, tostring(trackOrError)))
@@ -518,6 +556,7 @@ function ClientPetController:_render(deltaTime: number)
 		end
 		for slot, rendered in pairs(ownerPets) do
 			if rendered.model.Parent == nil then
+				destroyPetTracks(rendered)
 				ownerPets[slot] = nil
 				continue
 			end
