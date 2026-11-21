@@ -87,6 +87,7 @@
 | `PetAbilityProgressionConfig.lua` | Numeric ability parameters at milestones 1/5/10/15/20. Player-facing ability text is owned by `PetAbilityDisplayConfig.lua`. | `PetProgression`, `PetDisplayFormatter` |
 | `PetAbilityDisplayConfig.lua` | Localized descriptions for each Pet ability; does not own gameplay tuning. | `PetDisplayFormatter`, `PetInventoryUIController` |
 | `PetPreviewConfig.lua` | Per-pet viewport camera `Rotation` and `Offset`, accessed through `Get(petId)`. | `PetInventoryUIController`, `PreviewRenderer` |
+| `PetAnimationConfig.lua` | Per-Pet idle, run, optional attack, and victory-dance animation asset IDs; blank IDs disable tracks until configured. | `ClientPetController` |
 | `PurchasePetConfig.lua` | Server-owned development Diamond prices for all Pet definitions available in Shop. | `ShopService`, `MockData` |
 | `PetRenderConfig.lua` | Client-side nearby Pet render distance, range-check interval, and exit hysteresis. | `ClientPetController` |
 | `PetProjectileRenderConfig.lua` | Client-only projectile visual distance and count cap. | `PetProjectileVisualController.client.lua` |
@@ -94,6 +95,7 @@
 | `PetRarityStatsConfig.lua` | Base HP and damage values by pet rarity. | `PetProgression`, pet UI |
 | `PetsConfig.lua` | Pet definition catalog, ability IDs, rarity, and max-level settings. | `PetService`, `PetProgression`, `PetInventoryUIController` |
 | `PetsUpgradeConfig.lua` | Pet levels 1–50, linear `50 × currentLevel × rarityMultiplier` upgrade cost, +5% base HP/Damage per level through 20 and +3% per level from 21–50, plus ability milestone predicates. | `PetService`, `PetProgression`, `PetDisplayFormatter` |
+| `LauncherAnimationIds.lua` | Per-Launcher idle, move, launch, and knockback animation asset IDs. Blank values intentionally leave the track disabled until configured. | `PlayerService/AnimationController` |
 | `LauncherConfig.lua` | Current five Duck Launcher definitions (`Normalduck`, `Kingduck`, `Witchduck`, `Drakeduck`, `Shielduck`), default ID, combat stats, weight, reflect damage, and lookup helpers. Future catalog size is not fixed. | `PlayerStateService`, `LauncherStatResolver`, launcher inventory/shop and mock data |
 | `RarityConfig.lua` | Launcher rarity/star tiers (Common → Normal → Rare → Epic → Legendary), star lookup, next-tier lookup, display colors, and per-tier stat multipliers. | `PlayerDataService`, `InventoryDataProvider`, `LauncherStatResolver`, `LauncherInventoryUIController` |
 | `TrapConfig.lua` | Lava contact detection padding, 0.3s damage ramp (100 per stack, capped and maintained at 2,000 per tick), 0.45s contact-exit grace that keeps the ramp ticking through transient missed scans, and contact-slow tuning. | `TrapService` |
