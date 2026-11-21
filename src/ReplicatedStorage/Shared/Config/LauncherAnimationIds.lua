@@ -3,7 +3,15 @@
 -- Fill each Launcher rig's animation asset IDs in Studio.
 -- Values may be either "rbxassetid://123" or "123".
 -- Keep an empty string until the matching rig animation has been uploaded.
-return {
+
+type LauncherAnimationSet = {
+	Idle: string,
+	Move: string,
+	Launch: string,
+	Knockback: string,
+}
+
+local LauncherAnimationIds: { [string]: LauncherAnimationSet } = {
 	Normalduck = {
 		Idle = "",
 		Move = "",
@@ -35,3 +43,5 @@ return {
 		Knockback = "",
 	},
 }
+
+return LauncherAnimationIds
