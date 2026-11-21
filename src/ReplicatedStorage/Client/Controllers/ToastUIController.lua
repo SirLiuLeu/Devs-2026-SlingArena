@@ -67,7 +67,7 @@ end
 function ToastUIController:_resolveUi(): boolean
 	local screenPath = ProjectTreeSpec.UI.Notification.ScreenGui
 	local containerPath = ProjectTreeSpec.UI.Notification.Container
-	local templatePath = ProjectTreeSpec.Assets.ReplicatedStorage.Assets.ToastTemplate
+	local templatePath = ProjectTreeSpec.GameplayInstances.ReplicatedStorage.Assets.ToastTemplate
 
 	self._screenGui = PathResolver.resolvePath(self._playerGui, screenPath, { shouldWarn = false }) :: ScreenGui?
 	self._container = PathResolver.resolvePath(self._playerGui, containerPath, { shouldWarn = false }) :: GuiObject?
@@ -85,8 +85,8 @@ function ToastUIController:_resolveUi(): boolean
 	local listLayout = self._container and self._container:FindFirstChildWhichIsA("UIListLayout")
 	if listLayout then
 		listLayout.FillDirection = Enum.FillDirection.Vertical
-		listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		listLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+		listLayout.SortOrder = Enum.SortOrder.Name
+		listLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
 	end
 
 	return self._screenGui ~= nil and self._container ~= nil and self._template ~= nil
