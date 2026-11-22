@@ -99,7 +99,6 @@ DataModel
 │  │  │   ├── Bee (Model)
 │  │  │   ├── Bunny (Model)
 │  │  │   ├── Caterpillar (Model)
-│  │  │   ├── Cow (Model)
 │  │  │   ├── Dog (Model)
 │  │  │   ├── Elephant (Model)
 │  │  │   ├── Fish (Model)
