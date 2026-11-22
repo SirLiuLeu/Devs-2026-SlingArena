@@ -43,6 +43,7 @@
 
 | RemoteName | Direction | OwnerService | PayloadSchema | Description |
 |---|---|---|---|---|
+| RequestStateSnapshot | C->S | PlayerStateService | `{}` | Client startup handshake; asks the server to resend the current PlayerState after the client has connected its StateUpdate listener. Rate-limited per player. |
 | StateUpdate | S->C | PlayerStateService | `{ userId: number, mapName: string, arenaStatus: string, level: number, exp: number, progressionRoundId: number?, maxHP: number, currentHP: number, movementState: string, cooldownEndTime: number, ... }` | Authoritative per-player state snapshot; Player Level/EXP belong to one RoundId and reset after results or when an empty Arena abandons the round. |
 | MatchStateUpdate | S->C | RoundService | `{ state: string, roundId: number }` | Round phase synchronization. |
 | UIStateUpdate | S->C | RoundService | `{ state: string, arenaStatus: string, alivePlayers: number, playerCount: number, mapName: string, timeLeft: number, countdownTimer: number }` | Aggregated round/UI status payload. |
