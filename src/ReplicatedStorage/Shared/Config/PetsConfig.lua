@@ -127,13 +127,13 @@ PetsConfig.Definitions = {
         { Add = { baseDamage = 25 }, Multiply = {} }),
 
     -- Passive Stat Modifier
-    HealthCore = pet("HealthCore", "Cow", "Cow", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
+    HealthCore = pet("HealthCore", "Pig", "Pig", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
         nil, nil, nil, { Add = { maxHP = 5000 }, Multiply = {} }),
 
-    PowerCore = pet("PowerCore", "Elephant", "Elephant", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
+    PowerCore = pet("PowerCore", "Panda", "Panda", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier,
         nil, nil, nil, { Add = { baseDamage = 500 }, Multiply = {} }),
 
-    Shield = pet("Shield", "Panda", "Panda", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "Shield",
+    Shield = pet("Shield", "Elephant", "Elephant", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "Shield",
         nil, { type = "DamageReduction", percent = 0.2 }, { Add = {}, Multiply = {} }),
 
     BrainBoost = pet("BrainBoost", "Monkey", "Monkey", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "ExpBonus",
