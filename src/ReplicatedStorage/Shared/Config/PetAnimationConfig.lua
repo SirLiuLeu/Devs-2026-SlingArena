@@ -16,7 +16,7 @@ local PetAnimationConfig = {}
 
 PetAnimationConfig.Animations = {
 	PlasmaCannon = { Idle = "", Run = "", Attack = "", Dance = "" }, -- Octopus
-	Hydra = { Idle = "", Run = "", Dance = "" }, -- Hydra (Titan)
+	Titan = { Idle = "", Run = "", Dance = "" }, -- Hydra ability
 	ThunderHammer = { Idle = "", Run = "", Dance = "" }, -- Yeti
 	Medusa = { Idle = "", Run = "", Dance = "" }, -- Snake
 	IceCrystal = { Idle = "", Run = "70654849990565", Dance = "114087130920750" }, -- Penguin
@@ -41,8 +41,10 @@ local EMPTY_SET: PetAnimationSet = {
 	Dance = "",
 }
 
-function PetAnimationConfig.GetById(petId: string): PetAnimationSet
-	return PetAnimationConfig.Animations[petId] or EMPTY_SET
+function PetAnimationConfig.GetById(petId: string, abilityId: string?): PetAnimationSet
+	return PetAnimationConfig.Animations[petId]
+		or (abilityId and PetAnimationConfig.Animations[abilityId])
+		or EMPTY_SET
 end
 
 function PetAnimationConfig.GetAllIds(): { string }
