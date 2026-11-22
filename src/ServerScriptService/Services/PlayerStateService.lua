@@ -27,6 +27,7 @@ export type IPlayerStateService = {
 	RecalculateDerivedStats: (self: IPlayerStateService, player: Player, forcePublish: boolean?) -> (),
 	Heal: (self: IPlayerStateService, player: Player, amount: number) -> (),
 	PublishState: (self: IPlayerStateService, player: Player) -> (),
+	SendStateSnapshot: (self: IPlayerStateService, player: Player) -> boolean,
 }
 
 local MOVEMENT_STATE = GameStates.PlayerState
@@ -187,6 +188,9 @@ local function getFlagService(context: Context)
 end
 
 function PlayerStateService:Init()
+	if not self._requestStateSnapshotRemote then
+		warn("[PlayerStateService] RequestStateSnapshot RemoteEvent is missing; late clients may miss their initial inventory snapshot.")
+	end
 	if self._requestStateSnapshotRemote then
 		self._requestStateSnapshotRemote.OnServerEvent:Connect(function(player: Player)
 			local now = os.clock()
