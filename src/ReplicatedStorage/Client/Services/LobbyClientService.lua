@@ -16,6 +16,8 @@ export type LobbyClientService = {
 	RemotesRoot: Instance?,
 	JoinArenaRemote: RemoteEvent?, LeaveArenaRemote: RemoteEvent?, StartSafeZoneRemote: RemoteEvent?, Plus1MinuteRemote: RemoteEvent?, EndRoundRemote: RemoteEvent?,
 	StateUpdateRemote: RemoteEvent?, UIStateUpdateRemote: RemoteEvent?, MatchScoreboardUpdateRemote: RemoteEvent?, GlobalTop100UpdateRemote: RemoteEvent?,
+	RequestStateSnapshotRemote: RemoteEvent?,
+	RequestInitialStateSnapshot: (self: LobbyClientService) -> (),
 	TeleportRemote: RemoteEvent?, DebugSpawnFoodRemote: RemoteEvent?, DebugResetLauncherRemote: RemoteEvent?, DebugLevelUp5Remote: RemoteEvent?, AttributeUpgradeRemote: RemoteEvent?, ConsumeHpPotionRemote: RemoteEvent?,
 	RequestJoinArena: (self: LobbyClientService) -> (), RequestLeaveArena: (self: LobbyClientService) -> (), RequestTeleport: (self: LobbyClientService, mapName: string, spawnName: string) -> (),
 	RequestStartSafeZone: (self: LobbyClientService) -> (), RequestPlus1Minute: (self: LobbyClientService) -> (), RequestEndRound: (self: LobbyClientService) -> (),
@@ -54,6 +56,7 @@ function LobbyClientService.new(): LobbyClientService
 	self.EndRoundRemote = resolveRemote(ProjectTreeSpec.Remotes.EndRound)
 	self.DebugLevelUp5Remote = resolveRemote(ProjectTreeSpec.Remotes.DebugLevelUp5)
 	self.StateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.StateUpdate)
+	self.RequestStateSnapshotRemote = resolveRemote(ProjectTreeSpec.Remotes.RequestStateSnapshot)
 	self.UIStateUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.UIStateUpdate)
 	self.MatchScoreboardUpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.MatchScoreboardUpdate)
 	self.GlobalTop100UpdateRemote = resolveRemote(ProjectTreeSpec.Remotes.GlobalTop100Update)
@@ -75,6 +78,9 @@ function LobbyClientService:_ensureCachedRemote(remoteName: CachedRemoteName)
 	if remote then
 		self._remoteConnections[remoteName] = remote.OnClientEvent:Connect(function(payload)
 			self._lastSnapshots[remoteName] = DeepCopy.Copy(payload)
+			if remoteName == "StateUpdate" then
+				self._initialStateRequestActive = false
+			end
 			self._events[remoteName]:Fire(DeepCopy.Copy(payload))
 		end)
 	end
@@ -93,6 +99,41 @@ function LobbyClientService:_bindCached(remoteName: CachedRemoteName, handler: H
 	local snapshot = self:GetLastSnapshot(remoteName)
 	if snapshot ~= nil then task.defer(handler, snapshot) end
 	return makeReplayConnection(function() connection:Disconnect() end)
+end
+
+function LobbyClientService:RequestInitialStateSnapshot()
+	if self._initialStateRequestActive or self._lastSnapshots.StateUpdate ~= nil then
+		return
+	end
+	if not self.RequestStateSnapshotRemote then
+		warn("[LOBBY_CLIENT] RequestStateSnapshot RemoteEvent is missing; initial player inventory cannot be synchronized.")
+		return
+	end
+
+	self._initialStateRequestActive = true
+	local attempts = 0
+	local function requestSnapshot()
+		if not self._initialStateRequestActive or self._lastSnapshots.StateUpdate ~= nil then
+			self._initialStateRequestActive = false
+			return
+		end
+
+		attempts += 1
+		if RemoteContracts.Validate(RemoteContracts.Names.RequestStateSnapshot) then
+			self.RequestStateSnapshotRemote:FireServer()
+		end
+
+		if attempts < 4 then
+			task.delay(1, requestSnapshot)
+		else
+			self._initialStateRequestActive = false
+			if self._lastSnapshots.StateUpdate == nil then
+				warn("[LOBBY_CLIENT] Initial StateUpdate was not received after 4 snapshot requests.")
+			end
+		end
+	end
+
+	task.defer(requestSnapshot)
 end
 
 function LobbyClientService:RequestJoinArena() if self.JoinArenaRemote then self.JoinArenaRemote:FireServer() end end
