@@ -831,6 +831,13 @@ function UIController:Start()
 		table.insert(self.Connections, stateConnection)
 	end
 
+	-- The server may have published PlayerAdded state before this LocalScript
+	-- connected. Request a fresh snapshot only after the StateUpdate listener and
+	-- InventoryDataProvider consumers are ready.
+	if self.ClientService and typeof(self.ClientService.RequestInitialStateSnapshot) == "function" then
+		self.ClientService:RequestInitialStateSnapshot()
+	end
+
 	local uiStateConnection = self.ClientService:BindUIStateUpdate(function(payload)
 		if DebugConfig.VerboseTrace then print(string.format("[DIAG][UIController] UIStateUpdate state=%s roundId=%s elapsed=%s alive=%s players=%s t=%.3f", tostring(payload.State), tostring(payload.RoundId), tostring(payload.RoundElapsed or payload.CountdownTimer or payload.TimeLeft), tostring(payload.AlivePlayers), tostring(payload.PlayerCount), os.clock())) end
 		local lastPayload = self._lastAppliedUiState or {}
