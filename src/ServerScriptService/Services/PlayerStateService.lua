@@ -12,6 +12,7 @@ local PetStatResolver = require(ReplicatedStorage.Shared.Utils.PetStatResolver)
 local AbilityConfig = require(ReplicatedStorage.Shared.Config.AbilityConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
+local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
@@ -29,6 +30,7 @@ export type IPlayerStateService = {
 }
 
 local MOVEMENT_STATE = GameStates.PlayerState
+local SNAPSHOT_REQUEST_COOLDOWN_SECONDS = 0.5
 
 type BuffState = {
 	DamageBoost: number,
@@ -64,7 +66,9 @@ function PlayerStateService.new(context: Context)
 	self._damageDealt = {} :: { [Player]: number }
 	self._launcherRuntime = {} :: { [Player]: any }
 	self._lastPublishedStates = {} :: { [Player]: any }
-	self._stateUpdateRemote = context.Remotes:FindFirstChild("StateUpdate") :: RemoteEvent
+	self._snapshotRequestCooldowns = {} :: { [Player]: number }
+	self._stateUpdateRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.StateUpdate) :: RemoteEvent
+	self._requestStateSnapshotRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.RequestStateSnapshot) :: RemoteEvent?
 	self._attributeUpgradeRemote = context.Remotes:FindFirstChild("AttributeUpgrade") :: RemoteEvent?
 	self._setPlayerModeRemote = context.Remotes:FindFirstChild("SetPlayerMode") :: RemoteEvent?
 	return self
@@ -183,6 +187,18 @@ local function getFlagService(context: Context)
 end
 
 function PlayerStateService:Init()
+	if self._requestStateSnapshotRemote then
+		self._requestStateSnapshotRemote.OnServerEvent:Connect(function(player: Player)
+			local now = os.clock()
+			local previousRequestAt = self._snapshotRequestCooldowns[player] or 0
+			if now - previousRequestAt < SNAPSHOT_REQUEST_COOLDOWN_SECONDS then
+				return
+			end
+			self._snapshotRequestCooldowns[player] = now
+			self:SendStateSnapshot(player)
+		end)
+	end
+
 	if self._attributeUpgradeRemote then
 		self._attributeUpgradeRemote.OnServerEvent:Connect(function(player: Player, attributeName: string)
 			self:TrySpendAttribute(player, attributeName)
@@ -225,6 +241,7 @@ function PlayerStateService:Init()
 		end
 		self._launcherRuntime[player] = nil
 		self._lastPublishedStates[player] = nil
+		self._snapshotRequestCooldowns[player] = nil
 	end)
 	for _, player in ipairs(Players:GetPlayers()) do
 		self._states[player] = buildDefaultState(player)
@@ -898,6 +915,19 @@ function PlayerStateService:PublishState(player: Player)
 		self._stateUpdateRemote:FireClient(player, state)
 	end
 	self._context.EventBus:Fire("PlayerStateUpdated", player, state)
+end
+
+function PlayerStateService:SendStateSnapshot(player: Player): boolean
+	local state = self._states[player]
+	if not state or not self._stateUpdateRemote then
+		return false
+	end
+
+	-- This is a direct response to a client initialization handshake. Do not use
+	-- PublishState here: an unchanged state must still be resent to clients that
+	-- connected after the original PlayerAdded publication.
+	self._stateUpdateRemote:FireClient(player, cloneStateValue(state))
+	return true
 end
 
 function PlayerStateService:SetCharging(player: Player, isCharging: boolean, chargeValue: number)
