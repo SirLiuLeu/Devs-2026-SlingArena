@@ -12,6 +12,7 @@ RemoteContracts.Names = {
 	ChangeTeam = "ChangeTeam",
 	GameplayFeedback = "GameplayFeedback",
 	StateUpdate = "StateUpdate",
+	RequestStateSnapshot = "RequestStateSnapshot",
 	UIStateUpdate = "UIStateUpdate",
 	AttributeUpgrade = "AttributeUpgrade",
 	RequestRespawn = "RequestRespawn",
@@ -196,6 +197,9 @@ RemoteContracts.Validators = {
 	end,
 	[RemoteContracts.Names.SetPlayerMode] = function(modeName: any): boolean
 		return modeName == "Launcher" or modeName == "Human"
+	end,
+	[RemoteContracts.Names.RequestStateSnapshot] = function(): boolean
+		return true
 	end,
 	[RemoteContracts.Names.ClockSyncRequest] = function(clientSendTime: any): boolean
 		return typeof(clientSendTime) == "number"
