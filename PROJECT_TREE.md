@@ -346,6 +346,7 @@ DataModel
 │  │     ├─ DailyLoginUpdate
 │  │     ├─ ResetTimeOnlineReward
 │  │     ├─ StateUpdate
+│  │     ├─ RequestStateSnapshot
 │  │     ├─ UIStateUpdate
 │  │     ├─ GameplayFeedback
 │  │     ├─ MatchStateUpdate
