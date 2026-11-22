@@ -262,6 +262,7 @@ local ProjectTreeSpec = {
 		ApplyKnockback = "LauncherArenaRemotes.ApplyKnockback", -- [PROJECT_TREE_SPEC]
 		ClientDoLaunch = "LauncherArenaRemotes.ClientDoLaunch", -- [PROJECT_TREE_SPEC]
 		StateUpdate = "LauncherArenaRemotes.StateUpdate", -- [PROJECT_TREE_SPEC]
+		RequestStateSnapshot = "LauncherArenaRemotes.RequestStateSnapshot",
 		UIStateUpdate = "LauncherArenaRemotes.UIStateUpdate", -- [PROJECT_TREE_SPEC]
 		GameplayFeedback = "LauncherArenaRemotes.GameplayFeedback", -- [PROJECT_TREE_SPEC]
 		MatchStateUpdate = "LauncherArenaRemotes.MatchStateUpdate", -- [PROJECT_TREE_SPEC]
