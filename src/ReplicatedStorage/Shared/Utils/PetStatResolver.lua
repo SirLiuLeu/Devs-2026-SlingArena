@@ -57,7 +57,7 @@ function PetStatResolver.ApplyLauncherModifiers(baseStats: { [string]: number },
 		-- ability contributions are added by Apply() after this stage.
 		for _, statName in ipairs({
 			"maxHP", "baseDamage", "armor", "regen", "speed", "moveSpeed",
-			"launchPower", "launchSpeed", "weight", "damageMultiplier", "reflectDamage",
+			"launchPower", "launchSpeed", "weight", "reflectDamage",
 		}) do
 			if type(result[statName]) == "number" then
 				result[statName] *= launcherMultiplier
