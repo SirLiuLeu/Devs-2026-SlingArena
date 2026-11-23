@@ -25,7 +25,7 @@ export type IPlayerStateService = {
 	IsHuman: (self: IPlayerStateService, player: Player) -> boolean,
 	GetState: (self: IPlayerStateService, player: Player) -> PlayerState?,
 	RecalculateDerivedStats: (self: IPlayerStateService, player: Player, forcePublish: boolean?) -> (),
-	Heal: (self: IPlayerStateService, player: Player, amount: number) -> (),
+	Heal: (self: IPlayerStateService, player: Player, amount: number, showOnHpBar: boolean?, bypassPetHealingMultiplier: boolean?) -> number,
 	PublishState: (self: IPlayerStateService, player: Player) -> (),
 	SendStateSnapshot: (self: IPlayerStateService, player: Player) -> boolean,
 }
