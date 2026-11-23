@@ -7,8 +7,8 @@ local PetAbilityDisplayConfig = {}
 
 PetAbilityDisplayConfig.Descriptions = {
 	PlasmaCannon = {
-		vi = "Titan: tăng {launcherStatBonus} trọng lượng, hitbox, knockback gây ra và khả năng chống knockback; kích thước Launcher còn tăng theo cấp người chơi.",
-		en = "Titan: increases weight, hitbox, outgoing knockback and knockback resistance by its progression values; Launcher size also grows with player level.",
+		vi = "Titan: tăng trọng lượng Launcher lên {weight}, hitbox lên {hitbox}, knockback gây ra {outgoingKnockbackBonus} và giảm knockback nhận vào {incomingKnockbackReduction}. Launcher tăng kích thước 4% mỗi cấp người chơi, tối đa 2x.",
+		en = "Titan: increases Launcher weight to {weight}, hitbox to {hitbox}, outgoing knockback by {outgoingKnockbackBonus}, and reduces incoming knockback by {incomingKnockbackReduction}. Launcher size grows 4% per player level, up to 2x.",
 	},
 	Hydra = {
 		vi = "Last Stand: tăng tối đa {lastStandDamageBonus} sát thương khi HP giảm xuống 20% hoặc thấp hơn. Hiệu ứng bắt đầu tăng khi HP dưới 80%.",
