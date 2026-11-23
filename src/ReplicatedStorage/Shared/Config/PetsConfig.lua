@@ -59,8 +59,8 @@ local PET_SCRIPTS = {
 	ThunderHammer = "Tăng 10% các chỉ số cốt lõi của Launcher, không nhân các chỉ số Pet.",
 	Medusa = "Va chạm áp dụng Poison lên người chơi hoặc thức ăn; không kèm hiệu ứng làm chậm.",
 	IceCrystal = "Nhân đôi phần HP và sát thương cơ bản đến từ rarity và level của các Pet đang trang bị.",
-	GhostFlame = "Va chạm áp dụng Burn lên người chơi hoặc thức ăn.",
-	Poison = "Lifesteal: hồi 2% sát thương thực tế gây lên người chơi và 1% sát thương gây lên thức ăn.",
+	GhostFlame = "Va chạm áp dụng Burn lên người chơi hoặc thức ăn; đồng thời tăng 50 sát thương cơ bản.",
+	Poison = "Lifesteal: hồi 2% sát thương thực tế gây lên người chơi và 1% sát thương gây lên thức ăn; đồng thời tăng 25 sát thương cơ bản.",
 	HealthCore = "Tăng phần trăm HP tối đa cuối cùng của Launcher.",
 	PowerCore = "Tăng phần trăm sát thương cơ bản cuối cùng của Launcher.",
 	Shield = "Hấp thụ tối đa 5.000 sát thương trong mỗi chu kỳ 10 giây; không hấp thụ sát thương Lava hoặc SafeZone.",
@@ -117,7 +117,7 @@ PetsConfig.Definitions = {
 		nil, nil, { Add = { baseDamage = 50 }, Multiply = {} }),
 
 	Poison = pet("Poison", "Caterpillar", "Caterpillar", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "Lifesteal",
-		nil, { type = "Lifesteal" }, { Add = {}, Multiply = {} }),
+		nil, { type = "Lifesteal" }, { Add = { baseDamage = 25 }, Multiply = {} }),
 
 	HealthCore = pet("HealthCore", "Pig", "Pig", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "MaxHPBoost",
 		nil, { type = "MaxHPBoost" }, { Add = {}, Multiply = {} }),
