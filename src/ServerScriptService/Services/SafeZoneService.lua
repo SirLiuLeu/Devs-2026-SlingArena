@@ -320,7 +320,11 @@ function SafeZoneService:_damagePlayersOutsideZone(dt: number)
 			while accumulated >= DAMAGE_TICK_INTERVAL do
 				local damage = self:_calculateOutsideDamage(state, damagePercent)
 				-- Outside-zone damage is periodic DOT; do not emit per-tick RemoteEvent feedback.
-				damagePipelineService:ApplyDamage(player, damage, nil, nil, { SuppressFeedback = true })
+				damagePipelineService:ApplyDamage(player, damage, nil, nil, {
+					SuppressFeedback = true,
+					SourceType = "SafeZone",
+					BypassAbsorbShield = true,
+				})
 				accumulated -= DAMAGE_TICK_INTERVAL
 			end
 			self._outsideDamageTimers[player] = accumulated
