@@ -231,7 +231,10 @@ function TrapService:_applyLavaContactTick(
 		})
 	end
 
-	damagePipeline:ApplyDoTDamage(player, damageAmount, trapPart, flagName)
+	damagePipeline:ApplyDoTDamage(player, damageAmount, trapPart, flagName, {
+		SourceType = "Trap",
+		BypassAbsorbShield = true,
+	})
 end
 
 function TrapService:_stopLavaContact(player: Player, trapType: string, trapConfig: any, sourceRoot: Model)
