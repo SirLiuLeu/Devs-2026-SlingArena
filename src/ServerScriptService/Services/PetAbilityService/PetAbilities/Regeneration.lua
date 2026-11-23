@@ -15,7 +15,7 @@ function Regeneration.OnTick(context, dt: number)
 	context._regenElapsed = 0
 	local stateService = context.PlayerStateService
 	if stateService and typeof(stateService.Heal) == "function" then
-		stateService:Heal(context.player, context._regenAmount or 0)
+		stateService:Heal(context.player, context._regenAmount or 0, nil, true)
 	end
 end
 
