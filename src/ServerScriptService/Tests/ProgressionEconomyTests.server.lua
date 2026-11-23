@@ -14,6 +14,7 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local LauncherStatResolver = require(ReplicatedStorage.Shared.Utils.LauncherStatResolver)
 local PetStatResolver = require(ReplicatedStorage.Shared.Utils.PetStatResolver)
 local PetProgression = require(ReplicatedStorage.Shared.Utils.PetProgression)
+local PetDisplayFormatter = require(ReplicatedStorage.Shared.Utils.PetDisplayFormatter)
 local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
 
 local function assertEqual(actual: any, expected: any, message: string)
@@ -259,6 +260,14 @@ runTest("Pet_Stat_Source_Layers_Do_Not_Amplify_The_Wrong_Stats", function()
 	assertNear(resolved.baseDamage, (110 + (10 + 5) * 2) * 1.10, "Penguin doubles only Pet base damage; Panda multiplies final total")
 	assertNear(resolved.moveSpeed, 22 * 1.05, "Bunny multiplies final move speed after Yeti")
 	assertNear(resolved.healingReceivedMultiplier, 1, "No Fish Pet means no healing-received bonus")
+end)
+
+runTest("Pet_Ability_Display_Templates_Resolve_All_Placeholders", function()
+	for _, petId in ipairs(PetsConfig.GetAllIds()) do
+		local definition = PetsConfig.GetById(petId)
+		local display = PetDisplayFormatter.Format(definition, 1, false, "vi")
+		assertEqual(string.find(display.ScriptText, "?", 1, true), nil, petId .. " ability description has all values")
+	end
 end)
 
 runTest("UpgradePet_Remote_Accepts_Levels_Through_50", function()
