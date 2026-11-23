@@ -55,7 +55,15 @@ end
 function PetAbilityService:Init()
 	-- [DEBUG_TRACE] print("[ROUND_END_TRACE][PetAbilityService] Init START; registering effect modules")
 	local petEffects = script.Parent.PetAbilities
-	self:RegisterEffect("NoOp", require(petEffects.NoOp))
+	local noOpEffect = require(petEffects.NoOp)
+	self:RegisterEffect("NoOp", noOpEffect)
+	for _, effectId in ipairs({
+		"LauncherBoost", "PetBaseBoost", "LastStand", "Lifesteal", "MaxHPBoost",
+		"DamageBoost", "AbsorbShield", "MoveSpeedBoost", "LaunchBooster",
+		"QuickReload", "ThornArmor", "FullForce",
+	}) do
+		self:RegisterEffect(effectId, noOpEffect)
+	end
 	self:RegisterEffect("Poison", require(petEffects.Poison))
 	self:RegisterEffect("Burn", require(petEffects.Burn))
 	self:RegisterEffect("Slow", require(petEffects.Slow))
