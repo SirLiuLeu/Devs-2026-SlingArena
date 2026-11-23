@@ -107,14 +107,14 @@ PetsConfig.Definitions = {
 		nil, { type = "LauncherBoost" }, { Add = {}, Multiply = {} }),
 
 	Medusa = pet("Medusa", "Snake", "Snake", PetsConfig.Rarities.Rare, PetsConfig.Categories.DamageOverTime, "Poison",
-		{ dotFlag = "Poison", applySlow = false }, nil, { Add = {}, Multiply = {} }),
+		nil, nil, { Add = {}, Multiply = {} }),
 
 	IceCrystal = pet("IceCrystal", "Penguin", "Penguin", PetsConfig.Rarities.Legendary, PetsConfig.Categories.PassiveStatModifier, "PetBaseBoost",
 		nil, { type = "PetBaseBoost" }, { Add = {}, Multiply = {} }),
 
 	-- Damage over time and sustain
 	GhostFlame = pet("GhostFlame", "Phoenix", "Phoenix", PetsConfig.Rarities.Rare, PetsConfig.Categories.DamageOverTime, "Burn",
-		{ dotFlag = "Burn" }, nil, { Add = { baseDamage = 50 }, Multiply = {} }),
+		nil, nil, { Add = { baseDamage = 50 }, Multiply = {} }),
 
 	Poison = pet("Poison", "Caterpillar", "Caterpillar", PetsConfig.Rarities.Rare, PetsConfig.Categories.PassiveStatModifier, "Lifesteal",
 		nil, { type = "Lifesteal" }, { Add = {}, Multiply = {} }),
