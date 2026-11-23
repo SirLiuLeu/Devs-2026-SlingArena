@@ -140,7 +140,7 @@ runTest("Remaining_Pet_Abilities_Reach_Level_50_Targets", function()
 
 	local healthProgression = PetProgression.Resolve(PetsConfig.GetById("HealthCore"), { definitionId = "HealthCore", level = 50 })
 	local thornProgression = PetProgression.Resolve(PetsConfig.GetById("ThornArmor"), { definitionId = "ThornArmor", level = 50 })
-	assertNear(healthProgression.abilityParams.maxHPBonus, 6500, "Stat-only Pet resolves progression by PetId")
+	assertNear(healthProgression.abilityParams.maxHPMultiplier, 1.25, "Pig resolves the redesigned final-HP multiplier")
 	assertNear(thornProgression.abilityParams.reflectDamageBonus, 0.25, "NoOp Pet resolves progression by PetId")
 end)
 
