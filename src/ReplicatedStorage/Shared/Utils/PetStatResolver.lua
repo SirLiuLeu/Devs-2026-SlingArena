@@ -100,8 +100,6 @@ function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgress
 		end
 		local abilityParams = progression.abilityParams
 		petBaseStatsMultiplier = math.max(petBaseStatsMultiplier, tonumber(abilityParams and abilityParams.petBaseStatsMultiplier) or 1)
-
-		local abilityParams = progression.abilityParams
 		local abilityExpBonus = type(abilityParams) == "table" and tonumber(abilityParams.expBonus) or nil
 		local abilityAddOverrides = {}
 		local abilityMultiplyOverrides = {}
