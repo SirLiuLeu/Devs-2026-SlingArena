@@ -41,6 +41,7 @@ export type PlayerState = {
 	ChargeSpeed: number,
 	MoveSpeed: number,
 	DamageMultiplier: number,
+	HealingReceivedMultiplier: number,
 	HPBonus: number,
 	LaunchSpeedBonus: number,
 	RegenBonus: number,
