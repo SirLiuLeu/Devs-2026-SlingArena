@@ -1,5 +1,6 @@
 --!strict
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BalanceConfig = require(ReplicatedStorage.Shared.Config.BalanceConfig)
@@ -8,6 +9,7 @@ local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
+local PetStatResolver = require(ReplicatedStorage.Shared.Utils.PetStatResolver)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
 
@@ -29,6 +31,7 @@ type DamageOptions = {
 	SourceType: string?,
 	AllowFriendlyFire: boolean?,
 	UseKnockbackState: boolean?,
+	BypassAbsorbShield: boolean?,
 }
 
 type EffectConfig = {
@@ -130,10 +133,15 @@ function DamagePipelineService.new(context: Context)
 	self._feedbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent
 	self._knockbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.KnockbackReplication) :: RemoteEvent
 	self._pendingSlowTokens = {} :: { [Player]: { [string]: number } }
+	self._absorbShieldStates = {} :: { [Player]: { capacity: number, remaining: number, refreshInterval: number, cycleStartedAt: number } }
 	return self
 end
 
 function DamagePipelineService:Init()
+	Players.PlayerRemoving:Connect(function(player)
+		self._absorbShieldStates[player] = nil
+		self._pendingSlowTokens[player] = nil
+	end)
 	self._context.EventBus:On("CollisionPlayerKnockback", function(
 		victim: Player,
 		_attacker: Player?,
@@ -166,6 +174,7 @@ function DamagePipelineService:Init()
 
 		local damage = self:ComputeCollisionDamage(attackerState or {}, impactSpeed, collisionMeta)
 		damage *= getDamageBoostMultiplier(stateService, attacker)
+		damage *= self:_getConditionalPetDamageMultiplier(attacker)
 		damageLog(`CollisionPlayerHit hook fired attacker={playerName(attacker)} victim={playerName(victim)} impactSpeed={impactSpeed} baseDamage={tostring(attackerState and attackerState.BaseDamage)} calculatedDamage={damage}`)
 
 		if damage <= 0 then
@@ -267,6 +276,95 @@ function DamagePipelineService:CanDamagePlayer(attacker: Player, victim: Player)
 	return not (teamService and teamService:IsFriendly(attacker, victim))
 end
 
+function DamagePipelineService:_getEquippedPetProgressions(player: Player): { any }
+	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
+	if not dataService then return {} end
+	local owned = if typeof(dataService.GetOwnedPets) == "function" then dataService:GetOwnedPets(player) else nil
+	local equipped = if typeof(dataService.GetEquippedPets) == "function" then dataService:GetEquippedPets(player) else nil
+	if type(owned) ~= "table" or type(equipped) ~= "table" then
+		local data = typeof(dataService.GetData) == "function" and dataService:GetData(player) or nil
+		owned = data and data.OwnedPets or {}
+		equipped = data and data.EquippedPets or {}
+	end
+	return PetStatResolver.GetEquippedProgressions(owned, equipped)
+end
+
+function DamagePipelineService:_getPetAbilityParams(player: Player, petId: string, paramName: string): number
+	local bestValue = 0
+	for _, progression in ipairs(self:_getEquippedPetProgressions(player)) do
+		local definition = progression.definition
+		local params = progression.abilityParams
+		if type(definition) == "table" and definition.PetId == petId and type(params) == "table" then
+			bestValue = math.max(bestValue, tonumber(params[paramName]) or 0)
+		end
+	end
+	return bestValue
+end
+
+function DamagePipelineService:_applyAbsorbShield(victim: Player, incomingDamage: number, bypass: boolean?): number
+	local amount = math.max(0, tonumber(incomingDamage) or 0)
+	if amount <= 0 then return 0 end
+	if bypass == true then return amount end
+
+	local capacity = self:_getPetAbilityParams(victim, "Shield", "absorbCapacity")
+	local refreshInterval = self:_getPetAbilityParams(victim, "Shield", "refreshInterval")
+	if capacity <= 0 or refreshInterval <= 0 then
+		self._absorbShieldStates[victim] = nil
+		return amount
+	end
+
+	local now = os.clock()
+	local shieldState = self._absorbShieldStates[victim]
+	if not shieldState
+		or shieldState.capacity ~= capacity
+		or shieldState.refreshInterval ~= refreshInterval then
+		shieldState = {
+			capacity = capacity,
+			remaining = capacity,
+			refreshInterval = refreshInterval,
+			cycleStartedAt = now,
+		}
+		self._absorbShieldStates[victim] = shieldState
+	else
+		local elapsed = now - shieldState.cycleStartedAt
+		if elapsed >= refreshInterval then
+			local elapsedCycles = math.floor(elapsed / refreshInterval)
+			shieldState.cycleStartedAt += elapsedCycles * refreshInterval
+			shieldState.remaining = capacity
+		end
+	end
+
+	local absorbed = math.min(amount, shieldState.remaining)
+	shieldState.remaining = math.max(0, shieldState.remaining - absorbed)
+	return amount - absorbed
+end
+
+function DamagePipelineService:_getConditionalPetDamageMultiplier(attacker: Player?): number
+	if not attacker then return 1 end
+	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
+	local state = stateService and stateService:GetState(attacker)
+	if not state then return 1 end
+
+	local maxHP = math.max(1, tonumber(state.MaxHP) or 1)
+	local healthRatio = math.clamp((tonumber(state.CurrentHP) or maxHP) / maxHP, 0, 1)
+	local fullForceBonus = 0
+	local lastStandBonus = 0
+	for _, progression in ipairs(self:_getEquippedPetProgressions(attacker)) do
+		local petId = progression.definition and progression.definition.PetId
+		local params = progression.abilityParams or {}
+		if petId == "Dragon" then
+			fullForceBonus = math.max(fullForceBonus, (tonumber(params.fullForceDamageBonus) or 0) * healthRatio)
+		elseif petId == "Hydra" then
+			local maxBonus = tonumber(params.lastStandMaxDamageBonus) or 0
+			local healthFactor = math.clamp((0.8 - healthRatio) / 0.6, 0, 1)
+			lastStandBonus = math.max(lastStandBonus, maxBonus * healthFactor)
+		end
+	end
+
+	-- These two conditional bonuses combine additively and are hard-capped.
+	return 1 + math.clamp(fullForceBonus + lastStandBonus, 0, 0.60)
+end
+
 function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number, attacker: Player?, knockbackDirection: Vector3?, options: DamageOptions?): boolean
 	local playerStateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not playerStateService then
@@ -297,7 +395,13 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 	local victimStats = playerStateService:GetFinalStats(victim)
 	local armor = victimStats and math.clamp(victimStats.Armor or 0, 0, 0.8) or 0
 	local petDamageMultiplier = tonumber(victim:GetAttribute("PetShieldDamageMultiplier")) or 1
-	local amount = math.clamp(rawDamage * petDamageMultiplier * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
+	local mitigatedAmount = math.clamp(rawDamage * petDamageMultiplier * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
+	local bypassAbsorbShield = options ~= nil and options.BypassAbsorbShield == true
+		or sourceType == "SafeZone"
+		or sourceType == "Trap" and options ~= nil and options.BypassAbsorbShield == true
+	local amount = self:_applyAbsorbShield(victim, mitigatedAmount, bypassAbsorbShield)
+	local victimStateBefore = playerStateService:GetState(victim)
+	local hpBefore = victimStateBefore and tonumber(victimStateBefore.CurrentHP) or 0
 	local didDamage = true
 	if amount > 0 then
 		didDamage = playerStateService:ApplyDamage(victim, amount, isBombDamage)
@@ -306,25 +410,26 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 		damageLog(`ApplyHitDamage aborted: PlayerStateService rejected amount={amount}`)
 		return false
 	end
-
+	local victimStateAfter = playerStateService:GetState(victim)
+	local actualDamage = math.max(0, hpBefore - (victimStateAfter and tonumber(victimStateAfter.CurrentHP) or hpBefore))
 	local suppressFeedback = options and options.SuppressFeedback == true
 	local suppressDeathHandling = options and options.SuppressDeathHandling == true
 
-	if amount > 0 and not suppressFeedback then
-		self:_sendFeedback(victim, "DamageTaken", { Amount = amount })
+	if actualDamage > 0 and not suppressFeedback then
+		self:_sendFeedback(victim, "DamageTaken", { Amount = actualDamage })
 	end
 
 	if attacker then
-		if amount > 0 then
+		if actualDamage > 0 then
 			playerStateService:SetLastAttacker(victim, attacker)
-			playerStateService:AddDamageDealt(attacker, amount)
+			playerStateService:AddDamageDealt(attacker, actualDamage)
 			if not suppressFeedback then
-				self:_sendFeedback(attacker, "DamageDealt", { Amount = amount })
+				self:_sendFeedback(attacker, "DamageDealt", { Amount = actualDamage })
 			end
 			if victimStats and attacker ~= victim then
 				local reflectPct = math.clamp(victimStats.Reflect, 0, 0.5)
 				if reflectPct > 0 then
-					local reflected = amount * reflectPct
+					local reflected = actualDamage * reflectPct
 					local reflectedApplied = playerStateService:ApplyDamage(attacker, reflected)
 					if reflectedApplied and reflected > 0 then
 						self:_sendFeedback(attacker, "DamageTaken", { Amount = reflected, DamageType = "Reflect" })
@@ -335,9 +440,17 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 					end
 				end
 			end
-			self._context.EventBus:Fire("DamageDealt", attacker, victim, amount)
+
+			if sourceType == "PhysicalLauncherCollision" and attacker ~= victim then
+				local lifestealPercent = self:_getPetAbilityParams(attacker, "Poison", "playerLifestealPercent")
+				if lifestealPercent > 0 then
+					playerStateService:Heal(attacker, actualDamage * lifestealPercent)
+				end
+			end
+
+			self._context.EventBus:Fire("DamageDealt", attacker, victim, actualDamage)
 			if isBombDamage then
-				self._context.EventBus:Fire("DailyQuestBombPlayerDamaged", attacker, victim, amount)
+				self._context.EventBus:Fire("DailyQuestBombPlayerDamaged", attacker, victim, actualDamage)
 			end
 		end
 	end
@@ -379,7 +492,7 @@ function DamagePipelineService:ApplyDamage(victim: Player, rawDamage: number, at
 	return didApply
 end
 
-function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number, source: any?, flagName: string?): boolean
+function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number, source: any?, flagName: string?, options: DamageOptions?): boolean
 	damageLog(`ApplyDoTDamage entered victim={playerName(victim)} source={playerName(if typeof(source) == "Instance" and source:IsA("Player") then source else nil)} flag={tostring(flagName)} rawDamage={rawDamage}`)
 	local playerStateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if not playerStateService then
@@ -399,28 +512,41 @@ function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number,
 		damageLog("ApplyDoTDamage aborted: victim is invulnerable")
 		return false
 	end
-	local amount = math.max(0, rawDamage)
-	if amount <= 0 then
+	local rawAmount = math.max(0, rawDamage)
+	if rawAmount <= 0 then
 		damageLog("ApplyDoTDamage aborted: amount is zero")
 		return false
 	end
-	local didDamage = playerStateService:ApplyDamage(victim, amount)
+	local bypassAbsorbShield = options ~= nil and options.BypassAbsorbShield == true
+		or options ~= nil and options.SourceType == "SafeZone"
+		or flagName == "LavaTrap"
+	local amount = self:_applyAbsorbShield(victim, rawAmount, bypassAbsorbShield)
+	local stateBefore = playerStateService:GetState(victim)
+	local hpBefore = stateBefore and tonumber(stateBefore.CurrentHP) or 0
+	local didDamage = true
+	if amount > 0 then
+		didDamage = playerStateService:ApplyDamage(victim, amount)
+	end
 	if not didDamage then
 		damageLog("ApplyDoTDamage aborted: PlayerStateService rejected damage")
 		return false
 	end
-	self:_sendFeedback(victim, "DamageTaken", { Amount = amount, DamageType = "DoT", Flag = flagName })
-	if typeof(source) == "Instance" and source:IsA("Player") then
+	local stateAfter = playerStateService:GetState(victim)
+	local actualDamage = math.max(0, hpBefore - (stateAfter and tonumber(stateAfter.CurrentHP) or hpBefore))
+	if actualDamage > 0 then
+		self:_sendFeedback(victim, "DamageTaken", { Amount = actualDamage, DamageType = "DoT", Flag = flagName })
+	end
+	if actualDamage > 0 and typeof(source) == "Instance" and source:IsA("Player") then
 		playerStateService:SetLastAttacker(victim, source)
-		playerStateService:AddDamageDealt(source, amount)
-		self:_sendFeedback(source, "DamageDealt", { Amount = amount, DamageType = "DoT", Flag = flagName })
-		self._context.EventBus:Fire("DoTDamageDealt", source, victim, amount, flagName)
+		playerStateService:AddDamageDealt(source, actualDamage)
+		self:_sendFeedback(source, "DamageDealt", { Amount = actualDamage, DamageType = "DoT", Flag = flagName })
+		self._context.EventBus:Fire("DoTDamageDealt", source, victim, actualDamage, flagName)
 	end
 	local state = playerStateService:GetState(victim)
 	if state and state.CurrentHP <= 0 then
 		self:HandlePlayerDeath(victim)
 	end
-	damageLog(`ApplyDoTDamage success victim={playerName(victim)} flag={tostring(flagName)} amount={amount}`)
+	damageLog(`ApplyDoTDamage success victim={playerName(victim)} flag={tostring(flagName)} amount={actualDamage} absorbed={rawAmount - amount}`)
 	return true
 end
 
