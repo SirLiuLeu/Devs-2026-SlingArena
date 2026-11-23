@@ -7,6 +7,7 @@ local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local CombatCollision = require(ReplicatedStorage.Shared.Utils.CombatCollision)
 local CollisionValidation = require(script.Parent.Helpers.CollisionValidation)
+local PetStatResolver = require(ReplicatedStorage.Shared.Utils.PetStatResolver)
 
 local FOOD_UI_TEMPLATE_PATH = { "Assets", "UI", "FoodWorldUI" }
 local FOOD_HIT_RADIUS_PADDING = PhysicsConfig.Collision.Range
@@ -835,6 +836,29 @@ function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player:
 	local before = entry.CurrentHP
 	entry.LastHitBy = player
 	entry.CurrentHP = math.max(0, entry.CurrentHP - damage)
+	local actualDamage = math.max(0, before - entry.CurrentHP)
+
+	-- Caterpillar heals for half the player-hit lifesteal rate on real Food HP
+	-- removed. Overkill damage is excluded, and Fish's received-healing bonus
+	-- is applied centrally by PlayerStateService:Heal().
+	if actualDamage > 0 and stateService then
+		local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
+		local ownedPets = dataService and dataService:GetOwnedPets(player) or {}
+		local equippedPets = dataService and dataService:GetEquippedPets(player) or {}
+		local foodLifestealPercent = 0
+		for _, progression in ipairs(PetStatResolver.GetEquippedProgressions(ownedPets, equippedPets)) do
+			if progression.definition and progression.definition.PetId == "Poison" then
+				foodLifestealPercent = math.max(
+					foodLifestealPercent,
+					type(progression.abilityParams) == "table" and tonumber(progression.abilityParams.foodLifestealPercent) or 0
+				)
+			end
+		end
+		if foodLifestealPercent > 0 then
+			stateService:Heal(player, actualDamage * foodLifestealPercent)
+		end
+	end
+
 	local soundPosition = getFoodWorldPosition(entry.Instance)
 	if soundPosition and entry.CurrentHP <= 0 then
 		SoundManager.Play("SFX_Food_Destroy", soundPosition)
@@ -844,7 +868,7 @@ function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player:
 	local hitbox = entry.Instance and entry.Instance:FindFirstChild("Hitbox")
 	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	if hitbox and hitbox:IsA("BasePart") and playerService and entry.CurrentHP ~= before then
-		playerService:ShowFloatingText(hitbox, "Damage", before - entry.CurrentHP)
+		playerService:ShowFloatingText(hitbox, "Damage", actualDamage)
 	end
 	self:_publishFoodHp(entry)
 	if entry.CurrentHP <= 0 then
