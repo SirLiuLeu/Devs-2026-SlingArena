@@ -396,9 +396,8 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 	local armor = victimStats and math.clamp(victimStats.Armor or 0, 0, 0.8) or 0
 	local petDamageMultiplier = tonumber(victim:GetAttribute("PetShieldDamageMultiplier")) or 1
 	local mitigatedAmount = math.clamp(rawDamage * petDamageMultiplier * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
-	local bypassAbsorbShield = options ~= nil and options.BypassAbsorbShield == true
+	local bypassAbsorbShield = (options ~= nil and options.BypassAbsorbShield == true)
 		or sourceType == "SafeZone"
-		or sourceType == "Trap" and options ~= nil and options.BypassAbsorbShield == true
 	local amount = self:_applyAbsorbShield(victim, mitigatedAmount, bypassAbsorbShield)
 	local victimStateBefore = playerStateService:GetState(victim)
 	local hpBefore = victimStateBefore and tonumber(victimStateBefore.CurrentHP) or 0
@@ -443,7 +442,8 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 
 			if sourceType == "PhysicalLauncherCollision" and attacker ~= victim then
 				local lifestealPercent = self:_getPetAbilityParams(attacker, "Poison", "playerLifestealPercent")
-				if lifestealPercent > 0 then
+				local attackerLifeState = playerStateService:GetState(attacker)
+				if lifestealPercent > 0 and attackerLifeState and attackerLifeState.IsAlive then
 					playerStateService:Heal(attacker, actualDamage * lifestealPercent)
 				end
 			end
