@@ -239,6 +239,7 @@ runTest("Pet_Stat_Source_Layers_Do_Not_Amplify_The_Wrong_Stats", function()
 				MaxHPBoost = "HealthCore",
 				DamageBoost = "PowerCore",
 				MoveSpeedBoost = "TurboModule",
+				Regeneration = "RegenBooster",
 			})[petId]),
 		}
 	end
@@ -260,6 +261,14 @@ runTest("Pet_Stat_Source_Layers_Do_Not_Amplify_The_Wrong_Stats", function()
 	assertNear(resolved.baseDamage, (110 + (10 + 5) * 2) * 1.10, "Penguin doubles only Pet base damage; Panda multiplies final total")
 	assertNear(resolved.moveSpeed, 22 * 1.05, "Bunny multiplies final move speed after Yeti")
 	assertNear(resolved.healingReceivedMultiplier, 1, "No Fish Pet means no healing-received bonus")
+
+	local fish = {
+		baseStats = {},
+		abilityParams = PetAbilityProgressionConfig.GetParams("Regeneration", 1),
+		definition = PetsConfig.GetById("RegenBooster"),
+	}
+	local withFish = PetStatResolver.Apply(launcher, { fish })
+	assertNear(withFish.healingReceivedMultiplier, 1.10, "Fish amplifies healing received at level 1")
 end)
 
 runTest("Pet_Ability_Display_Templates_Resolve_All_Placeholders", function()
