@@ -387,6 +387,12 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 		return false
 	end
 
+	local victimState = playerStateService:GetState(victim)
+	if not victimState or not victimState.IsAlive then
+		damageLog("ApplyHitDamage aborted: victim has no live PlayerState")
+		return false
+	end
+
 	local allowFriendlyFire = isBombDamage and options ~= nil and options.AllowFriendlyFire == true
 	if attacker and not allowFriendlyFire and not self:CanDamagePlayer(attacker, victim) then
 		damageLog("ApplyHitDamage aborted: friendly fire blocked")
@@ -399,8 +405,7 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 	local bypassAbsorbShield = (options ~= nil and options.BypassAbsorbShield == true)
 		or sourceType == "SafeZone"
 	local amount = self:_applyAbsorbShield(victim, mitigatedAmount, bypassAbsorbShield)
-	local victimStateBefore = playerStateService:GetState(victim)
-	local hpBefore = victimStateBefore and tonumber(victimStateBefore.CurrentHP) or 0
+	local hpBefore = tonumber(victimState.CurrentHP) or 0
 	local didDamage = true
 	if amount > 0 then
 		didDamage = playerStateService:ApplyDamage(victim, amount, isBombDamage)
@@ -512,6 +517,11 @@ function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number,
 		damageLog("ApplyDoTDamage aborted: victim is invulnerable")
 		return false
 	end
+	local initialState = playerStateService:GetState(victim)
+	if not initialState or not initialState.IsAlive then
+		damageLog("ApplyDoTDamage aborted: victim has no live PlayerState")
+		return false
+	end
 	local rawAmount = math.max(0, rawDamage)
 	if rawAmount <= 0 then
 		damageLog("ApplyDoTDamage aborted: amount is zero")
@@ -521,8 +531,7 @@ function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number,
 		or options ~= nil and options.SourceType == "SafeZone"
 		or flagName == "LavaTrap"
 	local amount = self:_applyAbsorbShield(victim, rawAmount, bypassAbsorbShield)
-	local stateBefore = playerStateService:GetState(victim)
-	local hpBefore = stateBefore and tonumber(stateBefore.CurrentHP) or 0
+	local hpBefore = tonumber(initialState.CurrentHP) or 0
 	local didDamage = true
 	if amount > 0 then
 		didDamage = playerStateService:ApplyDamage(victim, amount)
