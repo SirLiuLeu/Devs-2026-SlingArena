@@ -109,6 +109,7 @@ local function buildDefaultState(player: Player): PlayerState
 		ChargeSpeed = 1,
 		MoveSpeed = PhysicsConfig.Movement.MoveSpeed,
 		DamageMultiplier = 1,
+		HealingReceivedMultiplier = 1,
 		HPBonus = 0,
 		LaunchSpeedBonus = 0,
 		RegenerationBonus = 0,
@@ -494,7 +495,9 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if dataService and typeof(dataService.GetData) == "function" then
 		local data = dataService:GetData(player)
-		resolved = PetStatResolver.Resolve(launcherResolved :: any, data.OwnedPets, data.EquippedPets) :: any
+		local equippedProgressions = PetStatResolver.GetEquippedProgressions(data.OwnedPets, data.EquippedPets)
+		launcherResolved = PetStatResolver.ApplyLauncherModifiers(launcherResolved :: any, equippedProgressions) :: any
+		resolved = PetStatResolver.Apply(launcherResolved :: any, equippedProgressions) :: any
 		petBonusMaxHP = (tonumber(resolved.maxHP) or 0) - (tonumber(launcherResolved.maxHP) or 0)
 		petBonusDamage = (tonumber(resolved.baseDamage) or 0) - (tonumber(launcherResolved.baseDamage) or 0)
 		state.OwnedPets = data.OwnedPets or {}
@@ -510,6 +513,7 @@ function PlayerStateService:RecalculateDerivedStats(player: Player, refillHealth
 	state.LauncherBaseDamage = tonumber(launcherResolved.baseDamage) or 0
 	state.PetBonusDamage = petBonusDamage
 	state.DamageMultiplier = resolved.damageMultiplier
+	state.HealingReceivedMultiplier = math.max(1, tonumber(resolved.healingReceivedMultiplier) or 1)
 	state.RegenerationRate = resolved.regen
 	state.ReflectDamage = resolved.reflectDamage
 	state.LaunchSpeed = resolved.launchSpeed
@@ -661,11 +665,13 @@ function PlayerStateService:ApplyDamage(player: Player, amount: number, allowHum
 	return true
 end
 
-function PlayerStateService:Heal(player: Player, amount: number, showOnHpBar: boolean?)
+function PlayerStateService:Heal(player: Player, amount: number, showOnHpBar: boolean?, bypassPetHealingMultiplier: boolean?)
 	local state = self._states[player]
 	if not state then return 0 end
 	local before = state.CurrentHP
-	state.CurrentHP = math.min(state.MaxHP, state.CurrentHP + math.max(0, amount))
+	local requestedAmount = math.max(0, tonumber(amount) or 0)
+	local healingMultiplier = if bypassPetHealingMultiplier == true then 1 else math.max(1, tonumber(state.HealingReceivedMultiplier) or 1)
+	state.CurrentHP = math.min(state.MaxHP, state.CurrentHP + (requestedAmount * healingMultiplier))
 	local restored = state.CurrentHP - before
 	local playerService = ServiceResolver.Get(self._context, "PlayerService")
 	local root = playerService and playerService:GetRoot(player)
