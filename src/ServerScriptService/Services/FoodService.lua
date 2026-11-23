@@ -841,7 +841,8 @@ function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player:
 	-- Caterpillar heals for half the player-hit lifesteal rate on real Food HP
 	-- removed. Overkill damage is excluded, and Fish's received-healing bonus
 	-- is applied centrally by PlayerStateService:Heal().
-	if actualDamage > 0 and stateService then
+	local playerState = stateService and stateService:GetState(player)
+	if actualDamage > 0 and playerState and playerState.IsAlive then
 		local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 		local ownedPets = dataService and dataService:GetOwnedPets(player) or {}
 		local equippedPets = dataService and dataService:GetEquippedPets(player) or {}
