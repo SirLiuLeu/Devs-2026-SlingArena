@@ -92,7 +92,9 @@ function EffectUtil.ApplyDotFlag(context, victim: Player)
 		DamagePerTick = damagePerTick,
 	})
 	trace(context, string.format("ApplyDotFlag result=%s", tostring(applied)))
-	if flagConfig.SlowAmount then
+	-- Only apply Poison's optional slow component when a Pet progression
+	-- explicitly opts in. Launcher Poison keeps its separate shared behavior.
+	if flagConfig.SlowAmount and progressionParams.applySlow == true then
 		local slowConfig = EffectUtil.GetFlagConfig("Slow")
 		stateService:ApplyFlag(victim, "Slow", flagConfig.SlowDuration or slowConfig.Duration, context.player, {
 			Stackable = slowConfig.Stackable,
