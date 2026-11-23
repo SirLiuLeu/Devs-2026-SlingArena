@@ -75,7 +75,8 @@ end
 
 function EffectUtil.ApplyDotFlag(context, victim: Player)
 	local effect = context.definition.combatEffect or {}
-	local flagName = effect.dotFlag
+	local abilityId = context.definition.abilityId
+	local flagName = effect.dotFlag or (if abilityId == "Burn" or abilityId == "Poison" then abilityId else nil)
 	if not flagName then trace(context, "ApplyDotFlag aborted: dotFlag missing"); return end
 	local stateService = context.PlayerStateService
 	if not stateService then trace(context, "ApplyDotFlag aborted: PlayerStateService missing"); return end
@@ -121,7 +122,8 @@ end
 function EffectUtil.ApplyFoodDot(context, food: Model)
 	ensurePlayerRemovingCleanup()
 	local effect = context.definition.combatEffect or {}
-	local flagName = effect.dotFlag
+	local abilityId = context.definition.abilityId
+	local flagName = effect.dotFlag or (if abilityId == "Burn" or abilityId == "Poison" then abilityId else nil)
 	if not flagName then return end
 	local foodId = food:GetAttribute("FoodId")
 	if typeof(foodId) ~= "string" then return end
