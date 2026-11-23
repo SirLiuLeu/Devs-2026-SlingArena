@@ -42,6 +42,18 @@ local function getDescriptionValues(definition: any, progression: any): { [strin
 
 	return {
 		damage = tonumber(abilityParams.damage) or 0,
+		launcherStatBonus = math.max(0, (tonumber(abilityParams.launcherStatMultiplier) or 1) - 1),
+		petBaseStatsMultiplier = tonumber(abilityParams.petBaseStatsMultiplier) or 1,
+		lastStandDamageBonus = tonumber(abilityParams.lastStandMaxDamageBonus) or 0,
+		fullForceDamageBonus = tonumber(abilityParams.fullForceDamageBonus) or 0,
+		playerLifestealPercent = tonumber(abilityParams.playerLifestealPercent) or 0,
+		foodLifestealPercent = tonumber(abilityParams.foodLifestealPercent) or 0,
+		maxHPBonusPercent = math.max(0, (tonumber(abilityParams.maxHPMultiplier) or 1) - 1),
+		damageBonusPercent = math.max(0, (tonumber(abilityParams.baseDamageMultiplier) or 1) - 1),
+		moveSpeedBonusPercent = math.max(0, (tonumber(abilityParams.moveSpeedMultiplier) or 1) - 1),
+		absorbCapacity = tonumber(abilityParams.absorbCapacity) or 0,
+		refreshInterval = tonumber(abilityParams.refreshInterval) or 0,
+		healingReceivedBonus = math.max(0, (tonumber(abilityParams.healingReceivedMultiplier) or 1) - 1),
 		cooldown = tonumber(abilityParams.cooldown) or tonumber(passive.params and passive.params.cooldown) or 0,
 		weight = tonumber(abilityParams.weightMultiplier) or 1,
 		hitbox = tonumber(abilityParams.hitboxMultiplier) or 1,
@@ -66,12 +78,22 @@ local PERCENT_KEYS = {
 	damageReduction = true,
 	expBonus = true,
 	reflectDamage = true,
+	launcherStatBonus = true,
+	lastStandDamageBonus = true,
+	fullForceDamageBonus = true,
+	playerLifestealPercent = true,
+	foodLifestealPercent = true,
+	maxHPBonusPercent = true,
+	damageBonusPercent = true,
+	moveSpeedBonusPercent = true,
+	healingReceivedBonus = true,
 }
 
 local MULTIPLIER_KEYS = {
 	weight = true,
 	hitbox = true,
 	launchSpeed = true,
+	petBaseStatsMultiplier = true,
 }
 
 local function formatDescriptionValue(key: string, value: number): string
