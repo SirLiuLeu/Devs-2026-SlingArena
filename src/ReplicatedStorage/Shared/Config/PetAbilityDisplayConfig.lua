@@ -27,12 +27,12 @@ PetAbilityDisplayConfig.Descriptions = {
 		en = "Multiplies the rarity-and-level base HP and damage from all equipped Pets by {petBaseStatsMultiplier}.",
 	},
 	GhostFlame = {
-		vi = "Va chạm áp dụng Burn lên người chơi hoặc thức ăn, gây {damagePerTick} sát thương mỗi giây.",
-		en = "Collisions apply Burn to players or Food, dealing {damagePerTick} damage per second.",
+		vi = "Va chạm áp dụng Burn lên người chơi hoặc thức ăn, gây {damagePerTick} sát thương mỗi giây; đồng thời tăng {baseDamage} sát thương cơ bản.",
+		en = "Collisions apply Burn to players or Food, dealing {damagePerTick} damage per second; also adds {baseDamage} base damage.",
 	},
 	Poison = {
-		vi = "Lifesteal: hồi {playerLifestealPercent} sát thương thực tế gây lên người chơi và {foodLifestealPercent} sát thương gây lên thức ăn.",
-		en = "Lifesteal: restores {playerLifestealPercent} of actual damage dealt to players and {foodLifestealPercent} of damage dealt to Food.",
+		vi = "Lifesteal: hồi {playerLifestealPercent} sát thương thực tế gây lên người chơi và {foodLifestealPercent} sát thương gây lên thức ăn; đồng thời tăng {baseDamage} sát thương cơ bản.",
+		en = "Lifesteal: restores {playerLifestealPercent} of actual damage dealt to players and {foodLifestealPercent} of damage dealt to Food; also adds {baseDamage} base damage.",
 	},
 	HealthCore = {
 		vi = "Tăng {maxHPBonusPercent} HP tối đa sau khi cộng chỉ số Launcher và Pet.",
