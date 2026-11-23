@@ -434,18 +434,24 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 				local reflectPct = math.clamp(victimStats.Reflect, 0, 0.5)
 				if reflectPct > 0 then
 					local reflected = actualDamage * reflectPct
-					local reflectedApplied = playerStateService:ApplyDamage(attacker, reflected)
-					if reflectedApplied and reflected > 0 then
-						self:_sendFeedback(attacker, "DamageTaken", { Amount = reflected, DamageType = "Reflect" })
-					end
+					local reflectedAfterAbsorb = self:_applyAbsorbShield(attacker, reflected, false)
+					local attackerStateBefore = playerStateService:GetState(attacker)
+					local attackerHPBefore = attackerStateBefore and tonumber(attackerStateBefore.CurrentHP) or 0
+					local reflectedApplied = if reflectedAfterAbsorb > 0
+						then playerStateService:ApplyDamage(attacker, reflectedAfterAbsorb)
+						else true
 					local attackerState = playerStateService:GetState(attacker)
+					local reflectedActual = math.max(0, attackerHPBefore - (attackerState and tonumber(attackerState.CurrentHP) or attackerHPBefore))
+					if reflectedApplied and reflectedActual > 0 then
+						self:_sendFeedback(attacker, "DamageTaken", { Amount = reflectedActual, DamageType = "Reflect" })
+					end
 					if reflectedApplied and attackerState and attackerState.CurrentHP <= 0 then
 						self:HandlePlayerDeath(attacker)
 					end
 				end
 			end
 
-			if sourceType == "PhysicalLauncherCollision" and attacker ~= victim then
+			if attacker ~= victim then
 				local lifestealPercent = self:_getPetAbilityParams(attacker, "Poison", "playerLifestealPercent")
 				local attackerLifeState = playerStateService:GetState(attacker)
 				if lifestealPercent > 0 and attackerLifeState and attackerLifeState.IsAlive then
@@ -549,6 +555,13 @@ function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number,
 		playerStateService:SetLastAttacker(victim, source)
 		playerStateService:AddDamageDealt(source, actualDamage)
 		self:_sendFeedback(source, "DamageDealt", { Amount = actualDamage, DamageType = "DoT", Flag = flagName })
+		if source ~= victim then
+			local lifestealPercent = self:_getPetAbilityParams(source, "Poison", "playerLifestealPercent")
+			local sourceState = playerStateService:GetState(source)
+			if lifestealPercent > 0 and sourceState and sourceState.IsAlive then
+				playerStateService:Heal(source, actualDamage * lifestealPercent)
+			end
+		end
 		self._context.EventBus:Fire("DoTDamageDealt", source, victim, actualDamage, flagName)
 	end
 	local state = playerStateService:GetState(victim)
