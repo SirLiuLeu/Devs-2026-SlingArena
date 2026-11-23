@@ -97,7 +97,9 @@ runTest("Pet_Ability_Milestones_Reach_80_And_100_Percent", function()
 	assertNear(PetAbilityProgressionConfig.GetParams("Slow", 50).collisionExtraDuration, 5.5, "Slow level-50 duration target")
 	assertNear(PetAbilityProgressionConfig.GetParams("ExpBonus", 20).expBonus, 0.50, "BrainBoost level-20 EXP bonus")
 	assertNear(PetAbilityProgressionConfig.GetParams("ExpBonus", 50).expBonus, 0.55, "BrainBoost level-50 EXP bonus")
-	assertNear(PetAbilityProgressionConfig.GetParams("Regeneration", 50).healAmount, 1250, "Regeneration level-50 heal target")
+	assertNear(PetAbilityProgressionConfig.GetParams("Regeneration", 50).healAmount, 10, "Fish fixed 10 HP/s regeneration")
+	assertNear(PetAbilityProgressionConfig.GetParams("Regeneration", 50).tickInterval, 1, "Fish regeneration tick interval")
+	assertNear(PetAbilityProgressionConfig.GetParams("Regeneration", 50).healingReceivedMultiplier, 1.25, "Fish level-50 healing received bonus")
 end)
 
 runTest("Remaining_Pet_Abilities_Reach_Level_50_Targets", function()
@@ -185,6 +187,78 @@ runTest("Level_Scaled_Pet_Stat_Bonuses_Override_Legacy_Static_Modifiers", functi
 	assertNear(level50.launchSpeed, 126, "LaunchBooster level-50 multiplier is applied once")
 	assertNear(level50.launchCooldown, -1.3, "QuickReload level-50 cooldown reduction is applied")
 	assertNear(level50.reflectDamage, 0.30, "ThornArmor level-50 reflect is applied once")
+end)
+
+runTest("Redesigned_Pet_Ability_Progression_Targets", function()
+	assertNear(PetAbilityProgressionConfig.GetParams("LauncherBoost", 1).launcherStatMultiplier, 1.10, "Yeti always grants +10% Launcher stats")
+	assertNear(PetAbilityProgressionConfig.GetParams("PetBaseBoost", 1).petBaseStatsMultiplier, 2.0, "Penguin doubles Pet base stats once")
+	assertNear(PetAbilityProgressionConfig.GetParams("LastStand", 1).lastStandMaxDamageBonus, 0.20, "Hydra level-1 Last Stand")
+	assertNear(PetAbilityProgressionConfig.GetParams("LastStand", 50).lastStandMaxDamageBonus, 0.40, "Hydra level-50 Last Stand")
+	assertNear(PetAbilityProgressionConfig.GetParams("FullForce", 1).fullForceDamageBonus, 0.10, "Dragon level-1 Full Force")
+	assertNear(PetAbilityProgressionConfig.GetParams("FullForce", 50).fullForceDamageBonus, 0.25, "Dragon level-50 Full Force")
+	assertNear(PetAbilityProgressionConfig.GetParams("Lifesteal", 1).playerLifestealPercent, 0.02, "Caterpillar player lifesteal")
+	assertNear(PetAbilityProgressionConfig.GetParams("Lifesteal", 1).foodLifestealPercent, 0.01, "Caterpillar Food lifesteal")
+	assertNear(PetAbilityProgressionConfig.GetParams("MaxHPBoost", 1).maxHPMultiplier, 1.10, "Pig level-1 final HP multiplier")
+	assertNear(PetAbilityProgressionConfig.GetParams("MaxHPBoost", 50).maxHPMultiplier, 1.25, "Pig level-50 final HP multiplier")
+	assertNear(PetAbilityProgressionConfig.GetParams("DamageBoost", 1).baseDamageMultiplier, 1.10, "Panda level-1 final damage multiplier")
+	assertNear(PetAbilityProgressionConfig.GetParams("DamageBoost", 50).baseDamageMultiplier, 1.20, "Panda level-50 final damage multiplier")
+	assertNear(PetAbilityProgressionConfig.GetParams("MoveSpeedBoost", 1).moveSpeedMultiplier, 1.05, "Bunny level-1 move speed multiplier")
+	assertNear(PetAbilityProgressionConfig.GetParams("MoveSpeedBoost", 50).moveSpeedMultiplier, 1.15, "Bunny level-50 move speed multiplier")
+	assertNear(PetAbilityProgressionConfig.GetParams("AbsorbShield", 1).absorbCapacity, 5000, "Elephant shield capacity")
+	assertNear(PetAbilityProgressionConfig.GetParams("AbsorbShield", 1).refreshInterval, 10, "Elephant shield refresh interval")
+end)
+
+runTest("Pet_Rarity_Assignments_Match_Redesigned_Tiers", function()
+	local expected = {
+		BrainBoost = "Common", TurboModule = "Common",
+		LaunchBooster = "Rare", QuickReload = "Rare", RegenBooster = "Rare", Poison = "Rare",
+		Medusa = "Rare", GhostFlame = "Rare", HealthCore = "Rare", PowerCore = "Rare", Shield = "Rare",
+		PlasmaCannon = "Epic", Hydra = "Epic", ThunderHammer = "Epic", Dragon = "Epic", ThornArmor = "Epic",
+		IceCrystal = "Legendary", ShadowCloak = "Legendary",
+	}
+	assertEqual(#PetsConfig.GetAllIds(), 18, "Pet ID catalog count unchanged")
+	for petId, rarity in pairs(expected) do
+		assertEqual(PetsConfig.GetById(petId).rarity, rarity, petId .. " rarity assignment")
+	end
+	assertEqual(#PurchasePetConfig.GetAllIds(), 18, "All Pets retain a purchase price")
+end)
+
+runTest("Pet_Stat_Source_Layers_Do_Not_Amplify_The_Wrong_Stats", function()
+	local launcher = {
+		maxHP = 1000, baseDamage = 100, moveSpeed = 20,
+		armor = 0.20, reflectDamage = 0.10, regen = 2, launchSpeed = 100,
+	}
+	local function progression(petId: string, level: number, baseHP: number?, baseDamage: number?)
+		return {
+			baseStats = { maxHP = baseHP or 0, baseDamage = baseDamage or 0 },
+			abilityParams = PetAbilityProgressionConfig.GetParams(petId, level),
+			definition = PetsConfig.GetById(({
+				LauncherBoost = "ThunderHammer",
+				PetBaseBoost = "IceCrystal",
+				MaxHPBoost = "HealthCore",
+				DamageBoost = "PowerCore",
+				MoveSpeedBoost = "TurboModule",
+			})[petId]),
+		}
+	end
+	local equipped = {
+		progression("LauncherBoost", 1),
+		progression("PetBaseBoost", 1, 100, 10),
+		progression("MaxHPBoost", 1),
+		progression("DamageBoost", 1),
+		progression("MoveSpeedBoost", 1),
+		{ baseStats = { maxHP = 50, baseDamage = 5 }, abilityParams = {}, definition = PetsConfig.GetById("BrainBoost") },
+	}
+	local launcherAfterYeti = PetStatResolver.ApplyLauncherModifiers(launcher, equipped)
+	assertNear(launcherAfterYeti.maxHP, 1100, "Yeti boosts Launcher HP before Pet HP is added")
+	assertNear(launcherAfterYeti.baseDamage, 110, "Yeti boosts Launcher base damage before Pet damage is added")
+	assertNear(launcherAfterYeti.moveSpeed, 22, "Yeti boosts Launcher move speed")
+	assertNear(launcherAfterYeti.armor, 0.22, "Yeti relatively boosts Launcher armor")
+	local resolved = PetStatResolver.Apply(launcherAfterYeti, equipped)
+	assertNear(resolved.maxHP, (1100 + (100 + 50) * 2) * 1.10, "Penguin doubles only Pet base HP; Pig multiplies final total")
+	assertNear(resolved.baseDamage, (110 + (10 + 5) * 2) * 1.10, "Penguin doubles only Pet base damage; Panda multiplies final total")
+	assertNear(resolved.moveSpeed, 22 * 1.05, "Bunny multiplies final move speed after Yeti")
+	assertNear(resolved.healingReceivedMultiplier, 1, "No Fish Pet means no healing-received bonus")
 end)
 
 runTest("UpgradePet_Remote_Accepts_Levels_Through_50", function()
