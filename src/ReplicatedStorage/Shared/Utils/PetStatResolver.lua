@@ -41,6 +41,34 @@ local function copyStats(baseStats: { [string]: number }): { [string]: number }
 	return result
 end
 
+function PetStatResolver.ApplyLauncherModifiers(baseStats: { [string]: number }, equippedProgressions: { any }?): { [string]: number }
+	local result = copyStats(baseStats)
+	local launcherMultiplier = 1
+	for _, progression in ipairs(equippedProgressions or {}) do
+		local definition = progression.definition
+		if type(definition) == "table" and definition.PetId == "ThunderHammer" then
+			local params = progression.abilityParams
+			launcherMultiplier = math.max(launcherMultiplier, tonumber(params and params.launcherStatMultiplier) or 1)
+		end
+	end
+
+	if launcherMultiplier > 1 then
+		-- Yeti modifies Launcher-origin stats only. Pet base stats and all Pet
+		-- ability contributions are added by Apply() after this stage.
+		for _, statName in ipairs({
+			"maxHP", "baseDamage", "armor", "regen", "speed", "moveSpeed",
+			"launchPower", "launchSpeed", "weight", "damageMultiplier", "reflectDamage",
+		}) do
+			if type(result[statName]) == "number" then
+				result[statName] *= launcherMultiplier
+			end
+		end
+	end
+	result.armor = math.clamp(result.armor or 0, 0, 0.8)
+	result.reflectDamage = math.clamp(result.reflectDamage or 0, 0, 0.5)
+	return result
+end
+
 function PetStatResolver.GetEquippedProgressions(ownedPets: { [string]: any }?, equippedPets: { [string]: any }?): { any }
 	local progressions = {}
 	if type(ownedPets) ~= "table" or type(equippedPets) ~= "table" then
@@ -60,13 +88,18 @@ function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgress
 	local result = copyStats(baseStats)
 	local pendingAdd: { [string]: number } = {}
 	local pendingMultiply: { [string]: number } = {}
+	local totalPetBaseHP = 0
+	local totalPetBaseDamage = 0
+	local petBaseStatsMultiplier = 1
 
 	for _, progression in ipairs(equippedProgressions or {}) do
 		local petBaseStats = progression.baseStats
 		if type(petBaseStats) == "table" then
-			result.maxHP = (result.maxHP or 0) + (tonumber(petBaseStats.maxHP) or 0)
-			result.baseDamage = (result.baseDamage or 0) + (tonumber(petBaseStats.baseDamage) or 0)
+			totalPetBaseHP += tonumber(petBaseStats.maxHP) or 0
+			totalPetBaseDamage += tonumber(petBaseStats.baseDamage) or 0
 		end
+		local abilityParams = progression.abilityParams
+		petBaseStatsMultiplier = math.max(petBaseStatsMultiplier, tonumber(abilityParams and abilityParams.petBaseStatsMultiplier) or 1)
 
 		local abilityParams = progression.abilityParams
 		local abilityExpBonus = type(abilityParams) == "table" and tonumber(abilityParams.expBonus) or nil
@@ -104,6 +137,20 @@ function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgress
 				pendingMultiply.launchSpeed = (pendingMultiply.launchSpeed or 1) * math.max(0, launchSpeedMultiplier)
 				abilityMultiplyOverrides.launchSpeed = true
 			end
+
+			local multiplierAbilityParams = {
+				maxHPMultiplier = "maxHP",
+				baseDamageMultiplier = "baseDamage",
+				moveSpeedMultiplier = "moveSpeed",
+				healingReceivedMultiplier = "healingReceivedMultiplier",
+			}
+			for paramName, statName in pairs(multiplierAbilityParams) do
+				local multiplier = tonumber(abilityParams[paramName])
+				if multiplier ~= nil then
+					pendingMultiply[statName] = (pendingMultiply[statName] or 1) * math.max(0, multiplier)
+					abilityMultiplyOverrides[statName] = true
+				end
+			end
 		end
 
 		local definition = progression.definition
@@ -135,6 +182,12 @@ function PetStatResolver.Apply(baseStats: { [string]: number }, equippedProgress
 			end
 		end
 	end
+
+	-- Penguin doubles only rarity/level Pet base stats. Its own base stats are
+	-- included because all equipped progressions contribute before this multiplier.
+	result.maxHP = (result.maxHP or 0) + (totalPetBaseHP * petBaseStatsMultiplier)
+	result.baseDamage = (result.baseDamage or 0) + (totalPetBaseDamage * petBaseStatsMultiplier)
+	result.healingReceivedMultiplier = result.healingReceivedMultiplier or 1
 
 	-- Apply every additive contribution before multiplicative contributions,
 	-- independent of equipped-slot iteration order.
