@@ -8,24 +8,31 @@ local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local PurchasePetConfig = {}
 
 PurchasePetConfig.Prices = {
-	PlasmaCannon = 850,
-	Hydra = 450,
-	ThunderHammer = 800,
-	Medusa = 1500,
-	IceCrystal = 350,
-	GhostFlame = 800,
-	Poison = 300,
-	HealthCore = 280,
-	PowerCore = 280,
-	Shield = 400,
-	BrainBoost = 350,
-	TurboModule = 350,
-	LaunchBooster = 400,
-	Dragon = 850,
-	QuickReload = 350,
-	ThornArmor = 700,
-	RegenBooster = 350,
-	ShadowCloak = 850,
+	-- Common
+	BrainBoost = 200,
+	TurboModule = 250,
+
+	-- Rare
+	LaunchBooster = 450,
+	QuickReload = 400,
+	RegenBooster = 450,
+	Poison = 450,
+	Medusa = 700,
+	GhostFlame = 650,
+	HealthCore = 400,
+	PowerCore = 400,
+	Shield = 650,
+
+	-- Epic
+	PlasmaCannon = 1000,
+	Hydra = 1100,
+	ThunderHammer = 1000,
+	Dragon = 1000,
+	ThornArmor = 1000,
+
+	-- Legendary
+	IceCrystal = 1600,
+	ShadowCloak = 1600,
 }
 
 function PurchasePetConfig.GetPrice(definitionId: string): number?
