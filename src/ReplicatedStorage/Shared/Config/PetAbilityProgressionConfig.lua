@@ -28,10 +28,66 @@ PetAbilityProgressionConfig.Abilities = {
 		[20] = { weightMultiplier = 1.29, hitboxMultiplier = 1.38, incomingKnockbackMultiplier = 0.71, outgoingKnockbackMultiplier = 1.29 },
 		Level50 = { weightMultiplier = 1.3625, hitboxMultiplier = 1.475, incomingKnockbackMultiplier = 0.6625, outgoingKnockbackMultiplier = 1.3375 },
 	},
+	LauncherBoost = {
+		[1] = { launcherStatMultiplier = 1.10 }, [5] = { launcherStatMultiplier = 1.10 },
+		[10] = { launcherStatMultiplier = 1.10 }, [15] = { launcherStatMultiplier = 1.10 },
+		[20] = { launcherStatMultiplier = 1.10 }, Level50 = { launcherStatMultiplier = 1.10 },
+	},
+	PetBaseBoost = {
+		[1] = { petBaseStatsMultiplier = 2.0 }, [5] = { petBaseStatsMultiplier = 2.0 },
+		[10] = { petBaseStatsMultiplier = 2.0 }, [15] = { petBaseStatsMultiplier = 2.0 },
+		[20] = { petBaseStatsMultiplier = 2.0 }, Level50 = { petBaseStatsMultiplier = 2.0 },
+	},
+	LastStand = {
+		[1] = { lastStandMaxDamageBonus = 0.20 }, [5] = { lastStandMaxDamageBonus = 0.22 },
+		[10] = { lastStandMaxDamageBonus = 0.24 }, [15] = { lastStandMaxDamageBonus = 0.27 },
+		[20] = { lastStandMaxDamageBonus = 0.30 }, Level50 = { lastStandMaxDamageBonus = 0.40 },
+	},
+	FullForce = {
+		[1] = { fullForceDamageBonus = 0.10 }, [5] = { fullForceDamageBonus = 0.11 },
+		[10] = { fullForceDamageBonus = 0.12 }, [15] = { fullForceDamageBonus = 0.13 },
+		[20] = { fullForceDamageBonus = 0.15 }, Level50 = { fullForceDamageBonus = 0.25 },
+	},
+	Lifesteal = {
+		[1] = { playerLifestealPercent = 0.02, foodLifestealPercent = 0.01 },
+		[5] = { playerLifestealPercent = 0.02, foodLifestealPercent = 0.01 },
+		[10] = { playerLifestealPercent = 0.02, foodLifestealPercent = 0.01 },
+		[15] = { playerLifestealPercent = 0.02, foodLifestealPercent = 0.01 },
+		[20] = { playerLifestealPercent = 0.02, foodLifestealPercent = 0.01 },
+		Level50 = { playerLifestealPercent = 0.02, foodLifestealPercent = 0.01 },
+	},
+	MaxHPBoost = {
+		[1] = { maxHPMultiplier = 1.10 }, [5] = { maxHPMultiplier = 1.11 },
+		[10] = { maxHPMultiplier = 1.12 }, [15] = { maxHPMultiplier = 1.13 },
+		[20] = { maxHPMultiplier = 1.15 }, Level50 = { maxHPMultiplier = 1.25 },
+	},
+	DamageBoost = {
+		[1] = { baseDamageMultiplier = 1.10 }, [5] = { baseDamageMultiplier = 1.11 },
+		[10] = { baseDamageMultiplier = 1.12 }, [15] = { baseDamageMultiplier = 1.13 },
+		[20] = { baseDamageMultiplier = 1.15 }, Level50 = { baseDamageMultiplier = 1.20 },
+	},
+	MoveSpeedBoost = {
+		[1] = { moveSpeedMultiplier = 1.05 }, [5] = { moveSpeedMultiplier = 1.06 },
+		[10] = { moveSpeedMultiplier = 1.07 }, [15] = { moveSpeedMultiplier = 1.08 },
+		[20] = { moveSpeedMultiplier = 1.10 }, Level50 = { moveSpeedMultiplier = 1.15 },
+	},
+	AbsorbShield = {
+		[1] = { absorbCapacity = 5000, refreshInterval = 10 },
+		[5] = { absorbCapacity = 5000, refreshInterval = 10 },
+		[10] = { absorbCapacity = 5000, refreshInterval = 10 },
+		[15] = { absorbCapacity = 5000, refreshInterval = 10 },
+		[20] = { absorbCapacity = 5000, refreshInterval = 10 },
+		Level50 = { absorbCapacity = 5000, refreshInterval = 10 },
+	},
+	-- Fish: its own fixed regeneration is 10 HP/s. HealingReceivedMultiplier
+	-- affects external healing only; Regeneration.lua bypasses this multiplier.
 	Regeneration = {
-		[1] = { healAmount = 500, tickInterval = 5 }, [5] = { healAmount = 650, tickInterval = 5 },
-		[10] = { healAmount = 800, tickInterval = 5 }, [15] = { healAmount = 950, tickInterval = 5 },
-		[20] = { healAmount = 1100, tickInterval = 5 }, Level50 = { healAmount = 1250, tickInterval = 5 },
+		[1] = { healAmount = 10, tickInterval = 1, healingReceivedMultiplier = 1.10 },
+		[5] = { healAmount = 10, tickInterval = 1, healingReceivedMultiplier = 1.11 },
+		[10] = { healAmount = 10, tickInterval = 1, healingReceivedMultiplier = 1.13 },
+		[15] = { healAmount = 10, tickInterval = 1, healingReceivedMultiplier = 1.15 },
+		[20] = { healAmount = 10, tickInterval = 1, healingReceivedMultiplier = 1.18 },
+		Level50 = { healAmount = 10, tickInterval = 1, healingReceivedMultiplier = 1.25 },
 	},
 	PlasmaCannon = {
 		[1] = { damage = 700, cooldown = 10, projectileSpeed = 15 },
