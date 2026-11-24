@@ -87,6 +87,7 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 			oldHydra = { definitionId = "Hydra", level = 4 },
 			oldDragon = { definitionId = "Dragon", level = 5 },
 			oldUnicorn = { definitionId = "ShadowCloak", level = 6 },
+			oldElephant = { definitionId = "Shield", level = 8 },
 		},
 		EquippedPets = { [1] = "oldHydra", [2] = "oldDragon", [3] = "oldUnicorn" },
 	}
@@ -94,6 +95,7 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 	assertEqual(legacyV0.OwnedPets.oldHydra.abilityId, "FullForce", "Pre-v1 Hydra receives the historical model swap before AbilityID migration")
 	assertEqual(legacyV0.OwnedPets.oldDragon.abilityId, "LastStand", "Pre-v1 Dragon receives the historical model swap before AbilityID migration")
 	assertEqual(legacyV0.OwnedPets.oldUnicorn.abilityId, "AbsorbShield", "Legacy ShadowCloak/Unicorn migrates to AbsorbShield")
+	assertEqual(legacyV0.OwnedPets.oldElephant.abilityId, "IronBody", "Legacy Shield/Elephant migrates to IronBody")
 	assertEqual(legacyV0.OwnedPets.oldHydra.definitionId, nil, "Legacy definitionId is cleared")
 	assertEqual(legacyV0.OwnedPets.oldDragon.definitionId, nil, "Legacy definitionId is cleared")
 	assertEqual(legacyV0.EquippedPets[1], "oldHydra", "First equipped instance ID is preserved")
@@ -101,6 +103,7 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 	assertEqual(legacyV0.EquippedPets[3], "oldUnicorn", "Unicorn equipped slot is preserved")
 	assertEqual(legacyV0.OwnedPets.oldHydra.level, 4, "Old Hydra level is preserved")
 	assertEqual(legacyV0.OwnedPets.oldDragon.level, 5, "Old Dragon level is preserved")
+	assertEqual(legacyV0.OwnedPets.oldElephant.level, 8, "Old Elephant level is preserved")
 	assertEqual(legacyV0.PetIdentityMigrationVersion, 3, "Profile advances to canonical roster migration version 3")
 
 	local legacyV1 = {
@@ -147,6 +150,7 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 			snake = { abilityId = "Poison", definitionId = "Medusa", effectId = "Petrify", level = 2 },
 			caterpillar = { abilityId = "Lifesteal", definitionId = "Poison", effectId = "Lifesteal", level = 3 },
 			unicorn = { abilityId = "IdleStealth", level = 4 },
+			elephant = { abilityId = "AbsorbShield", level = 5 },
 		},
 		EquippedPets = { [1] = "snake", [2] = "caterpillar" },
 	}
@@ -155,6 +159,8 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 	assertEqual(currentV2.OwnedPets.snake.abilityId, "Poison", "Current version-2 Snake Poison AbilityID is not aliased")
 	assertEqual(currentV2.OwnedPets.caterpillar.abilityId, "Lifesteal", "Current version-2 Lifesteal AbilityID is not aliased")
 	assertEqual(currentV2.OwnedPets.unicorn.abilityId, "AbsorbShield", "Version-2 IdleStealth ownership migrates to Unicorn AbsorbShield")
+	assertEqual(currentV2.OwnedPets.elephant.level, 5, "Migrated Elephant keeps its Pet level")
+	assertEqual(currentV2.OwnedPets.elephant.abilityId, "IronBody", "Version-2 Elephant AbsorbShield identity migrates to IronBody")
 	assertEqual(currentV2.OwnedPets.snake.definitionId, nil, "V2 stale Pet definitionId is removed")
 	assertEqual(currentV2.OwnedPets.snake.effectId, nil, "V2 stale effectId is removed")
 	assertEqual(currentV2.OwnedPets.caterpillar.definitionId, nil, "V2 stale Caterpillar definitionId is removed")
@@ -361,9 +367,9 @@ runTest("Pet_Rarity_Assignments_Match_Redesigned_Tiers", function()
 	local expected = {
 		ExpBonus = "Common", MoveSpeedBoost = "Common",
 		LaunchBooster = "Rare", QuickReload = "Rare", Regeneration = "Rare", Lifesteal = "Rare", Burn = "Rare",
-		Poison = "Rare", MaxHPBoost = "Rare", DamageBoost = "Rare", AbsorbShield = "Rare",
-		Titan = "Epic", LastStand = "Epic", LauncherBoost = "Epic", FullForce = "Epic", ThornArmor = "Epic",
-		PetBaseBoost = "Legendary", IronBody = "Rare",
+		Poison = "Rare", MaxHPBoost = "Rare", DamageBoost = "Rare",
+		Titan = "Epic", LastStand = "Epic", LauncherBoost = "Epic", FullForce = "Epic", ThornArmor = "Epic", IronBody = "Rare",
+		PetBaseBoost = "Legendary", AbsorbShield = "Legendary",
 	}
 	assertEqual(#PetsConfig.GetAllAbilityIds(), 18, "AbilityID catalog count")
 	for abilityId, rarity in pairs(expected) do
