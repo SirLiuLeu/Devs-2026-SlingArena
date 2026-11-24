@@ -51,6 +51,8 @@ MockData.MOCK_SCHEMA_DEFAULTS = {
 	OnlineRewardState = { SchemaVersion = 1, CycleId = 1, RewardSetId = "", ElapsedSeconds = 0, ClaimedSlots = {}, LastSessionEndAt = 0, LastOnlineAt = 0 },
 	DailyLoginState = { SchemaVersion = 1, CycleId = 1, CurrentDay = 1, LastClaimDayKey = 0, SelectedBundleIds = {} },
 	OwnedPets = {},
+	-- Mock fixtures already use the canonical AbilityID roster; do not run legacy Pet identity aliases on them.
+	PetIdentityMigrationVersion = 3,
 	EquippedPets = { [1] = nil, [2] = nil, [3] = nil },
 	OwnedLaunchers = buildMockLauncherInventory(),
 	EquippedLauncherInstanceId = "default_normal_launcher",
