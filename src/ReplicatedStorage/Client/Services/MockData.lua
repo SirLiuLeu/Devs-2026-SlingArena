@@ -85,12 +85,12 @@ function MockData.GetShopState()
 	end
 
 	local pets = {}
-	for _, petId in ipairs(PetsConfig.GetAllIds()) do
-		local definition = PetsConfig.GetById(petId)
-		local price = PurchasePetConfig.GetPrice(petId)
+	for _, abilityId in ipairs(PetsConfig.GetAllAbilityIds()) do
+		local definition = PetsConfig.GetByAbilityId(abilityId)
+		local price = PurchasePetConfig.GetPrice(abilityId)
 		if definition and price ~= nil then
 			table.insert(pets, {
-				id = petId,
+				abilityId = abilityId,
 				name = definition.modelName,
 				modelName = definition.modelName,
 				rarity = definition.rarity,
