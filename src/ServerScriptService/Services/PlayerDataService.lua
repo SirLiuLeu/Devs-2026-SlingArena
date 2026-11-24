@@ -298,9 +298,10 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 					end
 				end
 				pet.abilityId = rawAbilityId
-				pet.definitionId = nil
-				pet.effectId = nil
 			end
+			-- These fields are obsolete even on already-migrated profiles.
+			pet.definitionId = nil
+			pet.effectId = nil
 		end
 		if type(pet) == "table" and RETIRED_PET_IDS[pet.abilityId] then
 			-- Remove content retired entirely from the Pet catalog.
