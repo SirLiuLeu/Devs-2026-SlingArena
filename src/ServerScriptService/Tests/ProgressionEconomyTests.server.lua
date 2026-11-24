@@ -60,11 +60,14 @@ runTest("Pet_Definitions_Use_AbilityID_As_Sole_Identity", function()
 	assertEqual(titan.effectId, nil, "Duplicate effectId field is removed")
 	assertEqual(titan.activeAbilityId, nil, "No separate active ability identifier is retained")
 	assertEqual(PetsConfig.GetByAbilityId("PlasmaCannon"), nil, "Retired Pet ID is not a catalog key")
-	assertEqual(PetsConfig.LegacyIdAliases.PlasmaCannon, "Titan", "Old Pet ID migrates to Titan AbilityID")
+	assertEqual(PetsConfig.LegacyPetDefinitionIdAliases.PlasmaCannon, "Titan", "Old Pet ID migrates to Titan AbilityID")
 	assertEqual(PetsConfig.GetByAbilityId("HealthCore"), nil, "Retired HealthCore ID is not a catalog key")
-	assertEqual(PetsConfig.LegacyIdAliases.HealthCore, "MaxHPBoost", "HealthCore migrates to its AbilityID")
+	assertEqual(PetsConfig.LegacyPetDefinitionIdAliases.HealthCore, "MaxHPBoost", "HealthCore migrates to its AbilityID")
 	assertEqual(PetsConfig.GetByAbilityId("Poison").modelName, "Snake", "Poison remains the Snake AbilityID")
-	assertEqual(PetsConfig.LegacyIdAliases.Poison, "Lifesteal", "Old Poison Pet ID migrates to Lifesteal")
+	assertEqual(PetsConfig.GetByAbilityId("Petrify"), nil, "Retired Petrify ability is not a catalog key")
+	assertEqual(PetsConfig.GetByAbilityId("Stun"), nil, "Retired Stun ability is not a catalog key")
+	assertEqual(PetsConfig.GetByAbilityId("Shield"), nil, "Retired Shield identifier is not a catalog key")
+	assertEqual(PetsConfig.LegacyPetDefinitionIdAliases.Poison, "Lifesteal", "Old Poison Pet ID migrates to Lifesteal")
 	assertEqual(titan.modelName, "Octopus", "Model name remains a visual asset reference")
 	assertEqual(titan.statModifiers, nil, "Empty stat modifier tables are omitted")
 end)
@@ -286,7 +289,7 @@ end)
 runTest("Pet_Rarity_Assignments_Match_Redesigned_Tiers", function()
 	local expected = {
 		ExpBonus = "Common", MoveSpeedBoost = "Common",
-		LaunchBooster = "Rare", QuickReload = "Rare", Regeneration = "Rare", Lifesteal = "Rare",
+		LaunchBooster = "Rare", QuickReload = "Rare", Regeneration = "Rare", Lifesteal = "Rare", Burn = "Rare",
 		Poison = "Rare", MaxHPBoost = "Rare", DamageBoost = "Rare", AbsorbShield = "Rare",
 		Titan = "Epic", LastStand = "Epic", LauncherBoost = "Epic", FullForce = "Epic", ThornArmor = "Epic",
 		PetBaseBoost = "Legendary", IdleStealth = "Legendary",
