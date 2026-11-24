@@ -152,7 +152,7 @@ local function getPetTrackPriority(name: string): Enum.AnimationPriority
 	return Enum.AnimationPriority.Action2
 end
 
-local function loadPetAnimationTracks(model: Model, abilityId: string, abilityId: string?): { [string]: AnimationTrack }
+local function loadPetAnimationTracks(model: Model, abilityId: string): { [string]: AnimationTrack }
 	local animationSet = PetAnimationConfig.GetByAbilityId(abilityId)
 	local animatorParent: Instance? = model:FindFirstChildOfClass("Humanoid")
 	if not animatorParent then
@@ -408,7 +408,7 @@ function ClientPetController:_createPet(owner: Player, slot: number, instanceId:
 		model = model,
 		transparencies = transparencies,
 		visible = true,
-		tracks = loadPetAnimationTracks(model, abilityId, definition.abilityId),
+		tracks = loadPetAnimationTracks(model, abilityId),
 		locomotionState = nil,
 		activeAction = nil,
 		isMoving = false,
