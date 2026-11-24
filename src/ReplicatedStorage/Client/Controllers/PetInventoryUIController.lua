@@ -223,12 +223,12 @@ function PetInventoryUIController:_populatePreview(slotRoot: Instance, definitio
 		warn("[PET_INVENTORY_UI] PetSlotTemplate_PetInventoryUI.Root.PetPreview ViewportFrame is missing.")
 		return
 	end
-	if preview:GetAttribute("RenderedPetId") == definition.PetId then
+	if preview:GetAttribute("RenderedPetId") == definition.type then
 		return
 	end
-	local previewConfig = PetPreviewConfig.Get(definition.PetId)
-	PreviewRenderer.Populate(preview, self._petAssets, definition.Name, previewConfig)
-	preview:SetAttribute("RenderedPetId", definition.PetId)
+	local previewConfig = PetPreviewConfig.Get(definition.type)
+	PreviewRenderer.Populate(preview, self._petAssets, definition.modelName, previewConfig)
+	preview:SetAttribute("RenderedPetId", definition.type)
 end
 
 function PetInventoryUIController:_bindSlotContent(slot: GuiObject, petEntry)
@@ -245,7 +245,7 @@ function PetInventoryUIController:_bindSlotContent(slot: GuiObject, petEntry)
 	local levelLabel = findDirectText(root, "Level")
 	local equippedTag = findDirectText(root, "EquippedTag")
 
-	if nameLabel then nameLabel.Text = definition.DisplayName end
+	if nameLabel then nameLabel.Text = definition.modelName end
 	if levelLabel then levelLabel.Text = string.format("Lv.%d", PetsUpgradeConfig.NormalizeLevel(tonumber(petEntry.level) or 1)) end
 	if equippedTag then
 		equippedTag.Visible = petEntry.equipped == true
@@ -361,7 +361,7 @@ function PetInventoryUIController:_refreshPetPanel(data)
 	local level = PetsUpgradeConfig.NormalizeLevel(tonumber(entry and entry.level) or 1)
 
 	if self._selectedName then
-		self._selectedName.Text = definition and definition.DisplayName or "No pet selected"
+		self._selectedName.Text = definition and definition.modelName or "No pet selected"
 	end
 
 	local isPreviewing = entry ~= nil and self._upgradePreviewPetId == petId
@@ -453,7 +453,7 @@ function PetInventoryUIController:_requestDeleteSelectedPet()
 
 	local text = ConfirmationTextConfig.Get(
 		"DeletePet",
-		{ petName = definition.DisplayName },
+		{ petName = definition.modelName },
 		LocalizationService.RobloxLocaleId
 	)
 	self._confirmationController:RequestConfirm(text, function()
