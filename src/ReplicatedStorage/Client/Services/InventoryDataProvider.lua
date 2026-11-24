@@ -31,7 +31,7 @@ export type InventorySnapshot = {
 	selectedLauncherId: string?,
 	ownedPets: { any },
 	equippedPets: { [any]: string },
-	selectedPetId: string?,
+	selectedPetInstanceId: string?,
 	lastUseResult: string?,
 	itemCooldownEnds: { [string]: number },
 	pendingLauncherInstanceId: string?,
@@ -143,7 +143,7 @@ function InventoryDataProvider.new()
 		launcherCapacity = 40,
 		selectedItemId = nil,
 		selectedLauncherId = nil,
-		selectedPetId = nil,
+		selectedPetInstanceId = nil,
 		lastUseResult = nil,
 		itemCooldownEnds = {},
 		pendingLauncherInstanceId = nil,
@@ -200,13 +200,13 @@ function InventoryDataProvider:GetSnapshot(): InventorySnapshot
 		itemCooldownEnds = table.clone(self._state.itemCooldownEnds),
 		ownedPets = clonePets(self._state.ownedPets),
 		equippedPets = table.clone(self._state.equippedPets),
-		selectedPetId = self._state.selectedPetId,
+		selectedPetInstanceId = self._state.selectedPetInstanceId,
 		petCapacity = self._state.petCapacity,
 	}
 end
 
 function InventoryDataProvider:_emitChanged()
-	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryData] emitChanged items=%d launchers=%d pet=%d selectedPet=%s t=%.3f", (function() local count = 0; for _ in pairs(self._state.ownedItems) do count += 1 end; return count end)(), #self._state.ownedLaunchers, #self._state.ownedPets, tostring(self._state.selectedPetId), os.clock())) end
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryData] emitChanged items=%d launchers=%d pet=%d selectedPet=%s t=%.3f", (function() local count = 0; for _ in pairs(self._state.ownedItems) do count += 1 end; return count end)(), #self._state.ownedLaunchers, #self._state.ownedPets, tostring(self._state.selectedPetInstanceId), os.clock())) end
 	self._changed:Fire(self:GetSnapshot())
 end
 
@@ -322,8 +322,8 @@ function InventoryDataProvider:SelectItem(itemId: string?)
 	self:_emitChanged()
 end
 
-function InventoryDataProvider:SelectPet(petId: string?)
-	self._state.selectedPetId = petId
+function InventoryDataProvider:SelectPet(petInstanceId: string?)
+	self._state.selectedPetInstanceId = petInstanceId
 	self:_emitChanged()
 end
 
@@ -412,18 +412,18 @@ function InventoryDataProvider.GetDefault()
 	return defaultProvider
 end
 
-function InventoryDataProvider:_findPetIndex(petId: string): number?
+function InventoryDataProvider:_findPetIndex(petInstanceId: string): number?
 	for index, entry in ipairs(self._state.ownedPets) do
-		if entry.instanceId == petId then return index end
+		if entry.instanceId == petInstanceId then return index end
 	end
 	return nil
 end
 
 function InventoryDataProvider:EquipSelectedPet(): boolean
 	print("[UI] Action called: Equip Item")
-	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryData] EquipSelectedPet selected=%s t=%.3f", tostring(self._state.selectedPetId), os.clock())) end
-	local petId = self._state.selectedPetId
-	local index = petId and self:_findPetIndex(petId)
+	if DebugConfig.VerboseTrace then print(string.format("[DIAG][InventoryData] EquipSelectedPet selected=%s t=%.3f", tostring(self._state.selectedPetInstanceId), os.clock())) end
+	local petInstanceId = self._state.selectedPetInstanceId
+	local index = petInstanceId and self:_findPetIndex(petInstanceId)
 	if not index then self:_emitChanged(); return false end
 	local selected = self._state.ownedPets[index]
 	if selected.equipped and unequipPetRemote then
@@ -441,8 +441,8 @@ function InventoryDataProvider:EquipSelectedPet(): boolean
 end
 
 function InventoryDataProvider:DeleteSelectedPet(): boolean
-	local petId = self._state.selectedPetId
-	local index = petId and self:_findPetIndex(petId)
+	local petInstanceId = self._state.selectedPetInstanceId
+	local index = petInstanceId and self:_findPetIndex(petInstanceId)
 	if not index then
 		return false
 	end
@@ -458,8 +458,8 @@ function InventoryDataProvider:DeleteSelectedPet(): boolean
 end
 
 function InventoryDataProvider:UnequipSelectedPet(): boolean
-	local petId = self._state.selectedPetId
-	local index = petId and self:_findPetIndex(petId)
+	local petInstanceId = self._state.selectedPetInstanceId
+	local index = petInstanceId and self:_findPetIndex(petInstanceId)
 	if not index then self:_emitChanged(); return false end
 	local selected = self._state.ownedPets[index]
 	if selected.equippedSlot and unequipPetRemote then unequipPetRemote:FireServer(selected.equippedSlot); return true end
