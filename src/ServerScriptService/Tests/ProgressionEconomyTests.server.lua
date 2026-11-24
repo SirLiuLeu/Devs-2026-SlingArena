@@ -156,7 +156,7 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 			unicorn = { abilityId = "IdleStealth", level = 4 },
 			elephant = { abilityId = "AbsorbShield", level = 5 },
 		},
-		EquippedPets = { [1] = "snake", [2] = "caterpillar" },
+		EquippedPets = { [1] = "snake", [2] = "caterpillar", [3] = "unicorn" },
 	}
 	PlayerDataService._ensurePetData(PlayerDataService, currentV2)
 	PlayerDataService._ensurePetData(PlayerDataService, currentV2)
