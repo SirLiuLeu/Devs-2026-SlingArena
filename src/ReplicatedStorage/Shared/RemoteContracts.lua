@@ -58,7 +58,6 @@ RemoteContracts.Names = {
 	UnequipPet = "UnequipPet",
 	DeletePet = "DeletePet",
 	UpgradePet = "UpgradePet",
-	RequestPetGrant = "RequestPetGrant",
 	EquipLauncher = "EquipLauncher",
 	UnequipLauncher = "UnequipLauncher",
 	PurchaseDinamondPack = "PurchaseDinamondPack",
@@ -238,8 +237,8 @@ RemoteContracts.Validators = {
 	[RemoteContracts.Names.PurchaseLauncher] = function(launcherId: any): boolean
 		return typeof(launcherId) == "string" and #launcherId > 0 and #launcherId <= 80
 	end,
-	[RemoteContracts.Names.PurchasePet] = function(petDefinitionId: any): boolean
-		return typeof(petDefinitionId) == "string" and #petDefinitionId > 0 and #petDefinitionId <= 128
+	[RemoteContracts.Names.PurchasePet] = function(abilityId: any): boolean
+		return typeof(abilityId) == "string" and #abilityId > 0 and #abilityId <= 128
 	end,
 	[RemoteContracts.Names.SellLauncher] = function(instanceId: any): boolean
 		return typeof(instanceId) == "string" and #instanceId > 0 and #instanceId <= 128
@@ -263,9 +262,6 @@ RemoteContracts.Validators = {
 			seen[instanceId] = true
 		end
 		return true
-	end,
-	[RemoteContracts.Names.RequestPetGrant] = function(definitionId: any): boolean
-		return typeof(definitionId) == "string" and #definitionId > 0 and #definitionId <= 128
 	end,
 	[RemoteContracts.Names.ReportLaunchStopped] = function(payload: any): boolean
 		if type(payload) ~= "table" then
