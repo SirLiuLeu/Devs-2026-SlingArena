@@ -15,11 +15,6 @@ PetAbilityProgressionConfig.Abilities = {
 		[15] = { expBonus = 0.45 }, [20] = { expBonus = 0.50 },
 		Level50 = { expBonus = 0.55 },
 	},
-	Shield = {
-		[1] = { damageMultiplier = 0.80 }, [5] = { damageMultiplier = 0.75 }, [10] = { damageMultiplier = 0.70 },
-		[15] = { damageMultiplier = 0.65 }, [20] = { damageMultiplier = 0.60 },
-		Level50 = { damageMultiplier = 0.55 },
-	},
 	Titan = {
 		[1] = { weightMultiplier = 1.00, hitboxMultiplier = 1.00, incomingKnockbackMultiplier = 0.90, outgoingKnockbackMultiplier = 1.10 },
 		[5] = { weightMultiplier = 1.06, hitboxMultiplier = 1.08, incomingKnockbackMultiplier = 0.86, outgoingKnockbackMultiplier = 1.14 },
@@ -90,37 +85,6 @@ PetAbilityProgressionConfig.Abilities = {
 		Level50 = { healAmount = 10, tickInterval = 1, healingReceivedMultiplier = 1.25 },
 	},
 	-- Separate projectile progression ID; this is not a Pet catalog type.
-	PlasmaCannon = {
-		[1] = { damage = 700, cooldown = 10, projectileSpeed = 15 },
-		[5] = { damage = 800, cooldown = 10, projectileSpeed = 60 },
-		[10] = { damage = 900, cooldown = 10, projectileSpeed = 60 },
-		[15] = { damage = 1000, cooldown = 10, projectileSpeed = 60 },
-		[20] = { damage = 1100, cooldown = 10, projectileSpeed = 60 },
-		Level50 = { damage = 1200, cooldown = 10, projectileSpeed = 60 },
-	},
-	SlowBlaster = {
-		[1] = { slowDuration = 3, cooldown = 8, projectileSpeed = 10, lifetime = 10 },
-		[5] = { slowDuration = 3.5, cooldown = 8, projectileSpeed = 15, lifetime = 10 },
-		[10] = { slowDuration = 4, cooldown = 8, projectileSpeed = 15, lifetime = 10 },
-		[15] = { slowDuration = 4.5, cooldown = 8, projectileSpeed = 15, lifetime = 10 },
-		[20] = { slowDuration = 5, cooldown = 8, projectileSpeed = 15, lifetime = 10 },
-		Level50 = { slowDuration = 5.5, cooldown = 8, projectileSpeed = 15, lifetime = 10 },
-	},
-	Slow = {
-		[1] = { collisionExtraDuration = 3 }, [5] = { collisionExtraDuration = 3.5 },
-		[10] = { collisionExtraDuration = 4 }, [15] = { collisionExtraDuration = 4.5 },
-		[20] = { collisionExtraDuration = 5 }, Level50 = { collisionExtraDuration = 5.5 },
-	},
-	Stun = {
-		[1] = { collisionExtraDuration = 1.25 }, [5] = { collisionExtraDuration = 1.33 },
-		[10] = { collisionExtraDuration = 1.42 }, [15] = { collisionExtraDuration = 1.51 },
-		[20] = { collisionExtraDuration = 1.60 }, Level50 = { collisionExtraDuration = 1.80 },
-	},
-	Petrify = {
-		[1] = { collisionExtraDuration = 5.0 }, [5] = { collisionExtraDuration = 5.2 },
-		[10] = { collisionExtraDuration = 5.4 }, [15] = { collisionExtraDuration = 5.8 },
-		[20] = { collisionExtraDuration = 6.0 }, Level50 = { collisionExtraDuration = 6.5 },
-	},
 	Burn = {
 		[1] = { damagePerTick = 250 }, [5] = { damagePerTick = 265 },
 		[10] = { damagePerTick = 285 }, [15] = { damagePerTick = 305 },
@@ -130,21 +94,6 @@ PetAbilityProgressionConfig.Abilities = {
 		[1] = { damagePerTick = 150 }, [5] = { damagePerTick = 160 },
 		[10] = { damagePerTick = 175 }, [15] = { damagePerTick = 185 },
 		[20] = { damagePerTick = 195 }, Level50 = { damagePerTick = 225 },
-	},
-	HealthCore = {
-		[1] = { maxHPBonus = 5000 }, [5] = { maxHPBonus = 5200 },
-		[10] = { maxHPBonus = 5450 }, [15] = { maxHPBonus = 5700 },
-		[20] = { maxHPBonus = 6000 }, Level50 = { maxHPBonus = 6500 },
-	},
-	PowerCore = {
-		[1] = { baseDamageBonus = 500 }, [5] = { baseDamageBonus = 520 },
-		[10] = { baseDamageBonus = 545 }, [15] = { baseDamageBonus = 570 },
-		[20] = { baseDamageBonus = 600 }, Level50 = { baseDamageBonus = 650 },
-	},
-	TurboModule = {
-		[1] = { moveSpeedBonus = 10 }, [5] = { moveSpeedBonus = 10.4 },
-		[10] = { moveSpeedBonus = 10.9 }, [15] = { moveSpeedBonus = 11.4 },
-		[20] = { moveSpeedBonus = 12 }, Level50 = { moveSpeedBonus = 13 },
 	},
 	LaunchBooster = {
 		[1] = { launchSpeedMultiplier = 1.20 }, [5] = { launchSpeedMultiplier = 1.205 },
