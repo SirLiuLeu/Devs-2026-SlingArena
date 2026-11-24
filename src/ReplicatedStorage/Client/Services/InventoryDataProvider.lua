@@ -108,7 +108,6 @@ local function clonePets(pets): { any }
 		if type(petEntry) ~= "table" then return end
 		local clonedEntry = table.clone(petEntry)
 		clonedEntry.instanceId = clonedEntry.instanceId or instanceId
-		clonedEntry.abilityId = clonedEntry.abilityId
 		clonedEntry.level = math.max(1, math.floor(tonumber(clonedEntry.level) or 1))
 		clonedEntry.isTemporary = nil
 		clonedEntry.expiresAt = nil
