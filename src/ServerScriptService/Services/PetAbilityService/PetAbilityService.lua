@@ -61,7 +61,6 @@ function PetAbilityService:Init()
 	self:RegisterEffect("Poison", require(petEffects.Poison))
 	self:RegisterEffect("Burn", require(petEffects.Burn))
 	self:RegisterEffect("Regeneration", require(petEffects.Regeneration))
-	self:RegisterEffect("IdleStealth", require(petEffects.IdleStealth))
 	local bus = self._context.EventBus
 	table.insert(self._connections, Players.PlayerRemoving:Connect(function(player)
 		local effects = self._activeEffects[player]
