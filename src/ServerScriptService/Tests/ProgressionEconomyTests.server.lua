@@ -57,13 +57,17 @@ runTest("Pet_Definitions_Use_AbilityID_As_Sole_Identity", function()
 	assertEqual(titan.PetId, nil, "Legacy PetId field is removed")
 	assertEqual(titan.effectId, nil, "Duplicate effectId field is removed")
 	assertEqual(titan.activeAbilityId, nil, "No separate active ability identifier is retained")
-	assertEqual(PetsConfig.GetByAbilityId("Titan"), nil, "Retired Pet ID is not a catalog key")
+	assertEqual(PetsConfig.GetByAbilityId("PlasmaCannon"), nil, "Retired Pet ID is not a catalog key")
 	assertEqual(PetsConfig.LegacyIdAliases.PlasmaCannon, "Titan", "Old Pet ID migrates to Titan AbilityID")
-	assertEqual(PetsConfig.GetByAbilityId("MaxHPBoost"), nil, "Retired HealthCore ID is not a catalog key")
+	assertEqual(PetsConfig.GetByAbilityId("HealthCore"), nil, "Retired HealthCore ID is not a catalog key")
 	assertEqual(PetsConfig.LegacyIdAliases.HealthCore, "MaxHPBoost", "HealthCore migrates to its AbilityID")
+	assertEqual(PetsConfig.GetByAbilityId("Poison").modelName, "Snake", "Poison remains the Snake AbilityID")
+	assertEqual(PetsConfig.LegacyIdAliases.Poison, "Lifesteal", "Old Poison Pet ID migrates to Lifesteal")
 	assertEqual(titan.modelName, "Octopus", "Model name remains a visual asset reference")
 	assertEqual(titan.statModifiers, nil, "Empty stat modifier tables are omitted")
-end)runTest("Pet_Linear_Cost_And_Rarity_Multipliers", function()
+end)
+
+runTest("Pet_Linear_Cost_And_Rarity_Multipliers", function()
 	assertEqual(PetsUpgradeConfig.GetUpgradeCost(1, "Common"), 50, "Common level 1 cost")
 	assertEqual(PetsUpgradeConfig.GetUpgradeCost(49, "Common"), 2450, "Common level 49 cost")
 	assertEqual(PetsUpgradeConfig.GetUpgradeCost(1, "Rare"), 63, "Rare rarity multiplier")
@@ -91,9 +95,9 @@ runTest("Pet_Ability_Milestones_Reach_80_And_100_Percent", function()
 	assertNear(burn20.damagePerTick, 325, "Burn level-20 damage")
 	assertNear(burn50.damagePerTick, 375, "Burn level-50 damage")
 
-	local poison1 = PetAbilityProgressionConfig.GetParams("Lifesteal", 1)
-	local poison20 = PetAbilityProgressionConfig.GetParams("Lifesteal", 20)
-	local poison50 = PetAbilityProgressionConfig.GetParams("Lifesteal", 50)
+	local poison1 = PetAbilityProgressionConfig.GetParams("Poison", 1)
+	local poison20 = PetAbilityProgressionConfig.GetParams("Poison", 20)
+	local poison50 = PetAbilityProgressionConfig.GetParams("Poison", 50)
 	assertNear(poison1.damagePerTick, 150, "Poison level-1 damage")
 	assertNear(poison20.damagePerTick, 195, "Poison level-20 damage")
 	assertNear(poison50.damagePerTick, 225, "Poison level-50 damage")
@@ -105,7 +109,9 @@ runTest("Pet_Ability_Milestones_Reach_80_And_100_Percent", function()
 	assertNear(PetAbilityProgressionConfig.GetParams("ExpBonus", 50).expBonus, 0.55, "ExpBonus level-50 target")
 	assertNear(PetAbilityProgressionConfig.GetParams("Regeneration", 50).healAmount, 10, "Regeneration fixed healing")
 	assertNear(PetAbilityProgressionConfig.GetParams("Regeneration", 50).tickInterval, 1, "Regeneration tick interval")
-end)runTest("Remaining_Pet_Abilities_Reach_Level_50_Targets", function()
+end)
+
+runTest("Remaining_Pet_Abilities_Reach_Level_50_Targets", function()
 	assertNear(PetAbilityProgressionConfig.GetParams("LastStand", 1).lastStandMaxDamageBonus, 0.20, "LastStand level-1 damage")
 	assertNear(PetAbilityProgressionConfig.GetParams("LastStand", 50).lastStandMaxDamageBonus, 0.40, "LastStand level-50 target")
 	assertNear(PetAbilityProgressionConfig.GetParams("FullForce", 1).fullForceDamageBonus, 0.10, "FullForce level-1 damage")
@@ -131,7 +137,9 @@ end)runTest("Remaining_Pet_Abilities_Reach_Level_50_Targets", function()
 	local thornProgression = PetProgression.Resolve(PetsConfig.GetByAbilityId("ThornArmor"), { abilityId = "ThornArmor", level = 50 })
 	assertNear(hpProgression.abilityParams.maxHPMultiplier, 1.25, "MaxHPBoost resolves final HP multiplier")
 	assertNear(thornProgression.abilityParams.reflectDamageBonus, 0.25, "ThornArmor resolves level-50 reflect")
-end)runTest("Level_Scaled_Pet_Stat_Bonuses_Override_Legacy_Static_Modifiers", function()
+end)
+
+runTest("Level_Scaled_Pet_Stat_Bonuses_Override_Legacy_Static_Modifiers", function()
 	local function buildProgression(abilityId: string, level: number)
 		return {
 			baseStats = {},
@@ -209,16 +217,18 @@ runTest("Pet_Rarity_Assignments_Match_Redesigned_Tiers", function()
 		assertEqual(PetsConfig.GetByAbilityId(abilityId).rarity, rarity, abilityId .. " rarity assignment")
 	end
 	assertEqual(#PurchasePetConfig.GetAllAbilityIds(), 18, "Every AbilityID retains a purchase price")
-end)runTest("Pet_Stat_Source_Layers_Do_Not_Amplify_The_Wrong_Stats", function()
+end)
+
+runTest("Pet_Stat_Source_Layers_Do_Not_Amplify_The_Wrong_Stats", function()
 	local launcher = {
 		maxHP = 1000, baseDamage = 100, moveSpeed = 20,
 		armor = 0.20, reflectDamage = 0.10, regen = 2, launchSpeed = 100,
 	}
-	local function progression(petId: string, level: number, baseHP: number?, baseDamage: number?)
+	local function progression(abilityId: string, level: number, baseHP: number?, baseDamage: number?)
 		return {
 			baseStats = { maxHP = baseHP or 0, baseDamage = baseDamage or 0 },
 			abilityParams = PetAbilityProgressionConfig.GetParams(abilityId, level),
-			definition = PetsConfig.GetByAbilityId(petId),
+			definition = PetsConfig.GetByAbilityId(abilityId),
 		}
 	end
 	local equipped = {
@@ -250,10 +260,10 @@ end)runTest("Pet_Stat_Source_Layers_Do_Not_Amplify_The_Wrong_Stats", function()
 end)
 
 runTest("Pet_Ability_Display_Templates_Resolve_All_Placeholders", function()
-	for _, petId in ipairs(PetsConfig.GetAllAbilityIds()) do
+	for _, abilityId in ipairs(PetsConfig.GetAllAbilityIds()) do
 		local definition = PetsConfig.GetByAbilityId(abilityId)
 		local display = PetDisplayFormatter.Format(definition, 1, false, "vi")
-		assertEqual(string.find(display.ScriptText, "?", 1, true), nil, petId .. " ability description has all values")
+		assertEqual(string.find(display.ScriptText, "?", 1, true), nil, abilityId .. " ability description has all values")
 	end
 end)
 
@@ -394,7 +404,9 @@ runTest("Shop_Pet_Catalog_Has_Price_And_Ability_Description_For_Every_Pet", func
 		assertEqual(display.ScriptText ~= "", true, "Pet ability display is non-empty: " .. abilityId)
 		assertEqual(type(PurchasePetConfig.GetPrice(abilityId)), "number", "Pet purchase price exists: " .. abilityId)
 	end
-end)runTest("PurchasePet_Remote_Validates_Pet_Definition_ID_Shape", function()
+end)
+
+runTest("PurchasePet_Remote_Validates_Pet_Definition_ID_Shape", function()
 	assertEqual(RemoteContracts.Validate(RemoteContracts.Names.PurchasePet, "Titan"), true, "Non-empty AbilityID accepted")
 	assertEqual(RemoteContracts.Validate(RemoteContracts.Names.PurchasePet, ""), false, "Empty Pet definition ID rejected")
 end)
