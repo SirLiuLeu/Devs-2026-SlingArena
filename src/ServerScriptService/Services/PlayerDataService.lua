@@ -35,10 +35,10 @@ end
 
 local RETIRED_PET_IDS = { SmokeBomb = true, MagnetCore = true }
 local HISTORICAL_PET_ID_ALIASES = {
-	ShadowCloakZ = "ShadowCloak",
+	ShadowCloakZ = "IdleStealth",
 	Pufferfish = "ThornArmor",
-	SlowBlaster = "Hydra",
-	TitanCore = "Dragon",
+	SlowBlaster = "LastStand",
+	TitanCore = "FullForce",
 }
 local PET_IDENTITY_MIGRATION_VERSION = 2
 local LAUNCHER_ID_ALIASES = {
@@ -285,11 +285,13 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 					end
 				end
 				if rawAbilityId then
-					for _ = 1, 3 do
-						local alias = HISTORICAL_PET_ID_ALIASES[rawAbilityId]
-							or PetsConfig.LegacyIdAliases[rawAbilityId]
-							or ABILITY_ID_ALIASES[rawAbilityId]
-						if type(alias) ~= "string" or alias == rawAbilityId then break end
+					-- Exactly one translation: alias targets are already canonical AbilityIDs.
+					-- Do not chain "Medusa" -> "Poison" -> "Lifesteal", because Poison
+					-- is also the current Snake AbilityID.
+					local alias = HISTORICAL_PET_ID_ALIASES[rawAbilityId]
+						or PetsConfig.LegacyIdAliases[rawAbilityId]
+						or ABILITY_ID_ALIASES[rawAbilityId]
+					if type(alias) == "string" and alias ~= "" then
 						rawAbilityId = alias
 					end
 				end
