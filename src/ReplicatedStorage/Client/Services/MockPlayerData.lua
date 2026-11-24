@@ -77,7 +77,7 @@ local MOCK_PLAYER_DATA = {
 		mock_QuickReload_1 = { abilityId = "QuickReload", level = 1, rarity = (PetsConfig.GetByAbilityId("QuickReload") and PetsConfig.GetByAbilityId("QuickReload").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_ThornArmor_1 = { abilityId = "ThornArmor", level = 1, rarity = (PetsConfig.GetByAbilityId("ThornArmor") and PetsConfig.GetByAbilityId("ThornArmor").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_Regeneration_1 = { abilityId = "Regeneration", level = 1, rarity = (PetsConfig.GetByAbilityId("Regeneration") and PetsConfig.GetByAbilityId("Regeneration").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_IdleStealth_1 = { abilityId = "IdleStealth", level = 1, rarity = (PetsConfig.GetByAbilityId("IdleStealth") and PetsConfig.GetByAbilityId("IdleStealth").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_IronBody_1 = { abilityId = "IronBody", level = 1, rarity = (PetsConfig.GetByAbilityId("IronBody") and PetsConfig.GetByAbilityId("IronBody").rarity) or "Common", acquiredAt = 1786924800 },
 	},
 	EquippedPets = { [1] = "mock_Lifesteal_1", [2] = "mock_Burn_1", [3] = "mock_LauncherBoost_1" },
 	Equipped = {

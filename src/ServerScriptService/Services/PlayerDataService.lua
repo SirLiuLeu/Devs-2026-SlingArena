@@ -35,12 +35,12 @@ end
 
 local RETIRED_PET_IDS = { SmokeBomb = true, MagnetCore = true }
 local HISTORICAL_PET_ID_ALIASES = {
-	ShadowCloakZ = "IdleStealth",
+	ShadowCloakZ = "AbsorbShield",
 	Pufferfish = "ThornArmor",
 	SlowBlaster = "LastStand",
 	TitanCore = "FullForce",
 }
-local PET_IDENTITY_MIGRATION_VERSION = 2
+local PET_IDENTITY_MIGRATION_VERSION = 3
 local LAUNCHER_ID_ALIASES = {
 	NormalLauncher = "Normalduck",
 	TitanBulwarkLauncher = "Kingduck",
@@ -60,7 +60,9 @@ local LAUNCHER_ID_ALIASES = {
 local ABILITY_ID_ALIASES = {
 	Fire = "Burn",
 	Regen = "Regeneration",
-	ShadowCloak = "IdleStealth",
+	AbsorbShield = "IronBody",
+	ShadowCloak = "AbsorbShield",
+	IdleStealth = "AbsorbShield",
 }
 
 local function currentMondayStamp(now: number): number
@@ -264,9 +266,9 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 		data.EquippedPets = {}
 	end
 
-	-- Version 2 stores canonical AbilityIDs directly. Never re-apply legacy aliases
-	-- after this version: e.g. "Poison" is now a valid AbilityID for the Snake Pet,
-	-- while the retired Pet definition formerly named "Poison" maps to "Lifesteal".
+	-- Version 3 stores the current 18 canonical AbilityIDs. Older profiles may still
+	-- contain IdleStealth/ShadowCloak; those records now belong to AbsorbShield (Unicorn).
+	-- Do not re-apply aliases once a profile is at the current version.
 	local previousMigrationVersion = tonumber(data.PetIdentityMigrationVersion) or 0
 	local needsIdentityMigration = previousMigrationVersion < PET_IDENTITY_MIGRATION_VERSION
 	local needsHistoricalModelSwap = previousMigrationVersion < 1
@@ -279,7 +281,14 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 				local hasLegacyDefinitionId = type(pet.definitionId) == "string" and pet.definitionId ~= ""
 				local rawAbilityId = if hasLegacyDefinitionId then pet.definitionId
 					else if type(pet.abilityId) == "string" and pet.abilityId ~= "" then pet.abilityId else nil
-				if rawAbilityId and hasLegacyDefinitionId and needsHistoricalModelSwap then
+				-- Some old profiles contain only the retired Pet key in abilityId. Resolve
+				-- those only when they are not valid current AbilityIDs, except AbsorbShield:
+				-- in schema v2 that key belonged to Elephant and now belongs to Unicorn.
+				local isCurrentAbilityId = rawAbilityId ~= nil
+					and PetsConfig.IsValidAbilityId(rawAbilityId)
+					and rawAbilityId ~= "AbsorbShield"
+				local shouldResolveLegacyPetId = hasLegacyDefinitionId or not isCurrentAbilityId
+				if rawAbilityId and shouldResolveLegacyPetId and needsHistoricalModelSwap then
 					if rawAbilityId == "Hydra" then
 						rawAbilityId = "Dragon"
 					elseif rawAbilityId == "Dragon" then
@@ -288,11 +297,18 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 				end
 				if rawAbilityId then
 					-- Exactly one translation: alias targets are already canonical AbilityIDs.
-					-- Pet-ID aliases only apply to legacy definitionId; ability-only
-					-- records may already contain a valid current AbilityID.
-					local alias = if hasLegacyDefinitionId
-						then HISTORICAL_PET_ID_ALIASES[rawAbilityId] or PetsConfig.LegacyPetDefinitionIdAliases[rawAbilityId] or ABILITY_ID_ALIASES[rawAbilityId]
-						else ABILITY_ID_ALIASES[rawAbilityId]
+					local alias
+					if hasLegacyDefinitionId then
+						alias = HISTORICAL_PET_ID_ALIASES[rawAbilityId]
+							or PetsConfig.LegacyPetDefinitionIdAliases[rawAbilityId]
+							or ABILITY_ID_ALIASES[rawAbilityId]
+					else
+						alias = ABILITY_ID_ALIASES[rawAbilityId]
+						if not alias and (not PetsConfig.IsValidAbilityId(rawAbilityId) or rawAbilityId == "AbsorbShield") then
+							alias = HISTORICAL_PET_ID_ALIASES[rawAbilityId]
+								or PetsConfig.LegacyPetDefinitionIdAliases[rawAbilityId]
+						end
+					end
 					if type(alias) == "string" and alias ~= "" then
 						rawAbilityId = alias
 					end

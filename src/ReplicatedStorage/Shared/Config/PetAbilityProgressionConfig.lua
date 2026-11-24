@@ -110,10 +110,12 @@ PetAbilityProgressionConfig.Abilities = {
 		[10] = { reflectDamageBonus = 0.215 }, [15] = { reflectDamageBonus = 0.225 },
 		[20] = { reflectDamageBonus = 0.24 }, Level50 = { reflectDamageBonus = 0.25 },
 	},
-	IdleStealth = {
-		[1] = { idleSeconds = 3.0 }, [5] = { idleSeconds = 2.9 },
-		[10] = { idleSeconds = 2.8 }, [15] = { idleSeconds = 2.65 },
-		[20] = { idleSeconds = 2.5 }, Level50 = { idleSeconds = 2.25 },
+	IronBody = {
+		-- Damage multiplier is the damage that remains after IronBody mitigation.
+		-- 0.80 at Level 1 = 20% reduction; 0.55 at Level 50 = 45% reduction.
+		[1] = { damageMultiplier = 0.80 }, [5] = { damageMultiplier = 0.75 },
+		[10] = { damageMultiplier = 0.70 }, [15] = { damageMultiplier = 0.65 },
+		[20] = { damageMultiplier = 0.60 }, Level50 = { damageMultiplier = 0.55 },
 	},
 }
 
