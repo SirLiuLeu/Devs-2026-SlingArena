@@ -24,7 +24,8 @@ PetAnimationConfig.Animations = {
 	Lifesteal = { Idle = "79761118977634", Run = "131793614901610", Dance = "76215975855168" }, -- Caterpillar
 	MaxHPBoost = { Idle = "71267273020156", Run = "127885756125728", Dance = "72877466735478" }, -- Pig
 	DamageBoost = { Idle = "132080786710960", Run = "81491739793302", Dance = "86177773442474" }, -- Panda
-	AbsorbShield = { Idle = "79761118977634", Run = "131793614901610", Dance = "76215975855168" }, -- Elephant
+	IronBody = { Idle = "79761118977634", Run = "131793614901610", Dance = "76215975855168" }, -- Elephant
+	AbsorbShield = { Idle = "", Run = "", Dance = "" }, -- Unicorn
 	ExpBonus = { Idle = "132080786710960", Run = "81491739793302", Dance = "86177773442474" }, -- Monkey
 	MoveSpeedBoost = { Idle = "133591929877071", Run = "131268154069931", Dance = "76215975855168" }, -- Bunny
 	LaunchBooster = { Idle = "116527000708684", Run = "116927071134069", Dance = "109293602352910" }, -- Bee
@@ -32,7 +33,6 @@ PetAnimationConfig.Animations = {
 	QuickReload = { Idle = "79761118977634", Run = "131793614901610", Dance = "76215975855168" }, -- Dog
 	ThornArmor = { Idle = "", Run = "", Dance = "" }, -- Pufferfish
 	Regeneration = { Idle = "133996742170487", Run = "92449512649739", Dance = "127823569164030" }, -- Fish
-	IdleStealth = { Idle = "", Run = "", Dance = "" }, -- Unicorn
 } :: { [string]: PetAnimationSet }
 
 local EMPTY_SET: PetAnimationSet = {
