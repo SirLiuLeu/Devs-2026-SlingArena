@@ -65,10 +65,7 @@ PetsConfig.LegacyIdAliases = {
 	Shield = "AbsorbShield",
 	BrainBoost = "ExpBonus",
 	TurboModule = "MoveSpeedBoost",
-	LaunchBooster = "LaunchBooster",
 	Dragon = "FullForce",
-	QuickReload = "QuickReload",
-	ThornArmor = "ThornArmor",
 	RegenBooster = "Regeneration",
 	ShadowCloak = "IdleStealth",
 
