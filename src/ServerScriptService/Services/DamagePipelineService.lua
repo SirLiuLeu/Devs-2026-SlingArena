@@ -289,12 +289,12 @@ function DamagePipelineService:_getEquippedPetProgressions(player: Player): { an
 	return PetStatResolver.GetEquippedProgressions(owned, equipped)
 end
 
-function DamagePipelineService:_getPetAbilityParams(player: Player, petId: string, paramName: string): number
+function DamagePipelineService:_getPetAbilityParams(player: Player, abilityId: string, paramName: string): number
 	local bestValue = 0
 	for _, progression in ipairs(self:_getEquippedPetProgressions(player)) do
 		local definition = progression.definition
 		local params = progression.abilityParams
-		if type(definition) == "table" and definition.type == petId and type(params) == "table" then
+		if type(definition) == "table" and definition.abilityId == abilityId and type(params) == "table" then
 			bestValue = math.max(bestValue, tonumber(params[paramName]) or 0)
 		end
 	end
@@ -306,8 +306,8 @@ function DamagePipelineService:_applyAbsorbShield(victim: Player, incomingDamage
 	if amount <= 0 then return 0 end
 	if bypass == true then return amount end
 
-	local capacity = self:_getPetAbilityParams(victim, "Shield", "absorbCapacity")
-	local refreshInterval = self:_getPetAbilityParams(victim, "Shield", "refreshInterval")
+	local capacity = self:_getPetAbilityParams(victim, "AbsorbShield", "absorbCapacity")
+	local refreshInterval = self:_getPetAbilityParams(victim, "AbsorbShield", "refreshInterval")
 	if capacity <= 0 or refreshInterval <= 0 then
 		self._absorbShieldStates[victim] = nil
 		return amount
@@ -350,7 +350,7 @@ function DamagePipelineService:_getConditionalPetDamageMultiplier(attacker: Play
 	local fullForceBonus = 0
 	local lastStandBonus = 0
 	for _, progression in ipairs(self:_getEquippedPetProgressions(attacker)) do
-		local petId = progression.definition and progression.definition.type
+		local petId = progression.definition and progression.definition.abilityId
 		local params = progression.abilityParams or {}
 		if petId == "Dragon" then
 			fullForceBonus = math.max(fullForceBonus, (tonumber(params.fullForceDamageBonus) or 0) * healthRatio)
@@ -653,33 +653,18 @@ function DamagePipelineService:_applyPetCombatEffectsFromHit(victim: Player, att
 	for slot = 1, 3 do
 		local instanceId = equipped[slot]
 		local instance = instanceId and owned[instanceId]
-		local definition = type(instance) == "table" and PetsConfig.GetById(tostring(instance.definitionId or "")) or nil
+		local definition = type(instance) == "table" and PetsConfig.GetByAbilityId(tostring(instance.abilityId or "")) or nil
 		local combatEffect = definition and definition.combatEffect
 		if combatEffect then
 			local flagName = combatEffect.dotFlag or combatEffect.collisionFlag
 			local effectConfig = flagName and PET_EFFECT_OVERRIDES[flagName]
 			if effectConfig then
-				if flagName == "Petrify" and combatEffect.cannotPetrifyPetIds then
-					local victimOwned = dataService:GetOwnedPets(victim)
-					local victimEquipped = dataService:GetEquippedPets(victim)
-					local immune = false
-					for victimSlot = 1, 3 do
-						local victimInstance = victimEquipped[victimSlot] and victimOwned[victimEquipped[victimSlot]]
-						if type(victimInstance) == "table" and combatEffect.cannotPetrifyPetIds[tostring(victimInstance.definitionId)] then
-							immune = true
-							break
-						end
-					end
-					if immune then
-						continue
-					end
-				end
 				local merged = mergeEffectDefaults(effectConfig)
 				local duration = math.max(0, tonumber(combatEffect.collisionExtraDuration or merged.Duration) or 0)
 				if duration > 0 then
 					stateService:ApplyFlag(victim, flagName, duration, attacker, {
 						SourceId = getSourceId(attacker) .. ":PetSlot" .. tostring(slot),
-						PetId = definition.type,
+						AbilityId = definition.abilityId,
 						PetInstanceId = instanceId,
 						TickInterval = merged.TickInterval,
 						DamagePerTick = merged.DamagePerTick,
