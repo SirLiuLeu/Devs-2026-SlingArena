@@ -136,8 +136,8 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 		OwnedItems = {},
 		PetIdentityMigrationVersion = 2,
 		OwnedPets = {
-			snake = { abilityId = "Poison", level = 2 },
-			caterpillar = { abilityId = "Lifesteal", level = 3 },
+			snake = { abilityId = "Poison", definitionId = "Medusa", effectId = "Petrify", level = 2 },
+			caterpillar = { abilityId = "Lifesteal", definitionId = "Poison", effectId = "Lifesteal", level = 3 },
 		},
 		EquippedPets = { [1] = "snake", [2] = "caterpillar" },
 	}
@@ -145,6 +145,10 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 	PlayerDataService._ensurePetData(PlayerDataService, currentV2)
 	assertEqual(currentV2.OwnedPets.snake.abilityId, "Poison", "Current version-2 Snake Poison AbilityID is not aliased")
 	assertEqual(currentV2.OwnedPets.caterpillar.abilityId, "Lifesteal", "Current version-2 Lifesteal AbilityID is not aliased")
+	assertEqual(currentV2.OwnedPets.snake.definitionId, nil, "V2 stale Pet definitionId is removed")
+	assertEqual(currentV2.OwnedPets.snake.effectId, nil, "V2 stale effectId is removed")
+	assertEqual(currentV2.OwnedPets.caterpillar.definitionId, nil, "V2 stale Caterpillar definitionId is removed")
+	assertEqual(currentV2.OwnedPets.caterpillar.effectId, nil, "V2 stale Caterpillar effectId is removed")
 	assertEqual(currentV2.EquippedPets[1], "snake", "Version-2 Snake instance remains equipped")
 	assertEqual(currentV2.EquippedPets[2], "caterpillar", "Version-2 Caterpillar instance remains equipped")
 	assertEqual(currentV2.PetIdentityMigrationVersion, 2, "Repeated normalization remains at version 2")
