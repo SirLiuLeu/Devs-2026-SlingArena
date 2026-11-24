@@ -3,8 +3,7 @@
 local NoOp = {}
 
 local function diagnostic(context, lifecycle: string)
-	local passive = context.definition and context.definition.passiveAbility
-	local params = type(passive) == "table" and passive.params or nil
+	local params = context.definition and context.definition.effectParams
 	local message = type(params) == "table" and params.diagnostic or nil
 	if type(message) == "string" and message ~= "" then
 		warn(string.format("[PET_EFFECT][%s] %s (%s)", lifecycle, message, tostring(context.definition.PetId)))
