@@ -61,12 +61,11 @@ local function findOwnedPet(ownedPets: any, instanceId: string): any?
 	return nil
 end
 
-local function getDefinitionId(ownedPet: any, instanceId: string): string?
+local function getAbilityId(ownedPet: any, instanceId: string): string?
 	if type(ownedPet) == "table" then
 		local abilityId = ownedPet.abilityId
 		if type(abilityId) == "string" and abilityId ~= "" then return abilityId end
 	end
-	if PetsConfig.GetByAbilityId(instanceId) then return instanceId end
 	return nil
 end
 
@@ -345,7 +344,7 @@ function ClientPetController:_getDesiredPet(owner: Player, slot: number): (strin
 		if instanceValue == nil then return nil, nil end
 		local instanceId = tostring(instanceValue)
 		local ownedPet = findOwnedPet(ownedPets, instanceId)
-		local abilityId = getDefinitionId(ownedPet, instanceId)
+		local abilityId = getAbilityId(ownedPet, instanceId)
 		return instanceId, abilityId
 	end
 
