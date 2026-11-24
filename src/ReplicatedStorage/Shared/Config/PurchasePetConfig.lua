@@ -9,30 +9,30 @@ local PurchasePetConfig = {}
 
 PurchasePetConfig.Prices = {
 	-- Common
-	BrainBoost = 200,
-	TurboModule = 250,
+	ExpBonus = 200,
+	MoveSpeedBoost = 250,
 
 	-- Rare
 	LaunchBooster = 450,
 	QuickReload = 400,
-	RegenBooster = 450,
-	Poison = 450,
-	Medusa = 700,
-	GhostFlame = 650,
-	HealthCore = 400,
-	PowerCore = 400,
-	Shield = 650,
+	Regeneration = 450,
+	Lifesteal = 450,
+	Poison = 700,
+	Burn = 650,
+	MaxHPBoost = 400,
+	DamageBoost = 400,
+	AbsorbShield = 650,
 
 	-- Epic
 	Titan = 1000,
-	Hydra = 1100,
-	ThunderHammer = 1000,
-	Dragon = 1000,
+	LastStand = 1100,
+	LauncherBoost = 1000,
+	FullForce = 1000,
 	ThornArmor = 1000,
 
 	-- Legendary
-	IceCrystal = 1600,
-	ShadowCloak = 1600,
+	PetBaseBoost = 1600,
+	IdleStealth = 1600,
 }
 
 function PurchasePetConfig.GetPrice(abilityId: string): number?
