@@ -31,7 +31,7 @@ local RUN_SPEED_THRESHOLD = 1.5
 
 type RenderedPet = {
 	instanceId: string,
-	definitionId: string,
+	abilityId: string,
 	model: Model,
 	transparencies: { [Instance]: number },
 	visible: boolean,
@@ -63,10 +63,10 @@ end
 
 local function getDefinitionId(ownedPet: any, instanceId: string): string?
 	if type(ownedPet) == "table" then
-		local definitionId = ownedPet.definitionId or ownedPet.id
-		if type(definitionId) == "string" and definitionId ~= "" then return definitionId end
+		local abilityId = ownedPet.abilityId
+		if type(abilityId) == "string" and abilityId ~= "" then return abilityId end
 	end
-	if PetsConfig.GetById(instanceId) then return instanceId end
+	if PetsConfig.GetByAbilityId(instanceId) then return instanceId end
 	return nil
 end
 
@@ -153,8 +153,8 @@ local function getPetTrackPriority(name: string): Enum.AnimationPriority
 	return Enum.AnimationPriority.Action2
 end
 
-local function loadPetAnimationTracks(model: Model, definitionId: string, abilityId: string?): { [string]: AnimationTrack }
-	local animationSet = PetAnimationConfig.GetById(definitionId, abilityId)
+local function loadPetAnimationTracks(model: Model, abilityId: string, abilityId: string?): { [string]: AnimationTrack }
+	local animationSet = PetAnimationConfig.GetByAbilityId(abilityId)
 	local animatorParent: Instance? = model:FindFirstChildOfClass("Humanoid")
 	if not animatorParent then
 		animatorParent = model:FindFirstChildOfClass("AnimationController")
@@ -204,7 +204,7 @@ local function loadPetAnimationTracks(model: Model, definitionId: string, abilit
 				track.Priority = getPetTrackPriority(name)
 				tracks[name] = track
 			else
-				warn(string.format("[CLIENT_PET_ANIMATION] Failed to load %s for %s: %s", name, definitionId, tostring(trackOrError)))
+				warn(string.format("[CLIENT_PET_ANIMATION] Failed to load %s for %s: %s", name, abilityId, tostring(trackOrError)))
 			end
 		end
 	end
@@ -345,16 +345,16 @@ function ClientPetController:_getDesiredPet(owner: Player, slot: number): (strin
 		if instanceValue == nil then return nil, nil end
 		local instanceId = tostring(instanceValue)
 		local ownedPet = findOwnedPet(ownedPets, instanceId)
-		local definitionId = getDefinitionId(ownedPet, instanceId)
-		return instanceId, definitionId
+		local abilityId = getDefinitionId(ownedPet, instanceId)
+		return instanceId, abilityId
 	end
 
 	local instanceId = owner:GetAttribute(string.format("EquippedPetSlot%dInstanceId", slot))
-	local definitionId = owner:GetAttribute(string.format("EquippedPetSlot%dDefinitionId", slot))
-	if type(instanceId) ~= "string" or instanceId == "" or type(definitionId) ~= "string" or definitionId == "" then
+	local abilityId = owner:GetAttribute(string.format("EquippedPetSlot%dAbilityId", slot))
+	if type(instanceId) ~= "string" or instanceId == "" or type(abilityId) ~= "string" or abilityId == "" then
 		return nil, nil
 	end
-	return instanceId, definitionId
+	return instanceId, abilityId
 end
 
 function ClientPetController:_destroyPet(owner: Player, slot: number)
@@ -377,21 +377,21 @@ function ClientPetController:_destroyOwnerModels(owner: Player)
 	self._renderedPets[owner] = nil
 end
 
-function ClientPetController:_createPet(owner: Player, slot: number, instanceId: string, definitionId: string): RenderedPet?
-	local definition = PetsConfig.GetById(definitionId)
+function ClientPetController:_createPet(owner: Player, slot: number, instanceId: string, abilityId: string): RenderedPet?
+	local definition = PetsConfig.GetByAbilityId(abilityId)
 	if not definition then
-		if not self._failedModels[definitionId] then
-			warn(string.format("[CLIENT_PET] Unknown pet definition %q for player %s", definitionId, owner.Name))
-			self._failedModels[definitionId] = true
+		if not self._failedModels[abilityId] then
+			warn(string.format("[CLIENT_PET] Unknown pet definition %q for player %s", abilityId, owner.Name))
+			self._failedModels[abilityId] = true
 		end
 		return nil
 	end
-	local modelName = definition.modelName or definitionId
+	local modelName = definition.modelName or abilityId
 	local source = self._assets:FindFirstChild(modelName)
 	if not source or not source:IsA("Model") then
-		if not self._failedModels[definitionId] then
+		if not self._failedModels[abilityId] then
 			warn(string.format("[CLIENT_PET] Missing pet model %q for equipped pet %q", modelName, instanceId))
-			self._failedModels[definitionId] = true
+			self._failedModels[abilityId] = true
 		end
 		return nil
 	end
@@ -405,11 +405,11 @@ function ClientPetController:_createPet(owner: Player, slot: number, instanceId:
 	model.Parent = self._renderFolder
 	local rendered: RenderedPet = {
 		instanceId = instanceId,
-		definitionId = definitionId,
+		abilityId = abilityId,
 		model = model,
 		transparencies = transparencies,
 		visible = true,
-		tracks = loadPetAnimationTracks(model, definitionId, definition.abilityId),
+		tracks = loadPetAnimationTracks(model, abilityId, definition.abilityId),
 		locomotionState = nil,
 		activeAction = nil,
 		isMoving = false,
@@ -431,14 +431,14 @@ function ClientPetController:_reconcileOwner(owner: Player)
 
 	self._renderedPets[owner] = self._renderedPets[owner] or {}
 	for slot = 1, PetsConfig.EquippedSlotCount do
-		local instanceId, definitionId = self:_getDesiredPet(owner, slot)
+		local instanceId, abilityId = self:_getDesiredPet(owner, slot)
 		local ownerPets = self._renderedPets[owner]
 		local rendered = ownerPets and ownerPets[slot]
-		if not instanceId or not definitionId then
+		if not instanceId or not abilityId then
 			self:_destroyPet(owner, slot)
-		elseif not rendered or rendered.instanceId ~= instanceId or rendered.definitionId ~= definitionId or rendered.model.Parent == nil then
+		elseif not rendered or rendered.instanceId ~= instanceId or rendered.abilityId ~= abilityId or rendered.model.Parent == nil then
 			self:_destroyPet(owner, slot)
-			local newRendered = self:_createPet(owner, slot, instanceId, definitionId)
+			local newRendered = self:_createPet(owner, slot, instanceId, abilityId)
 			if newRendered then
 				self._renderedPets[owner] = self._renderedPets[owner] or {}
 				self._renderedPets[owner][slot] = newRendered
@@ -507,7 +507,7 @@ function ClientPetController:_playPetAttack(ownerUserId: any, petId: any)
 	for owner, ownerPets in pairs(self._renderedPets) do
 		if owner.UserId == numericOwnerUserId then
 			for _, rendered in pairs(ownerPets) do
-				if rendered.definitionId == petId then
+				if rendered.abilityId == petId then
 					playPetAction(rendered, "Attack")
 				end
 			end
