@@ -50,22 +50,22 @@ function ShopService:_sendPurchaseFeedback(player: Player, success: boolean, pur
 	end
 end
 
-function ShopService:PurchasePet(player: Player, definitionId: string): boolean
-	local price = PurchasePetConfig.GetPrice(definitionId)
+function ShopService:PurchasePet(player: Player, abilityId: string): boolean
+	local price = PurchasePetConfig.GetPrice(abilityId)
 	local dataService = ServiceResolver.Get(self._context, "PlayerDataService")
 	if price == nil or not dataService then
-		self:_sendPurchaseFeedback(player, false, "Pet", definitionId, "Unavailable")
+		self:_sendPurchaseFeedback(player, false, "Pet", abilityId, "Unavailable")
 		return false
 	end
 
-	local success, reason, instanceId = dataService:PurchasePet(player, definitionId, price)
+	local success, reason, instanceId = dataService:PurchasePet(player, abilityId, price)
 	if not success then
-		self:_sendPurchaseFeedback(player, false, "Pet", definitionId, reason or "PurchaseRejected")
+		self:_sendPurchaseFeedback(player, false, "Pet", abilityId, reason or "PurchaseRejected")
 		return false
 	end
 
 	self:_publishState(player)
-	self:_sendPurchaseFeedback(player, true, "Pet", definitionId)
+	self:_sendPurchaseFeedback(player, true, "Pet", abilityId)
 	return instanceId ~= nil
 end
 
