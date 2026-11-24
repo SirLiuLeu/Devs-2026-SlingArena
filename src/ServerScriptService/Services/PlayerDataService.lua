@@ -264,35 +264,39 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 		data.EquippedPets = {}
 	end
 
-	-- Migration v1 previously swapped legacy Hydra/Dragon model IDs. Apply that
-	-- historical correction only to unmigrated definitionId records, then map every
-	-- retired Pet catalog ID to its owning canonical AbilityID.
+	-- Version 2 stores canonical AbilityIDs directly. Never re-apply legacy aliases
+	-- after this version: e.g. "Poison" is now a valid AbilityID for the Snake Pet,
+	-- while the retired Pet definition formerly named "Poison" maps to "Lifesteal".
 	local previousMigrationVersion = tonumber(data.PetIdentityMigrationVersion) or 0
+	local needsIdentityMigration = previousMigrationVersion < PET_IDENTITY_MIGRATION_VERSION
 	local needsHistoricalModelSwap = previousMigrationVersion < 1
 	for instanceId, pet in pairs(data.OwnedPets) do
 		if type(pet) == "table" then
-			local legacyDefinitionId = pet.definitionId
-			local rawAbilityId = if type(pet.abilityId) == "string" and pet.abilityId ~= "" then pet.abilityId
-				else if type(legacyDefinitionId) == "string" then legacyDefinitionId else nil
-			if type(pet.abilityId) ~= "string" or pet.abilityId == "" then
-				if needsHistoricalModelSwap and rawAbilityId == "Hydra" then
-					rawAbilityId = "Dragon"
-				elseif needsHistoricalModelSwap and rawAbilityId == "Dragon" then
-					rawAbilityId = "Hydra"
+			if needsIdentityMigration then
+				-- Prefer the old definitionId because legacy abilityId/effectId fields
+				-- described runtime effects, not the owning Pet identity.
+				local rawAbilityId = if type(pet.definitionId) == "string" and pet.definitionId ~= "" then pet.definitionId
+					else if type(pet.abilityId) == "string" and pet.abilityId ~= "" then pet.abilityId else nil
+				if rawAbilityId and needsHistoricalModelSwap then
+					if rawAbilityId == "Hydra" then
+						rawAbilityId = "Dragon"
+					elseif rawAbilityId == "Dragon" then
+						rawAbilityId = "Hydra"
+					end
 				end
-			end
-			if rawAbilityId then
-				for _ = 1, 3 do
-					local alias = HISTORICAL_PET_ID_ALIASES[rawAbilityId]
-						or PetsConfig.LegacyIdAliases[rawAbilityId]
-						or ABILITY_ID_ALIASES[rawAbilityId]
-					if type(alias) ~= "string" or alias == rawAbilityId then break end
-					rawAbilityId = alias
+				if rawAbilityId then
+					for _ = 1, 3 do
+						local alias = HISTORICAL_PET_ID_ALIASES[rawAbilityId]
+							or PetsConfig.LegacyIdAliases[rawAbilityId]
+							or ABILITY_ID_ALIASES[rawAbilityId]
+						if type(alias) ~= "string" or alias == rawAbilityId then break end
+						rawAbilityId = alias
+					end
 				end
+				pet.abilityId = rawAbilityId
+				pet.definitionId = nil
+				pet.effectId = nil
 			end
-			pet.abilityId = rawAbilityId
-			pet.definitionId = nil
-			pet.effectId = nil
 		end
 		if type(pet) == "table" and RETIRED_PET_IDS[pet.abilityId] then
 			-- Remove content retired entirely from the Pet catalog.
