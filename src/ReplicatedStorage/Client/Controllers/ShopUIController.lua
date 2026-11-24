@@ -422,9 +422,9 @@ function ShopUIController:_getPetScript(petEntry): string
 		if ok and type(formatted) == "table" and type(formatted.ScriptText) == "string" then
 			return formatted.ScriptText
 		end
-		return definition.script or "Chưa có mô tả cho Pet này."
+		return "Mô tả ability chưa khả dụng."
 	end
-	return petEntry.script or "Chưa có mô tả cho Pet này."
+	return "Mô tả ability chưa khả dụng."
 end
 
 function ShopUIController:_renderItems(snapshot)
