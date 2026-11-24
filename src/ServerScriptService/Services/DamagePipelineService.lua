@@ -350,11 +350,11 @@ function DamagePipelineService:_getConditionalPetDamageMultiplier(attacker: Play
 	local fullForceBonus = 0
 	local lastStandBonus = 0
 	for _, progression in ipairs(self:_getEquippedPetProgressions(attacker)) do
-		local petId = progression.definition and progression.definition.abilityId
+		local abilityId = progression.definition and progression.definition.abilityId
 		local params = progression.abilityParams or {}
-		if petId == "Dragon" then
+		if abilityId == "FullForce" then
 			fullForceBonus = math.max(fullForceBonus, (tonumber(params.fullForceDamageBonus) or 0) * healthRatio)
-		elseif petId == "Hydra" then
+		elseif abilityId == "LastStand" then
 			local maxBonus = tonumber(params.lastStandMaxDamageBonus) or 0
 			local healthFactor = math.clamp((0.8 - healthRatio) / 0.6, 0, 1)
 			lastStandBonus = math.max(lastStandBonus, maxBonus * healthFactor)
