@@ -169,7 +169,7 @@ PetsConfig.Definitions = {
 		category = PetsConfig.Categories.ConditionalEffect,
 	}),
 	QuickReload = pet("QuickReload", {
-		modelName = "Dog",
+		modelName = "Cat",
 		rarity = PetsConfig.Rarities.Rare,
 		category = PetsConfig.Categories.PassiveStatModifier,
 	}),
