@@ -62,15 +62,15 @@ PetsConfig.LegacyPetDefinitionIdAliases = {
 	Poison = "Lifesteal",
 	HealthCore = "MaxHPBoost",
 	PowerCore = "DamageBoost",
-	Shield = "AbsorbShield",
+	Shield = "IronBody",
 	BrainBoost = "ExpBonus",
 	TurboModule = "MoveSpeedBoost",
 	Dragon = "FullForce",
 	RegenBooster = "Regeneration",
-	ShadowCloak = "IdleStealth",
+	ShadowCloak = "AbsorbShield",
 
 	-- Older aliases retained from historical catalog migrations.
-	ShadowCloakZ = "IdleStealth",
+	ShadowCloakZ = "AbsorbShield",
 	Pufferfish = "ThornArmor",
 	SlowBlaster = "LastStand",
 	TitanCore = "FullForce",
@@ -138,8 +138,13 @@ PetsConfig.Definitions = {
 		rarity = PetsConfig.Rarities.Rare,
 		category = PetsConfig.Categories.PassiveStatModifier,
 	}),
-	AbsorbShield = pet("AbsorbShield", {
+	IronBody = pet("IronBody", {
 		modelName = "Elephant",
+		rarity = PetsConfig.Rarities.Rare,
+		category = PetsConfig.Categories.PassiveStatModifier,
+	}),
+	AbsorbShield = pet("AbsorbShield", {
+		modelName = "Unicorn",
 		rarity = PetsConfig.Rarities.Rare,
 		category = PetsConfig.Categories.UtilityAreaEffect,
 	}),
@@ -177,12 +182,6 @@ PetsConfig.Definitions = {
 		modelName = "Fish",
 		rarity = PetsConfig.Rarities.Rare,
 		category = PetsConfig.Categories.RegenerationHealing,
-	}),
-	IdleStealth = pet("IdleStealth", {
-		modelName = "Unicorn",
-		rarity = PetsConfig.Rarities.Legendary,
-		category = PetsConfig.Categories.ConditionalEffect,
-		effectParams = { idleSeconds = 3 },
 	}),
 }
 
