@@ -422,7 +422,7 @@ runTest("Shop_Catalog_Has_All_Configured_Items_And_Launchers", function()
 	end
 end)
 
-runTest("Shop_Pet_Catalog_Has_Price_And_Script_For_Every_Pet", function()
+runTest("Shop_Pet_Catalog_Has_Price_And_Ability_Description_For_Every_Pet", function()
 	assertEqual(#PetsConfig.GetAllIds(), 18, "All Pet definitions are available")
 	assertEqual(#PurchasePetConfig.GetAllIds(), 18, "Every Pet has a purchase price")
 	for _, petId in ipairs(PetsConfig.GetAllIds()) do
