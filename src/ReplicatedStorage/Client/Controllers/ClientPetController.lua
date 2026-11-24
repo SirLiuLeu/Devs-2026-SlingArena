@@ -500,20 +500,6 @@ function ClientPetController:_unwatchPlayer(player: Player)
 	self._ownerLastPositions[player] = nil
 end
 
-function ClientPetController:_playPetAttack(ownerUserId: any, petId: any)
-	local numericOwnerUserId = tonumber(ownerUserId)
-	if not numericOwnerUserId or type(petId) ~= "string" or petId == "" then return end
-	for owner, ownerPets in pairs(self._renderedPets) do
-		if owner.UserId == numericOwnerUserId then
-			for _, rendered in pairs(ownerPets) do
-				if rendered.abilityId == petId then
-					playPetAction(rendered, "Attack")
-				end
-			end
-			return
-		end
-	end
-end
 
 function ClientPetController:_playVictoryDance()
 	local ownerPets = self._renderedPets[self._player]
@@ -616,14 +602,6 @@ function ClientPetController:Start()
 		end))
 	end
 
-	local petProjectileVisual = remotes:WaitForChild(RemoteContracts.Names.PetProjectileVisual)
-	if petProjectileVisual:IsA("RemoteEvent") then
-		table.insert(self._connections, petProjectileVisual.OnClientEvent:Connect(function(action, payload)
-			if action == "Spawn" and type(payload) == "table" then
-				self:_playPetAttack(payload.ownerUserId, payload.petId)
-			end
-		end))
-	end
 
 	table.insert(self._connections, Players.PlayerAdded:Connect(function(player)
 		self:_watchPlayer(player)
