@@ -1,7 +1,7 @@
 --!strict
 
 -- Fill animation IDs per Pet rig in Studio.
--- Each Pet can have a different rig, so animation assets are configured per Pet type.
+-- Each Pet can have a different rig; animation assets are keyed by its AbilityID.
 -- Values may be either "rbxassetid://123" or "123".
 -- Empty strings intentionally disable an animation until its asset ID is provided.
 
