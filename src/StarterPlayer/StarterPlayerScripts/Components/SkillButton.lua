@@ -3,7 +3,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 
 local Component = {}
@@ -44,19 +43,9 @@ function Component.new(parent: Instance)
 	return self
 end
 
-function Component:SetPetState(ownedPets: any, equippedPets: any)
+function Component:SetPetState(_ownedPets: any, _equippedPets: any)
+	-- Current Pet abilities are passive or automatic; none has a click-triggered skill.
 	self._currentAbilityId = nil
-	if type(ownedPets) ~= "table" or type(equippedPets) ~= "table" then return end
-	for slot = 1, 3 do
-		local instanceId = equippedPets[slot]
-		local instance = instanceId and ownedPets[instanceId]
-		local definition = type(instance) == "table" and PetsConfig.GetById(tostring(instance.definitionId or "")) or nil
-		if definition and definition.activeAbilityId then
-			self._currentAbilityId = definition.activeAbilityId
-			player:SetAttribute("CurrentPetAbilityId", self._currentAbilityId)
-			return
-		end
-	end
 	player:SetAttribute("CurrentPetAbilityId", nil)
 end
 
