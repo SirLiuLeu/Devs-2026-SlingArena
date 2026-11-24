@@ -87,7 +87,7 @@ MockData.PlayerProfiles = {
 			eq_alpha_QuickReload = { abilityId = "QuickReload", level = 1, rarity = (PetsConfig.GetByAbilityId("QuickReload") and PetsConfig.GetByAbilityId("QuickReload").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_ThornArmor = { abilityId = "ThornArmor", level = 1, rarity = (PetsConfig.GetByAbilityId("ThornArmor") and PetsConfig.GetByAbilityId("ThornArmor").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_Regeneration = { abilityId = "Regeneration", level = 1, rarity = (PetsConfig.GetByAbilityId("Regeneration") and PetsConfig.GetByAbilityId("Regeneration").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_IdleStealth = { abilityId = "IdleStealth", level = 1, rarity = (PetsConfig.GetByAbilityId("IdleStealth") and PetsConfig.GetByAbilityId("IdleStealth").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_IronBody = { abilityId = "IronBody", level = 1, rarity = (PetsConfig.GetByAbilityId("IronBody") and PetsConfig.GetByAbilityId("IronBody").rarity) or "Common", acquiredAt = 1786924800 },
 		},
 		EquippedPets = { [1] = "eq_alpha_Lifesteal", [2] = "eq_alpha_Burn", [3] = "eq_alpha_LauncherBoost" },
 		OwnedLaunchers = {
