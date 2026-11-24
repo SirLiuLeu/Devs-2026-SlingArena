@@ -185,7 +185,7 @@ function PetService:Equip(player: Player, instanceId: string, preferredSlot: any
 		self:_publishEquipResult(player, { Status = "Rejected", Reason = failure, InstanceId = instanceId })
 		return false, failure
 	end
-	-- [DEBUG_TRACE] print(string.format("[DIAG][PetService] Equip committed player=%s instanceId=%s slot=%s definition=%s t=%.3f", player.Name, tostring(instanceId), tostring(slotNumber), tostring(equippedInstance and equippedInstance.abilityId), os.clock()))
+	-- [DEBUG_TRACE] print(string.format("[DIAG][PetService] Equip committed player=%s instanceId=%s slot=%s abilityId=%s t=%.3f", player.Name, tostring(instanceId), tostring(slotNumber), tostring(equippedInstance and equippedInstance.abilityId), os.clock()))
 	print(string.format("[Pet] Equipping item: %s", tostring(equippedInstance and equippedInstance.abilityId or instanceId)))
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateService and typeof(stateService.SyncPetFromData) == "function" then stateService:SyncPetFromData(player) end
@@ -195,7 +195,7 @@ function PetService:Equip(player: Player, instanceId: string, preferredSlot: any
 		Reason = if isLauncherMode then nil else "HumanModeNoHitbox",
 		Message = if isLauncherMode then "Pet equipped." else "Pet saved. It will visually attach and activate when you switch to Launcher.",
 		InstanceId = instanceId,
-		DefinitionId = equippedInstance and equippedInstance.abilityId,
+		AbilityId = equippedInstance and equippedInstance.abilityId,
 		ActivePlayerMode = if isLauncherMode then GameStates.PlayerMode.Launcher else GameStates.PlayerMode.Human,
 	}
 	self:_publishEquipResult(player, equipResult)
