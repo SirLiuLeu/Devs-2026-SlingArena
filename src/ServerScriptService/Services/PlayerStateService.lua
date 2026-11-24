@@ -1110,11 +1110,11 @@ function PlayerStateService:SyncPetFromData(player: Player)
 		local instanceValue = equippedPets[slot] or equippedPets[tostring(slot)]
 		local instanceId = if instanceValue == nil then nil else tostring(instanceValue)
 		local ownedInstance = instanceId and ownedPets[instanceId] or nil
-		local definitionId = if type(ownedInstance) == "table" and type(ownedInstance.definitionId) == "string" then ownedInstance.definitionId else nil
+		local abilityId = if type(ownedInstance) == "table" and type(ownedInstance.abilityId) == "string" then ownedInstance.abilityId else nil
 		local instanceAttribute = string.format("EquippedPetSlot%dInstanceId", slot)
-		local definitionAttribute = string.format("EquippedPetSlot%dDefinitionId", slot)
+		local abilityAttribute = string.format("EquippedPetSlot%dAbilityId", slot)
 		if player:GetAttribute(instanceAttribute) ~= instanceId then player:SetAttribute(instanceAttribute, instanceId) end
-		if player:GetAttribute(definitionAttribute) ~= definitionId then player:SetAttribute(definitionAttribute, definitionId) end
+		if player:GetAttribute(abilityAttribute) ~= abilityId then player:SetAttribute(abilityAttribute, abilityId) end
 	end
 	self:PublishState(player)
 end
@@ -1136,11 +1136,11 @@ function PlayerStateService:GetPetBySlot(player: Player, slot: any): string?
 	return equipped[tonumber(slot) or slot]
 end
 
-function PlayerStateService:HasPet(player: Player, petId: string): boolean
+function PlayerStateService:HasPet(player: Player, abilityId: string): boolean
 	local owned = self:GetOwnedPets(player)
 	for _, instanceId in pairs(self:GetEquippedPets(player)) do
 		local instance = owned[instanceId]
-		if instance and instance.definitionId == petId then return true end
+		if instance and instance.abilityId == abilityId then return true end
 	end
 	return false
 end
