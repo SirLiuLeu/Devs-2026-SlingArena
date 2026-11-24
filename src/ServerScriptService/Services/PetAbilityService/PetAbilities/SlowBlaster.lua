@@ -124,7 +124,7 @@ local function spawnVisual(context, data: any)
 		remote:FireAllClients("Spawn", {
 			id = data.id,
 			ownerUserId = context.player.UserId,
-			petId = context.definition and context.definition.PetId or "Dragon",
+			petId = context.definition and context.definition.type or "Dragon",
 			projectileType = "SlowBlaster",
 			origin = data.position,
 			velocity = data.velocity,
@@ -196,7 +196,7 @@ function SlowBlaster.OnAbilityTrigger(context)
 	context._projectiles[projectile] = data
 	local cooldown = tonumber(context.progression and context.progression.abilityParams and context.progression.abilityParams.cooldown) or CONFIG.Cooldown
 	context._nextAbilityAt = now + cooldown
-	print(string.format("[PET_ABILITY_ACTIVATED] player=%s pet=%s ability=SlowBlaster target=%s cooldown=%.1fs", context.player.Name, tostring(context.definition and context.definition.PetId or "Dragon"), target.Name, cooldown))
+	print(string.format("[PET_ABILITY_ACTIVATED] player=%s pet=%s ability=SlowBlaster target=%s cooldown=%.1fs", context.player.Name, tostring(context.definition and context.definition.type or "Dragon"), target.Name, cooldown))
 	spawnVisual(context, data)
 	SoundManager.Play("SFX_SlowBlasterFire", data.position)
 end
