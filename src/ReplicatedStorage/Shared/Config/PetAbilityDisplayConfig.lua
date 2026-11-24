@@ -42,9 +42,13 @@ PetAbilityDisplayConfig.Descriptions = {
 		vi = "Tăng {damageBonusPercent} sát thương cơ bản sau khi cộng chỉ số Launcher và Pet.",
 		en = "Increases final base damage by {damageBonusPercent} after Launcher and Pet base stats are combined.",
 	},
+	IronBody = {
+		vi = "Giảm {damageReduction} sát thương nhận vào.",
+		en = "Reduces incoming damage by {damageReduction}.",
+	},
 	AbsorbShield = {
-		vi = "Hấp thụ tối đa {absorbCapacity} sát thương mỗi {refreshInterval}s. Sát thương Lava và SafeZone không bị hấp thụ.",
-		en = "Absorbs up to {absorbCapacity} damage every {refreshInterval}s. Lava and SafeZone damage bypass the shield.",
+		vi = "Tạo khiên hấp thụ tối đa {absorbCapacity} sát thương mỗi {refreshInterval}s. Khiên không chặn sát thương LavaTrap hoặc sát thương vòng bo (SafeZone).",
+		en = "Creates a shield that absorbs up to {absorbCapacity} damage every {refreshInterval}s. LavaTrap and SafeZone ring damage bypass the shield.",
 	},
 	ExpBonus = {
 		vi = "Tăng {expBonus} EXP nhận được.",
@@ -73,10 +77,6 @@ PetAbilityDisplayConfig.Descriptions = {
 	Regeneration = {
 		vi = "Hồi cố định {healAmount} HP mỗi {tickInterval}s. Tăng thêm {healingReceivedBonus} lượng hồi phục từ các nguồn khác.",
 		en = "Restores a fixed {healAmount} HP every {tickInterval}s and increases healing received from other sources by {healingReceivedBonus}.",
-	},
-	IdleStealth = {
-		vi = "Tàng hình sau {idleSeconds}s đứng yên. Tự hiện hình khi phóng, di chuyển hoặc bị đánh bật.",
-		en = "Enters stealth after {idleSeconds}s without movement. Reveals on launch, movement or knockback.",
 	},
 }
 
