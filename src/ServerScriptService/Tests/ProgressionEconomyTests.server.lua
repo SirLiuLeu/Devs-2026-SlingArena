@@ -92,6 +92,8 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 			oldDragon = { definitionId = "Dragon", level = 5 },
 			oldUnicorn = { definitionId = "ShadowCloak", level = 6 },
 			oldElephant = { definitionId = "Shield", level = 8 },
+			abilityOnlyHydra = { abilityId = "Hydra", level = 2 },
+			abilityOnlyDragon = { abilityId = "Dragon", level = 3 },
 		},
 		EquippedPets = { [1] = "oldHydra", [2] = "oldDragon", [3] = "oldUnicorn" },
 	}
@@ -100,6 +102,8 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 	assertEqual(legacyV0.OwnedPets.oldDragon.abilityId, "LastStand", "Pre-v1 Dragon receives the historical model swap before AbilityID migration")
 	assertEqual(legacyV0.OwnedPets.oldUnicorn.abilityId, "AbsorbShield", "Legacy ShadowCloak/Unicorn migrates to AbsorbShield")
 	assertEqual(legacyV0.OwnedPets.oldElephant.abilityId, "IronBody", "Legacy Shield/Elephant migrates to IronBody")
+	assertEqual(legacyV0.OwnedPets.abilityOnlyHydra.abilityId, "FullForce", "Ability-only legacy Hydra applies the historical model swap")
+	assertEqual(legacyV0.OwnedPets.abilityOnlyDragon.abilityId, "LastStand", "Ability-only legacy Dragon applies the historical model swap")
 	assertEqual(legacyV0.OwnedPets.oldHydra.definitionId, nil, "Legacy definitionId is cleared")
 	assertEqual(legacyV0.OwnedPets.oldDragon.definitionId, nil, "Legacy definitionId is cleared")
 	assertEqual(legacyV0.EquippedPets[1], "oldHydra", "First equipped instance ID is preserved")
@@ -136,6 +140,8 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 			snake = { abilityId = "Poison", level = 2 },
 			caterpillar = { abilityId = "Lifesteal", level = 3 },
 			phoenix = { abilityId = "Fire", level = 4 },
+			oldOctopus = { abilityId = "PlasmaCannon", level = 6 },
+			oldElephant = { abilityId = "AbsorbShield", level = 7 },
 		},
 		EquippedPets = { [1] = "snake", [2] = "caterpillar", [3] = "phoenix" },
 	}
@@ -143,6 +149,8 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 	assertEqual(legacyV1AbilityOnly.OwnedPets.snake.abilityId, "Poison", "Ability-only Snake record is not passed through Pet-ID aliases")
 	assertEqual(legacyV1AbilityOnly.OwnedPets.caterpillar.abilityId, "Lifesteal", "Ability-only Lifesteal record remains canonical")
 	assertEqual(legacyV1AbilityOnly.OwnedPets.phoenix.abilityId, "Burn", "Legacy ability aliases still migrate ability-only records")
+	assertEqual(legacyV1AbilityOnly.OwnedPets.oldOctopus.abilityId, "Titan", "Ability-only retired PlasmaCannon Pet ID migrates to Titan")
+	assertEqual(legacyV1AbilityOnly.OwnedPets.oldElephant.abilityId, "IronBody", "Ability-only v2 AbsorbShield Pet ID migrates to Elephant IronBody")
 	assertEqual(legacyV1AbilityOnly.EquippedPets[1], "snake", "Ability-only Snake keeps its equipped slot")
 	assertEqual(legacyV1AbilityOnly.EquippedPets[2], "caterpillar", "Ability-only Lifesteal keeps its equipped slot")
 
