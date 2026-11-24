@@ -37,7 +37,7 @@ local function getDescriptionValues(definition: any, progression: any): { [strin
 	local statModifiers = definition and definition.statModifiers or {}
 	local add = statModifiers.Add or {}
 	local multiply = statModifiers.Multiply or {}
-	local passive = definition and definition.passiveAbility or {}
+	local effectParams = definition and definition.effectParams or {}
 	local combatEffect = definition and definition.combatEffect or {}
 
 	return {
@@ -54,7 +54,7 @@ local function getDescriptionValues(definition: any, progression: any): { [strin
 		absorbCapacity = tonumber(abilityParams.absorbCapacity) or 0,
 		refreshInterval = tonumber(abilityParams.refreshInterval) or 0,
 		healingReceivedBonus = math.max(0, (tonumber(abilityParams.healingReceivedMultiplier) or 1) - 1),
-		cooldown = tonumber(abilityParams.cooldown) or tonumber(passive.params and passive.params.cooldown) or 0,
+		cooldown = tonumber(abilityParams.cooldown) or tonumber(effectParams.cooldown) or 0,
 		weight = tonumber(abilityParams.weightMultiplier) or 1,
 		hitbox = tonumber(abilityParams.hitboxMultiplier) or 1,
 		outgoingKnockbackBonus = math.max(0, (tonumber(abilityParams.outgoingKnockbackMultiplier) or 1) - 1),
@@ -68,11 +68,11 @@ local function getDescriptionValues(definition: any, progression: any): { [strin
 		moveSpeed = tonumber(abilityParams.moveSpeedBonus) or tonumber(add.moveSpeed) or 0,
 		launchSpeed = tonumber(abilityParams.launchSpeedMultiplier) or tonumber(multiply.launchSpeed) or 1,
 		launchCooldown = tonumber(abilityParams.launchCooldownReduction) or math.abs(tonumber(add.launchCooldown) or 0),
-		reflectDamage = math.clamp(tonumber(abilityParams.reflectDamageBonus) or tonumber(add.reflectDamage) or tonumber(passive.percent) or 0, 0, 1),
+		reflectDamage = math.clamp(tonumber(abilityParams.reflectDamageBonus) or tonumber(add.reflectDamage) or tonumber(effectParams.percent) or 0, 0, 1),
 		damagePerTick = tonumber(abilityParams.damagePerTick) or 0,
-		idleSeconds = tonumber(abilityParams.idleSeconds) or tonumber(passive.params and passive.params.idleSeconds) or 0,
+		idleSeconds = tonumber(abilityParams.idleSeconds) or tonumber(effectParams.idleSeconds) or 0,
 		healAmount = tonumber(abilityParams.healAmount) or 0,
-		tickInterval = tonumber(abilityParams.tickInterval) or tonumber(passive.params and passive.params.tickInterval) or 5,
+		tickInterval = tonumber(abilityParams.tickInterval) or tonumber(effectParams.tickInterval) or 5,
 	}
 end
 
@@ -111,7 +111,7 @@ local function formatDescriptionValue(key: string, value: number): string
 end
 
 local function buildScriptText(definition: any, current: any, nextProgression: any, previewNextLevel: boolean, nextLevel: number, languageCode: string?): string
-	local petId = definition and definition.PetId
+	local petId = definition and definition.type
 	local template = PetAbilityDisplayConfig.GetTemplate(petId, languageCode)
 	if not template then
 		return if string.lower(languageCode or "en"):sub(1, 2) == "vi" then "Chưa có mô tả ability." else "Ability description unavailable."
