@@ -159,8 +159,11 @@ function ShopLogicService:PurchaseLauncher(launcherId: string): (boolean, string
 	return true, string.format("Purchase requested: %s", tostring(launcher.name))
 end
 
-function ShopLogicService:PurchasePet(petId: string): (boolean, string)
-	local pet = self:_findById(self._pets, petId)
+function ShopLogicService:PurchasePet(abilityId: string): (boolean, string)
+	local pet = nil
+	for _, entry in ipairs(self._pets) do
+		if entry.abilityId == abilityId then pet = entry; break end
+	end
 	if not pet then
 		return false, "PET_NOT_FOUND"
 	end
@@ -168,7 +171,7 @@ function ShopLogicService:PurchasePet(petId: string): (boolean, string)
 		return false, "PURCHASE_REMOTE_UNAVAILABLE"
 	end
 
-	self._purchasePetRemote:FireServer(pet.id)
+	self._purchasePetRemote:FireServer(pet.abilityId)
 	return true, string.format("Purchase requested: %s", tostring(pet.name))
 end
 
