@@ -84,7 +84,7 @@ PetAbilityProgressionConfig.Abilities = {
 		[20] = { healAmount = 10, tickInterval = 1, healingReceivedMultiplier = 1.18 },
 		Level50 = { healAmount = 10, tickInterval = 1, healingReceivedMultiplier = 1.25 },
 	},
-	-- Separate projectile progression ID; this is not a Pet catalog type.
+	-- Burn damage progression belongs to the Phoenix Pet AbilityID.
 	Burn = {
 		[1] = { damagePerTick = 250 }, [5] = { damagePerTick = 265 },
 		[10] = { damagePerTick = 285 }, [15] = { damagePerTick = 305 },
