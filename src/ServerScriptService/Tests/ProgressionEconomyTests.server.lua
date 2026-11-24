@@ -184,6 +184,9 @@ runTest("DamagePipeline_Uses_Pet_AbilityIDs_For_Lifesteal_And_Conditional_Damage
 		poison = { abilityId = "Poison", level = 1, rarity = "Rare", acquiredAt = 1 },
 		fullForce = { abilityId = "FullForce", level = 1, rarity = "Epic", acquiredAt = 1 },
 		lastStand = { abilityId = "LastStand", level = 1, rarity = "Epic", acquiredAt = 1 },
+		ironBodyLevel1 = { abilityId = "IronBody", level = 1, rarity = "Rare", acquiredAt = 1 },
+		ironBodyLevel50 = { abilityId = "IronBody", level = 50, rarity = "Rare", acquiredAt = 1 },
+		absorbShield = { abilityId = "AbsorbShield", level = 1, rarity = "Rare", acquiredAt = 1 },
 	}
 	local equippedPets = { [1] = "lifesteal" }
 	local playerState = { MaxHP = 1000, CurrentHP = 1000 }
@@ -214,6 +217,19 @@ runTest("DamagePipeline_Uses_Pet_AbilityIDs_For_Lifesteal_And_Conditional_Damage
 	equippedPets = { [1] = "lastStand" }
 	playerState.CurrentHP = 200
 	assertNear(service:_getConditionalPetDamageMultiplier(player), 1.20, "LastStand applies its maximum bonus at low HP")
+
+	equippedPets = { [1] = "ironBodyLevel1" }
+	assertNear(service:_getIronBodyDamageMultiplier(player), 0.80, "Elephant IronBody reduces incoming damage by 20% at level 1")
+	equippedPets = { [1] = "ironBodyLevel50" }
+	assertNear(service:_getIronBodyDamageMultiplier(player), 0.55, "Elephant IronBody reduces incoming damage by 45% at level 50")
+	equippedPets = { [1] = "ironBodyLevel1", [2] = "ironBodyLevel50" }
+	assertNear(service:_getIronBodyDamageMultiplier(player), 0.55, "Duplicate IronBody copies use the strongest single mitigation, not multiplicative stacking")
+	equippedPets = { [1] = "absorbShield" }
+	assertNear(service:_getIronBodyDamageMultiplier(player), 1, "Unicorn AbsorbShield does not also apply IronBody damage reduction")
+
+	service._absorbShieldStates = {}
+	assertNear(service:_applyAbsorbShield(player, 1000, true), 1000, "Bypassed damage does not consume AbsorbShield capacity")
+	assertNear(service:_applyAbsorbShield(player, 1000, false), 0, "AbsorbShield blocks damage when no bypass applies")
 end)
 
 runTest("Pet_Ability_Milestones_Reach_80_And_100_Percent", function()
