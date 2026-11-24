@@ -157,7 +157,7 @@ The current runtime catalog defines five Launchers: `Normalduck`, `Kingduck`, `W
 ## 5.3 Ability/effect ownership
 
 - `PetAbilityService` orchestrates equipped Pet effect modules and dispatches their lifecycle hooks, including `OnInit`, `OnLaunch`, `OnCollision`, `OnTick`, `OnAttack` and `OnDestroy`.
-- The Pet Definition has one canonical `abilityId`; there are no separate `PetId`, `type`, `effectId` or `activeAbilityId` identity fields. `PetAbilityService` registers lifecycle modules by AbilityID only when an ability needs tick/collision/launch hooks. Pure stat and conditional abilities are handled by `PetStatResolver` and `DamagePipelineService`. Current Pets do not use a click-triggered SkillButton.
+- The Pet Definition has one canonical `abilityId`; there are no separate `PetId`, `type`, `effectId` or `activeAbilityId` identity fields. `PetsConfig.LegacyPetDefinitionIdAliases` is migration-only and must never be used for current catalog lookups. `PetAbilityService` registers lifecycle modules by AbilityID only when an ability needs tick/collision/launch hooks. Pure stat and conditional abilities are handled by `PetStatResolver` and `DamagePipelineService`. Current Pets do not use a click-triggered SkillButton. Same-named Equipment assets/config entries are a separate system and are not Pet identifiers.
 - Server services remain authoritative for damage, flags, cooldowns, target validation and projectile hit resolution.
 
 ## 5.4 Pet visuals and projectiles
