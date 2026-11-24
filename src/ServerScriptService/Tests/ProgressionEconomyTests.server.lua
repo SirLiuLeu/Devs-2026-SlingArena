@@ -64,6 +64,11 @@ runTest("Pet_Definitions_Use_AbilityID_As_Sole_Identity", function()
 	assertEqual(PetsConfig.LegacyPetDefinitionIdAliases.PlasmaCannon, "Titan", "Old Pet ID migrates to Titan AbilityID")
 	assertEqual(PetsConfig.GetByAbilityId("HealthCore"), nil, "Retired HealthCore ID is not a catalog key")
 	assertEqual(PetsConfig.LegacyPetDefinitionIdAliases.HealthCore, "MaxHPBoost", "HealthCore migrates to its AbilityID")
+	assertEqual(PetsConfig.GetByAbilityId("IronBody").modelName, "Elephant", "Elephant maps to IronBody")
+	assertEqual(PetsConfig.GetByAbilityId("AbsorbShield").modelName, "Unicorn", "Unicorn maps to AbsorbShield")
+	assertEqual(PetsConfig.LegacyPetDefinitionIdAliases.Shield, "IronBody", "Legacy Shield Pet identity migrates to Elephant IronBody")
+	assertEqual(PetsConfig.LegacyPetDefinitionIdAliases.ShadowCloak, "AbsorbShield", "Legacy Unicorn Pet identity migrates to AbsorbShield")
+	assertEqual(PetsConfig.GetByAbilityId("IdleStealth"), nil, "Retired IdleStealth is not in the Pet catalog")
 	assertEqual(PetsConfig.GetByAbilityId("Poison").modelName, "Snake", "Poison remains the Snake AbilityID")
 	assertEqual(PetsConfig.GetByAbilityId("Petrify"), nil, "Retired Petrify ability is not a catalog key")
 	assertEqual(PetsConfig.GetByAbilityId("Stun"), nil, "Retired Stun ability is not a catalog key")
@@ -81,19 +86,22 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 		OwnedPets = {
 			oldHydra = { definitionId = "Hydra", level = 4 },
 			oldDragon = { definitionId = "Dragon", level = 5 },
+			oldUnicorn = { definitionId = "ShadowCloak", level = 6 },
 		},
-		EquippedPets = { [1] = "oldHydra", [2] = "oldDragon" },
+		EquippedPets = { [1] = "oldHydra", [2] = "oldDragon", [3] = "oldUnicorn" },
 	}
 	PlayerDataService._ensurePetData(PlayerDataService, legacyV0)
 	assertEqual(legacyV0.OwnedPets.oldHydra.abilityId, "FullForce", "Pre-v1 Hydra receives the historical model swap before AbilityID migration")
 	assertEqual(legacyV0.OwnedPets.oldDragon.abilityId, "LastStand", "Pre-v1 Dragon receives the historical model swap before AbilityID migration")
+	assertEqual(legacyV0.OwnedPets.oldUnicorn.abilityId, "AbsorbShield", "Legacy ShadowCloak/Unicorn migrates to AbsorbShield")
 	assertEqual(legacyV0.OwnedPets.oldHydra.definitionId, nil, "Legacy definitionId is cleared")
 	assertEqual(legacyV0.OwnedPets.oldDragon.definitionId, nil, "Legacy definitionId is cleared")
 	assertEqual(legacyV0.EquippedPets[1], "oldHydra", "First equipped instance ID is preserved")
 	assertEqual(legacyV0.EquippedPets[2], "oldDragon", "Second equipped instance ID is preserved")
+	assertEqual(legacyV0.EquippedPets[3], "oldUnicorn", "Unicorn equipped slot is preserved")
 	assertEqual(legacyV0.OwnedPets.oldHydra.level, 4, "Old Hydra level is preserved")
 	assertEqual(legacyV0.OwnedPets.oldDragon.level, 5, "Old Dragon level is preserved")
-	assertEqual(legacyV0.PetIdentityMigrationVersion, 2, "Profile advances to AbilityID migration version 2")
+	assertEqual(legacyV0.PetIdentityMigrationVersion, 3, "Profile advances to canonical roster migration version 3")
 
 	local legacyV1 = {
 		Diamonds = 0,
@@ -138,6 +146,7 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 		OwnedPets = {
 			snake = { abilityId = "Poison", definitionId = "Medusa", effectId = "Petrify", level = 2 },
 			caterpillar = { abilityId = "Lifesteal", definitionId = "Poison", effectId = "Lifesteal", level = 3 },
+			unicorn = { abilityId = "IdleStealth", level = 4 },
 		},
 		EquippedPets = { [1] = "snake", [2] = "caterpillar" },
 	}
@@ -145,13 +154,15 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 	PlayerDataService._ensurePetData(PlayerDataService, currentV2)
 	assertEqual(currentV2.OwnedPets.snake.abilityId, "Poison", "Current version-2 Snake Poison AbilityID is not aliased")
 	assertEqual(currentV2.OwnedPets.caterpillar.abilityId, "Lifesteal", "Current version-2 Lifesteal AbilityID is not aliased")
+	assertEqual(currentV2.OwnedPets.unicorn.abilityId, "AbsorbShield", "Version-2 IdleStealth ownership migrates to Unicorn AbsorbShield")
 	assertEqual(currentV2.OwnedPets.snake.definitionId, nil, "V2 stale Pet definitionId is removed")
 	assertEqual(currentV2.OwnedPets.snake.effectId, nil, "V2 stale effectId is removed")
 	assertEqual(currentV2.OwnedPets.caterpillar.definitionId, nil, "V2 stale Caterpillar definitionId is removed")
 	assertEqual(currentV2.OwnedPets.caterpillar.effectId, nil, "V2 stale Caterpillar effectId is removed")
 	assertEqual(currentV2.EquippedPets[1], "snake", "Version-2 Snake instance remains equipped")
 	assertEqual(currentV2.EquippedPets[2], "caterpillar", "Version-2 Caterpillar instance remains equipped")
-	assertEqual(currentV2.PetIdentityMigrationVersion, 2, "Repeated normalization remains at version 2")
+	assertEqual(currentV2.EquippedPets[3], "unicorn", "Migrated Unicorn instance remains in its equipped slot")
+	assertEqual(currentV2.PetIdentityMigrationVersion, 3, "Repeated normalization remains at version 3")
 end)
 
 runTest("Pet_Linear_Cost_And_Rarity_Multipliers", function()
@@ -256,8 +267,8 @@ runTest("Remaining_Pet_Abilities_Reach_Level_50_Targets", function()
 	assertNear(PetAbilityProgressionConfig.GetParams("QuickReload", 50).launchCooldownReduction, 1.3, "QuickReload level-50 target")
 	assertNear(PetAbilityProgressionConfig.GetParams("ThornArmor", 1).reflectDamageBonus, 0.20, "ThornArmor level-1 reflect")
 	assertNear(PetAbilityProgressionConfig.GetParams("ThornArmor", 50).reflectDamageBonus, 0.25, "ThornArmor level-50 target")
-	assertNear(PetAbilityProgressionConfig.GetParams("IdleStealth", 1).idleSeconds, 3.0, "IdleStealth level-1 delay")
-	assertNear(PetAbilityProgressionConfig.GetParams("IdleStealth", 50).idleSeconds, 2.25, "IdleStealth level-50 target")
+	assertNear(PetAbilityProgressionConfig.GetParams("IronBody", 1).damageMultiplier, 0.80, "IronBody level-1 leaves 80% damage")
+	assertNear(PetAbilityProgressionConfig.GetParams("IronBody", 50).damageMultiplier, 0.55, "IronBody level-50 leaves 55% damage")
 
 	local hpProgression = PetProgression.Resolve(PetsConfig.GetByAbilityId("MaxHPBoost"), { abilityId = "MaxHPBoost", level = 50 })
 	local thornProgression = PetProgression.Resolve(PetsConfig.GetByAbilityId("ThornArmor"), { abilityId = "ThornArmor", level = 50 })
@@ -336,7 +347,7 @@ runTest("Pet_Rarity_Assignments_Match_Redesigned_Tiers", function()
 		LaunchBooster = "Rare", QuickReload = "Rare", Regeneration = "Rare", Lifesteal = "Rare", Burn = "Rare",
 		Poison = "Rare", MaxHPBoost = "Rare", DamageBoost = "Rare", AbsorbShield = "Rare",
 		Titan = "Epic", LastStand = "Epic", LauncherBoost = "Epic", FullForce = "Epic", ThornArmor = "Epic",
-		PetBaseBoost = "Legendary", IdleStealth = "Legendary",
+		PetBaseBoost = "Legendary", IronBody = "Rare",
 	}
 	assertEqual(#PetsConfig.GetAllAbilityIds(), 18, "AbilityID catalog count")
 	for abilityId, rarity in pairs(expected) do
@@ -397,6 +408,9 @@ runTest("Pet_Animation_Config_Uses_The_Pet_AbilityID_Catalog", function()
 	end
 	assertEqual(PetAnimationConfig.Animations.PlasmaCannon, nil, "Retired Pet identifier is not an animation key")
 	assertEqual(PetAnimationConfig.Animations.Hydra, nil, "Model name is not an animation key")
+	assertEqual(PetAnimationConfig.Animations.IronBody ~= nil, true, "Elephant IronBody has an animation row")
+	assertEqual(PetAnimationConfig.Animations.AbsorbShield ~= nil, true, "Unicorn AbsorbShield has an animation row")
+	assertEqual(PetAnimationConfig.Animations.IdleStealth, nil, "Retired IdleStealth animation row is removed")
 end)
 
 runTest("Pet_Ability_Display_Templates_Resolve_All_Placeholders", function()
