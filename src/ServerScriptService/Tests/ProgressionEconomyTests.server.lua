@@ -19,6 +19,7 @@ local DamagePipelineService = require(script.Parent.Parent.Services.DamagePipeli
 local PetAnimationConfig = require(ReplicatedStorage.Shared.Config.PetAnimationConfig)
 local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
 local PlayerDataService = require(script.Parent.Parent.Services.PlayerDataService)
+local MockProvider = require(script.Parent.Parent.Services.DataProviders.MockProvider)
 
 local function assertEqual(actual: any, expected: any, message: string)
 	if actual ~= expected then
@@ -181,6 +182,23 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 	assertEqual(currentV2.EquippedPets[2], "caterpillar", "Version-2 Caterpillar instance remains equipped")
 	assertEqual(currentV2.EquippedPets[3], "unicorn", "Migrated Unicorn instance remains in its equipped slot")
 	assertEqual(currentV2.PetIdentityMigrationVersion, 3, "Repeated normalization remains at version 3")
+end)
+
+runTest("Mock_Pet_Profiles_Use_Current_Identity_Migration_Version", function()
+	local provider = MockProvider.new()
+	local mockPlayer: any = {
+		UserId = -800001,
+		Name = "MockPlayerAlpha",
+		DisplayName = "Mock Player Alpha",
+	}
+	local mockProfile = provider:LoadPlayerData(mockPlayer, {})
+	PlayerDataService._ensurePetData(PlayerDataService, mockProfile)
+
+	assertEqual(mockProfile.PetIdentityMigrationVersion, 3, "Mock profiles declare the current Pet identity schema")
+	assertEqual(mockProfile.OwnedPets.eq_alpha_AbsorbShield.abilityId, "AbsorbShield", "Mock Unicorn identity is not re-migrated to IronBody")
+	assertEqual(PetsConfig.GetByAbilityId(mockProfile.OwnedPets.eq_alpha_AbsorbShield.abilityId).modelName, "Unicorn", "Mock AbsorbShield resolves to Unicorn")
+	assertEqual(mockProfile.OwnedPets.eq_alpha_IronBody.abilityId, "IronBody", "Mock Elephant identity remains IronBody")
+	assertEqual(PetsConfig.GetByAbilityId(mockProfile.OwnedPets.eq_alpha_IronBody.abilityId).modelName, "Elephant", "Mock IronBody resolves to Elephant")
 end)
 
 runTest("Pet_Linear_Cost_And_Rarity_Multipliers", function()
