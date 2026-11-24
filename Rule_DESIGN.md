@@ -143,7 +143,7 @@ The current runtime catalog defines five Launchers: `Normalduck`, `Kingduck`, `W
 
 ## 5.1 Ownership and equipped slots
 
-- `PetsConfig.lua` is the definition catalog for Pet identity, rarity, effect identity, active ability identity and stat modifiers.
+- `PetsConfig.lua` is the Pet catalog keyed by `abilityId`. This same AbilityID is used for owned Pet data, progression, descriptions, animations, Shop and runtime dispatch; `modelName` is only the visual asset name.
 - `PlayerDataService` owns server-side `OwnedPets` and `EquippedPets` data. Pet ownership and equip requests are instance-based: the client supplies an `instanceId`, and `PetService` validates that the instance belongs to the player.
 - The runtime profile has three equipped Pet slots. `PetService` owns equip, unequip and upgrade mutations; Pet model presentation is handled separately on the client.
 
@@ -157,13 +157,13 @@ The current runtime catalog defines five Launchers: `Normalduck`, `Kingduck`, `W
 ## 5.3 Ability/effect ownership
 
 - `PetAbilityService` orchestrates equipped Pet effect modules and dispatches their lifecycle hooks, including `OnInit`, `OnLaunch`, `OnCollision`, `OnTick`, `OnAttack` and `OnDestroy`.
-- `activeAbilityId` and `effectId` are distinct fields: the former identifies an active ability, while the latter identifies the Pet effect module. Do not assume every Pet has an active skill.
+- The Pet Definition has one canonical `abilityId`; there are no separate `PetId`, `type`, `effectId` or `activeAbilityId` identity fields. `PetAbilityService` registers lifecycle modules by AbilityID only when an ability needs tick/collision/launch hooks. Pure stat and conditional abilities are handled by `PetStatResolver` and `DamagePipelineService`. Current Pets do not use a click-triggered SkillButton.
 - Server services remain authoritative for damage, flags, cooldowns, target validation and projectile hit resolution.
 
 ## 5.4 Pet visuals and projectiles
 
 - Nearby Pet models are rendered locally by `ClientPetController` and range-gated through `PetRenderConfig`; the server replicates equipped Pet identity rather than welding Pet models to every pawn.
-- PlasmaCannon and SlowBlaster projectile visuals are client-local and distance/count gated. Projectile simulation and hit/damage decisions remain server-authoritative.
+- The former PlasmaCannon and SlowBlaster Pet projectile abilities and their visual pipeline have been retired. Do not add their modules or remote back to the current Pet runtime.
 
 ## 5.5 Legacy Equipment documentation
 
@@ -295,7 +295,7 @@ Only **LavaTrap** is supported by the current runtime. `TrapService` detects con
 - Rage/FFA activates at 480 elapsed round seconds. Roblox team membership becomes neutral, but `PlayerState.TeamId` remains for presentation/history and `IsFriendly` returns false for distinct players.
 - `LauncherTextureConfig` provides shared texture slots for White, Yellow, Blue, Red, and Rage. Replace the five `rbxassetid://0` placeholders with uploaded texture IDs. The same config is applied to all equipped Launcher visuals.
 - `DamagePipelineService` remains the authority for direct damage and friendly-fire checks; `CollisionService` incorporates Titan's effective weight multiplier into collision knockback.
-- The Studio-only `Assets.Prefabs.PlasmaBall` and `Assets.Prefabs.SlowBall` are required by the Octopus PlasmaCannon and Dragon SlowBlaster. Keep these models available after Rojo sync; missing prefabs produce warnings rather than runtime crashes.
+- `Assets.Prefabs.PlasmaBall` and `Assets.Prefabs.SlowBall` are legacy Studio assets only; current source no longer requires them because the associated Pet projectile abilities were removed.
 
 ---
 
@@ -339,7 +339,7 @@ This section exists so nobody has to guess. Each item below is a **real, verifie
 2. **FinalPhase death/respawn rules remain limited.** `DamagePipelineService:HandlePlayerDeath` still calls `RespawnAfterDelay` after three seconds, and `PlayerStateService:RecordDeath` converts the player to Human when death occurs during `FinalPhase`. There is no Ghost/spectator branch in the current runtime.
 3. **"3 identical Launchers → +1★" fusion has no implementation.** The star-multiplier math exists and is applied, but nothing increments `star` at runtime. Seed/mock data even contains `star = 4`, exceeding a supposed 3★ cap, and references non-existent launcher IDs.
 4. **Old Equipment rarity-level caps and `EquipmentUpgradeConfig` references are legacy documentation.** Pet upgrades are configured through `PetsConfig` and `PetsUpgradeConfig`; do not carry over the old Equipment caps without checking the current Pet definitions.
-5. **Legacy Equipment effect notes are not the current ability contract.** Review the Pet definition’s `effectId` and the matching module under `PetAbilityService/PetAbilities` before documenting an effect as shipped.
+5. **Pet effect ownership follows the single AbilityID contract.** Check `PetsConfig` and the current `PetAbilityService` registry before documenting a lifecycle module as active.
 6. **Team core behavior is implemented, but reward rules should be verified separately.** `TeamService` assigns balanced teams and validates team changes/capacity/cooldown; friendly-fire checks are integrated with `DamagePipelineService`. Do not assume assist rewards or shared-win rewards exist without a matching runtime path.
 7. **No EXP-loss-on-death penalty runs**, despite the relevant functions (`TryApplyExpPenalty`, `ApplyExpPenalty`) existing in code — they are simply never called from the death path.
 8. **Kill EXP is a flat 120, not 50% of the victim's lost EXP.** Per-kill Diamonds now use a 60-second per-victim diminishing-return window; HP Food drop chances and round-end score/placement rewards are also configured in §7.2 and §8.2.
@@ -353,7 +353,7 @@ This section exists so nobody has to guess. Each item below is a **real, verifie
 16. **The current Launcher catalog has five entries:** `Normalduck`, `Kingduck`, `Witchduck`, `Drakeduck`, and `Shielduck`. The future catalog size is not fixed; `LauncherConfig` lookup helpers should be used instead of assuming a permanent count.
 17. **Arena size and max-player-count (20) could not be verified from source.** No `MaxPlayers`, `ArenaSize`, or similar constant exists in any `.lua` config file — these are presumably Studio/place-level settings not represented in this Rojo tree. Additionally, `SafeZoneConfig.StartRadius = 300` implies a play space with a ~600-stud diameter, which is larger than a "400×400 stud arena" claim if both are meant to describe the same space. Needs confirmation from whoever owns the Studio place file.
 18. **Thorn Armor reflect integration** was previously missing; the implementation now adds equipped pet `statModifiers.Add.reflectDamage` to the resolved Launcher reflect stat (maximum 50%). Runtime validation of lethal reflection remains part of the gameplay test plan.
-19. **`AbilityTrigger` dispatches active pet abilities by `activeAbilityId`** — the SkillButton chooses the first equipped pet with that field, while server dispatch validates it separately from passive/effect identity. Legacy effects with `diagnostic` strings may still be stubs.
+19. **No current Pet owns a click-triggered active skill.** The generic `AbilityTrigger` infrastructure is retained for other/future uses, but the Pet SkillButton no longer selects or dispatches abilities from Pet definitions.
 
 ---
 
