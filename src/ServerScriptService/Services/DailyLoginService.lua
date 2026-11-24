@@ -191,8 +191,8 @@ function DailyLoginService:_validateConfig(): boolean
 		end
 		weightTotal += weight
 	end
-	for _, definitionId in ipairs(PetsConfig.GetAllIds()) do
-		local definition = PetsConfig.GetById(definitionId)
+	for _, abilityId in ipairs(PetsConfig.GetAllAbilityIds()) do
+		local definition = PetsConfig.GetByAbilityId(abilityId)
 		if definition and DailyLoginConfig.PetDropWeights[definition.rarity] then
 			petRarities[definition.rarity] = true
 		end
@@ -270,11 +270,11 @@ end
 
 function DailyLoginService:_rollPet(): (string?, any?)
 	local pools = {}
-	for _, definitionId in ipairs(PetsConfig.GetAllIds()) do
-		local definition = PetsConfig.GetById(definitionId)
+	for _, abilityId in ipairs(PetsConfig.GetAllAbilityIds()) do
+		local definition = PetsConfig.GetByAbilityId(abilityId)
 		if definition and (tonumber(DailyLoginConfig.PetDropWeights[definition.rarity]) or 0) > 0 then
 			pools[definition.rarity] = pools[definition.rarity] or {}
-			table.insert(pools[definition.rarity], definitionId)
+			table.insert(pools[definition.rarity], abilityId)
 		end
 	end
 
@@ -290,8 +290,8 @@ function DailyLoginService:_rollPet(): (string?, any?)
 	end
 
 	local candidates = pools[selectedRarity.Id]
-	local definitionId = candidates[self._random:NextInteger(1, #candidates)]
-	return definitionId, PetsConfig.GetById(definitionId)
+	local abilityId = candidates[self._random:NextInteger(1, #candidates)]
+	return abilityId, PetsConfig.GetByAbilityId(abilityId)
 end
 
 function DailyLoginService:_buildRewardEntry(day: number, bundleId: string, state: string): any?
@@ -411,7 +411,7 @@ function DailyLoginService:_sendClaimNotification(player: Player, result: any)
 	if result.Reward and result.Reward.Kind == "Pet" then
 		message = string.format(
 			"Chúc mừng nhận được Pet %s (%s)!",
-			tostring(result.Reward.Name or result.Reward.DefinitionId or "Pet"),
+			tostring(result.Reward.Name or result.Reward.AbilityId or "Pet"),
 			tostring(result.Reward.Rarity or "Pet")
 		)
 	end
@@ -480,15 +480,15 @@ function DailyLoginService:_claimReward(player: Player, payload: any)
 	local reward: any = nil
 	local nextBundleIds: { string }? = nil
 	if requestedDay == 7 then
-		local definitionId, definition = self:_rollPet()
-		if not definitionId or not definition then
+		local abilityId, definition = self:_rollPet()
+		if not abilityId or not definition then
 			result.Reason = "PetRewardUnavailable"
 			finish()
 			return
 		end
 		reward = {
 			Kind = "Pet",
-			DefinitionId = definitionId,
+			AbilityId = abilityId,
 		}
 		nextBundleIds = self:_chooseBundleIds(state.SelectedBundleIds)
 		if #nextBundleIds ~= 6 then
@@ -526,11 +526,11 @@ function DailyLoginService:_claimReward(player: Player, payload: any)
 		Amount = reward.Amount,
 		ItemId = reward.ItemId,
 		Quantity = reward.Quantity,
-		DefinitionId = reward.DefinitionId,
+		AbilityId = reward.AbilityId,
 	}
 	if reward.Kind == "Pet" then
-		local definition = PetsConfig.GetById(reward.DefinitionId)
-		rewardResult.Name = definition and definition.modelName or reward.DefinitionId
+		local definition = PetsConfig.GetByAbilityId(reward.AbilityId)
+		rewardResult.Name = definition and definition.modelName or reward.AbilityId
 		rewardResult.Rarity = definition and definition.rarity or "Unknown"
 	end
 
