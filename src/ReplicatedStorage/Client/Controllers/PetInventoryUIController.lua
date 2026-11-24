@@ -233,7 +233,7 @@ end
 
 function PetInventoryUIController:_bindSlotContent(slot: GuiObject, petEntry)
 	local instanceId = tostring(petEntry.instanceId or "")
-	local abilityId = tostring(petEntry.abilityId or petEntry.id or "")
+	local abilityId = tostring(petEntry.abilityId or "")
 	local definition = PetsConfig.GetByAbilityId(abilityId)
 	local root = getTemplateRoot(slot)
 	if not (root and definition) then
@@ -296,7 +296,7 @@ function PetInventoryUIController:_spawnPetSlot(petEntry)
 		return
 	end
 	local instanceId = tostring(petEntry.instanceId or "")
-	local abilityId = tostring(petEntry.abilityId or petEntry.id or "")
+	local abilityId = tostring(petEntry.abilityId or "")
 	if instanceId == "" or not PetsConfig.GetByAbilityId(abilityId) then
 		return
 	end
@@ -340,7 +340,7 @@ end
 function PetInventoryUIController:_findPetEntry(ownedPets, petId: string?)
 	if not petId then return nil end
 	for _, entry in ipairs(ownedPets or {}) do
-		if tostring(entry.instanceId or "") == petId or tostring(entry.instanceId or "") == petId then
+		if tostring(entry.instanceId or "") == petId then
 			return entry
 		end
 	end
