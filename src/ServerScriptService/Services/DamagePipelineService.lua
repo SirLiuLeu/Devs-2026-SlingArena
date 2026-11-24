@@ -452,7 +452,7 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 			end
 
 			if attacker ~= victim then
-				local lifestealPercent = self:_getPetAbilityParams(attacker, "Poison", "playerLifestealPercent")
+				local lifestealPercent = self:_getPetAbilityParams(attacker, "Lifesteal", "playerLifestealPercent")
 				local attackerLifeState = playerStateService:GetState(attacker)
 				if lifestealPercent > 0 and attackerLifeState and attackerLifeState.IsAlive then
 					playerStateService:Heal(attacker, actualDamage * lifestealPercent)
@@ -556,7 +556,7 @@ function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number,
 		playerStateService:AddDamageDealt(source, actualDamage)
 		self:_sendFeedback(source, "DamageDealt", { Amount = actualDamage, DamageType = "DoT", Flag = flagName })
 		if source ~= victim then
-			local lifestealPercent = self:_getPetAbilityParams(source, "Poison", "playerLifestealPercent")
+			local lifestealPercent = self:_getPetAbilityParams(source, "Lifesteal", "playerLifestealPercent")
 			local sourceState = playerStateService:GetState(source)
 			if lifestealPercent > 0 and sourceState and sourceState.IsAlive then
 				playerStateService:Heal(source, actualDamage * lifestealPercent)
