@@ -414,7 +414,7 @@ function ShopUIController:_hookInfoButton(slot: GuiObject, scriptText: string?)
 end
 
 function ShopUIController:_getPetScript(petEntry): string
-	local definition = PetsConfig.GetById(tostring(petEntry.id or ""))
+	local definition = PetsConfig.GetByAbilityId(tostring(petEntry.abilityId or ""))
 	if definition then
 		local ok, formatted = pcall(function()
 			return PetDisplayFormatter.Format(definition, 1, false, DEFAULT_LANGUAGE)
@@ -470,19 +470,19 @@ end
 function ShopUIController:_renderPets(snapshot)
 	if not (self._petTemplate and self._petsContainer) then return end
 	for index, pet in ipairs(snapshot.petEntries or {}) do
-		local slot = self:_cloneSlot(self._petTemplate, self._petsContainer, "Pet_" .. tostring(pet.id), index)
+		local slot = self:_cloneSlot(self._petTemplate, self._petsContainer, "Pet_" .. tostring(pet.abilityId), index)
 		if slot then
 			local title = tostring(pet.name)
 			if type(pet.rarity) == "string" and pet.rarity ~= "" then
 				title = string.format("%s (%s)", title, pet.rarity)
 			end
 			self:_applyCommonText(slot, title, formatDiamonds(pet.price))
-			local modelName = tostring(pet.modelName or pet.id)
-			self:_populatePreview(slot, self._petAssets, modelName, PetPreviewConfig.Get(tostring(pet.id)))
+			local modelName = tostring(pet.modelName or pet.abilityId)
+			self:_populatePreview(slot, self._petAssets, modelName, PetPreviewConfig.Get(tostring(pet.abilityId)))
 			self:_hookInfoButton(slot, self:_getPetScript(pet))
 			self:_hookBuyButton(slot, function()
 				if self._logicService then
-					self._logicService:PurchasePet(pet.id)
+					self._logicService:PurchasePet(pet.abilityId)
 				end
 			end)
 		end
