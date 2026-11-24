@@ -848,7 +848,7 @@ function FoodService:ApplyDamageToFood(foodOrEntry: any, amount: number, player:
 		local equippedPets = dataService and dataService:GetEquippedPets(player) or {}
 		local foodLifestealPercent = 0
 		for _, progression in ipairs(PetStatResolver.GetEquippedProgressions(ownedPets, equippedPets)) do
-			if progression.definition and progression.definition.PetId == "Poison" then
+			if progression.definition and progression.definition.abilityId == "Lifesteal" then
 				foodLifestealPercent = math.max(
 					foodLifestealPercent,
 					type(progression.abilityParams) == "table" and tonumber(progression.abilityParams.foodLifestealPercent) or 0
