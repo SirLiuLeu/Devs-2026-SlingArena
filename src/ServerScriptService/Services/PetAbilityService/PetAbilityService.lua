@@ -13,31 +13,31 @@ PetAbilityService.__index = PetAbilityService
 
 -- Intentionally always on while investigating collision pet. Keep this prefix when
 -- collecting a server log so the complete pet lifecycle can be filtered easily.
-local TRACE_PET_IDS = { Medusa = true, GhostFlame = true, ThunderHammer = true }
+local TRACE_ABILITY_IDS = { Poison = true, Burn = true }
 
 local function tracePet(definition: any, message: string)
-	if definition and TRACE_PET_IDS[definition.type] then
-		print(string.format("[PET_ATTACK_TRACE][%s] %s", definition.type, message))
+	local abilityId = definition and definition.abilityId
+	if abilityId and TRACE_ABILITY_IDS[abilityId] then
+		print(string.format("[PET_ATTACK_TRACE][%s] %s", abilityId, message))
 	end
 end
 
 function PetAbilityService:_traceExpectedPet(player: Player?, checkpoint: string)
 	local activeEffects = player and self._activeEffects[player]
-	local equipped = { Medusa = false, GhostFlame = false, ThunderHammer = false }
+	local equipped = { Poison = false, Burn = false }
 	local activeIds = {}
 	if activeEffects then
 		for instanceId, effectState in pairs(activeEffects) do
-			local definitionId = effectState.context.definition and effectState.context.definition.type
-			if definitionId then
-				if definitionId == "Medusa" then equipped.Medusa = true end
-				if definitionId == "GhostFlame" then equipped.GhostFlame = true end
-				if definitionId == "ThunderHammer" then equipped.ThunderHammer = true end
-				table.insert(activeIds, string.format("%s(%s)", definitionId, tostring(instanceId)))
+			local abilityId = effectState.context.definition and effectState.context.definition.abilityId
+			if abilityId then
+				if abilityId == "Poison" then equipped.Poison = true end
+				if abilityId == "Burn" then equipped.Burn = true end
+				table.insert(activeIds, string.format("%s(%s)", abilityId, tostring(instanceId)))
 			end
 		end
 	end
 	table.sort(activeIds)
-	print(string.format("[PET_ATTACK_TRACE] pet validation checkpoint=%s player=%s Medusa=%s GhostFlame=%s ThunderHammer=%s active=[%s]", checkpoint, player and player.Name or "nil", tostring(equipped.Medusa), tostring(equipped.GhostFlame), tostring(equipped.ThunderHammer), table.concat(activeIds, ", ")))
+	print(string.format("[PET_ATTACK_TRACE] ability validation checkpoint=%s player=%s Poison=%s Burn=%s active=[%s]", checkpoint, player and player.Name or "nil", tostring(equipped.Poison), tostring(equipped.Burn), table.concat(activeIds, ", ")))
 end
 
 
@@ -55,25 +55,11 @@ end
 function PetAbilityService:Init()
 	-- [DEBUG_TRACE] print("[ROUND_END_TRACE][PetAbilityService] Init START; registering effect modules")
 	local petEffects = script.Parent.PetAbilities
-	local noOpEffect = require(petEffects.NoOp)
-	self:RegisterEffect("NoOp", noOpEffect)
-	for _, effectId in ipairs({
-		"LauncherBoost", "PetBaseBoost", "LastStand", "Lifesteal", "MaxHPBoost",
-		"DamageBoost", "AbsorbShield", "MoveSpeedBoost", "LaunchBooster",
-		"QuickReload", "ThornArmor", "FullForce",
-	}) do
-		self:RegisterEffect(effectId, noOpEffect)
-	end
+	-- Only abilities with lifecycle-driven behavior need effect modules. Pure
+	-- stat/conditional abilities are resolved by PetStatResolver/DamagePipelineService.
+	self:RegisterEffect("Titan", require(petEffects.Titan))
 	self:RegisterEffect("Poison", require(petEffects.Poison))
 	self:RegisterEffect("Burn", require(petEffects.Burn))
-	self:RegisterEffect("Slow", require(petEffects.Slow))
-	self:RegisterEffect("Stun", require(petEffects.Stun))
-	self:RegisterEffect("Petrify", require(petEffects.Petrify))
-	self:RegisterEffect("ExpBonus", require(petEffects.ExpBonus))
-	self:RegisterEffect("Shield", require(petEffects.Shield))
-	self:RegisterEffect("Titan", require(petEffects.Titan))
-	self:RegisterEffect("PlasmaCannon", require(petEffects.PlasmaCannon))
-	self:RegisterEffect("SlowBlaster", require(petEffects.SlowBlaster))
 	self:RegisterEffect("Regeneration", require(petEffects.Regeneration))
 	self:RegisterEffect("IdleStealth", require(petEffects.IdleStealth))
 	local bus = self._context.EventBus
@@ -94,7 +80,7 @@ function PetAbilityService:Init()
 			if not effects then return end
 			for _, effectState in pairs(effects) do
 				local definition = effectState.context.definition
-				if definition and definition.effectId == "Titan" and typeof(effectState.module.OnLevelUp) == "function" then
+				if definition and definition.abilityId == "Titan" and typeof(effectState.module.OnLevelUp) == "function" then
 					effectState.module.OnLevelUp(effectState.context, playerLevel)
 					break -- A player-level event increments Titan visual growth once, even with multiple copies equipped.
 				end
@@ -105,7 +91,7 @@ function PetAbilityService:Init()
 			if not effects then return end
 			for _, effectState in pairs(effects) do
 				local context = effectState.context
-				if context.definition and context.definition.effectId == "Titan"
+				if context.definition and context.definition.abilityId == "Titan"
 					and typeof(effectState.module.OnRoundReset) == "function" then
 					effectState.module.OnRoundReset(context)
 					break
@@ -131,7 +117,7 @@ function PetAbilityService:Init()
 			for slotType, equippedInstanceId in pairs(equipped) do
 				if equippedInstanceId == instanceId then
 					local oldEffect = self._activeEffects[player] and self._activeEffects[player][instanceId]
-					if oldEffect and oldEffect.context.definition and oldEffect.context.definition.effectId == "Titan" then
+					if oldEffect and oldEffect.context.definition and oldEffect.context.definition.abilityId == "Titan" then
 						-- Refresh Titan's pet-level stats in place so the player-level visual factor
 						-- survives upgrades without clearing/reapplying scale attributes.
 						local context = oldEffect.context
@@ -178,8 +164,8 @@ function PetAbilityService:Init()
 	-- [DEBUG_TRACE] print("[ROUND_END_TRACE][PetAbilityService] Init END; heartbeat ensured")
 end
 
-function PetAbilityService:RegisterEffect(effectId: string, effectModule: any)
-	self._effectModules[effectId] = effectModule
+function PetAbilityService:RegisterEffect(abilityId: string, effectModule: any)
+	self._effectModules[abilityId] = effectModule
 end
 
 function PetAbilityService:_ensureHeartbeat()
@@ -232,17 +218,21 @@ function PetAbilityService:DeactivateAllPet(player): ()
 end
 
 function PetAbilityService:ActivatePet(player, _slotType: string, instanceId: string, ownedInstance: any): boolean
-	print(string.format("[PET_EFFECT][SUCCESS] ActivatePet player=%s instanceId=%s definitionId=%s", player and player.Name or "nil", tostring(instanceId), tostring(ownedInstance and ownedInstance.definitionId)))
-	local definition = ownedInstance and PetsConfig.GetById(tostring(ownedInstance.definitionId or ""))
-	if not definition or not definition.effectId then
-		print(string.format("[PET_ATTACK_TRACE] activation aborted player=%s instanceId=%s definitionFound=%s effectId=%s", player and player.Name or "nil", tostring(instanceId), tostring(definition ~= nil), tostring(definition and definition.effectId)))
+	local abilityId = tostring(ownedInstance and ownedInstance.abilityId or "")
+	local definition = PetsConfig.GetByAbilityId(abilityId)
+	if not definition then
+		warn(string.format("[PET_EFFECT] Unknown Pet AbilityID %q for player=%s instanceId=%s", abilityId, player and player.Name or "nil", tostring(instanceId)))
 		return false
 	end
-	local module = self._effectModules[definition.effectId]
+	local module = self._effectModules[abilityId]
 	if not module then
-		warn(string.format("[PET_EFFECT] Missing effect module for configured effectId %s on %s", tostring(definition.effectId), tostring(definition.type)))
-		return false
+		-- Ability is passive/stat-only; its effects are resolved outside this lifecycle service.
+		if DebugConfig.VerboseTrace then
+			print(string.format("[PET_EFFECT][PASSIVE] abilityId=%s player=%s instanceId=%s", abilityId, player and player.Name or "nil", tostring(instanceId)))
+		end
+		return true
 	end
+	print(string.format("[PET_EFFECT][SUCCESS] ActivatePet player=%s instanceId=%s abilityId=%s", player and player.Name or "nil", tostring(instanceId), abilityId))
 	self._activeEffects[player] = self._activeEffects[player] or {}
 	self:DeactivatePet(player, instanceId)
 	local context = {
@@ -294,8 +284,8 @@ function PetAbilityService:Dispatch(player, lifecycleName: string, ...)
 		tracePet(effectState.context.definition, string.format("lifecycle=%s player=%s instanceId=%s handler=%s", lifecycleName, player and player.Name or "nil", tostring(instanceId), tostring(typeof(handler) == "function")))
 		if typeof(handler) == "function" then
 			handler(effectState.context, ...)
-		elseif TRACE_PET_IDS[effectState.context.definition.type] then
-			print(string.format("[PET_ATTACK_TRACE][%s] lifecycle skipped: no %s handler", effectState.context.definition.type, lifecycleName))
+		elseif TRACE_ABILITY_IDS[effectState.context.definition.abilityId] then
+			print(string.format("[PET_ATTACK_TRACE][%s] lifecycle skipped: no %s handler", effectState.context.definition.abilityId, lifecycleName))
 		end
 	end
 end
