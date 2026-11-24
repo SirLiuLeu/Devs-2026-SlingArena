@@ -161,7 +161,7 @@ The current runtime catalog defines five Launchers: `Normalduck`, `Kingduck`, `W
 - Server services remain authoritative for damage, flags, cooldowns, target validation and projectile hit resolution.
 - `IronBody` is the Elephant Pet and applies its level-scaled `damageMultiplier` to incoming direct and DoT damage in `DamagePipelineService` (0.80 remaining at level 1, 0.55 at level 50). Multiple copies do not stack; the strongest single reduction is used.
 - `AbsorbShield` is the Unicorn Pet and absorbs up to 5,000 damage per 10-second cycle. The shield is bypassed for LavaTrap and SafeZone ring damage; IronBody mitigation remains a separate damage-reduction layer.
-- `IdleStealth` and its stationary-invisibility lifecycle module are retired. Version-3 migration maps old `IdleStealth`/`ShadowCloak` ownership to the current Unicorn `AbsorbShield` identity.
+- `IdleStealth` and its stationary-invisibility lifecycle module are retired. Version-3 migration maps old Elephant `AbsorbShield` ownership to `IronBody` and old Unicorn `IdleStealth`/`ShadowCloak` ownership to `AbsorbShield`.
 
 ## 5.4 Pet visuals and projectiles
 
