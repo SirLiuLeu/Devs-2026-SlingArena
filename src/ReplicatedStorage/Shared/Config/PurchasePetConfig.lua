@@ -24,7 +24,7 @@ PurchasePetConfig.Prices = {
 	Shield = 650,
 
 	-- Epic
-	PlasmaCannon = 1000,
+	Titan = 1000,
 	Hydra = 1100,
 	ThunderHammer = 1000,
 	Dragon = 1000,
