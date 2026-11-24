@@ -237,7 +237,7 @@ function PetInventoryUIController:_bindSlotContent(slot: GuiObject, petEntry)
 	local definition = PetsConfig.GetByAbilityId(abilityId)
 	local root = getTemplateRoot(slot)
 	if not (root and definition) then
-		if not definition then warn(string.format("[PET_INVENTORY_UI] Unknown Pet definition id %q.", abilityId)) end
+		if not definition then warn(string.format("[PET_INVENTORY_UI] Unknown Pet AbilityID %q.", abilityId)) end
 		return
 	end
 
