@@ -67,7 +67,6 @@ RemoteContracts.Names = {
 	PurchasePet = "PurchasePet",
 	SellLauncher = "SellLauncher",
 	CombineLaunchers = "CombineLaunchers",
-	PetProjectileVisual = "PetProjectileVisual",
 }
 
 RemoteContracts.Validators = {
