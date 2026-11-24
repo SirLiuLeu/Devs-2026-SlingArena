@@ -530,7 +530,7 @@ function DailyLoginService:_claimReward(player: Player, payload: any)
 	}
 	if reward.Kind == "Pet" then
 		local definition = PetsConfig.GetById(reward.DefinitionId)
-		rewardResult.Name = definition and definition.DisplayName or reward.DefinitionId
+		rewardResult.Name = definition and definition.modelName or reward.DefinitionId
 		rewardResult.Rarity = definition and definition.rarity or "Unknown"
 	end
 
