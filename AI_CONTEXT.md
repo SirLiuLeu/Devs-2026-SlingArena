@@ -85,9 +85,9 @@
 | `ItemConfig.lua` | Item catalog and shared item metadata, Shop script text, and Diamond prices for x1/x10 purchases. Bomb tuning includes blast radius, max damage falloff, knockback, and beep interval; `gift_box` is a consumable. | `InventoryUIController`, `InventoryDataProvider`, `RewardRoller`, `MockData`, `ItemService`, `BombService` |
 | `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
 | `PetAbilityProgressionConfig.lua` | Numeric ability parameters at milestones 1/5/10/15/20. Player-facing ability text is owned by `PetAbilityDisplayConfig.lua`. | `PetProgression`, `PetDisplayFormatter` |
-| `PetAbilityDisplayConfig.lua` | Localized descriptions keyed by Pet `type`; does not own gameplay tuning. | `PetDisplayFormatter`, `PetInventoryUIController` |
+| `PetAbilityDisplayConfig.lua` | Localized descriptions keyed by canonical Pet `abilityId`; does not own gameplay tuning. | `PetDisplayFormatter`, `PetInventoryUIController` |
 | `PetPreviewConfig.lua` | Per-AbilityID viewport camera `Rotation` and `Offset`, accessed through `Get(abilityId)`. | `PetInventoryUIController`, `ShopUIController`, `PreviewRenderer` |
-| `PetAnimationConfig.lua` | Per-Pet-type idle, run, optional attack, and victory-dance animation asset IDs; blank IDs disable tracks until configured. | `ClientPetController` |
+| `PetAnimationConfig.lua` | Per-AbilityID idle, run, optional attack, and victory-dance animation asset IDs; blank IDs disable tracks until configured. | `ClientPetController` |
 | `PurchasePetConfig.lua` | Server-owned development Diamond prices for all Pet definitions available in Shop. | `ShopService`, `MockData` |
 | `PetRenderConfig.lua` | Client-side nearby Pet render distance, range-check interval, and exit hysteresis. | `ClientPetController` |
 | `LauncherPreviewConfig.lua` | Per-Launcher viewport camera `Rotation`, `Offset`, and preview `Scale`, accessed through `Get(launcherId)`. | `LauncherInventoryUIController`, `PreviewRenderer` |
@@ -264,10 +264,10 @@
 
 ## Pet Ability Progression implementation (2026-11-04)
 - Added Level 1/5/10/15/20 values and Level 50 targets for the eleven previously unscaled Pets. Levels 21–50 use the existing milestone interpolation rule; the established progression values for the original seven Pets are unchanged.
-- ThunderHammer/Stun and Medusa/Petrify now use level-scaled `collisionExtraDuration`, retaining the existing impact-speed scaling in `EffectUtil`.
-- GhostFlame/Burn and Poison now override DoT damage-per-tick from Pet progression for both Player flag application and Food DoT ticking. Existing durations, tick intervals, stack rules, Poison slow, and food attribution remain unchanged.
-- HealthCore, PowerCore, TurboModule, LaunchBooster, QuickReload, and ThornArmor now resolve level-scaled stat contributions through `PetStatResolver`. Each progression value supersedes its matching legacy static modifier to prevent double counting. QuickReload continues to feed `PlayerState.LaunchCooldownReduction` and the existing Launcher recovery calculation.
-- ShadowCloak's `IdleStealth` module now reads the progression-controlled idle delay. PetInventory ability descriptions show the live value and next-level preview for the new parameters.
+- Historical note superseded by the AbilityID-only cleanup: Pet-owned Stun/Petrify/Slow progression and their Pet lifecycle modules have been retired because no current Pet owns those abilities. Generic status flags and collision-state handling remain available to other gameplay systems.
+- Burn and Poison remain current Pet AbilityIDs and continue to supply level-scaled DoT damage for Player flags and Food DoT ticking. Status durations, tick intervals, stacking, and food attribution remain owned by their existing status/effect systems.
+- The current stat Pets use AbilityID-keyed progression: `MaxHPBoost`, `DamageBoost`, `MoveSpeedBoost`, `LaunchBooster`, `QuickReload`, `ThornArmor`, `LauncherBoost`, and `PetBaseBoost`. `PetStatResolver` remains the source for the resolved Launcher/Pet stat layers; QuickReload continues to feed `PlayerState.LaunchCooldownReduction` and the existing Launcher recovery calculation.
+- `IdleStealth` reads its progression-controlled idle delay. PetInventory ability descriptions are keyed by AbilityID and show the live value and next-level preview.
 - `PetProgression.Resolve` resolves by the definition's required `abilityId`; no Pet-ID fallback or generic NoOp effect module remains.
 - Added progression-target and stat-resolution regression tests for all eleven Pets. Roblox Studio/runtime tests have not yet been executed in this pass.
 
