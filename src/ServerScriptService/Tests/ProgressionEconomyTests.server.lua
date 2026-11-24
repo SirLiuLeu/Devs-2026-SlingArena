@@ -495,6 +495,8 @@ runTest("Shop_Pet_Catalog_Has_Price_And_Ability_Description_For_Every_Pet", func
 		local pet = PetsConfig.GetByAbilityId(abilityId)
 		if not pet then error("Missing Pet AbilityID: " .. abilityId) end
 		assertEqual(pet.abilityId, abilityId, "Catalog key matches its sole AbilityID: " .. abilityId)
+		local abilityParams = PetAbilityProgressionConfig.GetParams(abilityId, 1)
+		assertEqual(next(abilityParams) ~= nil, true, abilityId .. " has level-1 progression parameters")
 		local display = PetDisplayFormatter.Format(pet, 1, false, "vi")
 		assertEqual(type(display.ScriptText), "string", "Pet ability display exists: " .. abilityId)
 		assertEqual(display.ScriptText ~= "", true, "Pet ability display is non-empty: " .. abilityId)
