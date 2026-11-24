@@ -109,6 +109,24 @@ runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function(
 	assertEqual(legacyV1.EquippedPets[1], "oldPoisonPet", "Old Poison instance remains equipped in slot 1")
 	assertEqual(legacyV1.EquippedPets[2], "oldSnakePet", "Old Snake instance remains equipped in slot 2")
 
+	local legacyV1AbilityOnly = {
+		Diamonds = 0,
+		OwnedItems = {},
+		PetIdentityMigrationVersion = 1,
+		OwnedPets = {
+			snake = { abilityId = "Poison", level = 2 },
+			caterpillar = { abilityId = "Lifesteal", level = 3 },
+			phoenix = { abilityId = "Fire", level = 4 },
+		},
+		EquippedPets = { [1] = "snake", [2] = "caterpillar", [3] = "phoenix" },
+	}
+	PlayerDataService._ensurePetData(PlayerDataService, legacyV1AbilityOnly)
+	assertEqual(legacyV1AbilityOnly.OwnedPets.snake.abilityId, "Poison", "Ability-only Snake record is not passed through Pet-ID aliases")
+	assertEqual(legacyV1AbilityOnly.OwnedPets.caterpillar.abilityId, "Lifesteal", "Ability-only Lifesteal record remains canonical")
+	assertEqual(legacyV1AbilityOnly.OwnedPets.phoenix.abilityId, "Burn", "Legacy ability aliases still migrate ability-only records")
+	assertEqual(legacyV1AbilityOnly.EquippedPets[1], "snake", "Ability-only Snake keeps its equipped slot")
+	assertEqual(legacyV1AbilityOnly.EquippedPets[2], "caterpillar", "Ability-only Lifesteal keeps its equipped slot")
+
 	local currentV2 = {
 		Diamonds = 0,
 		OwnedItems = {},
