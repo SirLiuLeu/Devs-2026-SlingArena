@@ -386,7 +386,7 @@ function ClientPetController:_createPet(owner: Player, slot: number, instanceId:
 		end
 		return nil
 	end
-	local modelName = definition.Name or definitionId
+	local modelName = definition.modelName or definitionId
 	local source = self._assets:FindFirstChild(modelName)
 	if not source or not source:IsA("Model") then
 		if not self._failedModels[definitionId] then
