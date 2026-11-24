@@ -66,7 +66,7 @@ local MOCK_PLAYER_DATA = {
 		mock_Poison_1 = { abilityId = "Poison", level = 1, rarity = (PetsConfig.GetByAbilityId("Poison") and PetsConfig.GetByAbilityId("Poison").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_PetBaseBoost_1 = { abilityId = "PetBaseBoost", level = 1, rarity = (PetsConfig.GetByAbilityId("PetBaseBoost") and PetsConfig.GetByAbilityId("PetBaseBoost").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_Burn_1 = { abilityId = "Burn", level = 1, rarity = (PetsConfig.GetByAbilityId("Burn") and PetsConfig.GetByAbilityId("Burn").rarity) or "Common", acquiredAt = 1786924800 },
-		mock_Poison_1 = { abilityId = "Poison", level = 1, rarity = (PetsConfig.GetByAbilityId("Poison") and PetsConfig.GetByAbilityId("Poison").rarity) or "Common", acquiredAt = 1786924800 },
+		mock_Lifesteal_1 = { abilityId = "Lifesteal", level = 1, rarity = (PetsConfig.GetByAbilityId("Lifesteal") and PetsConfig.GetByAbilityId("Lifesteal").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_MaxHPBoost_1 = { abilityId = "MaxHPBoost", level = 1, rarity = (PetsConfig.GetByAbilityId("MaxHPBoost") and PetsConfig.GetByAbilityId("MaxHPBoost").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_DamageBoost_1 = { abilityId = "DamageBoost", level = 1, rarity = (PetsConfig.GetByAbilityId("DamageBoost") and PetsConfig.GetByAbilityId("DamageBoost").rarity) or "Common", acquiredAt = 1786924800 },
 		mock_AbsorbShield_1 = { abilityId = "AbsorbShield", level = 1, rarity = (PetsConfig.GetByAbilityId("AbsorbShield") and PetsConfig.GetByAbilityId("AbsorbShield").rarity) or "Common", acquiredAt = 1786924800 },
