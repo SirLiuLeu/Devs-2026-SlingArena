@@ -208,10 +208,11 @@ local definitions: { PetDefinition } = {
 	}),
 }
 
-PetsConfig.Definitions = {}
+local definitionsByType: { [string]: PetDefinition } = {}
 for _, definition in ipairs(definitions) do
-	PetsConfig.Definitions[definition.type] = definition
+	definitionsByType[definition.type] = definition
 end
+PetsConfig.Definitions = definitionsByType
 
 function PetsConfig.GetMaxLevelForRarity(_rarity: string): number
 	return PetsConfig.MaxLevel
