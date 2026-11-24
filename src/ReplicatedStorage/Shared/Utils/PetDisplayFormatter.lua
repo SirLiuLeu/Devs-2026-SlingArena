@@ -111,8 +111,8 @@ local function formatDescriptionValue(key: string, value: number): string
 end
 
 local function buildScriptText(definition: any, current: any, nextProgression: any, previewNextLevel: boolean, nextLevel: number, languageCode: string?): string
-	local petType = definition and definition.type
-	local template = PetAbilityDisplayConfig.GetTemplate(petType, languageCode)
+	local abilityId = definition and definition.abilityId
+	local template = PetAbilityDisplayConfig.GetTemplate(abilityId, languageCode)
 	if not template then
 		return if string.lower(languageCode or "en"):sub(1, 2) == "vi" then "Chưa có mô tả ability." else "Ability description unavailable."
 	end
