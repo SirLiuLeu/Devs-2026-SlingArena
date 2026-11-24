@@ -453,7 +453,8 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 				local reflectPct = math.clamp(victimStats.Reflect, 0, 0.5)
 				if reflectPct > 0 then
 					local reflected = actualDamage * reflectPct
-					local reflectedAfterAbsorb = self:_applyAbsorbShield(attacker, reflected, false)
+					local reflectedAfterIronBody = reflected * self:_getIronBodyDamageMultiplier(attacker)
+					local reflectedAfterAbsorb = self:_applyAbsorbShield(attacker, reflectedAfterIronBody, false)
 					local attackerStateBefore = playerStateService:GetState(attacker)
 					local attackerHPBefore = attackerStateBefore and tonumber(attackerStateBefore.CurrentHP) or 0
 					local reflectedApplied = if reflectedAfterAbsorb > 0
