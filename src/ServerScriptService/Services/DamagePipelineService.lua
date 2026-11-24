@@ -294,7 +294,7 @@ function DamagePipelineService:_getPetAbilityParams(player: Player, petId: strin
 	for _, progression in ipairs(self:_getEquippedPetProgressions(player)) do
 		local definition = progression.definition
 		local params = progression.abilityParams
-		if type(definition) == "table" and definition.PetId == petId and type(params) == "table" then
+		if type(definition) == "table" and definition.type == petId and type(params) == "table" then
 			bestValue = math.max(bestValue, tonumber(params[paramName]) or 0)
 		end
 	end
@@ -350,7 +350,7 @@ function DamagePipelineService:_getConditionalPetDamageMultiplier(attacker: Play
 	local fullForceBonus = 0
 	local lastStandBonus = 0
 	for _, progression in ipairs(self:_getEquippedPetProgressions(attacker)) do
-		local petId = progression.definition and progression.definition.PetId
+		local petId = progression.definition and progression.definition.type
 		local params = progression.abilityParams or {}
 		if petId == "Dragon" then
 			fullForceBonus = math.max(fullForceBonus, (tonumber(params.fullForceDamageBonus) or 0) * healthRatio)
@@ -679,7 +679,7 @@ function DamagePipelineService:_applyPetCombatEffectsFromHit(victim: Player, att
 				if duration > 0 then
 					stateService:ApplyFlag(victim, flagName, duration, attacker, {
 						SourceId = getSourceId(attacker) .. ":PetSlot" .. tostring(slot),
-						PetId = definition.PetId,
+						PetId = definition.type,
 						PetInstanceId = instanceId,
 						TickInterval = merged.TickInterval,
 						DamagePerTick = merged.DamagePerTick,
