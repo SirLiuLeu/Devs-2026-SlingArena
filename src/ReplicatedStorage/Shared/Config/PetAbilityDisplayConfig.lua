@@ -6,7 +6,7 @@
 local PetAbilityDisplayConfig = {}
 
 PetAbilityDisplayConfig.Descriptions = {
-	PlasmaCannon = {
+	Titan = {
 		vi = "Titan: tăng trọng lượng Launcher lên {weight}, hitbox lên {hitbox}, knockback gây ra {outgoingKnockbackBonus} và giảm knockback nhận vào {incomingKnockbackReduction}. Launcher tăng kích thước 4% mỗi cấp người chơi, tối đa 2x.",
 		en = "Titan: increases Launcher weight to {weight}, hitbox to {hitbox}, outgoing knockback by {outgoingKnockbackBonus}, and reduces incoming knockback by {incomingKnockbackReduction}. Launcher size grows 4% per player level, up to 2x.",
 	},
@@ -80,11 +80,11 @@ PetAbilityDisplayConfig.Descriptions = {
 	},
 }
 
-function PetAbilityDisplayConfig.GetTemplate(petId: string?, languageCode: string?): string?
-	if type(petId) ~= "string" then
+function PetAbilityDisplayConfig.GetTemplate(petType: string?, languageCode: string?): string?
+	if type(petType) ~= "string" then
 		return nil
 	end
-	local entry = PetAbilityDisplayConfig.Descriptions[petId]
+	local entry = PetAbilityDisplayConfig.Descriptions[petType]
 	if not entry then
 		return nil
 	end
