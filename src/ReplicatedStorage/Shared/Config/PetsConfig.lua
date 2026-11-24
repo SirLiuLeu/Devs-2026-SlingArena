@@ -52,7 +52,7 @@ PetsConfig.Categories = {
 
 -- Legacy catalog identifiers are migrated to the owning AbilityID when profiles load.
 -- These are data-compatibility aliases only; they are never valid current catalog keys.
-PetsConfig.LegacyIdAliases = {
+PetsConfig.LegacyPetDefinitionIdAliases = {
 	PlasmaCannon = "Titan",
 	Hydra = "LastStand",
 	ThunderHammer = "LauncherBoost",
