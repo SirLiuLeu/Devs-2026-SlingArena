@@ -16,23 +16,23 @@ local PetAnimationConfig = {}
 
 PetAnimationConfig.Animations = {
 	Titan = { Idle = "", Run = "", Attack = "", Dance = "" }, -- Octopus Pet
-	Hydra = { Idle = "", Run = "", Dance = "" }, -- Hydra
-	ThunderHammer = { Idle = "", Run = "", Dance = "" }, -- Yeti
-	Medusa = { Idle = "", Run = "", Dance = "" }, -- Snake
-	IceCrystal = { Idle = "95090397407808", Run = "70654849990565", Dance = "114087130920750" }, -- Penguin
-	GhostFlame = { Idle = "", Run = "", Dance = "" }, -- Phoenix
-	Poison = { Idle = "79761118977634", Run = "131793614901610", Dance = "76215975855168" }, -- Caterpillar
-	HealthCore = { Idle = "71267273020156", Run = "127885756125728", Dance = "72877466735478" }, -- Pig
-	PowerCore = { Idle = "132080786710960", Run = "81491739793302", Dance = "86177773442474" }, -- Panda
-	Shield = { Idle = "79761118977634", Run = "131793614901610", Dance = "76215975855168" }, -- Elephant
-	BrainBoost = { Idle = "132080786710960", Run = "81491739793302", Dance = "86177773442474" }, -- Monkey
-	TurboModule = { Idle = "133591929877071", Run = "131268154069931", Dance = "76215975855168" }, -- Bunny
+	LastStand = { Idle = "", Run = "", Dance = "" }, -- Hydra
+	LauncherBoost = { Idle = "", Run = "", Dance = "" }, -- Yeti
+	Poison = { Idle = "", Run = "", Dance = "" }, -- Snake
+	PetBaseBoost = { Idle = "95090397407808", Run = "70654849990565", Dance = "114087130920750" }, -- Penguin
+	Burn = { Idle = "", Run = "", Dance = "" }, -- Phoenix
+	Lifesteal = { Idle = "79761118977634", Run = "131793614901610", Dance = "76215975855168" }, -- Caterpillar
+	MaxHPBoost = { Idle = "71267273020156", Run = "127885756125728", Dance = "72877466735478" }, -- Pig
+	DamageBoost = { Idle = "132080786710960", Run = "81491739793302", Dance = "86177773442474" }, -- Panda
+	AbsorbShield = { Idle = "79761118977634", Run = "131793614901610", Dance = "76215975855168" }, -- Elephant
+	ExpBonus = { Idle = "132080786710960", Run = "81491739793302", Dance = "86177773442474" }, -- Monkey
+	MoveSpeedBoost = { Idle = "133591929877071", Run = "131268154069931", Dance = "76215975855168" }, -- Bunny
 	LaunchBooster = { Idle = "116527000708684", Run = "116927071134069", Dance = "109293602352910" }, -- Bee
-	Dragon = { Idle = "", Run = "", Attack = "", Dance = "" }, -- Dragon
+	FullForce = { Idle = "", Run = "", Attack = "", Dance = "" }, -- Dragon
 	QuickReload = { Idle = "79761118977634", Run = "131793614901610", Dance = "76215975855168" }, -- Dog
 	ThornArmor = { Idle = "", Run = "", Dance = "" }, -- Pufferfish
-	RegenBooster = { Idle = "133996742170487", Run = "92449512649739", Dance = "127823569164030" }, -- Fish
-	ShadowCloak = { Idle = "", Run = "", Dance = "" }, -- Unicorn
+	Regeneration = { Idle = "133996742170487", Run = "92449512649739", Dance = "127823569164030" }, -- Fish
+	IdleStealth = { Idle = "", Run = "", Dance = "" }, -- Unicorn
 } :: { [string]: PetAnimationSet }
 
 local EMPTY_SET: PetAnimationSet = {
@@ -41,16 +41,14 @@ local EMPTY_SET: PetAnimationSet = {
 	Dance = "",
 }
 
-function PetAnimationConfig.GetById(petType: string, abilityId: string?): PetAnimationSet
-	return PetAnimationConfig.Animations[petType]
-		or (abilityId and PetAnimationConfig.Animations[abilityId])
-		or EMPTY_SET
+function PetAnimationConfig.GetByAbilityId(abilityId: string): PetAnimationSet
+	return PetAnimationConfig.Animations[abilityId] or EMPTY_SET
 end
 
-function PetAnimationConfig.GetAllIds(): { string }
+function PetAnimationConfig.GetAllAbilityIds(): { string }
 	local ids = {}
-	for petId in pairs(PetAnimationConfig.Animations) do
-		table.insert(ids, petId)
+	for abilityId in pairs(PetAnimationConfig.Animations) do
+		table.insert(ids, abilityId)
 	end
 	table.sort(ids)
 	return ids
