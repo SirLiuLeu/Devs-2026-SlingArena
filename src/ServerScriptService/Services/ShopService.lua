@@ -162,9 +162,9 @@ function ShopService:Init()
 		end)
 	end
 	if self._purchasePetRemote then
-		self._purchasePetRemote.OnServerEvent:Connect(function(player: Player, definitionId: any)
-			if RemoteContracts.Validate(RemoteContracts.Names.PurchasePet, definitionId) then
-				self:PurchasePet(player, definitionId)
+		self._purchasePetRemote.OnServerEvent:Connect(function(player: Player, abilityId: any)
+			if RemoteContracts.Validate(RemoteContracts.Names.PurchasePet, abilityId) then
+				self:PurchasePet(player, abilityId)
 			end
 		end)
 	end
