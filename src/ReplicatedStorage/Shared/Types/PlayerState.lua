@@ -17,6 +17,13 @@ export type OwnedLauncher = {
 	acquiredAt: number,
 }
 
+export type OwnedPet = {
+	abilityId: string,
+	level: number,
+	rarity: string,
+	acquiredAt: number,
+}
+
 export type PlayerState = {
 	UserId: number,
 	CurrentMap: string?,
@@ -51,7 +58,7 @@ export type PlayerState = {
 	OwnedLaunchers: { [string]: OwnedLauncher }?,
 	OwnedItems: { [string]: number }?,
 	ItemCooldownEnds: { [string]: number }?,
-	OwnedPets: { [string]: any }?,
+	OwnedPets: { [string]: OwnedPet }?,
 	EquippedPets: { [any]: string }?,
 	ChargeValue: number,
 	CurrentVelocity: Vector3,
