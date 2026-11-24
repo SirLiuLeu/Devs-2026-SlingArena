@@ -35,12 +35,12 @@ end
 
 local RETIRED_PET_IDS = { SmokeBomb = true, MagnetCore = true }
 local HISTORICAL_PET_ID_ALIASES = {
-	ShadowCloakZ = "IdleStealth",
+	ShadowCloakZ = "AbsorbShield",
 	Pufferfish = "ThornArmor",
 	SlowBlaster = "LastStand",
 	TitanCore = "FullForce",
 }
-local PET_IDENTITY_MIGRATION_VERSION = 2
+local PET_IDENTITY_MIGRATION_VERSION = 3
 local LAUNCHER_ID_ALIASES = {
 	NormalLauncher = "Normalduck",
 	TitanBulwarkLauncher = "Kingduck",
@@ -60,7 +60,8 @@ local LAUNCHER_ID_ALIASES = {
 local ABILITY_ID_ALIASES = {
 	Fire = "Burn",
 	Regen = "Regeneration",
-	ShadowCloak = "IdleStealth",
+	ShadowCloak = "AbsorbShield",
+	IdleStealth = "AbsorbShield",
 }
 
 local function currentMondayStamp(now: number): number
@@ -264,9 +265,9 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 		data.EquippedPets = {}
 	end
 
-	-- Version 2 stores canonical AbilityIDs directly. Never re-apply legacy aliases
-	-- after this version: e.g. "Poison" is now a valid AbilityID for the Snake Pet,
-	-- while the retired Pet definition formerly named "Poison" maps to "Lifesteal".
+	-- Version 3 stores the current 18 canonical AbilityIDs. Older profiles may still
+	-- contain IdleStealth/ShadowCloak; those records now belong to AbsorbShield (Unicorn).
+	-- Do not re-apply aliases once a profile is at the current version.
 	local previousMigrationVersion = tonumber(data.PetIdentityMigrationVersion) or 0
 	local needsIdentityMigration = previousMigrationVersion < PET_IDENTITY_MIGRATION_VERSION
 	local needsHistoricalModelSwap = previousMigrationVersion < 1
