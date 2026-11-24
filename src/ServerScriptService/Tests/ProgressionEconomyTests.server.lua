@@ -15,6 +15,7 @@ local LauncherStatResolver = require(ReplicatedStorage.Shared.Utils.LauncherStat
 local PetStatResolver = require(ReplicatedStorage.Shared.Utils.PetStatResolver)
 local PetProgression = require(ReplicatedStorage.Shared.Utils.PetProgression)
 local PetDisplayFormatter = require(ReplicatedStorage.Shared.Utils.PetDisplayFormatter)
+local PetAnimationConfig = require(ReplicatedStorage.Shared.Config.PetAnimationConfig)
 local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
 local PlayerDataService = require(script.Parent.Parent.Services.PlayerDataService)
 
@@ -317,6 +318,20 @@ runTest("Pet_Stat_Source_Layers_Do_Not_Amplify_The_Wrong_Stats", function()
 	}
 	local withFish = PetStatResolver.Apply(launcher, { fish })
 	assertNear(withFish.healingReceivedMultiplier, 1.10, "Fish amplifies healing received at level 1")
+end)
+
+runTest("Pet_Animation_Config_Uses_The_Pet_AbilityID_Catalog", function()
+	local catalog = PetsConfig.GetAllAbilityIds()
+	local animationIds = PetAnimationConfig.GetAllAbilityIds()
+	assertEqual(#animationIds, #catalog, "Every Pet AbilityID has exactly one animation row")
+	for _, abilityId in ipairs(catalog) do
+		assertEqual(PetAnimationConfig.Animations[abilityId] ~= nil, true, abilityId .. " animation row exists")
+	end
+	for _, abilityId in ipairs(animationIds) do
+		assertEqual(PetsConfig.IsValidAbilityId(abilityId), true, abilityId .. " animation row is not orphaned")
+	end
+	assertEqual(PetAnimationConfig.Animations.PlasmaCannon, nil, "Retired Pet identifier is not an animation key")
+	assertEqual(PetAnimationConfig.Animations.Hydra, nil, "Model name is not an animation key")
 end)
 
 runTest("Pet_Ability_Display_Templates_Resolve_All_Placeholders", function()
