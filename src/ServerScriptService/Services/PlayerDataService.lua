@@ -60,6 +60,7 @@ local LAUNCHER_ID_ALIASES = {
 local ABILITY_ID_ALIASES = {
 	Fire = "Burn",
 	Regen = "Regeneration",
+	AbsorbShield = "IronBody",
 	ShadowCloak = "AbsorbShield",
 	IdleStealth = "AbsorbShield",
 }
