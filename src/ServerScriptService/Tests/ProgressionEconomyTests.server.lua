@@ -16,6 +16,7 @@ local PetStatResolver = require(ReplicatedStorage.Shared.Utils.PetStatResolver)
 local PetProgression = require(ReplicatedStorage.Shared.Utils.PetProgression)
 local PetDisplayFormatter = require(ReplicatedStorage.Shared.Utils.PetDisplayFormatter)
 local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
+local PlayerDataService = require(script.Parent.Parent.Services.PlayerDataService)
 
 local function assertEqual(actual: any, expected: any, message: string)
 	if actual ~= expected then
@@ -65,6 +66,65 @@ runTest("Pet_Definitions_Use_AbilityID_As_Sole_Identity", function()
 	assertEqual(PetsConfig.LegacyIdAliases.Poison, "Lifesteal", "Old Poison Pet ID migrates to Lifesteal")
 	assertEqual(titan.modelName, "Octopus", "Model name remains a visual asset reference")
 	assertEqual(titan.statModifiers, nil, "Empty stat modifier tables are omitted")
+end)
+
+runTest("Pet_AbilityID_Migration_Is_One_Time_And_Preserves_Ownership", function()
+	local legacyV0 = {
+		Diamonds = 0,
+		OwnedItems = {},
+		PetIdentityMigrationVersion = 0,
+		OwnedPets = {
+			oldHydra = { definitionId = "Hydra", level = 4 },
+			oldDragon = { definitionId = "Dragon", level = 5 },
+		},
+		EquippedPets = { [1] = "oldHydra", [2] = "oldDragon" },
+	}
+	PlayerDataService._ensurePetData(PlayerDataService, legacyV0)
+	assertEqual(legacyV0.OwnedPets.oldHydra.abilityId, "FullForce", "Pre-v1 Hydra receives the historical model swap before AbilityID migration")
+	assertEqual(legacyV0.OwnedPets.oldDragon.abilityId, "LastStand", "Pre-v1 Dragon receives the historical model swap before AbilityID migration")
+	assertEqual(legacyV0.OwnedPets.oldHydra.definitionId, nil, "Legacy definitionId is cleared")
+	assertEqual(legacyV0.OwnedPets.oldDragon.definitionId, nil, "Legacy definitionId is cleared")
+	assertEqual(legacyV0.EquippedPets[1], "oldHydra", "First equipped instance ID is preserved")
+	assertEqual(legacyV0.EquippedPets[2], "oldDragon", "Second equipped instance ID is preserved")
+	assertEqual(legacyV0.OwnedPets.oldHydra.level, 4, "Old Hydra level is preserved")
+	assertEqual(legacyV0.OwnedPets.oldDragon.level, 5, "Old Dragon level is preserved")
+	assertEqual(legacyV0.PetIdentityMigrationVersion, 2, "Profile advances to AbilityID migration version 2")
+
+	local legacyV1 = {
+		Diamonds = 0,
+		OwnedItems = {},
+		PetIdentityMigrationVersion = 1,
+		OwnedPets = {
+			oldPoisonPet = { definitionId = "Poison", abilityId = "Petrify", effectId = "Petrify", level = 7 },
+			oldSnakePet = { definitionId = "Medusa", abilityId = "Petrify", effectId = "Petrify", level = 3 },
+		},
+		EquippedPets = { [1] = "oldPoisonPet", [2] = "oldSnakePet" },
+	}
+	PlayerDataService._ensurePetData(PlayerDataService, legacyV1)
+	assertEqual(legacyV1.OwnedPets.oldPoisonPet.abilityId, "Lifesteal", "Retired Poison Pet ID migrates to Lifesteal, not the Snake Poison ability")
+	assertEqual(legacyV1.OwnedPets.oldSnakePet.abilityId, "Poison", "Medusa Pet ID migrates to the Snake Poison ability")
+	assertEqual(legacyV1.OwnedPets.oldPoisonPet.definitionId, nil, "Legacy Poison definitionId is cleared")
+	assertEqual(legacyV1.OwnedPets.oldPoisonPet.effectId, nil, "Legacy effectId is cleared")
+	assertEqual(legacyV1.EquippedPets[1], "oldPoisonPet", "Old Poison instance remains equipped in slot 1")
+	assertEqual(legacyV1.EquippedPets[2], "oldSnakePet", "Old Snake instance remains equipped in slot 2")
+
+	local currentV2 = {
+		Diamonds = 0,
+		OwnedItems = {},
+		PetIdentityMigrationVersion = 2,
+		OwnedPets = {
+			snake = { abilityId = "Poison", level = 2 },
+			caterpillar = { abilityId = "Lifesteal", level = 3 },
+		},
+		EquippedPets = { [1] = "snake", [2] = "caterpillar" },
+	}
+	PlayerDataService._ensurePetData(PlayerDataService, currentV2)
+	PlayerDataService._ensurePetData(PlayerDataService, currentV2)
+	assertEqual(currentV2.OwnedPets.snake.abilityId, "Poison", "Current version-2 Snake Poison AbilityID is not aliased")
+	assertEqual(currentV2.OwnedPets.caterpillar.abilityId, "Lifesteal", "Current version-2 Lifesteal AbilityID is not aliased")
+	assertEqual(currentV2.EquippedPets[1], "snake", "Version-2 Snake instance remains equipped")
+	assertEqual(currentV2.EquippedPets[2], "caterpillar", "Version-2 Caterpillar instance remains equipped")
+	assertEqual(currentV2.PetIdentityMigrationVersion, 2, "Repeated normalization remains at version 2")
 end)
 
 runTest("Pet_Linear_Cost_And_Rarity_Multipliers", function()
