@@ -16,6 +16,7 @@ local PetAnimationConfig = {}
 
 PetAnimationConfig.Animations = {
 	Titan = { Idle = "", Run = "", Attack = "", Dance = "" }, -- Octopus Pet
+	Hydra = { Idle = "", Run = "", Dance = "" }, -- Hydra
 	ThunderHammer = { Idle = "", Run = "", Dance = "" }, -- Yeti
 	Medusa = { Idle = "", Run = "", Dance = "" }, -- Snake
 	IceCrystal = { Idle = "95090397407808", Run = "70654849990565", Dance = "114087130920750" }, -- Penguin
