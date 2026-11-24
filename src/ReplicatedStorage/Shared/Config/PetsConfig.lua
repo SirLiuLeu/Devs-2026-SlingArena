@@ -145,7 +145,7 @@ PetsConfig.Definitions = {
 	}),
 	AbsorbShield = pet("AbsorbShield", {
 		modelName = "Unicorn",
-		rarity = PetsConfig.Rarities.Rare,
+		rarity = PetsConfig.Rarities.Legendary,
 		category = PetsConfig.Categories.UtilityAreaEffect,
 	}),
 	ExpBonus = pet("ExpBonus", {
