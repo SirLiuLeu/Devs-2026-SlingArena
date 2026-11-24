@@ -48,6 +48,24 @@ runTest("Pet_Level_Cap_And_Linear_Stats", function()
 	assertNear(PetsUpgradeConfig.GetStatAtLevel(100, 50), 345, "Level 50 reaches 3.45x")
 end)
 
+runTest("Pet_Definition_Uses_Type_And_Model_Name", function()
+	local titan = PetsConfig.GetById("Titan")
+	if not titan then error("Titan Pet definition is missing") end
+	assertEqual(titan.type, "Titan", "Titan is the canonical Pet type")
+	assertEqual(titan.modelName, "Octopus", "Titan resolves the Octopus model")
+	assertEqual(titan.abilityId, "Titan", "Titan progression identity remains Titan")
+	assertEqual(titan.effectId, "Titan", "Titan runtime effect remains Titan")
+	assertEqual(PetsConfig.GetById("PlasmaCannon"), nil, "Legacy projectile ID is not a current Pet definition")
+	assertEqual(PetsConfig.LegacyIdAliases.PlasmaCannon, "Titan", "Legacy Pet ID migrates to Titan")
+	assertEqual(titan.Name, nil, "Duplicate model Name field is removed")
+	assertEqual(titan.DisplayName, nil, "Duplicate DisplayName field is removed")
+	assertEqual(titan.slotType, nil, "Unused per-definition slotType is removed")
+	assertEqual(titan.metadata, nil, "Unused metadata is removed")
+	assertEqual(titan.script, nil, "Duplicated Pet script is removed")
+	assertEqual(titan.passiveAbility, nil, "Duplicated passiveAbility type is removed")
+	assertEqual(titan.statModifiers, nil, "Empty stat modifier tables are omitted")
+end)
+
 runTest("Pet_Linear_Cost_And_Rarity_Multipliers", function()
 	assertEqual(PetsUpgradeConfig.GetUpgradeCost(1, "Common"), 50, "Common level 1 cost")
 	assertEqual(PetsUpgradeConfig.GetUpgradeCost(49, "Common"), 2450, "Common level 49 cost")
@@ -141,7 +159,7 @@ runTest("Remaining_Pet_Abilities_Reach_Level_50_Targets", function()
 	local healthProgression = PetProgression.Resolve(PetsConfig.GetById("HealthCore"), { definitionId = "HealthCore", level = 50 })
 	local thornProgression = PetProgression.Resolve(PetsConfig.GetById("ThornArmor"), { definitionId = "ThornArmor", level = 50 })
 	assertNear(healthProgression.abilityParams.maxHPMultiplier, 1.25, "Pig resolves the redesigned final-HP multiplier")
-	assertNear(thornProgression.abilityParams.reflectDamageBonus, 0.25, "NoOp Pet resolves progression by PetId")
+	assertNear(thornProgression.abilityParams.reflectDamageBonus, 0.25, "NoOp Pet resolves progression by Pet type")
 end)
 
 runTest("Level_Scaled_Pet_Stat_Bonuses_Override_Legacy_Static_Modifiers", function()
@@ -214,7 +232,7 @@ runTest("Pet_Rarity_Assignments_Match_Redesigned_Tiers", function()
 		BrainBoost = "Common", TurboModule = "Common",
 		LaunchBooster = "Rare", QuickReload = "Rare", RegenBooster = "Rare", Poison = "Rare",
 		Medusa = "Rare", GhostFlame = "Rare", HealthCore = "Rare", PowerCore = "Rare", Shield = "Rare",
-		PlasmaCannon = "Epic", Hydra = "Epic", ThunderHammer = "Epic", Dragon = "Epic", ThornArmor = "Epic",
+		Titan = "Epic", Hydra = "Epic", ThunderHammer = "Epic", Dragon = "Epic", ThornArmor = "Epic",
 		IceCrystal = "Legendary", ShadowCloak = "Legendary",
 	}
 	assertEqual(#PetsConfig.GetAllIds(), 18, "Pet ID catalog count unchanged")
@@ -410,12 +428,14 @@ runTest("Shop_Pet_Catalog_Has_Price_And_Script_For_Every_Pet", function()
 	for _, petId in ipairs(PetsConfig.GetAllIds()) do
 		local pet = PetsConfig.GetById(petId)
 		if not pet then error("Missing Pet definition: " .. petId) end
-		assertEqual(type(pet.script), "string", "Pet script exists: " .. petId)
+		local display = PetDisplayFormatter.Format(pet, 1, false, "vi")
+		assertEqual(type(display.ScriptText), "string", "Pet ability display exists: " .. petId)
+		assertEqual(display.ScriptText ~= "", true, "Pet ability display is non-empty: " .. petId)
 		assertEqual(type(PurchasePetConfig.GetPrice(petId)), "number", "Pet purchase price exists: " .. petId)
 	end
 end)
 
 runTest("PurchasePet_Remote_Validates_Pet_Definition_ID_Shape", function()
-	assertEqual(RemoteContracts.Validate(RemoteContracts.Names.PurchasePet, "PlasmaCannon"), true, "Non-empty Pet definition ID accepted")
+	assertEqual(RemoteContracts.Validate(RemoteContracts.Names.PurchasePet, "Titan"), true, "Non-empty Pet definition ID accepted")
 	assertEqual(RemoteContracts.Validate(RemoteContracts.Names.PurchasePet, ""), false, "Empty Pet definition ID rejected")
 end)
