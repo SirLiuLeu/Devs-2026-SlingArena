@@ -223,21 +223,21 @@ function PetInventoryUIController:_populatePreview(slotRoot: Instance, definitio
 		warn("[PET_INVENTORY_UI] PetSlotTemplate_PetInventoryUI.Root.PetPreview ViewportFrame is missing.")
 		return
 	end
-	if preview:GetAttribute("RenderedPetId") == definition.type then
+	if preview:GetAttribute("RenderedPetAbilityId") == definition.abilityId then
 		return
 	end
-	local previewConfig = PetPreviewConfig.Get(definition.type)
+	local previewConfig = PetPreviewConfig.Get(definition.abilityId)
 	PreviewRenderer.Populate(preview, self._petAssets, definition.modelName, previewConfig)
-	preview:SetAttribute("RenderedPetId", definition.type)
+	preview:SetAttribute("RenderedPetAbilityId", definition.abilityId)
 end
 
 function PetInventoryUIController:_bindSlotContent(slot: GuiObject, petEntry)
 	local instanceId = tostring(petEntry.instanceId or "")
-	local definitionId = tostring(petEntry.definitionId or petEntry.id or "")
-	local definition = PetsConfig.GetById(definitionId)
+	local abilityId = tostring(petEntry.abilityId or petEntry.id or "")
+	local definition = PetsConfig.GetByAbilityId(abilityId)
 	local root = getTemplateRoot(slot)
 	if not (root and definition) then
-		if not definition then warn(string.format("[PET_INVENTORY_UI] Unknown Pet definition id %q.", definitionId)) end
+		if not definition then warn(string.format("[PET_INVENTORY_UI] Unknown Pet definition id %q.", abilityId)) end
 		return
 	end
 
@@ -296,8 +296,8 @@ function PetInventoryUIController:_spawnPetSlot(petEntry)
 		return
 	end
 	local instanceId = tostring(petEntry.instanceId or "")
-	local definitionId = tostring(petEntry.definitionId or petEntry.id or "")
-	if instanceId == "" or not PetsConfig.GetById(definitionId) then
+	local abilityId = tostring(petEntry.abilityId or petEntry.id or "")
+	if instanceId == "" or not PetsConfig.GetByAbilityId(abilityId) then
 		return
 	end
 
@@ -340,7 +340,7 @@ end
 function PetInventoryUIController:_findPetEntry(ownedPets, petId: string?)
 	if not petId then return nil end
 	for _, entry in ipairs(ownedPets or {}) do
-		if tostring(entry.instanceId or "") == petId or tostring(entry.id or "") == petId then
+		if tostring(entry.instanceId or "") == petId or tostring(entry.instanceId or "") == petId then
 			return entry
 		end
 	end
@@ -357,7 +357,7 @@ function PetInventoryUIController:_refreshPetPanel(data)
 	self._selectedPetId = data.selectedPetId
 	local petId = self._selectedPetId
 	local entry = self:_findPetEntry(data.ownedPets, petId)
-	local definition = entry and PetsConfig.GetById(tostring(entry.definitionId or entry.id or "")) or nil
+	local definition = entry and PetsConfig.GetByAbilityId(tostring(entry.abilityId or "")) or nil
 	local level = PetsUpgradeConfig.NormalizeLevel(tonumber(entry and entry.level) or 1)
 
 	if self._selectedName then
@@ -439,7 +439,7 @@ end
 function PetInventoryUIController:_requestDeleteSelectedPet()
 	local petId = self._selectedPetId
 	local entry = self._cachedSnapshot and self:_findPetEntry(self._cachedSnapshot.ownedPets, petId) or nil
-	local definition = entry and PetsConfig.GetById(tostring(entry.definitionId or entry.id or "")) or nil
+	local definition = entry and PetsConfig.GetByAbilityId(tostring(entry.abilityId or "")) or nil
 	if not (petId and entry and definition and self._dataProvider) then
 		return
 	end
