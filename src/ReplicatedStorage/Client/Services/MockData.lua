@@ -91,11 +91,10 @@ function MockData.GetShopState()
 		if definition and price ~= nil then
 			table.insert(pets, {
 				id = petId,
-				name = definition.DisplayName,
-				modelName = definition.Name,
+				name = definition.modelName,
+				modelName = definition.modelName,
 				rarity = definition.rarity,
 				category = definition.category,
-				script = definition.script,
 				price = price,
 				icon = definition.iconId,
 			})
