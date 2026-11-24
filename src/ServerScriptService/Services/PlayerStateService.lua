@@ -1113,8 +1113,12 @@ function PlayerStateService:SyncPetFromData(player: Player)
 		local abilityId = if type(ownedInstance) == "table" and type(ownedInstance.abilityId) == "string" then ownedInstance.abilityId else nil
 		local instanceAttribute = string.format("EquippedPetSlot%dInstanceId", slot)
 		local abilityAttribute = string.format("EquippedPetSlot%dAbilityId", slot)
+		local retiredDefinitionAttribute = string.format("EquippedPetSlot%dDefinitionId", slot)
 		if player:GetAttribute(instanceAttribute) ~= instanceId then player:SetAttribute(instanceAttribute, instanceId) end
 		if player:GetAttribute(abilityAttribute) ~= abilityId then player:SetAttribute(abilityAttribute, abilityId) end
+		if player:GetAttribute(retiredDefinitionAttribute) ~= nil then
+			player:SetAttribute(retiredDefinitionAttribute, nil)
+		end
 	end
 	self:PublishState(player)
 end
