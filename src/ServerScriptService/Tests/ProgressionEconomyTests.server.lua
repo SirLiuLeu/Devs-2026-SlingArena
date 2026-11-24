@@ -183,7 +183,7 @@ runTest("DamagePipeline_Uses_Pet_AbilityIDs_For_Lifesteal_And_Conditional_Damage
 	local stateService = {
 		GetState = function(_self, _player) return playerState end,
 	}
-	local services = {
+	local services: { [string]: any } = {
 		PlayerDataService = dataService,
 		PlayerStateService = stateService,
 	}
