@@ -21,10 +21,10 @@ PlayerDataService.__index = PlayerDataService
 
 local function buildStarterPetInventory(): { [string]: any }
 	local inventory = {}
-	for _, definitionId in ipairs(PetsConfig.GetAllIds()) do
-		local definition = PetsConfig.GetById(definitionId)
-		inventory["starter_pet_" .. definitionId] = {
-			definitionId = definitionId,
+	for _, abilityId in ipairs(PetsConfig.GetAllAbilityIds()) do
+		local definition = PetsConfig.GetByAbilityId(abilityId)
+		inventory["starter_pet_" .. abilityId] = {
+			abilityId = abilityId,
 			level = 1,
 			rarity = (definition and definition.rarity) or "Common",
 			acquiredAt = os.time(),
@@ -34,11 +34,13 @@ local function buildStarterPetInventory(): { [string]: any }
 end
 
 local RETIRED_PET_IDS = { SmokeBomb = true, MagnetCore = true }
-local PET_ID_ALIASES = { ShadowCloakZ = "ShadowCloak", Pufferfish = "ThornArmor", SlowBlaster = "Hydra", TitanCore = "Dragon" }
-for legacyPetType, petType in pairs(PetsConfig.LegacyIdAliases) do
-	PET_ID_ALIASES[legacyPetType] = petType
-end
-local PET_IDENTITY_MIGRATION_VERSION = 1
+local HISTORICAL_PET_ID_ALIASES = {
+	ShadowCloakZ = "ShadowCloak",
+	Pufferfish = "ThornArmor",
+	SlowBlaster = "Hydra",
+	TitanCore = "Dragon",
+}
+local PET_IDENTITY_MIGRATION_VERSION = 2
 local LAUNCHER_ID_ALIASES = {
 	NormalLauncher = "Normalduck",
 	TitanBulwarkLauncher = "Kingduck",
@@ -262,36 +264,44 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 		data.EquippedPets = {}
 	end
 
-	-- Versioned identity migration preserves ability ownership after Dragon and
-	-- Hydra exchanged visual models. Only unmigrated profiles use the legacy
-	-- Dragon/Hydra mapping, preventing subsequent loads from swapping again.
-	local needsIdentityMigration = (tonumber(data.PetIdentityMigrationVersion) or 0) < PET_IDENTITY_MIGRATION_VERSION
+	-- Migration v1 previously swapped legacy Hydra/Dragon model IDs. Apply that
+	-- historical correction only to unmigrated definitionId records, then map every
+	-- retired Pet catalog ID to its owning canonical AbilityID.
+	local previousMigrationVersion = tonumber(data.PetIdentityMigrationVersion) or 0
+	local needsHistoricalModelSwap = previousMigrationVersion < 1
 	for instanceId, pet in pairs(data.OwnedPets) do
 		if type(pet) == "table" then
-			if type(pet.definitionId) == "string" then
-				if needsIdentityMigration and pet.definitionId == "Hydra" then
-					pet.definitionId = "Dragon"
-				elseif needsIdentityMigration and pet.definitionId == "Dragon" then
-					pet.definitionId = "Hydra"
-				else
-					pet.definitionId = PET_ID_ALIASES[pet.definitionId] or pet.definitionId
+			local legacyDefinitionId = pet.definitionId
+			local rawAbilityId = if type(pet.abilityId) == "string" and pet.abilityId ~= "" then pet.abilityId
+				else if type(legacyDefinitionId) == "string" then legacyDefinitionId else nil
+			if type(pet.abilityId) ~= "string" or pet.abilityId == "" then
+				if needsHistoricalModelSwap and rawAbilityId == "Hydra" then
+					rawAbilityId = "Dragon"
+				elseif needsHistoricalModelSwap and rawAbilityId == "Dragon" then
+					rawAbilityId = "Hydra"
 				end
 			end
-			if type(pet.abilityId) == "string" then
-				pet.abilityId = ABILITY_ID_ALIASES[pet.abilityId] or pet.abilityId
+			if rawAbilityId then
+				for _ = 1, 3 do
+					local alias = HISTORICAL_PET_ID_ALIASES[rawAbilityId]
+						or PetsConfig.LegacyIdAliases[rawAbilityId]
+						or ABILITY_ID_ALIASES[rawAbilityId]
+					if type(alias) ~= "string" or alias == rawAbilityId then break end
+					rawAbilityId = alias
+				end
 			end
-			if type(pet.effectId) == "string" then
-				pet.effectId = ABILITY_ID_ALIASES[pet.effectId] or pet.effectId
-			end
+			pet.abilityId = rawAbilityId
+			pet.definitionId = nil
+			pet.effectId = nil
 		end
-		if type(pet) == "table" and RETIRED_PET_IDS[pet.definitionId] then
-			-- Migration: remove retired content before equipped-slot normalization can retain it.
+		if type(pet) == "table" and RETIRED_PET_IDS[pet.abilityId] then
+			-- Remove content retired entirely from the Pet catalog.
 			data.OwnedPets[instanceId] = nil
-		elseif type(instanceId) ~= "string" or type(pet) ~= "table" or type(pet.definitionId) ~= "string" or pet.definitionId == "" then
+		elseif type(instanceId) ~= "string" or type(pet) ~= "table" or not PetsConfig.IsValidAbilityId(pet.abilityId) then
 			data.OwnedPets[instanceId] = nil
 		else
 			pet.level = math.clamp(math.floor(tonumber(pet.level) or 1), 1, PetsConfig.MaxLevel)
-			local definition = PetsConfig.GetById(pet.definitionId)
+			local definition = PetsConfig.GetByAbilityId(pet.abilityId)
 			pet.rarity = (definition and definition.rarity) or tostring(pet.rarity or "Common")
 			-- Legacy trial/timed Pet metadata is discarded: owned Pets are permanent.
 			pet.isTemporary = nil
@@ -693,21 +703,21 @@ function PlayerDataService:CommitDailyLoginClaim(
 		end
 		normalizedReward = { Kind = "Item", ItemId = itemId, Quantity = quantity }
 	elseif reward.Kind == "Pet" then
-		local definitionId = tostring(reward.DefinitionId or "")
-		local definition = PetsConfig.GetById(definitionId)
+		local abilityId = tostring(reward.AbilityId or reward.DefinitionId or "")
+		local definition = PetsConfig.GetByAbilityId(abilityId)
 		if not definition then
 			return finish(false, "InvalidPetReward", nil)
 		end
 		petInstanceId = HttpService:GenerateGUID(false)
 		petRecord = {
-			definitionId = definitionId,
+			abilityId = abilityId,
 			level = 1,
 			rarity = definition.rarity,
 			acquiredAt = os.time(),
 		}
 		normalizedReward = {
 			Kind = "Pet",
-			DefinitionId = definitionId,
+			AbilityId = abilityId,
 			InstanceId = petInstanceId,
 			Rarity = definition.rarity,
 		}
@@ -974,7 +984,7 @@ function PlayerDataService:CommitPetUpgrade(player: Player, instanceId: string, 
 		pet.level = currentLevel
 		if expected ~= currentLevel then failure = "StaleLevel"; return data end
 		if currentLevel >= PetsUpgradeConfig.MaxLevel then failure = "MaxLevel"; return data end
-		local definition = PetsConfig.GetById(tostring(pet.definitionId or ""))
+		local definition = PetsConfig.GetByAbilityId(tostring(pet.abilityId or ""))
 		if not definition then failure = "InvalidPetDefinition"; return data end
 		cost = PetsUpgradeConfig.GetUpgradeCost(currentLevel, definition.rarity)
 		if data.Diamonds < cost then failure = "InsufficientDiamonds"; return data end
@@ -1137,8 +1147,8 @@ end
 
 -- Purchases one Pet and deducts Diamonds in the same provider mutation.
 -- The caller must resolve the price from a server-owned catalog.
-function PlayerDataService:PurchasePet(player: Player, definitionId: string, price: number): (boolean, string?, string?)
-	local definition = PetsConfig.GetById(definitionId)
+function PlayerDataService:PurchasePet(player: Player, abilityId: string, price: number): (boolean, string?, string?)
+	local definition = PetsConfig.GetByAbilityId(abilityId)
 	if not definition then return false, "InvalidPet", nil end
 
 	local cost = math.max(0, math.floor(tonumber(price) or 0))
@@ -1154,7 +1164,7 @@ function PlayerDataService:PurchasePet(player: Player, definitionId: string, pri
 
 		data.Diamonds -= cost
 		data.OwnedPets[instanceId] = {
-			definitionId = definitionId,
+			abilityId = abilityId,
 			level = 1,
 			rarity = definition.rarity,
 			acquiredAt = os.time(),
@@ -1165,7 +1175,7 @@ function PlayerDataService:PurchasePet(player: Player, definitionId: string, pri
 	if failure then return false, failure, nil end
 	if self._context.EventBus then
 		self._context.EventBus:Fire("DiamondsSpent", player, cost, "ShopPurchasePet")
-		self._context.EventBus:Fire("PetPurchased", player, definitionId, instanceId)
+		self._context.EventBus:Fire("PetPurchased", player, abilityId, instanceId)
 	end
 	return true, nil, instanceId
 end
