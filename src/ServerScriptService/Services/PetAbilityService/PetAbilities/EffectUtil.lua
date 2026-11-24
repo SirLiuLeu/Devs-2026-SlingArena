@@ -10,9 +10,9 @@ local EffectUtil = {}
 
 local function trace(context, message: string)
 	local definition = context and context.definition
-	local petId = definition and definition.type or "unknown"
-	if petId == "Medusa" or petId == "GhostFlame" or petId == "ThunderHammer" or petId == "Poison" then
-		print(string.format("[PET_ATTACK_TRACE][%s] %s", petId, message))
+	local abilityId = definition and definition.abilityId or "unknown"
+	if abilityId == "Poison" or abilityId == "Burn" or abilityId == "Lifesteal" then
+		print(string.format("[PET_ATTACK_TRACE][%s] %s", abilityId, message))
 	end
 end
 
