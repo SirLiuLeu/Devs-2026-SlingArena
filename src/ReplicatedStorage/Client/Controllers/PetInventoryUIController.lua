@@ -65,11 +65,11 @@ function PetInventoryUIController.new(playerGui: PlayerGui)
 		_connections = {},
 		_slotConnections = {},
 		_petSlotMap = {},
-		_selectedPetId = nil,
-		_upgradePreviewPetId = nil,
-		_upgradePendingPetId = nil,
+		_selectedPetInstanceId = nil,
+		_upgradePreviewPetInstanceId = nil,
+		_upgradePendingPetInstanceId = nil,
 		_upgradePendingLevel = nil,
-		_deletePendingPetId = nil,
+		_deletePendingPetInstanceId = nil,
 		_cachedSnapshot = nil,
 	}, PetInventoryUIController)
 end
@@ -166,16 +166,16 @@ function PetInventoryUIController:Start(uiReadySignal: BindableEvent?)
 				return
 			end
 			if message.EventType == "PetUpgradeResult" then
-				self._upgradePreviewPetId = nil
-				self._upgradePendingPetId = nil
+				self._upgradePreviewPetInstanceId = nil
+				self._upgradePendingPetInstanceId = nil
 				self._upgradePendingLevel = nil
 				if self._cachedSnapshot then self:RefreshWithData(self._cachedSnapshot) end
 			elseif message.EventType == "PetDeleteResult" then
 				local payload = message.Payload
 				local deletedId = tostring(payload.InstanceId or "")
-				self._deletePendingPetId = nil
-				if payload.Status == "Deleted" and deletedId ~= "" and deletedId == self._selectedPetId and self._dataProvider then
-					self._selectedPetId = nil
+				self._deletePendingPetInstanceId = nil
+				if payload.Status == "Deleted" and deletedId ~= "" and deletedId == self._selectedPetInstanceId and self._dataProvider then
+					self._selectedPetInstanceId = nil
 					self._dataProvider:SelectPet(nil)
 				end
 				if self._cachedSnapshot then self:RefreshWithData(self._cachedSnapshot) end
@@ -193,7 +193,7 @@ function PetInventoryUIController:SetVisible(isVisible: boolean)
 		self._screenGui.Enabled = isVisible
 	end
 	if not isVisible then
-		self._upgradePreviewPetId = nil
+		self._upgradePreviewPetInstanceId = nil
 	elseif self._cachedSnapshot then
 		self:RefreshWithData(self._cachedSnapshot)
 	end
@@ -258,7 +258,7 @@ end
 function PetInventoryUIController:_bindSlotState(slot: GuiObject, instanceId: string)
 	slot.Active = true
 	slot.Selectable = true
-	self:_applySlotVisual(slot, false, self._selectedPetId == instanceId)
+	self:_applySlotVisual(slot, false, self._selectedPetInstanceId == instanceId)
 
 	local clickTarget: GuiObject = slot
 	local childButton = slot:FindFirstChildWhichIsA("GuiButton", true)
@@ -268,19 +268,19 @@ function PetInventoryUIController:_bindSlotState(slot: GuiObject, instanceId: st
 
 	local connections = {}
 	table.insert(connections, clickTarget.MouseEnter:Connect(function()
-		self:_applySlotVisual(slot, true, self._selectedPetId == instanceId)
+		self:_applySlotVisual(slot, true, self._selectedPetInstanceId == instanceId)
 	end))
 	table.insert(connections, clickTarget.MouseLeave:Connect(function()
-		self:_applySlotVisual(slot, false, self._selectedPetId == instanceId)
+		self:_applySlotVisual(slot, false, self._selectedPetInstanceId == instanceId)
 	end))
 	table.insert(connections, clickTarget.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
 			return
 		end
-		if self._selectedPetId ~= instanceId then
-			self._upgradePreviewPetId = nil
+		if self._selectedPetInstanceId ~= instanceId then
+			self._upgradePreviewPetInstanceId = nil
 		end
-		self._selectedPetId = instanceId
+		self._selectedPetInstanceId = instanceId
 		if self._dataProvider then
 			self._dataProvider:SelectPet(instanceId)
 		end
@@ -337,10 +337,10 @@ function PetInventoryUIController:_reconcileSlots(data)
 	end
 end
 
-function PetInventoryUIController:_findPetEntry(ownedPets, petId: string?)
-	if not petId then return nil end
+function PetInventoryUIController:_findPetEntry(ownedPets, petInstanceId: string?)
+	if not petInstanceId then return nil end
 	for _, entry in ipairs(ownedPets or {}) do
-		if tostring(entry.instanceId or "") == petId then
+		if tostring(entry.instanceId or "") == petInstanceId then
 			return entry
 		end
 	end
@@ -354,9 +354,9 @@ function PetInventoryUIController:_setButtonEnabled(button: TextButton?, enabled
 end
 
 function PetInventoryUIController:_refreshPetPanel(data)
-	self._selectedPetId = data.selectedPetId
-	local petId = self._selectedPetId
-	local entry = self:_findPetEntry(data.ownedPets, petId)
+	self._selectedPetInstanceId = data.selectedPetInstanceId
+	local petInstanceId = self._selectedPetInstanceId
+	local entry = self:_findPetEntry(data.ownedPets, petInstanceId)
 	local definition = entry and PetsConfig.GetByAbilityId(tostring(entry.abilityId or "")) or nil
 	local level = PetsUpgradeConfig.NormalizeLevel(tonumber(entry and entry.level) or 1)
 
@@ -364,10 +364,10 @@ function PetInventoryUIController:_refreshPetPanel(data)
 		self._selectedName.Text = definition and definition.modelName or "No pet selected"
 	end
 
-	local isPreviewing = entry ~= nil and self._upgradePreviewPetId == petId
-	if entry and self._upgradePendingPetId == petId and self._upgradePendingLevel and level > self._upgradePendingLevel then
-		self._upgradePreviewPetId = nil
-		self._upgradePendingPetId = nil
+	local isPreviewing = entry ~= nil and self._upgradePreviewPetInstanceId == petInstanceId
+	if entry and self._upgradePendingPetInstanceId == petInstanceId and self._upgradePendingLevel and level > self._upgradePendingLevel then
+		self._upgradePreviewPetInstanceId = nil
+		self._upgradePendingPetInstanceId = nil
 		self._upgradePendingLevel = nil
 		isPreviewing = false
 	end
@@ -379,18 +379,18 @@ function PetInventoryUIController:_refreshPetPanel(data)
 	if self._statScript then self._statScript.Text = displayText.ScriptText; self._statScript.RichText = true end
 
 	local equipped = entry and entry.equipped == true
-	local deleting = self._deletePendingPetId ~= nil
+	local deleting = self._deletePendingPetInstanceId ~= nil
 	if self._toggleEquipButton then
 		self._toggleEquipButton.Text = if equipped then "Unequip" else "Equip"
-		self:_setButtonEnabled(self._toggleEquipButton, entry ~= nil and not deleting and self._upgradePendingPetId == nil)
+		self:_setButtonEnabled(self._toggleEquipButton, entry ~= nil and not deleting and self._upgradePendingPetInstanceId == nil)
 	end
 
 	if self._deleteButton then
-		self._deleteButton.Text = if self._deletePendingPetId == petId then "Deleting..." else "Delete"
+		self._deleteButton.Text = if self._deletePendingPetInstanceId == petInstanceId then "Deleting..." else "Delete"
 		self:_setButtonEnabled(self._deleteButton, entry ~= nil and not deleting)
 	end
 
-	local upgrading = entry ~= nil and self._upgradePendingPetId == petId
+	local upgrading = entry ~= nil and self._upgradePendingPetInstanceId == petInstanceId
 	local cost = PetsUpgradeConfig.GetUpgradeCost(level, (definition and definition.rarity) or "Common")
 	if self._upgradeButton then
 		self._upgradeButton.Text = if level >= PetsUpgradeConfig.MaxLevel and entry ~= nil
@@ -398,25 +398,25 @@ function PetInventoryUIController:_refreshPetPanel(data)
 			elseif upgrading then "Upgrading..."
 			elseif isPreviewing then string.format("Confirm Upgrade (%d Diamonds)", cost)
 			else string.format("Upgrade %d Diamonds", cost)
-		self:_setButtonEnabled(self._upgradeButton, entry ~= nil and level < PetsUpgradeConfig.MaxLevel and self._upgradePendingPetId == nil and not deleting)
+		self:_setButtonEnabled(self._upgradeButton, entry ~= nil and level < PetsUpgradeConfig.MaxLevel and self._upgradePendingPetInstanceId == nil and not deleting)
 	end
 end
 
 function PetInventoryUIController:_refreshSlotVisuals()
 	for instanceId, slot in pairs(self._petSlotMap) do
 		if slot and slot.Parent then
-			self:_applySlotVisual(slot, false, self._selectedPetId == instanceId)
+			self:_applySlotVisual(slot, false, self._selectedPetInstanceId == instanceId)
 		end
 	end
 end
 
 function PetInventoryUIController:_handleUpgradePressed()
-	local petId = self._selectedPetId
-	local entry = self._cachedSnapshot and self:_findPetEntry(self._cachedSnapshot.ownedPets, petId) or nil
-	if not (entry and petId and self._upgradePetRemote) then
+	local petInstanceId = self._selectedPetInstanceId
+	local entry = self._cachedSnapshot and self:_findPetEntry(self._cachedSnapshot.ownedPets, petInstanceId) or nil
+	if not (entry and petInstanceId and self._upgradePetRemote) then
 		return
 	end
-	if self._upgradePendingPetId or self._deletePendingPetId then
+	if self._upgradePendingPetInstanceId or self._deletePendingPetInstanceId then
 		return
 	end
 	local level = PetsUpgradeConfig.NormalizeLevel(tonumber(entry.level) or 1)
@@ -424,26 +424,26 @@ function PetInventoryUIController:_handleUpgradePressed()
 		return
 	end
 
-	if self._upgradePreviewPetId ~= petId then
-		self._upgradePreviewPetId = petId
+	if self._upgradePreviewPetInstanceId ~= petInstanceId then
+		self._upgradePreviewPetInstanceId = petInstanceId
 		self:_refreshPetPanel(self._cachedSnapshot)
 		return
 	end
 
-	self._upgradePendingPetId = petId
+	self._upgradePendingPetInstanceId = petInstanceId
 	self._upgradePendingLevel = level
 	self:_refreshPetPanel(self._cachedSnapshot)
-	self._upgradePetRemote:FireServer(petId, level)
+	self._upgradePetRemote:FireServer(petInstanceId, level)
 end
 
 function PetInventoryUIController:_requestDeleteSelectedPet()
-	local petId = self._selectedPetId
-	local entry = self._cachedSnapshot and self:_findPetEntry(self._cachedSnapshot.ownedPets, petId) or nil
+	local petInstanceId = self._selectedPetInstanceId
+	local entry = self._cachedSnapshot and self:_findPetEntry(self._cachedSnapshot.ownedPets, petInstanceId) or nil
 	local definition = entry and PetsConfig.GetByAbilityId(tostring(entry.abilityId or "")) or nil
-	if not (petId and entry and definition and self._dataProvider) then
+	if not (petInstanceId and entry and definition and self._dataProvider) then
 		return
 	end
-	if self._deletePendingPetId or self._upgradePendingPetId then
+	if self._deletePendingPetInstanceId or self._upgradePendingPetInstanceId then
 		return
 	end
 	if not self._confirmationController then
@@ -457,13 +457,13 @@ function PetInventoryUIController:_requestDeleteSelectedPet()
 		LocalizationService.RobloxLocaleId
 	)
 	self._confirmationController:RequestConfirm(text, function()
-		if self._selectedPetId ~= petId then
+		if self._selectedPetInstanceId ~= petInstanceId then
 			return
 		end
-		self._deletePendingPetId = petId
+		self._deletePendingPetInstanceId = petInstanceId
 		local requested = self._dataProvider:DeleteSelectedPet()
 		if not requested then
-			self._deletePendingPetId = nil
+			self._deletePendingPetInstanceId = nil
 		end
 		if self._cachedSnapshot then self:_refreshPetPanel(self._cachedSnapshot) end
 	end)
