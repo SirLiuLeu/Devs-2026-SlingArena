@@ -15,6 +15,7 @@ local LauncherStatResolver = require(ReplicatedStorage.Shared.Utils.LauncherStat
 local PetStatResolver = require(ReplicatedStorage.Shared.Utils.PetStatResolver)
 local PetProgression = require(ReplicatedStorage.Shared.Utils.PetProgression)
 local PetDisplayFormatter = require(ReplicatedStorage.Shared.Utils.PetDisplayFormatter)
+local DamagePipelineService = require(script.Parent.Parent.Services.DamagePipelineService)
 local PetAnimationConfig = require(ReplicatedStorage.Shared.Config.PetAnimationConfig)
 local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
 local PlayerDataService = require(script.Parent.Parent.Services.PlayerDataService)
@@ -159,6 +160,45 @@ runTest("Pet_Linear_Cost_And_Rarity_Multipliers", function()
 		totalCommon += PetsUpgradeConfig.GetUpgradeCost(level, "Common")
 	end
 	assertEqual(totalCommon, 61250, "Total Common cost from level 1 to 50")
+end)
+
+runTest("DamagePipeline_Uses_Pet_AbilityIDs_For_Lifesteal_And_Conditional_Damage", function()
+	local player = {} :: any
+	local ownedPets = {
+		lifesteal = { abilityId = "Lifesteal", level = 1, rarity = "Rare", acquiredAt = 1 },
+		poison = { abilityId = "Poison", level = 1, rarity = "Rare", acquiredAt = 1 },
+		fullForce = { abilityId = "FullForce", level = 1, rarity = "Epic", acquiredAt = 1 },
+		lastStand = { abilityId = "LastStand", level = 1, rarity = "Epic", acquiredAt = 1 },
+	}
+	local equippedPets = { [1] = "lifesteal" }
+	local playerState = { MaxHP = 1000, CurrentHP = 1000 }
+	local dataService = {
+		GetOwnedPets = function(_self, _player) return ownedPets end,
+		GetEquippedPets = function(_self, _player) return equippedPets end,
+	}
+	local stateService = {
+		GetState = function(_self, _player) return playerState end,
+	}
+	local services = {
+		PlayerDataService = dataService,
+		PlayerStateService = stateService,
+	}
+	local registry = {
+		GetOptional = function(_self, name: string) return services[name] end,
+	}
+	local service: any = setmetatable({
+		_context = { ServiceRegistry = registry },
+	}, DamagePipelineService)
+
+	assertNear(service:_getPetAbilityParams(player, "Lifesteal", "playerLifestealPercent"), 0.02, "Lifesteal Player healing reads Lifesteal progression")
+	assertNear(service:_getPetAbilityParams(player, "Poison", "playerLifestealPercent"), 0, "Poison DoT does not inherit Lifesteal progression")
+
+	equippedPets = { [1] = "fullForce" }
+	assertNear(service:_getConditionalPetDamageMultiplier(player), 1.10, "FullForce applies its damage bonus at full HP")
+
+	equippedPets = { [1] = "lastStand" }
+	playerState.CurrentHP = 200
+	assertNear(service:_getConditionalPetDamageMultiplier(player), 1.20, "LastStand applies its maximum bonus at low HP")
 end)
 
 runTest("Pet_Ability_Milestones_Reach_80_And_100_Percent", function()
