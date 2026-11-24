@@ -3,7 +3,7 @@
 local IdleStealth = {}
 
 function IdleStealth.OnInit(context)
-	local params = (context.definition.passiveAbility and context.definition.passiveAbility.params) or {}
+	local params = context.definition.effectParams or {}
 	local progressionParams = context.progression and context.progression.abilityParams or {}
 	context._idleSeconds = math.max(0, tonumber(progressionParams.idleSeconds) or tonumber(params.idleSeconds) or 5)
 	context._idleElapsed = 0
