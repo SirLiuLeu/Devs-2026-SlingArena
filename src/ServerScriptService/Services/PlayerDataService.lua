@@ -273,11 +273,13 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 	for instanceId, pet in pairs(data.OwnedPets) do
 		if type(pet) == "table" then
 			if needsIdentityMigration then
-				-- Prefer the old definitionId because legacy abilityId/effectId fields
-				-- described runtime effects, not the owning Pet identity.
-				local rawAbilityId = if type(pet.definitionId) == "string" and pet.definitionId ~= "" then pet.definitionId
+				-- definitionId is the retired Pet catalog key. When it is absent,
+				-- abilityId is already the ability identity and must not be interpreted
+				-- as an old Pet ID (notably "Poison" is now the Snake AbilityID).
+				local hasLegacyDefinitionId = type(pet.definitionId) == "string" and pet.definitionId ~= ""
+				local rawAbilityId = if hasLegacyDefinitionId then pet.definitionId
 					else if type(pet.abilityId) == "string" and pet.abilityId ~= "" then pet.abilityId else nil
-				if rawAbilityId and needsHistoricalModelSwap then
+				if rawAbilityId and hasLegacyDefinitionId and needsHistoricalModelSwap then
 					if rawAbilityId == "Hydra" then
 						rawAbilityId = "Dragon"
 					elseif rawAbilityId == "Dragon" then
@@ -286,11 +288,11 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 				end
 				if rawAbilityId then
 					-- Exactly one translation: alias targets are already canonical AbilityIDs.
-					-- Do not chain "Medusa" -> "Poison" -> "Lifesteal", because Poison
-					-- is also the current Snake AbilityID.
-					local alias = HISTORICAL_PET_ID_ALIASES[rawAbilityId]
-						or PetsConfig.LegacyIdAliases[rawAbilityId]
-						or ABILITY_ID_ALIASES[rawAbilityId]
+					-- Pet-ID aliases only apply to legacy definitionId; ability-only
+					-- records may already contain a valid current AbilityID.
+					local alias = if hasLegacyDefinitionId
+						then HISTORICAL_PET_ID_ALIASES[rawAbilityId] or PetsConfig.LegacyIdAliases[rawAbilityId] or ABILITY_ID_ALIASES[rawAbilityId]
+						else ABILITY_ID_ALIASES[rawAbilityId]
 					if type(alias) == "string" and alias ~= "" then
 						rawAbilityId = alias
 					end
