@@ -70,7 +70,7 @@ MockData.PlayerProfiles = {
 		Diamonds = 750,
 		OwnedItems = { bomb = 3, gift_box = 1, hp_potion = 8, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5 },
 		OwnedPets = {
-			eq_alpha_PlasmaCannon = { definitionId = "PlasmaCannon", level = 1, rarity = (PetsConfig.GetById("PlasmaCannon") and PetsConfig.GetById("PlasmaCannon").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_Titan = { definitionId = "Titan", level = 1, rarity = (PetsConfig.GetById("PlasmaCannon") and PetsConfig.GetById("PlasmaCannon").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_Hydra = { definitionId = "Hydra", level = 1, rarity = (PetsConfig.GetById("Hydra") and PetsConfig.GetById("Hydra").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_ThunderHammer = { definitionId = "ThunderHammer", level = 1, rarity = (PetsConfig.GetById("ThunderHammer") and PetsConfig.GetById("ThunderHammer").rarity) or "Common", acquiredAt = 1786924800 },
 			eq_alpha_Medusa = { definitionId = "Medusa", level = 1, rarity = (PetsConfig.GetById("Medusa") and PetsConfig.GetById("Medusa").rarity) or "Common", acquiredAt = 1786924800 },
