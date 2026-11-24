@@ -798,14 +798,14 @@ Notes:
 `StarterGui/PetInventoryUI/Root/BodyPets/RightPanel/Stats/Level` is the bound pet-level display. Pet max level is 50: Base HP/Damage gain +5% of base per level through level 50 (3.45x at level 50). Existing ability values at levels 1/5/10/15/20 are preserved; levels 25/30/35/40/45/50 each add one sixth of the remaining 20% of the configured range. Upgrade cost is `50 × currentLevel × rarityMultiplier`. Titan weight/hitbox/knockback parameters use the same configured pet-level curve. Titan's separate visual growth is based on Player Level-ups earned after Titan is equipped: +4% per level to a 2x cap, and resets with round progression. `PetAbilityDisplayConfig.Descriptions[abilityId]` stores localized player-facing ability descriptions; `PetAbilityProgressionConfig.Abilities[abilityId]` owns numeric progression targets. `PetAnimationConfig.Animations[abilityId]` and `PetPreviewConfig.Get(abilityId)` use the same canonical key.
 
 
-## Team / Pet projectile implementation notes
+## Team and retired Pet projectile notes
 
 - Team config: `src/ReplicatedStorage/Shared/Config/TeamConfig.lua` and `LauncherTextureConfig.lua`.
 - Team selection controller: `src/ReplicatedStorage/Client/Controllers/TeamSelectionUIController.lua`; it binds the Studio-authored `StarterGui.TeamSelectionGui` hierarchy documented in `ProjectTreeSpec.lua`.
 - Retired Pet projectile modules `PlasmaCannon.lua` and `SlowBlaster.lua` have been deleted; their remote, client renderer and render-budget config have also been removed. Legacy Studio `PlasmaBall`/`SlowBall` prefabs are no longer required by current code.
 - Nearby Pet visuals are client-local and range-gated by `src/ReplicatedStorage/Shared/Config/PetRenderConfig.lua`.
 - `UnitTestUI.RootFrame.LevelUp5` uses the Studio-only `LauncherArenaRemotes.DebugLevelUp5` RemoteEvent.
-- Required Studio prefab instances: `ReplicatedStorage.Assets.Prefabs.PlasmaBall` and `SlowBall`. These assets are documented but are not source-controlled by Rojo in this repository; verify they remain in Studio after sync.
+- Legacy Studio prefab instances `ReplicatedStorage.Assets.Prefabs.PlasmaBall` and `SlowBall` may remain in older place files, but current Pet source no longer requires them after PlasmaCannon and SlowBlaster were retired.
 
 
 ## Current feature additions (2026-10-18)
