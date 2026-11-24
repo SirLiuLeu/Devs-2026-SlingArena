@@ -1,7 +1,7 @@
 --!strict
 
 -- Fill animation IDs per Pet rig in Studio.
--- Each Pet can have a different rig, so animation assets are configured per PetId.
+-- Each Pet can have a different rig, so animation assets are configured per Pet type.
 -- Values may be either "rbxassetid://123" or "123".
 -- Empty strings intentionally disable an animation until its asset ID is provided.
 
@@ -15,8 +15,7 @@ export type PetAnimationSet = {
 local PetAnimationConfig = {}
 
 PetAnimationConfig.Animations = {
-	PlasmaCannon = { Idle = "", Run = "", Attack = "", Dance = "" }, -- Octopus
-	Titan = { Idle = "", Run = "", Dance = "" }, -- Octopus ability
+	Titan = { Idle = "", Run = "", Attack = "", Dance = "" }, -- Octopus Pet
 	ThunderHammer = { Idle = "", Run = "", Dance = "" }, -- Yeti
 	Medusa = { Idle = "", Run = "", Dance = "" }, -- Snake
 	IceCrystal = { Idle = "95090397407808", Run = "70654849990565", Dance = "114087130920750" }, -- Penguin
@@ -41,8 +40,8 @@ local EMPTY_SET: PetAnimationSet = {
 	Dance = "",
 }
 
-function PetAnimationConfig.GetById(petId: string, abilityId: string?): PetAnimationSet
-	return PetAnimationConfig.Animations[petId]
+function PetAnimationConfig.GetById(petType: string, abilityId: string?): PetAnimationSet
+	return PetAnimationConfig.Animations[petType]
 		or (abilityId and PetAnimationConfig.Animations[abilityId])
 		or EMPTY_SET
 end
