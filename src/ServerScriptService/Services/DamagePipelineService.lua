@@ -301,6 +301,25 @@ function DamagePipelineService:_getPetAbilityParams(player: Player, abilityId: s
 	return bestValue
 end
 
+function DamagePipelineService:_getIronBodyDamageMultiplier(victim: Player): number
+	-- Multiple equipped IronBody Pets do not multiply mitigation. Use the strongest
+	-- single multiplier so duplicate copies cannot reduce incoming damage to zero.
+	local damageMultiplier = 1
+	for _, progression in ipairs(self:_getEquippedPetProgressions(victim)) do
+		local definition = progression.definition
+		local params = progression.abilityParams
+		if type(definition) == "table"
+			and definition.abilityId == "IronBody"
+			and type(params) == "table" then
+			local candidate = tonumber(params.damageMultiplier)
+			if candidate ~= nil then
+				damageMultiplier = math.min(damageMultiplier, math.clamp(candidate, 0, 1))
+			end
+		end
+	end
+	return damageMultiplier
+end
+
 function DamagePipelineService:_applyAbsorbShield(victim: Player, incomingDamage: number, bypass: boolean?): number
 	local amount = math.max(0, tonumber(incomingDamage) or 0)
 	if amount <= 0 then return 0 end
@@ -400,8 +419,8 @@ function DamagePipelineService:ApplyHitDamage(victim: Player, rawDamage: number,
 	end
 	local victimStats = playerStateService:GetFinalStats(victim)
 	local armor = victimStats and math.clamp(victimStats.Armor or 0, 0, 0.8) or 0
-	local petDamageMultiplier = tonumber(victim:GetAttribute("PetShieldDamageMultiplier")) or 1
-	local mitigatedAmount = math.clamp(rawDamage * petDamageMultiplier * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
+	local ironBodyDamageMultiplier = self:_getIronBodyDamageMultiplier(victim)
+	local mitigatedAmount = math.clamp(rawDamage * ironBodyDamageMultiplier * (1 - armor), 0, BalanceConfig.MaxDamagePerHit)
 	local bypassAbsorbShield = (options ~= nil and options.BypassAbsorbShield == true)
 		or sourceType == "SafeZone"
 	local amount = self:_applyAbsorbShield(victim, mitigatedAmount, bypassAbsorbShield)
@@ -528,7 +547,8 @@ function DamagePipelineService:ApplyDoTDamage(victim: Player, rawDamage: number,
 		damageLog("ApplyDoTDamage aborted: victim has no live PlayerState")
 		return false
 	end
-	local rawAmount = math.max(0, rawDamage)
+	local ironBodyDamageMultiplier = self:_getIronBodyDamageMultiplier(victim)
+	local rawAmount = math.max(0, rawDamage * ironBodyDamageMultiplier)
 	if rawAmount <= 0 then
 		damageLog("ApplyDoTDamage aborted: amount is zero")
 		return false
