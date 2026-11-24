@@ -291,7 +291,7 @@ function PlayerDataService:_ensurePetData(data: { [string]: any })
 					-- Pet-ID aliases only apply to legacy definitionId; ability-only
 					-- records may already contain a valid current AbilityID.
 					local alias = if hasLegacyDefinitionId
-						then HISTORICAL_PET_ID_ALIASES[rawAbilityId] or PetsConfig.LegacyIdAliases[rawAbilityId] or ABILITY_ID_ALIASES[rawAbilityId]
+						then HISTORICAL_PET_ID_ALIASES[rawAbilityId] or PetsConfig.LegacyPetDefinitionIdAliases[rawAbilityId] or ABILITY_ID_ALIASES[rawAbilityId]
 						else ABILITY_ID_ALIASES[rawAbilityId]
 					if type(alias) == "string" and alias ~= "" then
 						rawAbilityId = alias
@@ -711,7 +711,7 @@ function PlayerDataService:CommitDailyLoginClaim(
 		end
 		normalizedReward = { Kind = "Item", ItemId = itemId, Quantity = quantity }
 	elseif reward.Kind == "Pet" then
-		local abilityId = tostring(reward.AbilityId or reward.DefinitionId or "")
+		local abilityId = tostring(reward.AbilityId or "")
 		local definition = PetsConfig.GetByAbilityId(abilityId)
 		if not definition then
 			return finish(false, "InvalidPetReward", nil)
