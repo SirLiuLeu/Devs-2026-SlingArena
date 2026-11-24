@@ -798,6 +798,8 @@ Notes:
 `StarterGui/PetInventoryUI/Root/BodyPets/RightPanel/Stats/Level` is the bound pet-level display. Pet max level is 50: Base HP/Damage gain +5% of base per level through level 50 (3.45x at level 50). Existing ability values at levels 1/5/10/15/20 are preserved; levels 25/30/35/40/45/50 each add one sixth of the remaining 20% of the configured range. Upgrade cost is `50 × currentLevel × rarityMultiplier`. Titan weight/hitbox/knockback parameters use the same configured pet-level curve. Titan's separate visual growth is based on Player Level-ups earned after Titan is equipped: +4% per level to a 2x cap, and resets with round progression. `PetAbilityDisplayConfig.Descriptions[abilityId]` stores localized player-facing ability descriptions; `PetAbilityProgressionConfig.Abilities[abilityId]` owns numeric progression targets. `PetAnimationConfig.Animations[abilityId]` and `PetPreviewConfig.Get(abilityId)` use the same canonical key.
 
 
+`ReplicatedStorage.Assets.Equipment` still contains model assets named after the former Pet/Equipment catalog (for example `PlasmaCannon`, `Medusa`, `HealthCore`, and `Shield`). These are legacy asset names, not current Pet identifiers; Pet rendering and inventory previews resolve the current `abilityId` through `PetsConfig` and load the resulting `modelName` from `ReplicatedStorage.Assets.Pets`.
+
 ## Team and retired Pet projectile notes
 
 - Team config: `src/ReplicatedStorage/Shared/Config/TeamConfig.lua` and `LauncherTextureConfig.lua`.
