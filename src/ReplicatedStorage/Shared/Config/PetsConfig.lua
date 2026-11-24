@@ -12,17 +12,13 @@ export type CombatEffect = {
 	collisionExtraDuration: number?,
 	dotFlag: string?,
 	applySlow: boolean?,
-	cannotPetrifyPetIds: { [string]: boolean }?,
 }
 
 export type PetDefinition = {
-	type: string,
+	abilityId: string,
 	modelName: string,
 	rarity: string,
 	category: string,
-	abilityId: string?,
-	effectId: string,
-	activeAbilityId: string?,
 	combatEffect: CombatEffect?,
 	effectParams: { [string]: any }?,
 	statModifiers: StatModifiers?,
@@ -33,9 +29,6 @@ type PetDefinitionOptions = {
 	modelName: string,
 	rarity: string,
 	category: string,
-	abilityId: string?,
-	effectId: string?,
-	activeAbilityId: string?,
 	combatEffect: CombatEffect?,
 	effectParams: { [string]: any }?,
 	statModifiers: StatModifiers?,
@@ -43,7 +36,7 @@ type PetDefinitionOptions = {
 }
 
 PetsConfig.EquippedSlotCount = 3
--- Retained for legacy slot-name normalization; Pet definitions themselves are Universal.
+-- Slot names remain accepted only for migration of old EquippedPets layouts.
 PetsConfig.SlotTypes = { Universal = "Universal", Core = "Core", Module = "Module", Charm = "Charm" }
 PetsConfig.Rarities = { Common = "Common", Rare = "Rare", Epic = "Epic", Legendary = "Legendary" }
 PetsConfig.MaxLevel = 50
@@ -57,21 +50,41 @@ PetsConfig.Categories = {
 	UtilityAreaEffect = "Utility / Area Effect",
 }
 
--- Old definition IDs are normalized when persisted player profiles are loaded.
+-- Legacy catalog identifiers are migrated to the owning AbilityID when profiles load.
+-- These are data-compatibility aliases only; they are never valid current catalog keys.
 PetsConfig.LegacyIdAliases = {
 	PlasmaCannon = "Titan",
+	Hydra = "LastStand",
+	ThunderHammer = "LauncherBoost",
+	Medusa = "Poison",
+	IceCrystal = "PetBaseBoost",
+	GhostFlame = "Burn",
+	Poison = "Lifesteal",
+	HealthCore = "MaxHPBoost",
+	PowerCore = "DamageBoost",
+	Shield = "AbsorbShield",
+	BrainBoost = "ExpBonus",
+	TurboModule = "MoveSpeedBoost",
+	LaunchBooster = "LaunchBooster",
+	Dragon = "FullForce",
+	QuickReload = "QuickReload",
+	ThornArmor = "ThornArmor",
+	RegenBooster = "Regeneration",
+	ShadowCloak = "IdleStealth",
+
+	-- Older aliases retained from historical catalog migrations.
+	ShadowCloakZ = "IdleStealth",
+	Pufferfish = "ThornArmor",
+	SlowBlaster = "LastStand",
+	TitanCore = "FullForce",
 }
 
-local function pet(petType: string, options: PetDefinitionOptions): PetDefinition
-	local abilityId = options.abilityId or petType
+local function pet(abilityId: string, options: PetDefinitionOptions): PetDefinition
 	return {
-		type = petType,
+		abilityId = abilityId,
 		modelName = options.modelName,
 		rarity = options.rarity,
 		category = options.category,
-		abilityId = abilityId,
-		effectId = options.effectId or abilityId or "NoOp",
-		activeAbilityId = options.activeAbilityId,
 		combatEffect = options.combatEffect,
 		effectParams = options.effectParams,
 		statModifiers = options.statModifiers,
@@ -79,154 +92,122 @@ local function pet(petType: string, options: PetDefinitionOptions): PetDefinitio
 	}
 end
 
--- The Pet type is supplied once. Model name, ability identity and runtime effect
--- are separate only when their actual values differ.
-local definitions: { PetDefinition } = {
-	pet("Titan", {
+-- AbilityID is the sole catalog and ownership identifier. Model names are presentation assets only.
+PetsConfig.Definitions = {
+	Titan = pet("Titan", {
 		modelName = "Octopus",
 		rarity = PetsConfig.Rarities.Epic,
 		category = PetsConfig.Categories.PassiveStatModifier,
 	}),
-
-	pet("Hydra", {
+	LastStand = pet("LastStand", {
 		modelName = "Hydra",
 		rarity = PetsConfig.Rarities.Epic,
 		category = PetsConfig.Categories.ConditionalEffect,
-		abilityId = "LastStand",
 	}),
-
-	pet("ThunderHammer", {
+	LauncherBoost = pet("LauncherBoost", {
 		modelName = "Yeti",
 		rarity = PetsConfig.Rarities.Epic,
 		category = PetsConfig.Categories.PassiveStatModifier,
-		abilityId = "LauncherBoost",
 	}),
-
-	pet("Medusa", {
+	Poison = pet("Poison", {
 		modelName = "Snake",
 		rarity = PetsConfig.Rarities.Rare,
 		category = PetsConfig.Categories.DamageOverTime,
-		abilityId = "Poison",
 	}),
-
-	pet("IceCrystal", {
+	PetBaseBoost = pet("PetBaseBoost", {
 		modelName = "Penguin",
 		rarity = PetsConfig.Rarities.Legendary,
 		category = PetsConfig.Categories.PassiveStatModifier,
-		abilityId = "PetBaseBoost",
 	}),
-
-	pet("GhostFlame", {
+	Burn = pet("Burn", {
 		modelName = "Phoenix",
 		rarity = PetsConfig.Rarities.Rare,
 		category = PetsConfig.Categories.DamageOverTime,
-		abilityId = "Burn",
 		statModifiers = { Add = { baseDamage = 50 } },
 	}),
-
-	pet("Poison", {
+	Lifesteal = pet("Lifesteal", {
 		modelName = "Caterpillar",
 		rarity = PetsConfig.Rarities.Rare,
 		category = PetsConfig.Categories.PassiveStatModifier,
-		abilityId = "Lifesteal",
 		statModifiers = { Add = { baseDamage = 25 } },
 	}),
-
-	pet("HealthCore", {
+	MaxHPBoost = pet("MaxHPBoost", {
 		modelName = "Pig",
 		rarity = PetsConfig.Rarities.Rare,
 		category = PetsConfig.Categories.PassiveStatModifier,
-		abilityId = "MaxHPBoost",
 	}),
-
-	pet("PowerCore", {
+	DamageBoost = pet("DamageBoost", {
 		modelName = "Panda",
 		rarity = PetsConfig.Rarities.Rare,
 		category = PetsConfig.Categories.PassiveStatModifier,
-		abilityId = "DamageBoost",
 	}),
-
-	pet("Shield", {
+	AbsorbShield = pet("AbsorbShield", {
 		modelName = "Elephant",
 		rarity = PetsConfig.Rarities.Rare,
 		category = PetsConfig.Categories.UtilityAreaEffect,
-		abilityId = "AbsorbShield",
 	}),
-
-	pet("BrainBoost", {
+	ExpBonus = pet("ExpBonus", {
 		modelName = "Monkey",
 		rarity = PetsConfig.Rarities.Common,
 		category = PetsConfig.Categories.PassiveStatModifier,
-		abilityId = "ExpBonus",
 	}),
-
-	pet("TurboModule", {
+	MoveSpeedBoost = pet("MoveSpeedBoost", {
 		modelName = "Bunny",
 		rarity = PetsConfig.Rarities.Common,
 		category = PetsConfig.Categories.PassiveStatModifier,
-		abilityId = "MoveSpeedBoost",
 	}),
-
-	pet("LaunchBooster", {
+	LaunchBooster = pet("LaunchBooster", {
 		modelName = "Bee",
 		rarity = PetsConfig.Rarities.Rare,
 		category = PetsConfig.Categories.PassiveStatModifier,
 	}),
-
-	pet("Dragon", {
+	FullForce = pet("FullForce", {
 		modelName = "Dragon",
 		rarity = PetsConfig.Rarities.Epic,
 		category = PetsConfig.Categories.ConditionalEffect,
-		abilityId = "FullForce",
 	}),
-
-	pet("QuickReload", {
+	QuickReload = pet("QuickReload", {
 		modelName = "Dog",
 		rarity = PetsConfig.Rarities.Rare,
 		category = PetsConfig.Categories.PassiveStatModifier,
 	}),
-
-	pet("ThornArmor", {
+	ThornArmor = pet("ThornArmor", {
 		modelName = "Pufferfish",
 		rarity = PetsConfig.Rarities.Epic,
 		category = PetsConfig.Categories.PassiveStatModifier,
 	}),
-
-	pet("RegenBooster", {
+	Regeneration = pet("Regeneration", {
 		modelName = "Fish",
 		rarity = PetsConfig.Rarities.Rare,
 		category = PetsConfig.Categories.RegenerationHealing,
-		abilityId = "Regeneration",
 	}),
-
-	pet("ShadowCloak", {
+	IdleStealth = pet("IdleStealth", {
 		modelName = "Unicorn",
 		rarity = PetsConfig.Rarities.Legendary,
 		category = PetsConfig.Categories.ConditionalEffect,
-		abilityId = "IdleStealth",
 		effectParams = { idleSeconds = 3 },
 	}),
 }
-
-local definitionsByType: { [string]: PetDefinition } = {}
-for _, definition in ipairs(definitions) do
-	definitionsByType[definition.type] = definition
-end
-PetsConfig.Definitions = definitionsByType
 
 function PetsConfig.GetMaxLevelForRarity(_rarity: string): number
 	return PetsConfig.MaxLevel
 end
 
-function PetsConfig.GetById(definitionId: string): PetDefinition?
-	return PetsConfig.Definitions[definitionId]
+function PetsConfig.GetByAbilityId(abilityId: string): PetDefinition?
+	return PetsConfig.Definitions[abilityId]
 end
 
-function PetsConfig.GetAllIds(): { string }
-	local ids = {}
-	for id in pairs(PetsConfig.Definitions) do table.insert(ids, id) end
-	table.sort(ids)
-	return ids
+function PetsConfig.GetAllAbilityIds(): { string }
+	local abilityIds = {}
+	for abilityId in pairs(PetsConfig.Definitions) do
+		table.insert(abilityIds, abilityId)
+	end
+	table.sort(abilityIds)
+	return abilityIds
+end
+
+function PetsConfig.IsValidAbilityId(abilityId: any): boolean
+	return type(abilityId) == "string" and PetsConfig.Definitions[abilityId] ~= nil
 end
 
 function PetsConfig.IsValidEquippedSlot(slot: any): boolean
