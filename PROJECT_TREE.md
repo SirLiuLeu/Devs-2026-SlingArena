@@ -102,6 +102,7 @@ DataModel
 │  │  │   ├── Dog (Model)
 │  │  │   ├── Elephant (Model)
 │  │  │   ├── Fish (Model)
+│  │  │   ├── Pufferfish (Model)
 │  │  │   ├── Monkey (Model)
 │  │  │   ├── Panda (Model)
 │  │  │   ├── Penguin (Model)
