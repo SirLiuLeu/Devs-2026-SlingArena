@@ -46,7 +46,7 @@ function PetStatResolver.ApplyLauncherModifiers(baseStats: { [string]: number },
 	local launcherMultiplier = 1
 	for _, progression in ipairs(equippedProgressions or {}) do
 		local definition = progression.definition
-		if type(definition) == "table" and definition.type == "ThunderHammer" then
+		if type(definition) == "table" and definition.abilityId == "LauncherBoost" then
 			local params = progression.abilityParams
 			launcherMultiplier = math.max(launcherMultiplier, tonumber(params and params.launcherStatMultiplier) or 1)
 		end
