@@ -16,8 +16,8 @@ PetAbilityService.__index = PetAbilityService
 local TRACE_PET_IDS = { Medusa = true, GhostFlame = true, ThunderHammer = true }
 
 local function tracePet(definition: any, message: string)
-	if definition and TRACE_PET_IDS[definition.PetId] then
-		print(string.format("[PET_ATTACK_TRACE][%s] %s", definition.PetId, message))
+	if definition and TRACE_PET_IDS[definition.type] then
+		print(string.format("[PET_ATTACK_TRACE][%s] %s", definition.type, message))
 	end
 end
 
@@ -27,7 +27,7 @@ function PetAbilityService:_traceExpectedPet(player: Player?, checkpoint: string
 	local activeIds = {}
 	if activeEffects then
 		for instanceId, effectState in pairs(activeEffects) do
-			local definitionId = effectState.context.definition and effectState.context.definition.PetId
+			local definitionId = effectState.context.definition and effectState.context.definition.type
 			if definitionId then
 				if definitionId == "Medusa" then equipped.Medusa = true end
 				if definitionId == "GhostFlame" then equipped.GhostFlame = true end
@@ -240,7 +240,7 @@ function PetAbilityService:ActivatePet(player, _slotType: string, instanceId: st
 	end
 	local module = self._effectModules[definition.effectId]
 	if not module then
-		warn(string.format("[PET_EFFECT] Missing effect module for configured effectId %s on %s", tostring(definition.effectId), tostring(definition.PetId)))
+		warn(string.format("[PET_EFFECT] Missing effect module for configured effectId %s on %s", tostring(definition.effectId), tostring(definition.type)))
 		return false
 	end
 	self._activeEffects[player] = self._activeEffects[player] or {}
@@ -294,8 +294,8 @@ function PetAbilityService:Dispatch(player, lifecycleName: string, ...)
 		tracePet(effectState.context.definition, string.format("lifecycle=%s player=%s instanceId=%s handler=%s", lifecycleName, player and player.Name or "nil", tostring(instanceId), tostring(typeof(handler) == "function")))
 		if typeof(handler) == "function" then
 			handler(effectState.context, ...)
-		elseif TRACE_PET_IDS[effectState.context.definition.PetId] then
-			print(string.format("[PET_ATTACK_TRACE][%s] lifecycle skipped: no %s handler", effectState.context.definition.PetId, lifecycleName))
+		elseif TRACE_PET_IDS[effectState.context.definition.type] then
+			print(string.format("[PET_ATTACK_TRACE][%s] lifecycle skipped: no %s handler", effectState.context.definition.type, lifecycleName))
 		end
 	end
 end
