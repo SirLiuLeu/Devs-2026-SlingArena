@@ -802,7 +802,7 @@ Notes:
 
 - Team config: `src/ReplicatedStorage/Shared/Config/TeamConfig.lua` and `LauncherTextureConfig.lua`.
 - Team selection controller: `src/ReplicatedStorage/Client/Controllers/TeamSelectionUIController.lua`; it binds the Studio-authored `StarterGui.TeamSelectionGui` hierarchy documented in `ProjectTreeSpec.lua`.
-- Pet projectile modules: `src/ServerScriptService/Services/PetAbilityService/PetAbilities/PlasmaCannon.lua` and `SlowBlaster.lua`; both activate automatically on available targets and cooldown, without a Pet skill-button request.
+- Separate projectile modules remain at `src/ServerScriptService/Services/PetAbilityService/PetAbilities/PlasmaCannon.lua` and `SlowBlaster.lua`. Their IDs are projectile/effect identifiers, not current Pet catalog `type` values.
 - Nearby Pet visuals are client-local and range-gated by `src/ReplicatedStorage/Shared/Config/PetRenderConfig.lua`.
 - `UnitTestUI.RootFrame.LevelUp5` uses the Studio-only `LauncherArenaRemotes.DebugLevelUp5` RemoteEvent.
 - Required Studio prefab instances: `ReplicatedStorage.Assets.Prefabs.PlasmaBall` and `SlowBall`. These assets are documented but are not source-controlled by Rojo in this repository; verify they remain in Studio after sync.
