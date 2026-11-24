@@ -380,7 +380,7 @@ function ClientPetController:_createPet(owner: Player, slot: number, instanceId:
 	local definition = PetsConfig.GetByAbilityId(abilityId)
 	if not definition then
 		if not self._failedModels[abilityId] then
-			warn(string.format("[CLIENT_PET] Unknown pet definition %q for player %s", abilityId, owner.Name))
+			warn(string.format("[CLIENT_PET] Unknown Pet AbilityID %q for player %s", abilityId, owner.Name))
 			self._failedModels[abilityId] = true
 		end
 		return nil
