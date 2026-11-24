@@ -89,6 +89,7 @@ PetAbilityProgressionConfig.Abilities = {
 		[20] = { healAmount = 10, tickInterval = 1, healingReceivedMultiplier = 1.18 },
 		Level50 = { healAmount = 10, tickInterval = 1, healingReceivedMultiplier = 1.25 },
 	},
+	-- Separate projectile progression ID; this is not a Pet catalog type.
 	PlasmaCannon = {
 		[1] = { damage = 700, cooldown = 10, projectileSpeed = 15 },
 		[5] = { damage = 800, cooldown = 10, projectileSpeed = 60 },
