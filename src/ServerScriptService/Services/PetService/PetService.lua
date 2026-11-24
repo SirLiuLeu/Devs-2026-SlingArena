@@ -103,21 +103,21 @@ function PetService:OwnsInstance(player: Player, instanceId: string): boolean
 	return self:GetOwnedPets(player)[instanceId] ~= nil
 end
 
-local STARTER_PET = PetsConfig.GetAllIds()
+local STARTER_PET_ABILITY_IDS = PetsConfig.GetAllAbilityIds()
 
 function PetService:GrantStarterPet(player: Player): boolean
 	local dataService = self:_dataService()
 	if not dataService then return false end
 	local owned = self:GetOwnedPets(player)
 	if next(owned) ~= nil then return false end
-	for index, definitionId in ipairs(STARTER_PET) do
-		self:Grant(player, definitionId, { instanceId = "starter_pet_" .. definitionId })
+	for _, abilityId in ipairs(STARTER_PET_ABILITY_IDS) do
+		self:Grant(player, abilityId, { instanceId = "starter_pet_" .. abilityId })
 	end
 	return true
 end
 
-function PetService:Grant(player: Player, definitionId: string, fields: { [string]: any }?): (boolean, string?)
-	local definition = PetsConfig.GetById(definitionId)
+function PetService:Grant(player: Player, abilityId: string, fields: { [string]: any }?): (boolean, string?)
+	local definition = PetsConfig.GetByAbilityId(abilityId)
 	if not definition then return false, nil end
 	local dataService = self:_dataService()
 	if not dataService then return false, nil end
@@ -125,7 +125,7 @@ function PetService:Grant(player: Player, definitionId: string, fields: { [strin
 	dataService:UpdateData(player, function(data)
 		dataService:_ensurePetData(data)
 		data.OwnedPets[instanceId] = {
-			definitionId = definitionId,
+			abilityId = abilityId,
 			level = math.clamp(math.floor(tonumber(fields and fields.level) or 1), 1, PetsConfig.MaxLevel),
 			rarity = definition.rarity,
 			acquiredAt = tonumber(fields and fields.acquiredAt) or os.time(),
@@ -167,7 +167,7 @@ function PetService:Equip(player: Player, instanceId: string, preferredSlot: any
 		dataService:_ensurePetData(data)
 		local ownedInstance = data.OwnedPets[instanceId]
 		if type(ownedInstance) ~= "table" then return data end
-		local definition = PetsConfig.GetById(tostring(ownedInstance.definitionId or ""))
+		local definition = PetsConfig.GetByAbilityId(tostring(ownedInstance.abilityId or ""))
 		if not definition then failure = "InvalidPet"; return data end
 		for _, equippedInstanceId in pairs(data.EquippedPets) do
 			if equippedInstanceId == instanceId then failure = "AlreadyEquipped"; return data end
@@ -185,8 +185,8 @@ function PetService:Equip(player: Player, instanceId: string, preferredSlot: any
 		self:_publishEquipResult(player, { Status = "Rejected", Reason = failure, InstanceId = instanceId })
 		return false, failure
 	end
-	-- [DEBUG_TRACE] print(string.format("[DIAG][PetService] Equip committed player=%s instanceId=%s slot=%s definition=%s t=%.3f", player.Name, tostring(instanceId), tostring(slotNumber), tostring(equippedInstance and equippedInstance.definitionId), os.clock()))
-	print(string.format("[Pet] Equipping item: %s", tostring(equippedInstance and equippedInstance.definitionId or instanceId)))
+	-- [DEBUG_TRACE] print(string.format("[DIAG][PetService] Equip committed player=%s instanceId=%s slot=%s definition=%s t=%.3f", player.Name, tostring(instanceId), tostring(slotNumber), tostring(equippedInstance and equippedInstance.abilityId), os.clock()))
+	print(string.format("[Pet] Equipping item: %s", tostring(equippedInstance and equippedInstance.abilityId or instanceId)))
 	local stateService = ServiceResolver.Get(self._context, "PlayerStateService")
 	if stateService and typeof(stateService.SyncPetFromData) == "function" then stateService:SyncPetFromData(player) end
 	local isLauncherMode = stateService and typeof(stateService.IsLauncher) == "function" and stateService:IsLauncher(player)
@@ -195,7 +195,7 @@ function PetService:Equip(player: Player, instanceId: string, preferredSlot: any
 		Reason = if isLauncherMode then nil else "HumanModeNoHitbox",
 		Message = if isLauncherMode then "Pet equipped." else "Pet saved. It will visually attach and activate when you switch to Launcher.",
 		InstanceId = instanceId,
-		DefinitionId = equippedInstance and equippedInstance.definitionId,
+		DefinitionId = equippedInstance and equippedInstance.abilityId,
 		ActivePlayerMode = if isLauncherMode then GameStates.PlayerMode.Launcher else GameStates.PlayerMode.Human,
 	}
 	self:_publishEquipResult(player, equipResult)
@@ -264,7 +264,7 @@ function PetService:Delete(player: Player, instanceId: string): (boolean, string
 	end
 
 	local removedSlots = {}
-	local definitionId = nil
+	local abilityId = nil
 	local deleted = false
 	dataService:UpdateData(player, function(data)
 		dataService:_ensurePetData(data)
@@ -273,7 +273,7 @@ function PetService:Delete(player: Player, instanceId: string): (boolean, string
 			return data
 		end
 
-		definitionId = tostring(ownedInstance.definitionId or "")
+		abilityId = tostring(ownedInstance.abilityId or "")
 		data.OwnedPets[instanceId] = nil
 		for slot, equippedInstanceId in pairs(data.EquippedPets) do
 			if equippedInstanceId == instanceId then
@@ -306,7 +306,7 @@ function PetService:Delete(player: Player, instanceId: string): (boolean, string
 	self:_publishDeleteResult(player, {
 		Status = "Deleted",
 		InstanceId = instanceId,
-		DefinitionId = definitionId,
+		AbilityId = abilityId,
 		UnequippedSlots = removedSlots,
 	})
 	return true, nil
