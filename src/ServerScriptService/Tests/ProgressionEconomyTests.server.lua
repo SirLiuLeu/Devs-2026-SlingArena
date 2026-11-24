@@ -48,25 +48,22 @@ runTest("Pet_Level_Cap_And_Linear_Stats", function()
 	assertNear(PetsUpgradeConfig.GetStatAtLevel(100, 50), 345, "Level 50 reaches 3.45x")
 end)
 
-runTest("Pet_Definition_Uses_Type_And_Model_Name", function()
-	local titan = PetsConfig.GetById("Titan")
-	if not titan then error("Titan Pet definition is missing") end
-	assertEqual(titan.type, "Titan", "Titan is the canonical Pet type")
+runTest("Pet_Definitions_Use_AbilityID_As_Sole_Identity", function()
+	local titan = PetsConfig.GetByAbilityId("Titan")
+	if not titan then error("Titan AbilityID definition is missing") end
+	assertEqual(titan.abilityId, "Titan", "AbilityID is the sole canonical Pet identity")
 	assertEqual(titan.modelName, "Octopus", "Titan resolves the Octopus model")
-	assertEqual(titan.abilityId, "Titan", "Titan progression identity remains Titan")
-	assertEqual(titan.effectId, "Titan", "Titan runtime effect remains Titan")
-	assertEqual(PetsConfig.GetById("PlasmaCannon"), nil, "Legacy projectile ID is not a current Pet definition")
-	assertEqual(PetsConfig.LegacyIdAliases.PlasmaCannon, "Titan", "Legacy Pet ID migrates to Titan")
-	assertEqual(titan.Name, nil, "Duplicate model Name field is removed")
-	assertEqual(titan.DisplayName, nil, "Duplicate DisplayName field is removed")
-	assertEqual(titan.slotType, nil, "Unused per-definition slotType is removed")
-	assertEqual(titan.metadata, nil, "Unused metadata is removed")
-	assertEqual(titan.script, nil, "Duplicated Pet script is removed")
-	assertEqual(titan.passiveAbility, nil, "Duplicated passiveAbility type is removed")
+	assertEqual(titan.type, nil, "Duplicate Pet type field is removed")
+	assertEqual(titan.PetId, nil, "Legacy PetId field is removed")
+	assertEqual(titan.effectId, nil, "Duplicate effectId field is removed")
+	assertEqual(titan.activeAbilityId, nil, "No separate active ability identifier is retained")
+	assertEqual(PetsConfig.GetByAbilityId("Titan"), nil, "Retired Pet ID is not a catalog key")
+	assertEqual(PetsConfig.LegacyIdAliases.PlasmaCannon, "Titan", "Old Pet ID migrates to Titan AbilityID")
+	assertEqual(PetsConfig.GetByAbilityId("MaxHPBoost"), nil, "Retired HealthCore ID is not a catalog key")
+	assertEqual(PetsConfig.LegacyIdAliases.HealthCore, "MaxHPBoost", "HealthCore migrates to its AbilityID")
+	assertEqual(titan.modelName, "Octopus", "Model name remains a visual asset reference")
 	assertEqual(titan.statModifiers, nil, "Empty stat modifier tables are omitted")
-end)
-
-runTest("Pet_Linear_Cost_And_Rarity_Multipliers", function()
+end)runTest("Pet_Linear_Cost_And_Rarity_Multipliers", function()
 	assertEqual(PetsUpgradeConfig.GetUpgradeCost(1, "Common"), 50, "Common level 1 cost")
 	assertEqual(PetsUpgradeConfig.GetUpgradeCost(49, "Common"), 2450, "Common level 49 cost")
 	assertEqual(PetsUpgradeConfig.GetUpgradeCost(1, "Rare"), 63, "Rare rarity multiplier")
@@ -79,104 +76,76 @@ runTest("Pet_Linear_Cost_And_Rarity_Multipliers", function()
 end)
 
 runTest("Pet_Ability_Milestones_Reach_80_And_100_Percent", function()
-	local plasma1 = PetAbilityProgressionConfig.GetParams("PlasmaCannon", 1)
-	local plasma4 = PetAbilityProgressionConfig.GetParams("PlasmaCannon", 4)
-	local plasma5 = PetAbilityProgressionConfig.GetParams("PlasmaCannon", 5)
-	local plasma20 = PetAbilityProgressionConfig.GetParams("PlasmaCannon", 20)
-	local plasma21 = PetAbilityProgressionConfig.GetParams("PlasmaCannon", 21)
-	local plasma25 = PetAbilityProgressionConfig.GetParams("PlasmaCannon", 25)
-	local plasma50 = PetAbilityProgressionConfig.GetParams("PlasmaCannon", 50)
-	assertNear(plasma1.damage, 700, "Plasma Cannon level 1")
-	assertNear(plasma4.damage, plasma1.damage, "Ability stays unchanged before milestone")
-	assertNear(plasma5.damage, 800, "Legacy level-5 value retained")
-	assertNear(plasma20.damage, 1100, "Legacy level-20 value retained")
-	assertNear(plasma21.damage, plasma20.damage, "Ability does not improve between milestones")
-	assertNear(plasma25.damage, 1116.6666667, "Level 25 adds one sixth of remaining 20%")
-	assertNear(plasma50.damage, 1200, "Level 50 extended target")
-	assertNear(plasma20.cooldown, 10, "Cooldown remains unchanged")
-	assertNear(plasma5.projectileSpeed, 60, "Existing Plasma speed unlock remains")
-
-	local shield20 = PetAbilityProgressionConfig.GetParams("Shield", 20)
-	local shield50 = PetAbilityProgressionConfig.GetParams("Shield", 50)
-	assertNear(shield20.damageMultiplier, 0.60, "Legacy Shield level-20 value retained")
-	assertNear(shield50.damageMultiplier, 0.55, "Shield level-50 target")
-
 	local titan20 = PetAbilityProgressionConfig.GetParams("Titan", 20)
 	local titan50 = PetAbilityProgressionConfig.GetParams("Titan", 50)
-	assertNear(titan20.weightMultiplier, 1.29, "Legacy Titan level-20 weight retained")
-	assertNear(titan20.hitboxMultiplier, 1.38, "Legacy Titan level-20 hitbox retained")
-	assertNear(titan50.weightMultiplier, 1.3625, "Titan weight level-50 target")
-	assertNear(titan50.hitboxMultiplier, 1.475, "Titan hitbox level-50 target")
-	assertNear(titan50.incomingKnockbackMultiplier, 0.6625, "Titan incoming knockback target")
+	assertNear(titan20.weightMultiplier, 1.29, "Titan level-20 weight retained")
+	assertNear(titan20.hitboxMultiplier, 1.38, "Titan level-20 hitbox retained")
+	assertNear(titan50.weightMultiplier, 1.3625, "Titan level-50 weight target")
+	assertNear(titan50.hitboxMultiplier, 1.475, "Titan level-50 hitbox target")
+	assertNear(titan50.incomingKnockbackMultiplier, 0.6625, "Titan level-50 incoming knockback target")
 
-	local slowBlaster5 = PetAbilityProgressionConfig.GetParams("SlowBlaster", 5)
-	assertNear(slowBlaster5.projectileSpeed, 15, "SlowBlaster level-5 speed unlock")
-	assertNear(PetAbilityProgressionConfig.GetParams("SlowBlaster", 20).slowDuration, 5, "Legacy SlowBlaster level-20 duration retained")
-	assertNear(PetAbilityProgressionConfig.GetParams("SlowBlaster", 50).slowDuration, 5.5, "SlowBlaster level-50 duration target")
-	assertNear(PetAbilityProgressionConfig.GetParams("Slow", 50).collisionExtraDuration, 5.5, "Slow level-50 duration target")
-	assertNear(PetAbilityProgressionConfig.GetParams("ExpBonus", 20).expBonus, 0.50, "BrainBoost level-20 EXP bonus")
-	assertNear(PetAbilityProgressionConfig.GetParams("ExpBonus", 50).expBonus, 0.55, "BrainBoost level-50 EXP bonus")
-	assertNear(PetAbilityProgressionConfig.GetParams("Regeneration", 50).healAmount, 10, "Fish fixed 10 HP/s regeneration")
-	assertNear(PetAbilityProgressionConfig.GetParams("Regeneration", 50).tickInterval, 1, "Fish regeneration tick interval")
-	assertNear(PetAbilityProgressionConfig.GetParams("Regeneration", 50).healingReceivedMultiplier, 1.25, "Fish level-50 healing received bonus")
-end)
+	local burn1 = PetAbilityProgressionConfig.GetParams("Burn", 1)
+	local burn20 = PetAbilityProgressionConfig.GetParams("Burn", 20)
+	local burn50 = PetAbilityProgressionConfig.GetParams("Burn", 50)
+	assertNear(burn1.damagePerTick, 250, "Burn level-1 damage")
+	assertNear(burn20.damagePerTick, 325, "Burn level-20 damage")
+	assertNear(burn50.damagePerTick, 375, "Burn level-50 damage")
 
-runTest("Remaining_Pet_Abilities_Reach_Level_50_Targets", function()
-	assertNear(PetAbilityProgressionConfig.GetParams("Stun", 1).collisionExtraDuration, 1.25, "ThunderHammer level-1 Stun")
-	assertNear(PetAbilityProgressionConfig.GetParams("Stun", 20).collisionExtraDuration, 1.60, "ThunderHammer level-20 Stun")
-	assertNear(PetAbilityProgressionConfig.GetParams("Stun", 50).collisionExtraDuration, 1.80, "ThunderHammer level-50 Stun")
-	assertNear(PetAbilityProgressionConfig.GetParams("Petrify", 1).collisionExtraDuration, 5.0, "Medusa level-1 Petrify")
-	assertNear(PetAbilityProgressionConfig.GetParams("Petrify", 20).collisionExtraDuration, 6.0, "Medusa level-20 Petrify")
-	assertNear(PetAbilityProgressionConfig.GetParams("Petrify", 50).collisionExtraDuration, 6.5, "Medusa level-50 Petrify")
-	assertNear(PetAbilityProgressionConfig.GetParams("Burn", 1).damagePerTick, 250, "GhostFlame level-1 Burn")
-	assertNear(PetAbilityProgressionConfig.GetParams("Burn", 20).damagePerTick, 325, "GhostFlame level-20 Burn")
-	assertNear(PetAbilityProgressionConfig.GetParams("Burn", 50).damagePerTick, 375, "GhostFlame level-50 Burn")
-	assertNear(PetAbilityProgressionConfig.GetParams("Poison", 1).damagePerTick, 150, "Poison level-1 DoT")
-	assertNear(PetAbilityProgressionConfig.GetParams("Poison", 20).damagePerTick, 195, "Poison level-20 DoT")
-	assertNear(PetAbilityProgressionConfig.GetParams("Poison", 50).damagePerTick, 225, "Poison level-50 DoT")
-	assertNear(PetAbilityProgressionConfig.GetParams("HealthCore", 1).maxHPBonus, 5000, "HealthCore level-1 HP")
-	assertNear(PetAbilityProgressionConfig.GetParams("HealthCore", 20).maxHPBonus, 6000, "HealthCore level-20 HP")
-	assertNear(PetAbilityProgressionConfig.GetParams("HealthCore", 50).maxHPBonus, 6500, "HealthCore level-50 HP")
-	assertNear(PetAbilityProgressionConfig.GetParams("PowerCore", 1).baseDamageBonus, 500, "PowerCore level-1 damage")
-	assertNear(PetAbilityProgressionConfig.GetParams("PowerCore", 20).baseDamageBonus, 600, "PowerCore level-20 damage")
-	assertNear(PetAbilityProgressionConfig.GetParams("PowerCore", 50).baseDamageBonus, 650, "PowerCore level-50 damage")
-	assertNear(PetAbilityProgressionConfig.GetParams("TurboModule", 1).moveSpeedBonus, 10, "TurboModule level-1 speed")
-	assertNear(PetAbilityProgressionConfig.GetParams("TurboModule", 20).moveSpeedBonus, 12, "TurboModule level-20 speed")
-	assertNear(PetAbilityProgressionConfig.GetParams("TurboModule", 50).moveSpeedBonus, 13, "TurboModule level-50 speed")
+	local poison1 = PetAbilityProgressionConfig.GetParams("Lifesteal", 1)
+	local poison20 = PetAbilityProgressionConfig.GetParams("Lifesteal", 20)
+	local poison50 = PetAbilityProgressionConfig.GetParams("Lifesteal", 50)
+	assertNear(poison1.damagePerTick, 150, "Poison level-1 damage")
+	assertNear(poison20.damagePerTick, 195, "Poison level-20 damage")
+	assertNear(poison50.damagePerTick, 225, "Poison level-50 damage")
+
+	local shield = PetAbilityProgressionConfig.GetParams("AbsorbShield", 1)
+	assertNear(shield.absorbCapacity, 5000, "AbsorbShield capacity")
+	assertNear(shield.refreshInterval, 10, "AbsorbShield refresh interval")
+	assertNear(PetAbilityProgressionConfig.GetParams("ExpBonus", 20).expBonus, 0.50, "ExpBonus level-20 value")
+	assertNear(PetAbilityProgressionConfig.GetParams("ExpBonus", 50).expBonus, 0.55, "ExpBonus level-50 target")
+	assertNear(PetAbilityProgressionConfig.GetParams("Regeneration", 50).healAmount, 10, "Regeneration fixed healing")
+	assertNear(PetAbilityProgressionConfig.GetParams("Regeneration", 50).tickInterval, 1, "Regeneration tick interval")
+end)runTest("Remaining_Pet_Abilities_Reach_Level_50_Targets", function()
+	assertNear(PetAbilityProgressionConfig.GetParams("LastStand", 1).lastStandMaxDamageBonus, 0.20, "LastStand level-1 damage")
+	assertNear(PetAbilityProgressionConfig.GetParams("LastStand", 50).lastStandMaxDamageBonus, 0.40, "LastStand level-50 target")
+	assertNear(PetAbilityProgressionConfig.GetParams("FullForce", 1).fullForceDamageBonus, 0.10, "FullForce level-1 damage")
+	assertNear(PetAbilityProgressionConfig.GetParams("FullForce", 50).fullForceDamageBonus, 0.25, "FullForce level-50 target")
+	assertNear(PetAbilityProgressionConfig.GetParams("Lifesteal", 1).playerLifestealPercent, 0.02, "Lifesteal player percent")
+	assertNear(PetAbilityProgressionConfig.GetParams("Lifesteal", 1).foodLifestealPercent, 0.01, "Lifesteal Food percent")
+	assertNear(PetAbilityProgressionConfig.GetParams("MaxHPBoost", 1).maxHPMultiplier, 1.10, "MaxHPBoost level-1 multiplier")
+	assertNear(PetAbilityProgressionConfig.GetParams("MaxHPBoost", 50).maxHPMultiplier, 1.25, "MaxHPBoost level-50 target")
+	assertNear(PetAbilityProgressionConfig.GetParams("DamageBoost", 1).baseDamageMultiplier, 1.10, "DamageBoost level-1 multiplier")
+	assertNear(PetAbilityProgressionConfig.GetParams("DamageBoost", 50).baseDamageMultiplier, 1.20, "DamageBoost level-50 target")
+	assertNear(PetAbilityProgressionConfig.GetParams("MoveSpeedBoost", 1).moveSpeedMultiplier, 1.05, "MoveSpeedBoost level-1 multiplier")
+	assertNear(PetAbilityProgressionConfig.GetParams("MoveSpeedBoost", 50).moveSpeedMultiplier, 1.15, "MoveSpeedBoost level-50 target")
 	assertNear(PetAbilityProgressionConfig.GetParams("LaunchBooster", 1).launchSpeedMultiplier, 1.20, "LaunchBooster level-1 multiplier")
-	assertNear(PetAbilityProgressionConfig.GetParams("LaunchBooster", 20).launchSpeedMultiplier, 1.24, "LaunchBooster level-20 multiplier")
-	assertNear(PetAbilityProgressionConfig.GetParams("LaunchBooster", 50).launchSpeedMultiplier, 1.26, "LaunchBooster level-50 multiplier")
+	assertNear(PetAbilityProgressionConfig.GetParams("LaunchBooster", 50).launchSpeedMultiplier, 1.26, "LaunchBooster level-50 target")
 	assertNear(PetAbilityProgressionConfig.GetParams("QuickReload", 1).launchCooldownReduction, 1.0, "QuickReload level-1 reduction")
-	assertNear(PetAbilityProgressionConfig.GetParams("QuickReload", 20).launchCooldownReduction, 1.2, "QuickReload level-20 reduction")
-	assertNear(PetAbilityProgressionConfig.GetParams("QuickReload", 50).launchCooldownReduction, 1.3, "QuickReload level-50 reduction")
+	assertNear(PetAbilityProgressionConfig.GetParams("QuickReload", 50).launchCooldownReduction, 1.3, "QuickReload level-50 target")
 	assertNear(PetAbilityProgressionConfig.GetParams("ThornArmor", 1).reflectDamageBonus, 0.20, "ThornArmor level-1 reflect")
-	assertNear(PetAbilityProgressionConfig.GetParams("ThornArmor", 20).reflectDamageBonus, 0.24, "ThornArmor level-20 reflect")
-	assertNear(PetAbilityProgressionConfig.GetParams("ThornArmor", 50).reflectDamageBonus, 0.25, "ThornArmor level-50 reflect")
-	assertNear(PetAbilityProgressionConfig.GetParams("IdleStealth", 1).idleSeconds, 3.0, "ShadowCloak level-1 stealth delay")
-	assertNear(PetAbilityProgressionConfig.GetParams("IdleStealth", 20).idleSeconds, 2.5, "ShadowCloak level-20 stealth delay")
-	assertNear(PetAbilityProgressionConfig.GetParams("IdleStealth", 50).idleSeconds, 2.25, "ShadowCloak level-50 stealth delay")
+	assertNear(PetAbilityProgressionConfig.GetParams("ThornArmor", 50).reflectDamageBonus, 0.25, "ThornArmor level-50 target")
+	assertNear(PetAbilityProgressionConfig.GetParams("IdleStealth", 1).idleSeconds, 3.0, "IdleStealth level-1 delay")
+	assertNear(PetAbilityProgressionConfig.GetParams("IdleStealth", 50).idleSeconds, 2.25, "IdleStealth level-50 target")
 
-	local healthProgression = PetProgression.Resolve(PetsConfig.GetById("HealthCore"), { definitionId = "HealthCore", level = 50 })
-	local thornProgression = PetProgression.Resolve(PetsConfig.GetById("ThornArmor"), { definitionId = "ThornArmor", level = 50 })
-	assertNear(healthProgression.abilityParams.maxHPMultiplier, 1.25, "Pig resolves the redesigned final-HP multiplier")
-	assertNear(thornProgression.abilityParams.reflectDamageBonus, 0.25, "NoOp Pet resolves progression by Pet type")
-end)
-
-runTest("Level_Scaled_Pet_Stat_Bonuses_Override_Legacy_Static_Modifiers", function()
-	local function buildProgression(petId: string, level: number)
+	local hpProgression = PetProgression.Resolve(PetsConfig.GetByAbilityId("MaxHPBoost"), { abilityId = "MaxHPBoost", level = 50 })
+	local thornProgression = PetProgression.Resolve(PetsConfig.GetByAbilityId("ThornArmor"), { abilityId = "ThornArmor", level = 50 })
+	assertNear(hpProgression.abilityParams.maxHPMultiplier, 1.25, "MaxHPBoost resolves final HP multiplier")
+	assertNear(thornProgression.abilityParams.reflectDamageBonus, 0.25, "ThornArmor resolves level-50 reflect")
+end)runTest("Level_Scaled_Pet_Stat_Bonuses_Override_Legacy_Static_Modifiers", function()
+	local function buildProgression(abilityId: string, level: number)
 		return {
 			baseStats = {},
-			abilityParams = PetAbilityProgressionConfig.GetParams(petId, level),
-			definition = PetsConfig.GetById(petId),
+			abilityParams = PetAbilityProgressionConfig.GetParams(abilityId, level),
+			definition = PetsConfig.GetByAbilityId(abilityId),
 		}
 	end
 
 	local level1 = PetStatResolver.Apply(
 		{ maxHP = 1000, baseDamage = 100, moveSpeed = 15, launchSpeed = 100, reflectDamage = 0.05 },
 		{
-			buildProgression("HealthCore", 1),
-			buildProgression("PowerCore", 1),
-			buildProgression("TurboModule", 1),
+			buildProgression("MaxHPBoost", 1),
+			buildProgression("DamageBoost", 1),
+			buildProgression("MoveSpeedBoost", 1),
 			buildProgression("LaunchBooster", 1),
 			buildProgression("QuickReload", 1),
 			buildProgression("ThornArmor", 1),
@@ -192,9 +161,9 @@ runTest("Level_Scaled_Pet_Stat_Bonuses_Override_Legacy_Static_Modifiers", functi
 	local level50 = PetStatResolver.Apply(
 		{ maxHP = 1000, baseDamage = 100, moveSpeed = 15, launchSpeed = 100, reflectDamage = 0.05 },
 		{
-			buildProgression("HealthCore", 50),
-			buildProgression("PowerCore", 50),
-			buildProgression("TurboModule", 50),
+			buildProgression("MaxHPBoost", 50),
+			buildProgression("DamageBoost", 50),
+			buildProgression("MoveSpeedBoost", 50),
 			buildProgression("LaunchBooster", 50),
 			buildProgression("QuickReload", 50),
 			buildProgression("ThornArmor", 50),
@@ -229,20 +198,18 @@ end)
 
 runTest("Pet_Rarity_Assignments_Match_Redesigned_Tiers", function()
 	local expected = {
-		BrainBoost = "Common", TurboModule = "Common",
-		LaunchBooster = "Rare", QuickReload = "Rare", RegenBooster = "Rare", Poison = "Rare",
-		Medusa = "Rare", GhostFlame = "Rare", HealthCore = "Rare", PowerCore = "Rare", Shield = "Rare",
-		Titan = "Epic", Hydra = "Epic", ThunderHammer = "Epic", Dragon = "Epic", ThornArmor = "Epic",
-		IceCrystal = "Legendary", ShadowCloak = "Legendary",
+		ExpBonus = "Common", MoveSpeedBoost = "Common",
+		LaunchBooster = "Rare", QuickReload = "Rare", Regeneration = "Rare", Lifesteal = "Rare",
+		Poison = "Rare", MaxHPBoost = "Rare", DamageBoost = "Rare", AbsorbShield = "Rare",
+		Titan = "Epic", LastStand = "Epic", LauncherBoost = "Epic", FullForce = "Epic", ThornArmor = "Epic",
+		PetBaseBoost = "Legendary", IdleStealth = "Legendary",
 	}
-	assertEqual(#PetsConfig.GetAllIds(), 18, "Pet ID catalog count unchanged")
-	for petId, rarity in pairs(expected) do
-		assertEqual(PetsConfig.GetById(petId).rarity, rarity, petId .. " rarity assignment")
+	assertEqual(#PetsConfig.GetAllAbilityIds(), 18, "AbilityID catalog count")
+	for abilityId, rarity in pairs(expected) do
+		assertEqual(PetsConfig.GetByAbilityId(abilityId).rarity, rarity, abilityId .. " rarity assignment")
 	end
-	assertEqual(#PurchasePetConfig.GetAllIds(), 18, "All Pets retain a purchase price")
-end)
-
-runTest("Pet_Stat_Source_Layers_Do_Not_Amplify_The_Wrong_Stats", function()
+	assertEqual(#PurchasePetConfig.GetAllAbilityIds(), 18, "Every AbilityID retains a purchase price")
+end)runTest("Pet_Stat_Source_Layers_Do_Not_Amplify_The_Wrong_Stats", function()
 	local launcher = {
 		maxHP = 1000, baseDamage = 100, moveSpeed = 20,
 		armor = 0.20, reflectDamage = 0.10, regen = 2, launchSpeed = 100,
@@ -250,15 +217,8 @@ runTest("Pet_Stat_Source_Layers_Do_Not_Amplify_The_Wrong_Stats", function()
 	local function progression(petId: string, level: number, baseHP: number?, baseDamage: number?)
 		return {
 			baseStats = { maxHP = baseHP or 0, baseDamage = baseDamage or 0 },
-			abilityParams = PetAbilityProgressionConfig.GetParams(petId, level),
-			definition = PetsConfig.GetById(({
-				LauncherBoost = "ThunderHammer",
-				PetBaseBoost = "IceCrystal",
-				MaxHPBoost = "HealthCore",
-				DamageBoost = "PowerCore",
-				MoveSpeedBoost = "TurboModule",
-				Regeneration = "RegenBooster",
-			})[petId]),
+			abilityParams = PetAbilityProgressionConfig.GetParams(abilityId, level),
+			definition = PetsConfig.GetByAbilityId(petId),
 		}
 	end
 	local equipped = {
@@ -267,7 +227,7 @@ runTest("Pet_Stat_Source_Layers_Do_Not_Amplify_The_Wrong_Stats", function()
 		progression("MaxHPBoost", 1),
 		progression("DamageBoost", 1),
 		progression("MoveSpeedBoost", 1),
-		{ baseStats = { maxHP = 50, baseDamage = 5 }, abilityParams = {}, definition = PetsConfig.GetById("BrainBoost") },
+		{ baseStats = { maxHP = 50, baseDamage = 5 }, abilityParams = {}, definition = PetsConfig.GetByAbilityId("ExpBonus") },
 	}
 	local launcherAfterYeti = PetStatResolver.ApplyLauncherModifiers(launcher, equipped)
 	assertNear(launcherAfterYeti.maxHP, 1100, "Yeti boosts Launcher HP before Pet HP is added")
@@ -283,15 +243,15 @@ runTest("Pet_Stat_Source_Layers_Do_Not_Amplify_The_Wrong_Stats", function()
 	local fish = {
 		baseStats = {},
 		abilityParams = PetAbilityProgressionConfig.GetParams("Regeneration", 1),
-		definition = PetsConfig.GetById("RegenBooster"),
+		definition = PetsConfig.GetByAbilityId("Regeneration"),
 	}
 	local withFish = PetStatResolver.Apply(launcher, { fish })
 	assertNear(withFish.healingReceivedMultiplier, 1.10, "Fish amplifies healing received at level 1")
 end)
 
 runTest("Pet_Ability_Display_Templates_Resolve_All_Placeholders", function()
-	for _, petId in ipairs(PetsConfig.GetAllIds()) do
-		local definition = PetsConfig.GetById(petId)
+	for _, petId in ipairs(PetsConfig.GetAllAbilityIds()) do
+		local definition = PetsConfig.GetByAbilityId(abilityId)
 		local display = PetDisplayFormatter.Format(definition, 1, false, "vi")
 		assertEqual(string.find(display.ScriptText, "?", 1, true), nil, petId .. " ability description has all values")
 	end
@@ -423,19 +383,18 @@ runTest("Shop_Catalog_Has_All_Configured_Items_And_Launchers", function()
 end)
 
 runTest("Shop_Pet_Catalog_Has_Price_And_Ability_Description_For_Every_Pet", function()
-	assertEqual(#PetsConfig.GetAllIds(), 18, "All Pet definitions are available")
-	assertEqual(#PurchasePetConfig.GetAllIds(), 18, "Every Pet has a purchase price")
-	for _, petId in ipairs(PetsConfig.GetAllIds()) do
-		local pet = PetsConfig.GetById(petId)
-		if not pet then error("Missing Pet definition: " .. petId) end
+	assertEqual(#PetsConfig.GetAllAbilityIds(), 18, "All Pet AbilityIDs are available")
+	assertEqual(#PurchasePetConfig.GetAllAbilityIds(), 18, "Every AbilityID has a purchase price")
+	for _, abilityId in ipairs(PetsConfig.GetAllAbilityIds()) do
+		local pet = PetsConfig.GetByAbilityId(abilityId)
+		if not pet then error("Missing Pet AbilityID: " .. abilityId) end
+		assertEqual(pet.abilityId, abilityId, "Catalog key matches its sole AbilityID: " .. abilityId)
 		local display = PetDisplayFormatter.Format(pet, 1, false, "vi")
-		assertEqual(type(display.ScriptText), "string", "Pet ability display exists: " .. petId)
-		assertEqual(display.ScriptText ~= "", true, "Pet ability display is non-empty: " .. petId)
-		assertEqual(type(PurchasePetConfig.GetPrice(petId)), "number", "Pet purchase price exists: " .. petId)
+		assertEqual(type(display.ScriptText), "string", "Pet ability display exists: " .. abilityId)
+		assertEqual(display.ScriptText ~= "", true, "Pet ability display is non-empty: " .. abilityId)
+		assertEqual(type(PurchasePetConfig.GetPrice(abilityId)), "number", "Pet purchase price exists: " .. abilityId)
 	end
-end)
-
-runTest("PurchasePet_Remote_Validates_Pet_Definition_ID_Shape", function()
-	assertEqual(RemoteContracts.Validate(RemoteContracts.Names.PurchasePet, "Titan"), true, "Non-empty Pet definition ID accepted")
+end)runTest("PurchasePet_Remote_Validates_Pet_Definition_ID_Shape", function()
+	assertEqual(RemoteContracts.Validate(RemoteContracts.Names.PurchasePet, "Titan"), true, "Non-empty AbilityID accepted")
 	assertEqual(RemoteContracts.Validate(RemoteContracts.Names.PurchasePet, ""), false, "Empty Pet definition ID rejected")
 end)
