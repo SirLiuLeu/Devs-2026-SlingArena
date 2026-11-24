@@ -30,7 +30,7 @@ PetAnimationConfig.Animations = {
 	MoveSpeedBoost = { Idle = "133591929877071", Run = "131268154069931", Dance = "76215975855168" }, -- Bunny
 	LaunchBooster = { Idle = "116527000708684", Run = "116927071134069", Dance = "109293602352910" }, -- Bee
 	FullForce = { Idle = "", Run = "", Attack = "", Dance = "" }, -- Dragon
-	QuickReload = { Idle = "79761118977634", Run = "131793614901610", Dance = "76215975855168" }, -- Dog
+	QuickReload = { Idle = "79761118977634", Run = "131793614901610", Dance = "76215975855168" }, -- Cat
 	ThornArmor = { Idle = "", Run = "", Dance = "" }, -- Pufferfish
 	Regeneration = { Idle = "133996742170487", Run = "92449512649739", Dance = "127823569164030" }, -- Fish
 } :: { [string]: PetAnimationSet }
