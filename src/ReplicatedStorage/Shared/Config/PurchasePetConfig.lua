@@ -35,22 +35,22 @@ PurchasePetConfig.Prices = {
 	ShadowCloak = 1600,
 }
 
-function PurchasePetConfig.GetPrice(definitionId: string): number?
-	if not PetsConfig.GetById(definitionId) then
+function PurchasePetConfig.GetPrice(abilityId: string): number?
+	if not PetsConfig.GetByAbilityId(abilityId) then
 		return nil
 	end
-	local price = PurchasePetConfig.Prices[definitionId]
+	local price = PurchasePetConfig.Prices[abilityId]
 	if type(price) ~= "number" then
 		return nil
 	end
 	return math.max(0, math.floor(price))
 end
 
-function PurchasePetConfig.GetAllIds(): { string }
+function PurchasePetConfig.GetAllAbilityIds(): { string }
 	local result = {}
-	for definitionId in pairs(PurchasePetConfig.Prices) do
-		if PetsConfig.GetById(definitionId) then
-			table.insert(result, definitionId)
+	for abilityId in pairs(PurchasePetConfig.Prices) do
+		if PetsConfig.GetByAbilityId(abilityId) then
+			table.insert(result, abilityId)
 		end
 	end
 	table.sort(result)
