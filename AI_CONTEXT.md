@@ -50,7 +50,6 @@
 | GameplayFeedback | S->C | DamagePipelineService | `{ eventType: string, payload: { [string]: any } }` | Combat/damage feedback (damage dealt, impact, level-up, etc.). |
 | PopupMessage | S->C | TrapService | `{ type: string, text: string }` | Contextual popup notification (trap or gameplay warnings). |
 | ZoneUpdate | S->C | SafeZoneService | `{ phase: string, radius: number, center: Vector3, dpsPercent: number, nextShrinkAt?: number }` | Safe-zone visual and damage sync (freeze-required). |
-| PetProjectileVisual | S->C | PlasmaCannon / SlowBlaster | `Spawn` or `End` visual message | Client-local projectile cosmetics; hit/damage/Slow remain server-authoritative. |
 | QuestUpdate | S->C | QuestService | Snapshot containing DailyQuest, Weekly, ServerNow and optional action results | Authoritative Daily Quest chain snapshot and action results. |
 | DailyLoginUpdate | S->C | DailyLoginService | `{ Snapshot: { CycleId, CurrentDay, ServerNow, NextResetAt, entries }, Result? }` | Authoritative Daily Login days, selected bundles, UTC+7 reset timestamp, and claim/debug result. |
 
@@ -87,14 +86,13 @@
 | `LevelConfig.lua` | Level progression settings and `RequiredExp` formula (via `BalanceConfig`). | `PlayerStateService`, `UIController` |
 | `PetAbilityProgressionConfig.lua` | Numeric ability parameters at milestones 1/5/10/15/20. Player-facing ability text is owned by `PetAbilityDisplayConfig.lua`. | `PetProgression`, `PetDisplayFormatter` |
 | `PetAbilityDisplayConfig.lua` | Localized descriptions keyed by Pet `type`; does not own gameplay tuning. | `PetDisplayFormatter`, `PetInventoryUIController` |
-| `PetPreviewConfig.lua` | Per-Pet-type viewport camera `Rotation` and `Offset`, accessed through `Get(petType)`. | `PetInventoryUIController`, `PreviewRenderer` |
+| `PetPreviewConfig.lua` | Per-AbilityID viewport camera `Rotation` and `Offset`, accessed through `Get(abilityId)`. | `PetInventoryUIController`, `ShopUIController`, `PreviewRenderer` |
 | `PetAnimationConfig.lua` | Per-Pet-type idle, run, optional attack, and victory-dance animation asset IDs; blank IDs disable tracks until configured. | `ClientPetController` |
 | `PurchasePetConfig.lua` | Server-owned development Diamond prices for all Pet definitions available in Shop. | `ShopService`, `MockData` |
 | `PetRenderConfig.lua` | Client-side nearby Pet render distance, range-check interval, and exit hysteresis. | `ClientPetController` |
-| `PetProjectileRenderConfig.lua` | Client-only projectile visual distance and count cap. | `PetProjectileVisualController.client.lua` |
 | `LauncherPreviewConfig.lua` | Per-Launcher viewport camera `Rotation`, `Offset`, and preview `Scale`, accessed through `Get(launcherId)`. | `LauncherInventoryUIController`, `PreviewRenderer` |
 | `PetRarityStatsConfig.lua` | Base HP and damage values by pet rarity. | `PetProgression`, pet UI |
-| `PetsConfig.lua` | Pet catalog keyed by `type`; `modelName` selects the visual model, while `abilityId` and `effectId` identify progression and runtime behavior. | `PetService`, `PetProgression`, `PetInventoryUIController`, `ClientPetController` |
+| `PetsConfig.lua` | Pet catalog keyed only by `abilityId`; `modelName` selects the visual model. `abilityId` is the single canonical Pet identity used by ownership, progression, UI, Shop and runtime dispatch. | `PetService`, `PetProgression`, `PetInventoryUIController`, `ClientPetController` |
 | `PetsUpgradeConfig.lua` | Pet levels 1–50, linear `50 × currentLevel × rarityMultiplier` upgrade cost, +5% base HP/Damage per level through 20 and +3% per level from 21–50, plus ability milestone predicates. | `PetService`, `PetProgression`, `PetDisplayFormatter` |
 | `LauncherAnimationIds.lua` | Per-Launcher idle, move, launch, and knockback animation asset IDs. Blank values intentionally leave the track disabled until configured. | `PlayerService/AnimationController` |
 | `LauncherConfig.lua` | Current five Duck Launcher definitions (`Normalduck`, `Kingduck`, `Witchduck`, `Drakeduck`, `Shielduck`), default ID, combat stats, weight, reflect damage, and lookup helpers. Future catalog size is not fixed. | `PlayerStateService`, `LauncherStatResolver`, launcher inventory/shop and mock data |
@@ -124,7 +122,7 @@
 - `PetInventoryUIController` opens from `Workspace/Maps/LobbyMap/Pet/PetInventoryGUI_Part` through `WorldProximityUIController`; the range is 10 studs and leaving the range closes the Pet screen.
 - Pet slots are cloned from `ReplicatedStorage/Assets/UI/PetSlotTemplate_PetInventoryUI`. Pet ownership/equip snapshots still come from the shared `InventoryDataProvider` and server `StateUpdate`; the Pet UI does not keep a second local inventory.
 - `PetDisplayFormatter.Format(definition, level, previewNextLevel, languageCode)` returns `LevelText`, `HPText`, `DamageText`, and `ScriptText`. `PetAbilityDisplayConfig.Descriptions` is the single source for localized Pet ability text, while numeric values are resolved from `PetProgression` and `PetAbilityProgressionConfig`.
-- Persisted `OwnedPets[*].definitionId` stores the Pet `type`. Legacy `PlasmaCannon` Pet IDs migrate to `Titan`; `Octopus` remains the Titan `modelName`. `PlasmaCannon` remains a separate projectile/progression identifier and must not be treated as the current Pet ID.
+- Persisted `OwnedPets[*].abilityId` is the only canonical Pet identity. Migration v2 maps legacy Pet definition IDs (including the old `PlasmaCannon` ID) to their owning AbilityID, clears obsolete `definitionId`/`effectId` fields, and preserves each `instanceId`, level, rarity and equipped slot. `Titan` uses the `Octopus` model. Once migration version 2 is stored, aliases are not re-applied.
 - Pet level caps at 50. Base HP and Damage gain +5% per upgrade level through level 20, then +3% per level from 21 to 50. Ability parameters remain capped at level 20 and use milestones 1, 5, 10, 15, and 20; Titan weight/hitbox parameters also stop scaling at 20. Upgrade price is `50 × currentLevel × rarityMultiplier`, with the existing rarity multipliers retained.
 - The first Upgrade click previews base-stat changes; the second click sends `UpgradePet(instanceId, expectedLevel)`. The button stays pending until `PetUpgradeResult` or the authoritative level update arrives. Deletion requires confirmation and sends `DeletePet(instanceId)`; the server removes equipped-slot references before synchronizing the player.
 
@@ -166,16 +164,16 @@
 - `TeamConfig` and `LauncherTextureConfig` define four teams, a 10-player cap, and shared texture slots for White/Yellow/Blue/Red/Rage. `TeamSelectionUIController` binds the Studio-authored `StarterGui.TeamSelectionGui` and sends validated `ChangeTeam` requests; texture IDs are configured and still need visual verification in Studio.
 - `PlayerService` applies configured team/Rage textures to each equipped Launcher model and applies team colors to world HP bars. Rage switches Roblox team membership to neutral while preserving `PlayerState.TeamId` for scoreboard/history.
 - `LauncherConfig.control`, `maxShootRange`, `PlayerState.LaunchRange`, and the unused Range stat were removed. The Launcher inventory reuses its existing Range label to display Weight.
-- Titan (the Octopus Pet type) scales weight and hitbox with Pet level and modifies outgoing/incoming knockback. Its Launcher visual scale starts at 1x when equipped and grows +4% per player level earned while Titan is equipped, capped at 2x; prior player levels do not count.
-- `PlasmaCannon` and `SlowBlaster` remain separate projectile/effect and progression identifiers, not current Pet catalog types. Their modules and visual prefab names are intentionally unchanged by the Pet identity refactor; keep server-side hit/damage authority and the `Assets.Prefabs.PlasmaBall` / `SlowBall` assets aligned with those projectile IDs.
-- Only the first equipped pet with `activeAbilityId` controls the single SkillButton. Active ability dispatch checks `activeAbilityId` on the server, separate from passive/effect identity.
+- Titan (AbilityID `Titan`, model `Octopus`) scales weight and hitbox with Pet level and modifies outgoing/incoming knockback. Its Launcher visual scale starts at 1x when equipped and grows +4% per player level earned while Titan is equipped, capped at 2x; prior player levels do not count.
+- The old PlasmaCannon and SlowBlaster Pet projectile abilities have been retired. Their server modules, client projectile visual controller, remote, render-budget config and firing sounds were removed. `PlasmaBall` and `SlowBall` Studio prefabs may remain in old place files but are no longer required by the current Pet system.
+- Current Pets do not define click-triggered active skills. The SkillButton no longer selects a Pet through `activeAbilityId`; Pet behavior is driven by its canonical AbilityID through stat resolution or lifecycle modules.
 
 
 ## Implementation update (2026-10-17)
 
 - Team selection uses the shared ConfirmationUIController and ConfirmationTextConfig; the confirmation copy supports Vietnamese/English. Team counts use the replicated Player.TeamId attribute, full teams flash red twice, and ToggleBtn shows the current team name/color when it is a TextButton.
 - PlayerService:_applyTeamTexture intentionally inspects only direct children of the equipped Launcher model (GetChildren()), per the agreed asset requirement. Texture changes on nested descendants are not applied.
-- The current Octopus Pet catalog entry is `Titan` and uses `Titan.lua`. Do not infer Pet identity from the separate `PlasmaCannon` projectile module or its progression key.
+- The canonical AbilityID `Titan` uses `Titan.lua` and the `Octopus` visual model. All Pet catalog, inventory and runtime lookup code uses AbilityID; old Pet IDs are retained only in the versioned migration alias table.
 - PlayerStateService:SyncPetFromData replicates equipped Pet IDs as Player attributes. ClientPetController creates local Pet visuals only for players within PetRenderConfig.NearbyRenderDistance and destroys remote visuals when they move out of range.
 - UnitTestUI.RootFrame.LevelUp5 is wired through ProjectTreeSpec, LobbyClientService, and a Studio-only DebugLevelUp5 RemoteEvent; the server grants up to five levels and fires the normal LevelUp events.
 - Runtime status: these changes have been source-reviewed against the repository, but have not been executed in Roblox Studio in this pass. Verify the Team GUI/Teams instances, all Launcher textures, Assets.Prefabs.PlasmaBall and SlowBall, level-up growth, and two/multi-client nearby-Pet behavior in Studio.
@@ -186,7 +184,7 @@
 - Launcher inventory uses the Studio-authored `LauncherInventoryUI.Root.BodyLauncher.RightPanel.ActionButtons.EquiptButton` and `SellButton`. Any owned, unexpired Launcher can be sold regardless of duplicate status; the default and currently equipped instances remain protected. Permanent sale prices in `LauncherConfig`: Normalduck 1, Kingduck 2, Witchduck 2, Drakeduck 3, Shielduck 3 Diamonds. Time-limited Launcher sale price is fixed at 5 Diamonds. The server remains authoritative for eligibility/pricing and removes the instance + grants Diamonds in one PlayerData mutation.
 - Launcher Equip writes the selected owned instance to `EquippedLauncherInstanceId`, synchronizes runtime state/stats, and refreshes the live Launcher model in the same server request when a Launcher pawn exists. A Human-mode player retains the equipped selection; the visual is applied when a Launcher pawn is spawned. The client consumes `LauncherEquipResult` and `LauncherSellResult` feedback and displays localized success/failure toasts.
 - Team-change rejection logs are detailed for `InvalidRequest`, `InvalidTeam`, `Cooldown`, and `RageActive`; remaining rejection reasons use compact logs. `ChangeTeam` validates payload shape separately from known team IDs so unknown string IDs are classified as `InvalidTeam`.
-- Pet projectile visuals are client-local and distance/cap gated; server simulation and hit resolution remain authoritative. The new `PetProjectileVisual` RemoteEvent and `PetProjectileRenderConfig` are source-controlled.
+- The former Pet projectile visual pipeline is retired; it is not part of the current Pet runtime. Nearby Pet model rendering remains client-local and is governed separately by `PetRenderConfig`.
 - Runtime validation is still required in Roblox Studio, including SellButton UI presence, timed Launcher lifecycle, multi-client projectile visibility/hit accuracy, team rejection logs, and Titan scaling/log frequency.
 
 ## Launcher inventory, team diagnostics, and food placement update (2026-10-19)
@@ -260,7 +258,7 @@
 
 - `InventoryUIController` now resolves `InventoryUI.Root.BodyItems` through `ProjectTreeSpec.UI.Inventory.BodyItems` and explicitly enables the frame on startup/open. `SetVisible(false)` hides both `BodyItems` and the ScreenGui; opening from `MainHUD.Root.LeftMenu.InventoryButton` makes the sole remaining content frame visible. No tab UI was reintroduced.
 - Historical area-density tuning for rectangular FoodSpawn regions was superseded on 2026-11-15 by the fixed 3x3 grid around each FoodSpawn pivot; see the current FoodSpawn section below.
-- Pet progression audit: all 18 Pet definitions now have level-scaled ability parameters. The 11 newly supported Pets are ThunderHammer/Stun, Medusa/Petrify, GhostFlame/Burn, Poison, HealthCore, PowerCore, TurboModule, LaunchBooster, QuickReload, ThornArmor, and ShadowCloak. `EffectUtil` reads level-scaled DoT damage for both Player flags and Food DoT state; `PetStatResolver` applies progression bonuses while suppressing legacy static duplicates; `IdleStealth` reads the level-scaled delay. ThornArmor's reflect contribution is resolved by `PetStatResolver` and processed by `DamagePipelineService`.
+- Pet progression is keyed only by the 18 current AbilityIDs. Pure stat/conditional abilities are resolved by `PetStatResolver` and `DamagePipelineService`; lifecycle modules are registered only for `Titan`, `Poison`, `Burn`, `Regeneration` and `IdleStealth`. Obsolete Pet IDs are accepted only by the one-time profile migration.
 - Runtime validation in Roblox Studio has not yet been performed for these changes.
 
 
@@ -270,7 +268,7 @@
 - GhostFlame/Burn and Poison now override DoT damage-per-tick from Pet progression for both Player flag application and Food DoT ticking. Existing durations, tick intervals, stack rules, Poison slow, and food attribution remain unchanged.
 - HealthCore, PowerCore, TurboModule, LaunchBooster, QuickReload, and ThornArmor now resolve level-scaled stat contributions through `PetStatResolver`. Each progression value supersedes its matching legacy static modifier to prevent double counting. QuickReload continues to feed `PlayerState.LaunchCooldownReduction` and the existing Launcher recovery calculation.
 - ShadowCloak's `IdleStealth` module now reads the progression-controlled idle delay. PetInventory ability descriptions show the live value and next-level preview for the new parameters.
-- `PetProgression.Resolve` falls back to the Pet definition ID for passive-only Pets without an abilityId and legacy NoOp Pets; they keep their existing NoOp runtime effect module.
+- `PetProgression.Resolve` resolves by the definition's required `abilityId`; no Pet-ID fallback or generic NoOp effect module remains.
 - Added progression-target and stat-resolution regression tests for all eleven Pets. Roblox Studio/runtime tests have not yet been executed in this pass.
 
 
