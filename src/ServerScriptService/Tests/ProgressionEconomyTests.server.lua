@@ -435,6 +435,12 @@ runTest("Pet_Ability_Display_Templates_Resolve_All_Placeholders", function()
 		local display = PetDisplayFormatter.Format(definition, 1, false, "vi")
 		assertEqual(string.find(display.ScriptText, "?", 1, true), nil, abilityId .. " ability description has all values")
 	end
+
+	local ironBodyText = PetDisplayFormatter.Format(PetsConfig.GetByAbilityId("IronBody"), 1, false, "vi").ScriptText
+	assertEqual(string.find(ironBodyText, "20%%", 1, true) ~= nil, true, "Elephant IronBody displays its level-1 damage reduction")
+	local absorbShieldText = PetDisplayFormatter.Format(PetsConfig.GetByAbilityId("AbsorbShield"), 1, false, "vi").ScriptText
+	assertEqual(string.find(absorbShieldText, "LavaTrap", 1, true) ~= nil, true, "Unicorn AbsorbShield description identifies the LavaTrap bypass")
+	assertEqual(string.find(absorbShieldText, "SafeZone", 1, true) ~= nil, true, "Unicorn AbsorbShield description identifies the SafeZone bypass")
 end)
 
 runTest("UpgradePet_Remote_Accepts_Levels_Through_50", function()
