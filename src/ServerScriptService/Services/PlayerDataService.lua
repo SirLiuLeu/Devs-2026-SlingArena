@@ -34,7 +34,10 @@ local function buildStarterPetInventory(): { [string]: any }
 end
 
 local RETIRED_PET_IDS = { SmokeBomb = true, MagnetCore = true }
-local PET_ID_ALIASES = { ShadowCloakZ = "ShadowCloak", Pufferfish = "ThornArmor", SlowBlaster = "Hydra", TitanCore = "Dragon", PlasmaCannon = "Titan" }
+local PET_ID_ALIASES = { ShadowCloakZ = "ShadowCloak", Pufferfish = "ThornArmor", SlowBlaster = "Hydra", TitanCore = "Dragon" }
+for legacyPetType, petType in pairs(PetsConfig.LegacyIdAliases) do
+	PET_ID_ALIASES[legacyPetType] = petType
+end
 local PET_IDENTITY_MIGRATION_VERSION = 1
 local LAUNCHER_ID_ALIASES = {
 	NormalLauncher = "Normalduck",
