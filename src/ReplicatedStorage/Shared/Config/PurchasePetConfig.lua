@@ -21,7 +21,6 @@ PurchasePetConfig.Prices = {
 	Burn = 650,
 	MaxHPBoost = 400,
 	DamageBoost = 400,
-	AbsorbShield = 650,
 	IronBody = 650,
 
 	-- Epic
@@ -33,6 +32,7 @@ PurchasePetConfig.Prices = {
 
 	-- Legendary
 	PetBaseBoost = 1600,
+	AbsorbShield = 1600,
 }
 
 function PurchasePetConfig.GetPrice(abilityId: string): number?
