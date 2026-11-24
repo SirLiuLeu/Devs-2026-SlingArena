@@ -108,11 +108,8 @@ local function clonePets(pets): { any }
 		if type(petEntry) ~= "table" then return end
 		local clonedEntry = table.clone(petEntry)
 		clonedEntry.instanceId = clonedEntry.instanceId or instanceId
-		clonedEntry.definitionId = clonedEntry.definitionId or clonedEntry.id
-		clonedEntry.id = clonedEntry.id or clonedEntry.definitionId
+		clonedEntry.abilityId = clonedEntry.abilityId
 		clonedEntry.level = math.max(1, math.floor(tonumber(clonedEntry.level) or 1))
-		-- Pets are permanent. Never carry legacy trial, expiry, or pity metadata
-		-- through the client inventory snapshot.
 		clonedEntry.isTemporary = nil
 		clonedEntry.expiresAt = nil
 		clonedEntry.remainingLifetimeEndsAt = nil
@@ -135,7 +132,6 @@ local function clonePets(pets): { any }
 	end)
 	return result
 end
-
 
 function InventoryDataProvider.new()
 	local self = setmetatable({}, InventoryDataProvider)
@@ -254,8 +250,7 @@ function InventoryDataProvider:SetFromState(state)
 	if type(incomingPet) == "table" then
 		nextPet = clonePets(incomingPet)
 		for _, entry in ipairs(nextPet) do
-			local def = PetsConfig.GetById(entry.definitionId or entry.id or "")
-			entry.id = entry.definitionId or entry.id
+			local def = PetsConfig.GetByAbilityId(entry.abilityId or "")
 			entry.name = entry.name or (def and def.modelName)
 			entry.icon = entry.icon or (def and def.iconId)
 		end
@@ -420,7 +415,7 @@ end
 
 function InventoryDataProvider:_findPetIndex(petId: string): number?
 	for index, entry in ipairs(self._state.ownedPets) do
-		if entry.instanceId == petId or entry.id == petId then return index end
+		if entry.instanceId == petId then return index end
 	end
 	return nil
 end
@@ -440,7 +435,7 @@ function InventoryDataProvider:EquipSelectedPet(): boolean
 	if equipPetRemote then
 		equipPetRemote:FireServer(selected.instanceId)
 		print("[UI] Action Success: Equip Item")
-		print(string.format("[System]: Successfully equipped %s", selected.name or selected.id or selected.instanceId))
+		print(string.format("[System]: Successfully equipped %s", selected.name or selected.abilityId or selected.instanceId))
 		return true
 	end
 	return false
