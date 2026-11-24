@@ -13,10 +13,10 @@ local MockData = {}
 
 local function buildAllPetInventory(prefix: string): { [string]: any }
 	local inventory = {}
-	for _, definitionId in ipairs(PetsConfig.GetAllIds()) do
-		local definition = PetsConfig.GetById(definitionId)
-		inventory[prefix .. definitionId] = {
-			definitionId = definitionId,
+	for _, abilityId in ipairs(PetsConfig.GetAllAbilityIds()) do
+		local definition = PetsConfig.GetByAbilityId(abilityId)
+		inventory[prefix .. abilityId] = {
+			abilityId = abilityId,
 			level = 1,
 			rarity = (definition and definition.rarity) or "Common",
 			acquiredAt = os.time(),
@@ -70,26 +70,26 @@ MockData.PlayerProfiles = {
 		Diamonds = 750,
 		OwnedItems = { bomb = 3, gift_box = 1, hp_potion = 8, exp_buff_30 = 5, damage_buff_20 = 5, hp_buff_30 = 5, exp_card_500 = 5, luck_buff_clover = 5 },
 		OwnedPets = {
-			eq_alpha_Titan = { definitionId = "Titan", level = 1, rarity = (PetsConfig.GetById("PlasmaCannon") and PetsConfig.GetById("PlasmaCannon").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_Hydra = { definitionId = "Hydra", level = 1, rarity = (PetsConfig.GetById("Hydra") and PetsConfig.GetById("Hydra").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_ThunderHammer = { definitionId = "ThunderHammer", level = 1, rarity = (PetsConfig.GetById("ThunderHammer") and PetsConfig.GetById("ThunderHammer").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_Medusa = { definitionId = "Medusa", level = 1, rarity = (PetsConfig.GetById("Medusa") and PetsConfig.GetById("Medusa").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_IceCrystal = { definitionId = "IceCrystal", level = 1, rarity = (PetsConfig.GetById("IceCrystal") and PetsConfig.GetById("IceCrystal").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_GhostFlame = { definitionId = "GhostFlame", level = 1, rarity = (PetsConfig.GetById("GhostFlame") and PetsConfig.GetById("GhostFlame").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_Poison = { definitionId = "Poison", level = 1, rarity = (PetsConfig.GetById("Poison") and PetsConfig.GetById("Poison").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_HealthCore = { definitionId = "HealthCore", level = 1, rarity = (PetsConfig.GetById("HealthCore") and PetsConfig.GetById("HealthCore").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_PowerCore = { definitionId = "PowerCore", level = 1, rarity = (PetsConfig.GetById("PowerCore") and PetsConfig.GetById("PowerCore").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_Shield = { definitionId = "Shield", level = 1, rarity = (PetsConfig.GetById("Shield") and PetsConfig.GetById("Shield").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_BrainBoost = { definitionId = "BrainBoost", level = 1, rarity = (PetsConfig.GetById("BrainBoost") and PetsConfig.GetById("BrainBoost").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_TurboModule = { definitionId = "TurboModule", level = 1, rarity = (PetsConfig.GetById("TurboModule") and PetsConfig.GetById("TurboModule").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_LaunchBooster = { definitionId = "LaunchBooster", level = 1, rarity = (PetsConfig.GetById("LaunchBooster") and PetsConfig.GetById("LaunchBooster").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_Dragon = { definitionId = "Dragon", level = 1, rarity = (PetsConfig.GetById("Dragon") and PetsConfig.GetById("Dragon").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_QuickReload = { definitionId = "QuickReload", level = 1, rarity = (PetsConfig.GetById("QuickReload") and PetsConfig.GetById("QuickReload").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_ThornArmor = { definitionId = "ThornArmor", level = 1, rarity = (PetsConfig.GetById("ThornArmor") and PetsConfig.GetById("ThornArmor").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_RegenBooster = { definitionId = "RegenBooster", level = 1, rarity = (PetsConfig.GetById("RegenBooster") and PetsConfig.GetById("RegenBooster").rarity) or "Common", acquiredAt = 1786924800 },
-			eq_alpha_IdleStealth = { definitionId = "ShadowCloak", level = 1, rarity = (PetsConfig.GetById("ShadowCloak") and PetsConfig.GetById("ShadowCloak").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_Titan = { abilityId = "Titan", level = 1, rarity = (PetsConfig.GetByAbilityId("Titan") and PetsConfig.GetByAbilityId("Titan").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_LastStand = { abilityId = "LastStand", level = 1, rarity = (PetsConfig.GetByAbilityId("LastStand") and PetsConfig.GetByAbilityId("LastStand").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_LauncherBoost = { abilityId = "LauncherBoost", level = 1, rarity = (PetsConfig.GetByAbilityId("LauncherBoost") and PetsConfig.GetByAbilityId("LauncherBoost").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_Lifesteal = { abilityId = "Poison", level = 1, rarity = (PetsConfig.GetByAbilityId("Poison") and PetsConfig.GetByAbilityId("Poison").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_PetBaseBoost = { abilityId = "PetBaseBoost", level = 1, rarity = (PetsConfig.GetByAbilityId("PetBaseBoost") and PetsConfig.GetByAbilityId("PetBaseBoost").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_Burn = { abilityId = "Burn", level = 1, rarity = (PetsConfig.GetByAbilityId("Burn") and PetsConfig.GetByAbilityId("Burn").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_Lifesteal = { abilityId = "Poison", level = 1, rarity = (PetsConfig.GetByAbilityId("Poison") and PetsConfig.GetByAbilityId("Poison").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_MaxHPBoost = { abilityId = "MaxHPBoost", level = 1, rarity = (PetsConfig.GetByAbilityId("MaxHPBoost") and PetsConfig.GetByAbilityId("MaxHPBoost").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_DamageBoost = { abilityId = "DamageBoost", level = 1, rarity = (PetsConfig.GetByAbilityId("DamageBoost") and PetsConfig.GetByAbilityId("DamageBoost").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_AbsorbShield = { abilityId = "AbsorbShield", level = 1, rarity = (PetsConfig.GetByAbilityId("AbsorbShield") and PetsConfig.GetByAbilityId("AbsorbShield").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_ExpBonus = { abilityId = "ExpBonus", level = 1, rarity = (PetsConfig.GetByAbilityId("ExpBonus") and PetsConfig.GetByAbilityId("ExpBonus").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_MoveSpeedBoost = { abilityId = "MoveSpeedBoost", level = 1, rarity = (PetsConfig.GetByAbilityId("MoveSpeedBoost") and PetsConfig.GetByAbilityId("MoveSpeedBoost").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_LaunchBooster = { abilityId = "LaunchBooster", level = 1, rarity = (PetsConfig.GetByAbilityId("LaunchBooster") and PetsConfig.GetByAbilityId("LaunchBooster").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_FullForce = { abilityId = "FullForce", level = 1, rarity = (PetsConfig.GetByAbilityId("FullForce") and PetsConfig.GetByAbilityId("FullForce").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_QuickReload = { abilityId = "QuickReload", level = 1, rarity = (PetsConfig.GetByAbilityId("QuickReload") and PetsConfig.GetByAbilityId("QuickReload").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_ThornArmor = { abilityId = "ThornArmor", level = 1, rarity = (PetsConfig.GetByAbilityId("ThornArmor") and PetsConfig.GetByAbilityId("ThornArmor").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_Regeneration = { abilityId = "Regeneration", level = 1, rarity = (PetsConfig.GetByAbilityId("Regeneration") and PetsConfig.GetByAbilityId("Regeneration").rarity) or "Common", acquiredAt = 1786924800 },
+			eq_alpha_IdleStealth = { abilityId = "IdleStealth", level = 1, rarity = (PetsConfig.GetByAbilityId("IdleStealth") and PetsConfig.GetByAbilityId("IdleStealth").rarity) or "Common", acquiredAt = 1786924800 },
 		},
-		EquippedPets = { [1] = "eq_alpha_Poison", [2] = "eq_alpha_GhostFlame", [3] = "eq_alpha_ThunderHammer" },
+		EquippedPets = { [1] = "eq_alpha_Lifesteal", [2] = "eq_alpha_Burn", [3] = "eq_alpha_LauncherBoost" },
 		OwnedLaunchers = {
 			ln_alpha_normal = { definitionId = "Normalduck", star = 1, level = 2 },
 			ln_alpha_fire = { definitionId = "Drakeduck", star = 3, level = 4, temporaryState = { skin = "TrialRed" } },
