@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 
 local GameStates = require(ReplicatedStorage.Shared.Constants.GameStates)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local PetVisualSignal = require(ReplicatedStorage.Shared.Utils.PetVisualSignal)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 
 local RoundService = {}
@@ -579,6 +580,7 @@ function RoundService:_beginRoundEnd()
 
 	local winner = if #survivors == 1 then survivors[1] else nil
 	if winner then
+		PetVisualSignal.TriggerDance(winner)
 		local feedbackRemote = self._context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback)
 		if feedbackRemote and feedbackRemote:IsA("RemoteEvent") then
 			feedbackRemote:FireClient(winner, {
