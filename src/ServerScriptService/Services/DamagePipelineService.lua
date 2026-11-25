@@ -12,6 +12,7 @@ local PetsConfig = require(ReplicatedStorage.Shared.Config.PetsConfig)
 local PetStatResolver = require(ReplicatedStorage.Shared.Utils.PetStatResolver)
 local ServiceResolver = require(script.Parent.Infrastructure.ServiceResolver)
 local SoundManager = require(ReplicatedStorage.Shared.Utils.SoundManager)
+local PetVisualSignal = require(ReplicatedStorage.Shared.Utils.PetVisualSignal)
 
 type Context = {
 	Services: any,
@@ -133,7 +134,7 @@ function DamagePipelineService.new(context: Context)
 	self._feedbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent
 	self._knockbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.KnockbackReplication) :: RemoteEvent
 	self._pendingSlowTokens = {} :: { [Player]: { [string]: number } }
-	self._absorbShieldStates = {} :: { [Player]: { capacity: number, remaining: number, refreshInterval: number, cycleStartedAt: number } }
+	self._absorbShieldStates = {} :: { [Player]: { capacity: number, remaining: number, refreshInterval: number, cycleStartedAt: number, refreshToken: number } }
 	return self
 end
 
@@ -141,6 +142,15 @@ function DamagePipelineService:Init()
 	Players.PlayerRemoving:Connect(function(player)
 		self._absorbShieldStates[player] = nil
 		self._pendingSlowTokens[player] = nil
+	end)
+	self._context.EventBus:On("PetEquipped", function(player: Player)
+		self:_syncAbsorbShieldState(player)
+	end)
+	self._context.EventBus:On("PetUnequipped", function(player: Player)
+		self:_syncAbsorbShieldState(player)
+	end)
+	self._context.EventBus:On("PetUpdated", function(player: Player)
+		self:_syncAbsorbShieldState(player)
 	end)
 	self._context.EventBus:On("CollisionPlayerKnockback", function(
 		victim: Player,
@@ -320,19 +330,25 @@ function DamagePipelineService:_getIronBodyDamageMultiplier(victim: Player): num
 	return damageMultiplier
 end
 
-function DamagePipelineService:_applyAbsorbShield(victim: Player, incomingDamage: number, bypass: boolean?): number
-	local amount = math.max(0, tonumber(incomingDamage) or 0)
-	if amount <= 0 then return 0 end
-	if bypass == true then return amount end
+function DamagePipelineService:_setAbsorbShieldActive(victim: Player, active: boolean, triggerCast: boolean?)
+	if victim:GetAttribute("PetAbsorbShieldActive") == active then
+		return
+	end
+	victim:SetAttribute("PetAbsorbShieldActive", active)
+	if active and triggerCast == true then
+		PetVisualSignal.TriggerCast(victim, "AbsorbShield")
+	end
+end
 
+function DamagePipelineService:_syncAbsorbShieldState(victim: Player)
 	local capacity = self:_getPetAbilityParams(victim, "AbsorbShield", "absorbCapacity")
 	local refreshInterval = self:_getPetAbilityParams(victim, "AbsorbShield", "refreshInterval")
 	if capacity <= 0 or refreshInterval <= 0 then
 		self._absorbShieldStates[victim] = nil
-		return amount
+		self:_setAbsorbShieldActive(victim, false, false)
+		return
 	end
 
-	local now = os.clock()
 	local shieldState = self._absorbShieldStates[victim]
 	if not shieldState
 		or shieldState.capacity ~= capacity
@@ -341,20 +357,68 @@ function DamagePipelineService:_applyAbsorbShield(victim: Player, incomingDamage
 			capacity = capacity,
 			remaining = capacity,
 			refreshInterval = refreshInterval,
-			cycleStartedAt = now,
+			cycleStartedAt = os.clock(),
+			refreshToken = 0,
 		}
 		self._absorbShieldStates[victim] = shieldState
-	else
-		local elapsed = now - shieldState.cycleStartedAt
-		if elapsed >= refreshInterval then
-			local elapsedCycles = math.floor(elapsed / refreshInterval)
-			shieldState.cycleStartedAt += elapsedCycles * refreshInterval
-			shieldState.remaining = capacity
+		self:_setAbsorbShieldActive(victim, true, true)
+		return
+	end
+
+	self:_setAbsorbShieldActive(victim, shieldState.remaining > 0, false)
+end
+
+function DamagePipelineService:_scheduleAbsorbShieldRefresh(victim: Player, shieldState: any)
+	shieldState.refreshToken = (tonumber(shieldState.refreshToken) or 0) + 1
+	local refreshToken = shieldState.refreshToken
+	local delaySeconds = math.max(0, shieldState.cycleStartedAt + shieldState.refreshInterval - os.clock())
+	task.delay(delaySeconds, function()
+		if victim.Parent == nil
+			or self._absorbShieldStates[victim] ~= shieldState
+			or shieldState.refreshToken ~= refreshToken then
+			return
 		end
+
+		local elapsed = os.clock() - shieldState.cycleStartedAt
+		if elapsed < shieldState.refreshInterval or shieldState.remaining > 0 then
+			return
+		end
+
+		local elapsedCycles = math.max(1, math.floor(elapsed / shieldState.refreshInterval))
+		shieldState.cycleStartedAt += elapsedCycles * shieldState.refreshInterval
+		shieldState.remaining = shieldState.capacity
+		self:_setAbsorbShieldActive(victim, true, true)
+	end)
+end
+
+function DamagePipelineService:_applyAbsorbShield(victim: Player, incomingDamage: number, bypass: boolean?): number
+	local amount = math.max(0, tonumber(incomingDamage) or 0)
+	if amount <= 0 then return 0 end
+	if bypass == true then return amount end
+
+	self:_syncAbsorbShieldState(victim)
+	local shieldState = self._absorbShieldStates[victim]
+	if not shieldState then return amount end
+
+	local now = os.clock()
+	local elapsed = now - shieldState.cycleStartedAt
+	if elapsed >= shieldState.refreshInterval then
+		local wasDepleted = shieldState.remaining <= 0
+		local elapsedCycles = math.floor(elapsed / shieldState.refreshInterval)
+		shieldState.cycleStartedAt += elapsedCycles * shieldState.refreshInterval
+		shieldState.remaining = shieldState.capacity
+		shieldState.refreshToken += 1
+		self:_setAbsorbShieldActive(victim, true, wasDepleted)
 	end
 
 	local absorbed = math.min(amount, shieldState.remaining)
 	shieldState.remaining = math.max(0, shieldState.remaining - absorbed)
+	if shieldState.remaining <= 0 then
+		self:_setAbsorbShieldActive(victim, false, false)
+		self:_scheduleAbsorbShieldRefresh(victim, shieldState)
+	else
+		self:_setAbsorbShieldActive(victim, true, false)
+	end
 	return amount - absorbed
 end
 
