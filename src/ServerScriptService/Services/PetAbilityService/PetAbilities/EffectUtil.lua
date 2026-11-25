@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local PhysicsConfig = require(ReplicatedStorage.Shared.Config.PhysicsConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
+local PetVisualSignal = require(ReplicatedStorage.Shared.Utils.PetVisualSignal)
 
 local EffectUtil = {}
 
@@ -93,6 +94,9 @@ function EffectUtil.ApplyDotFlag(context, victim: Player)
 		DamagePerTick = damagePerTick,
 	})
 	trace(context, string.format("ApplyDotFlag result=%s", tostring(applied)))
+	if applied then
+		PetVisualSignal.TriggerCast(context.player, abilityId)
+	end
 	-- Only apply Poison's optional slow component when a Pet progression
 	-- explicitly opts in. Launcher Poison keeps its separate shared behavior.
 	if flagConfig.SlowAmount and progressionParams.applySlow == true then
@@ -119,14 +123,14 @@ local function ensurePlayerRemovingCleanup()
 	end)
 end
 
-function EffectUtil.ApplyFoodDot(context, food: Model)
+function EffectUtil.ApplyFoodDot(context, food: Model): boolean
 	ensurePlayerRemovingCleanup()
 	local effect = context.definition.combatEffect or {}
 	local abilityId = context.definition.abilityId
 	local flagName = effect.dotFlag or (if abilityId == "Burn" or abilityId == "Poison" then abilityId else nil)
-	if not flagName then return end
+	if not flagName then return false end
 	local foodId = food:GetAttribute("FoodId")
-	if typeof(foodId) ~= "string" then return end
+	if typeof(foodId) ~= "string" then return false end
 	local flagConfig = EffectUtil.GetFlagConfig(flagName)
 	local progressionParams = context.progression and context.progression.abilityParams or {}
 	local duration = math.max(0, tonumber(progressionParams.duration) or tonumber(flagConfig.Duration) or 0)
@@ -147,6 +151,8 @@ function EffectUtil.ApplyFoodDot(context, food: Model)
 		expiresAt = now + duration,
 		instigator = context.player,
 	}
+	PetVisualSignal.TriggerCast(context.player, abilityId)
+	return true
 end
 
 function EffectUtil.TickFoodDots(context)
