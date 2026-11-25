@@ -501,6 +501,13 @@ runTest("Pet_Visual_Cast_Signal_Uses_Changing_Player_Attribute", function()
 	assertEqual(burnSignal ~= poisonSignal, true, "Repeated Cast signals always change the replicated attribute")
 	PetVisualSignal.TriggerCast(mockPlayer, "")
 	assertEqual(mockPlayer:GetAttribute(PetVisualSignal.AttributeName), burnSignal, "Empty AbilityID does not emit a Cast signal")
+
+	PetVisualSignal.TriggerDance(mockPlayer)
+	local firstDanceSequence = mockPlayer:GetAttribute(PetVisualSignal.DanceAttributeName)
+	PetVisualSignal.TriggerDance(mockPlayer)
+	local secondDanceSequence = mockPlayer:GetAttribute(PetVisualSignal.DanceAttributeName)
+	assertEqual(type(firstDanceSequence), "number", "Dance signal is a numeric Player attribute")
+	assertEqual(secondDanceSequence, firstDanceSequence + 1, "Repeated Dance signals always increment")
 end)
 
 runTest("Pet_Ability_Display_Templates_Resolve_All_Placeholders", function()
