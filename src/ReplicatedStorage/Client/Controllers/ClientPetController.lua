@@ -12,6 +12,7 @@ local PetAnimationConfig = require(ReplicatedStorage.Shared.Config.PetAnimationC
 local PetRenderConfig = require(ReplicatedStorage.Shared.Config.PetRenderConfig)
 local RemoteContracts = require(ReplicatedStorage.Shared.RemoteContracts)
 local PawnLocator = require(ReplicatedStorage.Shared.Utils.PawnLocator)
+local PetVisualSignal = require(ReplicatedStorage.Shared.Utils.PetVisualSignal)
 
 local ClientPetController = {}
 ClientPetController.__index = ClientPetController
@@ -35,6 +36,9 @@ type RenderedPet = {
 	model: Model,
 	transparencies: { [Instance]: number },
 	visible: boolean,
+	shieldSphere: BasePart?,
+	shieldSphereTransparency: number?,
+	shieldActive: boolean,
 	tracks: { [string]: AnimationTrack },
 	locomotionState: string?,
 	activeAction: string?,
@@ -136,6 +140,36 @@ local function prepareModel(model: Model): { [Instance]: number }?
 	return transparencies
 end
 
+local function attachSphere(
+	model: Model,
+	rootPart: BasePart,
+	prefab: BasePart?,
+	instanceName: string,
+	transparencies: { [Instance]: number }
+): (BasePart?, number?)
+	if not prefab then return nil, nil end
+
+	local sphere = prefab:Clone()
+	sphere.Name = instanceName
+	sphere.CFrame = rootPart.CFrame
+	sphere.Anchored = false
+	sphere.Massless = true
+	sphere.CanCollide = false
+	sphere.CanTouch = false
+	sphere.CanQuery = false
+	sphere.CastShadow = false
+	sphere.Parent = model
+
+	local weld = Instance.new("WeldConstraint")
+	weld.Name = instanceName .. "Weld"
+	weld.Part0 = rootPart
+	weld.Part1 = sphere
+	weld.Parent = sphere
+
+	local authoredTransparency = sphere.Transparency
+	transparencies[sphere] = authoredTransparency
+	return sphere, authoredTransparency
+end
 
 local function normalizeAnimationId(value: any): string?
 	if type(value) ~= "string" then return nil end
@@ -148,7 +182,7 @@ end
 local function getPetTrackPriority(name: string): Enum.AnimationPriority
 	if name == "Idle" then return Enum.AnimationPriority.Idle end
 	if name == "Run" then return Enum.AnimationPriority.Movement end
-	if name == "Attack" then return Enum.AnimationPriority.Action end
+	if name == "Cast" then return Enum.AnimationPriority.Action end
 	return Enum.AnimationPriority.Action2
 end
 
@@ -161,11 +195,12 @@ local function loadPetAnimationTracks(model: Model, abilityId: string): { [strin
 	local configuredIds: { [string]: string? } = {
 		Idle = animationSet.Idle,
 		Run = animationSet.Run,
-		Attack = animationSet.Attack,
+		Cast = animationSet.Cast,
 		Dance = animationSet.Dance,
 	}
+	local animationNames = { "Idle", "Run", "Cast", "Dance" }
 	local hasConfiguredAnimation = false
-	for _, name in ipairs({ "Idle", "Run", "Attack", "Dance" }) do
+	for _, name in ipairs(animationNames) do
 		if normalizeAnimationId(configuredIds[name]) then
 			hasConfiguredAnimation = true
 			break
@@ -186,7 +221,7 @@ local function loadPetAnimationTracks(model: Model, abilityId: string): { [strin
 	end
 
 	local tracks: { [string]: AnimationTrack } = {}
-	for _, name in ipairs({ "Idle", "Run", "Attack", "Dance" }) do
+	for _, name in ipairs(animationNames) do
 		local animationId = normalizeAnimationId(configuredIds[name])
 		if animationId then
 			local animation = Instance.new("Animation")
@@ -244,6 +279,11 @@ local function playPetAction(rendered: RenderedPet, actionName: string)
 	if not targetTrack then return end
 	if actionName == "Attack" and rendered.activeAction == "Dance" then return end
 
+	local actionPriority = { Cast = 1, Dance = 2 }
+	local currentPriority = actionPriority[rendered.activeAction or ""] or 0
+	local requestedPriority = actionPriority[actionName] or 0
+	if currentPriority > requestedPriority then return end
+
 	stopPetAction(rendered)
 	for _, name in ipairs({ "Idle", "Run" }) do
 		local track = rendered.tracks[name]
@@ -287,12 +327,31 @@ local function setModelVisible(rendered: RenderedPet, visible: boolean)
 	end
 	local rootPart = rendered.model.PrimaryPart
 	if rootPart then rootPart.Transparency = 1 end
+	if rendered.shieldSphere and rendered.shieldSphere.Parent then
+		rendered.shieldSphere.Transparency = if visible and rendered.shieldActive
+			then (rendered.shieldSphereTransparency or 0)
+			else 1
+	end
+end
+
+local function setShieldActive(rendered: RenderedPet, active: boolean)
+	rendered.shieldActive = active
+	local sphere = rendered.shieldSphere
+	if sphere and sphere.Parent then
+		sphere.Transparency = if rendered.visible and active
+			then (rendered.shieldSphereTransparency or 0)
+			else 1
+	end
 end
 
 function ClientPetController.new(player: Player)
 	local self = setmetatable({}, ClientPetController)
 	self._player = player
-	self._assets = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("Pets")
+	local assets = ReplicatedStorage:WaitForChild("Assets")
+	self._assets = assets:WaitForChild("Pets")
+	self._prefabs = assets:FindFirstChild("Prefabs")
+	self._raritySpheres = self._prefabs and self._prefabs:FindFirstChild("RaritySpheres") or nil
+	self._missingSpherePrefabs = {}
 	self._renderFolder = getOrCreateRenderFolder()
 	self._renderedPets = {} :: { [Player]: { [number]: RenderedPet } }
 	self._ownerNear = {} :: { [Player]: boolean }
@@ -401,6 +460,41 @@ function ClientPetController:_createPet(owner: Player, slot: number, instanceId:
 		model:Destroy()
 		return nil
 	end
+
+	local rootPart = model.PrimaryPart
+	if not rootPart then
+		warn(string.format("[CLIENT_PET] %s has no PrimaryPart after RootPart validation", model.Name))
+		model:Destroy()
+		return nil
+	end
+
+	local raritySphereName = tostring(definition.rarity or "") .. "Sphere"
+	local rarityPrefab = self._raritySpheres and self._raritySpheres:FindFirstChild(raritySphereName)
+	if rarityPrefab and rarityPrefab:IsA("BasePart") then
+		attachSphere(model, rootPart, rarityPrefab, "RaritySphere", transparencies)
+	elseif not self._missingSpherePrefabs[raritySphereName] then
+		warn(string.format("[CLIENT_PET_VISUAL] Missing BasePart prefab Assets.Prefabs.RaritySpheres.%s", raritySphereName))
+		self._missingSpherePrefabs[raritySphereName] = true
+	end
+
+	local shieldSphere: BasePart? = nil
+	local shieldSphereTransparency: number? = nil
+	local shieldActive = false
+	if abilityId == "AbsorbShield" then
+		local shieldPrefab = self._prefabs and self._prefabs:FindFirstChild("ShieldSphere")
+		if shieldPrefab and shieldPrefab:IsA("BasePart") then
+			shieldSphere, shieldSphereTransparency = attachSphere(model, rootPart, shieldPrefab, "ShieldSphere", transparencies)
+			local serverShieldState = owner:GetAttribute("PetAbsorbShieldActive")
+			shieldActive = if type(serverShieldState) == "boolean" then serverShieldState else true
+			if shieldSphere then
+				shieldSphere.Transparency = if shieldActive then (shieldSphereTransparency or 0) else 1
+			end
+		elseif not self._missingSpherePrefabs.ShieldSphere then
+			warn("[CLIENT_PET_VISUAL] Missing BasePart prefab Assets.Prefabs.ShieldSphere")
+			self._missingSpherePrefabs.ShieldSphere = true
+		end
+	end
+
 	model.Parent = self._renderFolder
 	local rendered: RenderedPet = {
 		instanceId = instanceId,
@@ -408,6 +502,9 @@ function ClientPetController:_createPet(owner: Player, slot: number, instanceId:
 		model = model,
 		transparencies = transparencies,
 		visible = true,
+		shieldSphere = shieldSphere,
+		shieldSphereTransparency = shieldSphereTransparency,
+		shieldActive = shieldActive,
 		tracks = loadPetAnimationTracks(model, abilityId),
 		locomotionState = nil,
 		activeAction = nil,
@@ -479,6 +576,12 @@ function ClientPetController:_watchPlayer(player: Player)
 	table.insert(connections, player:GetAttributeChangedSignal("State"):Connect(function()
 		self:_reconcileOwner(player)
 	end))
+	table.insert(connections, player:GetAttributeChangedSignal(PetVisualSignal.AttributeName):Connect(function()
+		self:_playAbilityCast(player)
+	end))
+	table.insert(connections, player:GetAttributeChangedSignal("PetAbsorbShieldActive"):Connect(function()
+		self:_refreshOwnerShieldVisibility(player)
+	end))
 	table.insert(connections, player.CharacterAdded:Connect(function()
 		self:_reconcileOwner(player)
 	end))
@@ -506,6 +609,30 @@ function ClientPetController:_playVictoryDance()
 	if not ownerPets then return end
 	for _, rendered in pairs(ownerPets) do
 		playPetAction(rendered, "Dance")
+	end
+end
+
+function ClientPetController:_playAbilityCast(owner: Player)
+	local abilityId = PetVisualSignal.DecodeCast(owner:GetAttribute(PetVisualSignal.AttributeName))
+	if not abilityId then return end
+	local ownerPets = self._renderedPets[owner]
+	if not ownerPets then return end
+	for _, rendered in pairs(ownerPets) do
+		if rendered.abilityId == abilityId then
+			playPetAction(rendered, "Cast")
+		end
+	end
+end
+
+function ClientPetController:_refreshOwnerShieldVisibility(owner: Player)
+	local ownerPets = self._renderedPets[owner]
+	if not ownerPets then return end
+	local serverShieldState = owner:GetAttribute("PetAbsorbShieldActive")
+	local active = if type(serverShieldState) == "boolean" then serverShieldState else true
+	for _, rendered in pairs(ownerPets) do
+		if rendered.abilityId == "AbsorbShield" then
+			setShieldActive(rendered, active)
+		end
 	end
 end
 
@@ -596,7 +723,7 @@ function ClientPetController:Start()
 	local gameplayFeedback = remotes:WaitForChild(RemoteContracts.Names.GameplayFeedback)
 	if gameplayFeedback:IsA("RemoteEvent") then
 		table.insert(self._connections, gameplayFeedback.OnClientEvent:Connect(function(message)
-			if type(message) == "table" and message.EventType == "RoundVictory" then
+			if type(message) == "table" and (message.EventType == "RoundVictory" or message.EventType == "PlayerKill") then
 				self:_playVictoryDance()
 			end
 		end))
