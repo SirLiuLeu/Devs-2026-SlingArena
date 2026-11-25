@@ -17,6 +17,7 @@ local PetProgression = require(ReplicatedStorage.Shared.Utils.PetProgression)
 local PetDisplayFormatter = require(ReplicatedStorage.Shared.Utils.PetDisplayFormatter)
 local DamagePipelineService = require(script.Parent.Parent.Services.DamagePipelineService)
 local PetAnimationConfig = require(ReplicatedStorage.Shared.Config.PetAnimationConfig)
+local PetVisualSignal = require(ReplicatedStorage.Shared.Utils.PetVisualSignal)
 local FoodConfig = require(script.Parent.Parent.Config.FoodConfig)
 local PlayerDataService = require(script.Parent.Parent.Services.PlayerDataService)
 local MockProvider = require(script.Parent.Parent.Services.DataProviders.MockProvider)
@@ -215,7 +216,14 @@ runTest("Pet_Linear_Cost_And_Rarity_Multipliers", function()
 end)
 
 runTest("DamagePipeline_Uses_Pet_AbilityIDs_For_Lifesteal_And_Conditional_Damage", function()
-	local player = {} :: any
+	local playerAttributes: { [string]: any } = {}
+	local player: any = {}
+	function player:GetAttribute(attributeName: string): any
+		return playerAttributes[attributeName]
+	end
+	function player:SetAttribute(attributeName: string, value: any)
+		playerAttributes[attributeName] = value
+	end
 	local ownedPets = {
 		lifesteal = { abilityId = "Lifesteal", level = 1, rarity = "Rare", acquiredAt = 1 },
 		poison = { abilityId = "Poison", level = 1, rarity = "Rare", acquiredAt = 1 },
@@ -463,7 +471,32 @@ runTest("Pet_Animation_Config_Uses_The_Pet_AbilityID_Catalog", function()
 	assertEqual(PetAnimationConfig.Animations.Hydra, nil, "Model name is not an animation key")
 	assertEqual(PetAnimationConfig.Animations.IronBody ~= nil, true, "Elephant IronBody has an animation row")
 	assertEqual(PetAnimationConfig.Animations.AbsorbShield ~= nil, true, "Unicorn AbsorbShield has an animation row")
+	assertEqual(PetAnimationConfig.Animations.Poison.Cast ~= nil, true, "Snake has a Cast animation slot")
+	assertEqual(PetAnimationConfig.Animations.Burn.Cast ~= nil, true, "Phoenix has a Cast animation slot")
+	assertEqual(PetAnimationConfig.Animations.AbsorbShield.Cast ~= nil, true, "Unicorn has a Cast animation slot")
 	assertEqual(PetAnimationConfig.Animations.IdleStealth, nil, "Retired IdleStealth animation row is removed")
+end)
+
+runTest("Pet_Visual_Cast_Signal_Uses_Changing_Player_Attribute", function()
+	local attributes: { [string]: any } = {}
+	local mockPlayer: any = {}
+	function mockPlayer:GetAttribute(attributeName: string): any
+		return attributes[attributeName]
+	end
+	function mockPlayer:SetAttribute(attributeName: string, value: any)
+		attributes[attributeName] = value
+	end
+
+	PetVisualSignal.TriggerCast(mockPlayer, "Poison")
+	local poisonSignal = mockPlayer:GetAttribute(PetVisualSignal.AttributeName)
+	assertEqual(PetVisualSignal.DecodeCast(poisonSignal), "Poison", "Snake Cast signal decodes its AbilityID")
+
+	PetVisualSignal.TriggerCast(mockPlayer, "Burn")
+	local burnSignal = mockPlayer:GetAttribute(PetVisualSignal.AttributeName)
+	assertEqual(PetVisualSignal.DecodeCast(burnSignal), "Burn", "Phoenix Cast signal decodes its AbilityID")
+	assertEqual(burnSignal ~= poisonSignal, true, "Repeated Cast signals always change the replicated attribute")
+	PetVisualSignal.TriggerCast(mockPlayer, "")
+	assertEqual(mockPlayer:GetAttribute(PetVisualSignal.AttributeName), burnSignal, "Empty AbilityID does not emit a Cast signal")
 end)
 
 runTest("Pet_Ability_Display_Templates_Resolve_All_Placeholders", function()
