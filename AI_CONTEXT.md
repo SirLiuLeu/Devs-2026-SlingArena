@@ -87,7 +87,7 @@
 | `PetAbilityProgressionConfig.lua` | Numeric ability parameters keyed by AbilityID at levels 1/5/10/15/20 and interpolated extension milestones 25/30/35/40/45/50. Player-facing text is owned by `PetAbilityDisplayConfig.lua`. | `PetProgression`, `PetDisplayFormatter` |
 | `PetAbilityDisplayConfig.lua` | Localized descriptions keyed by canonical Pet `abilityId`; does not own gameplay tuning. | `PetDisplayFormatter`, `PetInventoryUIController` |
 | `PetPreviewConfig.lua` | Per-AbilityID viewport camera `Rotation` and `Offset`, accessed through `Get(abilityId)`. | `PetInventoryUIController`, `ShopUIController`, `PreviewRenderer` |
-| `PetAnimationConfig.lua` | Per-AbilityID idle, run, optional attack, and victory-dance animation asset IDs; blank IDs disable tracks until configured. | `ClientPetController` |
+| `PetAnimationConfig.lua` | Per-AbilityID Idle, Run, Cast, and Dance animation asset IDs; blank IDs disable tracks until configured. Cast is used by Unicorn (AbsorbShield), Phoenix (Burn), and Snake (Poison). | `ClientPetController` |
 | `PurchasePetConfig.lua` | Server-owned development Diamond prices for all Pet definitions available in Shop. | `ShopService`, `MockData` |
 | `PetRenderConfig.lua` | Client-side nearby Pet render distance, range-check interval, and exit hysteresis. | `ClientPetController` |
 | `LauncherPreviewConfig.lua` | Per-Launcher viewport camera `Rotation`, `Offset`, and preview `Scale`, accessed through `Get(launcherId)`. | `LauncherInventoryUIController`, `PreviewRenderer` |
