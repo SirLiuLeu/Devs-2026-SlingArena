@@ -94,7 +94,7 @@ function EffectUtil.ApplyDotFlag(context, victim: Player)
 		DamagePerTick = damagePerTick,
 	})
 	trace(context, string.format("ApplyDotFlag result=%s", tostring(applied)))
-	if applied then
+	if applied and (abilityId == "Poison" or abilityId == "Burn") then
 		PetVisualSignal.TriggerCast(context.player, abilityId)
 	end
 	-- Only apply Poison's optional slow component when a Pet progression
@@ -151,7 +151,9 @@ function EffectUtil.ApplyFoodDot(context, food: Model): boolean
 		expiresAt = now + duration,
 		instigator = context.player,
 	}
-	PetVisualSignal.TriggerCast(context.player, abilityId)
+	if abilityId == "Poison" or abilityId == "Burn" then
+		PetVisualSignal.TriggerCast(context.player, abilityId)
+	end
 	return true
 end
 
