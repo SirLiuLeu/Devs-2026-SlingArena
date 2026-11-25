@@ -578,6 +578,9 @@ function ClientPetController:_watchPlayer(player: Player)
 	table.insert(connections, player:GetAttributeChangedSignal(PetVisualSignal.AttributeName):Connect(function()
 		self:_playAbilityCast(player)
 	end))
+	table.insert(connections, player:GetAttributeChangedSignal(PetVisualSignal.DanceAttributeName):Connect(function()
+		self:_playVictoryDance(player)
+	end))
 	table.insert(connections, player:GetAttributeChangedSignal("PetAbsorbShieldActive"):Connect(function()
 		self:_refreshOwnerShieldVisibility(player)
 	end))
@@ -603,8 +606,9 @@ function ClientPetController:_unwatchPlayer(player: Player)
 end
 
 
-function ClientPetController:_playVictoryDance()
-	local ownerPets = self._renderedPets[self._player]
+function ClientPetController:_playVictoryDance(owner: Player?)
+	local danceOwner = owner or self._player
+	local ownerPets = self._renderedPets[danceOwner]
 	if not ownerPets then return end
 	for _, rendered in pairs(ownerPets) do
 		playPetAction(rendered, "Dance")
