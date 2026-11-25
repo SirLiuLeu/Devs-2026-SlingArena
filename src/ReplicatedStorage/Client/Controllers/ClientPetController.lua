@@ -277,6 +277,7 @@ end
 local function playPetAction(rendered: RenderedPet, actionName: string)
 	local targetTrack = rendered.tracks[actionName]
 	if not targetTrack then return end
+	if rendered.activeAction == actionName and targetTrack.IsPlaying then return end
 	local actionPriority = { Cast = 1, Dance = 2 }
 	local currentPriority = actionPriority[rendered.activeAction or ""] or 0
 	local requestedPriority = actionPriority[actionName] or 0
