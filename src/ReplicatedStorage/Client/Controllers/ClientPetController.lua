@@ -36,14 +36,16 @@ type RenderedPet = {
 	model: Model,
 	transparencies: { [Instance]: number },
 	visible: boolean,
-	shieldSphere: BasePart?,
-	shieldSphereTransparency: number?,
-	shieldActive: boolean,
 	tracks: { [string]: AnimationTrack },
 	locomotionState: string?,
 	activeAction: string?,
 	isMoving: boolean,
 	actionStoppedConnection: RBXScriptConnection?,
+}
+
+type RenderedPlayerShield = {
+	rootPart: BasePart,
+	sphere: BasePart,
 }
 
 local function getOrCreateRenderFolder(): Folder
@@ -326,21 +328,6 @@ local function setModelVisible(rendered: RenderedPet, visible: boolean)
 	end
 	local rootPart = rendered.model.PrimaryPart
 	if rootPart then rootPart.Transparency = 1 end
-	if rendered.shieldSphere and rendered.shieldSphere.Parent then
-		rendered.shieldSphere.Transparency = if visible and rendered.shieldActive
-			then (rendered.shieldSphereTransparency or 0)
-			else 1
-	end
-end
-
-local function setShieldActive(rendered: RenderedPet, active: boolean)
-	rendered.shieldActive = active
-	local sphere = rendered.shieldSphere
-	if sphere and sphere.Parent then
-		sphere.Transparency = if rendered.visible and active
-			then (rendered.shieldSphereTransparency or 0)
-			else 1
-	end
 end
 
 function ClientPetController.new(player: Player)
@@ -353,6 +340,7 @@ function ClientPetController.new(player: Player)
 	self._missingSpherePrefabs = {}
 	self._renderFolder = getOrCreateRenderFolder()
 	self._renderedPets = {} :: { [Player]: { [number]: RenderedPet } }
+	self._renderedShields = {} :: { [Player]: RenderedPlayerShield }
 	self._ownerNear = {} :: { [Player]: boolean }
 	self._ownerLastPositions = {} :: { [Player]: Vector3 }
 	self._ownerConnections = {} :: { [Player]: { RBXScriptConnection } }
@@ -424,7 +412,69 @@ function ClientPetController:_destroyPet(owner: Player, slot: number)
 	end
 end
 
+function ClientPetController:_destroyOwnerShield(owner: Player)
+	local renderedShield = self._renderedShields[owner]
+	if renderedShield then
+		if renderedShield.sphere.Parent then
+			renderedShield.sphere:Destroy()
+		end
+		self._renderedShields[owner] = nil
+	end
+end
+
+function ClientPetController:_reconcileOwnerShield(owner: Player)
+	local isShieldActive = owner:GetAttribute("PetAbsorbShieldActive") == true
+	if not isShieldActive or owner.Parent ~= Players or not self:_isOwnerNearLocalPlayer(owner) then
+		self:_destroyOwnerShield(owner)
+		return
+	end
+
+	local rootPart = self:_getRoot(owner)
+	if not rootPart or rootPart.Parent == nil then
+		self:_destroyOwnerShield(owner)
+		return
+	end
+
+	local current = self._renderedShields[owner]
+	if current and current.rootPart == rootPart and current.sphere.Parent then
+		return
+	end
+	self:_destroyOwnerShield(owner)
+
+	local shieldPrefab = self._prefabs and self._prefabs:FindFirstChild("ShieldSphere")
+	if not shieldPrefab or not shieldPrefab:IsA("BasePart") then
+		if not self._missingSpherePrefabs.ShieldSphere then
+			warn("[CLIENT_PET_VISUAL] Missing BasePart prefab Assets.Prefabs.ShieldSphere")
+			self._missingSpherePrefabs.ShieldSphere = true
+		end
+		return
+	end
+
+	local sphere = shieldPrefab:Clone()
+	sphere.Name = string.format("PlayerShieldSphere_%d", owner.UserId)
+	sphere.CFrame = rootPart.CFrame
+	sphere.Anchored = false
+	sphere.Massless = true
+	sphere.CanCollide = false
+	sphere.CanTouch = false
+	sphere.CanQuery = false
+	sphere.CastShadow = false
+	sphere.Parent = self._renderFolder
+
+	local weld = Instance.new("WeldConstraint")
+	weld.Name = "PlayerShieldSphereWeld"
+	weld.Part0 = rootPart
+	weld.Part1 = sphere
+	weld.Parent = sphere
+
+	self._renderedShields[owner] = {
+		rootPart = rootPart,
+		sphere = sphere,
+	}
+end
+
 function ClientPetController:_destroyOwnerModels(owner: Player)
+	self:_destroyOwnerShield(owner)
 	local ownerPets = self._renderedPets[owner]
 	if ownerPets then
 		local slots = {}
@@ -476,24 +526,6 @@ function ClientPetController:_createPet(owner: Player, slot: number, instanceId:
 		self._missingSpherePrefabs[raritySphereName] = true
 	end
 
-	local shieldSphere: BasePart? = nil
-	local shieldSphereTransparency: number? = nil
-	local shieldActive = false
-	if abilityId == "AbsorbShield" then
-		local shieldPrefab = self._prefabs and self._prefabs:FindFirstChild("ShieldSphere")
-		if shieldPrefab and shieldPrefab:IsA("BasePart") then
-			shieldSphere, shieldSphereTransparency = attachSphere(model, rootPart, shieldPrefab, "ShieldSphere", transparencies)
-			local serverShieldState = owner:GetAttribute("PetAbsorbShieldActive")
-			shieldActive = if type(serverShieldState) == "boolean" then serverShieldState else true
-			if shieldSphere then
-				shieldSphere.Transparency = if shieldActive then (shieldSphereTransparency or 0) else 1
-			end
-		elseif not self._missingSpherePrefabs.ShieldSphere then
-			warn("[CLIENT_PET_VISUAL] Missing BasePart prefab Assets.Prefabs.ShieldSphere")
-			self._missingSpherePrefabs.ShieldSphere = true
-		end
-	end
-
 	model.Parent = self._renderFolder
 	local rendered: RenderedPet = {
 		instanceId = instanceId,
@@ -501,9 +533,6 @@ function ClientPetController:_createPet(owner: Player, slot: number, instanceId:
 		model = model,
 		transparencies = transparencies,
 		visible = true,
-		shieldSphere = shieldSphere,
-		shieldSphereTransparency = shieldSphereTransparency,
-		shieldActive = shieldActive,
 		tracks = loadPetAnimationTracks(model, abilityId),
 		locomotionState = nil,
 		activeAction = nil,
@@ -524,6 +553,7 @@ function ClientPetController:_reconcileOwner(owner: Player)
 		return
 	end
 
+	self:_reconcileOwnerShield(owner)
 	self._renderedPets[owner] = self._renderedPets[owner] or {}
 	for slot = 1, PetsConfig.EquippedSlotCount do
 		local instanceId, abilityId = self:_getDesiredPet(owner, slot)
@@ -582,12 +612,13 @@ function ClientPetController:_watchPlayer(player: Player)
 		self:_playVictoryDance(player)
 	end))
 	table.insert(connections, player:GetAttributeChangedSignal("PetAbsorbShieldActive"):Connect(function()
-		self:_refreshOwnerShieldVisibility(player)
+		self:_reconcileOwnerShield(player)
 	end))
 	table.insert(connections, player.CharacterAdded:Connect(function()
 		self:_reconcileOwner(player)
 	end))
 	table.insert(connections, player.CharacterRemoving:Connect(function()
+		self:_destroyOwnerShield(player)
 		if player ~= self._player then self:_destroyOwnerModels(player) end
 	end))
 	self._ownerConnections[player] = connections
@@ -627,24 +658,13 @@ function ClientPetController:_playAbilityCast(owner: Player)
 	end
 end
 
-function ClientPetController:_refreshOwnerShieldVisibility(owner: Player)
-	local ownerPets = self._renderedPets[owner]
-	if not ownerPets then return end
-	local serverShieldState = owner:GetAttribute("PetAbsorbShieldActive")
-	local active = if type(serverShieldState) == "boolean" then serverShieldState else true
-	for _, rendered in pairs(ownerPets) do
-		if rendered.abilityId == "AbsorbShield" then
-			setShieldActive(rendered, active)
-		end
-	end
-end
-
 function ClientPetController:_render(deltaTime: number)
 	self._rangeCheckElapsed += deltaTime
 	if self._rangeCheckElapsed >= PetRenderConfig.NearbyRangeCheckInterval then
 		self._rangeCheckElapsed = 0
 		for _, player in ipairs(Players:GetPlayers()) do
 			self:_reconcileOwner(player)
+			self:_reconcileOwnerShield(player)
 		end
 	end
 
