@@ -664,7 +664,6 @@ function ClientPetController:_render(deltaTime: number)
 		self._rangeCheckElapsed = 0
 		for _, player in ipairs(Players:GetPlayers()) do
 			self:_reconcileOwner(player)
-			self:_reconcileOwnerShield(player)
 		end
 	end
 
