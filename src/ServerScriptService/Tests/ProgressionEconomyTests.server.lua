@@ -275,6 +275,10 @@ runTest("DamagePipeline_Uses_Pet_AbilityIDs_For_Lifesteal_And_Conditional_Damage
 	service._absorbShieldStates = {}
 	assertNear(service:_applyAbsorbShield(player, 1000, true), 1000, "Bypassed damage does not consume AbsorbShield capacity")
 	assertNear(service:_applyAbsorbShield(player, 1000, false), 0, "AbsorbShield blocks damage when no bypass applies")
+	assertEqual(playerAttributes.PetAbsorbShieldActive, true, "AbsorbShield publishes an active visual state")
+	assertEqual(PetVisualSignal.DecodeCast(playerAttributes[PetVisualSignal.AttributeName]), "AbsorbShield", "Unicorn activation publishes a Cast signal")
+	assertNear(service:_applyAbsorbShield(player, 4000, false), 0, "Remaining AbsorbShield capacity is consumed exactly")
+	assertEqual(playerAttributes.PetAbsorbShieldActive, false, "Depleted AbsorbShield publishes an inactive visual state")
 end)
 
 runTest("Pet_Ability_Milestones_Reach_80_And_100_Percent", function()
