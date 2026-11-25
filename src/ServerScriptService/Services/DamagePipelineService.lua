@@ -819,6 +819,7 @@ function DamagePipelineService:HandlePlayerDeath(player: Player)
 	if killer then
 		self._context.EventBus:Fire("PlayerKilled", killer, player)
 		if killer ~= player then
+			PetVisualSignal.TriggerDance(killer)
 			self:_sendFeedback(killer, "PlayerKill", { Victim = player.Name })
 		end
 		playerStateService:ClearLastAttacker(player)
