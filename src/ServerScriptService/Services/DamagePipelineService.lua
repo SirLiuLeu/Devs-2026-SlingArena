@@ -134,7 +134,7 @@ function DamagePipelineService.new(context: Context)
 	self._feedbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.GameplayFeedback) :: RemoteEvent
 	self._knockbackRemote = context.Remotes:FindFirstChild(RemoteContracts.Names.KnockbackReplication) :: RemoteEvent
 	self._pendingSlowTokens = {} :: { [Player]: { [string]: number } }
-	self._absorbShieldStates = {} :: { [Player]: { capacity: number, remaining: number, refreshInterval: number, cycleStartedAt: number, refreshToken: number } }
+	self._absorbShieldStates = {} :: { [Player]: { capacity: number, remaining: number, refreshInterval: number, cycleStartedAt: number, refreshToken: number, refreshScheduled: boolean } }
 	return self
 end
 
@@ -359,6 +359,7 @@ function DamagePipelineService:_syncAbsorbShieldState(victim: Player)
 			refreshInterval = refreshInterval,
 			cycleStartedAt = os.clock(),
 			refreshToken = 0,
+			refreshScheduled = false,
 		}
 		self._absorbShieldStates[victim] = shieldState
 		self:_setAbsorbShieldActive(victim, true, true)
@@ -369,6 +370,8 @@ function DamagePipelineService:_syncAbsorbShieldState(victim: Player)
 end
 
 function DamagePipelineService:_scheduleAbsorbShieldRefresh(victim: Player, shieldState: any)
+	if shieldState.refreshScheduled == true then return end
+	shieldState.refreshScheduled = true
 	shieldState.refreshToken = (tonumber(shieldState.refreshToken) or 0) + 1
 	local refreshToken = shieldState.refreshToken
 	local delaySeconds = math.max(0, shieldState.cycleStartedAt + shieldState.refreshInterval - os.clock())
@@ -379,8 +382,11 @@ function DamagePipelineService:_scheduleAbsorbShieldRefresh(victim: Player, shie
 			return
 		end
 
+		shieldState.refreshScheduled = false
 		local elapsed = os.clock() - shieldState.cycleStartedAt
-		if elapsed < shieldState.refreshInterval or shieldState.remaining > 0 then
+		if shieldState.remaining > 0 then return end
+		if elapsed < shieldState.refreshInterval then
+			self:_scheduleAbsorbShieldRefresh(victim, shieldState)
 			return
 		end
 
@@ -408,6 +414,7 @@ function DamagePipelineService:_applyAbsorbShield(victim: Player, incomingDamage
 		shieldState.cycleStartedAt += elapsedCycles * shieldState.refreshInterval
 		shieldState.remaining = shieldState.capacity
 		shieldState.refreshToken += 1
+		shieldState.refreshScheduled = false
 		self:_setAbsorbShieldActive(victim, true, wasDepleted)
 	end
 
